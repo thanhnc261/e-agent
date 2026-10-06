@@ -1,6 +1,6 @@
 # ADR 0009: rule inventory declares an enforcement engine per rule
 
-Date: 2026-10-06. Status: Proposed.
+Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06).
 
 ## Context
 

@@ -25,7 +25,7 @@ The expanded scope adds frontend event transport, Odoo addon packaging, analytic
 
 ## Follow-up decisions
 
-The [2026-10-06 architecture review](../reviews/2026-10-06-architecture-review.md) refines this ADR's technology selections in proposed ADRs 0002–0010 (see [index](README.md)). The HLD and MVP design were updated to reference this ADR's scope. The pending overlay placement is addressed by proposed [ADR 0011](0011-layered-replaceable-ui.md): a system-neutral standalone app plus an overlay embeddable in any web page, with system-specific host adapters optional.
+The [2026-10-06 architecture review](../reviews/2026-10-06-architecture-review.md) refines this ADR's technology selections in ADRs 0002–0013 (see [index](README.md)). The HLD and MVP design were updated to reference this ADR's scope. The pending overlay placement is addressed by [ADR 0011](0011-layered-replaceable-ui.md): a system-neutral standalone app plus an overlay embeddable in any web page, with system-specific host adapters optional.
 
 ## Verification
 

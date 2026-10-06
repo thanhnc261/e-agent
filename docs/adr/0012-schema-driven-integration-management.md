@@ -1,6 +1,6 @@
 # ADR 0012: schema-driven integration, connection and credential management
 
-Date: 2026-10-06. Status: Proposed. Extends HLD §5 and ADR 0011.
+Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06). Extends HLD §5 and ADR 0011.
 
 ## Context
 

@@ -1,6 +1,6 @@
 # ADR 0006: approval digest uses an RFC 8785 (JCS) profile
 
-Date: 2026-10-06. Status: Proposed.
+Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06).
 
 ## Context
 

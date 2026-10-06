@@ -1,6 +1,6 @@
 # ADR 0002: capability naming by business context; domain pack structure
 
-Date: 2026-10-06. Status: Proposed.
+Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06).
 
 ## Context
 

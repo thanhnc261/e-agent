@@ -10,7 +10,7 @@ A plugin-driven enterprise agent application designed for governed business acti
 |---|---|
 | [High-level design](docs/high-level-design.md) | Architecture, package boundaries, multi-domain support, knowledge evolution and deployment |
 | [MVP detailed design](docs/mvp-detailed-design.md) | Procurement workflow, contracts, state machines, persistence, approvals, recovery and acceptance tests |
-| [Implementation plan](docs/implementation-plan.md) and [ADRs](docs/adr/README.md) | Accepted scope (ADR 0001), proposed decisions and work packages |
+| [Implementation plan](docs/implementation-plan.md) and [ADRs](docs/adr/README.md) | Accepted scope and decisions (ADRs 0001–0013) and work packages |
 | [Documentation index](docs/README.md) | Design reading order and decision conventions |
 | [Research](research/README.md) | Industry sources, ontology research, enterprise controls and architecture reviews |
 | [AGENTS.md](AGENTS.md) / [CLAUDE.md](CLAUDE.md) | Instructions for coding agents working on this project |

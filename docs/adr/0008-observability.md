@@ -1,6 +1,6 @@
 # ADR 0008: OpenTelemetry with GenAI conventions, separate from evidence
 
-Date: 2026-10-06. Status: Proposed.
+Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06).
 
 ## Context
 

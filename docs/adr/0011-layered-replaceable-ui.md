@@ -1,6 +1,6 @@
 # ADR 0011: layered, themeable and replaceable UI over a shared headless core
 
-Date: 2026-10-06. Status: Proposed. Refines ADR 0001 (streaming overlay UI) and builds on ADR 0007 (event stream contract).
+Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06). Refines ADR 0001 (streaming overlay UI) and builds on ADR 0007 (event stream contract).
 
 ## Context
 

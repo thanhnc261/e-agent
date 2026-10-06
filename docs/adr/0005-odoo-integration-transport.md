@@ -1,6 +1,6 @@
 # ADR 0005: Odoo 19 JSON-2 transport and transactional bridge commands
 
-Date: 2026-10-06. Status: Proposed. Refines ADR 0001 (bridge addon permitted).
+Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06). Refines ADR 0001 (bridge addon permitted).
 
 ## Context
 

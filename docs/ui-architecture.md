@@ -1,6 +1,6 @@
 # UI architecture: layered, themeable and replaceable
 
-**Date:** 2026-10-06. **Status:** proposed design ([ADR 0011](adr/0011-layered-replaceable-ui.md)); nothing is implemented. It refines the overlay UI that [ADR 0001](adr/0001-local-mvp-scope.md) puts in the MVP and builds on the stream contract in [ADR 0007](adr/0007-run-event-stream-contract.md).
+**Date:** 2026-10-06. **Status:** accepted design ([ADR 0011](adr/0011-layered-replaceable-ui.md)); nothing is implemented. It refines the overlay UI that [ADR 0001](adr/0001-local-mvp-scope.md) puts in the MVP and builds on the stream contract in [ADR 0007](adr/0007-run-event-stream-contract.md).
 
 ## 1. Goal
 

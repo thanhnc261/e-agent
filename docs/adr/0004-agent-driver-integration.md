@@ -1,6 +1,6 @@
 # ADR 0004: Pydantic AI 2.x driver — deferred-only writes and continuation hygiene
 
-Date: 2026-10-06. Status: Proposed. Refines ADR 0001 (Pydantic AI + Ollama selected).
+Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06). Refines ADR 0001 (Pydantic AI + Ollama selected).
 
 ## Context
 

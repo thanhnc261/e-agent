@@ -1,6 +1,6 @@
 # Integration auth SDK: credentials and authentication for every integration
 
-**Date:** 2026-10-06. **Status:** proposed detailed design ([ADR 0013](adr/0013-integration-auth-sdk-and-delegated-connections.md)); nothing is implemented. It refines [integration management](integration-management.md) (ADR 0012). Admin and user pages are **Phase 2**; the MVP implements only the subset in §11.
+**Date:** 2026-10-06. **Status:** accepted design ([ADR 0013](adr/0013-integration-auth-sdk-and-delegated-connections.md)); nothing is implemented. It refines [integration management](integration-management.md) (ADR 0012). Admin and user pages are **Phase 2**; the MVP implements only the subset in §11.
 
 ## 1. Goal
 

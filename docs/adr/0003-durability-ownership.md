@@ -1,6 +1,6 @@
 # ADR 0003: kernel ledger owns side-effect durability; no framework durability in MVP
 
-Date: 2026-10-06. Status: Proposed.
+Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06).
 
 ## Context
 

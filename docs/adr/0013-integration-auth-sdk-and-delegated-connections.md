@@ -1,6 +1,6 @@
 # ADR 0013: integration auth SDK, tenant app registrations and user-delegated connections
 
-Date: 2026-10-06. Status: Proposed. Refines ADR 0012.
+Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06). Refines ADR 0012.
 
 ## Context
 

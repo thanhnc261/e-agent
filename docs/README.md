@@ -7,7 +7,7 @@ These documents define the implementation baseline for e-agent. They describe pl
 | [High-level design](high-level-design.md) | Product boundaries, components, dependencies, trust, knowledge architecture, evolution and delivery phases |
 | [MVP detailed design](mvp-detailed-design.md) | Procurement workflow, contracts, plugin registration, persistence, execution states, recovery, APIs and acceptance gates |
 | [Implementation plan](implementation-plan.md) | Task catalog, work packages, gates and local/CI test policy |
-| [ADR index](adr/README.md) | Accepted and proposed architecture decisions, template |
+| [ADR index](adr/README.md) | Architecture decisions (all current ones accepted) and template |
 | [UI architecture](ui-architecture.md) | Layered default UI with theme, layout, component and whole-UI replacement; conformance suite |
 | [Integration management](integration-management.md) | Generic connections, credentials, OAuth and admin pages with no provider-specific UI |
 | [Integration auth SDK](integration-auth-sdk.md) | Auth methods, SDK API, tenant app registrations, user-delegated connections, OAuth and API-key flows |

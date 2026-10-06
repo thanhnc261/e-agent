@@ -1,6 +1,6 @@
 # MVP threat model
 
-**Date:** 2026-10-06. **Status:** proposed; covers the ADR 0001 scope (local Pydantic AI + Ollama driver, Odoo 19 bridge, streaming overlay, BigQuery read templates). The generic control matrix lives in [research 04](../research/04-enterprise-controls-and-roadmap.md). This document is narrower: it lists the threats this MVP's architecture actually exposes and the test that shows each mitigation works. No mitigation here is implemented yet.
+**Date:** 2026-10-06. **Status:** accepted baseline; covers the ADR 0001 scope (local Pydantic AI + Ollama driver, Odoo 19 bridge, streaming overlay, BigQuery read templates). The generic control matrix lives in [research 04](../research/04-enterprise-controls-and-roadmap.md). This document is narrower: it lists the threats this MVP's architecture actually exposes and the test that shows each mitigation works. No mitigation here is implemented yet.
 
 ## 1. Assets and trust boundaries
 

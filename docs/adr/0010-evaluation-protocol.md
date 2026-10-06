@@ -1,6 +1,6 @@
 # ADR 0010: evaluation protocol — pass@1 in development, pass^k at release
 
-Date: 2026-10-06. Status: Proposed.
+Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06).
 
 ## Context
 

@@ -2,7 +2,7 @@
 
 **Status:** proposed implementation baseline. **Date:** 2026-10-06. **Implementation status:** research/design only.
 
-> **Scope update.** [ADR 0001](adr/0001-local-mvp-scope.md) (accepted) expands the MVP to a local Pydantic AI + Ollama driver, the `odoo19-learning` Odoo 19 sandbox with an `e_agent_bridge` addon, 5–10 Odoo tasks, a streaming overlay UI and a read-only BigQuery integration. Where this document says "MVP", read it together with that ADR and the [implementation plan](implementation-plan.md). Proposed refinements are recorded as ADRs 0002–0013 ([index](adr/README.md)) and take effect only when accepted.
+> **Scope update.** [ADR 0001](adr/0001-local-mvp-scope.md) (accepted) expands the MVP to a local Pydantic AI + Ollama driver, the `odoo19-learning` Odoo 19 sandbox with an `e_agent_bridge` addon, 5–10 Odoo tasks, a streaming overlay UI and a read-only BigQuery integration. Where this document says "MVP", read it together with that ADR and the [implementation plan](implementation-plan.md). Refinements are recorded in ADRs 0002–0013 ([index](adr/README.md)), accepted by the project owner on 2026-10-06 (plan §0, D1–D5).
 
 This design consolidates [research 02](../research/02-plugin-driven-architecture.md), [03](../research/03-knowledge-and-cognitive-ontology.md), [07](../research/07-package-and-plugin-organization.md), [08](../research/08-architecture-decisions-and-fitness.md) and the latest [extensibility review](../research/10-extensibility-architecture-review.md). The [MVP detailed design](mvp-detailed-design.md) defines the first implementation slice. Technology candidates remain subject to the bounded compatibility spikes described there.
 
@@ -83,7 +83,7 @@ Python 3.12+ and uv are proposed development baselines. Exact runtime and depend
 | `e-agent-adapter-secretstore-local` | Local envelope-encrypted `SecretStore` (MVP); vault/cloud adapters later | Contracts, SDK |
 | `e-agent-server` | API/CLI, bootstrap, authentication context, application workflows, SSE stream | Required distributions above |
 
-Non-wheel artifacts: `addons/e_agent_bridge` (Odoo 19 addon, versioned and released separately; [ADR 0005](adr/0005-odoo-integration-transport.md)) and the TypeScript UI workspace. The UI workspace contains `@e-agent/client`, `ui-core`, `tokens`, `ui-react`, `components`, layouts, `apps/web`, the `<e-agent-overlay>` element and the UI conformance suite. These layers let a deployer re-theme, re-layout or replace the default UI while reusing the lower layers ([UI architecture](ui-architecture.md), ADR 0011, proposed). The UI depends only on the server API and is system-neutral: it runs standalone or embedded in any web page, and no UI layer depends on Odoo or another provider. Approval stays a kernel concept.
+Non-wheel artifacts: `addons/e_agent_bridge` (Odoo 19 addon, versioned and released separately; [ADR 0005](adr/0005-odoo-integration-transport.md)) and the TypeScript UI workspace. The UI workspace contains `@e-agent/client`, `ui-core`, `tokens`, `ui-react`, `components`, layouts, `apps/web`, the `<e-agent-overlay>` element and the UI conformance suite. These layers let a deployer re-theme, re-layout or replace the default UI while reusing the lower layers ([UI architecture](ui-architecture.md), ADR 0011). The UI depends only on the server API and is system-neutral: it runs standalone or embedded in any web page, and no UI layer depends on Odoo or another provider. Approval stays a kernel concept.
 
 Each adapter is a separate artifact rather than a module in a shared `integrations` distribution. This supersedes the earlier six-package proposal. Third-party dependencies belong in the distribution that uses them; core contracts may use Pydantic, but must not contain framework message classes, ORM objects or vendor responses.
 
@@ -164,7 +164,7 @@ The MVP packages a small procurement ontology and reads typed ERP facts. Full in
 | Runs, proposals, approval, action ledger, receipts, outcome reports | Kernel services | PostgreSQL through RunStore |
 | ERP purchase orders and master data | ERP | Odoo; local records retain references and evidence |
 | Capabilities, ontology, shapes and rule inventory | Domain pack | Immutable packaged resources |
-| Connections and secret references | Integration admin (generic, schema-driven; [ADR 0012](adr/0012-schema-driven-integration-management.md), proposed) | Versioned connection records; secrets only in a `SecretStore` adapter (local-encrypted in MVP), never in profiles, UI or model context |
+| Connections and secret references | Integration admin (generic, schema-driven; [ADR 0012](adr/0012-schema-driven-integration-management.md)) | Versioned connection records; secrets only in a `SecretStore` adapter (local-encrypted in MVP), never in profiles, UI or model context |
 | Source revisions, curated claims | Knowledge services, when implemented | Versioned registry/store |
 | UI/search/graph views | Projection owners | Derived indexes |
 
@@ -197,7 +197,7 @@ Local demo identity mapping is an explicitly bounded development mode. Productio
 
 MVP delivers a verified procurement slice first, then the ADR 0001 task catalog, overlay UI and BigQuery gates, plus architecture gates. Phase 2 adds evidence-explanation and governance UI, governed KB/KG, CRM/Google connectors driven by real workflows, and broader operational controls. Later production rollout depends on target enterprise requirements and evidence, not simply completing the feature list.
 
-ADR 0001 selected Odoo 19 (`odoo19-learning`), Pydantic AI and Ollama. Outstanding selections are the exact Pydantic AI 2.x and model versions, the Odoo transport details (proposed: JSON-2 plus bridge, ADR 0005), BigQuery scope and the artifact distribution method. Resolve and record them during bootstrap. Do not invent production SLAs before workload and deployment constraints are known.
+ADR 0001 selected Odoo 19 (`odoo19-learning`), Pydantic AI and Ollama. Outstanding selections are the exact Pydantic AI 2.x and model versions, the Odoo transport details (JSON-2 plus bridge, ADR 0005; to confirm on the local install), BigQuery scope and the artifact distribution method. Resolve and record them during bootstrap. Do not invent production SLAs before workload and deployment constraints are known.
 
 ## 11. References
 
