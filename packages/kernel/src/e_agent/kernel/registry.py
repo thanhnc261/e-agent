@@ -61,6 +61,25 @@ class PluginRegistry:
         self.agent_guidance: list[str] = []
         self.report = AdmissionReport()
 
+    def surface_digest(self) -> str:
+        """Digest of the tool surface a run is planned against (threat model T17):
+        capabilities, their input schemas, bindings and plugin versions."""
+        import hashlib
+        import json
+
+        surface = {
+            "capabilities": {
+                cid: [c.effect.value, c.input_schema_id, self.input_schemas.get(c.input_schema_id)]
+                for cid, c in sorted(self.capabilities.items())
+            },
+            "bindings": sorted(
+                (b.binding_id, b.contract_id, b.connection_id, b.plugin_id, b.plugin_version)
+                for b in self.bindings
+            ),
+        }
+        canonical = json.dumps(surface, sort_keys=True, separators=(",", ":"), default=str)
+        return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
     # -- admission ------------------------------------------------------------
     def admit(
         self,

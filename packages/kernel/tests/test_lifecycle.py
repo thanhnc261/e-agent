@@ -283,3 +283,19 @@ async def test_write_budget_limits_admitted_writes(make_kernel: MakeKernel) -> N
     run = await _start(k)
     assert run.state is RunState.FAILED
     assert "budget" in (run.reason or "")
+
+
+async def test_capability_surface_change_blocks_resume(make_kernel: MakeKernel) -> None:
+    """Threat model T17: schemas/bindings changed between proposal and approval."""
+    k = make_kernel()
+    run = await _start(k)
+    assert run.state is RunState.WAITING_APPROVAL
+    registry = k.coordinator._registry
+    # a plugin was upgraded while the approval was pending
+    registry.bindings[0] = registry.bindings[0].model_copy(update={"plugin_version": "9.9.9"})
+    with pytest.raises(KernelError) as err:
+        await _approve(k, run.run_id)
+    assert err.value.code is ErrorCode.APPROVAL_STALE
+    run = await k.coordinator.get_run(TENANT, run.run_id)
+    assert run.state is RunState.FAILED and run.reason == "capability surface changed"
+    assert k.backend.create_calls == 0

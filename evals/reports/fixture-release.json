@@ -1,0 +1,462 @@
+{
+  "report": "e-agent-release-matrix-v1",
+  "environment": "fixture",
+  "note": "Deterministic host-path evidence (scripted driver, fake ERP). Not live model or live ERP evidence.",
+  "versions": {
+    "distributions": {
+      "e-agent-adapter-agent-pydantic": "0.1.0",
+      "e-agent-adapter-odoo": "0.1.0",
+      "e-agent-adapter-postgres": "0.1.0",
+      "e-agent-adapter-secretstore-local": "0.1.0",
+      "e-agent-adapter-shacl": "0.1.0",
+      "e-agent-contracts": "0.1.0",
+      "e-agent-domain-erp": "0.1.0",
+      "e-agent-kernel": "0.1.0",
+      "e-agent-plugin-sdk": "0.1.0",
+      "e-agent-server": "0.1.0",
+      "pydantic-ai-slim": "2.54.0",
+      "pyshacl": "0.40.1"
+    },
+    "plugins": [
+      "domain-erp",
+      "fixture-erp"
+    ],
+    "driver": "scripted-erp-driver",
+    "driver_versions": {},
+    "model": null,
+    "profile_environment": "fixture"
+  },
+  "passed": 21,
+  "total": 21,
+  "cases": [
+    {
+      "task": "ERP-01",
+      "case": "verified shortage answer",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "answered",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [],
+      "provider_write_calls": 0,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-01",
+      "case": "wrong answer fails verification, then corrected",
+      "driver_mode": "wrong-answer-then-correct",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "answered",
+      "outcomes": [
+        "FAILED",
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [],
+      "provider_write_calls": 0,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-02",
+      "case": "verified offer recommendation",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "answered",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [],
+      "provider_write_calls": 0,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-03",
+      "case": "draft PO approved and verified",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "outcome verified",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [],
+      "provider_write_calls": 1,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-03",
+      "case": "unapproved offer blocked by PR-003, then repaired",
+      "driver_mode": "invalid-then-repair",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "outcome verified",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [
+        "PR-003"
+      ],
+      "provider_write_calls": 1,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-03",
+      "case": "over budget blocked",
+      "driver_mode": "valid",
+      "scenario": "over-budget",
+      "final_state": "FAILED",
+      "reason": "validation blocked",
+      "outcomes": [],
+      "first_blocked_rules": [
+        "PR-004"
+      ],
+      "provider_write_calls": 0,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-03",
+      "case": "rejection writes nothing",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "final_state": "FAILED",
+      "reason": "rejected by approver",
+      "outcomes": [],
+      "first_blocked_rules": [],
+      "provider_write_calls": 0,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-03",
+      "case": "lost response reconciled without a second write",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "outcome verified",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [],
+      "provider_write_calls": 1,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-04",
+      "case": "draft RFQ amended and verified",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "outcome verified",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [],
+      "provider_write_calls": 1,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-04",
+      "case": "stale revision blocked by AM-002, then repaired",
+      "driver_mode": "invalid-then-repair",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "outcome verified",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [
+        "AM-002"
+      ],
+      "provider_write_calls": 1,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-04",
+      "case": "confirmed RFQ blocked by AM-001",
+      "driver_mode": "valid",
+      "scenario": "rfq-confirmed",
+      "final_state": "FAILED",
+      "reason": "validation blocked",
+      "outcomes": [],
+      "first_blocked_rules": [
+        "AM-001"
+      ],
+      "provider_write_calls": 0,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-05",
+      "case": "draft quotation created and verified",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "outcome verified",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [],
+      "provider_write_calls": 1,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-05",
+      "case": "off-list price blocked by SQ-003, then repaired",
+      "driver_mode": "invalid-then-repair",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "outcome verified",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [
+        "SQ-003"
+      ],
+      "provider_write_calls": 1,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-05",
+      "case": "unsaleable product blocked by SQ-002",
+      "driver_mode": "valid",
+      "scenario": "unsaleable-product",
+      "final_state": "FAILED",
+      "reason": "validation blocked",
+      "outcomes": [],
+      "first_blocked_rules": [
+        "SQ-002"
+      ],
+      "provider_write_calls": 0,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-06",
+      "case": "verified late-orders answer",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "answered",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [],
+      "provider_write_calls": 0,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-06",
+      "case": "wrong answer fails verification, then corrected",
+      "driver_mode": "wrong-answer-then-correct",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "answered",
+      "outcomes": [
+        "FAILED",
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [],
+      "provider_write_calls": 0,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-07",
+      "case": "lead created and verified",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "outcome verified",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [],
+      "provider_write_calls": 1,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-07",
+      "case": "owner outside team blocked by CL-002, then repaired",
+      "driver_mode": "invalid-then-repair",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "outcome verified",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [
+        "CL-002"
+      ],
+      "provider_write_calls": 1,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-07",
+      "case": "lost response reconciled without a duplicate lead",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "outcome verified",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [],
+      "provider_write_calls": 1,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-08",
+      "case": "verified overdue-invoices answer",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "answered",
+      "outcomes": [
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [],
+      "provider_write_calls": 0,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    },
+    {
+      "task": "ERP-08",
+      "case": "wrong totals fail verification, then corrected",
+      "driver_mode": "wrong-answer-then-correct",
+      "scenario": "valid",
+      "final_state": "SUCCEEDED",
+      "reason": "answered",
+      "outcomes": [
+        "FAILED",
+        "VERIFIED"
+      ],
+      "first_blocked_rules": [],
+      "provider_write_calls": 0,
+      "checks": {
+        "final_state": true,
+        "outcomes": true,
+        "provider_writes": true,
+        "blocked_rule": true
+      },
+      "passed": true
+    }
+  ]
+}

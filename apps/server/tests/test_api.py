@@ -211,3 +211,22 @@ def test_host_context_hints_are_resolved_or_dropped(client: TestClient) -> None:
     }
     r = client.post("/v1/runs", json=bad, headers={**h, "Idempotency-Key": "host-ctx-02"})
     assert r.status_code == 422
+
+
+def test_ledger_must_not_share_the_provider_database() -> None:
+    from e_agent.kernel.errors import KernelError
+    from e_agent.server.bootstrap import check_ledger_separation
+
+    profile = load_profile().model_copy(
+        update={
+            "enabled_plugins": {
+                **load_profile().enabled_plugins,
+                "odoo19": load_profile()
+                .enabled_plugins["domain-erp"]
+                .model_copy(update={"settings": {"database": "erp_prod"}}),
+            }
+        }
+    )
+    with pytest.raises(KernelError):
+        check_ledger_separation(profile, "postgresql://u@h:5432/erp_prod")
+    check_ledger_separation(profile, "postgresql://u@h:5432/e_agent")

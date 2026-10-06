@@ -59,9 +59,9 @@ The product is independent of the separate `enterprise-agent/experiment` researc
 | I10 Five-task gate | Done with scripted driver on live Odoo; live-model runs pending | ERP-04 amend draft RFQ (quantity/date at the read revision; stale or non-draft blocked by AM-001/AM-002 and re-checked atomically by the bridge), ERP-05 draft quotation (archived customer, unsaleable product and off-list price blocked; never confirmed or sent) |
 | I11 Eight-task expansion | Done with scripted driver on live Odoo; live-model runs pending | ERP-06 late sales orders and ERP-08 overdue invoices as verified read-only answers at an explicit as-of date; ERP-07 CRM lead (owner must be a team member; repeated commands never duplicate). New `sales`, `crm`, `receivables` bounded contexts; 10 live tests against Odoo 19 (`test_odoo_live_tasks.py`) |
 | I12–I13 BigQuery | Blocked on D6 | Scope, project and data permission not decided |
-| I14 Release qualification | Not started | See the [implementation plan](docs/implementation-plan.md) |
+| I14 Release qualification | Done for the repository scope; owner gates open | [Qualification report](docs/release/mvp-qualification-report.md), `scripts/release_report.py` (21-case matrix), [demo](docs/runbooks/demo.md) and [recovery/reset](docs/runbooks/recovery-and-reset.md) runbooks; T16/T17 mitigations implemented. Open: live model qualification, owner's `odoo19-learning` install, BigQuery (D6) |
 
-Validation is authoritative (SHACL); the ledger is PostgreSQL; the Odoo adapter has been exercised against a real Odoo 19 sandbox built from source. Live model runs (Ollama) are not done yet; fixture runs are labelled `environment=fixture` and are not evidence of live capability. The UI has been exercised against the fixture server, not against live Odoo.
+Validation is authoritative (SHACL); the ledger is PostgreSQL; the Odoo adapter has been exercised against a real Odoo 19 sandbox built from source. Live model runs (Ollama) are not done yet (see the [qualification report](docs/release/mvp-qualification-report.md)); fixture runs are labelled `environment=fixture` and are not evidence of live capability. The UI has been exercised against the fixture server, not against live Odoo.
 
 ### Commands (verified in the development container)
 

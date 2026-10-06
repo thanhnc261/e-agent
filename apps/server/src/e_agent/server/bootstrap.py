@@ -12,7 +12,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
-from e_agent.adapters.postgres import PostgresRunStore, apply_migrations
+from e_agent.adapters.postgres import PostgresRunStore, apply_migrations, database_name
 from e_agent.adapters.pydantic_ai import PydanticAiDriver, ToolSpec, ollama_model
 from e_agent.adapters.secretstore_local import LocalSecretStore
 from e_agent.adapters.shacl import ShaclPlanValidator
@@ -79,8 +79,24 @@ async def open_store(profile: Profile) -> Any:
     dsn = os.environ.get(profile.store.dsn_env)
     if not dsn:
         raise KernelError(ErrorCode.STARTUP_REJECTED, f"{profile.store.dsn_env} is not set")
+    check_ledger_separation(profile, dsn)
     await apply_migrations(dsn)
     return await PostgresRunStore.open(dsn)
+
+
+def check_ledger_separation(profile: Profile, dsn: str) -> None:
+    """Threat model T16: the e-agent ledger never lives in a provider's database."""
+    ledger_db = database_name(dsn)
+    provider_dbs = {
+        str(cfg.settings["database"])
+        for cfg in profile.enabled_plugins.values()
+        if "database" in cfg.settings
+    }
+    if ledger_db in provider_dbs:
+        raise KernelError(
+            ErrorCode.STARTUP_REJECTED,
+            "the ledger database must be separate from provider databases",
+        )
 
 
 def tool_specs(registry: PluginRegistry, profile: Profile) -> list[ToolSpec]:

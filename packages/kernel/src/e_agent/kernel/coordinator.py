@@ -70,6 +70,7 @@ class _Continuation(BaseModel):
     canonical_proposal: dict[str, Any] = Field(default_factory=dict)
     last_validation: ValidationResult | None = None
     approval_requested_at: datetime | None = None
+    surface_digest: str = ""  # tool surface at run start; resume is blocked if it changed
 
 
 class _GatewayReader:
@@ -153,7 +154,7 @@ class RunCoordinator:
                 "dropped_hints": dropped,
             }
         await self._store.create_run(run, [(RunEventType.RUN_CREATED, created, None)])
-        self._runs[run_id] = _Continuation(ctx=ctx)
+        self._runs[run_id] = _Continuation(ctx=ctx, surface_digest=self._registry.surface_digest())
         run = await self._set_run_state(run, RunState.RUNNING)
         return await self._drive(run, DriverInput(task=task))
 
@@ -660,6 +661,17 @@ class RunCoordinator:
         action = await self._store.get_action(actor.tenant_id, action_id)
         if action.digest != action_digest:
             raise KernelError(ErrorCode.APPROVAL_STALE, "digest does not match pending action")
+        if cont.surface_digest and cont.surface_digest != self._registry.surface_digest():
+            # Plugins, schemas or bindings changed since the proposal was made (T17).
+            await self._transition(
+                action,
+                ActionState.BLOCKED,
+                (RunEventType.APPROVAL_DECIDED, {"decision": "surface_changed"}),
+            )
+            cont.pending_action_id = None
+            run = await self._store.get_run(actor.tenant_id, run_id)
+            await self._set_run_state(run, RunState.FAILED, "capability surface changed")
+            raise KernelError(ErrorCode.APPROVAL_STALE, "capabilities changed; start a new run")
         now = self._clock()
         assert cont.approval_requested_at is not None
         if now > cont.approval_requested_at + self._approval_ttl:
