@@ -17,7 +17,7 @@ Established platforms solve this with schemas: Airbyte connection specs in JSON 
 5. Connections are versioned. The approval digest includes the connection version, so configuration changes make pending approvals stale.
 6. A new `integration_admin` role is separate from requester and approver, with step-up re-authentication for changes. Admin APIs are never exposed as agent tools.
 7. Admin pages configure **admitted** integrations only. Adding adapter code remains a deployment action with artifact admission.
-8. MVP scope: manifest schemas, the `SecretStore` port with the local adapter, connection versioning and `test_connection`. Admin pages, the OAuth engine and the MCP integration type are Phase 2.
+8. Phase 2 includes the admin pages (confirmed by the project owner). Auth mechanics, tenant app registrations and user-delegated connections are specified in [ADR 0013](0013-integration-auth-sdk-and-delegated-connections.md). MVP scope: manifest schemas, the `SecretStore` port with the local adapter, connection versioning and `test_connection`. Admin pages, the OAuth engine and the MCP integration type are Phase 2.
 
 ## Alternatives considered
 

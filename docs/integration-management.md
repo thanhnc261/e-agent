@@ -1,6 +1,6 @@
 # Integration, connection and credential management
 
-**Date:** 2026-10-06. **Status:** proposed design ([ADR 0012](adr/0012-schema-driven-integration-management.md)); nothing is implemented. It extends HLD §5 (domain / capability / binding / connection) and the [UI architecture](ui-architecture.md).
+**Date:** 2026-10-06. **Status:** proposed design ([ADR 0012](adr/0012-schema-driven-integration-management.md)); nothing is implemented. Admin pages are confirmed for **Phase 2**. The auth SDK, tenant app registrations and user-delegated connections are detailed in [integration auth SDK](integration-auth-sdk.md) ([ADR 0013](adr/0013-integration-auth-sdk-and-delegated-connections.md)). It extends HLD §5 (domain / capability / binding / connection) and the [UI architecture](ui-architecture.md).
 
 ## 1. Goal
 
@@ -36,7 +36,7 @@ flowchart LR
 | Concept | Owner | Notes |
 |---|---|---|
 | Integration type | Adapter package (manifest) | Code is admitted by deployment (MVP design §6), never uploaded from the UI |
-| Connection | Tenant integration admin | Non-secret settings plus a credential reference; versioned; lifecycle below |
+| Connection | Tenant admin (`tenant_shared`) or the user (`user_delegated`, ADR 0013) | Non-secret settings plus a credential reference; versioned; lifecycle below |
 | Credential | `SecretStore` | Write-only from the UI and API; rotation and re-auth |
 | Capability enablement | Tenant integration admin | Which admitted bindings this connection may serve, with resource scope |
 | Health | Adapter `test_connection` | Read-only, bounded, recorded |

@@ -16,8 +16,9 @@ One decision per ADR. Statuses: **Proposed** (recommended, not yet accepted by t
 | [0010](0010-evaluation-protocol.md) | Evaluation protocol: pass@1 in development, pass^k at release | Proposed | I04 |
 | [0011](0011-layered-replaceable-ui.md) | Layered, themeable and replaceable UI over a shared headless core | Proposed | I08 |
 | [0012](0012-schema-driven-integration-management.md) | Schema-driven integration, connection and credential management | Proposed | I06 (seams); admin UI Phase 2 |
+| [0013](0013-integration-auth-sdk-and-delegated-connections.md) | Integration auth SDK, tenant app registrations and user-delegated connections | Proposed | I02/I06 (contracts, MVP subset); Phase 2 |
 
-The [2026-10-06 architecture review](../reviews/2026-10-06-architecture-review.md) explains the findings behind 0002–0010. ADR 0012 comes from [integration management](../integration-management.md). ADR 0011 comes from the follow-up UI research in [UI architecture](../ui-architecture.md).
+The [2026-10-06 architecture review](../reviews/2026-10-06-architecture-review.md) explains the findings behind 0002–0010. ADR 0012 comes from [integration management](../integration-management.md), ADR 0013 from [integration auth SDK](../integration-auth-sdk.md). ADR 0011 comes from the follow-up UI research in [UI architecture](../ui-architecture.md).
 
 ## Mapping from research 08 proposals
 
