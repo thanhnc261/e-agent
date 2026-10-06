@@ -10,6 +10,7 @@ A plugin-driven enterprise agent application designed for governed business acti
 |---|---|
 | [High-level design](docs/high-level-design.md) | Architecture, package boundaries, multi-domain support, knowledge evolution and deployment |
 | [MVP detailed design](docs/mvp-detailed-design.md) | Procurement workflow, contracts, state machines, persistence, approvals, recovery and acceptance tests |
+| [Implementation plan](docs/implementation-plan.md) and [ADRs](docs/adr/README.md) | Accepted scope and decisions (ADRs 0001–0013) and work packages |
 | [Documentation index](docs/README.md) | Design reading order and decision conventions |
 | [Research](research/README.md) | Industry sources, ontology research, enterprise controls and architecture reviews |
 | [AGENTS.md](AGENTS.md) / [CLAUDE.md](CLAUDE.md) | Instructions for coding agents working on this project |
@@ -20,7 +21,7 @@ A real model-driven agent will read synthetic procurement facts, propose a purch
 
 The demo must expose successful execution, blocked invalid proposals and safe handling of changed approvals or uncertain external results. It must distinguish live ERP outcomes from deterministic fixtures and scripted fault injection.
 
-Order confirmation, stock receipt, invoicing, payments, live CRM/Google integrations and a modern web UI are outside the first scope. Explainable UI and a governed knowledge graph follow once the execution and evidence foundations work.
+Procurement is the first vertical slice. [ADR 0001](docs/adr/0001-local-mvp-scope.md) extends the MVP to a local Pydantic AI + Ollama driver, 5–10 common Odoo 19 tasks, a streaming overlay UI for task interaction and approval, and read-only BigQuery analytics. Order confirmation, stock receipt, posted accounting, payments, external CRM providers and Google integrations remain out of scope. Evidence-explanation/governance UI and a governed knowledge graph follow once the execution and evidence foundations work.
 
 ## Architecture
 
@@ -47,7 +48,7 @@ Only `docs/`, `research/` and project guidance exist at this stage. The package 
 
 Implementation starts with workspace/contracts and architecture gates, then a framework execution spike, persisted approvals/recovery, the live Odoo draft workflow and complete demo evidence. Python 3.12+, uv, PostgreSQL, an isolated Odoo environment and a model provider are proposed prerequisites; exact supported versions and setup commands will be documented after bootstrap verification.
 
-There are no installation, server or test commands to run yet. See the [implementation sequence](docs/mvp-detailed-design.md#14-implementation-sequence-and-unresolved-decisions) for the concrete delivery plan and unresolved selections.
+There are no installation, server or test commands to run yet. See the [implementation plan](docs/implementation-plan.md) for owner decisions, the proposed toolchain, milestones and work packages, and the [MVP readiness review](docs/reviews/2026-10-06-mvp-readiness-review.md) for what must be decided before coding starts.
 
 ## Contribution expectations
 

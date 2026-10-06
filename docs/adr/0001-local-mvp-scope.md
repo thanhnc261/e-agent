@@ -23,6 +23,10 @@ The CLI-only, single-task demo is superseded because it no longer meets the requ
 
 The expanded scope adds frontend event transport, Odoo addon packaging, analytics contracts and broader evaluation. No schedule from the earlier narrow MVP is carried forward. Implement in gated slices and measure local inference before setting latency or completion promises.
 
+## Follow-up decisions
+
+The [2026-10-06 architecture review](../reviews/2026-10-06-architecture-review.md) refines this ADR's technology selections in ADRs 0002–0013 (see [index](README.md)). The HLD and MVP design were updated to reference this ADR's scope. The pending overlay placement is addressed by [ADR 0011](0011-layered-replaceable-ui.md): a system-neutral standalone app plus an overlay embeddable in any web page, with system-specific host adapters optional.
+
 ## Verification
 
 Use the [implementation plan](../implementation-plan.md), including per-task outcome checks, durable versus transient stream behavior, duplicate-command handling, connection isolation and independent artifact tests. Complete the outstanding overlay/BigQuery/benchmark decisions before their dependent integrations; work on contracts, safety and local driver qualification can proceed independently.

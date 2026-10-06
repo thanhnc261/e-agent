@@ -10,7 +10,9 @@ The repository currently contains research and design documents. There is no run
 
 1. [High-level design](docs/high-level-design.md).
 2. [MVP detailed design](docs/mvp-detailed-design.md).
-3. Relevant research only as needed; [research 10](research/10-extensibility-architecture-review.md) is the latest extensibility review.
+3. [Implementation plan](docs/implementation-plan.md) (§0 decisions/toolchain, §3 work packages) and the [ADR index](docs/adr/README.md). Check an ADR's status before relying on it; proposed ADRs are not baseline.
+4. Topic designs when touching them: [UI architecture](docs/ui-architecture.md), [integration management](docs/integration-management.md), [integration auth SDK](docs/integration-auth-sdk.md), [threat model](docs/threat-model.md).
+5. Relevant research only as needed; [research 10](research/10-extensibility-architecture-review.md) is the latest extensibility review.
 
 Current user instructions take precedence. The MVP design specializes the high-level design; older research may describe alternatives that are no longer the baseline. Resolve material design changes with an ADR and update affected designs rather than silently introducing contradictions. These instructions do not add approval requirements to otherwise authorized work.
 
@@ -21,6 +23,7 @@ Current user instructions take precedence. The MVP design specializes the high-l
 - SDK depends on contracts; kernel depends on contracts/SDK; domains depend on public contracts/SDK; adapters implement ports and may depend on required public domain APIs. Kernel never imports domains, adapters or server. Adapters never import kernel internals or sibling implementations.
 - Bootstrap chooses concrete implementations. Domain logic does not belong in HTTP handlers, CLI commands or framework prompts.
 - Keep domain, capability contract, provider binding and connection separate. Multiple valid bindings of one capability are allowed; conflicting definitions, duplicate binding IDs and ambiguous routing are errors.
+- UI packages contain no provider or third-party system identifiers; provider names, icons and forms come from manifests via the server API. Model output never selects credentials or connections.
 - Do not add unused abstractions or empty future packages. Add a public extension seam for a concrete use case or an explicit trust boundary.
 
 ## Execution and data integrity
