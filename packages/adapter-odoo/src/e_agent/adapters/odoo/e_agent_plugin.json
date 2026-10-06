@@ -6,37 +6,146 @@
   "kind": "provider",
   "provides_capabilities": [],
   "provides_bindings": [
-    {"binding_id": "odoo19.inventory.availability", "contract_id": "inventory.availability.read.v1"},
-    {"binding_id": "odoo19.procurement.demand", "contract_id": "procurement.demand.read.v1"},
-    {"binding_id": "odoo19.procurement.offers", "contract_id": "procurement.offers.read.v1"},
-    {"binding_id": "odoo19.procurement.po-create", "contract_id": "procurement.purchase-order.create-draft.v1"},
-    {"binding_id": "odoo19.procurement.po-read", "contract_id": "procurement.purchase-order.read.v1"}
+    {
+      "binding_id": "odoo19.inventory.availability",
+      "contract_id": "inventory.availability.read.v1"
+    },
+    {
+      "binding_id": "odoo19.procurement.demand",
+      "contract_id": "procurement.demand.read.v1"
+    },
+    {
+      "binding_id": "odoo19.procurement.offers",
+      "contract_id": "procurement.offers.read.v1"
+    },
+    {
+      "binding_id": "odoo19.procurement.po-create",
+      "contract_id": "procurement.purchase-order.create-draft.v1"
+    },
+    {
+      "binding_id": "odoo19.procurement.po-read",
+      "contract_id": "procurement.purchase-order.read.v1"
+    },
+    {
+      "binding_id": "odoo19.procurement.rfq-read",
+      "contract_id": "procurement.draft-rfq.read.v1"
+    },
+    {
+      "binding_id": "odoo19.procurement.rfq-amend",
+      "contract_id": "procurement.draft-rfq.amend.v1"
+    },
+    {
+      "binding_id": "odoo19.sales.pricing",
+      "contract_id": "sales.pricing.read.v1"
+    },
+    {
+      "binding_id": "odoo19.sales.quotation-create",
+      "contract_id": "sales.quotation.create-draft.v1"
+    },
+    {
+      "binding_id": "odoo19.sales.quotation-read",
+      "contract_id": "sales.quotation.read.v1"
+    },
+    {
+      "binding_id": "odoo19.sales.open-orders",
+      "contract_id": "sales.open-orders.read.v1"
+    },
+    {
+      "binding_id": "odoo19.crm.contact",
+      "contract_id": "crm.contact.read.v1"
+    },
+    {
+      "binding_id": "odoo19.crm.teams",
+      "contract_id": "crm.teams.read.v1"
+    },
+    {
+      "binding_id": "odoo19.crm.lead-create",
+      "contract_id": "crm.lead.create.v1"
+    },
+    {
+      "binding_id": "odoo19.crm.lead-read",
+      "contract_id": "crm.lead.read.v1"
+    },
+    {
+      "binding_id": "odoo19.receivables.open-invoices",
+      "contract_id": "receivables.open-invoices.read.v1"
+    }
   ],
   "requires_capabilities": [
     "inventory.availability.read.v1",
     "procurement.demand.read.v1",
     "procurement.offers.read.v1",
     "procurement.purchase-order.create-draft.v1",
-    "procurement.purchase-order.read.v1"
+    "procurement.purchase-order.read.v1",
+    "procurement.draft-rfq.read.v1",
+    "procurement.draft-rfq.amend.v1",
+    "sales.pricing.read.v1",
+    "sales.quotation.create-draft.v1",
+    "sales.quotation.read.v1",
+    "sales.open-orders.read.v1",
+    "crm.contact.read.v1",
+    "crm.teams.read.v1",
+    "crm.lead.create.v1",
+    "crm.lead.read.v1",
+    "receivables.open-invoices.read.v1"
   ],
   "settings_schema": {
     "type": "object",
-    "required": ["base_url", "database", "namespace"],
+    "required": [
+      "base_url",
+      "database",
+      "namespace"
+    ],
     "properties": {
-      "base_url": {"type": "string", "description": "Odoo base URL, e.g. http://localhost:8069"},
-      "database": {"type": "string"},
-      "namespace": {"type": "string", "description": "Operation-key namespace for this e-agent deployment"},
-      "timeout_seconds": {"type": "string", "default": "20"},
-      "expected_sandbox_marker": {"type": "string"}
+      "base_url": {
+        "type": "string",
+        "description": "Odoo base URL, e.g. http://localhost:8069"
+      },
+      "database": {
+        "type": "string"
+      },
+      "namespace": {
+        "type": "string",
+        "description": "Operation-key namespace for this e-agent deployment"
+      },
+      "timeout_seconds": {
+        "type": "string",
+        "default": "20"
+      },
+      "expected_sandbox_marker": {
+        "type": "string"
+      }
     },
     "additionalProperties": false
   },
   "connection": {
     "auth_methods": [
-      {"id": "integration_api_key", "type": "api_key", "levels": ["tenant", "user"],
-       "api_key": {"placement": "header", "header": "Authorization", "prefix": "bearer "},
-       "input_schema": {"type": "object", "required": ["api_key"],
-                        "properties": {"api_key": {"type": "string", "writeOnly": true, "x-e-agent-secret": true}}}}
+      {
+        "id": "integration_api_key",
+        "type": "api_key",
+        "levels": [
+          "tenant",
+          "user"
+        ],
+        "api_key": {
+          "placement": "header",
+          "header": "Authorization",
+          "prefix": "bearer "
+        },
+        "input_schema": {
+          "type": "object",
+          "required": [
+            "api_key"
+          ],
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "writeOnly": true,
+              "x-e-agent-secret": true
+            }
+          }
+        }
+      }
     ],
     "test_connection": "sandbox_info"
   }

@@ -1,1 +1,1 @@
-from . import bridge, demand, operation, supplierinfo
+from . import bridge, bridge_tasks, demand, operation, supplierinfo

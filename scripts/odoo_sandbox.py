@@ -23,7 +23,7 @@ from e_agent.sdk.auth import AuthContext, Secret
 
 async def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["seed", "reset", "info"])
+    parser.add_argument("action", choices=["seed", "seed-tasks", "reset", "info"])
     parser.add_argument("--namespace", default="e-agent-demo")
     parser.add_argument(
         "--scenario", default="valid", choices=["valid", "zero-shortage", "over-budget"]
@@ -45,6 +45,10 @@ async def main() -> int:
     client = OdooJson2Client(url, db)
     if args.action == "info":
         result = await client.call(auth, "e_agent.bridge", "sandbox_info")
+    elif args.action == "seed-tasks":  # ERP-04..08 data (also seeds the procurement fixture)
+        result = await client.call(
+            auth, "e_agent.bridge", "sandbox_seed_tasks", namespace=args.namespace
+        )
     elif args.action == "seed":
         result = await client.call(
             auth, "e_agent.bridge", "sandbox_seed", namespace=args.namespace, scenario=args.scenario

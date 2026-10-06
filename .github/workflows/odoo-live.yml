@@ -52,4 +52,4 @@ jobs:
           export E_AGENT_TEST_ODOO_URL=http://127.0.0.1:8069 E_AGENT_TEST_ODOO_DB=e_agent_odoo
           export E_AGENT_TEST_ODOO_KEY=$(python3 -c "import json;print(json.load(open('$ODOO_KEYS_FILE'))['integration'])")
           export E_AGENT_TEST_ODOO_ADMIN_KEY=$(python3 -c "import json;print(json.load(open('$ODOO_KEYS_FILE'))['admin'])")
-          uv run pytest -q tests/integration/test_odoo_live.py
+          uv run pytest -q tests/integration/test_odoo_live.py tests/integration/test_odoo_live_tasks.py

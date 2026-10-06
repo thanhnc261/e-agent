@@ -65,6 +65,7 @@ class EAgentBridge(models.AbstractModel):
             "unit_price": line.price_unit if line else 0.0,
             "subtotal": line.price_subtotal if line else 0.0,
             "line_count": len(po.order_line),
+            "requested_date": fields.Date.to_string(line.date_planned.date()) if line else None,
         }
 
     # -------------------------------------------------------------- reads

@@ -14,6 +14,9 @@ rights = [
     env.ref("base.group_user").id,
     env.ref("purchase.group_purchase_user").id,
     env.ref("stock.group_stock_user").id,
+    # ERP-05..08: all sales documents and leads; read-only accounting for invoices
+    env.ref("sales_team.group_sale_salesman_all_leads").id,
+    env.ref("account.group_account_readonly").id,
 ]
 user = env["res.users"].search([("login", "=", "e-agent-integration")])
 if not user:
@@ -24,6 +27,8 @@ if not user:
             "group_ids": [(6, 0, rights)],
         }
     )
+else:
+    user.write({"group_ids": [(4, gid) for gid in rights]})
 admin = env.ref("base.user_admin")
 admin.write({"group_ids": [(4, group.id)]})
 expires = datetime.datetime.now() + datetime.timedelta(days=7)

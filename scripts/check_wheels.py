@@ -31,7 +31,10 @@ PACKAGES = {
         "assert ps, 'domain-erp not discoverable from installed wheel'; "
         "from importlib.resources import files; "
         "files('e_agent.erp').joinpath('procurement/rules/inventory.json').read_text(); "
-        "files('e_agent.erp').joinpath('procurement/shapes/procurement-shapes.ttl').read_text()"
+        "files('e_agent.erp').joinpath('procurement/shapes/procurement-shapes.ttl').read_text(); "
+        "[files('e_agent.erp').joinpath(p).read_text() for p in ("
+        "'procurement/shapes/amend-shapes.ttl', 'sales/shapes/quotation-shapes.ttl', "
+        "'crm/shapes/lead-shapes.ttl', 'receivables/rules/inventory.json')]"
     ),
     "e-agent-adapter-shacl": "import e_agent.adapters.shacl",
     "e-agent-adapter-postgres": (
@@ -91,6 +94,23 @@ def main() -> int:
         if state != "SUCCEEDED":
             raise SystemExit(f"FAILED: installed demo ended in {state}")
         print("ok  installed e-agent demo completes outside the repository")
+        for task in ("amend-rfq", "quotation", "crm-lead", "late-orders", "overdue-invoices"):
+            out = run(
+                [
+                    str(server_python),
+                    "-m",
+                    "e_agent.server.cli",
+                    "demo",
+                    "--json",
+                    "--approve",
+                    "--task",
+                    task,
+                ],
+                cwd=neutral,
+            )
+            if json.loads(out)["run"]["state"] != "SUCCEEDED":
+                raise SystemExit(f"FAILED: installed {task} demo")
+        print("ok  installed ERP-04..08 demos complete outside the repository")
     return 0
 
 

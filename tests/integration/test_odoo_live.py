@@ -130,14 +130,19 @@ async def test_integration_user_cannot_run_sandbox_tools() -> None:
         await _bridge("sandbox_seed", KEY, namespace="nope")
 
 
-def _profile(namespace: str, refs: dict[str, str], marker: str = MARKER) -> Profile:
-    contracts = {
-        "inventory.availability": "inventory",
-        "procurement.demand": "demand",
-        "procurement.offers": "offers",
-        "procurement.po-create": "c",
-        "procurement.po-read": "r",
-    }
+def _odoo_bindings() -> list[str]:
+    from importlib.resources import files
+
+    raw = files("e_agent.adapters.odoo").joinpath("e_agent_plugin.json").read_text("utf-8")
+    return [b["binding_id"] for b in json.loads(raw)["provides_bindings"]]
+
+
+def _profile(
+    namespace: str,
+    refs: dict[str, Any],
+    marker: str = MARKER,
+    task_kind: str = "draft-po",
+) -> Profile:
     return Profile.model_validate(
         {
             "profile_version": "1",
@@ -167,11 +172,13 @@ def _profile(namespace: str, refs: dict[str, str], marker: str = MARKER) -> Prof
                     "secret_ref": "secretref:local/odoo-integration",
                 }
             ],
-            "bindings": {f"odoo19.{k}": ["conn-odoo"] for k in contracts},
+            "bindings": {b: ["conn-odoo"] for b in _odoo_bindings()},
             "driver": {
                 "kind": "scripted",
+                "task_kind": task_kind,
                 "demand_ref": refs["demand_ref"],
                 "product_ref": refs["product_ref"],
+                "refs": {k: v for k, v in refs.items() if isinstance(v, str)},
             },
         }
     )
