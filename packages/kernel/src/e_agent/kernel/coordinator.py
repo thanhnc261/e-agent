@@ -15,7 +15,7 @@ from e_agent.contracts.action import ALLOWED_ACTION_TRANSITIONS, ActionRecord, A
 from e_agent.contracts.approval import ApprovalDecision, ApprovalRecord
 from e_agent.contracts.capability import CapabilityBinding, EffectKind
 from e_agent.contracts.common import new_id, utc_now
-from e_agent.contracts.context import Budgets, Principal, TaskContext
+from e_agent.contracts.context import Budgets, HostContext, Principal, TaskContext
 from e_agent.contracts.digest import CanonicalizationError
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import EvidenceRef
@@ -121,6 +121,7 @@ class RunCoordinator:
         resource_scope: frozenset[str],
         *,
         run_id: str | None = None,
+        host_context: HostContext | None = None,
     ) -> RunRecord:
         run_id = run_id or new_id("run")
         ctx = TaskContext(
@@ -140,10 +141,18 @@ class RunCoordinator:
             logical_operation_id=new_id("op"),  # host-assigned; survives repairs
             created_at=self._clock(),
         )
-        await self._store.create_run(
-            run,
-            [(RunEventType.RUN_CREATED, {"task": task, "driver": self._driver.driver_id}, None)],
-        )
+        created: dict[str, Any] = {"task": task, "driver": self._driver.driver_id}
+        if host_context is not None:
+            resolved, dropped = self._connections.resolve_hints(ctx, host_context.resource_hints)
+            # Recorded as untrusted context; selection text is never persisted.
+            created["host_context"] = {
+                "host_kind": host_context.host_kind,
+                "page_url_origin": host_context.page_url_origin,
+                "locale": host_context.locale,
+                "resolved_hints": [h.model_dump() for h in resolved],
+                "dropped_hints": dropped,
+            }
+        await self._store.create_run(run, [(RunEventType.RUN_CREATED, created, None)])
         self._runs[run_id] = _Continuation(ctx=ctx)
         run = await self._set_run_state(run, RunState.RUNNING)
         return await self._drive(run, DriverInput(task=task))
@@ -617,8 +626,13 @@ class RunCoordinator:
             raise KernelError(ErrorCode.NOT_FOUND, "no pending approval")
         action = await self._store.get_action(tenant_id, cont.pending_action_id)
         assert cont.approval_requested_at is not None
+        previous = None
+        if action.supersedes_action_id is not None:
+            superseded = await self._store.get_action(tenant_id, action.supersedes_action_id)
+            previous = superseded.arguments
         return presentation_for(
             action,
+            previous_arguments=previous,
             run_revision=run.revision,
             canonical_proposal=cont.canonical_proposal,
             findings=cont.last_validation.findings if cont.last_validation else (),

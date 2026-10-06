@@ -1,0 +1,9 @@
+{
+  "name": "@e-agent/ui-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "L3: framework-free run store, approval state machine, sanitizer, i18n, formatters and digest check.",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "@e-agent/client": "workspace:*" }
+}

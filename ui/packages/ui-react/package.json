@@ -1,0 +1,10 @@
+{
+  "name": "@e-agent/ui-react",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "L5: React bindings over ui-core (hooks) and the slot registry for component overrides.",
+  "exports": { ".": "./src/index.tsx" },
+  "dependencies": { "@e-agent/client": "workspace:*", "@e-agent/ui-core": "workspace:*" },
+  "peerDependencies": { "react": "^19.0.0" }
+}

@@ -5,27 +5,32 @@
     {
       "name": "key ordering and nesting",
       "input": {"b": "2", "a": {"d": [true, false, null], "c": "1"}},
-      "canonical": "{\"a\":{\"c\":\"1\",\"d\":[true,false,null]},\"b\":\"2\"}"
+      "canonical": "{\"a\":{\"c\":\"1\",\"d\":[true,false,null]},\"b\":\"2\"}",
+      "digest": "jcs-sha256-v1:7d21b7a6a4917a1836c0b99822e37b8fe78e85292b5dd5ba716ea5968920e135"
     },
     {
       "name": "vietnamese text stays literal utf-8",
       "input": {"note": "Đơn mua hàng nháp", "currency": "VND"},
-      "canonical": "{\"currency\":\"VND\",\"note\":\"Đơn mua hàng nháp\"}"
+      "canonical": "{\"currency\":\"VND\",\"note\":\"Đơn mua hàng nháp\"}",
+      "digest": "jcs-sha256-v1:9802d1397a4ecaaf8d7600257d6bf53def1356565c5d7f8f5cfa384fefe6a946"
     },
     {
       "name": "control characters and quotes are escaped",
       "input": {"s": "line1\nline2\t\"q\"\\\u0001"},
-      "canonical": "{\"s\":\"line1\\nline2\\t\\\"q\\\"\\\\\\u0001\"}"
+      "canonical": "{\"s\":\"line1\\nline2\\t\\\"q\\\"\\\\\\u0001\"}",
+      "digest": "jcs-sha256-v1:89771470f14b0f063489843be46fb6687b7e43080a1af6ab859b3f4b7d83dcd4"
     },
     {
       "name": "keys sorted by utf-16 code units",
       "input": {"é": "e-acute", "z": "z", "A": "A", "😀": "emoji"},
-      "canonical": "{\"A\":\"A\",\"z\":\"z\",\"é\":\"e-acute\",\"😀\":\"emoji\"}"
+      "canonical": "{\"A\":\"A\",\"z\":\"z\",\"é\":\"e-acute\",\"😀\":\"emoji\"}",
+      "digest": "jcs-sha256-v1:dfcb82e45594f4851af80767a422f4522656eda4b19413167f9daf9f840745a4"
     },
     {
       "name": "array order is preserved",
       "input": ["3", "1", "2"],
-      "canonical": "[\"3\",\"1\",\"2\"]"
+      "canonical": "[\"3\",\"1\",\"2\"]",
+      "digest": "jcs-sha256-v1:137122c4745cf9d06d7b2e320ab29c740dbca5d4e9ac60ba20f2f4bd2a90d7bd"
     }
   ]
 }

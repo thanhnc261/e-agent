@@ -1,0 +1,11 @@
+{
+  "name": "@e-agent/tokens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "L4: DTCG design tokens compiled to CSS custom properties (light, dark, high-contrast).",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/generated/tokens.css"
+  }
+}

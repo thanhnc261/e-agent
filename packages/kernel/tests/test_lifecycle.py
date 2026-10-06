@@ -175,6 +175,9 @@ async def test_invalid_proposal_is_blocked_then_repaired(make_kernel: MakeKernel
     repaired = next(a for a in actions if a.state is ActionState.AWAITING_APPROVAL)
     assert repaired.supersedes_action_id is not None
     assert repaired.logical_operation_id == actions[0].logical_operation_id
+    pres = await k.coordinator.pending_approval(TENANT, run.run_id)
+    changed = [f for f in pres.material_fields if f.changed]
+    assert [(f.previous_value, f.value) for f in changed] == [("", "fixed text")]
 
 
 async def test_repair_budget_exhaustion_fails_run(make_kernel: MakeKernel) -> None:

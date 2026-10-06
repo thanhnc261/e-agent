@@ -54,9 +54,11 @@ The product is independent of the separate `enterprise-agent/experiment` researc
 | I04 Local model qualification | Driver done; live qualification pending on the owner's machine | `e_agent.adapters.pydantic_ai` (Pydantic AI 2.54, Ollama): all tools deferred to the kernel, thinking stripped, snapshot/restore; FunctionModel end-to-end tests; `scripts/qualify_model.py` (needs local Ollama) |
 | I06 Odoo bridge and adapter | Done (sandbox from source); owner install pending | `addons/e_agent_bridge` (operation ledger with `models.Constraint`, draft-only commands, narrow reads, sandbox seed/reset), `e_agent.adapters.odoo` (JSON-2, API key via `AuthContext`), local envelope-encrypted secret store, credential service. 7 live tests passed against real Odoo 19 (idempotency, 6-way race → 1 PO, lost response → reconcile, marker check). [Runbook](docs/runbooks/i06-odoo-bridge.md) |
 | I07 Procurement vertical slice | Done with scripted driver on live Odoo; live-model runs pending | ERP-01 shortage and ERP-02 recommendation as verified structured answers (new `answer` effect: no approval, independent recomputation from fresh reads), ERP-03 draft PO; all three verified against live Odoo 19; redacted evidence bundles (`--evidence-out`, `e-agent evidence`) |
-| I08–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
+| I08 Streaming API and UI layers | Done | `e-agent serve`: FastAPI API v1 (loopback session + CSRF, `Idempotency-Key`, typed snapshots, native SSE with `Last-Event-ID`/`after_sequence` resume, `ApprovalPresentation` with changed-field marking); `ui/` pnpm workspace: `@e-agent/client` (types generated from the checked-in OpenAPI), `ui-core` (run store, approval state machine, JCS digest check on the shared golden vectors, sanitizer, vi/en), `tokens` (DTCG → CSS, contrast gates), `ui-react`, `components` (React Aria), `layouts` (overlay/sidebar/full-page), `apps/web`, `<e-agent-overlay>` (Shadow DOM); dependency-cruiser layer rules and a provider-neutrality gate |
+| I09 Live UI workflow | Done on the fixture server | `ui-conformance` (Playwright): the 8 §6 checks plus theming/embedding, run against the default app, the overlay on a hostile neutral host page and a non-React reference UI; live flows complete/reject/reload against the real kernel. Generic `HostContext` hints are resolved through connection mappings or dropped |
+| I10–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
 
-Validation is authoritative (SHACL); the ledger is PostgreSQL; the Odoo adapter has been exercised against a real Odoo 19 sandbox built from source. Live model runs (Ollama) and the UI are not done yet; fixture runs are labelled `environment=fixture` and are not evidence of live capability.
+Validation is authoritative (SHACL); the ledger is PostgreSQL; the Odoo adapter has been exercised against a real Odoo 19 sandbox built from source. Live model runs (Ollama) are not done yet; fixture runs are labelled `environment=fixture` and are not evidence of live capability. The UI has been exercised against the fixture server, not against live Odoo.
 
 ### Commands (verified in the development container)
 
@@ -79,6 +81,12 @@ uv run mypy
 uv run lint-imports                       # architecture dependency gates
 uv run pytest -q
 uv run python scripts/check_wheels.py     # each wheel installs/runs outside the repo
+
+# HTTP API + web UI (loopback only; Node 22.12+/24 and pnpm 10 for ui/)
+(cd ui && pnpm install && pnpm build)
+uv run e-agent serve --static ui/dist/web # http://127.0.0.1:8787/ (app), /host.html (overlay), /reference/
+uv run python scripts/export_openapi.py   # after API changes; then (cd ui && pnpm gen)
+(cd ui && pnpm check && pnpm conformance) # types, unit tests, layer rules, neutrality, build, Playwright
 
 # PostgreSQL ledger (profile store.kind=postgres; DSN only via environment)
 export E_AGENT_PG_DSN=postgresql://user@host:5432/e_agent   # e-agent's own database, never Odoo's

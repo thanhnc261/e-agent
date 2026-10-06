@@ -1,0 +1,11 @@
+/* Deliberately different look: same tokens, different layout and styling. */
+body { margin: 0; font-family: var(--ea-font-mono); background: var(--ea-color-surface); color: var(--ea-color-text); }
+main { max-width: 52rem; margin: 0 auto; padding: var(--ea-space-lg); display: grid; gap: var(--ea-space-lg); }
+section { border-top: 3px solid var(--ea-color-border); padding-top: var(--ea-space-sm); overflow-wrap: anywhere; }
+button { font: inherit; padding: var(--ea-space-xs) var(--ea-space-md); margin-right: var(--ea-space-sm); }
+button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--ea-color-focus); outline-offset: 2px; }
+input { font: inherit; width: 70%; padding: var(--ea-space-xs); }
+table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+td, th { border: 1px solid var(--ea-color-border); padding: var(--ea-space-xs); text-align: left; overflow-wrap: anywhere; }
+tr[data-changed="true"] { background: var(--ea-color-surface-raised); outline: 2px solid var(--ea-approval-material-change); }
+.alert { color: var(--ea-color-status-failed); font-weight: bold; }

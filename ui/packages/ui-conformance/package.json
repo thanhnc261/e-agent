@@ -1,0 +1,9 @@
+{
+  "name": "@e-agent/ui-conformance",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Playwright suite every approval-capable UI must pass (UI architecture §6), against any UI URL.",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "@e-agent/client": "workspace:*", "@e-agent/ui-core": "workspace:*" }
+}

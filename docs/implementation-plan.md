@@ -1,6 +1,6 @@
 # MVP implementation plan
 
-**Date:** 2026-10-06. **Status:** actionable planning baseline; implementation in progress (I01 and I02 done with fixtures; see the README status table). User decisions are recorded in [ADR 0001](adr/0001-local-mvp-scope.md). Read with the [HLD](high-level-design.md) and [detailed design](mvp-detailed-design.md). ADRs 0002–0013 ([index](adr/README.md)) were accepted on 2026-10-06 (decisions D1–D5); D6/D7 remain open. §0 lists what must be decided before development starts; the [MVP readiness review](reviews/2026-10-06-mvp-readiness-review.md) records how this was checked. The scoped [threat model](threat-model.md) defines security tests used by I05–I09 and I12.
+**Date:** 2026-10-06. **Status:** actionable planning baseline; implementation in progress (see the README status table). User decisions are recorded in [ADR 0001](adr/0001-local-mvp-scope.md). Read with the [HLD](high-level-design.md) and [detailed design](mvp-detailed-design.md). ADRs 0002–0013 ([index](adr/README.md)) were accepted on 2026-10-06 (decisions D1–D5); D6/D7 remain open. §0 lists what must be decided before development starts; the [MVP readiness review](reviews/2026-10-06-mvp-readiness-review.md) records how this was checked. The scoped [threat model](threat-model.md) defines security tests used by I05–I09 and I12.
 
 ## 0. Readiness: decisions and Day-1 checklist
 
@@ -27,7 +27,7 @@ Nothing else blocks the critical path through I09. D6/D7 never block I00–I11.
 | Persistence | PostgreSQL (separate instance or database/role from Odoo); psycopg 3 + psycopg-pool; forward-only SQL migrations with checksums owned by `adapter-postgres` (I05 replaced Alembic to avoid a SQLAlchemy dependency; expand/migrate/contract still applies) |
 | Agent | Pydantic AI 2.x (exact pin), Ollama via its OpenAI-compatible or native provider as qualified in I04 |
 | Validation | pySHACL + rdflib (SHACL 1.1 + SHACL-SPARQL) |
-| TypeScript | Node 24 LTS (or 26 once promoted to LTS), pnpm workspace, TypeScript, React 19, React Aria Components, Vite, Vitest, Playwright, ESLint + dependency-cruiser, openapi-typescript, Style Dictionary (DTCG tokens) |
+| TypeScript | Node 24 LTS (or 26 once promoted to LTS), pnpm workspace, TypeScript, React 19, React Aria Components, Vite, Vitest, Playwright, dependency-cruiser, openapi-typescript, DTCG tokens (in-repo compiler; see [UI architecture §9](ui-architecture.md#9-implementation-notes-i08i09)). I08 pins TypeScript 5.9, Vite 8, Vitest 5, React 19.3, React Aria Components 1.21, Playwright 1.56 |
 | CI | GitHub Actions: Python and TS lint/type/test/build, PostgreSQL service container, wheel clean-install job; no live services or credentials |
 
 **Day-1 local prerequisites (I00):** Docker with the `odoo19-learning` stack running; a separate PostgreSQL for e-agent; Ollama with candidate models pulled; uv and Node/pnpm installed; a dedicated Odoo integration user and API key created in the sandbox (D4) and stored outside the repository; sandbox marker record created in the Odoo DB.

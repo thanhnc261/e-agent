@@ -144,14 +144,12 @@
           "host_context": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/HostContext"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Host Context"
+            ]
           },
           "task": {
             "maxLength": 4000,
@@ -288,12 +286,92 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HostContext": {
+        "additionalProperties": false,
+        "description": "Provider-neutral, untrusted hints from an embedding host (UI architecture \u00a74.7).",
+        "properties": {
+          "host_kind": {
+            "enum": [
+              "standalone",
+              "embedded"
+            ],
+            "title": "Host Kind",
+            "type": "string"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "page_url_origin": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Url Origin"
+          },
+          "resource_hints": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ResourceHint"
+            },
+            "maxItems": 10,
+            "title": "Resource Hints",
+            "type": "array"
+          },
+          "selection_text": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection Text"
+          }
+        },
+        "required": [
+          "host_kind"
+        ],
+        "title": "HostContext",
+        "type": "object"
+      },
       "MaterialField": {
         "additionalProperties": false,
         "properties": {
+          "changed": {
+            "default": false,
+            "title": "Changed",
+            "type": "boolean"
+          },
           "path": {
             "title": "Path",
             "type": "string"
+          },
+          "previous_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Value"
           },
           "value": {
             "title": "Value",
@@ -305,6 +383,37 @@
           "value"
         ],
         "title": "MaterialField",
+        "type": "object"
+      },
+      "ResourceHint": {
+        "additionalProperties": false,
+        "description": "What a host page says the user is looking at. Untrusted; never grants access.",
+        "properties": {
+          "external_id_hint": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "External Id Hint",
+            "type": "string"
+          },
+          "resource_type_hint": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Resource Type Hint",
+            "type": "string"
+          },
+          "system_hint": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "System Hint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "system_hint",
+          "resource_type_hint",
+          "external_id_hint"
+        ],
+        "title": "ResourceHint",
         "type": "object"
       },
       "RunEvent": {
@@ -1151,6 +1260,7 @@
     },
     "/v1/runs/{run_id}/stream": {
       "get": {
+        "description": "Resume from ``Last-Event-ID`` (automatic reconnect) or ``after_sequence``\n(a new EventSource after a snapshot, which cannot set headers).",
         "operationId": "stream_v1_runs__run_id__stream_get",
         "parameters": [
           {
@@ -1160,6 +1270,16 @@
             "schema": {
               "title": "Run Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after_sequence",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "After Sequence",
+              "type": "integer"
             }
           },
           {

@@ -1,6 +1,6 @@
 # UI architecture: layered, themeable and replaceable
 
-**Date:** 2026-10-06. **Status:** accepted design ([ADR 0011](adr/0011-layered-replaceable-ui.md)); nothing is implemented. It refines the overlay UI that [ADR 0001](adr/0001-local-mvp-scope.md) puts in the MVP and builds on the stream contract in [ADR 0007](adr/0007-run-event-stream-contract.md).
+**Date:** 2026-10-06. **Status:** accepted design ([ADR 0011](adr/0011-layered-replaceable-ui.md)); implemented in I08/I09 under `ui/` (see §9 for deviations). It refines the overlay UI that [ADR 0001](adr/0001-local-mvp-scope.md) puts in the MVP and builds on the stream contract in [ADR 0007](adr/0007-run-event-stream-contract.md).
 
 ## 1. Goal
 
@@ -188,3 +188,17 @@ No package under `ui/` may contain provider identifiers (a CI denylist covers `o
 | Layout | The three presets render from the same component set; layout config schema validated |
 | Replaceability | A minimal non-React **reference custom UI** (vanilla TS or Lit, test fixture only) built on `ui-core` passes the conformance suite |
 | Embedding | The overlay element works on a test host page whose aggressive global CSS does not change it |
+
+## 9. Implementation notes (I08/I09)
+
+What exists in `ui/` and where it differs from the text above:
+
+- **Packages:** `@e-agent/client`, `ui-core`, `tokens`, `ui-react`, `components`, `layouts`, `overlay-element`, `ui-conformance`; hosts `apps/web` (also serves the neutral `host.html` test page) and `apps/reference-vanilla` (the T4 reference UI). Packages are consumed as TypeScript source inside the workspace; only the three hosts are built.
+- **Generated contracts:** `scripts/export_openapi.py` writes `ui/packages/client/openapi.json`; `pnpm gen` regenerates `schema.ts` and the token CSS. CI fails if either is stale.
+- **Tokens:** a small in-repo DTCG compiler (`packages/tokens/build.mjs`, aliases and the types we use) replaces Style Dictionary to avoid a build dependency for a few dozen tokens. Contrast gates are Vitest checks over the resolved values.
+- **TypeScript 5.9**, not 7: openapi-typescript 7 needs the TypeScript 5 compiler API. Layer rules use dependency-cruiser only (no ESLint yet).
+- **Stream resume:** the browser resumes with `Last-Event-ID`; a fresh `EventSource` (after a snapshot or a closed connection) uses `?after_sequence=`, because it cannot set headers. Clients deduplicate by `sequence` and treat a gap like an unknown event: they re-read the snapshot.
+- **Approval:** `MaterialField` carries `previous_value`/`changed` against the superseded (blocked) proposal. Approve focuses the confirmation prompt, not the confirm button, so confirming always needs a separate action. Hiding the `approval` slot is ignored while a decision is pending.
+- **Overlay:** React Aria needs its shadow-DOM flag (`enableShadowDOM` from `react-stately/private/flags/flags`, an unstable export; re-check on upgrades) for pointer presses inside the shadow root. The host element resets inherited text properties, because a host page can set them on the element with `!important`. Only `::part(panel)` is exposed so far. The element opens itself once per new pending approval. The `server` attribute exists, but the MVP session cookie is `SameSite=Strict`, so it works only same-origin until allowlisted-origin auth exists.
+- **Host context (§4.7):** `POST /v1/runs` accepts `host_context`. `page_url_origin` must be an origin. A hint resolves only when exactly one in-scope connection that this requester can use has `integration_id == system_hint` (and lists the resource type if it restricts resources); every other hint is dropped and counted. The `run.created` event records the resolved hints as untrusted context; `selection_text` is never persisted and is not yet given to the driver. The overlay sends `host_kind=embedded` plus its origin.
+- **Not implemented:** host adapters for specific systems (out of MVP scope) and AG-UI output.

@@ -1,0 +1,21 @@
+{
+  "name": "@e-agent/overlay-element",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "L8: <e-agent-overlay> custom element (Shadow DOM) embedding the default UI in any web page.",
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "dependencies": {
+    "@e-agent/client": "workspace:*",
+    "@e-agent/components": "workspace:*",
+    "@e-agent/layouts": "workspace:*",
+    "@e-agent/tokens": "workspace:*",
+    "@e-agent/ui-core": "workspace:*",
+    "@e-agent/ui-react": "workspace:*",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-stately": "3.50.0"
+  }
+}

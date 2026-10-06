@@ -1,0 +1,14 @@
+{
+  "name": "@e-agent/layouts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "L7: overlay / sidebar / full-page layouts composed from named slots; validated layout config.",
+  "exports": { ".": "./src/index.tsx", "./layouts.css": "./src/layouts.css" },
+  "dependencies": {
+    "@e-agent/components": "workspace:*",
+    "@e-agent/ui-react": "workspace:*",
+    "react-aria-components": "1.21.1"
+  },
+  "peerDependencies": { "react": "^19.0.0" }
+}

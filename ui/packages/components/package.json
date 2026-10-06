@@ -1,0 +1,14 @@
+{
+  "name": "@e-agent/components",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "L6: default accessible components (React Aria), styled only with tokens.",
+  "exports": { ".": "./src/index.tsx", "./components.css": "./src/components.css" },
+  "dependencies": {
+    "@e-agent/ui-core": "workspace:*",
+    "@e-agent/ui-react": "workspace:*",
+    "react-aria-components": "1.21.1"
+  },
+  "peerDependencies": { "react": "^19.0.0" }
+}

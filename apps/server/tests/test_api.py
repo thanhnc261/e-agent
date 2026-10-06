@@ -125,10 +125,10 @@ def test_sse_stream_replays_and_resumes_after_last_event_id(client: TestClient) 
     )
     _wait(client, run_id, {"SUCCEEDED"})
 
-    def read_stream(last_id: str | None) -> list[dict[str, Any]]:
+    def read_stream(last_id: str | None, query: str = "") -> list[dict[str, Any]]:
         headers = {"Last-Event-ID": last_id} if last_id else {}
         events, current = [], {}
-        with client.stream("GET", f"/v1/runs/{run_id}/stream", headers=headers) as r:
+        with client.stream("GET", f"/v1/runs/{run_id}/stream{query}", headers=headers) as r:
             assert r.headers["content-type"].startswith("text/event-stream")
             for line in r.iter_lines():
                 if line.startswith("id:"):
@@ -147,6 +147,8 @@ def test_sse_stream_replays_and_resumes_after_last_event_id(client: TestClient) 
     assert seqs == list(range(1, len(seqs) + 1))
     resumed = [e for e in read_stream(str(seqs[4])) if e.get("event") == "run_event"]
     assert [int(e["id"]) for e in resumed] == seqs[5:]
+    by_query = [e for e in read_stream(None, "?after_sequence=3") if e.get("event") == "run_event"]
+    assert [int(e["id"]) for e in by_query] == seqs[3:]
 
 
 def test_unknown_or_foreign_runs_look_the_same(client: TestClient) -> None:
@@ -172,3 +174,40 @@ def test_background_crash_applies_crash_rules_not_a_guess() -> None:
         body = _wait(c, r.json()["run_id"], {"FAILED", "SUCCEEDED"})
         assert body["run"]["state"] == "FAILED"
         assert "model transport exploded" not in json.dumps(body)  # no raw error leakage
+
+
+def test_host_context_hints_are_resolved_or_dropped(client: TestClient) -> None:
+    h = _login(client)
+    body = {
+        "task": "restock",
+        "host_context": {
+            "host_kind": "embedded",
+            "page_url_origin": "https://intranet.example",
+            "selection_text": "do not persist me",
+            "resource_hints": [
+                {
+                    "system_hint": "fixture-erp",
+                    "resource_type_hint": "demand",
+                    "external_id_hint": "d-001",
+                },
+                {"system_hint": "elsewhere", "resource_type_hint": "x", "external_id_hint": "1"},
+            ],
+        },
+    }
+    run_id = client.post(
+        "/v1/runs", json=body, headers={**h, "Idempotency-Key": "host-ctx-01"}
+    ).json()["run_id"]
+    _wait(client, run_id, {"WAITING_APPROVAL"})
+    created = client.get(f"/v1/runs/{run_id}/events").json()[0]
+    ctx = created["payload"]["host_context"]
+    assert ctx["resolved_hints"] == [
+        {"connection_id": "conn-fixture-erp", "resource_type": "demand", "external_id": "d-001"}
+    ]
+    assert ctx["dropped_hints"] == 1
+    assert "do not persist me" not in json.dumps(created)
+    bad = {
+        **body,
+        "host_context": {**body["host_context"], "page_url_origin": "https://x.example/a?t=1"},
+    }
+    r = client.post("/v1/runs", json=bad, headers={**h, "Idempotency-Key": "host-ctx-02"})
+    assert r.status_code == 422

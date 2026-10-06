@@ -1,0 +1,12 @@
+{
+  "color": {
+    "$type": "color",
+    "surface": { "$value": "{palette.white}" },
+    "surface-raised": { "$value": "{palette.white}" },
+    "border": { "$value": "{palette.black}" },
+    "text": { "$value": "{palette.black}" },
+    "text-muted": { "$value": "{palette.gray-800}" },
+    "accent": { "$value": "{palette.blue-700}" },
+    "focus": { "$value": "{palette.black}" }
+  }
+}

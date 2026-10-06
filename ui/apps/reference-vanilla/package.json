@@ -1,0 +1,12 @@
+{
+  "name": "@e-agent/reference-vanilla",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "T4 reference custom UI: plain DOM on ui-core + client, no React. Must pass ui-conformance.",
+  "dependencies": {
+    "@e-agent/client": "workspace:*",
+    "@e-agent/tokens": "workspace:*",
+    "@e-agent/ui-core": "workspace:*"
+  }
+}

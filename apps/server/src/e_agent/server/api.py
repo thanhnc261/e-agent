@@ -22,7 +22,7 @@ from typing import Any, Literal
 from e_agent.contracts.action import ActionState
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.common import new_id
-from e_agent.contracts.context import Principal
+from e_agent.contracts.context import HostContext, Principal
 from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEvent
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord, RunState
@@ -64,7 +64,7 @@ class _Body(BaseModel):
 
 class CreateRun(_Body):
     task: str = Field(min_length=1, max_length=4000)
-    host_context: dict[str, Any] | None = None  # untrusted hints (ADR 0011); recorded only
+    host_context: HostContext | None = None  # untrusted hints, resolved or dropped (ADR 0011)
 
 
 class Decide(_Body):
@@ -243,7 +243,7 @@ def create_app(
         idempotency_key: str = Header(min_length=8, max_length=200),
     ) -> CreateRunResponse:
         rt = state().runtime
-        request_digest = digest({"task": body.task})
+        request_digest = digest(body.model_dump(mode="json", exclude_none=True))
         run_id = new_id("run")
         claimed, existing_digest = await rt.store.claim_idempotency(
             s.principal.tenant_id, s.principal.principal_id, idempotency_key, request_digest, run_id
@@ -253,7 +253,9 @@ def create_app(
         if claimed == run_id:
             state().spawn(
                 run_id,
-                lambda: rt.coordinator.start_run(s.principal, body.task, rt.scope, run_id=run_id),
+                lambda: rt.coordinator.start_run(
+                    s.principal, body.task, rt.scope, run_id=run_id, host_context=body.host_context
+                ),
             )
         return CreateRunResponse(run_id=claimed, created=claimed == run_id)
 
@@ -306,9 +308,13 @@ def create_app(
         request: Request,
         s: Session = Depends(visible_run),
         last_event_id: str | None = Header(default=None),
+        after_sequence: int = 0,
     ) -> AsyncIterator[ServerSentEvent]:
+        """Resume from ``Last-Event-ID`` (automatic reconnect) or ``after_sequence``
+        (a new EventSource after a snapshot, which cannot set headers)."""
         rt = state().runtime
-        cursor = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
+        header = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
+        cursor = max(header, after_sequence)
         idle = 0
         while not await request.is_disconnected():
             batch = await rt.store.list_events(s.principal.tenant_id, run_id, cursor)
