@@ -1,6 +1,6 @@
 # MVP implementation plan
 
-**Date:** 2026-10-06. **Status:** actionable planning baseline; implementation in progress (I01 and I02 done with fixtures; see the README status table). User decisions are recorded in [ADR 0001](adr/0001-local-mvp-scope.md). Read with the [HLD](high-level-design.md) and [detailed design](mvp-detailed-design.md). ADRs 0002–0013 ([index](adr/README.md)) were accepted on 2026-10-06 (decisions D1–D5); D6/D7 remain open. §0 lists what must be decided before development starts; the [MVP readiness review](reviews/2026-10-06-mvp-readiness-review.md) records how this was checked. The scoped [threat model](threat-model.md) defines security tests used by I05–I09 and I12.
+**Date:** 2026-10-06. **Status:** actionable planning baseline; implementation in progress (see the README status table). User decisions are recorded in [ADR 0001](adr/0001-local-mvp-scope.md). Read with the [HLD](high-level-design.md) and [detailed design](mvp-detailed-design.md). ADRs 0002–0013 ([index](adr/README.md)) were accepted on 2026-10-06 (decisions D1–D5); D6/D7 remain open. §0 lists what must be decided before development starts; the [MVP readiness review](reviews/2026-10-06-mvp-readiness-review.md) records how this was checked. The scoped [threat model](threat-model.md) defines security tests used by I05–I09 and I12.
 
 ## 0. Readiness: decisions and Day-1 checklist
 
@@ -24,10 +24,10 @@ Nothing else blocks the critical path through I09. D6/D7 never block I00–I11.
 |---|---|
 | Python | 3.12+ (prefer latest stable supported by all dependencies), uv workspace, `uv_build` backend, ruff (lint/format), mypy with the Pydantic plugin (strict for contracts/kernel/SDK), pytest + pytest-asyncio, import-linter |
 | Server | FastAPI + uvicorn; native `EventSourceResponse` for SSE; httpx for outbound HTTP |
-| Persistence | PostgreSQL (separate instance or database/role from Odoo); psycopg 3; Alembic migrations owned by `adapter-postgres` |
+| Persistence | PostgreSQL (separate instance or database/role from Odoo); psycopg 3 + psycopg-pool; forward-only SQL migrations with checksums owned by `adapter-postgres` (I05 replaced Alembic to avoid a SQLAlchemy dependency; expand/migrate/contract still applies) |
 | Agent | Pydantic AI 2.x (exact pin), Ollama via its OpenAI-compatible or native provider as qualified in I04 |
 | Validation | pySHACL + rdflib (SHACL 1.1 + SHACL-SPARQL) |
-| TypeScript | Node 24 LTS (or 26 once promoted to LTS), pnpm workspace, TypeScript, React 19, React Aria Components, Vite, Vitest, Playwright, ESLint + dependency-cruiser, openapi-typescript, Style Dictionary (DTCG tokens) |
+| TypeScript | Node 24 LTS (or 26 once promoted to LTS), pnpm workspace, TypeScript, React 19, React Aria Components, Vite, Vitest, Playwright, dependency-cruiser, openapi-typescript, DTCG tokens (in-repo compiler; see [UI architecture §9](ui-architecture.md#9-implementation-notes-i08i09)). I08 pins TypeScript 5.9, Vite 8, Vitest 5, React 19.3, React Aria Components 1.21, Playwright 1.56 |
 | CI | GitHub Actions: Python and TS lint/type/test/build, PostgreSQL service container, wheel clean-install job; no live services or credentials |
 
 **Day-1 local prerequisites (I00):** Docker with the `odoo19-learning` stack running; a separate PostgreSQL for e-agent; Ollama with candidate models pulled; uv and Node/pnpm installed; a dedicated Odoo integration user and API key created in the sandbox (D4) and stored outside the repository; sandbox marker record created in the Odoo DB.
@@ -88,7 +88,7 @@ Each row is a distinct user task, not five variants of the same procurement case
 | BQ-01 | Summarize ERP-related metrics in BigQuery | Approved metric/query template, dataset/snapshot provenance | Aggregates match independent deterministic query on approved data |
 | BQ-02 | Explain an ERP versus analytics discrepancy | Entity mapping, metric definition, snapshot watermark | Distinguishes stale snapshot from inconsistent values; no automatic correction |
 
-ERP-01..05 form the first five-task gate. ERP-06..08 extend to eight Odoo tasks. BigQuery is an additional integration gate, not a substitute for five real Odoo tasks. If a required module is unavailable, install/configure it in the designated sandbox or explicitly revise the catalog; do not silently count a stub as live coverage.
+ERP-01..05 form the first five-task gate. Implementation notes (I10/I11): ERP-04 changes only quantity and requested date of a single-line draft RFQ, guarded by an optimistic revision the bridge recomputes; ERP-06 counts a confirmed order as late when its promised (commitment or expected) date is before the as-of date and it is not fully delivered (rule `so-late-v1`); ERP-08 counts posted customer invoices with residual > 0 and due date before the as-of date, totalled per currency (`ar-overdue-v1`). Both answers are recomputed by the host from a fresh read. ERP-06..08 extend to eight Odoo tasks. BigQuery is an additional integration gate, not a substitute for five real Odoo tasks. If a required module is unavailable, install/configure it in the designated sandbox or explicitly revise the catalog; do not silently count a stub as live coverage.
 
 Demo mutations remain bounded to draft documents and lead creation. Manufacturing execution, order confirmation, stock movement, posted accounting and payments are excluded. Existing procurement restrictions (single currency/unit and tax-free fixture) apply to its first slice; any broader monetary behavior must get explicit fixtures and rules before activation.
 

@@ -30,6 +30,36 @@ class FixtureConfig(Record):
     driver_mode: str = "valid"
 
 
+class StoreConfig(Record):
+    kind: Literal["memory", "postgres"] = "memory"
+    dsn_env: str = "E_AGENT_PG_DSN"
+    """Name of the environment variable holding the DSN; the DSN is never in the profile."""
+
+
+class DriverConfig(Record):
+    kind: Literal["scripted", "pydantic-ai"] = "scripted"
+    provider: Literal["ollama"] = "ollama"
+    model: str | None = None
+    base_url_env: str = "E_AGENT_OLLAMA_URL"
+    requests_per_step: int = 4
+    temperature: str | None = None
+    task_kind: Literal[
+        "draft-po",
+        "shortage",
+        "recommend",
+        "amend-rfq",
+        "quotation",
+        "late-orders",
+        "crm-lead",
+        "overdue-invoices",
+    ] = "draft-po"
+    demand_ref: str | None = None
+    """Scripted driver only: provider refs for deterministic live smoke tests."""
+    product_ref: str | None = None
+    refs: dict[str, str] = Field(default_factory=dict)
+    """Scripted driver only: refs for ERP-04..08 (rfq_ref, customer_ref, contact_ref, ...)."""
+
+
 class Profile(Record):
     profile_version: Literal["1"]
     environment: Literal["fixture", "live"]
@@ -39,6 +69,8 @@ class Profile(Record):
     connections: tuple[ConnectionDescriptor, ...]
     bindings: dict[str, tuple[str, ...]]
     budgets: Budgets = Budgets()
+    store: StoreConfig = StoreConfig()
+    driver: DriverConfig = DriverConfig()
     fixture: FixtureConfig | None = None
 
 

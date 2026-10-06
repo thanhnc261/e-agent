@@ -25,7 +25,15 @@ class ActionState(StrEnum):
 
 ALLOWED_ACTION_TRANSITIONS: dict[ActionState, frozenset[ActionState]] = {
     ActionState.PROPOSED: frozenset({ActionState.VALIDATED, ActionState.BLOCKED}),
-    ActionState.VALIDATED: frozenset({ActionState.AWAITING_APPROVAL, ActionState.RESERVED}),
+    ActionState.VALIDATED: frozenset(
+        {
+            ActionState.AWAITING_APPROVAL,
+            ActionState.RESERVED,
+            # structured answers only (EffectKind.ANSWER): verified without dispatch
+            ActionState.VERIFIED,
+            ActionState.VERIFICATION_FAILED,
+        }
+    ),
     ActionState.AWAITING_APPROVAL: frozenset({ActionState.APPROVED, ActionState.BLOCKED}),
     ActionState.APPROVED: frozenset({ActionState.RESERVED, ActionState.BLOCKED}),
     ActionState.RESERVED: frozenset({ActionState.DISPATCHING, ActionState.BLOCKED}),

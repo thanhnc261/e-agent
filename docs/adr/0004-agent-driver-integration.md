@@ -35,3 +35,7 @@ Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06
 - Hygiene: a run with a thinking-enabled model leaves no thinking content in `runs`, `proposals`, `evidence`, `run_events`, logs or exported traces (grep plus schema assertions).
 - Resume: a crash between `DeferredToolRequests` and resume recovers from the persisted continuation, or else falls back to the ledger with the run marked as needing a new driver turn.
 - Revisit on a Pydantic AI major release or a failed I04 qualification.
+
+## Implementation note (I04, 2026-10-06)
+
+Read tools are also registered as external (deferred) tools through `ExternalToolset`, so the kernel executes reads through the gateway instead of the driver calling the gateway via `deps`. This is stricter than decision 2 and keeps every tool call, read or write, outside the framework. Numbers in string-typed tool arguments are coerced to decimal strings losslessly before validation. Continuation snapshots are taken through the driver's `snapshot`/`restore` hooks and stored by the kernel's RunStore; `ThinkingPart`s are stripped before any snapshot. Live Ollama qualification runs on the owner's machine with `scripts/qualify_model.py` because the development container cannot reach the Ollama registry.

@@ -248,6 +248,10 @@ Competency fixtures must answer: which facts support shortage; which offer is al
 
 Evidence export includes scenario ID, environment class (fixture/live), model/driver/plugin versions, ontology/rules, proposals/findings, approvals, sanitized action attempts, receipts, final checks and failure classification. Do not store API keys, bearer tokens, hidden chain-of-thought or unredacted provider debug dumps. Raw export is authorized; local file permissions and retention apply.
 
+### 11.1 Structured answers (implemented in I07)
+
+Read-only tasks (ERP-01, ERP-02, later ERP-06/08) end with a structured answer capability (`effect: answer`, e.g. `procurement.shortage.answer.v1`). Answers need no approval or dispatch: the kernel records them as actions that move `PROPOSED → VALIDATED → VERIFIED | VERIFICATION_FAILED`, and the domain verifier recomputes the expected answer from fresh reads through the gateway. A failed verification returns findings to the driver within the repair budget. This turns the plan's "answer matches the scoped ERP snapshot" acceptance into an executable check instead of a judgement on free text.
+
 ## 12. Application surface
 
 These are planned API contracts, not available endpoints yet. CLI calls the same application services to avoid a second business implementation.

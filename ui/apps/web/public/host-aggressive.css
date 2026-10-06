@@ -1,0 +1,6 @@
+/* Hostile host-page CSS: must not change the overlay (UI architecture §8 "Embedding"). */
+* { font-family: "Comic Sans MS", cursive !important; color: #ff00ff !important; letter-spacing: 3px !important; }
+button { background: #00ff00 !important; font-size: 30px !important; }
+table, td, th { border: 5px dotted orange !important; }
+:root { --ea-color-text: #ff00ff; --ea-color-surface: #00ff00; }
+body { font-size: 22px; }

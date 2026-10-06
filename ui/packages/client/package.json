@@ -1,0 +1,8 @@
+{
+  "name": "@e-agent/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "L2: generated API types, fetch wrapper (session, CSRF, idempotency) and SSE resume client.",
+  "exports": { ".": "./src/index.ts" }
+}

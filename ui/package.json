@@ -1,0 +1,39 @@
+{
+  "name": "e-agent-ui",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "gen": "openapi-typescript packages/client/openapi.json -o packages/client/src/schema.ts && node packages/tokens/build.mjs",
+    "gen:check": "pnpm gen && git diff --exit-code -- packages/client/src/schema.ts packages/tokens/src/generated",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint:boundaries": "depcruise --config .dependency-cruiser.cjs packages apps",
+    "lint:neutral": "node scripts/check-provider-neutrality.mjs",
+    "build": "vite build --config apps/web/vite.config.ts && vite build --config packages/overlay-element/vite.config.ts && vite build --config apps/reference-vanilla/vite.config.ts",
+    "conformance": "playwright test --config packages/ui-conformance/playwright.config.ts",
+    "check": "pnpm typecheck && pnpm test && pnpm lint:boundaries && pnpm lint:neutral && pnpm build"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "^22.19.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "dependency-cruiser": "18.5.0",
+    "happy-dom": "20.14.5",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-aria-components": "1.21.1",
+    "react-dom": "19.3.0"
+  }
+}

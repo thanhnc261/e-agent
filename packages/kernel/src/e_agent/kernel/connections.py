@@ -13,7 +13,7 @@ from e_agent.contracts.connection import (
     ConnectionOwnership,
     ConnectionStatus,
 )
-from e_agent.contracts.context import TaskContext
+from e_agent.contracts.context import ResolvedHint, ResourceHint, TaskContext
 
 from .errors import ErrorCode, KernelError
 
@@ -51,3 +51,37 @@ class ConnectionCatalog:
 
     def for_tenant(self, tenant_id: str) -> list[ConnectionDescriptor]:
         return [c for (t, _), c in self._by_id.items() if t == tenant_id]
+
+    def resolve_hints(
+        self, ctx: TaskContext, hints: Iterable[ResourceHint]
+    ) -> tuple[tuple[ResolvedHint, ...], int]:
+        """Resolve host hints through connection mappings; drop everything else.
+
+        A hint resolves only when exactly one in-scope connection usable by this
+        requester has ``integration_id == system_hint`` and, if the connection
+        restricts resources, lists the resource type. Hints never select credentials.
+        """
+        resolved: list[ResolvedHint] = []
+        dropped = 0
+        for hint in hints:
+            matches = []
+            for conn in self.for_tenant(ctx.tenant_id):
+                if conn.integration_id != hint.system_hint:
+                    continue
+                if conn.allowed_resources and hint.resource_type_hint not in conn.allowed_resources:
+                    continue
+                try:
+                    matches.append(self.usable(ctx, conn.connection_id))
+                except KernelError:
+                    continue
+            if len(matches) != 1:
+                dropped += 1
+                continue
+            resolved.append(
+                ResolvedHint(
+                    connection_id=matches[0].connection_id,
+                    resource_type=hint.resource_type_hint,
+                    external_id=hint.external_id_hint,
+                )
+            )
+        return tuple(resolved), dropped

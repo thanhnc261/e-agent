@@ -1,0 +1,30 @@
+{
+  "profile_version": "1",
+  "environment": "live",
+  "tenant_id": "tenant-local",
+  "operator": {"principal_id": "local-operator", "roles": ["requester", "approver"], "display_name": "Local operator"},
+  "enabled_plugins": {
+    "domain-erp": {"version": "0.1.0"},
+    "odoo19": {"version": "0.1.0", "settings": {
+      "base_url": "http://localhost:8069",
+      "database": "<odoo19-learning database>",
+      "namespace": "e-agent-demo",
+      "expected_sandbox_marker": "odoo19-learning"
+    }}
+  },
+  "connections": [{
+    "tenant_id": "tenant-local", "connection_id": "conn-odoo", "version": 1,
+    "integration_id": "odoo19", "ownership": "tenant_shared",
+    "provider_subject": "e-agent-integration",
+    "secret_ref": "secretref:local/odoo-integration"
+  }],
+  "bindings": {
+    "odoo19.inventory.availability": ["conn-odoo"],
+    "odoo19.procurement.demand": ["conn-odoo"],
+    "odoo19.procurement.offers": ["conn-odoo"],
+    "odoo19.procurement.po-create": ["conn-odoo"],
+    "odoo19.procurement.po-read": ["conn-odoo"]
+  },
+  "store": {"kind": "postgres", "dsn_env": "E_AGENT_PG_DSN"},
+  "driver": {"kind": "pydantic-ai", "provider": "ollama", "model": "<qualified model>", "temperature": "0"}
+}

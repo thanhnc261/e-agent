@@ -38,10 +38,121 @@
       "effect": "read",
       "input_schema_id": "procurement.PurchaseOrderQuery.v1",
       "output_schema_id": "procurement.PurchaseOrders.v1",
-      "description": "Read purchase orders by host operation key (verification read-back)"
+      "description": "Read purchase orders by host operation key (verification read-back)",
+      "agent_visible": false
+    },
+    {
+      "contract_id": "procurement.shortage.answer.v1",
+      "effect": "answer",
+      "input_schema_id": "procurement.ShortageAnswer.v1",
+      "output_schema_id": "procurement.VerifiedAnswer.v1",
+      "description": "Report demand, available and inbound quantity and the resulting shortage; the host verifies it against fresh reads"
+    },
+    {
+      "contract_id": "procurement.offer.recommend.v1",
+      "effect": "answer",
+      "input_schema_id": "procurement.OfferRecommendation.v1",
+      "output_schema_id": "procurement.VerifiedAnswer.v1",
+      "description": "Recommend the eligible supplier offer for a demand (or none); the host verifies it independently"
+    },
+    {
+      "contract_id": "procurement.draft-rfq.read.v1",
+      "effect": "read",
+      "input_schema_id": "procurement.DraftRfqQuery.v1",
+      "output_schema_id": "procurement.DraftRfq.v1",
+      "description": "One draft request for quotation with its current lines and optimistic revision"
+    },
+    {
+      "contract_id": "procurement.draft-rfq.amend.v1",
+      "effect": "write",
+      "input_schema_id": "procurement.AmendDraftRfq.v1",
+      "output_schema_id": "procurement.DraftPurchaseOrderRef.v1",
+      "description": "Change quantity and/or requested date of one draft RFQ at the revision that was read; never confirms"
+    },
+    {
+      "contract_id": "sales.pricing.read.v1",
+      "effect": "read",
+      "input_schema_id": "sales.PricingQuery.v1",
+      "output_schema_id": "sales.Pricing.v1",
+      "description": "Whether a customer can be quoted and the product's list price, unit and currency"
+    },
+    {
+      "contract_id": "sales.quotation.create-draft.v1",
+      "effect": "write",
+      "input_schema_id": "sales.DraftQuotation.v1",
+      "output_schema_id": "sales.QuotationRef.v1",
+      "description": "Create one draft customer quotation; never confirms, emails or delivers"
+    },
+    {
+      "contract_id": "sales.quotation.read.v1",
+      "effect": "read",
+      "input_schema_id": "sales.QuotationQuery.v1",
+      "output_schema_id": "sales.Quotations.v1",
+      "description": "Read quotations by host operation key (verification read-back)",
+      "agent_visible": false
+    },
+    {
+      "contract_id": "sales.open-orders.read.v1",
+      "effect": "read",
+      "input_schema_id": "sales.OpenOrdersQuery.v1",
+      "output_schema_id": "sales.OpenOrders.v1",
+      "description": "Confirmed sales orders with promised date and delivery status, as of a date"
+    },
+    {
+      "contract_id": "sales.late-orders.answer.v1",
+      "effect": "answer",
+      "input_schema_id": "sales.LateOrdersAnswer.v1",
+      "output_schema_id": "procurement.VerifiedAnswer.v1",
+      "description": "Report the sales orders that are late as of a date; the host recomputes it"
+    },
+    {
+      "contract_id": "crm.contact.read.v1",
+      "effect": "read",
+      "input_schema_id": "crm.ContactQuery.v1",
+      "output_schema_id": "crm.Contact.v1",
+      "description": "One contact a lead would be about"
+    },
+    {
+      "contract_id": "crm.teams.read.v1",
+      "effect": "read",
+      "input_schema_id": "crm.TeamsQuery.v1",
+      "output_schema_id": "crm.Teams.v1",
+      "description": "Sales teams with members, and known lead sources"
+    },
+    {
+      "contract_id": "crm.lead.create.v1",
+      "effect": "write",
+      "input_schema_id": "crm.CreateLead.v1",
+      "output_schema_id": "crm.LeadRef.v1",
+      "description": "Create one CRM lead; a repeated command never creates a second lead"
+    },
+    {
+      "contract_id": "crm.lead.read.v1",
+      "effect": "read",
+      "input_schema_id": "crm.LeadQuery.v1",
+      "output_schema_id": "crm.Leads.v1",
+      "description": "Read leads by host operation key (verification read-back)",
+      "agent_visible": false
+    },
+    {
+      "contract_id": "receivables.open-invoices.read.v1",
+      "effect": "read",
+      "input_schema_id": "receivables.OpenInvoicesQuery.v1",
+      "output_schema_id": "receivables.OpenInvoices.v1",
+      "description": "Posted customer invoices with an open residual, as of a date (read-only)"
+    },
+    {
+      "contract_id": "receivables.overdue-invoices.answer.v1",
+      "effect": "answer",
+      "input_schema_id": "receivables.OverdueInvoicesAnswer.v1",
+      "output_schema_id": "procurement.VerifiedAnswer.v1",
+      "description": "Report overdue invoices and totals per currency as of a date; the host recomputes it"
     }
   ],
   "provides_bindings": [],
   "requires_capabilities": [],
-  "settings_schema": {"type": "object", "additionalProperties": false}
+  "settings_schema": {
+    "type": "object",
+    "additionalProperties": false
+  }
 }

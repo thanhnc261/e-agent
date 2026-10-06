@@ -139,9 +139,11 @@ class OutcomeVerifier(Protocol):
         self,
         ctx: TaskContext,
         action: ActionRecord,
-        receipt: ExecutionReceipt,
+        receipt: ExecutionReceipt | None,
         reader: ScopedReader,
-    ) -> OutcomeReport: ...
+    ) -> OutcomeReport:
+        """``receipt`` is None for structured answers (EffectKind.ANSWER)."""
+        ...
 
 
 # ---- Policy -----------------------------------------------------------------
@@ -171,6 +173,8 @@ class PluginServices:
     """Scoped services the host gives a plugin at initialization."""
 
     settings: Mapping[str, Any]
+    credentials: Any = None
+    """CredentialResolver scoped to this plugin's integration (e_agent.sdk.auth)."""
 
 
 @dataclass
@@ -182,6 +186,12 @@ class PluginContribution:
     executors: tuple[ActionExecutor, ...] = ()
     verifiers: tuple[OutcomeVerifier, ...] = ()
     drivers: tuple[AgentDriver, ...] = ()
+    input_schemas: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+    """JSON Schemas keyed by CapabilityDescriptor.input_schema_id (tool parameters)."""
+    agent_guidance: str = ""
+    """Domain task guidance for drivers. Explanatory only: rules are enforced by validators."""
+    dataset_builders: tuple[Any, ...] = ()
+    """ValidationDatasetBuilder instances (see e_agent.sdk.validation)."""
 
 
 class PluginFactory(Protocol):

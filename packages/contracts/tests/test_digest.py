@@ -16,7 +16,7 @@ def test_golden_vectors(vector: dict[str, object]) -> None:
     canonical = canonicalize(vector["input"])
     assert canonical == vector["canonical"]
     expected = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-    assert digest(vector["input"]) == f"jcs-sha256-v1:{expected}"
+    assert digest(vector["input"]) == f"jcs-sha256-v1:{expected}" == vector["digest"]
 
 
 def test_key_order_and_whitespace_do_not_change_digest() -> None:

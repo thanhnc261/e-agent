@@ -49,9 +49,19 @@ The product is independent of the separate `enterprise-agent/experiment` researc
 | I00 Environment qualification | Ready to run locally | [runbook](docs/runbooks/i00-environment-qualification.md), `scripts/env_check.py` (needs the owner's machine) |
 | I01 Workspace and CI | Done | uv workspace, ruff, mypy strict, import-linter, pytest, wheel clean-install gate, GitHub Actions |
 | I02 Contracts and registration | Done (fixture walking skeleton) | Contracts, JCS digest + golden vectors, SDK ports, metadata-only discovery, registry admission, kernel coordinator, CLI demo |
-| I03–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
+| I03 Rule and ontology slice | Done | `e_agent.adapters.shacl` (pySHACL, SHACL 1.1 + SPARQL); procurement ontology and shapes packaged in `e_agent.erp`; rule matrix, parity and inventory tests |
+| I05 Durable kernel | Done | `e_agent.adapters.postgres`: ledger schema, checksummed migrations, CAS, unique reservations, gapless events + NOTIFY, advisory writer lock, persisted continuation, startup `recover()`; kernel suite and store conformance pass on PostgreSQL 16 |
+| I04 Local model qualification | Driver done; live qualification pending on the owner's machine | `e_agent.adapters.pydantic_ai` (Pydantic AI 2.54, Ollama): all tools deferred to the kernel, thinking stripped, snapshot/restore; FunctionModel end-to-end tests; `scripts/qualify_model.py` (needs local Ollama) |
+| I06 Odoo bridge and adapter | Done (sandbox from source); owner install pending | `addons/e_agent_bridge` (operation ledger with `models.Constraint`, draft-only commands, narrow reads, sandbox seed/reset), `e_agent.adapters.odoo` (JSON-2, API key via `AuthContext`), local envelope-encrypted secret store, credential service. 7 live tests passed against real Odoo 19 (idempotency, 6-way race → 1 PO, lost response → reconcile, marker check). [Runbook](docs/runbooks/i06-odoo-bridge.md) |
+| I07 Procurement vertical slice | Done with scripted driver on live Odoo; live-model runs pending | ERP-01 shortage and ERP-02 recommendation as verified structured answers (new `answer` effect: no approval, independent recomputation from fresh reads), ERP-03 draft PO; all three verified against live Odoo 19; redacted evidence bundles (`--evidence-out`, `e-agent evidence`) |
+| I08 Streaming API and UI layers | Done | `e-agent serve`: FastAPI API v1 (loopback session + CSRF, `Idempotency-Key`, typed snapshots, native SSE with `Last-Event-ID`/`after_sequence` resume, `ApprovalPresentation` with changed-field marking); `ui/` pnpm workspace: `@e-agent/client` (types generated from the checked-in OpenAPI), `ui-core` (run store, approval state machine, JCS digest check on the shared golden vectors, sanitizer, vi/en), `tokens` (DTCG → CSS, contrast gates), `ui-react`, `components` (React Aria), `layouts` (overlay/sidebar/full-page), `apps/web`, `<e-agent-overlay>` (Shadow DOM); dependency-cruiser layer rules and a provider-neutrality gate |
+| I09 Live UI workflow | Done on the fixture server | `ui-conformance` (Playwright): the 8 §6 checks plus theming/embedding, run against the default app, the overlay on a hostile neutral host page and a non-React reference UI; live flows complete/reject/reload against the real kernel. Generic `HostContext` hints are resolved through connection mappings or dropped |
+| I10 Five-task gate | Done with scripted driver on live Odoo; live-model runs pending | ERP-04 amend draft RFQ (quantity/date at the read revision; stale or non-draft blocked by AM-001/AM-002 and re-checked atomically by the bridge), ERP-05 draft quotation (archived customer, unsaleable product and off-list price blocked; never confirmed or sent) |
+| I11 Eight-task expansion | Done with scripted driver on live Odoo; live-model runs pending | ERP-06 late sales orders and ERP-08 overdue invoices as verified read-only answers at an explicit as-of date; ERP-07 CRM lead (owner must be a team member; repeated commands never duplicate). New `sales`, `crm`, `receivables` bounded contexts; 10 live tests against Odoo 19 (`test_odoo_live_tasks.py`) |
+| I12–I13 BigQuery | Blocked on D6 | Scope, project and data permission not decided |
+| I14 Release qualification | Done for the repository scope; owner gates open | [Qualification report](docs/release/mvp-qualification-report.md), `scripts/release_report.py` (21-case matrix), [demo](docs/runbooks/demo.md) and [recovery/reset](docs/runbooks/recovery-and-reset.md) runbooks; T16/T17 mitigations implemented. Open: live model qualification, owner's `odoo19-learning` install, BigQuery (D6) |
 
-What exists is **fixture-only**: a scripted driver, a fake ERP and a non-authoritative procedural rule checker exercise the real kernel. No model, Odoo, PostgreSQL, SHACL or UI integration exists yet, and nothing here is evidence of live capability.
+Validation is authoritative (SHACL); the ledger is PostgreSQL; the Odoo adapter has been exercised against a real Odoo 19 sandbox built from source. Live model runs (Ollama) are not done yet (see the [qualification report](docs/release/mvp-qualification-report.md)); fixture runs are labelled `environment=fixture` and are not evidence of live capability. The UI has been exercised against the fixture server, not against live Odoo.
 
 ### Commands (verified in the development container)
 
@@ -61,13 +71,36 @@ uv run e-agent demo --approve             # fixture procurement run, approve exp
 uv run e-agent demo --driver-mode invalid-then-repair --approve   # blocked by PR-003, then repaired
 uv run e-agent demo --fault lost-response --approve --reconcile   # UNKNOWN -> read-only reconcile
 uv run e-agent demo --scenario zero-shortage                      # verified no-op
+uv run e-agent demo --task shortage                               # ERP-01 verified answer
+uv run e-agent demo --task recommend                              # ERP-02 verified answer
+uv run e-agent demo --approve --evidence-out run.json             # redacted evidence bundle
+uv run e-agent demo --task amend-rfq --driver-mode invalid-then-repair --approve  # ERP-04: stale revision blocked, repaired
+uv run e-agent demo --task quotation --approve                    # ERP-05 draft quotation
+uv run e-agent demo --task late-orders                            # ERP-06 verified answer
+uv run e-agent demo --task crm-lead --approve                     # ERP-07 lead
+uv run e-agent demo --task overdue-invoices                       # ERP-08 verified answer
 uv run e-agent plugins                    # discovered plugins (metadata only)
+
+# Live model qualification (owner's machine with Ollama; fixture ERP)
+uv run python scripts/qualify_model.py --model qwen3-coder:30b --trials 10 --out evals/reports/qualification.json
 
 uv run ruff check . && uv run ruff format --check .
 uv run mypy
 uv run lint-imports                       # architecture dependency gates
 uv run pytest -q
 uv run python scripts/check_wheels.py     # each wheel installs/runs outside the repo
+
+# HTTP API + web UI (loopback only; Node 22.12+/24 and pnpm 10 for ui/)
+(cd ui && pnpm install && pnpm build)
+uv run e-agent serve --static ui/dist/web # http://127.0.0.1:8787/ (app), /host.html (overlay), /reference/
+uv run python scripts/export_openapi.py   # after API changes; then (cd ui && pnpm gen)
+(cd ui && pnpm check && pnpm conformance) # types, unit tests, layer rules, neutrality, build, Playwright
+
+# PostgreSQL ledger (profile store.kind=postgres; DSN only via environment)
+export E_AGENT_PG_DSN=postgresql://user@host:5432/e_agent   # e-agent's own database, never Odoo's
+uv run e-agent --profile my-profile.json migrate
+uv run e-agent --profile my-profile.json recover
+E_AGENT_TEST_PG_DSN=$E_AGENT_PG_DSN E_AGENT_TEST_STORE=postgres uv run pytest -q packages/kernel
 ```
 
 Python packages share the `e_agent` namespace: `e_agent.contracts`, `e_agent.sdk`, `e_agent.kernel`, `e_agent.erp`, `e_agent.server`.

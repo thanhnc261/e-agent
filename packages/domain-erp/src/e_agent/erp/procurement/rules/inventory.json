@@ -2,19 +2,89 @@
   "bundle": "procurement-rules",
   "version": "0.1.0",
   "bounded_context": "procurement",
-  "note": "Authoritative rule inventory (ADR 0009). Engine assets (SHACL shapes, policy rule ids) are added in I03; until then only the fixture validator exercises these rules and it is labelled non-authoritative.",
+  "note": "Authoritative rule inventory (ADR 0009). SHACL assets live in shapes/procurement-shapes.ttl; each shape carries ea:ruleId. PR-006 is enforced by kernel policy and connection scope.",
   "rules": [
-    {"id": "PR-001", "version": "1", "description": "Product, supplier, offer and source references are present and resolve in scope",
-     "engine": ["shacl-core", "policy"], "asset": null, "severity": "block"},
-    {"id": "PR-002", "version": "1", "description": "Quantity equals max(demand - available - inbound, 0)",
-     "engine": ["normalizer-derived", "shacl-core"], "formula": "pr-002-v1", "asset": null, "severity": "block"},
-    {"id": "PR-003", "version": "1", "description": "Selected offer is approved and belongs to the product and supplier",
-     "engine": ["shacl-core"], "asset": null, "severity": "block"},
-    {"id": "PR-004", "version": "1", "description": "Quantity positive; unit and currency match; subtotal = quantity * unit price and within budget",
-     "engine": ["shacl-core", "shacl-sparql"], "asset": null, "severity": "block"},
-    {"id": "PR-005", "version": "1", "description": "Offer delivery date meets the requested date",
-     "engine": ["shacl-sparql"], "asset": null, "severity": "block"},
-    {"id": "PR-006", "version": "1", "description": "Observed resources and connection belong to the authorized tenant/company scope",
-     "engine": ["policy"], "asset": "kernel.DefaultPolicy", "severity": "block"}
-  ]
+    {
+      "id": "PR-001",
+      "version": "1",
+      "description": "Product, supplier, offer and source references are present and resolve in scope",
+      "engine": [
+        "shacl-core",
+        "policy"
+      ],
+      "asset": [
+        "ps:PR001",
+        "ps:PR001-missing",
+        "kernel.ConnectionCatalog.usable"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "PR-002",
+      "version": "1",
+      "description": "Quantity equals max(demand - available - inbound, 0)",
+      "engine": [
+        "normalizer-derived",
+        "shacl-core"
+      ],
+      "formula": "pr-002-v1",
+      "asset": [
+        "normalizer:pr-002-v1",
+        "ps:PR002"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "PR-003",
+      "version": "1",
+      "description": "Selected offer is approved and belongs to the product and supplier",
+      "engine": [
+        "shacl-core"
+      ],
+      "asset": [
+        "ps:PR003"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "PR-004",
+      "version": "1",
+      "description": "Quantity positive; unit and currency match; subtotal = quantity * unit price and within budget",
+      "engine": [
+        "shacl-core",
+        "shacl-sparql"
+      ],
+      "asset": [
+        "ps:PR004"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "PR-005",
+      "version": "1",
+      "description": "Offer delivery date meets the requested date",
+      "engine": [
+        "shacl-sparql"
+      ],
+      "asset": [
+        "ps:PR005"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "PR-006",
+      "version": "1",
+      "description": "Observed resources and connection belong to the authorized tenant/company scope",
+      "engine": [
+        "policy"
+      ],
+      "asset": [
+        "kernel.DefaultPolicy",
+        "kernel.ConnectionCatalog.usable"
+      ],
+      "severity": "block"
+    }
+  ],
+  "shapes": "shapes/procurement-shapes.ttl",
+  "ontology": "ontology/procurement.ttl"
 }

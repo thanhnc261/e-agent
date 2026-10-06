@@ -1,0 +1,17 @@
+[project]
+name = "e-agent-adapter-agent-pydantic"
+version = "0.1.0"
+description = "Pydantic AI 2.x agent driver for e-agent (deferred-only tools, ADR 0004)"
+requires-python = ">=3.12"
+dependencies = [
+    "e-agent-contracts>=0.1,<0.2",
+    "e-agent-plugin-sdk>=0.1,<0.2",
+    "pydantic-ai-slim[openai]>=2.54,<3",
+]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "e_agent.adapters.pydantic_ai"

@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
+from contextlib import asynccontextmanager
+from typing import Any
 
 from e_agent.contracts.action import ActionRecord
 from e_agent.contracts.approval import ApprovalRecord
@@ -17,13 +19,15 @@ from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.events import RunEvent
 from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.receipt import ExecutionReceipt
-from e_agent.contracts.run import RunRecord
+from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord
 from e_agent.sdk.store import (
     ConcurrencyConflict,
     DuplicateOperation,
     EventSpec,
     NotFound,
 )
+
+_Stored = tuple[dict[str, Any], dict[str, Any] | None]
 
 
 class InMemoryRunStore:
@@ -38,6 +42,11 @@ class InMemoryRunStore:
         self._approvals: dict[tuple[str, str], list[ApprovalRecord]] = defaultdict(list)
         self._receipts: dict[tuple[str, str], list[ExecutionReceipt]] = defaultdict(list)
         self._outcomes: dict[tuple[str, str], list[OutcomeReport]] = defaultdict(list)
+        self._continuations: dict[
+            tuple[str, str], tuple[dict[str, Any], dict[str, Any] | None]
+        ] = {}
+        self._writer_locks: dict[tuple[str, str], asyncio.Lock] = defaultdict(asyncio.Lock)
+        self._idempotency: dict[tuple[str, str, str], tuple[str, str]] = {}
 
     # -- helpers (caller holds the lock) --------------------------------------
     def _append(self, tenant_id: str, run_id: str, events: Sequence[EventSpec]) -> None:
@@ -145,13 +154,14 @@ class InMemoryRunStore:
 
     async def record_outcome(
         self,
+        tenant_id: str,
         outcome: OutcomeReport,
         action: ActionRecord | None,
         expected_revision: int | None,
         events: Sequence[EventSpec],
     ) -> None:
         async with self._lock:
-            run = next(r for (t, rid), r in self._runs.items() if rid == outcome.run_id)
+            run = self._runs[(tenant_id, outcome.run_id)]
             if action is not None:
                 self._check_action_cas(action, expected_revision)
                 self._actions[(action.tenant_id, action.action_id)] = action
@@ -172,3 +182,36 @@ class InMemoryRunStore:
 
     async def list_approvals(self, tenant_id: str, action_id: str) -> list[ApprovalRecord]:
         return list(self._approvals[(tenant_id, action_id)])
+
+    async def claim_idempotency(
+        self, tenant_id: str, actor_id: str, key: str, request_digest: str, run_id: str
+    ) -> tuple[str, str]:
+        async with self._lock:
+            return self._idempotency.setdefault(
+                (tenant_id, actor_id, key), (run_id, request_digest)
+            )
+
+    async def list_unfinished_runs(self) -> list[RunRecord]:
+        return [r for r in self._runs.values() if r.state not in TERMINAL_RUN_STATES]
+
+    async def save_continuation(
+        self,
+        tenant_id: str,
+        run_id: str,
+        state: Mapping[str, Any],
+        driver_state: Mapping[str, Any] | None,
+    ) -> None:
+        self._continuations[(tenant_id, run_id)] = (
+            dict(state),
+            dict(driver_state) if driver_state is not None else None,
+        )
+
+    async def load_continuation(
+        self, tenant_id: str, run_id: str
+    ) -> tuple[dict[str, Any], dict[str, Any] | None] | None:
+        return self._continuations.get((tenant_id, run_id))
+
+    @asynccontextmanager
+    async def writer_lock(self, tenant_id: str, connection_id: str) -> AsyncIterator[None]:
+        async with self._writer_locks[(tenant_id, connection_id)]:
+            yield

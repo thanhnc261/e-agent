@@ -55,6 +55,8 @@ def compute_digest(canonical_proposal: dict[str, Any]) -> str:
 class MaterialField(Record):
     path: str
     value: str
+    previous_value: str | None = None  # value in the superseded (blocked) proposal
+    changed: bool = False
 
 
 class ApprovalPresentation(Record):
@@ -74,16 +76,30 @@ class ApprovalPresentation(Record):
     findings: tuple[Finding, ...]
 
 
-def material_fields(arguments: dict[str, Any], prefix: str = "") -> tuple[MaterialField, ...]:
-    fields: list[MaterialField] = []
+def _flatten(arguments: dict[str, Any], prefix: str = "") -> dict[str, str]:
+    flat: dict[str, str] = {}
     for key in sorted(arguments):
         value = arguments[key]
         path = f"{prefix}{key}"
         if isinstance(value, dict):
-            fields.extend(material_fields(value, f"{path}."))
+            flat.update(_flatten(value, f"{path}."))
         else:
-            fields.append(MaterialField(path=path, value="null" if value is None else str(value)))
-    return tuple(fields)
+            flat[path] = "null" if value is None else str(value)
+    return flat
+
+
+def material_fields(
+    arguments: dict[str, Any], previous: dict[str, Any] | None = None
+) -> tuple[MaterialField, ...]:
+    """Flatten the proposal; mark what changed against the superseded proposal, if any."""
+    current = _flatten(arguments)
+    if previous is None:
+        return tuple(MaterialField(path=p, value=v) for p, v in current.items())
+    before = _flatten(previous)
+    return tuple(
+        MaterialField(path=p, value=v, previous_value=before.get(p), changed=before.get(p) != v)
+        for p, v in current.items()
+    )
 
 
 def presentation_for(
@@ -93,6 +109,7 @@ def presentation_for(
     canonical_proposal: dict[str, Any],
     findings: Iterable[Finding],
     expires_at: Any,
+    previous_arguments: dict[str, Any] | None = None,
 ) -> ApprovalPresentation:
     return ApprovalPresentation(
         run_id=action.run_id,
@@ -105,6 +122,6 @@ def presentation_for(
         connection_id=action.connection_id,
         credential_subject=action.credential_subject,
         canonical_proposal=canonical_proposal,
-        material_fields=material_fields(action.arguments),
+        material_fields=material_fields(action.arguments, previous_arguments),
         findings=tuple(findings),
     )

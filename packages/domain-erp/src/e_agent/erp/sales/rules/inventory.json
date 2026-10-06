@@ -1,0 +1,70 @@
+{
+  "bundle": "sales-rules",
+  "version": "0.1.0",
+  "bounded_context": "sales",
+  "note": "ERP-05 SHACL assets in shapes/quotation-shapes.ttl; ERP-06 is a verified answer.",
+  "rules": [
+    {
+      "id": "SQ-001",
+      "version": "1",
+      "description": "Customer and product resolve to observed pricing",
+      "engine": [
+        "shacl-core"
+      ],
+      "asset": [
+        "qs:SQ001",
+        "qs:SQ001-missing"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "SQ-002",
+      "version": "1",
+      "description": "Customer is active and the product can be sold (invalid quotations are blocked)",
+      "engine": [
+        "shacl-core"
+      ],
+      "asset": [
+        "qs:SQ002"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "SQ-003",
+      "version": "1",
+      "description": "Unit, currency and unit price match the price list",
+      "engine": [
+        "shacl-core"
+      ],
+      "asset": [
+        "qs:SQ003"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "SQ-004",
+      "version": "1",
+      "description": "Quantity is positive and subtotal = quantity x unit price",
+      "engine": [
+        "shacl-core",
+        "shacl-sparql"
+      ],
+      "asset": [
+        "qs:SQ004"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "SO-LATE",
+      "version": "1",
+      "description": "Late = promised date before as-of and not fully delivered (so-late-v1)",
+      "engine": [
+        "verifier"
+      ],
+      "asset": [
+        "sales.late_orders:late_orders"
+      ],
+      "severity": "block"
+    }
+  ]
+}

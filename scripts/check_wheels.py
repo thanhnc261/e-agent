@@ -30,7 +30,22 @@ PACKAGES = {
         "ps = [p for p in discover() if p.manifest.plugin_id == 'domain-erp']; "
         "assert ps, 'domain-erp not discoverable from installed wheel'; "
         "from importlib.resources import files; "
-        "files('e_agent.erp').joinpath('procurement/rules/inventory.json').read_text()"
+        "files('e_agent.erp').joinpath('procurement/rules/inventory.json').read_text(); "
+        "files('e_agent.erp').joinpath('procurement/shapes/procurement-shapes.ttl').read_text(); "
+        "[files('e_agent.erp').joinpath(p).read_text() for p in ("
+        "'procurement/shapes/amend-shapes.ttl', 'sales/shapes/quotation-shapes.ttl', "
+        "'crm/shapes/lead-shapes.ttl', 'receivables/rules/inventory.json')]"
+    ),
+    "e-agent-adapter-shacl": "import e_agent.adapters.shacl",
+    "e-agent-adapter-postgres": (
+        "from importlib.resources import files; import e_agent.adapters.postgres; "
+        "files('e_agent.adapters.postgres').joinpath('migrations/0001_initial.sql').read_text()"
+    ),
+    "e-agent-adapter-agent-pydantic": "import e_agent.adapters.pydantic_ai",
+    "e-agent-adapter-secretstore-local": "import e_agent.adapters.secretstore_local",
+    "e-agent-adapter-odoo": (
+        "from e_agent.sdk.discovery import discover; "
+        "assert [p for p in discover() if p.manifest.plugin_id == 'odoo19']"
     ),
     "e-agent-server": "import e_agent.server.cli",
 }
@@ -60,6 +75,7 @@ def main() -> int:
                     "pip",
                     "install",
                     "--quiet",
+                    "--no-cache",  # never reuse a stale wheel with the same version
                     "--python",
                     str(python),
                     "--find-links",
@@ -78,6 +94,23 @@ def main() -> int:
         if state != "SUCCEEDED":
             raise SystemExit(f"FAILED: installed demo ended in {state}")
         print("ok  installed e-agent demo completes outside the repository")
+        for task in ("amend-rfq", "quotation", "crm-lead", "late-orders", "overdue-invoices"):
+            out = run(
+                [
+                    str(server_python),
+                    "-m",
+                    "e_agent.server.cli",
+                    "demo",
+                    "--json",
+                    "--approve",
+                    "--task",
+                    task,
+                ],
+                cwd=neutral,
+            )
+            if json.loads(out)["run"]["state"] != "SUCCEEDED":
+                raise SystemExit(f"FAILED: installed {task} demo")
+        print("ok  installed ERP-04..08 demos complete outside the repository")
     return 0
 
 

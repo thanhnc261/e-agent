@@ -30,9 +30,11 @@ class DraftPurchaseOrderVerifier:
         self,
         ctx: TaskContext,
         action: ActionRecord,
-        receipt: ExecutionReceipt,
+        receipt: ExecutionReceipt | None,
         reader: ScopedReader,
     ) -> OutcomeReport:
+        if receipt is None:
+            raise ValueError("draft purchase orders are verified against a receipt")
         expected = DraftPurchaseOrder.model_validate(action.arguments)
         obs = await reader.read(PURCHASE_ORDER_READ, {"operation_key": action.logical_operation_id})
         orders = [PurchaseOrderView.model_validate(o) for o in obs.data.get("orders", [])]

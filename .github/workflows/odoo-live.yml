@@ -1,0 +1,55 @@
+name: odoo-live
+
+# Live Odoo 19 integration (bridge addon + JSON-2 adapter + kernel) against a
+# throwaway sandbox built from source. Nightly and on demand; not a PR gate
+# because building Odoo takes several minutes.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  odoo-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: odoo
+      PGPASSWORD: odoo
+      ODOO_SRC: ${{ github.workspace }}/../odoo
+      ODOO_VENV: ${{ github.workspace }}/../odoo-venv
+      ODOO_KEYS_FILE: ${{ runner.temp }}/odoo-keys.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - name: create odoo database role
+        run: PGUSER=postgres PGPASSWORD=ci psql -c "CREATE ROLE odoo LOGIN CREATEDB PASSWORD 'odoo'"
+      - name: start Odoo sandbox from source
+        run: |
+          nohup scripts/dev/odoo_from_source.sh > "$RUNNER_TEMP/odoo.log" 2>&1 &
+          for i in $(seq 1 600); do
+            curl -sf -o /dev/null http://127.0.0.1:8069/web/login && break; sleep 2
+          done
+          curl -sf -o /dev/null http://127.0.0.1:8069/web/login || (tail -50 "$RUNNER_TEMP/odoo.log"; exit 1)
+      - run: uv sync --locked
+      - name: live integration tests
+        run: |
+          export E_AGENT_TEST_ODOO_URL=http://127.0.0.1:8069 E_AGENT_TEST_ODOO_DB=e_agent_odoo
+          export E_AGENT_TEST_ODOO_KEY=$(python3 -c "import json;print(json.load(open('$ODOO_KEYS_FILE'))['integration'])")
+          export E_AGENT_TEST_ODOO_ADMIN_KEY=$(python3 -c "import json;print(json.load(open('$ODOO_KEYS_FILE'))['admin'])")
+          uv run pytest -q tests/integration/test_odoo_live.py tests/integration/test_odoo_live_tasks.py

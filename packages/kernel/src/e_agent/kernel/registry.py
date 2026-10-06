@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -24,6 +24,7 @@ from e_agent.sdk.ports import (
     PluginContribution,
     PluginServices,
 )
+from e_agent.sdk.validation import ValidationDatasetBuilder
 
 from .errors import ErrorCode, KernelError
 
@@ -55,11 +56,36 @@ class PluginRegistry:
         self.executors: list[ActionExecutor] = []
         self.verifiers: list[OutcomeVerifier] = []
         self.drivers: list[AgentDriver] = []
+        self.dataset_builders: list[ValidationDatasetBuilder] = []
+        self.input_schemas: dict[str, Mapping[str, Any]] = {}
+        self.agent_guidance: list[str] = []
         self.report = AdmissionReport()
+
+    def surface_digest(self) -> str:
+        """Digest of the tool surface a run is planned against (threat model T17):
+        capabilities, their input schemas, bindings and plugin versions."""
+        import hashlib
+        import json
+
+        surface = {
+            "capabilities": {
+                cid: [c.effect.value, c.input_schema_id, self.input_schemas.get(c.input_schema_id)]
+                for cid, c in sorted(self.capabilities.items())
+            },
+            "bindings": sorted(
+                (b.binding_id, b.contract_id, b.connection_id, b.plugin_id, b.plugin_version)
+                for b in self.bindings
+            ),
+        }
+        canonical = json.dumps(surface, sort_keys=True, separators=(",", ":"), default=str)
+        return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
     # -- admission ------------------------------------------------------------
     def admit(
-        self, discovered: Iterable[DiscoveredPlugin], enabled: Mapping[str, EnabledPlugin]
+        self,
+        discovered: Iterable[DiscoveredPlugin],
+        enabled: Mapping[str, EnabledPlugin],
+        credentials_for: Callable[[str], Any] | None = None,
     ) -> AdmissionReport:
         found: dict[str, DiscoveredPlugin] = {}
         for plugin in discovered:
@@ -76,7 +102,8 @@ class PluginRegistry:
                 self.report.skipped.append(pid)  # never imported
                 continue
             self._check_admissible(plugin, config)
-            contribution = self._load(plugin, config)
+            creds = credentials_for(pid) if credentials_for is not None else None
+            contribution = self._load(plugin, config, creds)
             self.register(
                 plugin_id=pid,
                 plugin_version=plugin.manifest.version,
@@ -102,10 +129,14 @@ class PluginRegistry:
             raise _reject(f"{pid}: entry point does not match manifest factory")
 
     @staticmethod
-    def _load(plugin: DiscoveredPlugin, config: EnabledPlugin) -> PluginContribution:
+    def _load(
+        plugin: DiscoveredPlugin, config: EnabledPlugin, credentials: Any = None
+    ) -> PluginContribution:
         module_name, _, attr = plugin.manifest.factory.partition(":")
         factory = getattr(importlib.import_module(module_name), attr)
-        contribution = factory(PluginServices(settings=dict(config.settings)))
+        contribution = factory(
+            PluginServices(settings=dict(config.settings), credentials=credentials)
+        )
         if not isinstance(contribution, PluginContribution):
             raise _reject(f"{plugin.manifest.plugin_id}: factory returned an invalid contribution")
         return contribution
@@ -149,6 +180,13 @@ class PluginRegistry:
         self.executors.extend(contribution.executors)
         self.verifiers.extend(contribution.verifiers)
         self.drivers.extend(contribution.drivers)
+        self.dataset_builders.extend(contribution.dataset_builders)
+        for schema_id, schema in contribution.input_schemas.items():
+            if schema_id in self.input_schemas and self.input_schemas[schema_id] != schema:
+                raise _reject(f"conflicting schema definitions for {schema_id}")
+            self.input_schemas[schema_id] = schema
+        if contribution.agent_guidance:
+            self.agent_guidance.append(contribution.agent_guidance)
         self.report.admitted.append(plugin_id)
 
     # -- resolution -------------------------------------------------------------

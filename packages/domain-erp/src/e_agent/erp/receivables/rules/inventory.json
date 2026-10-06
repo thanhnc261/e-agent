@@ -1,0 +1,20 @@
+{
+  "bundle": "receivables-rules",
+  "version": "0.1.0",
+  "bounded_context": "receivables",
+  "note": "ERP-08 is read-only; there is no write capability in this context.",
+  "rules": [
+    {
+      "id": "AR-OVERDUE",
+      "version": "1",
+      "description": "Overdue = due date before as-of and residual > 0; totals per currency (ar-overdue-v1)",
+      "engine": [
+        "verifier"
+      ],
+      "asset": [
+        "receivables.overdue:overdue"
+      ],
+      "severity": "block"
+    }
+  ]
+}

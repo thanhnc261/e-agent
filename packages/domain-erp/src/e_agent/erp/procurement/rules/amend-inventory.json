@@ -1,0 +1,57 @@
+{
+  "bundle": "procurement-amend-rules",
+  "version": "0.1.0",
+  "bounded_context": "procurement",
+  "note": "ERP-04. SHACL assets in shapes/amend-shapes.ttl. The bridge re-checks draft state and revision atomically.",
+  "rules": [
+    {
+      "id": "AM-001",
+      "version": "1",
+      "description": "The RFQ was read, resolves and is still a draft",
+      "engine": [
+        "shacl-core"
+      ],
+      "asset": [
+        "as:AM001",
+        "as:AM001-missing"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "AM-002",
+      "version": "1",
+      "description": "The proposal was made at the RFQ's current revision (stale amendments are blocked)",
+      "engine": [
+        "shacl-sparql"
+      ],
+      "asset": [
+        "as:AM002"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "AM-003",
+      "version": "1",
+      "description": "Quantity is positive",
+      "engine": [
+        "shacl-core"
+      ],
+      "asset": [
+        "as:AM003"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "AM-004",
+      "version": "1",
+      "description": "The amendment changes quantity or requested date; nothing else can change",
+      "engine": [
+        "shacl-sparql"
+      ],
+      "asset": [
+        "as:AM004"
+      ],
+      "severity": "block"
+    }
+  ]
+}

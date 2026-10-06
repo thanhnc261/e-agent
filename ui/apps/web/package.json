@@ -1,0 +1,17 @@
+{
+  "name": "@e-agent/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "L8: standalone web app (default full-page UI) plus the neutral overlay test host page.",
+  "dependencies": {
+    "@e-agent/client": "workspace:*",
+    "@e-agent/components": "workspace:*",
+    "@e-agent/layouts": "workspace:*",
+    "@e-agent/tokens": "workspace:*",
+    "@e-agent/ui-core": "workspace:*",
+    "@e-agent/ui-react": "workspace:*",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}

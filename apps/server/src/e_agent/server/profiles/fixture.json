@@ -4,11 +4,16 @@
   "tenant_id": "tenant-demo",
   "operator": {
     "principal_id": "local-operator",
-    "roles": ["requester", "approver"],
+    "roles": [
+      "requester",
+      "approver"
+    ],
     "display_name": "Local operator (demo mode)"
   },
   "enabled_plugins": {
-    "domain-erp": {"version": "0.1.0"}
+    "domain-erp": {
+      "version": "0.1.0"
+    }
   },
   "connections": [
     {
@@ -21,11 +26,57 @@
     }
   ],
   "bindings": {
-    "fixture-erp.inventory.availability": ["conn-fixture-erp"],
-    "fixture-erp.procurement.demand": ["conn-fixture-erp"],
-    "fixture-erp.procurement.offers": ["conn-fixture-erp"],
-    "fixture-erp.procurement.po-create": ["conn-fixture-erp"],
-    "fixture-erp.procurement.po-read": ["conn-fixture-erp"]
+    "fixture-erp.inventory.availability": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.procurement.demand": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.procurement.offers": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.procurement.po-create": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.procurement.po-read": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.procurement.rfq-read": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.procurement.rfq-amend": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.sales.pricing": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.sales.quotation-create": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.sales.quotation-read": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.sales.open-orders": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.crm.contact": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.crm.teams": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.crm.lead-create": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.crm.lead-read": [
+      "conn-fixture-erp"
+    ],
+    "fixture-erp.receivables.open-invoices": [
+      "conn-fixture-erp"
+    ]
   },
-  "fixture": {"scenario": "valid", "driver_mode": "valid"}
+  "fixture": {
+    "scenario": "valid",
+    "driver_mode": "valid"
+  }
 }

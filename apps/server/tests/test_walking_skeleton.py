@@ -72,3 +72,48 @@ def test_plugins_listing_is_metadata_only(capsys) -> None:  # type: ignore[no-un
     assert main(["plugins"]) == 0
     out = capsys.readouterr().out
     assert "domain-erp 0.1.0 [domain]" in out and "enabled" in out
+
+
+def test_erp01_shortage_answer_is_independently_verified(capsys) -> None:  # type: ignore[no-untyped-def]
+    result = _run(capsys, "--task", "shortage")
+    assert result["run"]["state"] == "SUCCEEDED"
+    outcome = next(e for e in result["events"] if e["type"] == "outcome.reported")
+    assert outcome["payload"]["status"] == "VERIFIED"
+    assert result["fixture_erp_create_calls"] == 0
+    assert "approval.requested" not in _types(result)  # answers need no approval
+
+
+def test_wrong_answer_fails_verification_then_is_corrected(capsys) -> None:  # type: ignore[no-untyped-def]
+    result = _run(capsys, "--task", "shortage", "--driver-mode", "wrong-answer-then-correct")
+    statuses = [e["payload"]["status"] for e in result["events"] if e["type"] == "outcome.reported"]
+    assert statuses == ["FAILED", "VERIFIED"]
+    failed = next(e for e in result["events"] if e["type"] == "outcome.reported")
+    assert any(c["name"] == "shortage" and not c["passed"] for c in failed["payload"]["checks"])
+
+
+def test_erp02_recommendation_verified_including_none(capsys) -> None:  # type: ignore[no-untyped-def]
+    ok = _run(capsys, "--task", "recommend")
+    assert ok["run"]["state"] == "SUCCEEDED"
+    proposal = next(e for e in ok["events"] if e["type"] == "proposal.created")
+    assert proposal["payload"]["arguments"]["offer_ref"] == "offer:a"
+    none = _run(capsys, "--task", "recommend", "--scenario", "over-budget")
+    proposal = next(e for e in none["events"] if e["type"] == "proposal.created")
+    assert proposal["payload"]["arguments"]["offer_ref"] is None
+    assert (
+        next(e for e in none["events"] if e["type"] == "outcome.reported")["payload"]["status"]
+        == "VERIFIED"
+    )
+
+
+def test_evidence_bundle_is_classified_versioned_and_private(capsys, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    out = tmp_path / "evidence.json"
+    assert main(["demo", "--approve", "--evidence-out", str(out)]) == 0
+    bundle = json.loads(out.read_text())
+    assert bundle["schema"] == "e-agent-evidence-v1"
+    assert bundle["environment"] == "fixture"
+    assert bundle["classification"] == "fixture:succeeded"
+    assert "e-agent-kernel" in bundle["versions"]["distributions"]
+    assert bundle["outcomes"][0]["status"] == "VERIFIED"
+    assert bundle["approvals"][0]["decision"] == "approved"
+    assert "PR-003@1" in bundle["rules_evaluated"]
+    assert out.stat().st_mode & 0o077 == 0

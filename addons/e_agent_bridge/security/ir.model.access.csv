@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_e_agent_operation_integration,e_agent.operation integration,model_e_agent_operation,group_e_agent_integration,1,0,0,0
+access_e_agent_operation_admin,e_agent.operation admin,model_e_agent_operation,base.group_system,1,1,1,1
+access_e_agent_demand_integration,e_agent.demand integration,model_e_agent_demand,group_e_agent_integration,1,0,0,0
+access_e_agent_demand_admin,e_agent.demand admin,model_e_agent_demand,base.group_system,1,1,1,1
