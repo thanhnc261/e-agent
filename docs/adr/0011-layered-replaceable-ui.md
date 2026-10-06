@@ -23,13 +23,14 @@ Research (details in [UI architecture](../ui-architecture.md) §2):
    - L5 `@e-agent/ui-react` (hooks + slot registry);
    - L6 `@e-agent/components` (default design system on accessible headless primitives);
    - L7 layouts (`overlay`, `sidebar`, `full-page`);
-   - L8 hosts (`apps/web`, the `<e-agent-overlay>` custom element, an optional Odoo host addon).
+   - L8 hosts (`apps/web` and the `<e-agent-overlay>` custom element, embeddable in any web page). Integrations into one particular system's UI are optional host adapters, not part of the core.
 2. Support four customization tiers: theme (tokens only), layout (config), component override (slots), custom UI (any framework on L3 or L2).
-3. The server owns `ApprovalPresentation` (canonical proposal, material fields, findings, digest). Every UI renders approval from it, and ui-core verifies the digest before enabling approval.
-4. Any UI that offers approval, default or custom, must pass the shared `@e-agent/ui-conformance` suite.
-5. The default UI uses React with React Aria Components as the headless primitive layer, chosen for accessibility and internationalization breadth. This choice is confirmed by a short spike in I08; Ark UI is the fallback.
-6. TypeScript types are generated from the Pydantic contracts (OpenAPI 3.1 / JSON Schema). Hand-written duplicate types are not allowed.
-7. Not in the MVP: agent-generated UI (A2UI, MCP Apps), runtime-loaded third-party UI components, and AG-UI output. When agent-generated UI is added later, it may only use a host-trusted catalog and never covers approval or policy surfaces.
+3. **System neutrality.** No UI layer depends on Odoo or any other business system. Host pages contribute only a generic, untrusted `HostContext` hint, which the server resolves through provider connection mappings.
+4. The server owns `ApprovalPresentation` (canonical proposal, material fields, findings, digest). Every UI renders approval from it, and ui-core verifies the digest before enabling approval.
+5. Any UI that offers approval, default or custom, must pass the shared `@e-agent/ui-conformance` suite.
+6. The default UI uses React with React Aria Components as the headless primitive layer, chosen for accessibility and internationalization breadth. This choice is confirmed by a short spike in I08; Ark UI is the fallback.
+7. TypeScript types are generated from the Pydantic contracts (OpenAPI 3.1 / JSON Schema). Hand-written duplicate types are not allowed.
+8. Not in the MVP: system-specific host adapters (e.g. an Odoo systray item), agent-generated UI (A2UI, MCP Apps), runtime-loaded third-party UI components, and AG-UI output. When agent-generated UI is added later, it may only use a host-trusted catalog and never covers approval or policy surfaces.
 
 ## Alternatives considered
 

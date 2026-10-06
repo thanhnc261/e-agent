@@ -11,7 +11,9 @@ e-agent ships a **default UI** in two forms: a standalone web app and an embedda
 3. **replace individual components**, such as a different timeline or evidence viewer;
 4. **build an entirely different UI**, in any framework,
 
-while **reusing every layer below the one they change**. No layer may weaken the safety rules. Approval, policy and validation stay on the server, and every UI talks to the same API.
+while **reusing every layer below the one they change**.
+
+**System neutrality.** e-agent is an enterprise agent, not an add-on to any one business system. The default UI runs standalone and can be embedded into *any* web page. No UI layer depends on Odoo or any other provider. Integration with a specific system's UI is an optional **host adapter** at L8, in the same way that Odoo is only a provider adapter on the backend. The core never needs one. No layer may weaken the safety rules. Approval, policy and validation stay on the server, and every UI talks to the same API.
 
 ## 2. Research basis (2026-10)
 
@@ -42,7 +44,7 @@ flowchart TB
         R["L5 @e-agent/ui-react<br/>hooks + slot registry"]
         COMP["L6 @e-agent/components<br/>default design system"]
         LAY["L7 layouts: overlay / sidebar / full page"]
-        HOST["L8 hosts: apps/web, &lt;e-agent-overlay&gt;, Odoo host addon"]
+        HOST["L8 hosts: apps/web, &lt;e-agent-overlay&gt;, optional host adapters"]
     end
     API --> C --> CORE --> R --> COMP --> LAY --> HOST
     TOK --> COMP
@@ -62,7 +64,7 @@ flowchart TB
 | L5 React bindings | `@e-agent/ui-react` | Hooks (`useRun`, `useTimeline`, `usePendingApproval`, `useComposer`); **slot registry** for component overrides | Hold state outside L3 |
 | L6 Components | `@e-agent/components` | Default accessible components built on headless primitives, styled only via tokens | Read raw API responses; hard-code colors or spacing |
 | L7 Layouts | `@e-agent/layouts` | Layout presets composed from named slots | Contain domain logic |
-| L8 Hosts | `apps/web`, `@e-agent/overlay-element`, `addons/e_agent_ui_host` | Bootstrapping, auth/session bridge, host context hints, CSP | Grant permissions from host context |
+| L8 Hosts | `apps/web`, `@e-agent/overlay-element`; optional per-system host adapters | Bootstrapping, auth/session bridge, generic `HostContext` hints, CSP | Grant permissions from host context; leak system-specific types into L1–L7 |
 
 Dependency direction is strictly downward (L8 → L1). It is enforced with dependency-cruiser or ESLint boundary rules, the same way import-linter enforces the Python side.
 
@@ -102,7 +104,7 @@ Named slots: `header`, `composer`, `messages`, `timeline`, `approval`, `evidence
 | Layout | Use | Default arrangement |
 |---|---|---|
 | `overlay` | Floating, expandable panel over any page | Collapsed launcher → panel with messages + timeline; approval as a modal layer inside the panel; evidence as a drawer |
-| `sidebar` | Docked beside a host app (e.g. Odoo) | Full-height column; tabs for chat / timeline / evidence |
+| `sidebar` | Panel docked to the left or right edge of whatever page it is on (any web app, intranet portal or the standalone app), pushing or overlapping the content | Full-height column; tabs for chat / timeline / evidence |
 | `full-page` | Standalone web app | Three columns: conversation, timeline + approval, evidence |
 
 The `approval` slot may be overridden only by a component that passes the UI conformance suite (§6). Layouts are configured with a JSON layout config (`{layout, slots: {timeline: {hidden}}, order}`), validated against a schema.
@@ -120,9 +122,24 @@ The `approval` slot may be overridden only by a component that passes the UI con
 |---|---|---|
 | Standalone | `apps/web` (Vite SPA, `full-page` layout) | Default and reference UI |
 | Any web page | `<e-agent-overlay server="…" theme="…" layout="overlay">` custom element, one script bundle | Shadow DOM; same-origin or allowlisted-origin API; no secrets in attributes or URLs |
-| Odoo 19 | `addons/e_agent_ui_host`: an OWL systray item or client action that mounts the custom element | Passes page context (model, record ID) as **untrusted hints** that the server reauthorizes |
+| Specific system (optional) | A thin **host adapter** for one system, e.g. a browser-extension content script, an intranet portal snippet, or a system-specific plugin such as an Odoo OWL systray item | Mounts the same custom element and translates the page into a generic `HostContext`; nothing else |
 
-Whether the Odoo host is part of the MVP depends on the open overlay-placement decision; the other two do not.
+The MVP ships only the first two hosts. Host adapters for particular systems are out of MVP scope and need no change to L1–L7 when added later.
+
+### 4.7 Generic host context
+
+A host may tell the agent what the user is looking at. It does so through one provider-neutral, untrusted hint:
+
+```text
+HostContext {
+  host_kind: "standalone" | "embedded",
+  page_url_origin?,                     # origin only, never full URL with tokens
+  resource_hints: [{system_hint, resource_type_hint, external_id_hint}],
+  locale?, selection_text? (length-limited)
+}
+```
+
+The server resolves each hint through the **provider adapters' connection mappings**. For example, `system_hint=odoo` + `purchase.order/42` becomes a tenant-scoped `EvidenceRef` only if an authorized connection exists, and is otherwise dropped. Hints never select credentials, never grant access and never bypass scope. They are treated as untrusted content in prompts (threat model T1).
 
 ## 5. Customization tiers
 

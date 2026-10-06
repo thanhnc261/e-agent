@@ -82,7 +82,7 @@ Python 3.12+ and uv are proposed development baselines. Exact runtime and depend
 | `e-agent-adapter-bigquery` | Allowlisted, parameterized read-only query execution | Contracts, SDK, public analytics API |
 | `e-agent-server` | API/CLI, bootstrap, authentication context, application workflows, SSE stream | Required distributions above |
 
-Non-wheel artifacts: `addons/e_agent_bridge` (Odoo 19 addon, versioned and released separately; [ADR 0005](adr/0005-odoo-integration-transport.md)) and the TypeScript UI workspace. The UI workspace contains `@e-agent/client`, `ui-core`, `tokens`, `ui-react`, `components`, layouts, `apps/web`, the `<e-agent-overlay>` element and the UI conformance suite. These layers let a deployer re-theme, re-layout or replace the default UI while reusing the lower layers ([UI architecture](ui-architecture.md), ADR 0011, proposed). The UI depends only on the server API; approval stays a kernel concept.
+Non-wheel artifacts: `addons/e_agent_bridge` (Odoo 19 addon, versioned and released separately; [ADR 0005](adr/0005-odoo-integration-transport.md)) and the TypeScript UI workspace. The UI workspace contains `@e-agent/client`, `ui-core`, `tokens`, `ui-react`, `components`, layouts, `apps/web`, the `<e-agent-overlay>` element and the UI conformance suite. These layers let a deployer re-theme, re-layout or replace the default UI while reusing the lower layers ([UI architecture](ui-architecture.md), ADR 0011, proposed). The UI depends only on the server API and is system-neutral: it runs standalone or embedded in any web page, and no UI layer depends on Odoo or another provider. Approval stays a kernel concept.
 
 Each adapter is a separate artifact rather than a module in a shared `integrations` distribution. This supersedes the earlier six-package proposal. Third-party dependencies belong in the distribution that uses them; core contracts may use Pydantic, but must not contain framework message classes, ORM objects or vendor responses.
 
@@ -196,7 +196,7 @@ Local demo identity mapping is an explicitly bounded development mode. Productio
 
 MVP delivers a verified procurement slice first, then the ADR 0001 task catalog, overlay UI and BigQuery gates, plus architecture gates. Phase 2 adds evidence-explanation and governance UI, governed KB/KG, CRM/Google connectors driven by real workflows, and broader operational controls. Later production rollout depends on target enterprise requirements and evidence, not simply completing the feature list.
 
-ADR 0001 selected Odoo 19 (`odoo19-learning`), Pydantic AI and Ollama. Outstanding selections are the exact Pydantic AI 2.x and model versions, the Odoo transport details (proposed: JSON-2 plus bridge, ADR 0005), overlay placement, BigQuery scope and the artifact distribution method. Resolve and record them during bootstrap. Do not invent production SLAs before workload and deployment constraints are known.
+ADR 0001 selected Odoo 19 (`odoo19-learning`), Pydantic AI and Ollama. Outstanding selections are the exact Pydantic AI 2.x and model versions, the Odoo transport details (proposed: JSON-2 plus bridge, ADR 0005), BigQuery scope and the artifact distribution method. Resolve and record them during bootstrap. Do not invent production SLAs before workload and deployment constraints are known.
 
 ## 11. References
 
