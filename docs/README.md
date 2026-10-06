@@ -8,6 +8,7 @@ These documents define the implementation baseline for e-agent. They describe pl
 | [MVP detailed design](mvp-detailed-design.md) | Procurement workflow, contracts, plugin registration, persistence, execution states, recovery, APIs and acceptance gates |
 | [Implementation plan](implementation-plan.md) | Task catalog, work packages, gates and local/CI test policy |
 | [ADR index](adr/README.md) | Accepted and proposed architecture decisions, template |
+| [UI architecture](ui-architecture.md) | Layered default UI with theme, layout, component and whole-UI replacement; conformance suite |
 | [Threat model](threat-model.md) | MVP-scoped threats mapped to OWASP Agentic Top 10, with tests |
 | [Architecture review 2026-10-06](reviews/2026-10-06-architecture-review.md) | Findings, quality scenarios, risks and ADR gating |
 | [Research index](../research/README.md) | Supporting research, alternatives and source registers |

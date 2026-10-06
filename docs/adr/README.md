@@ -14,8 +14,9 @@ One decision per ADR. Statuses: **Proposed** (recommended, not yet accepted by t
 | [0008](0008-observability.md) | OpenTelemetry with GenAI conventions, separate from evidence | Proposed | I01 |
 | [0009](0009-rule-inventory-and-enforcement-engines.md) | Rule inventory declares an enforcement engine per rule | Proposed | I03 |
 | [0010](0010-evaluation-protocol.md) | Evaluation protocol: pass@1 in development, pass^k at release | Proposed | I04 |
+| [0011](0011-layered-replaceable-ui.md) | Layered, themeable and replaceable UI over a shared headless core | Proposed | I08 |
 
-The [2026-10-06 architecture review](../reviews/2026-10-06-architecture-review.md) explains the findings behind 0002–0010.
+The [2026-10-06 architecture review](../reviews/2026-10-06-architecture-review.md) explains the findings behind 0002–0010. ADR 0011 comes from the follow-up UI research in [UI architecture](../ui-architecture.md).
 
 ## Mapping from research 08 proposals
 

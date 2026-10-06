@@ -82,7 +82,7 @@ Python 3.12+ and uv are proposed development baselines. Exact runtime and depend
 | `e-agent-adapter-bigquery` | Allowlisted, parameterized read-only query execution | Contracts, SDK, public analytics API |
 | `e-agent-server` | API/CLI, bootstrap, authentication context, application workflows, SSE stream | Required distributions above |
 
-Non-wheel artifacts: `addons/e_agent_bridge` (Odoo 19 addon, versioned and released separately; [ADR 0005](adr/0005-odoo-integration-transport.md)) and `apps/web` (overlay frontend, once placement is decided).
+Non-wheel artifacts: `addons/e_agent_bridge` (Odoo 19 addon, versioned and released separately; [ADR 0005](adr/0005-odoo-integration-transport.md)) and the TypeScript UI workspace. The UI workspace contains `@e-agent/client`, `ui-core`, `tokens`, `ui-react`, `components`, layouts, `apps/web`, the `<e-agent-overlay>` element and the UI conformance suite. These layers let a deployer re-theme, re-layout or replace the default UI while reusing the lower layers ([UI architecture](ui-architecture.md), ADR 0011, proposed). The UI depends only on the server API; approval stays a kernel concept.
 
 Each adapter is a separate artifact rather than a module in a shared `integrations` distribution. This supersedes the earlier six-package proposal. Third-party dependencies belong in the distribution that uses them; core contracts may use Pydantic, but must not contain framework message classes, ORM objects or vendor responses.
 

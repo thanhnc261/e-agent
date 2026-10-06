@@ -54,7 +54,8 @@ packages/adapter-agent-pydantic/     # Pydantic AI 2.x driver (ADR 0001, ADR 000
 packages/adapter-odoo/               # e_agent_adapter_odoo (JSON-2, ADR 0005)
 packages/adapter-bigquery/           # e_agent_adapter_bigquery (I12)
 addons/e_agent_bridge/              # Odoo 19 addon: transactional bridge commands (ADR 0005)
-apps/web/                           # overlay frontend, once placement is decided (I08)
+ui/                                 # TS workspace: client, ui-core, tokens, ui-react, components, layouts, overlay element, conformance (ADR 0011)
+apps/web/                           # default standalone web UI (I08)
 packages/adapter-postgres/           # e_agent_adapter_postgres, migrations
 packages/adapter-shacl/              # e_agent_adapter_shacl
 profiles/                           # non-secret local-demo and test profiles
