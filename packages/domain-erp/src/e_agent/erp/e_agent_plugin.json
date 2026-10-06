@@ -1,0 +1,47 @@
+{
+  "plugin_id": "domain-erp",
+  "version": "0.1.0",
+  "sdk_api": ">=1.0,<2.0",
+  "factory": "e_agent.erp.plugin:create_plugin",
+  "kind": "domain",
+  "provides_capabilities": [
+    {
+      "contract_id": "inventory.availability.read.v1",
+      "effect": "read",
+      "input_schema_id": "inventory.AvailabilityQuery.v1",
+      "output_schema_id": "inventory.Availability.v1",
+      "description": "Available and inbound quantity for one product in the scoped warehouse"
+    },
+    {
+      "contract_id": "procurement.demand.read.v1",
+      "effect": "read",
+      "input_schema_id": "procurement.DemandQuery.v1",
+      "output_schema_id": "procurement.Demand.v1",
+      "description": "One procurement demand with requested date and budget"
+    },
+    {
+      "contract_id": "procurement.offers.read.v1",
+      "effect": "read",
+      "input_schema_id": "procurement.OfferQuery.v1",
+      "output_schema_id": "procurement.Offers.v1",
+      "description": "Supplier offers for a product, including approval status"
+    },
+    {
+      "contract_id": "procurement.purchase-order.create-draft.v1",
+      "effect": "write",
+      "input_schema_id": "procurement.DraftPurchaseOrder.v1",
+      "output_schema_id": "procurement.DraftPurchaseOrderRef.v1",
+      "description": "Create exactly one draft purchase order; never confirms"
+    },
+    {
+      "contract_id": "procurement.purchase-order.read.v1",
+      "effect": "read",
+      "input_schema_id": "procurement.PurchaseOrderQuery.v1",
+      "output_schema_id": "procurement.PurchaseOrders.v1",
+      "description": "Read purchase orders by host operation key (verification read-back)"
+    }
+  ],
+  "provides_bindings": [],
+  "requires_capabilities": [],
+  "settings_schema": {"type": "object", "additionalProperties": false}
+}

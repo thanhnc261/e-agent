@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+# local environment files and evidence exports never go to git
+.env
+*.local.json
+evidence/

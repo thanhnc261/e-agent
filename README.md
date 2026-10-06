@@ -2,7 +2,7 @@
 
 A plugin-driven enterprise agent application designed for governed business actions, versioned domain knowledge and verifiable outcomes.
 
-**Status: research and design.** No runnable product, package workspace or completed MVP is present yet. The documents below define the implementation baseline.
+**Status: early implementation (milestone M1).** The workspace, contracts and a fixture-only walking skeleton exist; live integrations do not. The documents below define the implementation baseline.
 
 ## Start here
 
@@ -44,11 +44,35 @@ The product is independent of the separate `enterprise-agent/experiment` researc
 
 ## Development status and next steps
 
-Only `docs/`, `research/` and project guidance exist at this stage. The package tree in the MVP design is planned, not created.
+| Work package | Status | Evidence |
+|---|---|---|
+| I00 Environment qualification | Ready to run locally | [runbook](docs/runbooks/i00-environment-qualification.md), `scripts/env_check.py` (needs the owner's machine) |
+| I01 Workspace and CI | Done | uv workspace, ruff, mypy strict, import-linter, pytest, wheel clean-install gate, GitHub Actions |
+| I02 Contracts and registration | Done (fixture walking skeleton) | Contracts, JCS digest + golden vectors, SDK ports, metadata-only discovery, registry admission, kernel coordinator, CLI demo |
+| I03–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
 
-Implementation starts with workspace/contracts and architecture gates, then a framework execution spike, persisted approvals/recovery, the live Odoo draft workflow and complete demo evidence. Python 3.12+, uv, PostgreSQL, an isolated Odoo environment and a model provider are proposed prerequisites; exact supported versions and setup commands will be documented after bootstrap verification.
+What exists is **fixture-only**: a scripted driver, a fake ERP and a non-authoritative procedural rule checker exercise the real kernel. No model, Odoo, PostgreSQL, SHACL or UI integration exists yet, and nothing here is evidence of live capability.
 
-There are no installation, server or test commands to run yet. See the [implementation plan](docs/implementation-plan.md) for owner decisions, the proposed toolchain, milestones and work packages, and the [MVP readiness review](docs/reviews/2026-10-06-mvp-readiness-review.md) for what must be decided before coding starts.
+### Commands (verified in the development container)
+
+```bash
+uv sync                                   # Python 3.12+ and uv required
+uv run e-agent demo --approve             # fixture procurement run, approve explicitly
+uv run e-agent demo --driver-mode invalid-then-repair --approve   # blocked by PR-003, then repaired
+uv run e-agent demo --fault lost-response --approve --reconcile   # UNKNOWN -> read-only reconcile
+uv run e-agent demo --scenario zero-shortage                      # verified no-op
+uv run e-agent plugins                    # discovered plugins (metadata only)
+
+uv run ruff check . && uv run ruff format --check .
+uv run mypy
+uv run lint-imports                       # architecture dependency gates
+uv run pytest -q
+uv run python scripts/check_wheels.py     # each wheel installs/runs outside the repo
+```
+
+Python packages share the `e_agent` namespace: `e_agent.contracts`, `e_agent.sdk`, `e_agent.kernel`, `e_agent.erp`, `e_agent.server`.
+
+See the [implementation plan](docs/implementation-plan.md) for owner decisions, milestones and work packages.
 
 ## Contribution expectations
 

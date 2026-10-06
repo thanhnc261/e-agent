@@ -1,0 +1,31 @@
+{
+  "profile": "jcs-sha256-v1",
+  "description": "Shared golden vectors for the approval digest (ADR 0006). The canonical text is hand-written; Python and TypeScript implementations must both reproduce it.",
+  "vectors": [
+    {
+      "name": "key ordering and nesting",
+      "input": {"b": "2", "a": {"d": [true, false, null], "c": "1"}},
+      "canonical": "{\"a\":{\"c\":\"1\",\"d\":[true,false,null]},\"b\":\"2\"}"
+    },
+    {
+      "name": "vietnamese text stays literal utf-8",
+      "input": {"note": "Đơn mua hàng nháp", "currency": "VND"},
+      "canonical": "{\"currency\":\"VND\",\"note\":\"Đơn mua hàng nháp\"}"
+    },
+    {
+      "name": "control characters and quotes are escaped",
+      "input": {"s": "line1\nline2\t\"q\"\\\u0001"},
+      "canonical": "{\"s\":\"line1\\nline2\\t\\\"q\\\"\\\\\\u0001\"}"
+    },
+    {
+      "name": "keys sorted by utf-16 code units",
+      "input": {"é": "e-acute", "z": "z", "A": "A", "😀": "emoji"},
+      "canonical": "{\"A\":\"A\",\"z\":\"z\",\"é\":\"e-acute\",\"😀\":\"emoji\"}"
+    },
+    {
+      "name": "array order is preserved",
+      "input": ["3", "1", "2"],
+      "canonical": "[\"3\",\"1\",\"2\"]"
+    }
+  ]
+}

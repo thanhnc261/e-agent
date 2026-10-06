@@ -44,21 +44,21 @@ The demo does not guarantee transactional inventory allocation. Refreshing stock
 ## 3. Planned repository layout
 
 ```text
-apps/server/                        # e_agent_server: bootstrap, CLI, API, worker
-packages/contracts/                 # e_agent_contracts: portable records
-packages/plugin-sdk/                # e_agent_plugin_sdk: public ports and manifests
-packages/kernel/                    # e_agent_kernel: state, gates and orchestration
-packages/domain-erp/                # e_agent_domain_erp: bounded-context modules, DTOs, rules, resources
-packages/domain-analytics/          # e_agent_domain_analytics (I12, ADR 0001)
-packages/adapter-agent-pydantic/     # Pydantic AI 2.x driver (ADR 0001, ADR 0004)
-packages/adapter-odoo/               # e_agent_adapter_odoo (JSON-2, ADR 0005)
-packages/adapter-bigquery/           # e_agent_adapter_bigquery (I12)
+apps/server/                        # e_agent.server: bootstrap, CLI, API, worker
+packages/contracts/                 # e_agent.contracts: portable records
+packages/plugin-sdk/                # e_agent.sdk: public ports and manifests
+packages/kernel/                    # e_agent.kernel: state, gates and orchestration
+packages/domain-erp/                # e_agent.erp: bounded-context modules, DTOs, rules, resources
+packages/domain-analytics/          # e_agent.analytics (I12, ADR 0001)
+packages/adapter-agent-pydantic/     # e_agent.adapters.pydantic_ai: Pydantic AI 2.x driver (ADR 0001, ADR 0004)
+packages/adapter-odoo/               # e_agent.adapters.odoo (JSON-2, ADR 0005)
+packages/adapter-bigquery/           # e_agent.adapters.bigquery (I12)
 packages/adapter-secretstore-local/  # local envelope-encrypted SecretStore (ADR 0012/0013)
 addons/e_agent_bridge/              # Odoo 19 addon: transactional bridge commands (ADR 0005)
 ui/                                 # TS workspace: client, ui-core, tokens, ui-react, components, layouts, overlay element, conformance (ADR 0011)
 apps/web/                           # default standalone web UI (I08)
-packages/adapter-postgres/           # e_agent_adapter_postgres, migrations
-packages/adapter-shacl/              # e_agent_adapter_shacl
+packages/adapter-postgres/           # e_agent.adapters.postgres, migrations
+packages/adapter-shacl/              # e_agent.adapters.shacl
 profiles/                           # non-secret local-demo and test profiles
 tests/architecture/                 # imports, independent artifacts
 tests/conformance/                  # reusable port/plugin behavior
@@ -68,7 +68,7 @@ docs/                               # designs, later ADRs and runbooks
 research/                           # source research
 ```
 
-Each distribution has `pyproject.toml`, `src/<import_root>/`, tests and declared dependencies. Domain ontology, shapes, manifest, rule inventory and competency fixtures are packaged resources. Read them through resource APIs, not current working directory. Generate wire-schema snapshots from one authoritative DTO definition; do not hand-maintain divergent schema copies.
+Each distribution has `pyproject.toml`, `src/e_agent/<part>/`, tests and declared dependencies. All Python distributions share the PEP 420 namespace package `e_agent` (no `__init__.py` in `src/e_agent/`), so import roots stay short (`e_agent.contracts`, `e_agent.sdk`, `e_agent.kernel`, `e_agent.erp`, `e_agent.server`, `e_agent.adapters.<name>`). Each `pyproject.toml` sets `[tool.uv.build-backend] module-name`. Domain ontology, shapes, manifest, rule inventory and competency fixtures are packaged resources. Read them through resource APIs, not current working directory. Generate wire-schema snapshots from one authoritative DTO definition; do not hand-maintain divergent schema copies.
 
 Do not create speculative empty CRM, Google or knowledge packages. A small non-ERP fixture plugin can live in test fixtures and build its own test artifact.
 

@@ -1,0 +1,31 @@
+{
+  "profile_version": "1",
+  "environment": "fixture",
+  "tenant_id": "tenant-demo",
+  "operator": {
+    "principal_id": "local-operator",
+    "roles": ["requester", "approver"],
+    "display_name": "Local operator (demo mode)"
+  },
+  "enabled_plugins": {
+    "domain-erp": {"version": "0.1.0"}
+  },
+  "connections": [
+    {
+      "tenant_id": "tenant-demo",
+      "connection_id": "conn-fixture-erp",
+      "version": 1,
+      "integration_id": "fixture-erp",
+      "ownership": "tenant_shared",
+      "provider_subject": "fixture-integration-user"
+    }
+  ],
+  "bindings": {
+    "fixture-erp.inventory.availability": ["conn-fixture-erp"],
+    "fixture-erp.procurement.demand": ["conn-fixture-erp"],
+    "fixture-erp.procurement.offers": ["conn-fixture-erp"],
+    "fixture-erp.procurement.po-create": ["conn-fixture-erp"],
+    "fixture-erp.procurement.po-read": ["conn-fixture-erp"]
+  },
+  "fixture": {"scenario": "valid", "driver_mode": "valid"}
+}

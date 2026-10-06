@@ -1,0 +1,8 @@
+"""Procurement bounded context."""
+
+DEMAND_READ = "procurement.demand.read.v1"
+OFFERS_READ = "procurement.offers.read.v1"
+CREATE_DRAFT_PO = "procurement.purchase-order.create-draft.v1"
+PURCHASE_ORDER_READ = "procurement.purchase-order.read.v1"
+# Referenced by contract id only; procurement never imports the inventory module.
+INVENTORY_AVAILABILITY_READ = "inventory.availability.read.v1"

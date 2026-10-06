@@ -1,6 +1,6 @@
 # MVP implementation plan
 
-**Date:** 2026-10-06. **Status:** actionable planning baseline; implementation has not started. User decisions are recorded in [ADR 0001](adr/0001-local-mvp-scope.md). Read with the [HLD](high-level-design.md) and [detailed design](mvp-detailed-design.md). ADRs 0002–0013 ([index](adr/README.md)) were accepted on 2026-10-06 (decisions D1–D5); D6/D7 remain open. §0 lists what must be decided before development starts; the [MVP readiness review](reviews/2026-10-06-mvp-readiness-review.md) records how this was checked. The scoped [threat model](threat-model.md) defines security tests used by I05–I09 and I12.
+**Date:** 2026-10-06. **Status:** actionable planning baseline; implementation in progress (I01 and I02 done with fixtures; see the README status table). User decisions are recorded in [ADR 0001](adr/0001-local-mvp-scope.md). Read with the [HLD](high-level-design.md) and [detailed design](mvp-detailed-design.md). ADRs 0002–0013 ([index](adr/README.md)) were accepted on 2026-10-06 (decisions D1–D5); D6/D7 remain open. §0 lists what must be decided before development starts; the [MVP readiness review](reviews/2026-10-06-mvp-readiness-review.md) records how this was checked. The scoped [threat model](threat-model.md) defines security tests used by I05–I09 and I12.
 
 ## 0. Readiness: decisions and Day-1 checklist
 
@@ -94,7 +94,7 @@ Demo mutations remain bounded to draft documents and lead creation. Manufacturin
 
 ## 3. Implementation work packages
 
-All work packages below are **not started**. Each implementation change should cite its ID and report its gate. Small sequential commits are preferred; the dependency list is execution order, not a requirement to spawn agents.
+Status: I01 and I02 are done (I02 with fixture driver/ERP/validator); I00 runbook and check script are ready for the owner's machine; the rest are not started. Each implementation change should cite its ID and report its gate. Small sequential commits are preferred; the dependency list is execution order, not a requirement to spawn agents.
 
 | ID | Dependencies | Deliverables / affected paths | Definition of done |
 |---|---|---|---|
