@@ -1,0 +1,58 @@
+{
+  "bundle": "crm-rules",
+  "version": "0.1.0",
+  "bounded_context": "crm",
+  "note": "ERP-07 SHACL assets in shapes/lead-shapes.ttl; duplicates are prevented by the operation ledger.",
+  "rules": [
+    {
+      "id": "CL-001",
+      "version": "1",
+      "description": "Contact was read and is active",
+      "engine": [
+        "shacl-core"
+      ],
+      "asset": [
+        "ls:CL001",
+        "ls:CL001-missing"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "CL-002",
+      "version": "1",
+      "description": "Team resolves and the owner is one of its members",
+      "engine": [
+        "shacl-core",
+        "shacl-sparql"
+      ],
+      "asset": [
+        "ls:CL002"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "CL-003",
+      "version": "1",
+      "description": "A given lead source resolves to a known source",
+      "engine": [
+        "shacl-sparql"
+      ],
+      "asset": [
+        "ls:CL003"
+      ],
+      "severity": "block"
+    },
+    {
+      "id": "CL-004",
+      "version": "1",
+      "description": "Expected revenue is not negative",
+      "engine": [
+        "shacl-core"
+      ],
+      "asset": [
+        "ls:CL004"
+      ],
+      "severity": "block"
+    }
+  ]
+}

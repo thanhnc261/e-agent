@@ -107,7 +107,40 @@ def test_manifest_is_packaged_and_matches_contribution() -> None:
     contribution = create_plugin(PluginServices(settings={}))
     assert set(contribution.capabilities) == set(manifest.provides_capabilities)
     contexts = {c.bounded_context for c in manifest.provides_capabilities}
-    assert contexts == {"procurement", "inventory"}
+    assert contexts == {"procurement", "inventory", "sales", "crm", "receivables"}
+    builders = {b.builder_id for b in contribution.dataset_builders}
+    writes = [c for c in manifest.provides_capabilities if c.effect.value == "write"]
+    # every write capability has exactly one dataset builder (fail-closed otherwise)
+    assert all(
+        sum(b.supports(c.contract_id) for b in contribution.dataset_builders) == 1 for c in writes
+    ), builders
+    answers = [c for c in manifest.provides_capabilities if c.effect.value != "read"]
+    assert all(any(v.supports(c.contract_id) for v in contribution.verifiers) for c in answers)
+    assert set(contribution.input_schemas) == {
+        c.input_schema_id for c in manifest.provides_capabilities
+    }
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "procurement/rules/amend-inventory.json",
+        "sales/rules/inventory.json",
+        "crm/rules/inventory.json",
+        "receivables/rules/inventory.json",
+    ],
+)
+def test_new_rule_inventories_reference_packaged_shapes(path: str) -> None:
+    rules = json.loads(files("e_agent.erp").joinpath(path).read_text("utf-8"))["rules"]
+    allowed = {"shacl-core", "shacl-sparql", "normalizer-derived", "policy", "verifier"}
+    for rule in rules:
+        assert rule["engine"] and set(rule["engine"]) <= allowed
+        if "shacl-core" in rule["engine"] or "shacl-sparql" in rule["engine"]:
+            shapes = files("e_agent.erp").joinpath(path.split("/")[0]).joinpath("shapes")
+            text = "".join(
+                t.read_text("utf-8") for t in shapes.iterdir() if t.name.endswith(".ttl")
+            )
+            assert f'ea:ruleId "{rule["id"]}"' in text
 
 
 def test_rule_inventory_lists_every_rule_with_an_engine() -> None:

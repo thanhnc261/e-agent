@@ -127,7 +127,7 @@ forbidden_modules = ["e_agent.kernel", "e_agent.server", "e_agent.erp.testing"]
 [[tool.importlinter.contracts]]
 name = "Domain bounded contexts are independent (ADR 0002)"
 type = "independence"
-modules = ["e_agent.erp.procurement", "e_agent.erp.inventory"]
+modules = ["e_agent.erp.procurement", "e_agent.erp.inventory", "e_agent.erp.sales", "e_agent.erp.crm", "e_agent.erp.receivables"]
 
 [[tool.importlinter.contracts]]
 name = "Core packages do not import agent frameworks or provider SDKs"

@@ -1,0 +1,60 @@
+@prefix po:  <https://e-agent.dev/ns/procurement#> .
+@prefix as:  <https://e-agent.dev/ns/procurement/amend-shapes#> .
+@prefix ea:  <https://e-agent.dev/ns/core#> .
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+# ERP-04: amend quantity/date on a draft RFQ (rule inventory AM-001..AM-004).
+
+<https://e-agent.dev/ns/procurement/amend-shapes> a owl:Ontology ; owl:versionInfo "0.1.0" .
+
+as:prefixes sh:declare
+    [ sh:prefix "po" ; sh:namespace "https://e-agent.dev/ns/procurement#"^^xsd:anyURI ] .
+
+as:AM001-missing a sh:NodeShape ;
+    ea:ruleId "AM-001" ; ea:ruleVersion "1" ; ea:onFail "UNKNOWN" ;
+    sh:targetClass po:IncompleteProposal ;
+    sh:property [ sh:path po:missingFact ; sh:maxCount 0 ;
+                  sh:message "the RFQ to amend was not read; no default is assumed" ] .
+
+as:AM001 a sh:NodeShape ;
+    ea:ruleId "AM-001" ; ea:ruleVersion "1" ;
+    sh:targetClass po:RfqAmendmentProposal ;
+    sh:property [ sh:path po:target ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:message "the RFQ reference does not resolve to the observed RFQ" ] ;
+    sh:property [ sh:path ( po:target po:state ) ; sh:hasValue "draft"^^xsd:string ;
+                  sh:message "only draft RFQs may be amended" ] .
+
+as:AM002 a sh:NodeShape ;
+    ea:ruleId "AM-002" ; ea:ruleVersion "1" ;
+    sh:targetClass po:RfqAmendmentProposal ;
+    sh:property [ sh:path po:expectedRevision ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:message "the expected revision is missing" ] ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+        sh:message "the proposal was made against a stale revision of the RFQ" ;
+        sh:prefixes as:prefixes ;
+        sh:select """
+            SELECT $this ?value WHERE {
+                $this po:expectedRevision ?value ; po:target/po:revision ?current .
+                FILTER (?value != ?current)
+            }""" ] .
+
+as:AM003 a sh:NodeShape ;
+    ea:ruleId "AM-003" ; ea:ruleVersion "1" ;
+    sh:targetClass po:RfqAmendmentProposal ;
+    sh:property [ sh:path po:quantity ; sh:datatype xsd:decimal ; sh:minExclusive 0 ;
+                  sh:message "quantity must be positive" ] .
+
+as:AM004 a sh:NodeShape ;
+    ea:ruleId "AM-004" ; ea:ruleVersion "1" ;
+    sh:targetClass po:RfqAmendmentProposal ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+        sh:message "the amendment changes neither quantity nor requested date" ;
+        sh:prefixes as:prefixes ;
+        sh:select """
+            SELECT $this WHERE {
+                $this po:quantity ?q ; po:requestedDate ?d ;
+                      po:target/po:quantity ?q0 ; po:target/po:requestedDate ?d0 .
+                FILTER (?q = ?q0 && ?d = ?d0)
+            }""" ] .

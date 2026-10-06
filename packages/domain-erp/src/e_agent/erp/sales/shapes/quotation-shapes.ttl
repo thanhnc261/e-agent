@@ -1,0 +1,57 @@
+@prefix so:  <https://e-agent.dev/ns/sales#> .
+@prefix qs:  <https://e-agent.dev/ns/sales/quotation-shapes#> .
+@prefix ea:  <https://e-agent.dev/ns/core#> .
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+# ERP-05: one draft customer quotation (rule inventory SQ-001..SQ-004).
+
+<https://e-agent.dev/ns/sales/quotation-shapes> a owl:Ontology ; owl:versionInfo "0.1.0" .
+
+qs:prefixes sh:declare
+    [ sh:prefix "so" ; sh:namespace "https://e-agent.dev/ns/sales#"^^xsd:anyURI ] .
+
+qs:SQ001-missing a sh:NodeShape ;
+    ea:ruleId "SQ-001" ; ea:ruleVersion "1" ; ea:onFail "UNKNOWN" ;
+    sh:targetClass so:IncompleteProposal ;
+    sh:property [ sh:path so:missingFact ; sh:maxCount 0 ;
+                  sh:message "customer/product pricing was not read for this quotation" ] .
+
+qs:SQ001 a sh:NodeShape ;
+    ea:ruleId "SQ-001" ; ea:ruleVersion "1" ;
+    sh:targetClass so:QuotationProposal ;
+    sh:property [ sh:path so:pricing ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:message "customer and product do not resolve to observed pricing" ] .
+
+qs:SQ002 a sh:NodeShape ;
+    ea:ruleId "SQ-002" ; ea:ruleVersion "1" ;
+    sh:targetClass so:QuotationProposal ;
+    sh:property [ sh:path ( so:pricing so:customerActive ) ; sh:hasValue true ;
+                  sh:message "customer is archived or blocked for quotations" ] ;
+    sh:property [ sh:path ( so:pricing so:productSaleable ) ; sh:hasValue true ;
+                  sh:message "product cannot be sold" ] .
+
+qs:SQ003 a sh:NodeShape ;
+    ea:ruleId "SQ-003" ; ea:ruleVersion "1" ;
+    sh:targetClass so:QuotationProposal ;
+    sh:property [ sh:path ( so:pricing so:unit ) ; sh:equals so:unit ;
+                  sh:message "unit differs from the product's sales unit" ] ;
+    sh:property [ sh:path ( so:pricing so:currency ) ; sh:equals so:currency ;
+                  sh:message "currency differs from the price list" ] ;
+    sh:property [ sh:path ( so:pricing so:unitPrice ) ; sh:equals so:unitPrice ;
+                  sh:message "unit price differs from the list price (no discount policy)" ] .
+
+qs:SQ004 a sh:NodeShape ;
+    ea:ruleId "SQ-004" ; ea:ruleVersion "1" ;
+    sh:targetClass so:QuotationProposal ;
+    sh:property [ sh:path so:quantity ; sh:datatype xsd:decimal ; sh:minExclusive 0 ;
+                  sh:message "quantity must be positive" ] ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+        sh:message "subtotal must equal quantity × unit price" ;
+        sh:prefixes qs:prefixes ;
+        sh:select """
+            SELECT $this ?value WHERE {
+                $this so:subtotal ?value ; so:quantity ?q ; so:unitPrice ?p .
+                FILTER (?value != ?q * ?p)
+            }""" ] .

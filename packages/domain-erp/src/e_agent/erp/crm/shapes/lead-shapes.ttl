@@ -1,0 +1,59 @@
+@prefix crm: <https://e-agent.dev/ns/crm#> .
+@prefix ls:  <https://e-agent.dev/ns/crm/lead-shapes#> .
+@prefix ea:  <https://e-agent.dev/ns/core#> .
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+# ERP-07: one new CRM lead (rule inventory CL-001..CL-004).
+
+<https://e-agent.dev/ns/crm/lead-shapes> a owl:Ontology ; owl:versionInfo "0.1.0" .
+
+ls:prefixes sh:declare
+    [ sh:prefix "crm" ; sh:namespace "https://e-agent.dev/ns/crm#"^^xsd:anyURI ] .
+
+ls:CL001-missing a sh:NodeShape ;
+    ea:ruleId "CL-001" ; ea:ruleVersion "1" ; ea:onFail "UNKNOWN" ;
+    sh:targetClass crm:IncompleteProposal ;
+    sh:property [ sh:path crm:missingFact ; sh:maxCount 0 ;
+                  sh:message "contact or team facts were not read; no default is assumed" ] .
+
+ls:CL001 a sh:NodeShape ;
+    ea:ruleId "CL-001" ; ea:ruleVersion "1" ;
+    sh:targetClass crm:LeadProposal ;
+    sh:property [ sh:path crm:contact ; sh:minCount 1 ;
+                  sh:message "contact does not resolve to an observed contact" ] ;
+    sh:property [ sh:path ( crm:contact crm:active ) ; sh:hasValue true ;
+                  sh:message "contact is archived" ] .
+
+ls:CL002 a sh:NodeShape ;
+    ea:ruleId "CL-002" ; ea:ruleVersion "1" ;
+    sh:targetClass crm:LeadProposal ;
+    sh:property [ sh:path crm:team ; sh:minCount 1 ;
+                  sh:message "team does not resolve to an observed sales team" ] ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+        sh:message "owner is not a member of the selected sales team" ;
+        sh:prefixes ls:prefixes ;
+        sh:select """
+            SELECT $this ?value WHERE {
+                $this crm:owner ?value ; crm:team ?team .
+                FILTER NOT EXISTS { ?team crm:member ?value }
+            }""" ] .
+
+ls:CL003 a sh:NodeShape ;
+    ea:ruleId "CL-003" ; ea:ruleVersion "1" ;
+    sh:targetClass crm:LeadProposal ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+        sh:message "lead source does not resolve to a known source" ;
+        sh:prefixes ls:prefixes ;
+        sh:select """
+            SELECT $this WHERE {
+                $this crm:sourceGiven true .
+                FILTER NOT EXISTS { $this crm:source ?s }
+            }""" ] .
+
+ls:CL004 a sh:NodeShape ;
+    ea:ruleId "CL-004" ; ea:ruleVersion "1" ;
+    sh:targetClass crm:LeadProposal ;
+    sh:property [ sh:path crm:expectedRevenue ; sh:datatype xsd:decimal ; sh:minInclusive 0 ;
+                  sh:message "expected revenue cannot be negative" ] .

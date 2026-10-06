@@ -22,7 +22,7 @@ from e_agent.erp.testing.fake_erp import BINDINGS as FIXTURE_BINDINGS
 from e_agent.erp.testing.fake_erp import PLUGIN_ID as FIXTURE_PLUGIN_ID
 from e_agent.erp.testing.fake_erp import FakeErp
 from e_agent.erp.testing.scenarios import SCENARIOS
-from e_agent.erp.testing.scripted_driver import ScriptedProcurementDriver
+from e_agent.erp.testing.scripted_tasks import ScriptedErpDriver
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.coordinator import RunCoordinator
 from e_agent.kernel.credentials import CredentialService
@@ -197,12 +197,13 @@ async def build_runtime(
         driver = build_driver(profile, registry)
     else:
         mode = driver_mode or (profile.fixture.driver_mode if profile.fixture else "valid")
-        driver = ScriptedProcurementDriver(
+        driver = ScriptedErpDriver(
             connection_id=connection_id,
             mode=mode,
             task_kind=task_kind or profile.driver.task_kind,
             demand_ref=profile.driver.demand_ref or "demand:d-001",
             product_ref=profile.driver.product_ref or "product:widget-a",
+            refs=profile.driver.refs,
         )
 
     sandbox: dict[str, Any] = {}

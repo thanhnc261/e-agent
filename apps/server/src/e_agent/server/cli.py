@@ -10,6 +10,8 @@ from typing import Any
 
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.run import RunState
+from e_agent.erp.testing.scenarios import SCENARIOS
+from e_agent.erp.testing.scripted_tasks import TASK_KINDS
 from e_agent.kernel.errors import KernelError
 from e_agent.kernel.evidence import build_evidence
 from e_agent.sdk.discovery import discover
@@ -199,7 +201,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--profile", help="profile JSON (default: packaged fixture profile)")
     sub = parser.add_subparsers(dest="command", required=True)
     demo = sub.add_parser("demo", help="run the fixture procurement walking skeleton")
-    demo.add_argument("--scenario", choices=["valid", "zero-shortage", "over-budget"])
+    demo.add_argument("--scenario", choices=sorted(SCENARIOS))
     demo.add_argument(
         "--driver-mode",
         choices=["valid", "invalid-then-repair", "always-invalid", "wrong-answer-then-correct"],
@@ -207,7 +209,7 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--fault", choices=["lost-response"])
     demo.add_argument(
         "--task",
-        choices=["draft-po", "shortage", "recommend"],
+        choices=sorted(TASK_KINDS),
         help="ERP-03 draft PO (default), ERP-01 shortage, ERP-02 recommendation",
     )
     group = demo.add_mutually_exclusive_group()
