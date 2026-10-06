@@ -24,7 +24,7 @@ Nothing else blocks the critical path through I09. D6/D7 never block I00–I11.
 |---|---|
 | Python | 3.12+ (prefer latest stable supported by all dependencies), uv workspace, `uv_build` backend, ruff (lint/format), mypy with the Pydantic plugin (strict for contracts/kernel/SDK), pytest + pytest-asyncio, import-linter |
 | Server | FastAPI + uvicorn; native `EventSourceResponse` for SSE; httpx for outbound HTTP |
-| Persistence | PostgreSQL (separate instance or database/role from Odoo); psycopg 3; Alembic migrations owned by `adapter-postgres` |
+| Persistence | PostgreSQL (separate instance or database/role from Odoo); psycopg 3 + psycopg-pool; forward-only SQL migrations with checksums owned by `adapter-postgres` (I05 replaced Alembic to avoid a SQLAlchemy dependency; expand/migrate/contract still applies) |
 | Agent | Pydantic AI 2.x (exact pin), Ollama via its OpenAI-compatible or native provider as qualified in I04 |
 | Validation | pySHACL + rdflib (SHACL 1.1 + SHACL-SPARQL) |
 | TypeScript | Node 24 LTS (or 26 once promoted to LTS), pnpm workspace, TypeScript, React 19, React Aria Components, Vite, Vitest, Playwright, ESLint + dependency-cruiser, openapi-typescript, Style Dictionary (DTCG tokens) |

@@ -34,6 +34,10 @@ PACKAGES = {
         "files('e_agent.erp').joinpath('procurement/shapes/procurement-shapes.ttl').read_text()"
     ),
     "e-agent-adapter-shacl": "import e_agent.adapters.shacl",
+    "e-agent-adapter-postgres": (
+        "from importlib.resources import files; import e_agent.adapters.postgres; "
+        "files('e_agent.adapters.postgres').joinpath('migrations/0001_initial.sql').read_text()"
+    ),
     "e-agent-server": "import e_agent.server.cli",
 }
 

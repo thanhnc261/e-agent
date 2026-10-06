@@ -50,9 +50,10 @@ The product is independent of the separate `enterprise-agent/experiment` researc
 | I01 Workspace and CI | Done | uv workspace, ruff, mypy strict, import-linter, pytest, wheel clean-install gate, GitHub Actions |
 | I02 Contracts and registration | Done (fixture walking skeleton) | Contracts, JCS digest + golden vectors, SDK ports, metadata-only discovery, registry admission, kernel coordinator, CLI demo |
 | I03 Rule and ontology slice | Done | `e_agent.adapters.shacl` (pySHACL, SHACL 1.1 + SPARQL); procurement ontology and shapes packaged in `e_agent.erp`; rule matrix, parity and inventory tests |
-| I04–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
+| I05 Durable kernel | Done | `e_agent.adapters.postgres`: ledger schema, checksummed migrations, CAS, unique reservations, gapless events + NOTIFY, advisory writer lock, persisted continuation, startup `recover()`; kernel suite and store conformance pass on PostgreSQL 16 |
+| I04, I06–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
 
-Validation is authoritative (SHACL). Driver and ERP are still **fixtures**: a scripted driver and a fake ERP exercise the real kernel. No model, Odoo, PostgreSQL or UI integration exists yet, and nothing here is evidence of live capability.
+Validation is authoritative (SHACL). Driver and ERP are still **fixtures**: a scripted driver and a fake ERP exercise the real kernel. No model, Odoo or UI integration exists yet, and nothing here is evidence of live capability.
 
 ### Commands (verified in the development container)
 
@@ -69,6 +70,12 @@ uv run mypy
 uv run lint-imports                       # architecture dependency gates
 uv run pytest -q
 uv run python scripts/check_wheels.py     # each wheel installs/runs outside the repo
+
+# PostgreSQL ledger (profile store.kind=postgres; DSN only via environment)
+export E_AGENT_PG_DSN=postgresql://user@host:5432/e_agent   # e-agent's own database, never Odoo's
+uv run e-agent --profile my-profile.json migrate
+uv run e-agent --profile my-profile.json recover
+E_AGENT_TEST_PG_DSN=$E_AGENT_PG_DSN E_AGENT_TEST_STORE=postgres uv run pytest -q packages/kernel
 ```
 
 Python packages share the `e_agent` namespace: `e_agent.contracts`, `e_agent.sdk`, `e_agent.kernel`, `e_agent.erp`, `e_agent.server`.

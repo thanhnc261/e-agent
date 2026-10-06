@@ -30,6 +30,12 @@ class FixtureConfig(Record):
     driver_mode: str = "valid"
 
 
+class StoreConfig(Record):
+    kind: Literal["memory", "postgres"] = "memory"
+    dsn_env: str = "E_AGENT_PG_DSN"
+    """Name of the environment variable holding the DSN; the DSN is never in the profile."""
+
+
 class Profile(Record):
     profile_version: Literal["1"]
     environment: Literal["fixture", "live"]
@@ -39,6 +45,7 @@ class Profile(Record):
     connections: tuple[ConnectionDescriptor, ...]
     bindings: dict[str, tuple[str, ...]]
     budgets: Budgets = Budgets()
+    store: StoreConfig = StoreConfig()
     fixture: FixtureConfig | None = None
 
 

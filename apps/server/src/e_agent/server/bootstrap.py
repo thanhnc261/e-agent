@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Any
 
+from e_agent.adapters.postgres import PostgresRunStore, apply_migrations
 from e_agent.adapters.shacl import ShaclPlanValidator
 from e_agent.contracts.context import Principal
 from e_agent.erp.testing.fake_erp import BINDINGS as FIXTURE_BINDINGS
@@ -28,14 +31,24 @@ from .profile import Profile
 class Runtime:
     profile: Profile
     coordinator: RunCoordinator
-    store: InMemoryRunStore
+    store: Any
     registry: PluginRegistry
     operator: Principal
     scope: frozenset[str]
     fake_erp: FakeErp | None
 
 
-def build_runtime(
+async def open_store(profile: Profile) -> Any:
+    if profile.store.kind == "memory":
+        return InMemoryRunStore()
+    dsn = os.environ.get(profile.store.dsn_env)
+    if not dsn:
+        raise KernelError(ErrorCode.STARTUP_REJECTED, f"{profile.store.dsn_env} is not set")
+    await apply_migrations(dsn)
+    return await PostgresRunStore.open(dsn)
+
+
+async def build_runtime(
     profile: Profile,
     *,
     scenario: str | None = None,
@@ -74,7 +87,7 @@ def build_runtime(
     )
     # The composition root chooses the validation engine; domains supply datasets.
     registry.validators.append(ShaclPlanValidator(registry.dataset_builders))
-    store = InMemoryRunStore()
+    store = await open_store(profile)
     coordinator = RunCoordinator(
         store=store,
         registry=registry,

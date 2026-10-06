@@ -6,7 +6,9 @@ this domain installed (MVP design §13, domain neutrality gate).
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import importlib
+import os
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -238,7 +240,7 @@ class Clock:
 @dataclass
 class Kernel:
     coordinator: RunCoordinator
-    store: InMemoryRunStore
+    store: Any
     backend: NotesBackend
     validator: NotesValidator
     verifier: NotesVerifier
@@ -255,7 +257,25 @@ def principal(pid: str, roles: set[str], tenant: str = TENANT) -> Principal:
 
 
 @pytest.fixture
-def make_kernel() -> Callable[..., Kernel]:
+async def run_store() -> AsyncIterator[Any]:
+    """In-memory by default; E_AGENT_TEST_STORE=postgres re-runs the whole kernel
+    suite against the PostgreSQL adapter (DSN from E_AGENT_TEST_PG_DSN)."""
+    if os.environ.get("E_AGENT_TEST_STORE") != "postgres":
+        yield InMemoryRunStore()
+        return
+    pg = importlib.import_module("e_agent.adapters.postgres")
+    dsn = os.environ["E_AGENT_TEST_PG_DSN"]
+    await pg.apply_migrations(dsn)
+    store = await pg.PostgresRunStore.open(dsn)
+    await store.truncate_for_tests()
+    try:
+        yield store
+    finally:
+        await store.close()
+
+
+@pytest.fixture
+def make_kernel(run_store: Any) -> Callable[..., Kernel]:
     def _make(
         texts: list[str] | None = None,
         *,
@@ -291,7 +311,7 @@ def make_kernel() -> Callable[..., Kernel]:
                 )
             ]
         )
-        clock, store = Clock(), InMemoryRunStore()
+        clock, store = Clock(), run_store
         coordinator = RunCoordinator(
             store=store,
             registry=registry,

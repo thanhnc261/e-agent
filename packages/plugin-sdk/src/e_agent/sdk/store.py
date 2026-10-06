@@ -7,6 +7,7 @@ transaction open across model or provider calls (AGENTS.md, ADR 0003).
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from contextlib import AbstractAsyncContextManager
 from typing import Any, Protocol, runtime_checkable
 
 from e_agent.contracts.action import ActionRecord
@@ -73,6 +74,7 @@ class RunStore(Protocol):
 
     async def record_outcome(
         self,
+        tenant_id: str,
         outcome: OutcomeReport,
         action: ActionRecord | None,
         expected_revision: int | None,
@@ -88,3 +90,24 @@ class RunStore(Protocol):
     async def list_receipts(self, tenant_id: str, action_id: str) -> list[ExecutionReceipt]: ...
 
     async def list_approvals(self, tenant_id: str, action_id: str) -> list[ApprovalRecord]: ...
+
+    async def list_unfinished_runs(self) -> list[RunRecord]:
+        """Runs not in a terminal state, for startup recovery."""
+        ...
+
+    async def save_continuation(
+        self,
+        tenant_id: str,
+        run_id: str,
+        state: Mapping[str, Any],
+        driver_state: Mapping[str, Any] | None,
+    ) -> None: ...
+
+    async def load_continuation(
+        self, tenant_id: str, run_id: str
+    ) -> tuple[dict[str, Any], dict[str, Any] | None] | None: ...
+
+    def writer_lock(self, tenant_id: str, connection_id: str) -> AbstractAsyncContextManager[None]:
+        """Serializes writes per (tenant, connection) when the provider lacks atomic
+        uniqueness (ADR 0003). Held across the provider call, never a DB transaction."""
+        ...

@@ -13,7 +13,7 @@ from e_agent.contracts.run import RunState
 from e_agent.kernel.errors import KernelError
 from e_agent.sdk.discovery import discover
 
-from .bootstrap import build_runtime
+from .bootstrap import build_runtime, open_store
 from .profile import load_profile
 
 DEMO_TASK = "Restock product widget-a for demand d-001 by creating a draft purchase order."
@@ -25,7 +25,7 @@ def _print(text: str = "") -> None:
 
 async def _demo(args: argparse.Namespace) -> int:
     profile = load_profile(args.profile)
-    rt = build_runtime(
+    rt = await build_runtime(
         profile,
         scenario=args.scenario,
         driver_mode=args.driver_mode,
@@ -65,6 +65,7 @@ async def _demo(args: argparse.Namespace) -> int:
         run = await rt.coordinator.reconcile(rt.operator, run.run_id)
 
     events = await rt.store.list_events(rt.operator.tenant_id, run.run_id)
+    await _close(rt.store)
     if args.json:
         payload: dict[str, Any] = {
             "environment": profile.environment,
@@ -81,6 +82,34 @@ async def _demo(args: argparse.Namespace) -> int:
             _print(f"{e.sequence:>3} {e.type:<26} {detail}")
         _print(f"Final state: {run.state} ({run.reason or ''}) [environment={profile.environment}]")
     return 0
+
+
+async def _migrate(args: argparse.Namespace) -> int:
+    profile = load_profile(args.profile)
+    if profile.store.kind != "postgres":
+        _print("profile uses the in-memory store; nothing to migrate")
+        return 0
+    store = await open_store(profile)  # applies migrations
+    await store.close()
+    _print("migrations applied")
+    return 0
+
+
+async def _recover(args: argparse.Namespace) -> int:
+    profile = load_profile(args.profile)
+    rt = await build_runtime(profile)
+    try:
+        for run in await rt.coordinator.recover():
+            _print(f"{run.run_id}: {run.state} ({run.reason or ''})")
+    finally:
+        await _close(rt.store)
+    return 0
+
+
+async def _close(store: Any) -> None:
+    close = getattr(store, "close", None)
+    if close is not None:
+        await close()
 
 
 def _decision(args: argparse.Namespace) -> ApprovalDecision | None:
@@ -119,6 +148,8 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--reconcile", action="store_true", help="run read-only reconciliation")
     demo.add_argument("--json", action="store_true")
     sub.add_parser("plugins", help="list discovered plugins (metadata only)")
+    sub.add_parser("migrate", help="apply ledger migrations for a postgres-store profile")
+    sub.add_parser("recover", help="run startup recovery on unfinished runs (never re-sends)")
     return parser
 
 
@@ -127,6 +158,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "demo":
             return asyncio.run(_demo(args))
+        if args.command == "migrate":
+            return asyncio.run(_migrate(args))
+        if args.command == "recover":
+            return asyncio.run(_recover(args))
         return _plugins(args)
     except KernelError as exc:
         sys.stderr.write(f"error {exc.code}: {exc.safe_message}\n")

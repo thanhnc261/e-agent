@@ -8,7 +8,6 @@ report findings; executors only execute admitted invocations.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -39,6 +38,7 @@ from e_agent.sdk.ports import (
     ValidationInput,
 )
 from e_agent.sdk.store import DuplicateOperation, EventSpec, RunStore
+from pydantic import BaseModel, Field
 
 from .approval import ApprovalPresentation, compute_digest, digest_input, presentation_for
 from .connections import ConnectionCatalog
@@ -49,14 +49,17 @@ from .registry import PluginRegistry
 DEFAULT_APPROVAL_TTL = timedelta(minutes=15)
 
 
-@dataclass
-class _Continuation:
-    """Per-run driver continuation. In-process for the walking skeleton;
-    persisted (redacted, versioned) from I04/I05 per ADR 0004."""
+CONTINUATION_SCHEMA = "kernel-continuation-v1"
+
+
+class _Continuation(BaseModel):
+    """Kernel-side run continuation, persisted through the RunStore at every state
+    change so a restarted process can resume (ADR 0003/0004). Contains only
+    authorized observations and records; never secrets or model reasoning."""
 
     ctx: TaskContext
-    reads: dict[str, ReadRequest] = field(default_factory=dict)
-    observations: dict[str, Observation] = field(default_factory=dict)
+    reads: dict[str, ReadRequest] = Field(default_factory=dict)
+    observations: dict[str, Observation] = Field(default_factory=dict)
     findings: tuple[Finding, ...] = ()
     turns: int = 0
     read_calls: int = 0
@@ -64,7 +67,7 @@ class _Continuation:
     writes: int = 0
     pending_action_id: str | None = None
     last_action_id: str | None = None  # repairs link to the action they supersede
-    canonical_proposal: dict[str, Any] = field(default_factory=dict)
+    canonical_proposal: dict[str, Any] = Field(default_factory=dict)
     last_validation: ValidationResult | None = None
     approval_requested_at: datetime | None = None
 
@@ -158,17 +161,42 @@ class RunCoordinator:
         updated = run.model_copy(
             update={"state": state, "revision": run.revision + 1, "reason": reason}
         )
+        await self._persist(run.run_id)
         return await self._store.update_run(updated, run.revision, events)
 
-    def _cont(self, run_id: str) -> _Continuation:
+    async def _load_cont(self, tenant_id: str, run_id: str) -> _Continuation:
+        cont = self._runs.get(run_id)
+        if cont is not None:
+            return cont
+        stored = await self._store.load_continuation(tenant_id, run_id)
+        if stored is None:
+            raise KernelError(ErrorCode.NOT_FOUND, "run has no continuation")
+        state, driver_state = stored
+        if state.get("schema") != CONTINUATION_SCHEMA:
+            raise KernelError(ErrorCode.CONFLICT, "unsupported continuation schema")
+        cont = _Continuation.model_validate(state["data"])
+        restore = getattr(self._driver, "restore", None)
+        if driver_state is not None and restore is not None:
+            restore(run_id, driver_state)
+        self._runs[run_id] = cont
+        return cont
+
+    async def _persist(self, run_id: str) -> None:
         cont = self._runs.get(run_id)
         if cont is None:
-            raise KernelError(ErrorCode.NOT_FOUND, "run not active in this process")
-        return cont
+            return
+        snapshot = getattr(self._driver, "snapshot", None)
+        driver_state = snapshot(run_id) if snapshot is not None else None
+        await self._store.save_continuation(
+            cont.ctx.tenant_id,
+            run_id,
+            {"schema": CONTINUATION_SCHEMA, "data": cont.model_dump(mode="json")},
+            driver_state,
+        )
 
     # ---------------------------------------------------------------- driving
     async def _drive(self, run: RunRecord, step_input: DriverInput) -> RunRecord:
-        cont = self._cont(run.run_id)
+        cont = await self._load_cont(run.tenant_id, run.run_id)
         ctx = cont.ctx
         while True:
             if cont.turns >= ctx.budgets.max_driver_turns:
@@ -183,6 +211,7 @@ class RunCoordinator:
                     obs = await self._gateway_read(cont, request, count_budget=True)
                     cont.reads[request.request_id] = request
                     cont.observations[request.request_id] = obs
+                await self._persist(run.run_id)
                 step_input = DriverInput(
                     task=run.task, observations=tuple(cont.observations.values())
                 )
@@ -471,7 +500,7 @@ class RunCoordinator:
     # ------------------------------------------------------------- approvals
     async def pending_approval(self, tenant_id: str, run_id: str) -> ApprovalPresentation:
         run = await self._store.get_run(tenant_id, run_id)
-        cont = self._cont(run_id)
+        cont = await self._load_cont(run.tenant_id, run_id)
         if run.state is not RunState.WAITING_APPROVAL or cont.pending_action_id is None:
             raise KernelError(ErrorCode.NOT_FOUND, "no pending approval")
         action = await self._store.get_action(tenant_id, cont.pending_action_id)
@@ -499,7 +528,7 @@ class RunCoordinator:
             raise KernelError(ErrorCode.FORBIDDEN, "actor is not an approver")
         if run.revision != expected_run_revision:
             raise KernelError(ErrorCode.CONFLICT, "run changed; reload before deciding")
-        cont = self._cont(run_id)
+        cont = await self._load_cont(run.tenant_id, run_id)
         if run.state is not RunState.WAITING_APPROVAL or cont.pending_action_id != action_id:
             raise KernelError(ErrorCode.CONFLICT, "action is not awaiting approval")
         action = await self._store.get_action(actor.tenant_id, action_id)
@@ -610,7 +639,8 @@ class RunCoordinator:
         executor = self._registry.executor_for(binding)
         started = self._clock()
         try:
-            receipt = await executor.execute(ctx, binding, action, 1)
+            async with self._store.writer_lock(ctx.tenant_id, action.connection_id):
+                receipt = await executor.execute(ctx, binding, action, 1)
         except KnownNoEffectError as exc:
             receipt = ExecutionReceipt(
                 action_id=action.action_id,
@@ -707,6 +737,7 @@ class RunCoordinator:
                 reported_at=self._clock(),
             )
             await self._store.record_outcome(
+                ctx.tenant_id,
                 report,
                 None,
                 None,
@@ -727,6 +758,7 @@ class RunCoordinator:
         )
         if report.status is OutcomeStatus.UNKNOWN:
             await self._store.record_outcome(
+                ctx.tenant_id,
                 report,
                 None,
                 None,
@@ -736,6 +768,7 @@ class RunCoordinator:
             return await self._set_run_state(run, RunState.VERIFYING, "verification inconclusive")
         current = await self._store.get_action(ctx.tenant_id, action.action_id)
         await self._store.record_outcome(
+            ctx.tenant_id,
             report,
             current.model_copy(update={"state": target, "revision": current.revision + 1}),
             current.revision,
@@ -767,7 +800,7 @@ class RunCoordinator:
         run = await self._store.get_run(operator.tenant_id, run_id)
         if run.state is not RunState.NEEDS_RECONCILIATION:
             raise KernelError(ErrorCode.CONFLICT, "run does not need reconciliation")
-        cont = self._cont(run_id)
+        cont = await self._load_cont(run.tenant_id, run_id)
         actions = [
             a
             for a in await self._store.list_actions(operator.tenant_id, run_id)
@@ -811,10 +844,68 @@ class RunCoordinator:
             return await self._set_run_state(
                 run, RunState.NEEDS_RECONCILIATION, "cancel requested; effect must be reconciled"
             )
-        cont = self._runs.get(run_id)
+        try:
+            cont: _Continuation | None = await self._load_cont(actor.tenant_id, run_id)
+        except KernelError:
+            cont = None
         if cont and cont.pending_action_id:
             pending = await self._store.get_action(actor.tenant_id, cont.pending_action_id)
             if ActionState.BLOCKED in ALLOWED_ACTION_TRANSITIONS[pending.state]:
                 await self._transition(pending, ActionState.BLOCKED)
             cont.pending_action_id = None
         return await self._set_run_state(run, RunState.CANCELLED, "cancelled before dispatch")
+
+    # --------------------------------------------------------------- recovery
+    async def recover(self) -> list[RunRecord]:
+        """Startup recovery (MVP design §9 crash rules). Never sends a write.
+
+        - DISPATCHING: the call may have executed -> UNKNOWN, reconcile later.
+        - APPROVED/RESERVED without dispatch: blocked; a new approval is required.
+        - COMMITTED while VERIFYING: re-run the independent read-back.
+        - RUNNING with no pending effect: the driver turn was lost -> FAILED.
+        """
+        recovered: list[RunRecord] = []
+        for run in await self._store.list_unfinished_runs():
+            actions = await self._store.list_actions(run.tenant_id, run.run_id)
+            try:
+                cont = await self._load_cont(run.tenant_id, run.run_id)
+            except KernelError:
+                cont = None
+            dispatching = [a for a in actions if a.state is ActionState.DISPATCHING]
+            undispatched = [
+                a for a in actions if a.state in {ActionState.APPROVED, ActionState.RESERVED}
+            ]
+            committed = [a for a in actions if a.state is ActionState.COMMITTED]
+            if dispatching and cont is not None:
+                action = dispatching[0]
+                now = self._clock()
+                receipt = ExecutionReceipt(
+                    action_id=action.action_id,
+                    attempt=1,
+                    status=ReceiptStatus.UNKNOWN,
+                    sanitized_error="worker lost during dispatch",
+                    started_at=now,
+                    finished_at=now,
+                )
+                recovered.append(await self._apply_receipt(cont, action, receipt))
+            elif undispatched:
+                for action in undispatched:
+                    await self._transition(action, ActionState.BLOCKED)
+                if cont is not None:
+                    cont.pending_action_id = None
+                run = await self._store.get_run(run.tenant_id, run.run_id)
+                recovered.append(
+                    await self._set_run_state(
+                        run, RunState.FAILED, "interrupted before dispatch; approve a new run"
+                    )
+                )
+            elif committed and cont is not None and run.state is RunState.VERIFYING:
+                receipts = await self._store.list_receipts(run.tenant_id, committed[0].action_id)
+                recovered.append(await self._verify(cont, committed[0], receipts[-1]))
+            elif run.state in {RunState.RUNNING, RunState.CREATED}:
+                recovered.append(
+                    await self._set_run_state(
+                        run, RunState.FAILED, "interrupted during driver turn"
+                    )
+                )
+        return recovered
