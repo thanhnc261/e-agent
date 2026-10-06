@@ -41,6 +41,7 @@ The **lethal trifecta** test (private data + untrusted content + an outbound cha
 | T14 | **Wrong target environment.** Commands hit `odoo-bench` or a non-sandbox database | Sandbox marker plus explicit URL, database and company allowlist checked at startup and before each write | Startup against unmarked database fails |
 | T15 | **CSRF or cross-origin command** from an overlay embedded on another application's page | Same-origin with server-side CSRF validation, or explicit origin allowlist plus token exchange; no secrets in URLs or postMessage | Cross-origin POST without valid token rejected |
 | T16 | **Ledger store co-located with Odoo DB** | Separate PostgreSQL database and role for e-agent | Profile validation rejects Odoo DB URL |
+| T18 | **Credential exposure via admin surfaces** (secret echoed in API, logs or evidence; OAuth callback hijack) | Write-only secret fields; `SecretStore` refs only; RFC 9700 OAuth (PKCE, `state`, exact redirect); `integration_admin` role with step-up; admin APIs never agent tools (ADR 0012) | Canary-secret scan; OAuth negative tests |
 | T17 | **Prompt/tool-schema drift** mid-run | Tool set and schema digests pinned in run record; mismatch on resume blocks | Change schema between approval and resume → blocked |
 
 ## 4. Residual risks accepted for MVP

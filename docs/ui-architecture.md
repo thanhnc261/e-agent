@@ -64,7 +64,7 @@ flowchart TB
 | L5 React bindings | `@e-agent/ui-react` | Hooks (`useRun`, `useTimeline`, `usePendingApproval`, `useComposer`); **slot registry** for component overrides | Hold state outside L3 |
 | L6 Components | `@e-agent/components` | Default accessible components built on headless primitives, styled only via tokens | Read raw API responses; hard-code colors or spacing |
 | L7 Layouts | `@e-agent/layouts` | Layout presets composed from named slots | Contain domain logic |
-| L8 Hosts | `apps/web`, `@e-agent/overlay-element`; optional per-system host adapters | Bootstrapping, auth/session bridge, generic `HostContext` hints, CSP | Grant permissions from host context; leak system-specific types into L1–L7 |
+| L8 Hosts | `apps/web`, `@e-agent/overlay-element`, later `@e-agent/admin` ([integration management](integration-management.md)); optional per-system host adapters | Bootstrapping, auth/session bridge, generic `HostContext` hints, CSP | Grant permissions from host context; leak system-specific types into L1–L7 |
 
 Dependency direction is strictly downward (L8 → L1). It is enforced with dependency-cruiser or ESLint boundary rules, the same way import-linter enforces the Python side.
 
@@ -166,6 +166,10 @@ A T4 UI that uses `ui-core` inherits the run store, approval state machine, sani
 8. Keyboard-only flow and visible focus work (WCAG 2.2 AA target for the default UI).
 
 Passing the suite is a release condition for a UI. It does not replace the server-side checks.
+
+## 6a. Provider neutrality gate
+
+No package under `ui/` may contain provider identifiers (a CI denylist covers `odoo`, `bigquery`, `google`, `salesforce` and similar). Provider names, icons and form fields reach the UI only as manifest data from the server (ADR 0012).
 
 ## 7. Explicit non-goals for the MVP
 

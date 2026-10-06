@@ -80,7 +80,7 @@ Wire records use explicit schema versions, UTC timestamps, UUID-like opaque inte
 | TaskContext | Run, tenant, trusted principal, authorized resource scope, deadline, budgets |
 | CapabilityDescriptor | Contract ID/version, input/output schemas, read/write effect, feature requirements |
 | CapabilityBinding | Binding ID, capability contract, plugin/version, connection ID and supported features |
-| ConnectionDescriptor | Tenant, provider, allowed company/resources, secret reference; no secret value |
+| ConnectionDescriptor | Tenant, integration type, connection ID and **version**, allowed company/resources, secret reference; no secret value ([integration management](integration-management.md)) |
 | EvidenceRef | Source identity/revision or observed snapshot digest, locator, observed time, scope and provenance |
 | CandidatePlan | Plan ID/revision, typed capability proposals, evidence refs, expected effects |
 | ValidationResult | PASS/FAIL/UNKNOWN/ERROR, rule/version, expected/observed values, evidence refs |
@@ -100,7 +100,7 @@ Capability contract IDs are named by business bounded context, e.g. `procurement
 
 Proposed implementation: an RFC 8785 (JCS) profile with no JSON numbers and a `jcs-sha256-v1:` prefix, plus shared Python/TypeScript golden vectors ([ADR 0006](adr/0006-approval-digest-canonicalization.md)). Requirements: one versioned canonical serialization: explicit allowed types, sorted object keys, canonical decimal strings, UTC timestamp representation, no NaN/Infinity, no ambiguous numeric coercion, and retained array order. Hash UTF-8 bytes with SHA-256. Include a digest-format version.
 
-The digest covers tenant/requester, capability contract, binding and connection, normalized arguments, expected effects, material source snapshot refs, ontology/rule versions and policy version. Approval actor/expiry are recorded alongside the digest. Display the same normalized proposal used for hashing. Material resource changes, changed arguments or changed policy invalidate eligibility and require revalidation/reapproval. A refreshed observation timestamp alone is not a material change: preserve the observation record separately and compare the provider revision or canonical relevant-fact digest. Do not hash arbitrary framework messages or raw provider responses as the plan identity.
+The digest covers tenant/requester, capability contract, binding and connection (including connection version, ADR 0012), normalized arguments, expected effects, material source snapshot refs, ontology/rule versions and policy version. Approval actor/expiry are recorded alongside the digest. Display the same normalized proposal used for hashing. Material resource changes, changed arguments or changed policy invalidate eligibility and require revalidation/reapproval. A refreshed observation timestamp alone is not a material change: preserve the observation record separately and compare the provider revision or canonical relevant-fact digest. Do not hash arbitrary framework messages or raw provider responses as the plan identity.
 
 ## 5. SDK responsibilities and wiring
 
@@ -122,7 +122,7 @@ Bootstrap wires dependencies and gives each plugin only its required services. D
 
 ## 6. Plugin registration and configuration
 
-Initial discovery uses installed distribution metadata and a versioned entry-point group such as `e_agent.plugins.v1`. A packaged static manifest describes plugin ID, artifact version, supported SDK API range, factory, provided/required capabilities and settings schema. Factory registration must agree with the admitted manifest.
+Initial discovery uses installed distribution metadata and a versioned entry-point group such as `e_agent.plugins.v1`. A packaged static manifest describes plugin ID, artifact version, supported SDK API range, factory, provided/required capabilities and settings schema. Integration adapters also declare a provider-neutral `connection` section (connection JSON Schema with write-only secret fields, auth methods, resource-scope schema, `test_connection`, i18n display assets) so connections can be managed generically ([ADR 0012](adr/0012-schema-driven-integration-management.md), proposed). Factory registration must agree with the admitted manifest.
 
 Startup sequence:
 

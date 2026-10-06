@@ -163,7 +163,7 @@ The MVP packages a small procurement ontology and reads typed ERP facts. Full in
 | Runs, proposals, approval, action ledger, receipts, outcome reports | Kernel services | PostgreSQL through RunStore |
 | ERP purchase orders and master data | ERP | Odoo; local records retain references and evidence |
 | Capabilities, ontology, shapes and rule inventory | Domain pack | Immutable packaged resources |
-| Connections and secret references | Application/operator configuration | Validated profile and external secret input |
+| Connections and secret references | Integration admin (generic, schema-driven; [ADR 0012](adr/0012-schema-driven-integration-management.md), proposed) | Versioned connection records; secrets only in a `SecretStore` adapter (local-encrypted in MVP), never in profiles, UI or model context |
 | Source revisions, curated claims | Knowledge services, when implemented | Versioned registry/store |
 | UI/search/graph views | Projection owners | Derived indexes |
 
