@@ -6,6 +6,10 @@ These documents define the implementation baseline for e-agent. They describe pl
 |---|---|
 | [High-level design](high-level-design.md) | Product boundaries, components, dependencies, trust, knowledge architecture, evolution and delivery phases |
 | [MVP detailed design](mvp-detailed-design.md) | Procurement workflow, contracts, plugin registration, persistence, execution states, recovery, APIs and acceptance gates |
+| [Implementation plan](implementation-plan.md) | Task catalog, work packages, gates and local/CI test policy |
+| [ADR index](adr/README.md) | Accepted and proposed architecture decisions, template |
+| [Threat model](threat-model.md) | MVP-scoped threats mapped to OWASP Agentic Top 10, with tests |
+| [Architecture review 2026-10-06](reviews/2026-10-06-architecture-review.md) | Findings, quality scenarios, risks and ADR gating |
 | [Research index](../research/README.md) | Supporting research, alternatives and source registers |
 | [Agent instructions](../AGENTS.md) | Repository conventions for implementation agents |
 

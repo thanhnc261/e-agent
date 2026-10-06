@@ -10,6 +10,7 @@ A plugin-driven enterprise agent application designed for governed business acti
 |---|---|
 | [High-level design](docs/high-level-design.md) | Architecture, package boundaries, multi-domain support, knowledge evolution and deployment |
 | [MVP detailed design](docs/mvp-detailed-design.md) | Procurement workflow, contracts, state machines, persistence, approvals, recovery and acceptance tests |
+| [Implementation plan](docs/implementation-plan.md) and [ADRs](docs/adr/README.md) | Accepted scope (ADR 0001), proposed decisions and work packages |
 | [Documentation index](docs/README.md) | Design reading order and decision conventions |
 | [Research](research/README.md) | Industry sources, ontology research, enterprise controls and architecture reviews |
 | [AGENTS.md](AGENTS.md) / [CLAUDE.md](CLAUDE.md) | Instructions for coding agents working on this project |
@@ -20,7 +21,7 @@ A real model-driven agent will read synthetic procurement facts, propose a purch
 
 The demo must expose successful execution, blocked invalid proposals and safe handling of changed approvals or uncertain external results. It must distinguish live ERP outcomes from deterministic fixtures and scripted fault injection.
 
-Order confirmation, stock receipt, invoicing, payments, live CRM/Google integrations and a modern web UI are outside the first scope. Explainable UI and a governed knowledge graph follow once the execution and evidence foundations work.
+Procurement is the first vertical slice. [ADR 0001](docs/adr/0001-local-mvp-scope.md) extends the MVP to a local Pydantic AI + Ollama driver, 5–10 common Odoo 19 tasks, a streaming overlay UI for task interaction and approval, and read-only BigQuery analytics. Order confirmation, stock receipt, posted accounting, payments, external CRM providers and Google integrations remain out of scope. Evidence-explanation/governance UI and a governed knowledge graph follow once the execution and evidence foundations work.
 
 ## Architecture
 

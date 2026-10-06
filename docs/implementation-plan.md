@@ -1,13 +1,13 @@
 # MVP implementation plan
 
-**Date:** 2026-10-06. **Status:** actionable planning baseline; implementation has not started. User decisions are recorded in [ADR 0001](adr/0001-local-mvp-scope.md). Read with the [HLD](high-level-design.md) and [detailed design](mvp-detailed-design.md).
+**Date:** 2026-10-06. **Status:** actionable planning baseline; implementation has not started. User decisions are recorded in [ADR 0001](adr/0001-local-mvp-scope.md). Read with the [HLD](high-level-design.md) and [detailed design](mvp-detailed-design.md). The [2026-10-06 architecture review](reviews/2026-10-06-architecture-review.md) proposes ADRs 0002–0010 ([index](adr/README.md)); each gates the work package listed in review §7 and must be accepted or rejected before that package starts. The scoped [threat model](threat-model.md) defines security tests used by I05–I09 and I12.
 
 ## 1. Confirmed choices and open inputs
 
 | Item | Baseline |
 |---|---|
 | Machine | Current local development machine; local-first testing |
-| Runtime/model | Pydantic AI + Ollama first; no automatic cloud fallback |
+| Runtime/model | Pydantic AI 2.x (exact pin in I01) + Ollama first; no automatic cloud fallback; deferred-only writes and thinking hygiene per ADR 0004 (proposed) |
 | ERP | Odoo 19 `odoo19-learning`, independent of experiment; customization allowed |
 | Scope | 5–10 common ERP tasks; proposed catalog below has eight Odoo tasks plus two BigQuery tasks |
 | UI | Streaming overlay UI in MVP; small CLI uses the same services |
@@ -56,11 +56,11 @@ All work packages below are **not started**. Each implementation change should c
 
 | ID | Dependencies | Deliverables / affected paths | Definition of done |
 |---|---|---|---|
-| I00 Environment qualification | None | Local environment manifest/runbook; proposed non-secret profile; sandbox checks | Exact Odoo DB/company/module inventory and supported auth/API known; target marker excludes benchmark; Ollama endpoint/model digests recorded; BigQuery/overlay open inputs tracked |
+| I00 Environment qualification | None | Local environment manifest/runbook; proposed non-secret profile; sandbox checks | Exact Odoo DB/company/module inventory and supported auth/API known (JSON-2 reachable with a dedicated API-key user); e-agent PostgreSQL is a separate database/role from Odoo's; target marker excludes benchmark; Ollama endpoint/model digests recorded; BigQuery/overlay open inputs tracked |
 | I01 Workspace and CI | I00 for runtime versions | `pyproject.toml`, lockfile, package skeletons with real tests, frontend tooling when selected, CI | Python lint/type/unit/build/import gates pass; independent wheel install works; CI uses no live credentials or model downloads |
-| I02 Contracts and registration | I01 | contracts, SDK, registry/bootstrap; fixtures | Typed action/evidence/binding/stream records; metadata-only discovery; incompatible/disabled plugins rejected; two connections of one capability resolve safely |
+| I02 Contracts and registration | I01 | contracts, SDK, registry/bootstrap; fixtures | Typed action/evidence/binding/stream records; metadata-only discovery; incompatible/disabled plugins rejected; two connections of one capability resolve safely; digest golden vectors (ADR 0006). **Exit = walking skeleton:** fake driver + fake ERP + real kernel services + CLI complete one procurement run end to end with no network |
 | I03 Rule and ontology slice | I02, exact source before importing benchmark content | domain-erp resources, SHACL adapter, competency fixtures, provenance inventory | Procurement rules pass positive/negative/missing cases; resource loading from wheel works; public domain specs mapped to Odoo 19; no evaluator answers enter prompts/assets |
-| I04 Local model qualification | I02 | Pydantic driver, Ollama configuration, local qualification report | Real model can request typed tools, defer to host, resume with results, stream safe text and stop within bounds; no bypass/raw ERP client; record failures and timings |
+| I04 Local model qualification | I02 | Pydantic driver, Ollama configuration, local qualification report | Real model can request typed tools, defer to host, resume with results, stream safe text and stop within bounds; no bypass/raw ERP client; no thinking content persisted; record failures and timings with ADR 0010 metadata. **Rescope checkpoint:** if no local model reaches pass@1 ≥ 0.8 (N ≥ 10) on the deferred-write scenario, stop and revise tool surface/model/scope before I06+ task work |
 | I05 Durable kernel | I02 | kernel, PostgreSQL adapter/migrations, deterministic recovery tests | Proposal/approval/reservation/event atomicity; stale approval blocked; cancel/restart/UNKNOWN paths verified; no blind write replay |
 | I06 Odoo bridge and adapter | I00, I02, I05 | `addons/e_agent_bridge`, adapter-odoo, sandbox seed/reset tooling | Dedicated scoped account; approved command executes via narrow RPC; operation key uniqueness and payload conflict handled in same ERP transaction; duplicate concurrent requests yield one effect |
 | I07 Procurement vertical slice | I03, I04, I05, I06 | Application workflow, minimal CLI, independent verifier | ERP-01..03 real local runs verified; invalid plan blocked; approval changes and timeouts demonstrated; all attempts exported |
@@ -72,7 +72,7 @@ All work packages below are **not started**. Each implementation change should c
 | I13 Cross-source evidence | I07, I12, approved snapshot/mapping | Application workflow, lineage/watermark metadata, metric fixtures | BQ-02 identifies intentional stale/mismatched snapshot; does not claim BigQuery is live ERP truth or send automatic corrections |
 | I14 Release qualification | I09, I10, I11, I12, I13 | Local integration/eval report, demo/reset/recovery runbooks, CI checks | All enabled task gates met; complete failure report; repeatable demo; independent artifacts/ontology packaged; no unsupported production-readiness claim |
 
-Initial critical path: I00 → I01 → I02 → I03/I04/I05 → I06 → I07. Build UI contracts/shell alongside the core once I02/I05 exist. Complete I09/I10 before adding more task families. BigQuery can be designed independently, but do not connect, provision or export data while its scope is unresolved.
+Initial critical path: I00 → I01 → I02 (walking skeleton) → I03/I04/I05 → I06 → I07. Do not start I10/I11 task families until I07 and I09 pass. Build UI contracts/shell alongside the core once I02/I05 exist. Complete I09/I10 before adding more task families. BigQuery can be designed independently, but do not connect, provision or export data while its scope is unresolved.
 
 ## 4. Local driver qualification
 
@@ -80,11 +80,11 @@ Pydantic AI is selected; the spike qualifies its configuration rather than reope
 
 Prefer one qualified default model and a smaller fallback only if it passes the same safety tests. Model changes stay explicit in profile/evidence. If no local model passes, record the concrete blocker and tune model/context/tool surface; do not replace Ollama with a cloud provider without a scope change. The former 120-second active budget is provisional and must be recalibrated from local measurements; deterministic safety tests do not depend on model speed.
 
-Pydantic's [Ollama integration](https://pydantic.dev/docs/ai/models/ollama/) and [deferred tools](https://pydantic.dev/docs/ai/tools-toolsets/deferred-tools/) are the implementation references. Pin a tested version and use its supported API, rather than copying an unverified current snippet into the design.
+Use the 2.x deferred-tool mechanics: read tools call the gateway via injected dependencies; effectful tools raise `CallDeferred`; the kernel resumes the agent with `DeferredToolResults.calls`. Do not use `requires_approval` or framework durability for business actions (ADRs 0003/0004, proposed). Pydantic's [Ollama integration](https://pydantic.dev/docs/ai/models/ollama/) and [deferred tools](https://pydantic.dev/docs/ai/tools-toolsets/deferred-tools/) are the implementation references. Pin a tested version and use its supported API, rather than copying an unverified current snippet into the design.
 
 ## 5. Odoo integration and operation identity
 
-Prefer the Odoo 19 JSON-2 surface after verifying it against this local installation and account. Validate its dynamic API/module availability before choosing transport; a compatible scoped custom endpoint is possible if needed. Odoo's [JSON-2 documentation](https://www.odoo.com/documentation/19.0/developer/reference/external_api.html) is the starting reference, not proof of installed capabilities.
+Prefer the Odoo 19 JSON-2 surface after verifying it against this local installation and account. JSON-2 runs each call in its own SQL transaction and the legacy XML-RPC/JSON-RPC endpoints are deprecated, so each bridge command must perform ledger check, uniqueness and business mutation inside one call; uniqueness uses Odoo 19 `models.Constraint` ([ADR 0005](adr/0005-odoo-integration-transport.md), proposed). Validate its dynamic API/module availability before choosing transport; a compatible scoped custom endpoint is possible if needed. Odoo's [JSON-2 documentation](https://www.odoo.com/documentation/19.0/developer/reference/external_api.html) is the starting reference, not proof of installed capabilities.
 
 The bridge owns narrowly named methods for approved draft/lead operations. It must not provide unrestricted `execute(model, method, args)` to the agent. An operation ledger keyed by namespace/company/operation ID binds the payload digest and external result. Use a unique DB constraint plus transaction-safe concurrency handling: reservation and business mutation commit together; duplicate same-payload requests return the existing result; different-payload reuse returns conflict. Validate transaction behavior under simultaneous requests and lost responses.
 
@@ -96,7 +96,7 @@ Until placement is clarified, define a host-independent presentation and stream 
 
 Required UI: expandable overlay, task/chat input, streamed response, live status timeline, evidence/rule links, exact proposal diff, explicit approve/reject, stop/cancel, reconnect indicator, final verified/failed/unresolved state. It is not a graph-governance authoring UI.
 
-Use an authenticated SSE endpoint for server-to-client progress and POST commands for input/approval/cancel. Map provider events to project DTOs; no Pydantic internals in UI contracts. Persist state/approval/action events before publishing. Text deltas are transient and tagged by message/offset; they are not business truth and need not replay after a crash. Final safe text is persisted. Durable events use sequence IDs; reconnect resumes after the last durable sequence, deduplicates events, and fetches a snapshot if the retained cursor expired.
+Use an authenticated SSE endpoint for server-to-client progress and POST commands for input/approval/cancel ([ADR 0007](adr/0007-run-event-stream-contract.md), proposed). Pydantic AI's AG-UI/Vercel AI adapters may only be read-only presentation adapters; they never carry approvals. Apply the [threat model](threat-model.md) T11 rendering controls (no remote images, strict CSP). Map provider events to project DTOs; no Pydantic internals in UI contracts. Persist state/approval/action events before publishing. Text deltas are transient and tagged by message/offset; they are not business truth and need not replay after a crash. Final safe text is persisted. Durable events use sequence IDs; reconnect resumes after the last durable sequence, deduplicates events, and fetches a snapshot if the retained cursor expired.
 
 Disconnecting the browser does not cancel or rerun an action. Closing a draft card is not rejection; stop after dispatch can still leave reconciliation pending. Slow clients may lose transient text deltas but must resync durable state. Never display internal model thinking streams. Sanitize rendered content and links.
 
@@ -108,7 +108,7 @@ Default proposal, pending clarification: a read-only analytical provider using a
 
 Allowlist project/dataset/tables/location and templates; use a scoped identity with query-job permission plus only necessary data read access. Reject DDL/DML, scripts, exports, remote functions and arbitrary destinations. Apply dry-run estimation and a configured maximum-bytes-billed before real query submission; LIMIT alone is not a cost boundary. [BigQuery cost controls](https://docs.cloud.google.com/bigquery/docs/best-practices-costs).
 
-Query jobs are billed external operations even when business data is read-only. Persist intent and deterministic scoped job ID, then poll/recover the existing job on timeout rather than submitting another one. Capture job ID, source snapshot/watermark, query-template version, parameters digest and processing statistics in evidence. Dataset provisioning/upload requires a separately defined destination/scope; this plan does not create a cloud ETL pipeline by implication.
+Query jobs are billed external operations even when business data is read-only. Persist intent and deterministic scoped job ID, then poll/recover the existing job on timeout rather than submitting another one. Capture job ID, source snapshot/watermark, query-template version, parameters digest and processing statistics in evidence. Data copied to BigQuery may be a cross-border transfer under Vietnam's PDPL (Law 91/2025/QH15, effective 2026-01-01); use synthetic data until data owner, region and legal basis are recorded (threat model T13). Dataset provisioning/upload requires a separately defined destination/scope; this plan does not create a cloud ETL pipeline by implication.
 
 Without an approved BigQuery project/dataset, unit/contract work can proceed, but the BigQuery release gate stays incomplete. It is not replaced by a local mock or BigQuery-like SQL engine.
 
@@ -131,7 +131,7 @@ Simple GitHub Actions: Python lint/types, deterministic unit/conformance/archite
 
 Local gates: model qualification; Odoo module/transaction tests; all task runs; browser streaming/approval/reconnect checks; BigQuery authorized integration. Track `not-run`, `blocked`, `failed` and `passed` distinctly. Use a test harness/fixture for mechanisms, and real services for capability claims.
 
-For the frozen release catalog, run three live trials per enabled task on resettable synthetic data (read tasks use a pinned snapshot). Require all deterministic safety gates and three verifier-passing trials for each claimed task. Record all failures and subsequent reruns; do not cherry-pick. Small-sample success is not proof of broad reliability. An early five-task milestone can be demonstrated, but does not count as completion of the full eight-task-plus-BigQuery target without an explicit scope revision.
+Metrics follow [ADR 0010](adr/0010-evaluation-protocol.md) (proposed): pass@1 with N during development; pass^3 on consecutive trials of the frozen release candidate; unsafe outcomes block release regardless of pass rate. For the frozen release catalog, run three live trials per enabled task on resettable synthetic data (read tasks use a pinned snapshot). Require all deterministic safety gates and three verifier-passing trials for each claimed task. Record all failures and subsequent reruns; do not cherry-pick. Small-sample success is not proof of broad reliability. An early five-task milestone can be demonstrated, but does not count as completion of the full eight-task-plus-BigQuery target without an explicit scope revision.
 
 UI gate includes keyboard/focus behavior, scroll/expand state, long output, empty/error/loading, approval expiry, network loss and no duplicate action on reconnect. Include Vietnamese input and Vietnamese business labels in at least one local task run; code/design remain English.
 
