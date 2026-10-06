@@ -1,0 +1,21 @@
+[project]
+name = "e-agent-server"
+version = "0.1.0"
+description = "e-agent composition root: bootstrap, CLI and (later) HTTP API"
+requires-python = ">=3.12"
+dependencies = [
+    "e-agent-contracts>=0.1,<0.2",
+    "e-agent-plugin-sdk>=0.1,<0.2",
+    "e-agent-kernel>=0.1,<0.2",
+    "e-agent-domain-erp>=0.1,<0.2",
+]
+
+[project.scripts]
+e-agent = "e_agent.server.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "e_agent.server"

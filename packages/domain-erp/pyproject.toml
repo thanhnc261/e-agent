@@ -1,0 +1,16 @@
+[project]
+name = "e-agent-domain-erp"
+version = "0.1.0"
+description = "ERP business domain pack: bounded contexts, capabilities, rules and verifiers"
+requires-python = ">=3.12"
+dependencies = ["e-agent-contracts>=0.1,<0.2", "e-agent-plugin-sdk>=0.1,<0.2", "pydantic>=2.13,<3"]
+
+[project.entry-points."e_agent.plugins.v1"]
+domain-erp = "e_agent.erp.plugin:create_plugin"
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "e_agent.erp"

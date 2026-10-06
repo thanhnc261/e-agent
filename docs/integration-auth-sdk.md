@@ -81,7 +81,7 @@ Rules:
 
 High-risk methods are **disabled by default** and need explicit tenant policy plus an ADR, for example Google domain-wide delegation (a service account impersonating any user).
 
-## 5. SDK design (`e_agent_plugin_sdk.auth`)
+## 5. SDK design (`e_agent.sdk.auth`)
 
 The SDK lives in the public plugin SDK. Host-side implementations (vault, OAuth engine, refresh coordinator) live in the server/kernel and in adapters such as `adapter-secretstore-*`, never in provider adapters.
 
@@ -129,7 +129,7 @@ integration:
 Adapters never see `secret_ref`, the vault or the OAuth engine. The gateway injects an `AuthContext` for exactly one connection and one invocation:
 
 ```python
-from e_agent_plugin_sdk.auth import AuthContext, ScopeMissing
+from e_agent.sdk.auth import AuthContext, ScopeMissing
 
 async def create_draft_po(ctx: InvocationContext, auth: AuthContext, cmd: CreateDraftPO) -> Receipt:
     auth.require_scopes([])                      # Odoo: none; Google: e.g. ["calendar.events"]
@@ -315,7 +315,7 @@ Requirements:
 - Model and driver context never includes tokens, keys or OAuth URLs. Connect flows need a user gesture.
 - Revocation and disable take effect before the next invocation.
 
-`e_agent_plugin_sdk.testing.auth` provides:
+`e_agent.sdk.testing.auth` provides:
 
 - a fake `SecretStore`;
 - a fake OAuth authorization server (normal, partial grant, `invalid_grant`, rotation, slow token endpoint);

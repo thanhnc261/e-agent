@@ -1,0 +1,103 @@
+[project]
+name = "e-agent-workspace"
+version = "0.0.0"
+description = "Workspace root for e-agent (tooling only; not a distribution)"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "e-agent-contracts",
+    "e-agent-plugin-sdk",
+    "e-agent-kernel",
+    "e-agent-domain-erp",
+    "e-agent-server",
+    "pytest>=9.1",
+    "pytest-asyncio>=1.0",
+    "ruff>=0.16",
+    "mypy>=2.4",
+    "import-linter>=2.15",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*", "apps/server"]
+
+[tool.uv.sources]
+e-agent-contracts = { workspace = true }
+e-agent-plugin-sdk = { workspace = true }
+e-agent-kernel = { workspace = true }
+e-agent-domain-erp = { workspace = true }
+e-agent-server = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["docs", "research"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "RUF", "SIM", "PT"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S", "B", "PT018"]
+"scripts/**" = ["S310", "S603", "S607"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+mypy_path = [
+    "packages/contracts/src",
+    "packages/plugin-sdk/src",
+    "packages/kernel/src",
+    "packages/domain-erp/src",
+    "apps/server/src",
+]
+packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server"]
+explicit_package_bases = true
+namespace_packages = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["packages", "apps", "tests"]
+addopts = "--import-mode=importlib"
+
+[tool.importlinter]
+root_packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Layered dependency direction (HLD §4)"
+type = "layers"
+layers = [
+    "e_agent.server",
+    "e_agent.erp | e_agent.kernel",
+    "e_agent.sdk",
+    "e_agent.contracts",
+]
+
+[[tool.importlinter.contracts]]
+name = "Kernel never imports domains or server"
+type = "forbidden"
+source_modules = ["e_agent.kernel"]
+forbidden_modules = ["e_agent.erp", "e_agent.server"]
+
+[[tool.importlinter.contracts]]
+name = "Domain packs never import the kernel or server"
+type = "forbidden"
+source_modules = ["e_agent.erp"]
+forbidden_modules = ["e_agent.kernel", "e_agent.server"]
+
+[[tool.importlinter.contracts]]
+name = "Domain bounded contexts are independent (ADR 0002)"
+type = "independence"
+modules = ["e_agent.erp.procurement", "e_agent.erp.inventory"]
+
+[[tool.importlinter.contracts]]
+name = "Core packages do not import agent frameworks or provider SDKs"
+type = "forbidden"
+source_modules = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp"]
+forbidden_modules = ["pydantic_ai", "httpx", "psycopg", "fastapi"]

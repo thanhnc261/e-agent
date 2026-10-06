@@ -4,7 +4,7 @@
 
 e-agent is a plugin-driven enterprise agent product. The first implementation target is a bounded procurement workflow with executable ontology validation, explicit approval, a draft PO in an isolated Odoo sandbox and independent outcome verification.
 
-The repository currently contains research and design documents. There is no runnable application, package workspace or verified test command yet. Do not describe planned behavior as implemented or invent setup commands/results.
+Implementation has started (milestone M1: workspace, contracts and the fixture walking skeleton). Live model, Odoo, PostgreSQL and UI work are not implemented yet. The README lists the verified commands; do not describe planned behavior as implemented or invent results.
 
 ## Read before changing code or architecture
 
@@ -46,6 +46,7 @@ Current user instructions take precedence. The MVP design specializes the high-l
 
 ## Development and verification
 
+- Python code lives in the shared `e_agent` namespace package (`packages/<dist>/src/e_agent/<part>/`); never add `src/e_agent/__init__.py`.
 - Inspect the actual repository before choosing commands. Once tooling exists, use its declared formatter, type checker, build and test configuration; document real commands in README.
 - Build/test distributions in clean environments outside editable workspace where independence matters. Verify resources and declared dependency closure.
 - Add meaningful tests for changed behavior, contract compatibility, policy/approval boundaries and failure recovery. Use architecture import gates and reusable conformance fixtures.
