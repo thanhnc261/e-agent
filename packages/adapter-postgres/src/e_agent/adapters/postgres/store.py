@@ -52,7 +52,7 @@ class PostgresRunStore:
         async with self._pool.connection() as conn:
             await conn.execute(
                 "TRUNCATE runs, run_events, actions, operation_reservations, approvals,"
-                " receipts, outcome_reports, continuations"
+                " receipts, outcome_reports, continuations, api_idempotency"
             )
 
     # -- helpers --------------------------------------------------------------
@@ -301,6 +301,25 @@ class PostgresRunStore:
             (tenant_id, action_id),
         )
         return [ApprovalRecord.model_validate(r) for r in rows]
+
+    async def claim_idempotency(
+        self, tenant_id: str, actor_id: str, key: str, request_digest: str, run_id: str
+    ) -> tuple[str, str]:
+        async with self._pool.connection() as conn, conn.transaction():
+            await conn.execute(
+                "INSERT INTO api_idempotency"
+                " (tenant_id, actor_id, idem_key, request_digest, run_id)"
+                " VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                (tenant_id, actor_id, key, request_digest, run_id),
+            )
+            cur = await conn.execute(
+                "SELECT run_id, request_digest FROM api_idempotency"
+                " WHERE tenant_id = %s AND actor_id = %s AND idem_key = %s",
+                (tenant_id, actor_id, key),
+            )
+            row = await cur.fetchone()
+        assert row is not None
+        return str(row[0]), str(row[1])
 
     async def list_unfinished_runs(self) -> list[RunRecord]:
         terminal = [str(s) for s in TERMINAL_RUN_STATES]

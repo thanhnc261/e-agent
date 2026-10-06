@@ -18,7 +18,7 @@ async def _fresh_db() -> str:
 
 async def test_migrations_apply_once_and_are_idempotent() -> None:
     dsn = await _fresh_db()
-    assert await migrate.apply_migrations(dsn) == ["0001_initial.sql"]
+    assert await migrate.apply_migrations(dsn) == ["0001_initial.sql", "0002_api_idempotency.sql"]
     assert await migrate.apply_migrations(dsn) == []
 
 

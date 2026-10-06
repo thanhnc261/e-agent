@@ -225,6 +225,10 @@ def build_parser() -> argparse.ArgumentParser:
     secret.add_argument("action", choices=["set", "delete"])
     secret.add_argument("ref", help="secretref:local/<name>")
     sub.add_parser("recover", help="run startup recovery on unfinished runs (never re-sends)")
+    srv = sub.add_parser("serve", help="run the local HTTP API (loopback only)")
+    srv.add_argument("--host", default="127.0.0.1")
+    srv.add_argument("--port", type=int, default=8787)
+    srv.add_argument("--static", help="directory of the built web UI to serve at /")
     return parser
 
 
@@ -237,6 +241,11 @@ def main(argv: list[str] | None = None) -> int:
             return asyncio.run(_migrate(args))
         if args.command == "recover":
             return asyncio.run(_recover(args))
+        if args.command == "serve":
+            from .api import serve
+
+            serve(args.profile, args.host, args.port, args.static)
+            return 0
         if args.command == "evidence":
             return asyncio.run(_evidence(args))
         if args.command == "secret":

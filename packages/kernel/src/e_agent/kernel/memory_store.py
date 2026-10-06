@@ -46,6 +46,7 @@ class InMemoryRunStore:
             tuple[str, str], tuple[dict[str, Any], dict[str, Any] | None]
         ] = {}
         self._writer_locks: dict[tuple[str, str], asyncio.Lock] = defaultdict(asyncio.Lock)
+        self._idempotency: dict[tuple[str, str, str], tuple[str, str]] = {}
 
     # -- helpers (caller holds the lock) --------------------------------------
     def _append(self, tenant_id: str, run_id: str, events: Sequence[EventSpec]) -> None:
@@ -181,6 +182,14 @@ class InMemoryRunStore:
 
     async def list_approvals(self, tenant_id: str, action_id: str) -> list[ApprovalRecord]:
         return list(self._approvals[(tenant_id, action_id)])
+
+    async def claim_idempotency(
+        self, tenant_id: str, actor_id: str, key: str, request_digest: str, run_id: str
+    ) -> tuple[str, str]:
+        async with self._lock:
+            return self._idempotency.setdefault(
+                (tenant_id, actor_id, key), (run_id, request_digest)
+            )
 
     async def list_unfinished_runs(self) -> list[RunRecord]:
         return [r for r in self._runs.values() if r.state not in TERMINAL_RUN_STATES]

@@ -91,6 +91,12 @@ class RunStore(Protocol):
 
     async def list_approvals(self, tenant_id: str, action_id: str) -> list[ApprovalRecord]: ...
 
+    async def claim_idempotency(
+        self, tenant_id: str, actor_id: str, key: str, request_digest: str, run_id: str
+    ) -> tuple[str, str]:
+        """Atomically record (key -> run_id) or return the existing (run_id, digest)."""
+        ...
+
     async def list_unfinished_runs(self) -> list[RunRecord]:
         """Runs not in a terminal state, for startup recovery."""
         ...

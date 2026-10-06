@@ -115,9 +115,14 @@ class RunCoordinator:
 
     # ------------------------------------------------------------------ runs
     async def start_run(
-        self, principal: Principal, task: str, resource_scope: frozenset[str]
+        self,
+        principal: Principal,
+        task: str,
+        resource_scope: frozenset[str],
+        *,
+        run_id: str | None = None,
     ) -> RunRecord:
-        run_id = new_id("run")
+        run_id = run_id or new_id("run")
         ctx = TaskContext(
             run_id=run_id,
             tenant_id=principal.tenant_id,
@@ -973,46 +978,54 @@ class RunCoordinator:
         """
         recovered: list[RunRecord] = []
         for run in await self._store.list_unfinished_runs():
-            actions = await self._store.list_actions(run.tenant_id, run.run_id)
-            try:
-                cont = await self._load_cont(run.tenant_id, run.run_id)
-            except KernelError:
-                cont = None
-            dispatching = [a for a in actions if a.state is ActionState.DISPATCHING]
-            undispatched = [
-                a for a in actions if a.state in {ActionState.APPROVED, ActionState.RESERVED}
-            ]
-            committed = [a for a in actions if a.state is ActionState.COMMITTED]
-            if dispatching and cont is not None:
-                action = dispatching[0]
-                now = self._clock()
-                receipt = ExecutionReceipt(
-                    action_id=action.action_id,
-                    attempt=1,
-                    status=ReceiptStatus.UNKNOWN,
-                    sanitized_error="worker lost during dispatch",
-                    started_at=now,
-                    finished_at=now,
-                )
-                recovered.append(await self._apply_receipt(cont, action, receipt))
-            elif undispatched:
-                for action in undispatched:
-                    await self._transition(action, ActionState.BLOCKED)
-                if cont is not None:
-                    cont.pending_action_id = None
-                run = await self._store.get_run(run.tenant_id, run.run_id)
-                recovered.append(
-                    await self._set_run_state(
-                        run, RunState.FAILED, "interrupted before dispatch; approve a new run"
-                    )
-                )
-            elif committed and cont is not None and run.state is RunState.VERIFYING:
-                receipts = await self._store.list_receipts(run.tenant_id, committed[0].action_id)
-                recovered.append(await self._verify(cont, committed[0], receipts[-1]))
-            elif run.state in {RunState.RUNNING, RunState.CREATED}:
-                recovered.append(
-                    await self._set_run_state(
-                        run, RunState.FAILED, "interrupted during driver turn"
-                    )
-                )
+            result = await self._recover_run(run)
+            if result is not None:
+                recovered.append(result)
         return recovered
+
+    async def recover_run(self, tenant_id: str, run_id: str) -> RunRecord:
+        """Apply the crash rules to one run whose host-side work died unexpectedly."""
+        run = await self._store.get_run(tenant_id, run_id)
+        if run.state in TERMINAL_RUN_STATES:
+            return run
+        self._runs.pop(run_id, None)  # the in-memory continuation may be mid-mutation
+        return await self._recover_run(run) or run
+
+    async def _recover_run(self, run: RunRecord) -> RunRecord | None:
+        actions = await self._store.list_actions(run.tenant_id, run.run_id)
+        try:
+            cont = await self._load_cont(run.tenant_id, run.run_id)
+        except KernelError:
+            cont = None
+        dispatching = [a for a in actions if a.state is ActionState.DISPATCHING]
+        undispatched = [
+            a for a in actions if a.state in {ActionState.APPROVED, ActionState.RESERVED}
+        ]
+        committed = [a for a in actions if a.state is ActionState.COMMITTED]
+        if dispatching and cont is not None:
+            action = dispatching[0]
+            now = self._clock()
+            receipt = ExecutionReceipt(
+                action_id=action.action_id,
+                attempt=1,
+                status=ReceiptStatus.UNKNOWN,
+                sanitized_error="worker lost during dispatch",
+                started_at=now,
+                finished_at=now,
+            )
+            return await self._apply_receipt(cont, action, receipt)
+        elif undispatched:
+            for action in undispatched:
+                await self._transition(action, ActionState.BLOCKED)
+            if cont is not None:
+                cont.pending_action_id = None
+            run = await self._store.get_run(run.tenant_id, run.run_id)
+            return await self._set_run_state(
+                run, RunState.FAILED, "interrupted before dispatch; approve a new run"
+            )
+        elif committed and cont is not None and run.state is RunState.VERIFYING:
+            receipts = await self._store.list_receipts(run.tenant_id, committed[0].action_id)
+            return await self._verify(cont, committed[0], receipts[-1])
+        elif run.state in {RunState.RUNNING, RunState.CREATED}:
+            return await self._set_run_state(run, RunState.FAILED, "interrupted during driver turn")
+        return None

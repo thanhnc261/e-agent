@@ -168,3 +168,9 @@ async def test_writer_lock_serializes(store: Any) -> None:
 
     await asyncio.gather(worker("a"), worker("b"))
     assert order in (["a-in", "a-out", "b-in", "b-out"], ["b-in", "b-out", "a-in", "a-out"])
+
+
+async def test_idempotency_claims(store: Any) -> None:
+    assert await store.claim_idempotency("t1", "u", "k1", "d1", "run_a") == ("run_a", "d1")
+    assert await store.claim_idempotency("t1", "u", "k1", "d2", "run_b") == ("run_a", "d1")
+    assert await store.claim_idempotency("t1", "v", "k1", "d1", "run_c") == ("run_c", "d1")

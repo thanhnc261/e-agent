@@ -51,6 +51,9 @@ extend-exclude = ["docs", "research"]
 select = ["E", "F", "W", "I", "B", "UP", "S", "RUF", "SIM", "PT"]
 ignore = ["S101"]
 
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Header"]
+
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S", "B", "PT018"]
 "scripts/**" = ["S310", "S603", "S607"]
