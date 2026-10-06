@@ -1,6 +1,48 @@
 # MVP implementation plan
 
-**Date:** 2026-10-06. **Status:** actionable planning baseline; implementation has not started. User decisions are recorded in [ADR 0001](adr/0001-local-mvp-scope.md). Read with the [HLD](high-level-design.md) and [detailed design](mvp-detailed-design.md). The [2026-10-06 architecture review](reviews/2026-10-06-architecture-review.md) proposes ADRs 0002–0010 ([index](adr/README.md)); each gates the work package listed in review §7 and must be accepted or rejected before that package starts. The scoped [threat model](threat-model.md) defines security tests used by I05–I09 and I12.
+**Date:** 2026-10-06. **Status:** actionable planning baseline; implementation has not started. User decisions are recorded in [ADR 0001](adr/0001-local-mvp-scope.md). Read with the [HLD](high-level-design.md) and [detailed design](mvp-detailed-design.md). Proposed ADRs 0002–0013 ([index](adr/README.md)) each gate a work package (index column *Gates*) and must be accepted or rejected before that package starts. §0 lists what must be decided before development starts; the [MVP readiness review](reviews/2026-10-06-mvp-readiness-review.md) records how this was checked. The scoped [threat model](threat-model.md) defines security tests used by I05–I09 and I12.
+
+## 0. Readiness: decisions and Day-1 checklist
+
+**Owner decisions (D) — needed only before the package they gate:**
+
+| ID | Decision | Gates | Default if accepted as proposed |
+|---|---|---|---|
+| D1 | Accept/reject ADRs 0008 (observability) and the toolchain baseline below | I01 | OTel with content capture off; toolchain as listed |
+| D2 | Accept/reject ADRs 0002, 0006, 0013 (contract parts) | I02 | Business-context capability IDs; JCS digest; `ownership`/`credential_subject` in contracts |
+| D3 | Accept/reject ADRs 0003, 0004, 0009, 0010 | I03–I05 | Kernel-owned durability; deferred-only writes; rule engines; pass^k protocol |
+| D4 | Accept/reject ADR 0005; permit adding `addons/e_agent_bridge` to the external `odoo19-learning` compose addons path and creating a dedicated integration user + API key there | I00 (user/API key), I06 | JSON-2 + transactional bridge |
+| D5 | Accept/reject ADRs 0007, 0011, 0012 | I08 | SSE contract; layered system-neutral UI; schema-driven connections |
+| D6 | BigQuery project/dataset/region/purpose and data permission | I12/I13 only | Synthetic data only until decided |
+| D7 | ERP Bench exact repository/revision/licence | Optional input to I03 | I03 proceeds from Odoo 19 semantics without it |
+
+Nothing else blocks the critical path through I09. D6/D7 never block I00–I11.
+
+**Proposed toolchain baseline (confirm in I01; record exact versions in the lockfiles and README):**
+
+| Area | Baseline |
+|---|---|
+| Python | 3.12+ (prefer latest stable supported by all dependencies), uv workspace, `uv_build` backend, ruff (lint/format), mypy with the Pydantic plugin (strict for contracts/kernel/SDK), pytest + pytest-asyncio, import-linter |
+| Server | FastAPI + uvicorn; native `EventSourceResponse` for SSE; httpx for outbound HTTP |
+| Persistence | PostgreSQL (separate instance or database/role from Odoo); psycopg 3; Alembic migrations owned by `adapter-postgres` |
+| Agent | Pydantic AI 2.x (exact pin), Ollama via its OpenAI-compatible or native provider as qualified in I04 |
+| Validation | pySHACL + rdflib (SHACL 1.1 + SHACL-SPARQL) |
+| TypeScript | Node 24 LTS (or 26 once promoted to LTS), pnpm workspace, TypeScript, React 19, React Aria Components, Vite, Vitest, Playwright, ESLint + dependency-cruiser, openapi-typescript, Style Dictionary (DTCG tokens) |
+| CI | GitHub Actions: Python and TS lint/type/test/build, PostgreSQL service container, wheel clean-install job; no live services or credentials |
+
+**Day-1 local prerequisites (I00):** Docker with the `odoo19-learning` stack running; a separate PostgreSQL for e-agent; Ollama with candidate models pulled; uv and Node/pnpm installed; a dedicated Odoo integration user and API key created in the sandbox (D4) and stored outside the repository; sandbox marker record created in the Odoo DB.
+
+**Milestones:**
+
+| Milestone | Work packages | Demonstrates |
+|---|---|---|
+| M0 Ready | D1–D5, I00 | Decisions recorded; environment manifest |
+| M1 Walking skeleton | I01, I02 | Fake driver + fake ERP + real kernel + CLI, CI green |
+| M2 Safe core | I03, I04, I05 | Rules, durable approvals/recovery, qualified local model (rescope checkpoint) |
+| M3 Live procurement slice | I06, I07 | The three required MVP demonstrations via CLI against the Odoo sandbox |
+| M4 Live UI | I08, I09 | Same slice in standalone web app and embedded overlay; conformance suite |
+| M5 Five tasks | I10 | ERP-01..05 |
+| M6 MVP release | I11–I14 | Eight Odoo tasks (+ BigQuery if D6 decided), release qualification |
 
 ## 1. Confirmed choices and open inputs
 
@@ -56,15 +98,15 @@ All work packages below are **not started**. Each implementation change should c
 
 | ID | Dependencies | Deliverables / affected paths | Definition of done |
 |---|---|---|---|
-| I00 Environment qualification | None | Local environment manifest/runbook; proposed non-secret profile; sandbox checks | Exact Odoo DB/company/module inventory and supported auth/API known (JSON-2 reachable with a dedicated API-key user); e-agent PostgreSQL is a separate database/role from Odoo's; target marker excludes benchmark; Ollama endpoint/model digests recorded; BigQuery/overlay open inputs tracked |
+| I00 Environment qualification | None | Local environment manifest/runbook; proposed non-secret profile; sandbox checks | Exact Odoo DB/company/module inventory and supported auth/API known (JSON-2 reachable with a dedicated API-key user); e-agent PostgreSQL is a separate database/role from Odoo's; target marker excludes benchmark; Ollama endpoint/model digests recorded; BigQuery open input tracked; dedicated Odoo integration user/API key created and stored outside the repo (D4); sandbox marker present |
 | I01 Workspace and CI | I00 for runtime versions | `pyproject.toml`, lockfile, package skeletons with real tests, frontend tooling when selected, CI | Python lint/type/unit/build/import gates pass; independent wheel install works; CI uses no live credentials or model downloads |
-| I02 Contracts and registration | I01 | contracts, SDK, registry/bootstrap; fixtures | Typed action/evidence/binding/stream records; metadata-only discovery; incompatible/disabled plugins rejected; two connections of one capability resolve safely; digest golden vectors (ADR 0006). **Exit = walking skeleton:** fake driver + fake ERP + real kernel services + CLI complete one procurement run end to end with no network |
-| I03 Rule and ontology slice | I02, exact source before importing benchmark content | domain-erp resources, SHACL adapter, competency fixtures, provenance inventory | Procurement rules pass positive/negative/missing cases; resource loading from wheel works; public domain specs mapped to Odoo 19; no evaluator answers enter prompts/assets |
+| I02 Contracts and registration | I01 | contracts, SDK, registry/bootstrap; fixtures | Typed action/evidence/binding/stream records, including the initial `RunEvent` catalog (MVP design §4.1), `ConnectionDescriptor.ownership`/`credential_subject` and digest fields; metadata-only discovery; incompatible/disabled plugins rejected; two connections of one capability resolve safely; digest golden vectors (ADR 0006). **Exit = walking skeleton:** fake driver + fake ERP + real kernel services + CLI complete one procurement run end to end with no network |
+| I03 Rule and ontology slice | I02 (ERP Bench source D7 needed only before importing benchmark content) | domain-erp resources, SHACL adapter, competency fixtures, provenance inventory | Procurement rules pass positive/negative/missing cases; resource loading from wheel works; public domain specs mapped to Odoo 19; no evaluator answers enter prompts/assets |
 | I04 Local model qualification | I02 | Pydantic driver, Ollama configuration, local qualification report | Real model can request typed tools, defer to host, resume with results, stream safe text and stop within bounds; no bypass/raw ERP client; no thinking content persisted; record failures and timings with ADR 0010 metadata. **Rescope checkpoint:** if no local model reaches pass@1 ≥ 0.8 (N ≥ 10) on the deferred-write scenario, stop and revise tool surface/model/scope before I06+ task work |
 | I05 Durable kernel | I02 | kernel, PostgreSQL adapter/migrations, deterministic recovery tests | Proposal/approval/reservation/event atomicity; stale approval blocked; cancel/restart/UNKNOWN paths verified; no blind write replay |
-| I06 Odoo bridge and adapter | I00, I02, I05 | `addons/e_agent_bridge`, adapter-odoo with manifest `connection` schema and `test_connection`, SDK `auth` module MVP subset (`api_key`, `service_account_jwt`, `AuthContext`; ADR 0013), `SecretStore` local-encrypted adapter, sandbox seed/reset tooling | Odoo API key stored only via `SecretStore` (profile holds `secret_ref`); connection versioned; Dedicated scoped account; approved command executes via narrow RPC; operation key uniqueness and payload conflict handled in same ERP transaction; duplicate concurrent requests yield one effect |
+| I06 Odoo bridge and adapter | I00, I02, I05, D4 | `addons/e_agent_bridge`, adapter-odoo with manifest `connection` schema and `test_connection`, SDK `auth` module MVP subset (`api_key`, `service_account_jwt`, `AuthContext`; ADR 0013), `SecretStore` local-encrypted adapter, sandbox seed/reset tooling | Odoo API key stored only via `SecretStore` (profile holds `secret_ref`); connection versioned; Dedicated scoped account; approved command executes via narrow RPC; operation key uniqueness and payload conflict handled in same ERP transaction; duplicate concurrent requests yield one effect |
 | I07 Procurement vertical slice | I03, I04, I05, I06 | Application workflow, minimal CLI, independent verifier | ERP-01..03 real local runs verified; invalid plan blocked; approval changes and timeouts demonstrated; all attempts exported |
-| I08 Streaming API and UI layers | I02, I05 | server SSE endpoint + `ApprovalPresentation`; TS workspace with `@e-agent/client`, `ui-core`, `tokens`, `ui-react`, `components`, layouts; `apps/web`; `<e-agent-overlay>` element; `ui-conformance` skeleton | Generated TS types match OpenAPI snapshot; layer boundary rules pass; mock and persisted events render in `overlay` and `full-page` layouts; theme swap needs no component change; reconnect/replay/dedup work; token text never grants approval; unauthorized streams denied |
+| I08 Streaming API and UI layers | I02, I05 | server SSE endpoint + `ApprovalPresentation` + local session auth (MVP design §12); `apps/web` and a neutral test host page served from the server origin; TS workspace with `@e-agent/client`, `ui-core`, `tokens`, `ui-react`, `components`, layouts; `apps/web`; `<e-agent-overlay>` element; `ui-conformance` skeleton | Generated TS types match OpenAPI snapshot; layer boundary rules pass; mock and persisted events render in `overlay` and `full-page` layouts; theme swap needs no component change; reconnect/replay/dedup work; token text never grants approval; unauthorized streams denied |
 | I09 Live UI workflow | I07, I08 | Plan/evidence/rule cards, approval diff from `ApprovalPresentation`, cancellation and unresolved state views; generic `HostContext` resolution; non-React reference custom UI fixture | User can complete/reject procurement in the standalone app and in the overlay embedded on a neutral test page; refresh/reconnect does not execute twice; host context hints are resolved/authorized by the server or dropped; default UI **and** reference custom UI pass `ui-conformance` |
 | I10 Five-task gate | I07, I09 | ERP-04/05 capabilities, shapes, fixtures and verifiers | Five Odoo tasks run through same driver/gateway/UI; stale draft amendment and invalid quotation cases blocked |
 | I11 Eight-task expansion | I10, module inventory | ERP-06/07/08 domain modules/capabilities and acceptance | Each has real seeded Odoo checks and negative cases; no raw provider types in kernel; no accounting side effects |
@@ -134,5 +176,9 @@ Local gates: model qualification; Odoo module/transaction tests; all task runs; 
 Metrics follow [ADR 0010](adr/0010-evaluation-protocol.md) (proposed): pass@1 with N during development; pass^3 on consecutive trials of the frozen release candidate; unsafe outcomes block release regardless of pass rate. For the frozen release catalog, run three live trials per enabled task on resettable synthetic data (read tasks use a pinned snapshot). Require all deterministic safety gates and three verifier-passing trials for each claimed task. Record all failures and subsequent reruns; do not cherry-pick. Small-sample success is not proof of broad reliability. An early five-task milestone can be demonstrated, but does not count as completion of the full eight-task-plus-BigQuery target without an explicit scope revision.
 
 UI gate includes keyboard/focus behavior, scroll/expand state, long output, empty/error/loading, approval expiry, network loss and no duplicate action on reconnect. Include Vietnamese input and Vietnamese business labels in at least one local task run; code/design remain English.
+
+## 10. Out of MVP (Phase 2 backlog)
+
+Recorded so MVP work keeps the seams but does not build these: admin *Integrations* and user *My integrations* pages, user-delegated connections, OAuth engine and app registrations, Google Workspace adapter (ADRs 0012/0013); system-specific UI host adapters and cross-origin embedding with OIDC (ADR 0011); AG-UI output adapter; agent-generated UI (A2UI/MCP Apps); MCP integration type; OpenBao/Vault/cloud `SecretStore` adapters; knowledge ingestion/graph (HLD §7); production identity, multi-tenant hosting, HA/DR.
 
 No deadline or cost promise is made yet. Estimate remaining work after I04/I07 measure model reliability, ERP mapping effort and recovery behavior. Publish a status table with actual commands, pinned versions, package artifacts, test results and remaining gaps when implementation begins.

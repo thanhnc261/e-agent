@@ -2,7 +2,7 @@
 
 **Status:** proposed implementation baseline. **Date:** 2026-10-06. **Implementation status:** research/design only.
 
-> **Scope update.** [ADR 0001](adr/0001-local-mvp-scope.md) (accepted) expands the MVP to a local Pydantic AI + Ollama driver, the `odoo19-learning` Odoo 19 sandbox with an `e_agent_bridge` addon, 5–10 Odoo tasks, a streaming overlay UI and a read-only BigQuery integration. Where this document says "MVP", read it together with that ADR and the [implementation plan](implementation-plan.md). Proposed refinements from the [2026-10-06 architecture review](reviews/2026-10-06-architecture-review.md) are recorded as ADRs 0002–0010 ([index](adr/README.md)) and take effect only when accepted.
+> **Scope update.** [ADR 0001](adr/0001-local-mvp-scope.md) (accepted) expands the MVP to a local Pydantic AI + Ollama driver, the `odoo19-learning` Odoo 19 sandbox with an `e_agent_bridge` addon, 5–10 Odoo tasks, a streaming overlay UI and a read-only BigQuery integration. Where this document says "MVP", read it together with that ADR and the [implementation plan](implementation-plan.md). Proposed refinements are recorded as ADRs 0002–0013 ([index](adr/README.md)) and take effect only when accepted.
 
 This design consolidates [research 02](../research/02-plugin-driven-architecture.md), [03](../research/03-knowledge-and-cognitive-ontology.md), [07](../research/07-package-and-plugin-organization.md), [08](../research/08-architecture-decisions-and-fitness.md) and the latest [extensibility review](../research/10-extensibility-architecture-review.md). The [MVP detailed design](mvp-detailed-design.md) defines the first implementation slice. Technology candidates remain subject to the bounded compatibility spikes described there.
 
@@ -80,6 +80,7 @@ Python 3.12+ and uv are proposed development baselines. Exact runtime and depend
 | `e-agent-adapter-postgres` | RunStore/UnitOfWork implementation and database migrations | Contracts, SDK |
 | `e-agent-adapter-shacl` | Validation engine implementation | Contracts, SDK |
 | `e-agent-adapter-bigquery` | Allowlisted, parameterized read-only query execution | Contracts, SDK, public analytics API |
+| `e-agent-adapter-secretstore-local` | Local envelope-encrypted `SecretStore` (MVP); vault/cloud adapters later | Contracts, SDK |
 | `e-agent-server` | API/CLI, bootstrap, authentication context, application workflows, SSE stream | Required distributions above |
 
 Non-wheel artifacts: `addons/e_agent_bridge` (Odoo 19 addon, versioned and released separately; [ADR 0005](adr/0005-odoo-integration-transport.md)) and the TypeScript UI workspace. The UI workspace contains `@e-agent/client`, `ui-core`, `tokens`, `ui-react`, `components`, layouts, `apps/web`, the `<e-agent-overlay>` element and the UI conformance suite. These layers let a deployer re-theme, re-layout or replace the default UI while reusing the lower layers ([UI architecture](ui-architecture.md), ADR 0011, proposed). The UI depends only on the server API and is system-neutral: it runs standalone or embedded in any web page, and no UI layer depends on Odoo or another provider. Approval stays a kernel concept.

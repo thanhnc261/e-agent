@@ -4,7 +4,7 @@
 
 This document specializes the [high-level design](high-level-design.md). It selects a bounded procurement demo and independent adapter distributions, superseding the broader first-demo alternatives in [research 06](../research/06-erp-mvp-delivery-plan.md). Numbers below are initial demo defaults and acceptance targets, not measured results or production SLAs.
 
-> **Scope update.** This document specifies the **first procurement slice** (plan tasks ERP-01..03, work package I07) and the kernel mechanisms every later task reuses. [ADR 0001](adr/0001-local-mvp-scope.md) (accepted) extends the MVP with more Odoo tasks, a streaming overlay UI and BigQuery; the [implementation plan](implementation-plan.md) covers those. Proposed refinements from the [architecture review](reviews/2026-10-06-architecture-review.md) are referenced inline as ADRs 0002–0010; they apply once accepted.
+> **Scope update.** This document specifies the **first procurement slice** (plan tasks ERP-01..03, work package I07) and the kernel mechanisms every later task reuses. [ADR 0001](adr/0001-local-mvp-scope.md) (accepted) extends the MVP with more Odoo tasks, a streaming overlay UI and BigQuery; the [implementation plan](implementation-plan.md) covers those. Proposed refinements are referenced inline as ADRs 0002–0013 ([index](adr/README.md)); they apply once accepted.
 
 ## 1. Deliverable and scope
 
@@ -53,6 +53,7 @@ packages/domain-analytics/          # e_agent_domain_analytics (I12, ADR 0001)
 packages/adapter-agent-pydantic/     # Pydantic AI 2.x driver (ADR 0001, ADR 0004)
 packages/adapter-odoo/               # e_agent_adapter_odoo (JSON-2, ADR 0005)
 packages/adapter-bigquery/           # e_agent_adapter_bigquery (I12)
+packages/adapter-secretstore-local/  # local envelope-encrypted SecretStore (ADR 0012/0013)
 addons/e_agent_bridge/              # Odoo 19 addon: transactional bridge commands (ADR 0005)
 ui/                                 # TS workspace: client, ui-core, tokens, ui-react, components, layouts, overlay element, conformance (ADR 0011)
 apps/web/                           # default standalone web UI (I08)
@@ -95,6 +96,10 @@ Wire records use explicit schema versions, UTC timestamps, UUID-like opaque inte
 The generic action envelope contains a capability-specific payload validated by its registered schema. Domain fields such as supplier and quantity belong to `domain-erp.api`, not generic contracts. Kernel routes envelopes without understanding those fields.
 
 Capability contract IDs are named by business bounded context, e.g. `procurement.purchase-order.create-draft.v1`; binding IDs carry the provider ([ADR 0002](adr/0002-capability-naming-and-domain-packs.md)).
+
+### 4.1 Initial `RunEvent` catalog
+
+Durable event types (payloads are versioned DTOs; unknown types are quarantined by readers and trigger a snapshot refresh in UIs): `run.created`, `run.state_changed`, `read.recorded`, `proposal.created`, `validation.completed`, `approval.requested`, `approval.decided`, `connect.required`, `input.requested`, `input.received`, `action.reserved`, `action.dispatching`, `action.receipt_recorded`, `action.unknown`, `reconciliation.completed`, `outcome.reported`, `message.final`, `budget.exhausted`, `run.cancel_requested`, `run.terminal`. Transient (not persisted): `text.delta`. Adding a type is a contract change with a schema snapshot update.
 
 ### Approval digest
 
@@ -254,6 +259,7 @@ These are planned API contracts, not available endpoints yet. CLI calls the same
 | `GET /v1/runs/{id}/events?after_sequence=N` | Authorized cursor-based event polling |
 | `GET /v1/runs/{id}/stream` | Authenticated SSE: durable events (`id:` = sequence, `Last-Event-ID` resume) plus transient text deltas ([ADR 0007](adr/0007-run-event-stream-contract.md)) |
 | `POST /v1/runs/{id}/inputs` | Supply requested clarification with expected run revision |
+| `GET /v1/runs/{id}/approvals/pending` | Server-built `ApprovalPresentation` (canonical proposal, material fields, findings, digest, credential subject) for any UI ([UI architecture](ui-architecture.md) §4.2) |
 | `POST /v1/runs/{id}/approvals` | Approve/reject exact action ID/digest and expected revision; actor derived from authenticated context |
 | `POST /v1/runs/{id}/cancel` | Persist cancellation intent and return whether effects remain unresolved |
 | `POST /v1/runs/{id}/reconcile` | Operator-authorized, read-only external reconciliation; no write retry endpoint |
@@ -262,7 +268,7 @@ These are planned API contracts, not available endpoints yet. CLI calls the same
 
 Use structured errors with code, correlation ID and safe details: INVALID_REQUEST, CONFLICT, APPROVAL_STALE, VALIDATION_BLOCKED, DEPENDENCY_UNAVAILABLE, BUDGET_EXCEEDED and ACTION_UNRESOLVED. Unauthorized resource access must not expose cross-tenant existence. Identity/tenant fields in request bodies cannot override host identity.
 
-Local demo mode binds to loopback and explicitly maps an operator identity/roles; it is not a production auth mechanism. A remotely accessible deployment must supply proper authentication and authorization before exposure.
+Local demo mode binds to loopback and explicitly maps an operator identity/roles from the profile; it is not a production auth mechanism. Browser access in local mode: a loopback-only `POST /v1/local/session` (disabled outside local mode) issues an HttpOnly, `SameSite=Strict` session cookie; state-changing requests also require a CSRF header token. `apps/web` and the neutral overlay test host page are served from the server origin, so the MVP needs no cross-origin credentials; cross-origin embedding with OIDC is Phase 2. A remotely accessible deployment must supply proper authentication and authorization before exposure.
 
 ## 13. Verification and acceptance
 
@@ -288,11 +294,6 @@ Before completion, another developer must reproduce setup, valid run, blocked pr
 
 ## 14. Implementation sequence and unresolved decisions
 
-1. **Bootstrap:** pin Python/tooling and dependency versions; choose model/Odoo sandbox/API; establish sandbox marker, artifact inventory and reset process. Create workspace and package import/wheel gates.
-2. **Contract slice:** implement typed records, fake ports, registry, domain rules/resources and deterministic verifier fixtures. Complete one no-network run through real kernel services.
-3. **Driver spike:** prove deferred execution and resume; record framework selection. Avoid building a second generic agent loop.
-4. **Persistence and safety:** implement DB migrations, reservation, approvals, event atomicity, budgets and recovery tests.
-5. **Live adapter:** map chosen Odoo schema, qualify correlation/reconciliation limitations, execute draft-only workflow in synthetic sandbox.
-6. **Demo/evaluation:** run all gates, collect complete evidence, document setup/reset/recovery and five-minute demonstration script.
+The authoritative sequence, milestones and owner decisions are in the [implementation plan](implementation-plan.md) (§0 and §3); this document no longer keeps a separate sequence.
 
-Decisions still needed during implementation (Odoo 19, Pydantic AI and Ollama are selected by ADR 0001; proposals in ADRs 0002–0010 await acceptance): exact Pydantic AI 2.x and model digest; confirmation of the JSON-2 + bridge uniqueness mechanism (ADR 0005) on the local installation; package build backend; local secret handling and retention defaults. Each has a bounded verification task above. Production IAM, HA, disaster recovery targets and graph engine selection belong to later scope and must not be fabricated as completed MVP capabilities.
+Decisions still needed during implementation (Odoo 19, Pydantic AI and Ollama are selected by ADR 0001; proposals in ADRs 0002–0013 await acceptance): exact Pydantic AI 2.x and model digest; confirmation of the JSON-2 + bridge uniqueness mechanism (ADR 0005) on the local installation; confirmation of the proposed toolchain baseline (plan §0); evidence/continuation retention defaults. Each has a bounded verification task above. Production IAM, HA, disaster recovery targets and graph engine selection belong to later scope and must not be fabricated as completed MVP capabilities.

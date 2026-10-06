@@ -48,7 +48,7 @@ Only `docs/`, `research/` and project guidance exist at this stage. The package 
 
 Implementation starts with workspace/contracts and architecture gates, then a framework execution spike, persisted approvals/recovery, the live Odoo draft workflow and complete demo evidence. Python 3.12+, uv, PostgreSQL, an isolated Odoo environment and a model provider are proposed prerequisites; exact supported versions and setup commands will be documented after bootstrap verification.
 
-There are no installation, server or test commands to run yet. See the [implementation sequence](docs/mvp-detailed-design.md#14-implementation-sequence-and-unresolved-decisions) for the concrete delivery plan and unresolved selections.
+There are no installation, server or test commands to run yet. See the [implementation plan](docs/implementation-plan.md) for owner decisions, the proposed toolchain, milestones and work packages, and the [MVP readiness review](docs/reviews/2026-10-06-mvp-readiness-review.md) for what must be decided before coding starts.
 
 ## Contribution expectations
 
