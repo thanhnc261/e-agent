@@ -49,9 +49,10 @@ The product is independent of the separate `enterprise-agent/experiment` researc
 | I00 Environment qualification | Ready to run locally | [runbook](docs/runbooks/i00-environment-qualification.md), `scripts/env_check.py` (needs the owner's machine) |
 | I01 Workspace and CI | Done | uv workspace, ruff, mypy strict, import-linter, pytest, wheel clean-install gate, GitHub Actions |
 | I02 Contracts and registration | Done (fixture walking skeleton) | Contracts, JCS digest + golden vectors, SDK ports, metadata-only discovery, registry admission, kernel coordinator, CLI demo |
-| I03–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
+| I03 Rule and ontology slice | Done | `e_agent.adapters.shacl` (pySHACL, SHACL 1.1 + SPARQL); procurement ontology and shapes packaged in `e_agent.erp`; rule matrix, parity and inventory tests |
+| I04–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
 
-What exists is **fixture-only**: a scripted driver, a fake ERP and a non-authoritative procedural rule checker exercise the real kernel. No model, Odoo, PostgreSQL, SHACL or UI integration exists yet, and nothing here is evidence of live capability.
+Validation is authoritative (SHACL). Driver and ERP are still **fixtures**: a scripted driver and a fake ERP exercise the real kernel. No model, Odoo, PostgreSQL or UI integration exists yet, and nothing here is evidence of live capability.
 
 ### Commands (verified in the development container)
 

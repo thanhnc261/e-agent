@@ -30,8 +30,10 @@ PACKAGES = {
         "ps = [p for p in discover() if p.manifest.plugin_id == 'domain-erp']; "
         "assert ps, 'domain-erp not discoverable from installed wheel'; "
         "from importlib.resources import files; "
-        "files('e_agent.erp').joinpath('procurement/rules/inventory.json').read_text()"
+        "files('e_agent.erp').joinpath('procurement/rules/inventory.json').read_text(); "
+        "files('e_agent.erp').joinpath('procurement/shapes/procurement-shapes.ttl').read_text()"
     ),
+    "e-agent-adapter-shacl": "import e_agent.adapters.shacl",
     "e-agent-server": "import e_agent.server.cli",
 }
 
@@ -60,6 +62,7 @@ def main() -> int:
                     "pip",
                     "install",
                     "--quiet",
+                    "--no-cache",  # never reuse a stale wheel with the same version
                     "--python",
                     str(python),
                     "--find-links",

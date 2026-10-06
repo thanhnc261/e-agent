@@ -24,6 +24,7 @@ from e_agent.sdk.ports import (
     PluginContribution,
     PluginServices,
 )
+from e_agent.sdk.validation import ValidationDatasetBuilder
 
 from .errors import ErrorCode, KernelError
 
@@ -55,6 +56,7 @@ class PluginRegistry:
         self.executors: list[ActionExecutor] = []
         self.verifiers: list[OutcomeVerifier] = []
         self.drivers: list[AgentDriver] = []
+        self.dataset_builders: list[ValidationDatasetBuilder] = []
         self.report = AdmissionReport()
 
     # -- admission ------------------------------------------------------------
@@ -149,6 +151,7 @@ class PluginRegistry:
         self.executors.extend(contribution.executors)
         self.verifiers.extend(contribution.verifiers)
         self.drivers.extend(contribution.drivers)
+        self.dataset_builders.extend(contribution.dataset_builders)
         self.report.admitted.append(plugin_id)
 
     # -- resolution -------------------------------------------------------------

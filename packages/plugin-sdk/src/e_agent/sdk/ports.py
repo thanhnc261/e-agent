@@ -182,6 +182,8 @@ class PluginContribution:
     executors: tuple[ActionExecutor, ...] = ()
     verifiers: tuple[OutcomeVerifier, ...] = ()
     drivers: tuple[AgentDriver, ...] = ()
+    dataset_builders: tuple[Any, ...] = ()
+    """ValidationDatasetBuilder instances (see e_agent.sdk.validation)."""
 
 
 class PluginFactory(Protocol):

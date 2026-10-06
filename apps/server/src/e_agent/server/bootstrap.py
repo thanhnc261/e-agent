@@ -5,11 +5,11 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+from e_agent.adapters.shacl import ShaclPlanValidator
 from e_agent.contracts.context import Principal
 from e_agent.erp.testing.fake_erp import BINDINGS as FIXTURE_BINDINGS
 from e_agent.erp.testing.fake_erp import PLUGIN_ID as FIXTURE_PLUGIN_ID
 from e_agent.erp.testing.fake_erp import FakeErp
-from e_agent.erp.testing.fixture_validator import FixtureRuleValidator
 from e_agent.erp.testing.scenarios import SCENARIOS
 from e_agent.erp.testing.scripted_driver import ScriptedProcurementDriver
 from e_agent.kernel.connections import ConnectionCatalog
@@ -70,10 +70,10 @@ def build_runtime(
         plugin_version="0.1.0+fixture",
         declared_capabilities=(),
         binding_templates=FIXTURE_BINDINGS,
-        contribution=PluginContribution(
-            executors=(fake_erp,), validators=(FixtureRuleValidator(),), drivers=(driver,)
-        ),
+        contribution=PluginContribution(executors=(fake_erp,), drivers=(driver,)),
     )
+    # The composition root chooses the validation engine; domains supply datasets.
+    registry.validators.append(ShaclPlanValidator(registry.dataset_builders))
     store = InMemoryRunStore()
     coordinator = RunCoordinator(
         store=store,

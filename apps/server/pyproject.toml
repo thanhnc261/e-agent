@@ -8,6 +8,7 @@ dependencies = [
     "e-agent-plugin-sdk>=0.1,<0.2",
     "e-agent-kernel>=0.1,<0.2",
     "e-agent-domain-erp>=0.1,<0.2",
+    "e-agent-adapter-shacl>=0.1,<0.2",
 ]
 
 [project.scripts]

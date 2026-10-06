@@ -1,0 +1,90 @@
+@prefix po:  <https://e-agent.dev/ns/procurement#> .
+@prefix ps:  <https://e-agent.dev/ns/procurement/shapes#> .
+@prefix ea:  <https://e-agent.dev/ns/core#> .
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+# Executable assets for the procurement rule inventory (ADR 0009).
+# Every rule shape carries ea:ruleId; the inventory's "asset" points here.
+
+<https://e-agent.dev/ns/procurement/shapes> a owl:Ontology ; owl:versionInfo "0.1.0" .
+
+ps:prefixes sh:declare
+    [ sh:prefix "po" ; sh:namespace "https://e-agent.dev/ns/procurement#"^^xsd:anyURI ] .
+
+ps:PR001-missing a sh:NodeShape ;
+    ea:ruleId "PR-001" ; ea:ruleVersion "1" ; ea:onFail "UNKNOWN" ;
+    sh:targetClass po:IncompleteProposal ;
+    sh:property [ sh:path po:missingFact ; sh:maxCount 0 ;
+                  sh:message "required facts are missing; no default is assumed" ] .
+
+ps:PR001 a sh:NodeShape ;
+    ea:ruleId "PR-001" ; ea:ruleVersion "1" ;
+    sh:targetClass po:DraftPurchaseOrderProposal ;
+    sh:property [ sh:path po:offer ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:message "offer reference does not resolve to an observed offer" ] ;
+    sh:property [ sh:path po:demand ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:message "demand reference does not resolve to the observed demand" ] ;
+    sh:property [ sh:path ( po:demand po:product ) ; sh:equals po:product ;
+                  sh:message "product differs from the demand's product" ] ;
+    sh:property [ sh:path ( po:offer po:product ) ; sh:equals po:product ;
+                  sh:message "offer is for a different product" ] .
+
+ps:PR002 a sh:NodeShape ;
+    ea:ruleId "PR-002" ; ea:ruleVersion "1" ;
+    sh:targetClass po:DraftPurchaseOrderProposal ;
+    sh:property [ sh:path po:quantity ; sh:minCount 1 ; sh:equals po:requiredQuantity ;
+                  sh:message "quantity must equal the derived shortage" ] .
+
+ps:PR003 a sh:NodeShape ;
+    ea:ruleId "PR-003" ; ea:ruleVersion "1" ;
+    sh:targetClass po:DraftPurchaseOrderProposal ;
+    sh:property [ sh:path ( po:offer po:approved ) ; sh:hasValue true ;
+                  sh:message "offer is not approved" ] ;
+    sh:property [ sh:path ( po:offer po:supplier ) ; sh:equals po:supplier ;
+                  sh:message "offer belongs to a different supplier" ] .
+
+ps:PR004 a sh:NodeShape ;
+    ea:ruleId "PR-004" ; ea:ruleVersion "1" ;
+    sh:targetClass po:DraftPurchaseOrderProposal ;
+    sh:property [ sh:path po:quantity ; sh:datatype xsd:decimal ; sh:minExclusive 0 ;
+                  sh:message "quantity must be positive" ] ;
+    sh:property [ sh:path ( po:offer po:unit ) ; sh:equals po:unit ;
+                  sh:message "unit differs from the offer" ] ;
+    sh:property [ sh:path ( po:demand po:unit ) ; sh:equals po:unit ;
+                  sh:message "unit differs from the demand" ] ;
+    sh:property [ sh:path ( po:offer po:currency ) ; sh:equals po:currency ;
+                  sh:message "currency differs from the offer" ] ;
+    sh:property [ sh:path ( po:demand po:currency ) ; sh:equals po:currency ;
+                  sh:message "currency differs from the demand" ] ;
+    sh:property [ sh:path ( po:offer po:unitPrice ) ; sh:equals po:unitPrice ;
+                  sh:message "unit price differs from the offer" ] ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+        sh:message "subtotal must equal quantity × unit price" ;
+        sh:prefixes ps:prefixes ;
+        sh:select """
+            SELECT $this ?value WHERE {
+                $this po:subtotal ?value ; po:quantity ?q ; po:unitPrice ?p .
+                FILTER (?value != ?q * ?p)
+            }""" ] ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+        sh:message "subtotal exceeds the demand budget" ;
+        sh:prefixes ps:prefixes ;
+        sh:select """
+            SELECT $this ?value WHERE {
+                $this po:subtotal ?value ; po:demand/po:budget ?budget .
+                FILTER (?value > ?budget)
+            }""" ] .
+
+ps:PR005 a sh:NodeShape ;
+    ea:ruleId "PR-005" ; ea:ruleVersion "1" ;
+    sh:targetClass po:DraftPurchaseOrderProposal ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+        sh:message "offer delivery date is after the requested date" ;
+        sh:prefixes ps:prefixes ;
+        sh:select """
+            SELECT $this ?value WHERE {
+                $this po:offer/po:deliveryDate ?value ; po:demand/po:requestedDate ?requested .
+                FILTER (?value > ?requested)
+            }""" ] .

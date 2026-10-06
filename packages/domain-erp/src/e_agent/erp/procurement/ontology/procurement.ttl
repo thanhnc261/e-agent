@@ -1,0 +1,34 @@
+@prefix po:   <https://e-agent.dev/ns/procurement#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+<https://e-agent.dev/ns/procurement> a owl:Ontology ;
+    owl:versionInfo "0.1.0" ;
+    rdfs:comment "Small procurement vocabulary for the MVP slice (MVP design §11). Owned by the erp domain pack."@en .
+
+po:Product a owl:Class ; rdfs:label "Product"@en, "Sản phẩm"@vi .
+po:Supplier a owl:Class ; rdfs:label "Supplier"@en, "Nhà cung cấp"@vi .
+po:Offer a owl:Class ; rdfs:label "Supplier offer"@en, "Báo giá nhà cung cấp"@vi .
+po:Demand a owl:Class ; rdfs:label "Demand"@en, "Nhu cầu"@vi .
+po:StockObservation a owl:Class ; rdfs:label "Stock observation"@en, "Quan sát tồn kho"@vi .
+po:IncompleteProposal a owl:Class ; rdfs:label "Proposal with missing facts (not evaluated)"@en .
+po:DraftPurchaseOrderProposal a owl:Class ; rdfs:label "Draft purchase order proposal"@en, "Đề xuất đơn mua nháp"@vi .
+
+po:offer a owl:ObjectProperty ; rdfs:domain po:DraftPurchaseOrderProposal ; rdfs:range po:Offer .
+po:demand a owl:ObjectProperty ; rdfs:domain po:DraftPurchaseOrderProposal ; rdfs:range po:Demand .
+po:product a owl:ObjectProperty ; rdfs:range po:Product .
+po:supplier a owl:ObjectProperty ; rdfs:range po:Supplier .
+po:quantity a owl:DatatypeProperty ; rdfs:range xsd:decimal .
+po:requiredQuantity a owl:DatatypeProperty ; rdfs:range xsd:decimal ;
+    rdfs:comment "Derived by the normalizer: max(demand - available - inbound, 0) (PR-002, formula pr-002-v1)."@en .
+po:unit a owl:DatatypeProperty ; rdfs:range xsd:string .
+po:currency a owl:DatatypeProperty ; rdfs:range xsd:string .
+po:unitPrice a owl:DatatypeProperty ; rdfs:range xsd:decimal .
+po:subtotal a owl:DatatypeProperty ; rdfs:range xsd:decimal .
+po:budget a owl:DatatypeProperty ; rdfs:range xsd:decimal .
+po:approved a owl:DatatypeProperty ; rdfs:range xsd:boolean .
+po:deliveryDate a owl:DatatypeProperty ; rdfs:range xsd:date .
+po:requestedDate a owl:DatatypeProperty ; rdfs:range xsd:date .
+po:missingFact a owl:DatatypeProperty ; rdfs:range xsd:string ;
+    rdfs:comment "Names a fact the normalizer could not observe; never defaulted."@en .

@@ -12,6 +12,7 @@ from e_agent.sdk import MANIFEST_FILENAME
 from e_agent.sdk.manifest import PluginManifest
 from e_agent.sdk.ports import PluginContribution, PluginServices
 
+from .procurement.validation import ProcurementDatasetBuilder
 from .procurement.verifier import DraftPurchaseOrderVerifier
 
 
@@ -25,4 +26,5 @@ def create_plugin(services: PluginServices) -> PluginContribution:
     return PluginContribution(
         capabilities=manifest.provides_capabilities,
         verifiers=(DraftPurchaseOrderVerifier(),),
+        dataset_builders=(ProcurementDatasetBuilder(),),
     )
