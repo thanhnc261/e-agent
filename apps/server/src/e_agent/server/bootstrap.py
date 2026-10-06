@@ -16,6 +16,7 @@ from e_agent.adapters.postgres import PostgresRunStore, apply_migrations
 from e_agent.adapters.pydantic_ai import PydanticAiDriver, ToolSpec, ollama_model
 from e_agent.adapters.secretstore_local import LocalSecretStore
 from e_agent.adapters.shacl import ShaclPlanValidator
+from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.context import Principal, TaskContext
 from e_agent.erp.testing.fake_erp import BINDINGS as FIXTURE_BINDINGS
 from e_agent.erp.testing.fake_erp import PLUGIN_ID as FIXTURE_PLUGIN_ID
@@ -48,6 +49,28 @@ class Runtime:
     scope: frozenset[str]
     fake_erp: FakeErp | None
     sandbox: dict[str, Any] = field(default_factory=dict)
+    versions: dict[str, Any] = field(default_factory=dict)
+
+
+def runtime_versions(
+    profile: Profile, registry: PluginRegistry, driver: AgentDriver
+) -> dict[str, Any]:
+    """Versions recorded in every evidence bundle (MVP design §11, ADR 0010)."""
+    from importlib import metadata
+
+    dists = {}
+    for dist in metadata.distributions():
+        name = dist.metadata["Name"] or ""
+        if name.startswith("e-agent-") or name in {"pydantic-ai-slim", "pyshacl"}:
+            dists[name] = dist.version
+    return {
+        "distributions": dict(sorted(dists.items())),
+        "plugins": sorted(registry.report.admitted),
+        "driver": getattr(driver, "driver_id", type(driver).__name__),
+        "driver_versions": getattr(driver, "versions", {}),
+        "model": profile.driver.model if profile.driver.kind == "pydantic-ai" else None,
+        "profile_environment": profile.environment,
+    }
 
 
 async def open_store(profile: Profile) -> Any:
@@ -66,9 +89,13 @@ def tool_specs(registry: PluginRegistry, profile: Profile) -> list[ToolSpec]:
     for cap in sorted(registry.capabilities.values(), key=lambda c: c.contract_id):
         if not cap.agent_visible:
             continue
-        connections = sorted(
-            {b.connection_id for b in registry.bindings if b.contract_id == cap.contract_id}
+        bound = (
+            registry.bindings
+            if cap.effect is EffectKind.ANSWER
+            else [b for b in registry.bindings if b.contract_id == cap.contract_id]
         )
+        # answers have no provider binding: they verify through the run's read connection
+        connections = sorted({b.connection_id for b in bound})
         if len(connections) != 1:
             continue  # unbound or ambiguous: never let the model choose credentials
         schema = registry.input_schemas.get(cap.input_schema_id)
@@ -129,6 +156,7 @@ async def build_runtime(
     lose_response_after_commit: bool = False,
     plugin_paths: Iterable[str] | None = None,
     driver_factory: Callable[[PluginRegistry], AgentDriver] | None = None,
+    task_kind: str | None = None,
 ) -> Runtime:
     catalog = ConnectionCatalog(profile.connections)
     credentials = CredentialService(catalog, _secret_store(profile), AUTH_PLACEMENT)
@@ -172,6 +200,7 @@ async def build_runtime(
         driver = ScriptedProcurementDriver(
             connection_id=connection_id,
             mode=mode,
+            task_kind=task_kind or profile.driver.task_kind,
             demand_ref=profile.driver.demand_ref or "demand:d-001",
             product_ref=profile.driver.product_ref or "product:widget-a",
         )
@@ -189,7 +218,17 @@ async def build_runtime(
         driver=driver,
         budgets=profile.budgets,
     )
-    return Runtime(profile, coordinator, store, registry, operator, scope, fake_erp, sandbox)
+    return Runtime(
+        profile,
+        coordinator,
+        store,
+        registry,
+        operator,
+        scope,
+        fake_erp,
+        sandbox,
+        runtime_versions(profile, registry, driver),
+    )
 
 
 async def _check_sandbox(

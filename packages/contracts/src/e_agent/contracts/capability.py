@@ -15,6 +15,8 @@ _CONTRACT_ID = re.compile(r"^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+\.v[0-9]+$")
 class EffectKind(StrEnum):
     READ = "read"
     WRITE = "write"
+    ANSWER = "answer"
+    """A structured answer: no provider effect, no approval; independently verified."""
 
 
 class CapabilityDescriptor(Record):

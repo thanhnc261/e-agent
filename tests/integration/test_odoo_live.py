@@ -264,3 +264,19 @@ async def test_wrong_sandbox_marker_refuses_to_start(seeded: Any, secrets: None)
     namespace, refs = seeded
     with pytest.raises(KernelError):
         await build_runtime(_profile(namespace, refs, marker="production"))
+
+
+@pytest.mark.parametrize("task", ["shortage", "recommend"])
+async def test_live_answers_are_verified_against_odoo(
+    seeded: Any, secrets: None, task: str
+) -> None:
+    namespace, refs = seeded
+    rt = await build_runtime(_profile(namespace, refs), task_kind=task)
+    run = await rt.coordinator.start_run(rt.operator, task, rt.scope)
+    assert run.state is RunState.SUCCEEDED, run.reason
+    events = await rt.store.list_events(rt.operator.tenant_id, run.run_id)
+    outcome = next(e for e in events if e.type == "outcome.reported")
+    assert outcome.payload["status"] == "VERIFIED"
+    if task == "shortage":
+        proposal = next(e for e in events if e.type == "proposal.created")
+        assert proposal.payload["arguments"]["shortage"] == "7"

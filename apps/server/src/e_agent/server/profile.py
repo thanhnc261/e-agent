@@ -43,6 +43,7 @@ class DriverConfig(Record):
     base_url_env: str = "E_AGENT_OLLAMA_URL"
     requests_per_step: int = 4
     temperature: str | None = None
+    task_kind: Literal["draft-po", "shortage", "recommend"] = "draft-po"
     demand_ref: str | None = None
     """Scripted driver only: provider refs for deterministic live smoke tests."""
     product_ref: str | None = None

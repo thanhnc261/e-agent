@@ -64,6 +64,28 @@ class DraftPurchaseOrder(Record):
     requested_date: date
 
 
+class ShortageAnswer(Record):
+    """ERP-01 answer: availability for a demand and the resulting shortage."""
+
+    demand_ref: str
+    product_ref: str
+    demand_quantity: DecimalStr
+    available: DecimalStr
+    inbound: DecimalStr
+    shortage: DecimalStr
+
+
+class OfferRecommendation(Record):
+    """ERP-02 answer: the eligible offer to use, or none (offer_ref null)."""
+
+    demand_ref: str
+    product_ref: str
+    offer_ref: str | None
+    supplier_ref: str | None
+    unit_price: DecimalStr | None
+    explanation: str
+
+
 class PurchaseOrderView(Record):
     external_ref: str
     operation_key: str

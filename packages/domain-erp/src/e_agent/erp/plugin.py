@@ -13,7 +13,15 @@ from e_agent.sdk.manifest import PluginManifest
 from e_agent.sdk.ports import PluginContribution, PluginServices
 
 from .inventory.api import AvailabilityQuery
-from .procurement.api import DemandQuery, DraftPurchaseOrder, OfferQuery, PurchaseOrderQuery
+from .procurement.answers import OfferRecommendationVerifier, ShortageAnswerVerifier
+from .procurement.api import (
+    DemandQuery,
+    DraftPurchaseOrder,
+    OfferQuery,
+    OfferRecommendation,
+    PurchaseOrderQuery,
+    ShortageAnswer,
+)
 from .procurement.validation import ProcurementDatasetBuilder
 from .procurement.verifier import DraftPurchaseOrderVerifier
 
@@ -23,6 +31,8 @@ INPUT_SCHEMAS = {
     "procurement.OfferQuery.v1": OfferQuery.model_json_schema(),
     "procurement.DraftPurchaseOrder.v1": DraftPurchaseOrder.model_json_schema(),
     "procurement.PurchaseOrderQuery.v1": PurchaseOrderQuery.model_json_schema(),
+    "procurement.ShortageAnswer.v1": ShortageAnswer.model_json_schema(),
+    "procurement.OfferRecommendation.v1": OfferRecommendation.model_json_schema(),
 }
 
 GUIDANCE = (
@@ -32,7 +42,10 @@ GUIDANCE = (
     "purchase order from an approved offer that delivers by the requested date and stays "
     "within budget; subtotal = quantity x unit price. Write all quantities and amounts as "
     "decimal strings. A host rule engine validates every proposal; if it is blocked, read "
-    "the findings and propose a corrected order or explain why none is possible."
+    "the findings and propose a corrected order or explain why none is possible. "
+    "When asked only about availability or shortage, report it with the shortage answer "
+    "tool; when asked which offer to use, report it with the offer recommendation tool "
+    "(offer_ref null if no offer is eligible). Answers are verified by the host."
 )
 
 
@@ -45,7 +58,11 @@ def create_plugin(services: PluginServices) -> PluginContribution:
     manifest = load_manifest()
     return PluginContribution(
         capabilities=manifest.provides_capabilities,
-        verifiers=(DraftPurchaseOrderVerifier(),),
+        verifiers=(
+            DraftPurchaseOrderVerifier(),
+            ShortageAnswerVerifier(),
+            OfferRecommendationVerifier(),
+        ),
         dataset_builders=(ProcurementDatasetBuilder(),),
         input_schemas=INPUT_SCHEMAS,
         agent_guidance=GUIDANCE,

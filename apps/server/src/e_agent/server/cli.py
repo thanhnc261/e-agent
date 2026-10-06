@@ -11,6 +11,7 @@ from typing import Any
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.run import RunState
 from e_agent.kernel.errors import KernelError
+from e_agent.kernel.evidence import build_evidence
 from e_agent.sdk.discovery import discover
 
 from .bootstrap import build_runtime, open_store
@@ -30,6 +31,7 @@ async def _demo(args: argparse.Namespace) -> int:
         scenario=args.scenario,
         driver_mode=args.driver_mode,
         lose_response_after_commit=args.fault == "lost-response",
+        task_kind=args.task,
     )
     run = await rt.coordinator.start_run(rt.operator, DEMO_TASK, rt.scope)
 
@@ -65,6 +67,15 @@ async def _demo(args: argparse.Namespace) -> int:
         run = await rt.coordinator.reconcile(rt.operator, run.run_id)
 
     events = await rt.store.list_events(rt.operator.tenant_id, run.run_id)
+    if args.evidence_out:
+        bundle = await build_evidence(
+            rt.store,
+            rt.operator.tenant_id,
+            run.run_id,
+            environment=profile.environment,
+            versions=rt.versions,
+        )
+        _write_private(args.evidence_out, json.dumps(bundle, ensure_ascii=False, indent=2))
     await _close(rt.store)
     if args.json:
         payload: dict[str, Any] = {
@@ -125,6 +136,36 @@ async def _secret(args: argparse.Namespace) -> int:
     return 0
 
 
+def _write_private(path: str, text: str) -> None:
+    """Evidence is authorized data: write it with owner-only permissions."""
+    import os
+
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(text)
+
+
+async def _evidence(args: argparse.Namespace) -> int:
+    profile = load_profile(args.profile)
+    rt = await build_runtime(profile)
+    try:
+        bundle = await build_evidence(
+            rt.store,
+            rt.operator.tenant_id,
+            args.run_id,
+            environment=profile.environment,
+            versions=rt.versions,
+        )
+    finally:
+        await _close(rt.store)
+    text = json.dumps(bundle, ensure_ascii=False, indent=2)
+    if args.out:
+        _write_private(args.out, text)
+    else:
+        _print(text)
+    return 0
+
+
 async def _close(store: Any) -> None:
     close = getattr(store, "close", None)
     if close is not None:
@@ -159,13 +200,25 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     demo = sub.add_parser("demo", help="run the fixture procurement walking skeleton")
     demo.add_argument("--scenario", choices=["valid", "zero-shortage", "over-budget"])
-    demo.add_argument("--driver-mode", choices=["valid", "invalid-then-repair", "always-invalid"])
+    demo.add_argument(
+        "--driver-mode",
+        choices=["valid", "invalid-then-repair", "always-invalid", "wrong-answer-then-correct"],
+    )
     demo.add_argument("--fault", choices=["lost-response"])
+    demo.add_argument(
+        "--task",
+        choices=["draft-po", "shortage", "recommend"],
+        help="ERP-03 draft PO (default), ERP-01 shortage, ERP-02 recommendation",
+    )
     group = demo.add_mutually_exclusive_group()
     group.add_argument("--approve", action="store_true", help="operator approves the action")
     group.add_argument("--reject", action="store_true", help="operator rejects the action")
     demo.add_argument("--reconcile", action="store_true", help="run read-only reconciliation")
     demo.add_argument("--json", action="store_true")
+    demo.add_argument("--evidence-out", help="write the redacted evidence bundle to this file")
+    ev = sub.add_parser("evidence", help="export the evidence bundle of a run (durable store)")
+    ev.add_argument("run_id")
+    ev.add_argument("--out", help="file to write (default: stdout)")
     sub.add_parser("plugins", help="list discovered plugins (metadata only)")
     sub.add_parser("migrate", help="apply ledger migrations for a postgres-store profile")
     secret = sub.add_parser("secret", help="manage local secrets (value read from stdin)")
@@ -184,6 +237,8 @@ def main(argv: list[str] | None = None) -> int:
             return asyncio.run(_migrate(args))
         if args.command == "recover":
             return asyncio.run(_recover(args))
+        if args.command == "evidence":
+            return asyncio.run(_evidence(args))
         if args.command == "secret":
             return asyncio.run(_secret(args))
         return _plugins(args)

@@ -53,7 +53,8 @@ The product is independent of the separate `enterprise-agent/experiment` researc
 | I05 Durable kernel | Done | `e_agent.adapters.postgres`: ledger schema, checksummed migrations, CAS, unique reservations, gapless events + NOTIFY, advisory writer lock, persisted continuation, startup `recover()`; kernel suite and store conformance pass on PostgreSQL 16 |
 | I04 Local model qualification | Driver done; live qualification pending on the owner's machine | `e_agent.adapters.pydantic_ai` (Pydantic AI 2.54, Ollama): all tools deferred to the kernel, thinking stripped, snapshot/restore; FunctionModel end-to-end tests; `scripts/qualify_model.py` (needs local Ollama) |
 | I06 Odoo bridge and adapter | Done (sandbox from source); owner install pending | `addons/e_agent_bridge` (operation ledger with `models.Constraint`, draft-only commands, narrow reads, sandbox seed/reset), `e_agent.adapters.odoo` (JSON-2, API key via `AuthContext`), local envelope-encrypted secret store, credential service. 7 live tests passed against real Odoo 19 (idempotency, 6-way race → 1 PO, lost response → reconcile, marker check). [Runbook](docs/runbooks/i06-odoo-bridge.md) |
-| I07–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
+| I07 Procurement vertical slice | Done with scripted driver on live Odoo; live-model runs pending | ERP-01 shortage and ERP-02 recommendation as verified structured answers (new `answer` effect: no approval, independent recomputation from fresh reads), ERP-03 draft PO; all three verified against live Odoo 19; redacted evidence bundles (`--evidence-out`, `e-agent evidence`) |
+| I08–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
 
 Validation is authoritative (SHACL); the ledger is PostgreSQL; the Odoo adapter has been exercised against a real Odoo 19 sandbox built from source. Live model runs (Ollama) and the UI are not done yet; fixture runs are labelled `environment=fixture` and are not evidence of live capability.
 
@@ -65,6 +66,9 @@ uv run e-agent demo --approve             # fixture procurement run, approve exp
 uv run e-agent demo --driver-mode invalid-then-repair --approve   # blocked by PR-003, then repaired
 uv run e-agent demo --fault lost-response --approve --reconcile   # UNKNOWN -> read-only reconcile
 uv run e-agent demo --scenario zero-shortage                      # verified no-op
+uv run e-agent demo --task shortage                               # ERP-01 verified answer
+uv run e-agent demo --task recommend                              # ERP-02 verified answer
+uv run e-agent demo --approve --evidence-out run.json             # redacted evidence bundle
 uv run e-agent plugins                    # discovered plugins (metadata only)
 
 # Live model qualification (owner's machine with Ollama; fixture ERP)

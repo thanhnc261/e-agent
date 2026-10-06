@@ -297,6 +297,8 @@ class RunCoordinator:
     ) -> RunRecord | DriverInput:
         ctx = cont.ctx
         descriptor = self._registry.descriptor(proposal.contract_id)
+        if descriptor.effect is EffectKind.ANSWER:
+            return await self._handle_answer(run, cont, proposal)
         if descriptor.effect is not EffectKind.WRITE:
             raise KernelError(ErrorCode.INVALID_REQUEST, "proposals are for write capabilities")
         if cont.writes >= ctx.budgets.max_admitted_writes:
@@ -428,6 +430,111 @@ class RunCoordinator:
         )
         run = await self._store.get_run(run.tenant_id, run.run_id)
         return await self._set_run_state(run, RunState.WAITING_APPROVAL)
+
+    async def _handle_answer(
+        self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
+    ) -> RunRecord | DriverInput:
+        """Structured answers: no approval or dispatch; the domain verifier recomputes
+        the answer from fresh, independent reads (MVP plan ERP-01/02/06/08)."""
+        ctx = cont.ctx
+        connection = self._connections.usable(ctx, proposal.connection_id)
+        verifier = self._registry.verifier_for(proposal.contract_id)
+        if verifier is None:
+            raise KernelError(ErrorCode.DEPENDENCY_UNAVAILABLE, "no verifier for answer")
+        try:
+            action_digest = compute_digest(
+                {"contract_id": proposal.contract_id, "arguments": dict(proposal.arguments)}
+            )
+        except CanonicalizationError:
+            action_digest = "invalid"
+        action = ActionRecord(
+            action_id=new_id("act"),
+            tenant_id=ctx.tenant_id,
+            run_id=run.run_id,
+            logical_operation_id=run.logical_operation_id,
+            contract_id=proposal.contract_id,
+            binding_id="answer",
+            connection_id=connection.connection_id,
+            connection_version=connection.version,
+            credential_subject=connection.credential_subject(),
+            arguments=dict(proposal.arguments),
+            digest=action_digest,
+            state=ActionState.PROPOSED,
+            revision=1,
+            supersedes_action_id=cont.last_action_id,
+        )
+        await self._store.put_action(
+            action,
+            None,
+            [
+                (
+                    RunEventType.PROPOSAL_CREATED,
+                    {
+                        "contract_id": action.contract_id,
+                        "arguments": action.arguments,
+                        "kind": "answer",
+                        "supersedes": cont.last_action_id,
+                    },
+                    action.action_id,
+                )
+            ],
+        )
+        cont.last_action_id = action.action_id
+        action = await self._transition(action, ActionState.VALIDATED)
+        reader = _GatewayReader(self, cont, connection.connection_id)
+        try:
+            report = await verifier.verify(ctx, action, None, reader)
+        except Exception as exc:  # verification unavailable: never claim the answer
+            report = OutcomeReport(
+                run_id=ctx.run_id,
+                action_id=action.action_id,
+                status=OutcomeStatus.UNKNOWN,
+                checks=(),
+                verifier_id=verifier.verifier_id,
+                verifier_version=type(exc).__name__,
+                reported_at=self._clock(),
+            )
+        verified = report.status is OutcomeStatus.VERIFIED
+        target = ActionState.VERIFIED if verified else ActionState.VERIFICATION_FAILED
+        await self._store.record_outcome(
+            ctx.tenant_id,
+            report,
+            action.model_copy(update={"state": target, "revision": action.revision + 1}),
+            action.revision,
+            [(RunEventType.OUTCOME_REPORTED, report.model_dump(mode="json"), action.action_id)],
+        )
+        if verified:
+            return DriverInput(
+                task=run.task,
+                observations=tuple(cont.observations.values()),
+                action_result={"status": "VERIFIED"},
+            )
+        run = await self._store.get_run(run.tenant_id, run.run_id)
+        if cont.repairs >= ctx.budgets.max_validation_repairs:
+            return await self._set_run_state(run, RunState.FAILED, "answer not verified")
+        cont.repairs += 1
+        findings = tuple(
+            Finding(
+                rule_id=f"VERIFY-{c.name}",
+                rule_version="1",
+                status=ValidationStatus.FAIL,
+                message=f"answer check {c.name} failed",
+                expected=c.expected,
+                observed=c.observed,
+            )
+            for c in report.checks
+            if not c.passed
+        ) or (
+            Finding(
+                rule_id="VERIFY",
+                rule_version="1",
+                status=ValidationStatus.UNKNOWN,
+                message="answer could not be verified",
+            ),
+        )
+        return DriverInput(
+            task=run.task, observations=tuple(cont.observations.values()), findings=findings
+        )
 
     async def _validate(
         self,

@@ -139,9 +139,11 @@ class OutcomeVerifier(Protocol):
         self,
         ctx: TaskContext,
         action: ActionRecord,
-        receipt: ExecutionReceipt,
+        receipt: ExecutionReceipt | None,
         reader: ScopedReader,
-    ) -> OutcomeReport: ...
+    ) -> OutcomeReport:
+        """``receipt`` is None for structured answers (EffectKind.ANSWER)."""
+        ...
 
 
 # ---- Policy -----------------------------------------------------------------

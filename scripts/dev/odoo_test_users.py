@@ -18,8 +18,11 @@ rights = [
 user = env["res.users"].search([("login", "=", "e-agent-integration")])
 if not user:
     user = env["res.users"].create(
-        {"name": "e-agent integration", "login": "e-agent-integration",
-         "group_ids": [(6, 0, rights)]}
+        {
+            "name": "e-agent integration",
+            "login": "e-agent-integration",
+            "group_ids": [(6, 0, rights)],
+        }
     )
 admin = env.ref("base.user_admin")
 admin.write({"group_ids": [(4, group.id)]})

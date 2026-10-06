@@ -40,6 +40,20 @@
       "output_schema_id": "procurement.PurchaseOrders.v1",
       "description": "Read purchase orders by host operation key (verification read-back)",
       "agent_visible": false
+    },
+    {
+      "contract_id": "procurement.shortage.answer.v1",
+      "effect": "answer",
+      "input_schema_id": "procurement.ShortageAnswer.v1",
+      "output_schema_id": "procurement.VerifiedAnswer.v1",
+      "description": "Report demand, available and inbound quantity and the resulting shortage; the host verifies it against fresh reads"
+    },
+    {
+      "contract_id": "procurement.offer.recommend.v1",
+      "effect": "answer",
+      "input_schema_id": "procurement.OfferRecommendation.v1",
+      "output_schema_id": "procurement.VerifiedAnswer.v1",
+      "description": "Recommend the eligible supplier offer for a demand (or none); the host verifies it independently"
     }
   ],
   "provides_bindings": [],
