@@ -39,6 +39,11 @@ PACKAGES = {
         "files('e_agent.adapters.postgres').joinpath('migrations/0001_initial.sql').read_text()"
     ),
     "e-agent-adapter-agent-pydantic": "import e_agent.adapters.pydantic_ai",
+    "e-agent-adapter-secretstore-local": "import e_agent.adapters.secretstore_local",
+    "e-agent-adapter-odoo": (
+        "from e_agent.sdk.discovery import discover; "
+        "assert [p for p in discover() if p.manifest.plugin_id == 'odoo19']"
+    ),
     "e-agent-server": "import e_agent.server.cli",
 }
 

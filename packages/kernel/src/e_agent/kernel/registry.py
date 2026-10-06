@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -63,7 +63,10 @@ class PluginRegistry:
 
     # -- admission ------------------------------------------------------------
     def admit(
-        self, discovered: Iterable[DiscoveredPlugin], enabled: Mapping[str, EnabledPlugin]
+        self,
+        discovered: Iterable[DiscoveredPlugin],
+        enabled: Mapping[str, EnabledPlugin],
+        credentials_for: Callable[[str], Any] | None = None,
     ) -> AdmissionReport:
         found: dict[str, DiscoveredPlugin] = {}
         for plugin in discovered:
@@ -80,7 +83,8 @@ class PluginRegistry:
                 self.report.skipped.append(pid)  # never imported
                 continue
             self._check_admissible(plugin, config)
-            contribution = self._load(plugin, config)
+            creds = credentials_for(pid) if credentials_for is not None else None
+            contribution = self._load(plugin, config, creds)
             self.register(
                 plugin_id=pid,
                 plugin_version=plugin.manifest.version,
@@ -106,10 +110,14 @@ class PluginRegistry:
             raise _reject(f"{pid}: entry point does not match manifest factory")
 
     @staticmethod
-    def _load(plugin: DiscoveredPlugin, config: EnabledPlugin) -> PluginContribution:
+    def _load(
+        plugin: DiscoveredPlugin, config: EnabledPlugin, credentials: Any = None
+    ) -> PluginContribution:
         module_name, _, attr = plugin.manifest.factory.partition(":")
         factory = getattr(importlib.import_module(module_name), attr)
-        contribution = factory(PluginServices(settings=dict(config.settings)))
+        contribution = factory(
+            PluginServices(settings=dict(config.settings), credentials=credentials)
+        )
         if not isinstance(contribution, PluginContribution):
             raise _reject(f"{plugin.manifest.plugin_id}: factory returned an invalid contribution")
         return contribution

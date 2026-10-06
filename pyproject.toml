@@ -15,6 +15,8 @@ dev = [
     "e-agent-adapter-shacl",
     "e-agent-adapter-postgres",
     "e-agent-adapter-agent-pydantic",
+    "e-agent-adapter-secretstore-local",
+    "e-agent-adapter-odoo",
     "pytest>=9.1",
     "pytest-asyncio>=1.0",
     "ruff>=0.16",
@@ -37,6 +39,8 @@ e-agent-server = { workspace = true }
 e-agent-adapter-shacl = { workspace = true }
 e-agent-adapter-postgres = { workspace = true }
 e-agent-adapter-agent-pydantic = { workspace = true }
+e-agent-adapter-secretstore-local = { workspace = true }
+e-agent-adapter-odoo = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -50,6 +54,8 @@ ignore = ["S101"]
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S", "B", "PT018"]
 "scripts/**" = ["S310", "S603", "S607"]
+"addons/**/__init__.py" = ["F401"]
+"addons/**/__manifest__.py" = ["B018"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -64,8 +70,10 @@ mypy_path = [
     "packages/adapter-shacl/src",
     "packages/adapter-postgres/src",
     "packages/adapter-agent-pydantic/src",
+    "packages/adapter-secretstore-local/src",
+    "packages/adapter-odoo/src",
 ]
-packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai"]
+packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai", "e_agent.adapters.secretstore_local", "e_agent.adapters.odoo"]
 explicit_package_bases = true
 namespace_packages = true
 
@@ -75,7 +83,7 @@ testpaths = ["packages", "apps", "tests"]
 addopts = "--import-mode=importlib"
 
 [tool.importlinter]
-root_packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai"]
+root_packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai", "e_agent.adapters.secretstore_local", "e_agent.adapters.odoo"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
@@ -83,7 +91,8 @@ name = "Layered dependency direction (HLD §4)"
 type = "layers"
 layers = [
     "e_agent.server",
-    "e_agent.erp | e_agent.kernel | e_agent.adapters.shacl | e_agent.adapters.postgres | e_agent.adapters.pydantic_ai",
+    "e_agent.kernel | e_agent.adapters.shacl | e_agent.adapters.postgres | e_agent.adapters.pydantic_ai | e_agent.adapters.secretstore_local | e_agent.adapters.odoo",
+    "e_agent.erp",
     "e_agent.sdk",
     "e_agent.contracts",
 ]
@@ -103,8 +112,14 @@ forbidden_modules = ["e_agent.kernel", "e_agent.server"]
 [[tool.importlinter.contracts]]
 name = "Adapters never import kernel, domains, server or sibling adapters"
 type = "forbidden"
-source_modules = ["e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai"]
+source_modules = ["e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai", "e_agent.adapters.secretstore_local"]
 forbidden_modules = ["e_agent.kernel", "e_agent.erp", "e_agent.server"]
+
+[[tool.importlinter.contracts]]
+name = "Provider adapters use only public domain APIs, never kernel, server or fixtures"
+type = "forbidden"
+source_modules = ["e_agent.adapters.odoo"]
+forbidden_modules = ["e_agent.kernel", "e_agent.server", "e_agent.erp.testing"]
 
 [[tool.importlinter.contracts]]
 name = "Domain bounded contexts are independent (ADR 0002)"

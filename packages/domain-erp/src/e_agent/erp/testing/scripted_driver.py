@@ -30,6 +30,8 @@ _READS = {"r-demand": DEMAND_READ, "r-stock": AVAILABILITY_READ, "r-offers": OFF
 class ScriptedProcurementDriver:
     connection_id: str
     mode: str = "valid"  # valid | invalid-then-repair | always-invalid
+    demand_ref: str = "demand:d-001"
+    product_ref: str = "product:widget-a"
     driver_id: str = "scripted-procurement-driver"
     _proposed: dict[str, int] = field(default_factory=dict)
 
@@ -44,7 +46,7 @@ class ScriptedProcurementDriver:
                         request_id=rid,
                         contract_id=cid,
                         connection_id=self.connection_id,
-                        arguments={"product_ref": "product:widget-a", "demand_ref": "demand:d-001"},
+                        arguments={"product_ref": self.product_ref, "demand_ref": self.demand_ref},
                     )
                     for rid, cid in _READS.items()
                 )

@@ -29,6 +29,8 @@ class PluginManifest(Record):
     provides_bindings: tuple[BindingTemplate, ...] = ()
     requires_capabilities: tuple[str, ...] = ()
     settings_schema: dict[str, object] = Field(default_factory=dict)
+    connection: dict[str, object] = Field(default_factory=dict)
+    """Provider-neutral connection/auth declaration (ADR 0012/0013)."""
 
     @field_validator("sdk_api")
     @classmethod

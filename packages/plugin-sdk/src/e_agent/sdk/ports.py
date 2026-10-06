@@ -171,6 +171,8 @@ class PluginServices:
     """Scoped services the host gives a plugin at initialization."""
 
     settings: Mapping[str, Any]
+    credentials: Any = None
+    """CredentialResolver scoped to this plugin's integration (e_agent.sdk.auth)."""
 
 
 @dataclass

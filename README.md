@@ -52,9 +52,10 @@ The product is independent of the separate `enterprise-agent/experiment` researc
 | I03 Rule and ontology slice | Done | `e_agent.adapters.shacl` (pySHACL, SHACL 1.1 + SPARQL); procurement ontology and shapes packaged in `e_agent.erp`; rule matrix, parity and inventory tests |
 | I05 Durable kernel | Done | `e_agent.adapters.postgres`: ledger schema, checksummed migrations, CAS, unique reservations, gapless events + NOTIFY, advisory writer lock, persisted continuation, startup `recover()`; kernel suite and store conformance pass on PostgreSQL 16 |
 | I04 Local model qualification | Driver done; live qualification pending on the owner's machine | `e_agent.adapters.pydantic_ai` (Pydantic AI 2.54, Ollama): all tools deferred to the kernel, thinking stripped, snapshot/restore; FunctionModel end-to-end tests; `scripts/qualify_model.py` (needs local Ollama) |
-| I06–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
+| I06 Odoo bridge and adapter | Done (sandbox from source); owner install pending | `addons/e_agent_bridge` (operation ledger with `models.Constraint`, draft-only commands, narrow reads, sandbox seed/reset), `e_agent.adapters.odoo` (JSON-2, API key via `AuthContext`), local envelope-encrypted secret store, credential service. 7 live tests passed against real Odoo 19 (idempotency, 6-way race → 1 PO, lost response → reconcile, marker check). [Runbook](docs/runbooks/i06-odoo-bridge.md) |
+| I07–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
 
-Validation is authoritative (SHACL). Driver and ERP are still **fixtures**: a scripted driver and a fake ERP exercise the real kernel. No model, Odoo or UI integration exists yet, and nothing here is evidence of live capability.
+Validation is authoritative (SHACL); the ledger is PostgreSQL; the Odoo adapter has been exercised against a real Odoo 19 sandbox built from source. Live model runs (Ollama) and the UI are not done yet; fixture runs are labelled `environment=fixture` and are not evidence of live capability.
 
 ### Commands (verified in the development container)
 

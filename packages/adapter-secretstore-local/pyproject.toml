@@ -1,0 +1,16 @@
+[project]
+name = "e-agent-adapter-secretstore-local"
+version = "0.1.0"
+description = "Local envelope-encrypted SecretStore for e-agent (MVP; ADR 0012/0013)"
+requires-python = ">=3.12"
+dependencies = [
+    "e-agent-plugin-sdk>=0.1,<0.2",
+    "cryptography>=45",
+]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "e_agent.adapters.secretstore_local"

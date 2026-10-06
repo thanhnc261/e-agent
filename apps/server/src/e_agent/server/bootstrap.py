@@ -1,16 +1,22 @@
-"""Composition root: discover/admit plugins, wire kernel services (MVP design §6)."""
+"""Composition root: discover/admit plugins, wire kernel services (MVP design §6).
+
+The only place that chooses concrete implementations. Fixture components are
+wired only in ``environment=fixture`` profiles; live profiles must pass the
+sandbox-marker check before any run starts.
+"""
 
 from __future__ import annotations
 
 import os
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from e_agent.adapters.postgres import PostgresRunStore, apply_migrations
 from e_agent.adapters.pydantic_ai import PydanticAiDriver, ToolSpec, ollama_model
+from e_agent.adapters.secretstore_local import LocalSecretStore
 from e_agent.adapters.shacl import ShaclPlanValidator
-from e_agent.contracts.context import Principal
+from e_agent.contracts.context import Principal, TaskContext
 from e_agent.erp.testing.fake_erp import BINDINGS as FIXTURE_BINDINGS
 from e_agent.erp.testing.fake_erp import PLUGIN_ID as FIXTURE_PLUGIN_ID
 from e_agent.erp.testing.fake_erp import FakeErp
@@ -18,6 +24,7 @@ from e_agent.erp.testing.scenarios import SCENARIOS
 from e_agent.erp.testing.scripted_driver import ScriptedProcurementDriver
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.coordinator import RunCoordinator
+from e_agent.kernel.credentials import CredentialService
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.memory_store import InMemoryRunStore
 from e_agent.kernel.policy import DefaultPolicy
@@ -26,6 +33,9 @@ from e_agent.sdk.discovery import discover
 from e_agent.sdk.ports import AgentDriver, PluginContribution
 
 from .profile import Profile
+
+AUTH_PLACEMENT = {"odoo19": {"method": "api_key", "header": "Authorization", "prefix": "bearer "}}
+LIVE_PROVIDERS_WITH_SANDBOX = {"odoo19"}
 
 
 @dataclass
@@ -37,6 +47,7 @@ class Runtime:
     operator: Principal
     scope: frozenset[str]
     fake_erp: FakeErp | None
+    sandbox: dict[str, Any] = field(default_factory=dict)
 
 
 async def open_store(profile: Profile) -> Any:
@@ -92,6 +103,24 @@ def build_driver(profile: Profile, registry: PluginRegistry) -> AgentDriver:
     )
 
 
+def _secret_store(profile: Profile) -> LocalSecretStore | None:
+    if not any(c.secret_ref for c in profile.connections):
+        return None
+    try:
+        return LocalSecretStore.from_environment()
+    except ValueError as exc:
+        raise KernelError(ErrorCode.STARTUP_REJECTED, str(exc)) from exc
+
+
+def _operator(profile: Profile) -> Principal:
+    return Principal(
+        principal_id=profile.operator.principal_id,
+        tenant_id=profile.tenant_id,
+        roles=profile.operator.roles,
+        display_name=profile.operator.display_name,
+    )
+
+
 async def build_runtime(
     profile: Profile,
     *,
@@ -101,58 +130,94 @@ async def build_runtime(
     plugin_paths: Iterable[str] | None = None,
     driver_factory: Callable[[PluginRegistry], AgentDriver] | None = None,
 ) -> Runtime:
+    catalog = ConnectionCatalog(profile.connections)
+    credentials = CredentialService(catalog, _secret_store(profile), AUTH_PLACEMENT)
     registry = PluginRegistry(profile.bindings)
     enabled = {
         pid: EnabledPlugin(cfg.version, cfg.manifest_sha256, dict(cfg.settings))
         for pid, cfg in profile.enabled_plugins.items()
     }
-    registry.admit(discover(plugin_paths), enabled)
-
-    if profile.environment != "fixture" or profile.fixture is None:
-        # Live drivers/adapters arrive with I04 (Pydantic AI) and I06 (Odoo).
-        raise KernelError(ErrorCode.STARTUP_REJECTED, "only fixture profiles are supported yet")
-
-    scenario_name = scenario or profile.fixture.scenario
-    if scenario_name not in SCENARIOS:
-        raise KernelError(ErrorCode.INVALID_REQUEST, f"unknown scenario {scenario_name!r}")
+    registry.admit(discover(plugin_paths), enabled, credentials_for=credentials.scoped)
+    # The composition root chooses the validation engine; domains supply datasets.
+    registry.validators.append(ShaclPlanValidator(registry.dataset_builders))
+    operator = _operator(profile)
+    scope = frozenset(c.connection_id for c in profile.connections)
     connection_id = profile.connections[0].connection_id
-    fake_erp = FakeErp(
-        SCENARIOS[scenario_name], lose_response_after_commit=lose_response_after_commit
-    )
-    scripted = ScriptedProcurementDriver(
-        connection_id=connection_id, mode=driver_mode or profile.fixture.driver_mode
-    )
-    # Fixture components are registered in-process and only in fixture profiles.
-    registry.register(
-        plugin_id=FIXTURE_PLUGIN_ID,
-        plugin_version="0.1.0+fixture",
-        declared_capabilities=(),
-        binding_templates=FIXTURE_BINDINGS,
-        contribution=PluginContribution(executors=(fake_erp,)),
-    )
+
+    fake_erp: FakeErp | None = None
+    if profile.environment == "fixture":
+        if profile.fixture is None:
+            raise KernelError(ErrorCode.STARTUP_REJECTED, "fixture profile lacks fixture config")
+        scenario_name = scenario or profile.fixture.scenario
+        if scenario_name not in SCENARIOS:
+            raise KernelError(ErrorCode.INVALID_REQUEST, f"unknown scenario {scenario_name!r}")
+        fake_erp = FakeErp(
+            SCENARIOS[scenario_name], lose_response_after_commit=lose_response_after_commit
+        )
+        registry.register(
+            plugin_id=FIXTURE_PLUGIN_ID,
+            plugin_version="0.1.0+fixture",
+            declared_capabilities=(),
+            binding_templates=FIXTURE_BINDINGS,
+            contribution=PluginContribution(executors=(fake_erp,)),
+        )
+
     driver: AgentDriver
     if driver_factory is not None:
         driver = driver_factory(registry)
     elif profile.driver.kind == "pydantic-ai":
         driver = build_driver(profile, registry)
     else:
-        driver = scripted
-    # The composition root chooses the validation engine; domains supply datasets.
-    registry.validators.append(ShaclPlanValidator(registry.dataset_builders))
+        mode = driver_mode or (profile.fixture.driver_mode if profile.fixture else "valid")
+        driver = ScriptedProcurementDriver(
+            connection_id=connection_id,
+            mode=mode,
+            demand_ref=profile.driver.demand_ref or "demand:d-001",
+            product_ref=profile.driver.product_ref or "product:widget-a",
+        )
+
+    sandbox: dict[str, Any] = {}
+    if profile.environment == "live":
+        sandbox = await _check_sandbox(profile, registry, operator, scope)
+
     store = await open_store(profile)
     coordinator = RunCoordinator(
         store=store,
         registry=registry,
-        connections=ConnectionCatalog(profile.connections),
+        connections=catalog,
         policy=DefaultPolicy(),
         driver=driver,
         budgets=profile.budgets,
     )
-    operator = Principal(
-        principal_id=profile.operator.principal_id,
+    return Runtime(profile, coordinator, store, registry, operator, scope, fake_erp, sandbox)
+
+
+async def _check_sandbox(
+    profile: Profile, registry: PluginRegistry, operator: Principal, scope: frozenset[str]
+) -> dict[str, Any]:
+    """Refuse to start unless every live provider reports the expected sandbox marker."""
+    found: dict[str, Any] = {}
+    ctx = TaskContext(
+        run_id="startup-check",
         tenant_id=profile.tenant_id,
-        roles=profile.operator.roles,
-        display_name=profile.operator.display_name,
+        principal=operator,
+        resource_scope=scope,
     )
-    scope = frozenset(c.connection_id for c in profile.connections)
-    return Runtime(profile, coordinator, store, registry, operator, scope, fake_erp)
+    probes = [e for e in registry.executors if hasattr(e, "sandbox_info")]
+    for pid, cfg in profile.enabled_plugins.items():
+        if pid not in LIVE_PROVIDERS_WITH_SANDBOX:
+            continue
+        expected = cfg.settings.get("expected_sandbox_marker")
+        if not expected or len(probes) != 1:
+            raise KernelError(ErrorCode.STARTUP_REJECTED, f"{pid}: sandbox check not configured")
+        for conn in profile.connections:
+            if conn.integration_id != pid:
+                continue
+            info = await probes[0].sandbox_info(ctx, conn.connection_id)
+            if info.get("sandbox_marker") != expected:
+                raise KernelError(
+                    ErrorCode.STARTUP_REJECTED,
+                    f"{conn.connection_id}: sandbox marker mismatch; refusing to start",
+                )
+            found[conn.connection_id] = info
+    return found

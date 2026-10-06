@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="group_e_agent_integration" model="res.groups">
+        <field name="name">e-agent integration</field>
+        <field name="comment">Dedicated integration users of the e-agent bridge (ADR 0005).</field>
+    </record>
+</odoo>

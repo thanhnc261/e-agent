@@ -106,6 +106,25 @@ async def _recover(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _secret(args: argparse.Namespace) -> int:
+    """Write-only secret management: values come from stdin and are never echoed."""
+    from e_agent.adapters.secretstore_local import LocalSecretStore
+    from e_agent.sdk.auth import Secret
+
+    store = LocalSecretStore.from_environment()
+    if args.action == "delete":
+        await store.delete(args.ref)
+        _print(f"deleted {args.ref}")
+        return 0
+    value = sys.stdin.readline().rstrip("\n")
+    if not value:
+        sys.stderr.write("no value on stdin\n")
+        return 2
+    await store.put(args.ref, Secret(value))
+    _print(f"stored {args.ref} (value not shown)")
+    return 0
+
+
 async def _close(store: Any) -> None:
     close = getattr(store, "close", None)
     if close is not None:
@@ -149,6 +168,9 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--json", action="store_true")
     sub.add_parser("plugins", help="list discovered plugins (metadata only)")
     sub.add_parser("migrate", help="apply ledger migrations for a postgres-store profile")
+    secret = sub.add_parser("secret", help="manage local secrets (value read from stdin)")
+    secret.add_argument("action", choices=["set", "delete"])
+    secret.add_argument("ref", help="secretref:local/<name>")
     sub.add_parser("recover", help="run startup recovery on unfinished runs (never re-sends)")
     return parser
 
@@ -162,6 +184,8 @@ def main(argv: list[str] | None = None) -> int:
             return asyncio.run(_migrate(args))
         if args.command == "recover":
             return asyncio.run(_recover(args))
+        if args.command == "secret":
+            return asyncio.run(_secret(args))
         return _plugins(args)
     except KernelError as exc:
         sys.stderr.write(f"error {exc.code}: {exc.safe_message}\n")
