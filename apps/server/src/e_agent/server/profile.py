@@ -36,6 +36,15 @@ class StoreConfig(Record):
     """Name of the environment variable holding the DSN; the DSN is never in the profile."""
 
 
+class DriverConfig(Record):
+    kind: Literal["scripted", "pydantic-ai"] = "scripted"
+    provider: Literal["ollama"] = "ollama"
+    model: str | None = None
+    base_url_env: str = "E_AGENT_OLLAMA_URL"
+    requests_per_step: int = 4
+    temperature: str | None = None
+
+
 class Profile(Record):
     profile_version: Literal["1"]
     environment: Literal["fixture", "live"]
@@ -46,6 +55,7 @@ class Profile(Record):
     bindings: dict[str, tuple[str, ...]]
     budgets: Budgets = Budgets()
     store: StoreConfig = StoreConfig()
+    driver: DriverConfig = DriverConfig()
     fixture: FixtureConfig | None = None
 
 

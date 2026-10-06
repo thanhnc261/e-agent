@@ -7,6 +7,22 @@ from datetime import date
 from e_agent.contracts.common import DecimalStr, Record
 
 
+class DemandQuery(Record):
+    """Read one procurement demand (quantity, unit, requested date, budget)."""
+
+    demand_ref: str
+
+
+class OfferQuery(Record):
+    """Read supplier offers for a product, including approval status."""
+
+    product_ref: str
+
+
+class PurchaseOrderQuery(Record):
+    operation_key: str
+
+
 class Demand(Record):
     demand_ref: str
     product_ref: str

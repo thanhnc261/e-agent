@@ -38,10 +38,14 @@
       "effect": "read",
       "input_schema_id": "procurement.PurchaseOrderQuery.v1",
       "output_schema_id": "procurement.PurchaseOrders.v1",
-      "description": "Read purchase orders by host operation key (verification read-back)"
+      "description": "Read purchase orders by host operation key (verification read-back)",
+      "agent_visible": false
     }
   ],
   "provides_bindings": [],
   "requires_capabilities": [],
-  "settings_schema": {"type": "object", "additionalProperties": false}
+  "settings_schema": {
+    "type": "object",
+    "additionalProperties": false
+  }
 }

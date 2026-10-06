@@ -51,7 +51,8 @@ The product is independent of the separate `enterprise-agent/experiment` researc
 | I02 Contracts and registration | Done (fixture walking skeleton) | Contracts, JCS digest + golden vectors, SDK ports, metadata-only discovery, registry admission, kernel coordinator, CLI demo |
 | I03 Rule and ontology slice | Done | `e_agent.adapters.shacl` (pySHACL, SHACL 1.1 + SPARQL); procurement ontology and shapes packaged in `e_agent.erp`; rule matrix, parity and inventory tests |
 | I05 Durable kernel | Done | `e_agent.adapters.postgres`: ledger schema, checksummed migrations, CAS, unique reservations, gapless events + NOTIFY, advisory writer lock, persisted continuation, startup `recover()`; kernel suite and store conformance pass on PostgreSQL 16 |
-| I04, I06–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
+| I04 Local model qualification | Driver done; live qualification pending on the owner's machine | `e_agent.adapters.pydantic_ai` (Pydantic AI 2.54, Ollama): all tools deferred to the kernel, thinking stripped, snapshot/restore; FunctionModel end-to-end tests; `scripts/qualify_model.py` (needs local Ollama) |
+| I06–I14 | Not started | See the [implementation plan](docs/implementation-plan.md) |
 
 Validation is authoritative (SHACL). Driver and ERP are still **fixtures**: a scripted driver and a fake ERP exercise the real kernel. No model, Odoo or UI integration exists yet, and nothing here is evidence of live capability.
 
@@ -64,6 +65,9 @@ uv run e-agent demo --driver-mode invalid-then-repair --approve   # blocked by P
 uv run e-agent demo --fault lost-response --approve --reconcile   # UNKNOWN -> read-only reconcile
 uv run e-agent demo --scenario zero-shortage                      # verified no-op
 uv run e-agent plugins                    # discovered plugins (metadata only)
+
+# Live model qualification (owner's machine with Ollama; fixture ERP)
+uv run python scripts/qualify_model.py --model qwen3-coder:30b --trials 10 --out evals/reports/qualification.json
 
 uv run ruff check . && uv run ruff format --check .
 uv run mypy

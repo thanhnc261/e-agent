@@ -26,6 +26,8 @@ class CapabilityDescriptor(Record):
     output_schema_id: str
     description: str = ""
     required_features: frozenset[str] = frozenset()
+    agent_visible: bool = True
+    """False for capabilities only the host uses (e.g. verification read-back)."""
 
     @field_validator("contract_id")
     @classmethod

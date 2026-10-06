@@ -57,6 +57,8 @@ class PluginRegistry:
         self.verifiers: list[OutcomeVerifier] = []
         self.drivers: list[AgentDriver] = []
         self.dataset_builders: list[ValidationDatasetBuilder] = []
+        self.input_schemas: dict[str, Mapping[str, Any]] = {}
+        self.agent_guidance: list[str] = []
         self.report = AdmissionReport()
 
     # -- admission ------------------------------------------------------------
@@ -152,6 +154,12 @@ class PluginRegistry:
         self.verifiers.extend(contribution.verifiers)
         self.drivers.extend(contribution.drivers)
         self.dataset_builders.extend(contribution.dataset_builders)
+        for schema_id, schema in contribution.input_schemas.items():
+            if schema_id in self.input_schemas and self.input_schemas[schema_id] != schema:
+                raise _reject(f"conflicting schema definitions for {schema_id}")
+            self.input_schemas[schema_id] = schema
+        if contribution.agent_guidance:
+            self.agent_guidance.append(contribution.agent_guidance)
         self.report.admitted.append(plugin_id)
 
     # -- resolution -------------------------------------------------------------

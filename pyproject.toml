@@ -14,6 +14,7 @@ dev = [
     "e-agent-server",
     "e-agent-adapter-shacl",
     "e-agent-adapter-postgres",
+    "e-agent-adapter-agent-pydantic",
     "pytest>=9.1",
     "pytest-asyncio>=1.0",
     "ruff>=0.16",
@@ -35,6 +36,7 @@ e-agent-domain-erp = { workspace = true }
 e-agent-server = { workspace = true }
 e-agent-adapter-shacl = { workspace = true }
 e-agent-adapter-postgres = { workspace = true }
+e-agent-adapter-agent-pydantic = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -61,8 +63,9 @@ mypy_path = [
     "apps/server/src",
     "packages/adapter-shacl/src",
     "packages/adapter-postgres/src",
+    "packages/adapter-agent-pydantic/src",
 ]
-packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres"]
+packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai"]
 explicit_package_bases = true
 namespace_packages = true
 
@@ -72,7 +75,7 @@ testpaths = ["packages", "apps", "tests"]
 addopts = "--import-mode=importlib"
 
 [tool.importlinter]
-root_packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres"]
+root_packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
@@ -80,7 +83,7 @@ name = "Layered dependency direction (HLD §4)"
 type = "layers"
 layers = [
     "e_agent.server",
-    "e_agent.erp | e_agent.kernel | e_agent.adapters.shacl | e_agent.adapters.postgres",
+    "e_agent.erp | e_agent.kernel | e_agent.adapters.shacl | e_agent.adapters.postgres | e_agent.adapters.pydantic_ai",
     "e_agent.sdk",
     "e_agent.contracts",
 ]
@@ -100,7 +103,7 @@ forbidden_modules = ["e_agent.kernel", "e_agent.server"]
 [[tool.importlinter.contracts]]
 name = "Adapters never import kernel, domains, server or sibling adapters"
 type = "forbidden"
-source_modules = ["e_agent.adapters.shacl", "e_agent.adapters.postgres"]
+source_modules = ["e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai"]
 forbidden_modules = ["e_agent.kernel", "e_agent.erp", "e_agent.server"]
 
 [[tool.importlinter.contracts]]

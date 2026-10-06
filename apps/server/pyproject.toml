@@ -10,6 +10,7 @@ dependencies = [
     "e-agent-domain-erp>=0.1,<0.2",
     "e-agent-adapter-shacl>=0.1,<0.2",
     "e-agent-adapter-postgres>=0.1,<0.2",
+    "e-agent-adapter-agent-pydantic>=0.1,<0.2",
 ]
 
 [project.scripts]

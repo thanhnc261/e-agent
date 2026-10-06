@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
 from e_agent.adapters.postgres import PostgresRunStore, apply_migrations
+from e_agent.adapters.pydantic_ai import PydanticAiDriver, ToolSpec, ollama_model
 from e_agent.adapters.shacl import ShaclPlanValidator
 from e_agent.contracts.context import Principal
 from e_agent.erp.testing.fake_erp import BINDINGS as FIXTURE_BINDINGS
@@ -22,7 +23,7 @@ from e_agent.kernel.memory_store import InMemoryRunStore
 from e_agent.kernel.policy import DefaultPolicy
 from e_agent.kernel.registry import EnabledPlugin, PluginRegistry
 from e_agent.sdk.discovery import discover
-from e_agent.sdk.ports import PluginContribution
+from e_agent.sdk.ports import AgentDriver, PluginContribution
 
 from .profile import Profile
 
@@ -48,6 +49,49 @@ async def open_store(profile: Profile) -> Any:
     return await PostgresRunStore.open(dsn)
 
 
+def tool_specs(registry: PluginRegistry, profile: Profile) -> list[ToolSpec]:
+    """Expose agent-visible capabilities that have exactly one binding in scope."""
+    specs: list[ToolSpec] = []
+    for cap in sorted(registry.capabilities.values(), key=lambda c: c.contract_id):
+        if not cap.agent_visible:
+            continue
+        connections = sorted(
+            {b.connection_id for b in registry.bindings if b.contract_id == cap.contract_id}
+        )
+        if len(connections) != 1:
+            continue  # unbound or ambiguous: never let the model choose credentials
+        schema = registry.input_schemas.get(cap.input_schema_id)
+        if schema is None:
+            raise KernelError(ErrorCode.STARTUP_REJECTED, f"no schema for {cap.input_schema_id}")
+        specs.append(
+            ToolSpec(
+                contract_id=cap.contract_id,
+                effect=cap.effect,
+                description=cap.description,
+                parameters=schema,
+                connection_id=connections[0],
+            )
+        )
+    return specs
+
+
+def build_driver(profile: Profile, registry: PluginRegistry) -> AgentDriver:
+    cfg = profile.driver
+    if cfg.provider != "ollama" or not cfg.model:
+        raise KernelError(ErrorCode.STARTUP_REJECTED, "pydantic-ai driver needs an ollama model")
+    base_url = os.environ.get(cfg.base_url_env, "http://localhost:11434/v1")
+    settings: dict[str, object] = {}
+    if cfg.temperature is not None:
+        settings["temperature"] = float(cfg.temperature)
+    return PydanticAiDriver(
+        ollama_model(cfg.model, base_url),
+        tool_specs(registry, profile),
+        guidance=registry.agent_guidance,
+        requests_per_step=cfg.requests_per_step,
+        model_settings=settings,
+    )
+
+
 async def build_runtime(
     profile: Profile,
     *,
@@ -55,6 +99,7 @@ async def build_runtime(
     driver_mode: str | None = None,
     lose_response_after_commit: bool = False,
     plugin_paths: Iterable[str] | None = None,
+    driver_factory: Callable[[PluginRegistry], AgentDriver] | None = None,
 ) -> Runtime:
     registry = PluginRegistry(profile.bindings)
     enabled = {
@@ -74,7 +119,7 @@ async def build_runtime(
     fake_erp = FakeErp(
         SCENARIOS[scenario_name], lose_response_after_commit=lose_response_after_commit
     )
-    driver = ScriptedProcurementDriver(
+    scripted = ScriptedProcurementDriver(
         connection_id=connection_id, mode=driver_mode or profile.fixture.driver_mode
     )
     # Fixture components are registered in-process and only in fixture profiles.
@@ -83,8 +128,15 @@ async def build_runtime(
         plugin_version="0.1.0+fixture",
         declared_capabilities=(),
         binding_templates=FIXTURE_BINDINGS,
-        contribution=PluginContribution(executors=(fake_erp,), drivers=(driver,)),
+        contribution=PluginContribution(executors=(fake_erp,)),
     )
+    driver: AgentDriver
+    if driver_factory is not None:
+        driver = driver_factory(registry)
+    elif profile.driver.kind == "pydantic-ai":
+        driver = build_driver(profile, registry)
+    else:
+        driver = scripted
     # The composition root chooses the validation engine; domains supply datasets.
     registry.validators.append(ShaclPlanValidator(registry.dataset_builders))
     store = await open_store(profile)

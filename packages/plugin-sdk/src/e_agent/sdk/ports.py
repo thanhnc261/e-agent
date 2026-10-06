@@ -182,6 +182,10 @@ class PluginContribution:
     executors: tuple[ActionExecutor, ...] = ()
     verifiers: tuple[OutcomeVerifier, ...] = ()
     drivers: tuple[AgentDriver, ...] = ()
+    input_schemas: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+    """JSON Schemas keyed by CapabilityDescriptor.input_schema_id (tool parameters)."""
+    agent_guidance: str = ""
+    """Domain task guidance for drivers. Explanatory only: rules are enforced by validators."""
     dataset_builders: tuple[Any, ...] = ()
     """ValidationDatasetBuilder instances (see e_agent.sdk.validation)."""
 
