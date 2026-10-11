@@ -169,7 +169,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 ### AG-APPR-1 — Exact consequential action
 
 - **Statement:** Before any consequential action, the user sees the exact action: target system and resource, operation, every material value, consequences and reversibility.
-- **Sources:** S-08 (G16), S-06 (ASI02 Prevention 2, Action-Level Authentication and Approval), S-03 (Art. 14(4)(c)), S-13 (Approval Queues & Escalation Chains: decision-ready context packages)
+- **Sources:** S-08 (G16), S-06 (ASI02 Prevention 2, Action-Level Authentication and Approval; ASI09 Prevention 7, expected side effects), S-03 (Art. 14(4)(c)), S-13 (Approval Queues & Escalation Chains: decision-ready context packages)
 - **Enforcement:** test, review
 - **Max severity:** Blocker
 - **Evidence:** Screenshot or DOM of the decision surface showing each element (target system and resource, operation, each material value, consequences, reversibility); conformance test name if automated.
@@ -181,8 +181,8 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Sources:** S-06 (ASI02 Prevention 2, Action-Level Authentication and Approval; ASI03 Prevention 3, Mandate Per-Action Authorization; ASI09 Example scenario 6, consent laundering through read-only previews)
 - **Enforcement:** test
 - **Max severity:** Blocker
-- **Evidence:** Test showing that an approval record is bound to the action shown, and that a changed or additional action cannot execute under it; for grouped decisions, the list of covered actions.
-- **Notes:** S-06 (ASI02, ASI03) requires explicit approval or authorization per action. A grouped decision that lists every action it covers is guidance following from this statement; no source states it directly. The earlier citation of Art. 14(4)(c) was removed: it concerns interpreting output, not the scope of an approval.
+- **Evidence:** Test showing that an approval record is bound to the action shown, and that a changed or additional action cannot execute under it.
+- **Notes:** S-06 (ASI02, ASI03) requires explicit approval or authorization per action. A grouped decision that lists every action it covers is guidance following from this statement; no source states it directly. Art. 14(4)(c) concerns interpreting output, not the scope of an approval, and is not cited.
 
 ### AG-APPR-3 — No hidden material terms
 
@@ -191,16 +191,16 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** test, review
 - **Max severity:** High
 - **Evidence:** Screenshots of the decision surface at the default and at 320 CSS px widths, with every material term visible without expanding, scrolling an unindicated region or reading truncated text.
-- **Notes:** Lowered from Blocker. SC 1.4.10 supports "without loss of information" at narrow widths, and S-06 (ASI09) supports displaying expected side effects; only the pattern library (S-13, T4) says critical information is missed when it sits behind an expander. The rule about collapsed disclosure is an inference from the T1 sources.
+- **Notes:** SC 1.4.10 supports "without loss of information" at narrow widths, and S-06 (ASI09) supports displaying expected side effects; only the pattern library (S-13, T4) says critical information is missed when it sits behind an expander. The rule about collapsed disclosure is an inference from the T1 sources, hence High.
 
 ### AG-APPR-4 — Friction against automation bias
 
-- **Statement:** Friction is proportional to risk: irreversible or high-impact actions need an explicit confirmation step, and the approving control is never the initial focus or pre-selected in the decision.
-- **Sources:** S-06 (ASI09 Prevention 1, Explicit confirmations; Prevention 5, Adaptive Trust Calibration; Common example 2, Missing Confirmation for Sensitive Actions), S-03 (Art. 14(4)(b)), S-02 (Dialog (Modal) pattern: initial focus on the least destructive action)
+- **Statement:** Friction is proportional to risk: irreversible or high-impact actions need an explicit confirmation step.
+- **Sources:** S-06 (ASI09 Prevention 1, Explicit confirmations; Prevention 5, Adaptive Trust Calibration; Common example 2, Missing Confirmation for Sensitive Actions), S-03 (Art. 14(4)(b))
 - **Enforcement:** test, review
 - **Max severity:** Blocker
-- **Evidence:** Test or recording showing the confirmation step for an irreversible action, the element that holds initial focus when the decision opens, and that no approving option is pre-selected.
-- **Notes:** Explicit confirmation is directly supported by S-06 (ASI09) and by Art. 14(4)(b) (awareness of automation bias). The focus clause rests on S-02, which says it "may be advisable" to focus the least destructive action when a dialog holds a hard-to-reverse final step; a violation of the focus or pre-selection clause alone is rated at most High. "No approval from a notification alone" was removed from the statement because no source read supports it; treat it as guidance. The earlier S-11 citation was removed: the Carbon page has no friction guidance.
+- **Evidence:** Test or recording showing the confirmation step for an irreversible or high-impact action and that the action cannot proceed without it.
+- **Notes:** Explicit confirmation is directly supported by S-06 (ASI09) and by Art. 14(4)(b) (awareness of automation bias). Initial focus and pre-selection are in AG-APPR-8. "No approval from a notification alone" is guidance; no source read supports it.
 
 ### AG-APPR-5 — Invalidated decisions are visible
 
@@ -209,7 +209,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** test
 - **Max severity:** High
 - **Evidence:** Test that changes a fact or permission after a decision was presented and shows the invalidated state, and one that lets a decision expire and shows it cannot be approved without re-review.
-- **Notes:** Lowered from Blocker. S-06 (ASI03) directly supports re-validating authorization that changes or expires before execution; it does not speak to changes in other facts, and S-13 (T4) only warns that rehydration after a delay can fail silently. The earlier ASI09 citation was replaced by ASI03.
+- **Notes:** S-06 (ASI03) directly supports re-validating authorization that changes or expires before execution; it does not speak to changes in other facts, and S-13 (T4) only warns that rehydration after a delay can fail silently. Blocking execution is in AG-APPR-9.
 
 ### AG-APPR-6 — Decided, executed and verified are separate
 
@@ -218,7 +218,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** test, review
 - **Max severity:** High
 - **Evidence:** Mapping of each action to its decided, executed and verified labels, and a test showing that "verified" cannot appear until an independent check has returned.
-- **Notes:** Lowered from Blocker. The sources support monitoring operation, interpreting output and recording execution outcomes; none states a three-way split of outcome labels or independent verification. That split is this standard's application of them.
+- **Notes:** The sources support monitoring operation, interpreting output and recording execution outcomes; none states a three-way split of outcome labels or independent verification. That split is this standard's application of them, hence High.
 
 ### AG-APPR-7 — Risk tier comes from policy
 
@@ -228,6 +228,24 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Max severity:** Blocker
 - **Evidence:** Test showing that the tier displayed equals the tier returned by policy, that a client-side change cannot lower it, and that no control bypasses the approval.
 - **Notes:** S-06 (ASI02, ASI03) treats model output as untrusted and puts validation in an external policy engine. The tier model itself comes from S-13 (T4).
+
+### AG-APPR-8 — Approve is not the default
+
+- **Statement:** The approving control is never the initial focus or pre-selected in a decision.
+- **Sources:** S-02 (Dialog (Modal) pattern: initial focus on the least destructive action)
+- **Enforcement:** test
+- **Max severity:** High
+- **Evidence:** Test or recording showing the element that holds initial focus when the decision opens, and that no approving option is pre-selected.
+- **Notes:** S-02 says it "may be advisable" to focus the least destructive action when a dialog holds a hard-to-reverse final step; the source is advisory, hence High.
+
+### AG-APPR-9 — Changed authorization blocks execution
+
+- **Statement:** A decision whose authorization changed or expired cannot execute until it is re-reviewed.
+- **Sources:** S-06 (ASI03 Common example 4, Time-of-Check to Time-of-Use; ASI03 Prevention 3, Mandate Per-Action Authorization; ASI03 Prevention 7, bind permissions to subject, resource, purpose and duration)
+- **Enforcement:** test
+- **Max severity:** Blocker
+- **Evidence:** A test showing that an expired or changed authorization blocks execution and requires re-review.
+- **Notes:** The visible invalidation is AG-APPR-5.
 
 ## Explanation and evidence
 
@@ -247,21 +265,21 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** review
 - **Max severity:** High
 - **Evidence:** For a sample of claims, the link to the source and the observation time; any claim without both.
-- **Notes:** "Restricted or missing sources are stated rather than omitted" was removed from the statement because no source read supports it; treat it as guidance, and see AG-UNC-4 for missing data. The earlier S-11 citation was removed: the Carbon page has no source-attribution text.
+- **Notes:** "Restricted or missing sources are stated rather than omitted" is guidance; no source read supports it. See AG-UNC-4 for missing data.
 
 ### AG-EXPL-3 — Progressive explanation
 
-- **Statement:** Explanation starts with a summary and gives details on demand, and critical information is never only in a collapsed level.
-- **Sources:** S-13 (Progressive Disclosure UI Patterns: watch-out), S-11 (AI explainability: Start with summarized explanations)
+- **Statement:** Explanation starts with a summary and gives details on demand, disclosure nests no deeper than three to four levels, and critical information is never only in a collapsed level.
+- **Sources:** S-13 (progressive-disclosure-patterns: don'ts, max 3-4 levels; watch-out on missed critical information), S-11 (AI explainability: Start with summarized explanations)
 - **Enforcement:** review
 - **Max severity:** Medium
 - **Evidence:** Screenshots of the summary level and of each detail level, showing that anything a decision depends on is visible at the summary level.
-- **Notes:** "At most three levels" was removed from the statement: no source read gives a number of levels. Treat a small number of levels as guidance.
+- **Notes:** The 3-4 level limit is S-13's do/don't guidance (T4).
 
 ### AG-EXPL-4 — Calibrated uncertainty only
 
 - **Statement:** Uncertainty is expressed qualitatively, or numerically only when calibrated against measured accuracy.
-- **Sources:** S-08 (G2), S-10 (Core: embrace uncertainty), S-06 (ASI09 Prevention 5, confidence-weighted cues), S-13 (Confidence Visualization UI Patterns: watch-out that confidence is misread as accuracy)
+- **Sources:** S-08 (G2), S-10 (Core: embrace uncertainty), S-06 (ASI09 Prevention 5, confidence-weighted cues), S-13 (confidence-visualization-patterns: don'ts, show false precision; calibration with historical accuracy)
 - **Enforcement:** review
 - **Max severity:** High
 - **Evidence:** For each confidence or uncertainty display, the label or number and the calibration evidence behind any number.
@@ -275,8 +293,8 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Sources:** S-08 (G10)
 - **Enforcement:** review
 - **Max severity:** High
-- **Evidence:** Walkthrough with an ambiguous request showing the clarification and the task context still in place afterwards.
-- **Notes:** "Focused" and "keeps the task context" are guidance; the source gives only the G10 title and one-line description. S-15 was removed: its principle on capturing data at the right time does not cover clarifying ambiguous requests.
+- **Evidence:** Walkthrough with an ambiguous request showing the clarification question or the stated safe degradation.
+- **Notes:** "Focused" and "keeps the task context" are guidance; the source gives only the G10 title and one-line description. S-15's data-capture principle concerns when to collect inputs, not clarifying ambiguous requests, and is not cited.
 
 ### AG-UNC-2 — Uncertain outcome is explicit
 
@@ -285,16 +303,16 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** test, review
 - **Max severity:** High
 - **Evidence:** Test that makes an action time out after dispatch and shows the unknown-outcome presentation, the safe-check control, and the absence of a plain retry.
-- **Notes:** Lowered from Blocker. S-06 (ASI08) now read in full: it lists repeated identical intents and retry loops as symptoms of cascading faults and recommends circuit breakers, but it does not address a user interface offering a retry of a possibly-completed action. This is an inference. S-07 was removed (summary-only).
+- **Notes:** S-06 (ASI08) lists repeated identical intents and retry loops as symptoms of cascading faults and recommends circuit breakers, but it does not address a user interface offering a retry of a possibly-completed action. This is an inference, hence High.
 
-### AG-UNC-3 — Actionable, persistent errors
+### AG-UNC-3 — Actionable errors
 
-- **Statement:** Errors state the problem and a next step in plain language, in text, next to the affected action.
-- **Sources:** S-01 (SC 3.3.1 Error Identification, SC 3.3.3 Error Suggestion), S-13 (Error Handling and Recovery Patterns: problem, cause and actionable solution; inline display)
+- **Statement:** Errors state the problem, its cause where known, and an authorized next step, in plain language and text, associated with the affected action.
+- **Sources:** S-01 (SC 3.3.1 Error Identification, SC 3.3.3 Error Suggestion), S-13 (error-recovery-patterns: problem + cause + solution; severity-based display)
 - **Enforcement:** test, review
 - **Max severity:** High
-- **Evidence:** Screenshots of the error states for a failed input, a failed action and a denied action, each showing the problem, the next step and its position next to the action.
-- **Notes:** Lowered from Blocker. SC 3.3.1 and 3.3.3 apply to automatically detected input errors only, so for those cases AG-A11Y-1 already carries Blocker; the broader statement (any error, cause, authorized next step) rests on S-13 (T4). "A transient notice is never the only record" was removed from the statement because no source read supports it; treat it as guidance. S-07 was removed (summary-only).
+- **Evidence:** Screenshots of the error states for a failed input, a failed action and a denied action, each showing the problem, the cause where known, the next step and its association with the action.
+- **Notes:** SC 3.3.1 and 3.3.3 apply to automatically detected input errors only, so for those cases AG-A11Y-1 already carries Blocker; the broader statement rests on S-13 (T4). Placement by severity (inline, tooltip, modal, banner) is S-13's model; this criterion only requires association with the affected action. Whether a transient notice may be the only record is not covered by any source read.
 
 ### AG-UNC-4 — Missing is never defaulted
 
@@ -303,7 +321,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** test, review
 - **Max severity:** High
 - **Evidence:** Test that withholds access or data and shows the missing-state presentation with its resolution path, not an empty or default value.
-- **Notes:** No source states this directly. It applies the validity principle (a displayed value must be what the system actually knows) and the S-13 error pattern. S-07 was removed (summary-only).
+- **Notes:** No source states this directly. It applies the validity principle (a displayed value must be what the system actually knows) and the S-13 error pattern.
 
 ## Over time
 
@@ -351,25 +369,25 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** review
 - **Max severity:** High
 - **Evidence:** Screenshot and accessibility tree of a surface mixing AI-generated, user and system-verified content, showing each origin marked.
-- **Notes:** Lowered from Blocker. Art. 50(2) obliges providers to mark synthetic output in a machine-readable form; it does not require the three-way distinction between AI, user and verified content in an interface. That distinction rests on S-06 (provenance), S-11 and S-13.
+- **Notes:** Art. 50(2) obliges providers to mark synthetic output in a machine-readable form; it does not require the three-way distinction between AI, user and verified content in an interface. That distinction rests on S-06 (provenance), S-11 and S-13, hence High.
 
 ### AG-ID-2 — Untrusted content is inert
 
-- **Statement:** Model output and retrieved or user-supplied content render as inert text: no active markup, auto-loaded remote resources or controls, and nothing that can imitate system UI or a decision surface.
-- **Sources:** S-06 (ASI01 Prevention 1 and 6, treat natural-language inputs as untrusted and sanitize; ASI02 Prevention 4, treat model output as untrusted; ASI09 Prevention 7 and 8, separate preview from effect, differentiate high-risk cues)
+- **Statement:** Model output and retrieved or user-supplied content render as inert text: no active markup, no auto-loaded remote resources or controls, and no network or state-changing call from a preview.
+- **Sources:** S-06 (ASI01 Prevention 1 and 6, treat natural-language inputs as untrusted and sanitize; ASI02 Prevention 4, treat model output as untrusted; ASI09 Prevention 7, separate preview from effect; ASI09 Example scenario 6, consent laundering through read-only previews)
 - **Enforcement:** test
 - **Max severity:** Blocker
-- **Evidence:** Test that renders hostile content (markup, remote resource references, fake controls, a lookalike decision panel) and shows that it appears as inert text, with no network request or active element.
-- **Notes:** S-06 (ASI01, ASI02) requires treating such inputs and outputs as untrusted; ASI09 (Prevention 7) forbids network or state-changing calls from a preview. The rendering rules are the interface-level application of those requirements.
+- **Evidence:** Test that renders hostile content (markup, remote resource references, a preview that would call an endpoint) and shows that it appears as inert text, with no network request, state change or active element.
+- **Notes:** S-06 (ASI01, ASI02) requires treating such inputs and outputs as untrusted; ASI09 (Prevention 7, scenario 6) forbids network or state-changing calls from a preview. Imitation of system UI is in AG-ID-6.
 
 ### AG-ID-3 — Identity and connection are not model-chosen
 
-- **Statement:** The acting identity, credentials and connection are chosen by system policy and never selected by model output; the identity in use is shown to the user.
-- **Sources:** S-06 (ASI03 Prevention 3 and 5, per-action authorization and bound intent; ASI02 Prevention 4 and 7, policy enforcement and fail closed on ambiguous resolution), S-10 (Core: connections are transparent)
+- **Statement:** The acting identity, credentials and connection are chosen by system policy and never selected by model output.
+- **Sources:** S-06 (ASI03 Prevention 3 and 5, per-action authorization and bound intent; ASI02 Prevention 4 and 7, policy enforcement and fail closed on ambiguous resolution)
 - **Enforcement:** test
 - **Max severity:** Blocker
-- **Evidence:** Test showing that a model-supplied identity or connection name is ignored or rejected, and a screenshot of the identity and connection shown for an action.
-- **Notes:** The "shown to the user" clause rests on S-10 (T3).
+- **Evidence:** Test showing that a model-supplied identity or connection name is ignored or rejected.
+- **Notes:** Display of the identity and connection is in AG-ID-5.
 
 ### AG-ID-4 — No secrets in the client
 
@@ -378,7 +396,25 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** test
 - **Max severity:** High
 - **Evidence:** Scan of the client bundle, network traffic, console output, URLs and browser storage for secret material after a full session.
-- **Notes:** Lowered from Blocker. The sources support protecting credentials and keeping them short-lived; they do not name URLs, client logs or browser storage. Those specifics are an application of the principle.
+- **Notes:** The sources support protecting credentials and keeping them short-lived; they do not name URLs, client logs or browser storage. Those specifics are an application of the principle, hence High.
+
+### AG-ID-5 — Acting identity is shown
+
+- **Statement:** The acting identity and connection used for an action are shown to the user.
+- **Sources:** S-10 (Core: knowledge, tools and connections are transparent)
+- **Enforcement:** review
+- **Max severity:** High
+- **Evidence:** Screenshot of the identity and connection shown for an action.
+- **Notes:** S-10 is T3, hence High.
+
+### AG-ID-6 — Content cannot imitate system UI
+
+- **Statement:** Model or retrieved content cannot imitate system UI or a decision surface.
+- **Sources:** S-06 (ASI09 Prevention 8, Human-factors and UI safeguards)
+- **Enforcement:** test
+- **Max severity:** High
+- **Evidence:** Test that renders content styled as system chrome, a control or a decision panel and shows it is visibly distinct from the real surface.
+- **Notes:** This is an application of S-06 (ASI09 Prevention 8: visually differentiate high-risk recommendations); the source does not name content imitating system UI, hence High.
 
 ## Accessibility
 
@@ -398,16 +434,16 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** test
 - **Max severity:** Blocker
 - **Evidence:** Keyboard and accessibility-tree test for each component type: roles, states, focus on open, focus return on close, and Escape behavior where the pattern defines it.
-- **Notes:** The APG page for the modal dialog says focus moves into the dialog on open and returns to the invoking element on close, and describes non-modal dialogs by contrast; it has no separate non-modal pattern. APG is authoring guidance rather than a conformance requirement, so a deviation that leaves WCAG SC 2.1.1 and 4.1.2 satisfied should be rated by its effect.
+- **Notes:** The APG page for the modal dialog says focus moves into the dialog on open and returns to the invoking element on close, and describes non-modal dialogs by contrast; it has no separate non-modal pattern. APG is authoring guidance rather than a conformance requirement, so a deviation that leaves AG-A11Y-1 satisfied should be rated by its effect.
 
-### AG-A11Y-3 — Reflow, resize and user preferences
+### AG-A11Y-3 — Reflow and resize
 
-- **Statement:** Surfaces reflow at 320 CSS px without loss of information or functionality, support text resize to 200 percent without loss, and let motion animation triggered by interaction be disabled.
-- **Sources:** S-01 (SC 1.4.10 Reflow, SC 1.4.4 Resize Text, SC 2.3.3 Animation from Interactions)
+- **Statement:** Surfaces reflow at 320 CSS px without loss of information or functionality, and support text resize to 200 percent without loss.
+- **Sources:** S-01 (SC 1.4.10 Reflow, SC 1.4.4 Resize Text)
 - **Enforcement:** test
 - **Max severity:** Blocker
-- **Evidence:** Screenshots at 320 CSS px and at 200 percent text size for each surface, and a test showing the control or setting that disables interaction-triggered motion.
-- **Notes:** SC 1.4.10 and 1.4.4 are Level AA. SC 2.3.3 is Level AAA, so a violation of the motion clause alone is rated at most High. Support for forced-colours modes was removed from the statement because no source read supports it; treat it as guidance.
+- **Evidence:** Screenshots at 320 CSS px and at 200 percent text size for each surface.
+- **Notes:** SC 1.4.10 and 1.4.4 are Level AA. Motion is in AG-A11Y-5. Forced-colours support is guidance; no source read supports it.
 
 ### AG-A11Y-4 — Not colour alone; sufficient contrast
 
@@ -415,7 +451,16 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Sources:** S-01 (SC 1.4.1 Use of Color, SC 1.4.3 Contrast (Minimum), SC 1.4.11 Non-text Contrast, SC 2.4.11 Focus Not Obscured (Minimum))
 - **Enforcement:** test
 - **Max severity:** Blocker
-- **Evidence:** Contrast measurements for text, non-text components and states, a check of each status indicator without colour, and a keyboard pass showing focus is visible on each step.
+- **Evidence:** Contrast measurements for text, non-text components and states, a check of each status indicator without colour, and a keyboard pass showing focus is not entirely hidden on each step.
+
+### AG-A11Y-5 — Motion can be disabled
+
+- **Statement:** Motion animation triggered by interaction can be disabled.
+- **Sources:** S-01 (SC 2.3.3 Animation from Interactions)
+- **Enforcement:** test
+- **Max severity:** High
+- **Evidence:** A test showing the control or setting that disables interaction-triggered motion.
+- **Notes:** SC 2.3.3 is Level AAA, so it is a design bar rather than an AA requirement.
 
 ## Enterprise use
 
@@ -426,7 +471,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** test, review
 - **Max severity:** High
 - **Evidence:** Screens for at least two roles with differing permissions, showing the absent or explained actions, and a test that no enabled control fails with a permission error.
-- **Notes:** S-14 supports restricting what users see or do by job function. The rule that an action is never enabled and then failing is this standard's application. S-07 was removed (summary-only). S-14 is T4; High is allowed without a T1 or T2 source.
+- **Notes:** S-14 supports restricting what users see or do by job function. The rule that an action is never enabled and then failing is this standard's application. S-14 is T4; High is the cap without a T1 or T2 source.
 
 ### AG-ENT-2 — Efficiency with learnability
 
@@ -435,7 +480,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** review
 - **Max severity:** Medium
 - **Evidence:** Step counts for the most frequent tasks, a list of icon-only controls with their label or tooltip, and the contextual help available on a sample of screens.
-- **Notes:** Keyboard-operable paths and accessible names for icon-only controls are removed here and covered by AG-A11Y-1. S-14 also warns that unnecessary confirmation costs time; that does not relax AG-APPR-4 for consequential actions. S-07 was removed (summary-only).
+- **Notes:** Keyboard-operable paths and accessible names for icon-only controls are covered by AG-A11Y-1. S-14 also warns that unnecessary confirmation costs time; that does not relax AG-APPR-4 for consequential actions.
 
 ### AG-ENT-3 — Consistent across placements
 
@@ -444,7 +489,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** test, review
 - **Max severity:** Medium
 - **Evidence:** The same task performed in each placement, showing the same components, labels and states.
-- **Notes:** S-14 is T4, hence Medium. S-07 was removed (summary-only).
+- **Notes:** S-14 is T4, hence Medium.
 
 ### AG-ENT-4 — Long content
 
@@ -453,7 +498,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** test
 - **Max severity:** Medium
 - **Evidence:** Screenshots with pseudo-localized strings and a long identifier at 320 CSS px.
-- **Notes:** "All copy is localizable" was removed from the statement because no source read supports it; treat it as guidance. S-07 was removed (summary-only).
+- **Notes:** "All copy is localizable" is guidance; no source read supports it.
 
 ## Social context
 
