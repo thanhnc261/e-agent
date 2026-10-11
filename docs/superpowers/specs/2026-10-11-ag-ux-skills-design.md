@@ -202,6 +202,7 @@ Any candidate system, including the v4 mockup system, is adopted only if it pass
 - Labelled sample data.
 
 Errata (2026-10-11): in the AG-APPR row, "Consequences conveyed before action (G16)" was corrected to "(S-06 ASI02 P2, ASI09 P7)"; G16 concerns conveying how user actions affect the system's future behaviour.
+Errata (2026-10-11): the grouping of `standard.md` follows the Human-AI Guidelines' phases, but it was not confirmed against the CHI paper body, which could not be read. Re-check it when the paper is readable.
 
 ## 6. Action skills
 
