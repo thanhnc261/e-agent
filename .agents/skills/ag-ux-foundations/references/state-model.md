@@ -2,12 +2,14 @@
 
 A product conforms to this model by mapping each of its own task states to the normative states below. Each mapping is dated, so a later reader can tell which product version it describes. One product state may map to only one normative state; a product state that would span two (for example "approved" meaning both decided and executing) must be split before it conforms.
 
+A Forbidden item is enforced through the criteria listed for its state. Items tagged "(model rule)" are this model's design guidance, capped at Medium unless a listed criterion covers them.
+
 ### Ready
 
 - **User need:** Know what the agent can do here
 - **Presentation:** Capability and limits statement, a few admitted examples, composer
 - **Allowed actions:** Start a task; open settings
-- **Forbidden:** Empty dashboards; claims of unmeasured quality
+- **Forbidden:** Claims of unmeasured quality
 - **Criteria:** AG-DISC-1, AG-DISC-2, AG-DISC-3, AG-CTX-1
 
 ### Working
@@ -15,7 +17,7 @@ A product conforms to this model by mapping each of its own task states to the n
 - **User need:** Know work is active and whether to intervene
 - **Presentation:** Plain-language state and real milestones; expandable activity
 - **Allowed actions:** Stop; continue other work
-- **Forbidden:** Simulated progress or ETA; invented activity text
+- **Forbidden:** Simulated progress; invented activity text
 - **Criteria:** AG-STAT-1, AG-STAT-2, AG-CTRL-1
 
 ### Needs input
@@ -38,7 +40,7 @@ A product conforms to this model by mapping each of its own task states to the n
 
 - **User need:** Understand purpose, impact and the exact change
 - **Presentation:** Business summary above the exact action and every material term
-- **Allowed actions:** Approve with explicit confirmation; reject; ask
+- **Allowed actions:** Approve with confirmation proportional to risk (AG-APPR-4); reject; ask
 - **Forbidden:** Hidden material terms; default-focused or pre-selected approve
 - **Criteria:** AG-APPR-1, AG-APPR-2, AG-APPR-3, AG-APPR-4, AG-APPR-8
 
@@ -55,7 +57,7 @@ A product conforms to this model by mapping each of its own task states to the n
 - **User need:** Know nothing was executed
 - **Presentation:** Rejection recorded; next options
 - **Allowed actions:** Revise; start new task
-- **Forbidden:** Silent retry of the rejected action
+- **Forbidden:** Silent retry of the rejected action (model rule)
 - **Criteria:** AG-CTRL-4
 
 ### Executing
@@ -87,7 +89,7 @@ A product conforms to this model by mapping each of its own task states to the n
 - **User need:** Know what failed and what to do
 - **Presentation:** Problem, cause where known and authorized next step, as text tied to the affected action and kept visible until dismissed
 - **Allowed actions:** Retry only where safe; revise; escalate
-- **Forbidden:** Toast-only failure; raw traces (design rules of this model)
+- **Forbidden:** Toast-only failure (model rule); raw traces (model rule)
 - **Criteria:** AG-UNC-3
 
 ### Cancelled or stopped

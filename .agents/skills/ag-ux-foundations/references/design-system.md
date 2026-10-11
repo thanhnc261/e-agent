@@ -45,16 +45,16 @@ A candidate design system is adopted only if it meets these requirements. Each c
 - **Enforcement:** test, review
 - **Max severity:** Blocker
 - **Evidence:** Grayscale or colour-blind-simulated screenshots of every status and severity level showing each is still distinguishable; accessibility-tree output showing the text alternative.
-- **Notes:** SC 1.4.1 says colour is not used as the only visual means of conveying information, indicating an action, prompting a response or distinguishing a visual element.
+- **Notes:** SC 1.4.1 says colour is not used as the only visual means of conveying information, indicating an action, prompting a response or distinguishing a visual element. See also AG-A11Y-4.
 
 ### AG-DS-6 — Motion with reduced alternatives
 
-- **Statement:** Motion durations and easings are tokens; motion triggered by interaction can be disabled through a reduced-motion alternative; automatic motion that lasts more than five seconds has a pause, stop or hide mechanism; no essential information is conveyed only by animation.
-- **Sources:** S-01 (SC 2.3.3 Animation from Interactions; SC 2.2.2 Pause, Stop, Hide), S-17 (8.5 Duration)
+- **Statement:** Motion durations and easings are tokens; motion triggered by interaction can be disabled through a reduced-motion alternative; no essential information is conveyed only by animation.
+- **Sources:** S-01 (SC 2.3.3 Animation from Interactions), S-17 (8.5 Duration)
 - **Enforcement:** test
 - **Max severity:** High
-- **Evidence:** Test run with the reduced-motion preference on, showing each animation removed or replaced; list of motion tokens; check of any moving or auto-updating element for a pause control.
-- **Notes:** SC 2.3.3 is Level AAA and SC 2.2.2 is Level A, so this criterion is capped at High rather than Blocker. SC 2.2.2 applies to moving, blinking, scrolling or auto-updating information that starts automatically, lasts more than five seconds and is presented in parallel with other content, unless essential. S-17 defines a duration token type. The rule on essential information follows from the essential exceptions in both criteria and is a design inference.
+- **Evidence:** Test run with the reduced-motion preference on, showing each animation removed or replaced; list of motion tokens.
+- **Notes:** SC 2.3.3 is Level AAA, so this criterion is capped at High rather than Blocker. S-17 defines a duration token type. The rule on essential information follows from the essential exception in SC 2.3.3 and is a design inference. See also AG-A11Y-1 for automatic motion that lasts more than five seconds (SC 2.2.2 Pause, Stop, Hide, Level A, part of AA conformance).
 
 ### AG-DS-7 — Consistent status scale
 

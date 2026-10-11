@@ -15,6 +15,10 @@ Each criterion is a block with a heading `### AG-<GROUP>-<n> — <title>` and th
 
 Severity rule: `Blocker` requires at least one cited source of tier T1 (normative or governance) or T2 (research-grade human-AI guidelines). A criterion supported only by T3 or T4 sources is capped at `High`. A criterion must also cite at least one source read at `full` or `partial` level; a `summary-only` source never stands alone.
 
+Multiple criteria: a finding cites every criterion it violates. Its severity may go up to the highest Max severity among the cited criteria. A violation of a product's binding requirement may be rated Blocker regardless of the AG cap.
+
+Grouping: the criteria are grouped by the phases of the Human-AI Guidelines (S-08: initially, during interaction, when wrong, over time), extended with groups for the trust boundary, accessibility and enterprise use. The CHI paper body was not read, so the grouping is not confirmed against it.
+
 ## Conflict rules
 
 Sources are ranked in this order: a product's binding requirements (accepted architecture decisions, repository rules and explicit owner decisions); then T1; T2; T3; T4. The current state of a product's interface is an audit target, never a source of criteria.
@@ -72,7 +76,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** review
 - **Max severity:** High
 - **Evidence:** Walkthrough from a work screen to the agent showing the open item already attached, with no field the user must retype.
-- **Notes:** S-15 was not re-verified in this session (the page returned HTTP 403); its citation rests on the earlier full reading recorded in `sources.md`. S-08 (G4) and S-10 support the criterion independently.
+- **Notes:** S-15 (embed in workflows) is supported by the full reading recorded in `sources.md`. S-08 (G4) and S-10 also support the criterion independently.
 
 ### AG-CTX-2 — Proactivity timed and actionable
 
@@ -99,7 +103,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** review
 - **Max severity:** High
 - **Evidence:** For each progress or activity element, the event that drives it; confirmation that no timer-driven, looping or placeholder progress exists.
-- **Notes:** This is an inference from the sources: they require that overseers can monitor operation and that information about the system be available, but neither names simulated progress, so severity is High. "Estimated times" was removed from the statement because no cited source supports it. A product's binding requirements may still make this non-negotiable. A pattern-library page on status and activity (S-13) was considered and dropped: its watch-out note concerns over-frequent updates creating false urgency, not simulated progress.
+- **Notes:** This is an inference from the sources: they require that overseers can monitor operation and that information about the system be available, but neither names simulated progress, so severity is High. The statement covers progress and activity text only; no cited source addresses estimated times. A product's binding requirements may still make this non-negotiable.
 
 ### AG-STAT-3 — Staleness is distinct
 
@@ -117,7 +121,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** test
 - **Max severity:** Blocker
 - **Evidence:** Accessibility-tree or screen-reader capture showing the status message role or live region for each state change, and a check that focus did not move.
-- **Notes:** Two further clauses (announce politely; do not announce streamed text token by token) are design practice not yet supported by a source read at the needed depth: the ARIA live-region material was read only at pattern-title level and the SC 4.1.3 normative text was not re-read. They are held out of the statement until a full read. Blocker rests on S-01 (T1) with title-level support only.
+- **Notes:** The statement rests on the normative text of SC 4.1.3 (S-01, read per `sources.md`), which requires that status messages can be programmatically determined through role or properties and presented without receiving focus. Two further clauses (announce politely; do not announce streamed text token by token) are design practice that no source read here supports, so they are not part of the statement.
 
 ## Control and oversight
 
@@ -169,11 +173,11 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 ### AG-APPR-1 — Exact consequential action
 
 - **Statement:** Before any consequential action, the user sees the exact action: target system and resource, operation, every material value, consequences and reversibility.
-- **Sources:** S-08 (G16), S-06 (ASI02 Prevention 2, Action-Level Authentication and Approval; ASI09 Prevention 7, expected side effects), S-03 (Art. 14(4)(c)), S-13 (Approval Queues & Escalation Chains: decision-ready context packages)
+- **Sources:** S-06 (ASI02 Prevention 2, Action-Level Authentication and Approval; ASI09 Prevention 7, expected side effects), S-03 (Art. 14(4)(c)), S-13 (Approval Queues & Escalation Chains: decision-ready context packages)
 - **Enforcement:** test, review
 - **Max severity:** Blocker
 - **Evidence:** Screenshot or DOM of the decision surface showing each element (target system and resource, operation, each material value, consequences, reversibility); conformance test name if automated.
-- **Notes:** S-06 (ASI02) says to display a pre-execution plan or dry-run diff before high-impact actions are approved. S-08 (G16) supports conveying consequences. The reversibility flag and the diff come from S-13 (T4), which lists "summary, diff, financial impact, reversibility flag". Art. 14(4)(c) supports correct interpretation of output in general, not this list. The itemised fields are this standard's application of those sources.
+- **Notes:** S-06 (ASI02) says to display a pre-execution plan or dry-run diff before high-impact actions are approved. S-06 (ASI09 Prevention 7) supports showing expected side effects. The reversibility flag and the diff come from S-13 (T4), which lists "summary, diff, financial impact, reversibility flag". Art. 14(4)(c) supports correct interpretation of output in general, not this list. The itemised fields are this standard's application of those sources.
 
 ### AG-APPR-2 — One decision, one exact action
 
@@ -278,7 +282,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 
 ### AG-EXPL-4 — Calibrated uncertainty only
 
-- **Statement:** Uncertainty is expressed qualitatively, or numerically only when calibrated against measured accuracy.
+- **Statement:** Uncertainty is expressed qualitatively, or numerically only when calibrated against measured accuracy and chosen through an explicit, recorded decision.
 - **Sources:** S-08 (G2), S-10 (Core: embrace uncertainty), S-06 (ASI09 Prevention 5, confidence-weighted cues), S-13 (confidence-visualization-patterns: don'ts, show false precision; calibration with historical accuracy)
 - **Enforcement:** review
 - **Max severity:** High
@@ -425,7 +429,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 - **Enforcement:** test, review
 - **Max severity:** Blocker
 - **Evidence:** Automated and manual WCAG 2.2 AA check results for each state, with the list of states covered.
-- **Notes:** Conformance is defined for full pages, so a state that is part of a page is covered. A claim of conformance needs manual review as well as automated checks.
+- **Notes:** Conformance is defined for full pages, so a state that is part of a page is covered. A claim of conformance needs manual review as well as automated checks. Level A success criteria, such as SC 2.2.2 Pause, Stop, Hide for automatic motion lasting more than five seconds, are part of AA conformance.
 
 ### AG-A11Y-2 — APG interaction semantics
 

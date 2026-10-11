@@ -1,6 +1,6 @@
 # e-agent binding requirements (tier R)
 
-These requirements are binding. They come from accepted ADRs, repository rules in [AGENTS.md](../../../../AGENTS.md) and explicit owner decisions. A criterion in the standard can never weaken them, and they can be changed only through an ADR, never silently in a review or a gap audit. The current UI implementation is audited against these requirements and against the standard; the audit result is a finding, not a reason to relax either side.
+These requirements are binding. They come from accepted ADRs, repository rules in [AGENTS.md](../../../../AGENTS.md) and explicit owner decisions. A violation of any EA requirement may be rated Blocker, regardless of the AG cap on the related criterion. A criterion in the standard can never weaken them, and they can be changed only through an ADR, never silently in a review or a gap audit. The current UI implementation is audited against these requirements and against the standard; the audit result is a finding, not a reason to relax either side.
 
 Source conventions:
 
@@ -86,14 +86,16 @@ Source conventions:
 
 ## Current stack choices
 
-The generic standard in `frontend.md` names no framework, and defers the e-agent stack here. Each choice below is a current choice and can be replaced through an ADR; the audit checks it against the listed criteria, and no version is recorded.
+`frontend.md` records no current product choices; the e-agent stack is recorded here. Each choice below is a current choice and can be replaced through an ADR; the audit checks it against the listed criteria, and no version is recorded.
 
-- React: current choice, audited against AG-FE-2 and AG-FE-4.
+- React: current choice, audited against AG-FE-1, AG-FE-2 and AG-FE-4.
 - React Aria Components: current choice, audited against AG-FE-5 and AG-FE-7.
-- DTCG token compiler: current choice, audited against AG-FE-8 (and AG-DS-1, AG-DS-2 in the design-system reference).
-- Namespaced plain CSS: current choice, audited against AG-FE-6 and AG-FE-8.
-- External store (framework-free run store): current choice, audited against AG-FE-2 and AG-FE-3.
-- Hash routes: current choice, audited against AG-FE-4 and AG-FE-2.
-- Vite component gallery: current choice, audited against AG-FE-9.
-- Vitest: current choice, audited against AG-FE-9.
-- Playwright: current choice, audited against AG-FE-9 and AG-FE-7.
+- DTCG token compiler: current choice, audited against AG-DS-1 and AG-DS-6.
+- Namespaced plain CSS: current choice, audited against AG-FE-6, AG-FE-8 and AG-DS-1.
+- External store (framework-free run store): current choice, audited against AG-FE-1, AG-FE-2 and AG-FE-4.
+- Hash routes: current choice, audited against AG-FE-1 and AG-FE-10.
+- Vite component gallery: current choice, audited against AG-FE-9 and AG-DS-2.
+- Vitest: current choice, audited against AG-FE-9 and AG-FE-11.
+- Playwright: current choice, audited against AG-FE-9 and AG-FE-11.
+
+Current-state snapshot (2026-10-11, per the design spec section 7): no CSS container queries are used in `ui/`; `useContainerWidth.ts` uses ResizeObserver.

@@ -41,12 +41,12 @@ This file separates durable rules from volatile choices. Durable rules (`AG-FE-*
 
 ### AG-FE-5 — Accessible primitives
 
-- **Statement:** Interactive primitives (dialog, tabs, listbox, menu button, disclosure and similar) implement the APG pattern for their role, through a conformant library or with equivalent keyboard and role tests.
+- **Statement:** Interactive primitives (dialog, tabs, listbox, menu button, disclosure) implement the APG pattern for their role, through a conformant library or with equivalent keyboard and role tests.
 - **Sources:** S-02 (Patterns: Dialog (Modal), Tabs, Listbox, Menu Button, Disclosure; keyboard interaction and roles sections)
 - **Enforcement:** test
 - **Max severity:** Blocker
 - **Evidence:** For each primitive, the APG pattern it follows and a passing test of its keyboard interaction and roles.
-- **Notes:** Only the five pattern pages listed in `sources.md` were read; for other patterns the relevant pattern page is read before the criterion is applied.
+- **Notes:** Only the five pattern pages listed in `sources.md` were read; for other patterns the relevant pattern page is read before the criterion is applied. See also AG-A11Y-2.
 
 ### AG-FE-6 — Container-relative layout
 
@@ -91,7 +91,7 @@ This file separates durable rules from volatile choices. Durable rules (`AG-FE-*
 - **Enforcement:** test
 - **Max severity:** High
 - **Evidence:** Inspection of URLs, local and session storage, IndexedDB, cookies and outgoing telemetry payloads after a representative task, showing none contains secrets or task text.
-- **Notes:** ASI03 concerns agents that cache credentials or retrieved data and leak them across tasks or users, and recommends short-lived scoped tokens and per-session isolation. Applying this to URLs, browser storage and telemetry is an extension of that reasoning, not a statement in the source.
+- **Notes:** ASI03 concerns agents that cache credentials or retrieved data and leak them across tasks or users, and recommends short-lived scoped tokens and per-session isolation. Applying this to URLs, browser storage and telemetry is an extension of that reasoning, not a statement in the source. See also AG-ID-4.
 
 ### AG-FE-11 — Responsiveness budget
 
@@ -109,7 +109,7 @@ This file separates durable rules from volatile choices. Durable rules (`AG-FE-*
 - **Enforcement:** test
 - **Max severity:** High
 - **Evidence:** Test in which the client holds an unverified result and the response omits the verified field, showing the result renders as unverified.
-- **Notes:** ASI09 recommends visual cues such as "unverified source" to reduce blind approval. That the marker be server-derived is a design consequence of AG-FE-1 and is not stated in ASI09.
+- **Notes:** ASI09 recommends visual cues such as "unverified source" to reduce blind approval. That the marker be server-derived is a design consequence of AG-FE-1 and is not stated in ASI09. See also AG-APPR-6.
 
 ### AG-FE-13 — Unknown shapes fail visibly
 
@@ -118,7 +118,7 @@ This file separates durable rules from volatile choices. Durable rules (`AG-FE-*
 - **Enforcement:** test
 - **Max severity:** High
 - **Evidence:** Contract tests that feed unknown enum values, missing fields and wrong types, showing the rendered unsupported state, and a check that no code path defaults a missing permission to granted.
-- **Notes:** S-18 says that where JSON Schema leaves behaviour to the application, the application consuming the document defines the semantics, so handling of unlisted shapes is the client's responsibility. The explicit unsupported state is a design requirement on top of that.
+- **Notes:** S-18 says that where JSON Schema leaves behaviour to the application, the application consuming the document defines the semantics, so handling of unlisted shapes is the client's responsibility. The explicit unsupported state is a design requirement on top of that. See also AG-UNC-4.
 
 ## Stack decisions
 
