@@ -124,6 +124,19 @@ def test_claude_link_wrong_target(tmp_path):
     assert any("does not resolve to .agents/skills/ag-ux-foundations" in m for m in messages(root))
 
 
+def test_orphan_claude_link_is_reported(tmp_path):
+    root = make_repo(tmp_path)
+    os.symlink("../../.agents/skills/ag-gone", root / ".claude/skills" / "ag-gone")
+    expected = "orphan link .claude/skills/ag-gone has no source skill"
+    assert any(expected in m for m in messages(root))
+
+
+def test_non_ag_claude_entries_are_ignored(tmp_path):
+    root = make_repo(tmp_path)
+    (root / ".claude/skills" / "other-skill").mkdir()
+    assert messages(root) == []
+
+
 def test_broken_relative_link(tmp_path):
     root = make_repo(tmp_path, extra={"metrics.md": "# M\n\nSee [x](missing.md).\n"})
     assert any("broken link 'missing.md'" in m for m in messages(root))

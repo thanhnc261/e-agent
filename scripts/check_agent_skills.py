@@ -282,6 +282,13 @@ def check(root: Path) -> list[Problem]:
         return [Problem(".", "no .agents/skills directory")]
     skills = sorted(p for p in skills_dir.iterdir() if p.is_dir() and p.name.startswith("ag-"))
     total = sum(_check_skill(root, s, problems) for s in skills)
+    claude_dir = root / ".claude" / "skills"
+    if claude_dir.is_dir():
+        names = {s.name for s in skills}
+        for entry in sorted(claude_dir.iterdir()):
+            if entry.name.startswith("ag-") and entry.name not in names:
+                where = _rel(root, entry)
+                problems.append(Problem(where, f"orphan link {where} has no source skill"))
     if total > MAX_TOTAL_DESCRIPTION:
         problems.append(
             Problem(
