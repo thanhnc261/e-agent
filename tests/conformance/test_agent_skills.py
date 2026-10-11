@@ -267,6 +267,18 @@ def test_neutrality_covers_subdirectories(tmp_path):
     assert any("references/sub/x.md: product term 'Odoo'" in m for m in messages(root))
 
 
+def test_product_term_not_matched_inside_words(tmp_path):
+    text = "# P\n\nSee single-agent and realtime-voice-agents.\n"
+    root = make_repo(tmp_path, extra={"patterns.md": text})
+    assert not any("product term" in m for m in messages(root))
+
+
+@pytest.mark.parametrize("text", ["e-agent", "E-Agent", "(e_agent)"])
+def test_product_term_at_word_start_is_reported(tmp_path, text):
+    root = make_repo(tmp_path, extra={"patterns.md": f"# P\n\nAs in {text}.\n"})
+    assert any("product term" in m for m in messages(root))
+
+
 @pytest.mark.parametrize(
     "description", ["Use when: x", "> folded", "| literal", "'quoted'", '"quoted"', "Use # no"]
 )

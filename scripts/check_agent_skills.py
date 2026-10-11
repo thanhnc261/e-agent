@@ -48,7 +48,8 @@ STATES = (
 )
 STATE_FIELDS = ("User need", "Presentation", "Allowed actions", "Forbidden", "Criteria")
 PRODUCT_RE = re.compile(
-    r"e-agent|e_agent|Odoo|ApprovalPresentation|RunState|ActionState", re.IGNORECASE
+    r"(?<![A-Za-z0-9])e[-_]agent|Odoo|ApprovalPresentation|RunState|ActionState",
+    re.IGNORECASE,
 )
 PRODUCT_FILE = "e-agent.md"
 AGENT_TERMS = ("WebFetch", "WebSearch", "apply_patch", "$ag-", "Bash tool")
