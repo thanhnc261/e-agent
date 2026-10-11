@@ -11,7 +11,7 @@ This skill turns a selected mockup, or an in-scope design, into production UI co
 
 - Requires an owner-selected mockup (from [ag-ux-mockup](../ag-ux-mockup/SKILL.md)) or a change inside an already approved design.
 - A change to an API contract, approval presentation, run-event stream or layer boundary needs an accepted decision record (ADR) first. Stop and propose one.
-- Read [ag-ux-foundations](../ag-ux-foundations/SKILL.md) first. Build to the AG criteria and the binding requirements EA-1 to EA-16. On conflict, binding requirements win, and [frontend.md](../ag-ux-foundations/references/frontend.md) (AG-FE) wins over any other guide.
+- Read [ag-ux-foundations](../ag-ux-foundations/SKILL.md) first. Build to the AG criteria and every binding requirement in `e-agent.md`. On conflict, binding requirements win, and [frontend.md](../ag-ux-foundations/references/frontend.md) (AG-FE) wins over any other guide.
 - The repository's frontend guide (`docs/frontend-development-guide.md`) describes the intended layering. Its folder tree is illustrative: inspect the actual tree, and never assume example names. Treat its section on the default visual foundation as paused, not as a spec to implement.
 - The server is authoritative (EA-1, AG-FE-1, AG-FE-12). Every name, explanation, progress milestone and outcome comes from server data through `ui-core` selectors. When data is missing, show the limitation (AG-UNC-4, EA-8); never invent it.
 - Never copy mockup prototype code, fixture state or scenario logic into production packages.
@@ -41,15 +41,21 @@ This skill turns a selected mockup, or an in-scope design, into production UI co
    - `pnpm conformance` (browser contract suite).
 
    Report the real output, including failures and skips. Never report counts from earlier runs.
-5. **Review.** Run [ag-ux-review](../ag-ux-review/SKILL.md) in review mode on the diff and the running UI. Resolve the findings, or record them in `REVIEW-RESOLUTION.md`.
+5. **Review.**
+   - Run [ag-ux-review](../ag-ux-review/SKILL.md) in review mode on the diff and the running UI. That review's own stop gate binds the reviewer, not you.
+   - As the implementer, you then fix the findings and answer each one in `REVIEW-RESOLUTION.md` (the review skill's resolution template), re-running the checks.
 6. **Close the loop.**
-   - Update the matching gap-audit entries.
+   - Append dated entries to the "Resolution log" of the relevant gap audit, naming the finding, the commit and the evidence. Never edit its scores.
    - If layer ownership or a public contract changed, update `docs/ui-architecture.md` in the same change.
 
-## Done means
+## Before handing off
 
-All of these hold:
-- the tests for the touched criteria exist and pass;
-- `pnpm check` and `pnpm conformance` pass;
-- the review has no open Blocker or High;
-- the limits are stated (no real assistive-technology, device or user testing, unless it was done).
+- [ ] Tests for every touched criterion exist and pass. They were written before the code.
+- [ ] `pnpm check` and `pnpm conformance` pass on this revision. Their real output is in the handoff.
+- [ ] The review has no open Blocker or High. Every finding has a resolution entry.
+- [ ] No mockup prototype code, fixture state or invented data reached `ui/`.
+- [ ] The limits are stated: no real assistive-technology, device or user testing, unless it was done.
+
+## Stop gate
+
+The owner reviews the change before it is merged. Do not merge, release or start the next design stage on your own.

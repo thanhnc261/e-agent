@@ -33,8 +33,17 @@ A brief fixes what is being designed and how it will be judged, before anyone dr
    - Say what a browser check will verify (mechanics only).
 8. **List open questions** that only the owner can answer.
 
-Write the result as `research/NN-<topic>.md` with status "candidate", using the [template](templates/brief.md). NN is the next free research number. Check `research/README.md` and every file in `research/`, including uncommitted ones in the owner's checkout. A clean worktree may lack the newest studies.
+Write the result as `research/NN-<topic>.md` with status "candidate", using the [template](templates/brief.md). NN is the next free research number. Check `research/README.md` and every file in `research/`, including uncommitted ones in the owner's main checkout. `git worktree list` shows that checkout's path. A clean worktree may lack the newest studies.
+
+## Before handing off
+
+- [ ] The request is quoted verbatim, and every assumption is marked as an assumption.
+- [ ] Every in-scope normative state has a user need and its criteria, cited by ID and not restated.
+- [ ] Every current-state claim cites evidence: a gap-audit finding, file:line, or "no audit yet".
+- [ ] There are 2–3 directions with trade-offs, and one recommendation.
+- [ ] The evaluation separates metrics (people) from browser checks (mechanics).
+- [ ] Open questions are listed. The Approval section reads "pending" unless the owner has approved.
 
 ## Stop gate
 
-The owner approves the brief. An explicit owner instruction to continue from brief to mockup counts as approval of the recommended direction; record it in the brief.
+The owner approves the brief. Approval must name this brief, or the specific design it covers, and the chosen direction. A general instruction to keep working is not approval. Record the approval verbatim in the Approval section.

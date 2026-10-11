@@ -24,7 +24,7 @@ Date: <YYYY-MM-DD>.
 
 | Requirement | Result | Evidence |
 |---|---|---|
-| EA-12 to EA-16, AG-DS-1 to AG-DS-7 | <score> | <where> |
+| <each AG-DS criterion and each design-system requirement in e-agent.md, one row per ID> | <score> | <where> |
 
 ## Screenshots inspected
 

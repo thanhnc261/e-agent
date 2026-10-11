@@ -54,3 +54,7 @@ Top gaps, by severity: <three to five lines that cite IDs>.
 ## Limits
 
 <From rubric §6.>
+
+## Resolution log
+
+<Append-only. Later work adds dated entries here, for example "YYYY-MM-DD — F-3 resolved in <commit>, <evidence>". The scores above are never edited; a new audit supersedes this one.>

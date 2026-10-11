@@ -1,6 +1,6 @@
 # `ag-*` enterprise agentic UI/UX skills: design
 
-**Date:** 2026-10-11. **Status:** approved by the owner 2026-10-11. **Implementation status:** phase 1 (`ag-ux-foundations`) implemented on branch feat/ag-ux-foundations; phases 2–5 not started.
+**Date:** 2026-10-11. **Status:** approved by the owner 2026-10-11. **Implementation status:** phase 1 (`ag-ux-foundations`) merged 2026-10-11. Phases 2–4 (`ag-ux-review`, `ag-ux-brief`, `ag-ux-mockup`, `ag-ui-implement`) were written 2026-10-11 from §6 under the owner's /goal, without separate plans; evidence in [the scenarios file](2026-10-11-ag-ux-skills-scenarios.md). Phase 5 (guide alignment) is deferred because the guide is an uncommitted owner file.
 
 ## 1. Intent and direction of authority
 

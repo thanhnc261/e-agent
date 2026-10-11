@@ -18,9 +18,9 @@ A `partial` or `missing` score produces a finding. A `conflict` produces a decis
 
 ## 2. Order of checking
 
-1. **Binding requirements first.** Score `EA-1` to `EA-16`. A violation may be rated Blocker, regardless of any AG cap.
+1. **Binding requirements first.** Score every requirement in `e-agent.md`. A violation may be rated Blocker, regardless of any AG cap.
 2. **Criteria by Enforcement field:**
-   - `gate` or `test`: confirm the check exists and was run on this revision. Record the command and its result. If no check exists, score from inspection and add a finding that the automated check is missing.
+   - `gate` or `test`: confirm the check exists and was run on this revision. Record the command and its result. If no check exists, score from inspection. Record the missing automated check under Limits; it is not a finding on its own.
    - `review`: inspect in depth across viewports, themes and keyboard use. These criteria are where reviewers add the most value.
 3. **State coverage.** Every normative state relevant to the artifact must be reachable. Check the Forbidden items for each state. Items tagged "(model rule)" are capped at Medium unless a listed criterion covers them.
 
@@ -52,9 +52,9 @@ A `partial` or `missing` score produces a finding. A `conflict` produces a decis
 
 These apply criteria without adding new ones. Each line names the criterion it applies.
 
-- **Hierarchy.** Is the conversation the primary surface, with the artifact in a closable workspace and no dashboard competing with it (EA-10)?
+- **Hierarchy.** Is the conversation the primary surface, with the artifact in a closable workspace and no homepage catalog competing with it (EA-10)?
 - **Disclosure.** At first interaction, is the AI disclosed, and are its capabilities and limits stated in context (AG-DISC-1, AG-DISC-2)?
-- **Stop.** Is a stop control reachable in every working and executing state, and does stopping report the status of any in-flight action (AG-CTRL-1)?
+- **Stop.** Can the user stop the agent at any time, and does stopping report the status of any in-flight action (AG-CTRL-1)?
 - **Decision surface.**
   - Is the exact action shown? (AG-APPR-1)
   - Are material terms visible without expansion? (AG-APPR-3)
@@ -63,10 +63,13 @@ These apply criteria without adding new ones. Each line names the criterion it a
 - **Truthful outcome.**
   - Are decided, executed and verified separate? (AG-APPR-6, EA-3)
   - Does an unknown outcome offer a check, never a resend? (AG-UNC-2, EA-4)
-- **No simulation.** Is there no invented progress, ETA, reasoning or numeric confidence (AG-STAT-2, AG-EXPL-4, EA-5)?
+- **No simulation.** Check three things:
+  - no invented progress (AG-STAT-2, EA-5);
+  - no model chain-of-thought presented as explanation (AG-EXPL-1, EA-5);
+  - no uncalibrated numeric confidence (AG-EXPL-4, EA-5).
 - **Origin and trust.** Are AI content, verified facts and user content distinguishable, and does untrusted text stay inert (AG-ID-1, AG-ID-2, AG-ID-6)?
 - **Identity.** Are the acting identity and connection shown (AG-ID-5)?
-- **Design system.** Does it ship three verified themes, a density scale, forced-colours support, icon-and-text status and polite announcements (EA-12 to EA-16, AG-DS-1 to AG-DS-7)?
+- **Design system.** Score every AG-DS criterion in `design-system.md`, and every design-system requirement in `e-agent.md` (themes, density, forced colours, icon-and-text status, polite announcements).
 - **Samples.** Is sample or fixture data labelled (EA-11)?
 
 ## 6. Limits statement (always include)

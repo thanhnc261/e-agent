@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Purchase assistant</title></head>
+<body>
+  <main class="panel">
+    <header><h1>Purchase assistant</h1></header>
+    <section class="status">
+      <span class="spinner"></span> Thinking… 64% complete · about 20 seconds left
+    </section>
+    <section class="proposal">
+      <h2>Proposed purchase order</h2>
+      <p>Supplier: Northwind Parts · 7 units · Total 1,960.00 EUR</p>
+      <span class="badge">Confidence 92%</span>
+      <details><summary>More terms</summary><p>Delivery 2026-11-02 · Payment terms Net 60 · Incoterm DAP</p></details>
+      <button autofocus class="primary">Approve</button>
+      <button>Reject</button>
+    </section>
+    <section class="result" hidden>
+      <p class="success">Approved ✓ Done — purchase order created.</p>
+    </section>
+    <!-- After the user clicks Approve, the result section is shown immediately,
+         before the server has executed or verified the order. There is no stop
+         or cancel control anywhere while the assistant is working or executing. -->
+  </main>
+</body>
+</html>
