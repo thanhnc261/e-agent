@@ -203,6 +203,7 @@ Any candidate system, including the v4 mockup system, is adopted only if it pass
 
 Errata (2026-10-11): in the AG-APPR row, "Consequences conveyed before action (G16)" was corrected to "(S-06 ASI02 P2, ASI09 P7)"; G16 concerns conveying how user actions affect the system's future behaviour.
 Errata (2026-10-11): the grouping of `standard.md` follows the Human-AI Guidelines' phases, but it was not confirmed against the CHI paper body, which could not be read. Re-check it when the paper is readable.
+Owner decision 2026-10-11: the theme, density, forced-colours, icon-and-text and polite-announcement requirements of §5, softened in the neutral standard for lack of sources, remain binding for e-agent as EA-12 to EA-16.
 
 ## 6. Action skills
 

@@ -87,35 +87,35 @@ Source conventions:
 ### EA-12 — Three verified themes
 
 - **Requirement:** The UI ships light, dark and high-contrast themes, and each passes text, non-text and focus contrast.
-- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (`design-system.md` and the AG-A11Y row; owner approval 2026-10-11; owner chose to keep these binding for e-agent on 2026-10-11).
+- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
 - **Standard cross-reference:** AG-DS-2
 - **Kind:** Owner decision
 
 ### EA-13 — Density scale
 
 - **Requirement:** The UI offers a density scale (at least comfortable and compact), and compact keeps targets at or above the WCAG minimum.
-- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (`design-system.md` and the AG-A11Y row; owner approval 2026-10-11; owner chose to keep these binding for e-agent on 2026-10-11).
+- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
 - **Standard cross-reference:** AG-DS-3
 - **Kind:** Owner decision
 
 ### EA-14 — Forced colours
 
 - **Requirement:** The UI remains operable and legible in forced-colours mode (for example Windows High Contrast).
-- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (`design-system.md` and the AG-A11Y row; owner approval 2026-10-11; owner chose to keep these binding for e-agent on 2026-10-11).
-- **Standard cross-reference:** AG-A11Y-3
+- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
+- **Standard cross-reference:** none (AG-A11Y-3 Notes mention forced colours; no neutral criterion requires it)
 - **Kind:** Owner decision
 
 ### EA-15 — Icon and text pairing
 
 - **Requirement:** Status and severity indicators pair an icon with visible text; colour is never the only carrier.
-- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (`design-system.md` and the AG-A11Y row; owner approval 2026-10-11; owner chose to keep these binding for e-agent on 2026-10-11).
+- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
 - **Standard cross-reference:** AG-DS-5, AG-A11Y-4
 - **Kind:** Owner decision
 
 ### EA-16 — Polite status announcements
 
 - **Requirement:** Run-state changes are announced through a polite live region; streamed text is not announced token by token and focus is not moved.
-- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (`design-system.md` and the AG-A11Y row; owner approval 2026-10-11; owner chose to keep these binding for e-agent on 2026-10-11).
+- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
 - **Standard cross-reference:** AG-STAT-4
 - **Kind:** Owner decision
 
