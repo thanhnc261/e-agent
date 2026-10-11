@@ -59,6 +59,7 @@ def make_repo(
     (refs / "sources.md").write_text(SOURCES)
     (refs / "standard.md").write_text("# Standard\n\n## Group\n\n" + standard)
     for name, text in (extra or {}).items():
+        (refs / name).parent.mkdir(parents=True, exist_ok=True)
         (refs / name).write_text(text)
     if link:
         claude = tmp_path / ".claude" / "skills"
@@ -226,3 +227,119 @@ def test_repository_skills_conform():
     if not (REPO / ".agents" / "skills").is_dir():
         pytest.skip("skills not created yet (Task 8 removes this skip)")
     assert messages(REPO) == []
+
+
+# --- Fix round 1 (review findings 1-6) ---
+
+FULL_STATE_NAMES = (
+    "Ready",
+    "Working",
+    "Needs input",
+    "Blocked by rules",
+    "Awaiting decision",
+    "Decision invalidated",
+    "Rejected",
+    "Executing",
+    "Verifying",
+    "Outcome uncertain",
+    "Failed",
+    "Cancelled or stopped",
+    "Verified complete",
+)
+
+
+def state_block(name: str, criteria: str = "AG-TEST-1") -> str:
+    return (
+        f"### {name}\n\n- **User need:** x\n- **Presentation:** x\n"
+        f"- **Allowed actions:** x\n- **Forbidden:** x\n- **Criteria:** {criteria}\n\n"
+    )
+
+
+def test_product_terms_match_case_insensitively(tmp_path):
+    root = make_repo(tmp_path, extra={"patterns.md": "# P\n\nAs in the odoo bridge and E-Agent.\n"})
+    found = messages(root)
+    assert any("patterns.md: product term 'odoo'" in m for m in found)
+    assert any("patterns.md: product term 'E-Agent'" in m for m in found)
+
+
+def test_neutrality_covers_subdirectories(tmp_path):
+    root = make_repo(tmp_path, extra={"sub/x.md": "# X\n\nOdoo here.\n"})
+    assert any("references/sub/x.md: product term 'Odoo'" in m for m in messages(root))
+
+
+@pytest.mark.parametrize(
+    "description", ["Use when: x", "> folded", "| literal", "'quoted'", '"quoted"', "Use # no"]
+)
+def test_description_must_be_plain_scalar(tmp_path, description):
+    root = make_repo(tmp_path, description=description)
+    assert any("description must be a single plain YAML scalar" in m for m in messages(root))
+
+
+def test_unparsable_source_row(tmp_path):
+    bad = (
+        SOURCES
+        + "| S-16 | only three | cells |\n"
+        + "| S-1 | x | https://x.org | T1 | 2026-10-11 | full | |\n"
+    )
+    root = make_repo(tmp_path, extra={"sources.md": bad})
+    found = messages(root)
+    assert any("unparsable source row: | S-16 | only three | cells |" in m for m in found)
+    assert any("unparsable source row: | S-1 | x | https://x.org" in m for m in found)
+
+
+def test_duplicate_source_id(tmp_path):
+    dup = SOURCES + "| S-01 | Again | https://example.org/again | T1 | 2026-10-11 | full | |\n"
+    root = make_repo(tmp_path, extra={"sources.md": dup})
+    assert any("duplicate source S-01" in m for m in messages(root))
+
+
+def test_source_requires_url(tmp_path):
+    bad = SOURCES.replace("https://www.w3.org/TR/WCAG22/", "")
+    root = make_repo(tmp_path, extra={"sources.md": bad})
+    assert any("S-01 has no URL" in m for m in messages(root))
+
+
+def test_impossible_date_rejected(tmp_path):
+    bad = SOURCES.replace("| T1 | 2026-10-11 |", "| T1 | 2026-13-45 |")
+    root = make_repo(tmp_path, extra={"sources.md": bad})
+    assert any("S-01 accessed '2026-13-45' is not YYYY-MM-DD" in m for m in messages(root))
+
+
+@pytest.mark.parametrize("raw", ["S-1", "s-01"])
+def test_citation_must_be_canonical(tmp_path, raw):
+    crit = GOOD_CRITERION.replace("S-01 (SC 4.1.3)", f"{raw} (SC 4.1.3)")
+    root = make_repo(tmp_path, standard=crit)
+    assert any(
+        f"AG-TEST-1 citation '{raw}' is not a canonical S-nn ID" in m for m in messages(root)
+    )
+
+
+def test_duplicate_state_heading(tmp_path):
+    text = "# States\n\n" + "".join(state_block(s) for s in FULL_STATE_NAMES)
+    text += state_block("Ready")
+    root = make_repo(tmp_path, extra={"state-model.md": text})
+    assert any("duplicate state 'Ready'" in m for m in messages(root))
+
+
+def test_state_criteria_must_cite_an_ag_id(tmp_path):
+    text = "# States\n\n" + state_block("Working", criteria="none yet")
+    root = make_repo(tmp_path, extra={"state-model.md": text})
+    assert any("state 'Working' Criteria lists no AG criterion" in m for m in messages(root))
+
+
+def test_full_state_model_is_clean(tmp_path):
+    text = "# States\n\n" + "".join(state_block(s) for s in FULL_STATE_NAMES)
+    root = make_repo(tmp_path, extra={"state-model.md": text})
+    assert messages(root) == []
+
+
+def test_cli_exit_codes_and_output(tmp_path, capsys):
+    ok = make_repo(tmp_path / "ok")
+    assert cas.main(["--root", str(ok)]) == 0
+    assert capsys.readouterr().out == ""
+
+    bad = make_repo(tmp_path / "bad", extra={"patterns.md": "# P\n\nOdoo.\n"})
+    expected = messages(bad)
+    assert expected
+    assert cas.main(["--root", str(bad)]) == 1
+    assert capsys.readouterr().out.splitlines() == expected

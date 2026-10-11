@@ -8,6 +8,7 @@ Spec: docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md.
 from __future__ import annotations
 
 import argparse
+import datetime
 import re
 import sys
 from dataclasses import dataclass
@@ -19,7 +20,8 @@ MAX_TOTAL_DESCRIPTION = 2000
 CRITERION = r"AG-[A-Z0-9]+-\d+"
 DEF_RE = re.compile(rf"^### ({CRITERION}) — \S", re.M)
 REF_RE = re.compile(rf"\b({CRITERION})\b")
-CITATION_RE = re.compile(r"\b(S-\d{2})\b(\s*\([^)]+\))?")
+CITATION_RE = re.compile(r"\b([Ss]-\d+)\b(\s*\([^)]+\))?")
+CANONICAL_SOURCE_RE = re.compile(r"S-\d{2}")
 LINK_RE = re.compile(r"\]\(([^)\s]+)\)")
 FIELD_RE = re.compile(r"^- \*\*([^*:]+):\*\*\s*(.*)$", re.M)
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -45,7 +47,9 @@ STATES = (
     "Verified complete",
 )
 STATE_FIELDS = ("User need", "Presentation", "Allowed actions", "Forbidden", "Criteria")
-PRODUCT_RE = re.compile(r"e-agent|e_agent|Odoo|ApprovalPresentation|RunState|ActionState")
+PRODUCT_RE = re.compile(
+    r"e-agent|e_agent|Odoo|ApprovalPresentation|RunState|ActionState", re.IGNORECASE
+)
 PRODUCT_FILE = "e-agent.md"
 AGENT_TERMS = ("WebFetch", "WebSearch", "apply_patch", "$ag-", "Bash tool")
 
@@ -102,6 +106,8 @@ def _check_skill(root: Path, skill: Path, problems: list[Problem]) -> int:
         problems.append(
             Problem(where, f"description is {len(description)} characters (max {MAX_DESCRIPTION})")
         )
+    if description and (description[0] in ">|'\"" or ": " in description or " #" in description):
+        problems.append(Problem(where, "description must be a single plain YAML scalar"))
     link = root / ".claude" / "skills" / skill.name
     if not link.is_symlink():
         problems.append(Problem(_rel(root, link), f"{_rel(root, link)} is not a symlink"))
@@ -121,17 +127,34 @@ def _check_links(root: Path, path: Path, text: str, problems: list[Problem]) -> 
             problems.append(Problem(_rel(root, path), f"broken link '{target}'"))
 
 
+def _is_date(text: str) -> bool:
+    try:
+        datetime.date.fromisoformat(text)
+    except ValueError:
+        return False
+    return True
+
+
 def _parse_sources(root: Path, path: Path, problems: list[Problem]) -> dict[str, tuple[str, str]]:
     sources: dict[str, tuple[str, str]] = {}
+    seen: set[str] = set()
+    where = _rel(root, path)
     for line in path.read_text().splitlines():
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) != 7 or not re.match(r"^S-\d{2}$", cells[0]):
+        if not line.strip().startswith("| S-"):
             continue
-        sid, _title, _url, tier, accessed, reading, _notes = cells
-        where = _rel(root, path)
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) != 7 or not CANONICAL_SOURCE_RE.fullmatch(cells[0]):
+            problems.append(Problem(where, f"unparsable source row: {line.strip()[:40]}"))
+            continue
+        sid, _title, url, tier, accessed, reading, _notes = cells
+        if sid in seen:
+            problems.append(Problem(where, f"duplicate source {sid}"))
+        seen.add(sid)
+        if not url:
+            problems.append(Problem(where, f"{sid} has no URL"))
         if tier not in TIERS:
             problems.append(Problem(where, f"{sid} tier '{tier}' not in {sorted(TIERS)}"))
-        if not DATE_RE.match(accessed):
+        if not DATE_RE.match(accessed) or not _is_date(accessed):
             problems.append(Problem(where, f"{sid} accessed '{accessed}' is not YYYY-MM-DD"))
         if reading not in READING:
             problems.append(
@@ -170,13 +193,18 @@ def _check_criteria(
                 problems.append(Problem(where, f"{cid} missing field '{name}'"))
         tiers: set[str] = set()
         readable = False
-        for sid, locator in CITATION_RE.findall(fields.get("Sources", "")):
-            if sid not in sources:
-                problems.append(Problem(where, f"{cid} cites unknown source {sid}"))
+        for raw, locator in CITATION_RE.findall(fields.get("Sources", "")):
+            if not CANONICAL_SOURCE_RE.fullmatch(raw):
+                problems.append(
+                    Problem(where, f"{cid} citation '{raw}' is not a canonical S-nn ID")
+                )
+                continue
+            if raw not in sources:
+                problems.append(Problem(where, f"{cid} cites unknown source {raw}"))
                 continue
             if not locator:
-                problems.append(Problem(where, f"{cid} citation {sid} has no locator"))
-            tier, reading = sources[sid]
+                problems.append(Problem(where, f"{cid} citation {raw} has no locator"))
+            tier, reading = sources[raw]
             tiers.add(tier)
             readable = readable or reading in {"full", "partial"}
         if fields.get("Sources") and not readable:
@@ -197,7 +225,11 @@ def _check_criteria(
 
 def _check_states(root: Path, path: Path, problems: list[Problem]) -> None:
     where = _rel(root, path)
-    blocks = dict(_blocks(path.read_text(), re.compile(r"^### (.+)$", re.M)))
+    blocks: dict[str, str] = {}
+    for name, body in _blocks(path.read_text(), re.compile(r"^### (.+)$", re.M)):
+        if name in blocks:
+            problems.append(Problem(where, f"duplicate state '{name}'"))
+        blocks.setdefault(name, body)
     for state in STATES:
         if state not in blocks:
             problems.append(Problem(where, f"missing state '{state}'"))
@@ -206,6 +238,9 @@ def _check_states(root: Path, path: Path, problems: list[Problem]) -> None:
         for name in STATE_FIELDS:
             if not fields.get(name, "").strip():
                 problems.append(Problem(where, f"state '{state}' missing field '{name}'"))
+        criteria = fields.get("Criteria", "")
+        if criteria.strip() and not REF_RE.search(criteria):
+            problems.append(Problem(where, f"state '{state}' Criteria lists no AG criterion"))
 
 
 def check(root: Path) -> list[Problem]:
@@ -242,7 +277,7 @@ def check(root: Path) -> list[Problem]:
         for term in AGENT_TERMS:
             if term in text:
                 problems.append(Problem(where, f"agent-specific term '{term}'"))
-        if path.parent == refs and path.name != PRODUCT_FILE:
+        if refs in path.parents and path.name != PRODUCT_FILE:
             for term in sorted(set(PRODUCT_RE.findall(text))):
                 problems.append(Problem(where, f"product term '{term}'"))
     return problems
