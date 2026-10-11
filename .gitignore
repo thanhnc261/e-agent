@@ -11,3 +11,7 @@ build/
 .env
 *.local.json
 evidence/
+
+# Local agent worktrees and plan-execution scratch
+.claude/worktrees/
+.superpowers/
