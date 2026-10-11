@@ -1,0 +1,283 @@
+/* v5 additions over the reused v4 composition. Colours come only from semantic tokens,
+   except the documented light-theme brand override below (research/17, colour decision). */
+
+/* Token override: deeper Soft Lagoon so the shadowless, shallow mark keeps 3:1 on canvas
+   (#4f8a74 on #faf8f3 = 3.79:1). Dark and high-contrast brand roles are unchanged. */
+:root:not([data-theme="dark"]):not([data-theme="high-contrast"]),
+[data-theme="light"] {
+  --ea-color-brand: #4f8a74;
+}
+
+/* Persistent run status beside the title (AG-STAT-1). */
+.run-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ea-space-8);
+  margin-left: var(--ea-space-12);
+}
+.run-status:empty {
+  display: none;
+}
+.stop-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ea-space-6);
+  min-height: 32px;
+  padding: 0 var(--ea-space-12);
+  border: 1px solid var(--ea-color-border-strong);
+  border-radius: var(--ea-radius-md);
+  background: var(--ea-color-surface);
+  color: var(--ea-color-text);
+  font: inherit;
+  font-size: var(--ea-font-size-sm);
+  cursor: pointer;
+}
+.stop-button svg {
+  width: 14px;
+  height: 14px;
+}
+.stop-button:focus-visible,
+.theme-select:focus-visible,
+.study-toggle:focus-visible {
+  outline: 2px solid var(--ea-color-focus);
+  outline-offset: 2px;
+}
+
+/* Theme selection inside the page (EA-12): honours the OS preference by default. */
+.theme-field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ea-space-6);
+  font-size: var(--ea-font-size-sm);
+  color: var(--ea-color-text-muted);
+}
+.theme-select {
+  min-height: 32px;
+  border: 1px solid var(--ea-color-border-strong);
+  border-radius: var(--ea-radius-md);
+  background: var(--ea-color-surface);
+  color: var(--ea-color-text);
+  font: inherit;
+  font-size: var(--ea-font-size-sm);
+  padding: 0 var(--ea-space-8);
+}
+
+/* AI disclosure and capability statement at entry (AG-DISC-1, AG-DISC-2). */
+.disclosure {
+  max-width: 560px;
+  margin: var(--ea-space-20) 0 0;
+  padding: var(--ea-space-16);
+  border: 1px solid var(--ea-color-border-strong);
+  border-radius: var(--ea-radius-lg);
+  background: var(--ea-color-surface);
+  text-align: left;
+  font-size: var(--ea-font-size-sm);
+}
+.disclosure h2 {
+  font-size: var(--ea-font-size-md);
+  margin: 0 0 var(--ea-space-8);
+}
+.disclosure ul {
+  margin: var(--ea-space-8) 0 0;
+  padding-left: var(--ea-space-20);
+}
+.disclosure li + li {
+  margin-top: var(--ea-space-4);
+}
+
+/* AI-origin marker on AI-drafted content (AG-ID-1, AG-DS-4). */
+.ai-origin {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ea-space-6);
+  font-size: var(--ea-font-size-caption);
+  color: var(--ea-color-text-muted);
+  border: 1px solid var(--ea-color-border-strong);
+  border-radius: 999px;
+  padding: 2px var(--ea-space-8);
+}
+.ai-origin svg {
+  width: 16px;
+  height: 16px;
+  color: var(--ea-color-brand);
+}
+
+/* Real milestones while working (AG-STAT-2): no percentage, no time estimate. */
+.milestones {
+  list-style: none;
+  margin: var(--ea-space-12) 0;
+  padding: 0;
+}
+.milestones li {
+  display: flex;
+  gap: var(--ea-space-8);
+  align-items: center;
+  padding: var(--ea-space-4) 0;
+}
+.milestones li svg {
+  width: 16px;
+  height: 16px;
+}
+.milestones li[data-done="false"] {
+  color: var(--ea-color-text-muted);
+}
+
+/* Consequences and reversibility, always expanded on the decision surface (AG-APPR-1, AG-APPR-3). */
+.consequence {
+  border: 1px solid var(--ea-color-border-strong);
+  border-left-width: 4px;
+  border-radius: var(--ea-radius-md);
+  padding: var(--ea-space-12) var(--ea-space-16);
+  margin: var(--ea-space-16) 0;
+  background: var(--ea-color-surface);
+}
+.consequence h2 {
+  font-size: var(--ea-font-size-sm);
+  margin: 0 0 var(--ea-space-6);
+}
+.consequence p {
+  margin: var(--ea-space-4) 0;
+}
+.acting {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--ea-space-4) var(--ea-space-12);
+  font-size: var(--ea-font-size-sm);
+  margin: var(--ea-space-12) 0;
+}
+.acting dt {
+  color: var(--ea-color-text-muted);
+}
+.acting dd {
+  margin: 0;
+}
+
+/* Sticky decision row in long confirmations (gap-audit F-4). */
+#dialog .dialog-actions {
+  position: sticky;
+  bottom: 0;
+  background: var(--ea-color-surface);
+  padding-top: var(--ea-space-12);
+  border-top: 1px solid var(--ea-color-border);
+}
+
+/* Selected conversation: 3:1 boundary plus aria-current, not background alone (gap-audit F-9). */
+.history button[aria-current="true"] {
+  box-shadow: inset 3px 0 0 var(--ea-color-accent);
+  font-weight: var(--ea-font-weight-semibold);
+}
+
+/* Study harness: an in-flow strip above the product, never overlapping it (gap-audit F-6). */
+.study {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--ea-space-12);
+  height: 40px;
+  padding: 0 var(--ea-space-12);
+  border-bottom: 2px dashed var(--ea-color-border-strong);
+  background: var(--ea-color-surface-sunken);
+  font-size: var(--ea-font-size-sm);
+}
+.app {
+  height: calc(100dvh - 40px);
+}
+.study-note {
+  color: var(--ea-color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.study-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ea-space-6);
+  min-height: 32px;
+  padding: 0 var(--ea-space-12);
+  border: 1px solid var(--ea-color-border-strong);
+  border-radius: var(--ea-radius-md);
+  background: var(--ea-color-surface);
+  color: var(--ea-color-text);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.study-panel {
+  position: absolute;
+  top: 40px;
+  left: var(--ea-space-12);
+  width: min(320px, calc(100vw - 24px));
+  padding: var(--ea-space-12);
+  border: 2px dashed var(--ea-color-border-strong);
+  border-top: 0;
+  border-radius: 0 0 var(--ea-radius-md) var(--ea-radius-md);
+  background: var(--ea-color-surface-sunken);
+}
+.study-panel p {
+  margin: 0 0 var(--ea-space-8);
+  color: var(--ea-color-text-muted);
+}
+.study-panel button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-top: var(--ea-space-6);
+  min-height: 36px;
+  border: 1px solid var(--ea-color-border-strong);
+  border-radius: var(--ea-radius-sm);
+  background: var(--ea-color-surface);
+  color: var(--ea-color-text);
+  font: inherit;
+  padding: 0 var(--ea-space-8);
+  cursor: pointer;
+}
+.study-panel button:disabled {
+  color: var(--ea-color-disabled-text);
+  background: var(--ea-color-disabled-surface);
+  cursor: not-allowed;
+}
+
+@media (max-width: 800px) {
+  .theme-field span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .run-status {
+    margin-left: var(--ea-space-6);
+    flex-shrink: 0;
+  }
+  .theme-select {
+    max-width: 92px;
+  }
+  .conversation-heading {
+    min-width: 0;
+  }
+  #conversation-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .study-note {
+    font-size: var(--ea-font-size-caption);
+  }
+}
+
+@media (forced-colors: active) {
+  .stop-button,
+  .theme-select,
+  .study-toggle,
+  .study-panel,
+  .consequence,
+  .disclosure,
+  .ai-origin {
+    border-color: CanvasText;
+  }
+  .history button[aria-current="true"] {
+    outline: 2px solid Highlight;
+  }
+}

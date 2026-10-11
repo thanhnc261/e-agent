@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>e-agent · Identity v5</title>
+    <link rel="stylesheet" href="../agentic-chat-v4/styles.css" />
+    <link rel="stylesheet" href="../agentic-chat-v4/design-system/catalog.css" />
+    <link rel="stylesheet" href="../agentic-chat-v4/design-system/brand.css" />
+    <link rel="stylesheet" href="v5.css" />
+    <link rel="stylesheet" href="identity.css" />
+  </head>
+  <body>
+    <header class="ds-header">
+      <a class="ds-brand" href="./"><span id="identity-mark" class="brand-mark"></span>e-agent <span>Identity v5</span></a>
+      <div class="ds-tools">
+        <label class="theme-field" for="theme"
+          ><span>Theme</span
+          ><select id="theme" class="theme-select">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="high-contrast">High contrast</option>
+          </select></label
+        ><a class="secondary" href="./">Conversation study</a
+        ><a class="secondary" href="../agentic-chat-v4/identity.html">v4 identity</a>
+      </div>
+    </header>
+    <main class="ds-catalog">
+      <p class="overline">E-AGENT / CONNECTED NODES / V5 POSE</p>
+      <h1 class="brand-title">Lighter, flatter, still connected.</h1>
+      <p class="brand-intro">
+        The same five connected nodes from v4, turned 15° clockwise and leaning 35° back. The sidewall is
+        shallow, there is no cast shadow, and a glossy reflection gives the top faces their finish. Geometry is
+        rendered from the single v4 source with new parameters only.
+      </p>
+      <section class="brand-hero" aria-label="Primary logo">
+        <div id="identity-lockup" class="v5-lockup"></div>
+        <p id="identity-pose-caption"></p>
+        <a id="identity-download" class="secondary" download="e-agent-node-v5.svg">Download this symbol ↗</a>
+      </section>
+      <section class="v5-compare" aria-label="Pose comparison">
+        <h2>From v4 to v5</h2>
+        <div class="v5-compare-grid">
+          <figure><div id="pose-v4" class="v5-specimen"></div><figcaption>v4 default · 22.5° · sculpted depth · soft shadow · glossy</figcaption></figure>
+          <figure><div id="pose-v5" class="v5-specimen"></div><figcaption>v5 default · 15° · subtle depth · no shadow · glossy</figcaption></figure>
+        </div>
+      </section>
+      <section class="v5-themes" aria-label="Themes">
+        <h2>In every theme</h2>
+        <div class="v5-theme-grid">
+          <figure data-theme="light" class="v5-theme"><div class="v5-theme-mark"></div><figcaption>Light · brand #4f8a74 · 3.79:1 on canvas</figcaption></figure>
+          <figure data-theme="dark" class="v5-theme"><div class="v5-theme-mark"></div><figcaption>Dark · brand #bedcca · 10.62:1</figcaption></figure>
+          <figure data-theme="high-contrast" class="v5-theme"><div class="v5-theme-mark"></div><figcaption>High contrast · brand #174d3e · 9.69:1</figcaption></figure>
+        </div>
+      </section>
+      <section class="v5-variants" aria-label="Lockup variants">
+        <h2>Lockups and downloads</h2>
+        <p class="view-intro">Each lockup is generated from the same geometry at the v5 pose, coloured by that theme's brand role.</p>
+        <div class="v5-theme-grid" id="identity-variants"></div>
+      </section>
+      <section class="v5-places" aria-label="Where the mark appears">
+        <h2>Where it appears</h2>
+        <div class="v5-place-grid">
+          <figure><span class="v5-tile v5-tile-32" id="tile-32"></span><figcaption>App tile · 32px</figcaption></figure>
+          <figure><span class="v5-tile v5-tile-48" id="tile-48"></span><figcaption>App tile · 48px</figcaption></figure>
+          <figure><button type="button" class="v5-launcher" id="launcher" aria-label="Open e-agent (specimen)"></button><figcaption>Overlay launcher · 48px target</figcaption></figure>
+          <figure><span class="v5-author" id="author"></span><figcaption>Message author · 25px</figcaption></figure>
+        </div>
+        <p class="view-intro">
+          The embedded overlay composition itself is not redrawn in this slice; its specimen remains
+          <a href="../agentic-chat-v4/overlay.html">the v4 overlay</a>, which takes the mark from the same source.
+        </p>
+      </section>
+      <section class="brand-specs">
+        <article>
+          <h2>Small by design</h2>
+          <div id="identity-sizes" class="brand-sizes"></div>
+          <p>Bare symbol from 24px. App tiles from 32px. The overlay launcher is a 48px target.</p>
+        </article>
+        <article>
+          <h2>Colour decision</h2>
+          <p>
+            Without a cast shadow and with a shallow sidewall, the face colour alone must separate the mark from
+            the ivory canvas. v4's light brand <code>#619581</code> measured 3.23:1. v5 deepens it one step to
+            <code>#4f8a74</code> (3.79:1), staying in Soft Lagoon. Dark and high-contrast brand roles already exceed
+            9:1 and are unchanged. Primary-action accents are unchanged.
+          </p>
+          <p>The mark is decorative inside a named control; it never replaces the product name.</p>
+        </article>
+      </section>
+      <p class="view-intro">
+        Candidate identity for review (research/17). Original vector geometry from v4 <code>brand.js</code>; no
+        font, raster, animation or external request. Not a trademark-clearance claim.
+      </p>
+    </main>
+    <script type="module" src="identity-page.js"></script>
+  </body>
+</html>

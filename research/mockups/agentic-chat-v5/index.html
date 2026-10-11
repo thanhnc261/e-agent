@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>e-agent · Conversation workspace v5</title>
+    <link rel="stylesheet" href="../agentic-chat-v4/styles.css" />
+    <link rel="stylesheet" href="v5.css" />
+  </head>
+  <body>
+    <aside class="study" aria-label="Study controls, not part of the product">
+      <button class="study-toggle" id="study-toggle" aria-expanded="false" aria-controls="study-panel">
+        <span data-icon="settings"></span>Study controls
+      </button>
+      <span class="study-note">Prototype only · stands in for server events</span>
+      <div class="study-panel" id="study-panel" hidden></div>
+    </aside>
+    <div class="app" id="app">
+      <aside class="sidebar" id="sidebar" aria-label="Conversation navigation">
+        <div class="brand-row">
+          <a class="brand" href="./" aria-label="e-agent home"
+            ><span class="brand-mark" data-logo></span><span class="nav-label">e-agent</span></a
+          ><button
+            class="icon-button expanded-toggle"
+            data-action="nav"
+            aria-label="Collapse navigation"
+            aria-expanded="false"
+            aria-controls="sidebar"
+          >
+            <span data-icon="panel"></span>
+          </button>
+        </div>
+        <button
+          class="icon-button collapsed-toggle"
+          data-action="nav"
+          aria-label="Expand navigation"
+          aria-controls="sidebar"
+          aria-expanded="false"
+        >
+          <span data-icon="panel"></span>
+        </button>
+        <button class="nav-button new-chat" data-action="new" aria-label="New conversation">
+          <span data-icon="plus"></span><span class="nav-label">New conversation</span>
+        </button>
+        <button class="nav-button" data-action="history" aria-label="Conversation history">
+          <span data-icon="clock"></span><span class="nav-label">Conversations</span>
+        </button>
+        <div class="history nav-label">
+          <p class="overline">RECENT</p>
+          <div id="history"></div>
+          <p id="empty-history">Your conversations will appear here.</p>
+        </div>
+        <div class="sidebar-bottom">
+          <a class="nav-button" href="identity.html" aria-label="Identity v5"
+            ><span data-icon="book"></span><span class="nav-label">Identity v5</span></a
+          >
+          <button class="nav-button" data-action="connections" aria-label="Connections">
+            <span data-icon="connections"></span><span class="nav-label">Connections</span>
+          </button>
+          <div class="profile">
+            <span class="avatar">JL</span
+            ><span class="nav-label"
+              ><strong>Jamie Lee</strong><small>Northstar · sample workspace</small></span
+            >
+          </div>
+        </div>
+      </aside>
+      <div class="scrim" data-action="nav" hidden></div>
+      <main class="main">
+        <header class="topbar">
+          <div class="conversation-heading">
+            <button
+              class="icon-button mobile-nav"
+              data-action="nav"
+              aria-label="Open navigation"
+              aria-expanded="false"
+              aria-controls="sidebar"
+            >
+              <span data-icon="panel"></span></button
+            ><span id="conversation-title">New conversation</span><span class="run-status" id="run-status"></span>
+          </div>
+          <div class="header-actions">
+            <label class="theme-field" for="theme"
+              ><span>Theme</span
+              ><select id="theme" class="theme-select">
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="high-contrast">High contrast</option>
+              </select></label
+            ><span class="sample-label">Interactive study</span
+            ><button class="quiet-button" id="reopen" data-action="workspace" hidden>
+              <span data-icon="file"></span><span>Workspace</span>
+            </button>
+          </div>
+        </header>
+        <div class="surface" id="surface">
+          <section class="conversation" aria-label="Conversation">
+            <div class="conversation-scroll" id="conversation-scroll">
+              <div id="messages" class="messages"></div>
+            </div>
+            <div id="composer-slot"></div>
+          </section>
+          <section class="workspace" id="workspace" aria-label="Task workspace" hidden>
+            <header class="workspace-header">
+              <div>
+                <span class="workspace-symbol" data-icon="file"></span
+                ><span id="workspace-title">Workspace</span>
+              </div>
+              <button class="icon-button" data-action="close-workspace" aria-label="Close workspace">
+                <span data-icon="close"></span><span class="back-chat-label">Chat</span>
+              </button>
+            </header>
+            <div class="workspace-tabs" role="tablist" aria-label="Workspace view">
+              <button
+                id="workspace-tab-document"
+                role="tab"
+                aria-controls="workspace-body"
+                data-tab="document"
+                aria-selected="true"
+              >
+                Document</button
+              ><button
+                id="workspace-tab-sources"
+                role="tab"
+                aria-controls="workspace-body"
+                data-tab="sources"
+                aria-selected="false"
+                tabindex="-1"
+              >
+                Sources <span id="source-count"></span></button
+              ><button
+                id="workspace-tab-activity"
+                role="tab"
+                aria-controls="workspace-body"
+                data-tab="activity"
+                aria-selected="false"
+                tabindex="-1"
+              >
+                Activity
+              </button>
+            </div>
+            <div
+              class="workspace-body"
+              id="workspace-body"
+              role="tabpanel"
+              aria-labelledby="workspace-tab-document"
+              tabindex="0"
+            ></div>
+            <footer class="workspace-footer" id="workspace-footer"></footer>
+          </section>
+        </div>
+      </main>
+    </div>
+    <dialog id="dialog" aria-labelledby="dialog-title">
+      <div id="dialog-content"></div>
+    </dialog>
+    <div id="announce" class="sr-only" role="status" aria-live="polite"></div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
