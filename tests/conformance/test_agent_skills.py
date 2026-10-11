@@ -224,8 +224,6 @@ def test_state_model_requires_all_states_and_fields(tmp_path):
 
 
 def test_repository_skills_conform():
-    if not (REPO / ".agents" / "skills").is_dir():
-        pytest.skip("skills not created yet (Task 8 removes this skip)")
     assert messages(REPO) == []
 
 

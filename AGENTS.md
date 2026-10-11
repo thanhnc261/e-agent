@@ -44,6 +44,10 @@ Current user instructions take precedence. The MVP design specializes the high-l
 - Knowledge ingestion, curation, canonical claims and projections are separate responsibilities. A graph/vector backend swap does not eliminate semantic migration, ACL or deletion requirements.
 - Framework memory and extracted content are untrusted inputs, not curated truth or executable policy.
 
+## UI/UX skills
+
+Agentic UI/UX work uses the `ag-*` skills in `.agents/skills/` (linked for Claude under `.claude/skills/`). Start from `ag-ux-foundations`; it holds the standard (`AG-*` criteria) that the current UI is audited and built against, and the binding e-agent requirements. Each stage skill stops at an owner gate. Validate skill changes with `uv run python scripts/check_agent_skills.py`.
+
 ## Development and verification
 
 - Python code lives in the shared `e_agent` namespace package (`packages/<dist>/src/e_agent/<part>/`); never add `src/e_agent/__init__.py`.
