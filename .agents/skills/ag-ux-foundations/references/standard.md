@@ -68,39 +68,38 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 ### AG-CTX-1 — Invoked in the work context
 
 - **Statement:** The agent is reachable inside the user's current workflow, and launching it carries the relevant context (for example the open record) without re-entry.
-- **Sources:** S-08 (G4), S-10 (Space: easily accessible), S-15 (embed in workflows), S-01 (SC 3.3.7 Redundant Entry)
+- **Sources:** S-08 (G4), S-10 (Space: easily accessible), S-15 (embed in workflows)
 - **Enforcement:** review
 - **Max severity:** High
 - **Evidence:** Walkthrough from a work screen to the agent showing the open item already attached, with no field the user must retype.
-- **Notes:** S-01 is cited at title level (the SC 3.3.7 normative text was not read); it supports only the principle of not asking for information already entered.
+- **Notes:** S-15 was not re-verified in this session (the page returned HTTP 403); its citation rests on the earlier full reading recorded in `sources.md`. S-08 (G4) and S-10 support the criterion independently.
 
 ### AG-CTX-2 — Proactivity timed and actionable
 
-- **Statement:** Proactive engagement is timed to the user's context, does not interrupt focused work, and arrives as an actionable artifact rather than a bare alert.
+- **Statement:** Proactive engagement is timed to the user's context, is deferred while an explicit focus condition holds (for example the user is typing, editing a record or in an open decision), and arrives as an actionable artifact rather than a bare alert.
 - **Sources:** S-08 (G3), S-10 (Time: nudging more than notifying)
 - **Enforcement:** review
 - **Max severity:** Medium
-- **Evidence:** For each proactive trigger: the context condition that gates it, and a screenshot of the artifact with its available actions.
+- **Evidence:** For each proactive trigger: the context condition that gates it and the focus condition that defers it, and a screenshot of the artifact with its available actions.
 
 ## Status and activity
 
 ### AG-STAT-1 — Status always visible
 
 - **Statement:** The agent's current state is always visible, in plain language that matches the normative state model (`state-model.md`).
-- **Sources:** S-10 (Core: agent status is clearly visible at all times), S-03 (Art. 14(4)(a)), S-07 (self-descriptiveness)
+- **Sources:** S-10 (Core: agent status is clearly visible at all times), S-03 (Art. 14(4)(a))
 - **Enforcement:** test, review
 - **Max severity:** Blocker
 - **Evidence:** A mapping from each product state to a state-model state; screenshots or a conformance test showing the status label for every state.
-- **Notes:** S-07 is summary-only and is supporting, not primary.
 
 ### AG-STAT-2 — Activity from real events only
 
-- **Statement:** Progress and activity reflect only real system events; no simulated progress, estimated times or invented activity text.
+- **Statement:** Progress and activity reflect only real system events; no simulated progress or invented activity text.
 - **Sources:** S-03 (Art. 14(4)(a)), S-05 (3.4 Accountable and Transparent)
 - **Enforcement:** review
-- **Max severity:** Blocker
+- **Max severity:** High
 - **Evidence:** For each progress or activity element, the event that drives it; confirmation that no timer-driven, looping or placeholder progress exists.
-- **Notes:** The statement is this standard's application of monitoring and transparency; the sources do not name simulated progress. A pattern-library page on status and activity (S-13) was considered and dropped: its watch-out note concerns over-frequent updates creating false urgency, not simulated progress.
+- **Notes:** This is an inference from the sources: they require that overseers can monitor operation and that information about the system be available, but neither names simulated progress, so severity is High. "Estimated times" was removed from the statement because no cited source supports it. A product's binding requirements may still make this non-negotiable. A pattern-library page on status and activity (S-13) was considered and dropped: its watch-out note concerns over-frequent updates creating false urgency, not simulated progress.
 
 ### AG-STAT-3 — Staleness is distinct
 
@@ -113,7 +112,7 @@ They are not satisfied by model chain-of-thought or by uncalibrated numeric scor
 
 ### AG-STAT-4 — Accessible status announcements
 
-- **Statement:** State changes are exposed to assistive technology as status messages without moving focus.
+- **Statement:** Status messages (as defined by WCAG SC 4.1.3) are exposed to assistive technology as status messages without moving focus.
 - **Sources:** S-01 (SC 4.1.3 Status Messages)
 - **Enforcement:** test
 - **Max severity:** Blocker
