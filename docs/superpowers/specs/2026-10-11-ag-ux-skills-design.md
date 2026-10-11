@@ -1,6 +1,6 @@
 # `ag-*` enterprise agentic UI/UX skills: design
 
-**Date:** 2026-10-11. **Status:** proposed design, pending owner review. **Implementation status:** none. No skill, guide or code change has been made.
+**Date:** 2026-10-11. **Status:** approved by the owner 2026-10-11. **Implementation status:** phase 1 (`ag-ux-foundations`) implemented on branch feat/ag-ux-foundations; phases 2–5 not started.
 
 ## 1. Intent and direction of authority
 
@@ -123,7 +123,7 @@ Reading level is recorded honestly. Phase 1 re-reads every source at its origin 
 | **AG-CTX (Context & timing)** | Agent invoked in the user's workflow context (G3, G4, Microsoft "space"); proactive engagement as artifacts, not alert noise (Microsoft "now") |
 | **AG-STAT (Status & activity)** | Status always visible (Microsoft core); milestones only from real events; reconnecting or stale states never shown as completion |
 | **AG-CTRL (Control & oversight)** | Efficient invocation, dismissal and correction (G7–G9); override and reverse (Art. 14(4d)); stop to a safe state (Art. 14(4e)); global controls (G17); who holds initiative is always visible |
-| **AG-APPR (Consequential actions)** | Consequences conveyed before action (G16); exact action shown with no hidden material terms; friction against automation bias and rubber-stamping (Art. 14(4b)); separate labels for approved, committed and verified |
+| **AG-APPR (Consequential actions)** | Consequences conveyed before action (S-06 ASI02 P2, ASI09 P7); exact action shown with no hidden material terms; friction against automation bias and rubber-stamping (Art. 14(4b)); separate labels for approved, committed and verified |
 | **AG-EXPL (Explanation & evidence)** | Why it did what it did (G11) through source-grounded rationale; no chain-of-thought; progressive disclosure; source attribution |
 | **AG-UNC (Uncertainty & failure)** | Scope services when in doubt (G10); uncertain outcomes are explicit with safe recovery and no blind retry; errors as problem → cause → authorized next step |
 | **AG-MEM (Over time)** | Remember recent interactions (G12); adapt cautiously and only with user control (G13, G14); granular feedback (G15); notify about changes (G18) |
@@ -200,6 +200,8 @@ Any candidate system, including the v4 mockup system, is adopted only if it pass
 - Appearance is separate from business state.
 - Conversation-first: an **owner decision**, after the study 03 rejection.
 - Labelled sample data.
+
+Errata (2026-10-11): in the AG-APPR row, "Consequences conveyed before action (G16)" was corrected to "(S-06 ASI02 P2, ASI09 P7)"; G16 concerns conveying how user actions affect the system's future behaviour.
 
 ## 6. Action skills
 
