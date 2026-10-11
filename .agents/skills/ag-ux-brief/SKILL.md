@@ -33,7 +33,7 @@ A brief fixes what is being designed and how it will be judged, before anyone dr
    - Say what a browser check will verify (mechanics only).
 8. **List open questions** that only the owner can answer.
 
-Write the result as `research/NN-<topic>.md` with status "candidate", using the [template](templates/brief.md). NN is the next free research number.
+Write the result as `research/NN-<topic>.md` with status "candidate", using the [template](templates/brief.md). NN is the next free research number. Check `research/README.md` and every file in `research/`, including uncommitted ones in the owner's checkout. A clean worktree may lack the newest studies.
 
 ## Stop gate
 

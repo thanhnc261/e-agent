@@ -33,6 +33,7 @@ A `partial` or `missing` score produces a finding. A `conflict` produces a decis
   - **Medium:** friction or inconsistency without a wrong outcome.
   - **Low:** polish.
 - A finding resting only on tier-3/4 sources is at most High.
+- Write exactly one severity per finding. Never a conditional such as "High (Blocker under EA-5)". If a binding requirement is violated and the effect warrants it, the severity is Blocker. Cite the `EA-…` ID in **Violates**.
 
 ## 4. Finding format
 
