@@ -26,6 +26,7 @@ SOURCES = """# Sources
 | ID | Source | URL | Tier | Accessed | Reading level | Notes |
 |---|---|---|---|---|---|---|
 | S-01 | WCAG 2.2 | https://www.w3.org/TR/WCAG22/ | T1 | 2026-10-11 | full | |
+| S-07 | Summary-only normative source | https://example.org/s7 | T1 | 2026-10-11 | summary-only | |
 | S-08 | Human-AI guidelines | https://example.org/hai | T2 | 2026-10-11 | partial | |
 | S-13 | Pattern library | https://example.org/p | T4 | 2026-10-11 | full | |
 | S-15 | Unreadable article | https://example.org/u | T4 | 2026-10-11 | unreadable | 403 |
@@ -174,7 +175,7 @@ def test_invalid_severity(tmp_path):
 
 def test_blocker_requires_tier_one_or_two(tmp_path):
     root = make_repo(tmp_path, standard=GOOD_CRITERION.replace("S-01 (SC 4.1.3), ", ""))
-    assert any("AG-TEST-1 is Blocker without a T1/T2 source" in m for m in messages(root))
+    assert any("AG-TEST-1 is Blocker without a readable T1/T2 source" in m for m in messages(root))
 
 
 def test_criterion_needs_readable_source(tmp_path):
@@ -278,7 +279,23 @@ def test_product_term_at_word_start_is_reported(tmp_path, text):
 
 
 @pytest.mark.parametrize(
-    "description", ["Use when: x", "> folded", "| literal", "'quoted'", '"quoted"', "Use # no"]
+    "description",
+    [
+        "Use when: x",
+        "> folded",
+        "| literal",
+        "'quoted'",
+        '"quoted"',
+        "Use # no",
+        "[list] x",
+        "{map} x",
+        "*alias x",
+        "&anchor x",
+        "!tag x",
+        "%directive x",
+        "@at x",
+        "`tick` x",
+    ],
 )
 def test_description_must_be_plain_scalar(tmp_path, description):
     root = make_repo(tmp_path, description=description)
@@ -353,3 +370,60 @@ def test_cli_exit_codes_and_output(tmp_path, capsys):
     assert expected
     assert cas.main(["--root", str(bad)]) == 1
     assert capsys.readouterr().out.splitlines() == expected
+
+
+# --- Final review fixes (I-7 and related) ---
+
+
+def test_summary_only_tier_one_source_does_not_license_blocker(tmp_path):
+    crit = GOOD_CRITERION.replace("S-01 (SC 4.1.3)", "S-07 (Art. 14)")
+    root = make_repo(tmp_path, standard=crit)
+    assert any("AG-TEST-1 is Blocker without a readable T1/T2 source" in m for m in messages(root))
+
+
+def test_readable_tier_two_source_licenses_blocker(tmp_path):
+    crit = GOOD_CRITERION.replace("S-01 (SC 4.1.3)", "S-08 (G1)")
+    assert messages(make_repo(tmp_path, standard=crit)) == []
+
+
+def test_wrapped_sources_line_is_rejected(tmp_path):
+    crit = GOOD_CRITERION.replace(
+        "- **Sources:** S-01 (SC 4.1.3), S-13 (Agent Status)",
+        "- **Sources:** S-01 (SC 4.1.3),\n  S-99, S-07",
+    )
+    root = make_repo(tmp_path, standard=crit)
+    assert any(
+        "AG-TEST-1 field 'Sources' wraps onto a continuation line; keep each field on one line" in m
+        for m in messages(root)
+    )
+
+
+def test_wrapped_state_field_is_rejected(tmp_path):
+    text = "# States\n\n" + state_block("Working").replace(
+        "- **Forbidden:** x\n", "- **Forbidden:** x\ncontinued\n"
+    )
+    root = make_repo(tmp_path, extra={"state-model.md": text})
+    assert any(
+        "state 'Working' field 'Forbidden' wraps onto a continuation" in m for m in messages(root)
+    )
+
+
+def test_blank_line_and_next_heading_are_not_continuations(tmp_path):
+    root = make_repo(
+        tmp_path, standard=GOOD_CRITERION + "\n" + GOOD_CRITERION.replace("AG-TEST-1", "AG-TEST-2")
+    )
+    assert messages(root) == []
+
+
+def test_duplicate_field_in_criterion(tmp_path):
+    crit = GOOD_CRITERION + "- **Evidence:** Again.\n"
+    root = make_repo(tmp_path, standard=crit)
+    assert any("AG-TEST-1 duplicate field 'Evidence'" in m for m in messages(root))
+
+
+def test_duplicate_field_in_state(tmp_path):
+    text = "# States\n\n" + state_block("Working").replace(
+        "- **Criteria:** AG-TEST-1\n", "- **Criteria:** AG-TEST-1\n- **Criteria:** AG-TEST-1\n"
+    )
+    root = make_repo(tmp_path, extra={"state-model.md": text})
+    assert any("state 'Working' duplicate field 'Criteria'" in m for m in messages(root))

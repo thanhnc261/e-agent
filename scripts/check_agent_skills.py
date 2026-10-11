@@ -16,6 +16,7 @@ from pathlib import Path
 
 NAME_RE = re.compile(r"^ag-[a-z0-9]+(?:-[a-z0-9]+)*$")
 MAX_DESCRIPTION = 400
+YAML_INDICATORS = ">|'\"[{*&!%@`"
 MAX_TOTAL_DESCRIPTION = 2000
 CRITERION = r"AG-[A-Z0-9]+-\d+"
 DEF_RE = re.compile(rf"^### ({CRITERION}) — \S", re.M)
@@ -107,7 +108,9 @@ def _check_skill(root: Path, skill: Path, problems: list[Problem]) -> int:
         problems.append(
             Problem(where, f"description is {len(description)} characters (max {MAX_DESCRIPTION})")
         )
-    if description and (description[0] in ">|'\"" or ": " in description or " #" in description):
+    if description and (
+        description[0] in YAML_INDICATORS or ": " in description or " #" in description
+    ):
         problems.append(Problem(where, "description must be a single plain YAML scalar"))
     link = root / ".claude" / "skills" / skill.name
     if not link.is_symlink():
@@ -176,6 +179,33 @@ def _blocks(text: str, start_re: re.Pattern[str]) -> list[tuple[str, str]]:
     return out
 
 
+def _fields(body: str, label: str, where: str, problems: list[Problem]) -> dict[str, str]:
+    """Parse field lines; report duplicates and wrapped continuation lines."""
+    fields: dict[str, str] = {}
+    open_field: str | None = None
+    for line in body.splitlines():
+        m = FIELD_RE.match(line)
+        if m:
+            name = m.group(1)
+            if name in fields:
+                problems.append(Problem(where, f"{label} duplicate field '{name}'"))
+            else:
+                fields[name] = m.group(2)
+            open_field = name
+        elif not line.strip():
+            open_field = None
+        elif open_field is not None and not line.startswith("- **"):
+            problems.append(
+                Problem(
+                    where,
+                    f"{label} field '{open_field}' wraps onto a continuation line; "
+                    "keep each field on one line",
+                )
+            )
+            open_field = None
+    return fields
+
+
 def _check_criteria(
     root: Path,
     path: Path,
@@ -188,12 +218,12 @@ def _check_criteria(
         if cid in defined:
             problems.append(Problem(where, f"duplicate criterion {cid}"))
         defined.add(cid)
-        fields = dict(FIELD_RE.findall(body))
+        fields = _fields(body, cid, where, problems)
         for name in CRITERION_FIELDS:
             if not fields.get(name, "").strip():
                 problems.append(Problem(where, f"{cid} missing field '{name}'"))
-        tiers: set[str] = set()
         readable = False
+        readable_tiers: set[str] = set()
         for raw, locator in CITATION_RE.findall(fields.get("Sources", "")):
             if not CANONICAL_SOURCE_RE.fullmatch(raw):
                 problems.append(
@@ -206,8 +236,9 @@ def _check_criteria(
             if not locator:
                 problems.append(Problem(where, f"{cid} citation {raw} has no locator"))
             tier, reading = sources[raw]
-            tiers.add(tier)
-            readable = readable or reading in {"full", "partial"}
+            if reading in {"full", "partial"}:
+                readable = True
+                readable_tiers.add(tier)
         if fields.get("Sources") and not readable:
             problems.append(Problem(where, f"{cid} has no source read at full or partial"))
         for kind in (k.strip() for k in fields.get("Enforcement", "").split(",") if k.strip()):
@@ -220,8 +251,8 @@ def _check_criteria(
             problems.append(
                 Problem(where, f"{cid} max severity '{severity}' not in {sorted(SEVERITIES)}")
             )
-        if severity == "Blocker" and not tiers & {"T1", "T2"}:
-            problems.append(Problem(where, f"{cid} is Blocker without a T1/T2 source"))
+        if severity == "Blocker" and not readable_tiers & {"T1", "T2"}:
+            problems.append(Problem(where, f"{cid} is Blocker without a readable T1/T2 source"))
 
 
 def _check_states(root: Path, path: Path, problems: list[Problem]) -> None:
@@ -235,7 +266,7 @@ def _check_states(root: Path, path: Path, problems: list[Problem]) -> None:
         if state not in blocks:
             problems.append(Problem(where, f"missing state '{state}'"))
             continue
-        fields = dict(FIELD_RE.findall(blocks[state]))
+        fields = _fields(blocks[state], f"state '{state}'", where, problems)
         for name in STATE_FIELDS:
             if not fields.get(name, "").strip():
                 problems.append(Problem(where, f"state '{state}' missing field '{name}'"))
