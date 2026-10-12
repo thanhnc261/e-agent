@@ -157,6 +157,17 @@ LiteLLM is an explicit opt-in ([ADR 0021](docs/adr/0021-litellm-model-provider.m
 - Which upstream model the proxy routes to is the operator's LiteLLM configuration. Qualification evidence is per provider and model; no LiteLLM-routed model has been qualified, and an Ollama qualification does not carry over.
 - Evidence runtime metadata records `model_provider` next to `model`.
 
+### Live agent against the `odoo19-learning` sandbox (owner machine)
+
+Prerequisites (one-time, see [runbook I06](docs/runbooks/i06-odoo-bridge.md)): the `e_agent_bridge` addon (19.0.0.4.0) installed in the sandbox, the `e-agent-integration` user and API keys, the integration key in the local secret store, a dedicated PostgreSQL ledger, and a gitignored live profile (`profiles/*.local.json`) with `artifact_sha256` pins from freshly built wheels (`scripts/plugin_inventory.py`). Keep secret-store and ledger settings in a private env file outside the repository (for example `~/.config/e-agent/live.env` with `E_AGENT_PG_DSN`, `E_AGENT_SECRET_KEY_FILE`, `E_AGENT_SECRETS_PATH`).
+
+```bash
+set -a; . ~/.config/e-agent/live.env; set +a
+make dev PROFILE=profiles/live-odoo19-learning.local.json
+```
+
+A real model with all ERP tools uses far more tokens per run than the fixture: give the live profile `"budgets": {"max_model_tokens": 200000, "max_validation_repairs": 4}` or runs end with `budget exhausted: model usage`. After changing domain or adapter code, rebuild the wheels and refresh the pins; after changing the bridge addon, upgrade it in the sandbox (`-u e_agent_bridge`) before starting the stack.
+
 Python packages share the `e_agent` namespace: `e_agent.contracts`, `e_agent.sdk`, `e_agent.kernel`, `e_agent.erp`, `e_agent.server`.
 
 See the [implementation plan](docs/implementation-plan.md) for owner decisions, milestones and work packages.
