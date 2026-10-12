@@ -1,8 +1,8 @@
 # e-agent: target architecture (v2)
 
-**Status:** Proposed. **Date:** 2026-10-11, revised 2026-10-12 after three review rounds. **Verified against:** commit `af50c62` plus the uncommitted working-tree changes present on 2026-10-12; every `[I]` tag and `file:line` reference refers to that tree and must be re-checked after the next commit. WP1 Tasks 2–8 and 10 re-verified against commit `591f3c6`. **Baseline:** the [high-level design](high-level-design.md), the [MVP detailed design](mvp-detailed-design.md) and the accepted ADRs remain authoritative until the ADR candidates in §17 are accepted. This document does not change contracts or code. When an ADR candidate is accepted, its content moves into the HLD or MVP design and the matching section here is marked "merged", so this document does not become a second architecture specification.
+**Status:** Proposed. **Date:** 2026-10-11, revised 2026-10-12 after three review rounds. **Verified against:** commit `af50c62` plus the uncommitted working-tree changes present on 2026-10-12; every `[I]` tag and `file:line` reference refers to that tree and must be re-checked after the next commit. WP1 Tasks 2–8 and 10 re-verified against commit `591f3c6`. Unchanged `file:line` references were taken at `af50c62` and may have drifted after WP1. **Baseline:** the [high-level design](high-level-design.md), the [MVP detailed design](mvp-detailed-design.md) and the accepted ADRs remain authoritative until the ADR candidates in §17 are accepted. This document does not change contracts or code. When an ADR candidate is accepted, its content moves into the HLD or MVP design and the matching section here is marked "merged", so this document does not become a second architecture specification.
 
-**Implementation:** [WP1 correctness plan](superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) (verified defects D1–D7, ADR candidates 0018–0020) and the WP2–WP5 map in its Part A.
+**Implementation:** [WP1 correctness plan](superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) (verified defects D1–D7, ADR candidates 0018–0021) and the WP2–WP5 map in its Part A.
 
 **Inputs:**
 - Reviews: the [scalability review](reviews/2026-10-11-scalability-architecture-review.md) and the [architecture alignment review](reviews/2026-10-07-architecture-alignment-review.md).
@@ -60,7 +60,7 @@ Rows R1–R6 are the first-round criteria, U1–U9 the second-round criteria and
 | U7 | Knowledge graph attachable | Canonical claims + projections; graph adapter behind EvidenceRetriever (§9) | [C] | Graph projection rebuilt from claims; ACL-revoked node absent from path answers |
 | U8 | Multi-domain production | Domain packs; non-ERP fixture domain; tenancy, OIDC, RLS, vault (§13) | [Pa] | Non-ERP fixture runs with no ERP installed (exists); cross-tenant probe returns not-found |
 | U9 | Generic core, specific by config + knowledge | Specialization layers and G-criteria (§2) | [Pa] | Each G-criterion's fitness test (§2.2) |
-| Q1 | Authorization | Roles mapped by profile to task definitions, capabilities, connections and approval scopes; self-approval rule; run visibility (§13.2) | [Pa] (two static roles; approval iff write) | Requester outside a task's grant cannot start it; approver outside scope cannot decide; requester cannot approve their own write unless local mode; a non-participant cannot read the run or export its evidence |
+| Q1 | Authorization | Roles mapped by profile to task definitions, capabilities, connections and approval scopes; self-approval rule; run visibility (§13.2) | [Pa] (two static roles; approval iff write) | Requester outside a task's grant cannot start it; approver outside scope cannot decide; requester cannot approve their own write unless `operator.allow_self_approval` is set; a non-participant cannot read the run or export its evidence |
 | Q2 | High load | §12.2 mechanisms; this round added nothing new | [P] | R1 fitness test |
 | Q3 | Concurrent requests | Idempotency keys, CAS revisions, 404 for foreign runs; request limits and bounded reads (§12.4) | [Pa] | Every row of the §12.4 table has a test: two identical creates make one run; two decides give one success and one 409; a 10 000-event run snapshots within the page limit |
 | Q4 | Auditing | Append-only event log with actor and correlation id on every event; database-enforced no UPDATE/DELETE; access log for reads and exports (§5.5) | [Pa] (actor [I]; DB grants, access log [P]) | Application roles cannot UPDATE or DELETE `run_events`, `approvals` or `receipts` (probe fails); every event carries an actor; exporting evidence writes an access-log entry with the actor |
@@ -245,7 +245,7 @@ flowchart LR
 
 Status:
 - **[I]** All of these responsibilities except ContextAssembler and ProgressLedger exist today inside `coordinator.py` (1509 lines).
-- **[P]** Splitting them into these services, behind an unchanged facade. The ContextAssembler and ProgressLedger are new responsibilities. The run transition table is new; the action table exists.
+- **[P]** Splitting them into these services, behind an unchanged facade. The ContextAssembler and ProgressLedger are new responsibilities. The run and action transition tables both exist.
 
 ---
 
@@ -313,9 +313,9 @@ The market evidence is that topology, not framework, dominates cost: about 2.1×
 1. **State is typed and transitions are tabled.** Both run and action states change only through allowed transitions with compare-and-swap revisions. The action table exists (`contracts/action.py: ALLOWED_ACTION_TRANSITIONS`). The run table exists (`contracts/run.py: ALLOWED_RUN_TRANSITIONS`) and `_set_run_state` enforces it [I] (ADR 0018).
 2. **The event log is the audit truth.** Every state change appends a typed, versioned `RunEvent` in the same short transaction [I]. Current-state rows stay authoritative for compare-and-swap concurrency control. Making those rows fully reconstructable from the log is a [P] target, tested by the U3 fitness row; it is not guaranteed today.
 3. **Steps are first-class.** A *step* is one driver turn or one kernel action. Each step records its inputs (as refs), outputs, findings and status, so later steps and the model reason over results instead of re-deriving them.
-4. **No hidden reasoning is persisted.** Model reasoning parts are stripped (ADR 0004) [I]. Explanations today are proposals, findings and a free-text `run.reason`; structured rationale fields are proposed in §5.6 [P]. No `rationale` field exists in the contracts, the driver or the evidence export.
+4. **No hidden reasoning is persisted.** Model reasoning parts are stripped (ADR 0004) [I]. Explanations today are proposals, findings, a free-text `run.reason` and a typed `ReasonCode` [I]; structured rationale fields are proposed in §5.6 [P]. No `rationale` field exists in the contracts, the driver or the evidence export.
 
-### 5.2 Run state machine (proposed transition table)
+### 5.2 Run state machine (transition table implemented)
 
 ```mermaid
 stateDiagram-v2
@@ -343,7 +343,7 @@ stateDiagram-v2
     CANCELLED --> [*]
 ```
 
-**This diagram is illustrative and incomplete.** The coordinator moves runs to `FAILED` from many states (13 direct `_set_run_state(..., RunState.FAILED)` calls), and a cancellation with unresolved effects stays in `NEEDS_RECONCILIATION` (MVP §7). ADR C6 must derive the exact table from the current `_set_run_state` call sites, so that no existing flow breaks, rather than implementing this picture. The action state machine is unchanged from MVP design §7.
+**This diagram is illustrative and incomplete.** The coordinator moves runs to `FAILED` from many states (13 direct `_set_run_state(..., RunState.FAILED)` calls), and a cancellation with unresolved effects stays in `NEEDS_RECONCILIATION` (MVP §7). The exact table was derived from the observed `_set_run_state` call sites and the crash-recovery rules, so that no existing flow breaks. It is implemented as `ALLOWED_RUN_TRANSITIONS` in `contracts/run.py` and enforced by `_check_run_transition` [I] (ADR 0018); the contract table is authoritative and this diagram is only a picture of it. The action state machine is unchanged from MVP design §7.
 
 ### 5.3 Data model (ledger, steps, knowledge)
 
@@ -444,7 +444,7 @@ class ProposalRationale(BaseModel):              # driver structured output (pro
     alternatives: tuple[RejectedAlternative, ...]  # proposal digest + ReasonCode + one line
     summary: str                                   # <= 400 chars, rendered as "model-authored"
 
-class ReasonCode(StrEnum):                         # beside free-text run.reason (proposed)
+class ReasonCode(StrEnum):                         # beside free-text run.reason [I] (contracts/run.py; abridged here, the full set has 17 members)
     VALIDATION_FAILED = "validation_failed"
     POLICY_DENIED = "policy_denied"
     APPROVAL_REJECTED = "approval_rejected"
@@ -456,7 +456,7 @@ class ReasonCode(StrEnum):                         # beside free-text run.reason
     VERIFIED = "verified"
 ```
 
-A rationale whose reference does not resolve, or whose rule ID is unknown, produces a `KERNEL-RATIONALE` finding; the proposal is still validated on its own merits. `_set_run_state(reason)` (`coordinator.py:240-255`) gains a `reason_code`; the human text stays.
+A rationale whose reference does not resolve, or whose rule ID is unknown, produces a `KERNEL-RATIONALE` finding; the proposal is still validated on its own merits. `_set_run_state(reason, code=...)` records the `reason_code` on the run [I]; the human text stays.
 
 **Explanation projection [P].** A deterministic function over the event log renders goal → source facts (`read.recorded` refs) → validation (findings by rule ID) → proposal (digest, rationale) → approval (actor, policy version) → receipt → verified outcome. No model call is involved. It is the fitness test for G11 and Q5: the research 03 competency questions are answered from this projection. The approval card shows the canonical proposal first and the rationale second.
 
@@ -898,7 +898,7 @@ class AuthorizationBundle(BaseModel):            # profile-declared, versioned (
 Rules:
 
 1. **Authority is host-derived** (G10). The bundle version joins the policy version in the approval digest, so a grant change after a proposal makes the approval stale, as a surface change does today.
-2. **No self-approval in production.** `decide` rejects `actor.principal_id == run.requester_id` unless the profile runs in local mode (HLD §3 deliberately lets one demo operator hold both roles). This generalizes §11.2 rule 4: a service principal can never approve.
+2. **No self-approval in production.** `decide` rejects `actor.principal_id == run.requester_id` unless the profile sets `operator.allow_self_approval` [I] (ADR 0019; HLD §3 deliberately lets one demo operator hold both roles). Approval scopes and run visibility stay [P]. This generalizes §11.2 rule 4: a service principal can never approve.
 3. **Approval scope.** An approver decides only actions whose domain, connection and limits fall inside their scope. Out of scope is FORBIDDEN and logged.
 4. **Run visibility.** Requester, approvers whose scope covers the pending action, operators (support) and auditors (read-only evidence). Everyone else gets 404, like a foreign tenant. This closes the HLD §9 export-authorization baseline.
 5. **Enforcement lives in the kernel and the policy evaluator**, not in HTTP handlers. The API maps identity and nothing more.
@@ -1029,7 +1029,7 @@ e-agent/
 | Domain rules and verifiers | `packages/domain-erp/src/e_agent/erp/procurement/{rules,shapes,validation.py,verifier.py}` | + `tasks/`, `skills/` |
 | Task catalog | `apps/server/.../api.py: TaskTemplate` (ADR 0017) | backed by `contracts/task.py` definitions |
 | Authorization | `kernel/policy.py: DefaultPolicy` (two roles); `server/api.py` requester and tenant checks | `contracts/authz.py: AuthorizationBundle`; checks in `kernel/policy.py` and `kernel/approval.py` (C16) |
-| Reason codes and rationale | `contracts/run.py: reason` (free text); no rationale field | `contracts/run.py: ReasonCode`; `contracts/action.py: ProposalRationale` (C18) |
+| Reason codes and rationale | `contracts/run.py: reason` (free text) and `ReasonCode` / `RunRecord.reason_code` [I]; no rationale field | `contracts/action.py: ProposalRationale` (C18) |
 | Explanation projection and evidence | `kernel/evidence.py: build_evidence, classify` | `kernel/explain.py` projection over `run_events`; `classify` derived from `ReasonCode` (C17/C18) |
 | Import boundaries | root `pyproject.toml [tool.importlinter]` | + contracts for new kernel modules and adapters |
 
@@ -1065,8 +1065,8 @@ e-agent/
 | Phase | Content | Exit evidence |
 |---|---|---|
 | **P0: runtime correctness at concurrency** | C3 admission rule ✔, lease; C6 ✔; singleton audit; C1 run slots; C2 LISTEN streaming | Existing suites green; new fault-injection tests (lease loss mid-dispatch, concurrent writes to one connection); K runs progress concurrently |
-| **P1: roles and structure** | C4 worker role; cross-process cancel; SR-06 kernel split behind the facade; C11 task definitions + acceptance specs (also closes AR-01); C16 self-approval rule, approval scopes and run visibility; actor on every event (C17 part 1) | Two API + two worker processes on one DB with kill -9 tests; line-count and import contracts per kernel module; Q1 fitness tests |
-| **P2: cognition core** | C8 step records + progress ledger; C9 ContextAssembler; driver conformance suite; first context ablation (research 03 §8); C18 reason codes, rationale contract and explanation projection | Budget respected over 12 turns; repair success rate and token cost compared against the baseline on fixtures |
+| **P1: roles and structure** | C4 worker role; cross-process cancel; SR-06 kernel split behind the facade; C11 task definitions + acceptance specs (also closes AR-01); C16 self-approval rule ✔, approval scopes and run visibility; actor on every event ✔ (C17 part 1) | Two API + two worker processes on one DB with kill -9 tests; line-count and import contracts per kernel module; Q1 fitness tests |
+| **P2: cognition core** | C8 step records + progress ledger; C9 ContextAssembler; driver conformance suite; first context ablation (research 03 §8); C18 reason codes ✔, rationale contract and explanation projection | Budget respected over 12 turns; repair success rate and token cost compared against the baseline on fixtures |
 | **P3: integration breadth** | C12 MCP binding; C13 triggers with the approval expiry sweeper and per-task TTL (inbox may follow); second domain pack (non-ERP, real use case) | G2/G3/G10 gates with a real second domain; triggered write waits for approval; expired approval of an unwatched run reaches `BLOCKED` without a restart |
 | **P4: knowledge and memory** [C] | C14 knowledge service + hybrid projection; C10 memory candidates; graph projection only for named competency questions | Competency fixtures pass; deletion and ACL regression; retrieval eval (context precision/recall) |
 | **P5: production hardening** | C15 RLS (control + tenant roles), OIDC, vault; C17 part 2: database-enforced append-only grants, access audit, hash chain if triggered; API request limits and paged reads (§12.4); load baseline report; retention; telemetry dashboards | Security review; cross-tenant probes; UPDATE probe on `run_events`, `approvals` and `receipts` fails for application roles; documented capacity baseline |
