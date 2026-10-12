@@ -6,11 +6,11 @@ import subprocess
 from pathlib import Path
 
 
-def git(root: Path, *args: str) -> str:
+def git(root: Path, *args: str, strip: bool = True) -> str:
     proc = subprocess.run(
         ["git", "-C", str(root), *args], capture_output=True, text=True, check=True
     )
-    return proc.stdout.strip()
+    return proc.stdout.strip() if strip else proc.stdout
 
 
 def head_sha(root: Path) -> str:
@@ -24,7 +24,11 @@ def branch(root: Path) -> str:
 def status_files(root: Path) -> list[str]:
     """Changed, staged and untracked paths (renames report the new path)."""
     files: list[str] = []
-    for line in git(root, "status", "--porcelain", "--untracked-files=all").splitlines():
+    # Not stripped: a modified file's line starts with a space (" M path").
+    porcelain = git(root, "status", "--porcelain", "--untracked-files=all", strip=False)
+    for line in porcelain.splitlines():
+        if len(line) < 4:
+            continue
         path = line[3:]
         if " -> " in path:
             path = path.split(" -> ", 1)[1]

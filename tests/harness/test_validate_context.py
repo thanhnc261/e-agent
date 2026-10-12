@@ -50,3 +50,8 @@ def test_unknown_command_exits_2(repo) -> None:
     with pytest.raises(SystemExit) as exc:
         repo.invoke("no-such-command")
     assert exc.value.code == 2
+
+
+def test_status_files_keeps_first_char_of_a_modified_tracked_file(repo) -> None:
+    repo.write("src/pkg/mod.py", "X = 2\n")  # first porcelain line starts with a space: " M"
+    assert gitinfo.status_files(repo.root) == ["src/pkg/mod.py"]
