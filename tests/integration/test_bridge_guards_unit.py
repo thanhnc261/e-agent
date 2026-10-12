@@ -45,7 +45,7 @@ class Env:
         self.context = {"e_agent_target": expected}
         self.cr = SimpleNamespace(dbname="synthetic")
         self.company = SimpleNamespace(id=7)
-        self.metadata = Metadata("owned", "19.0.0.3.0")
+        self.metadata = Metadata("owned", "19.0.0.4.0")
 
     def __getitem__(self, model):
         return self.metadata
@@ -57,7 +57,7 @@ def test_write_target_guard_rejects_identity_changed_after_preflight(field):
         "database": "synthetic",
         "company_id": "7",
         "sandbox_marker": "owned",
-        "bridge_version": "19.0.0.3.0",
+        "bridge_version": "19.0.0.4.0",
     }
     target[field] = "different"
     host = SimpleNamespace(env=Env(target), _check=lambda: None)
@@ -98,6 +98,7 @@ def test_seed_and_reset_require_an_explicit_bounded_synthetic_namespace(namespac
     ("filename", "name", "arguments"),
     [
         ("bridge.py", "read_demand", ["synthetic"]),
+        ("bridge.py", "read_open_demands", ["synthetic"]),
         ("bridge.py", "read_availability", ["synthetic"]),
         ("bridge.py", "read_offers", ["synthetic"]),
         ("bridge.py", "read_operation", ["synthetic", "operation"]),

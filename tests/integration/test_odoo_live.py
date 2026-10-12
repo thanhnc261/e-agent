@@ -32,7 +32,7 @@ KEY = os.environ.get("E_AGENT_TEST_ODOO_KEY", "")
 ADMIN_KEY = os.environ.get("E_AGENT_TEST_ODOO_ADMIN_KEY", "")
 MARKER = os.environ.get("E_AGENT_TEST_ODOO_MARKER", "")
 COMPANY = os.environ.get("E_AGENT_TEST_ODOO_COMPANY_ID", "")
-BRIDGE_VERSION = "19.0.0.3.0"
+BRIDGE_VERSION = "19.0.0.4.0"
 pytestmark = [pytest.mark.asyncio, pytest.mark.skipif(not URL, reason="no sandbox Odoo")]
 
 
@@ -85,6 +85,14 @@ def _payload(refs: dict[str, str], offers: dict[str, Any], qty: str = "7") -> di
         "unit_price": "100",
         "requested_date": "2030-01-01",
     }
+
+
+async def test_open_demands_lists_the_seeded_demand_with_exact_refs(seeded: Any) -> None:
+    namespace, refs = seeded
+    listed = await _bridge("read_open_demands", namespace=namespace)
+    assert listed["complete"] is True
+    by_ref = {d["demand_ref"]: d for d in listed["demands"]}
+    assert by_ref[refs["demand_ref"]]["product_ref"] == refs["product_ref"]
 
 
 async def test_bridge_is_idempotent_and_detects_payload_conflicts(seeded: Any) -> None:

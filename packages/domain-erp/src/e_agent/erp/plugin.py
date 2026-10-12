@@ -24,6 +24,7 @@ from .procurement.api import (
     DraftRfqQuery,
     OfferQuery,
     OfferRecommendation,
+    OpenDemandsQuery,
     PurchaseOrderQuery,
     ShortageAnswer,
 )
@@ -44,6 +45,7 @@ from .sales.quotation import DraftQuotationVerifier, QuotationDatasetBuilder
 INPUT_SCHEMAS = {
     "inventory.AvailabilityQuery.v1": AvailabilityQuery.model_json_schema(),
     "procurement.DemandQuery.v1": DemandQuery.model_json_schema(),
+    "procurement.OpenDemandsQuery.v1": OpenDemandsQuery.model_json_schema(),
     "procurement.OfferQuery.v1": OfferQuery.model_json_schema(),
     "procurement.DraftPurchaseOrder.v1": DraftPurchaseOrder.model_json_schema(),
     "procurement.PurchaseOrderQuery.v1": PurchaseOrderQuery.model_json_schema(),
@@ -65,7 +67,9 @@ INPUT_SCHEMAS = {
 }
 
 GUIDANCE = (
-    "Procurement: read the demand, current stock and supplier offers first. "
+    "Procurement: if the user names no demand reference, list open demands first "
+    "and copy the exact demand_ref and product_ref from that result. "
+    "Read the demand, current stock and supplier offers first. "
     "The quantity to order is demand minus available minus inbound stock (never negative). "
     "Copy complete resource references from read results, including their prefixes. "
     "For a request to create an order, use the purchase order proposal tool after reading. "

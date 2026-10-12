@@ -132,6 +132,30 @@ class EAgentBridge(models.AbstractModel):
 
     @api.model
     @api.readonly
+    def read_open_demands(self, namespace):
+        self._check_target()
+        demands = self.env["e_agent.demand"].search(
+            [("company_id", "=", self.env.company.id), ("namespace", "=", namespace)],
+            order="id",
+            limit=100,
+        )
+        return {
+            "demands": [
+                {
+                    "demand_ref": _ref(d),
+                    "product_ref": _ref(d.product_id),
+                    "product_name": d.product_id.display_name,
+                    "quantity": d.quantity,
+                    "unit": d.product_id.uom_id.name,
+                    "requested_date": fields.Date.to_string(d.requested_date),
+                }
+                for d in demands
+            ],
+            "complete": len(demands) < 100,
+        }
+
+    @api.model
+    @api.readonly
     def read_availability(self, product_ref):
         self._check_target()
         product = self.env["product.product"].browse(self._id(product_ref, "product.product"))

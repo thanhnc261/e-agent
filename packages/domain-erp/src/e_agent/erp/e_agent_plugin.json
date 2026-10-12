@@ -20,6 +20,13 @@
       "description": "One procurement demand with requested date and budget"
     },
     {
+      "contract_id": "procurement.open-demands.read.v1",
+      "effect": "read",
+      "input_schema_id": "procurement.OpenDemandsQuery.v1",
+      "output_schema_id": "procurement.OpenDemands.v1",
+      "description": "List open procurement demands with their exact demand and product references; use it first when the user gives no demand reference"
+    },
+    {
       "contract_id": "procurement.offers.read.v1",
       "effect": "read",
       "input_schema_id": "procurement.OfferQuery.v1",

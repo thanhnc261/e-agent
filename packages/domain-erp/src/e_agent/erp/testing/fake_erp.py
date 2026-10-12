@@ -31,6 +31,7 @@ from ..procurement import (
     DEMAND_READ,
     DRAFT_RFQ_READ,
     OFFERS_READ,
+    OPEN_DEMANDS_READ,
     PURCHASE_ORDER_READ,
 )
 from ..procurement.api import AmendDraftRfq, DraftPurchaseOrder
@@ -43,6 +44,9 @@ PLUGIN_ID = "fixture-erp"
 BINDINGS = (
     BindingTemplate(binding_id="fixture-erp.inventory.availability", contract_id=AVAILABILITY_READ),
     BindingTemplate(binding_id="fixture-erp.procurement.demand", contract_id=DEMAND_READ),
+    BindingTemplate(
+        binding_id="fixture-erp.procurement.open-demands", contract_id=OPEN_DEMANDS_READ
+    ),
     BindingTemplate(binding_id="fixture-erp.procurement.offers", contract_id=OFFERS_READ),
     BindingTemplate(binding_id="fixture-erp.procurement.po-create", contract_id=CREATE_DRAFT_PO),
     BindingTemplate(binding_id="fixture-erp.procurement.po-read", contract_id=PURCHASE_ORDER_READ),
@@ -214,6 +218,20 @@ class FakeErp:
             found = args.get("purchase_order_ref") == self.rfq.purchase_order_ref
             return (self._rfq_view() if found else {}), self._evidence(
                 ctx, "rfq", str(args.get("purchase_order_ref")), self.rfq.revision
+            )
+        if cid == OPEN_DEMANDS_READ:
+            demands = [
+                {
+                    "demand_ref": s.demand_ref,
+                    "product_ref": s.product_ref,
+                    "product_name": s.product_ref.split(":", 1)[-1],
+                    "quantity": s.demand_quantity,
+                    "unit": s.unit,
+                    "requested_date": s.requested_date.isoformat(),
+                }
+            ]
+            return {"demands": demands, "complete": True}, self._evidence(
+                ctx, "demand", "open", "demands:1"
             )
         if cid == PRICING_READ:
             customer, product = str(args["customer_ref"]), str(args["product_ref"])

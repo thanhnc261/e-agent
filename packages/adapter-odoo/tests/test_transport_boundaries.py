@@ -10,9 +10,10 @@ from e_agent.adapters.odoo.executor import OdooExecutor
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.connection import ConnectionOwnership
 from e_agent.contracts.context import Principal, TaskContext
-from e_agent.erp.procurement import CREATE_DRAFT_PO
+from e_agent.erp.procurement import CREATE_DRAFT_PO, OPEN_DEMANDS_READ
 from e_agent.sdk.auth import AuthContext, Secret
 from e_agent.sdk.errors import KnownNoEffectError
+from e_agent.sdk.ports import ReadRequest
 
 AUTH = AuthContext(
     connection_id="connection",
@@ -27,7 +28,7 @@ TARGET = {
     "database": "synthetic",
     "company_id": "7",
     "sandbox_marker": "owned",
-    "bridge_version": "19.0.0.3.0",
+    "bridge_version": "19.0.0.4.0",
 }
 
 
@@ -191,3 +192,54 @@ async def test_reconciliation_requires_matching_command_and_digest(command, dige
         SimpleNamespace(), SimpleNamespace(connection_id="connection"), action
     )
     assert (receipt is not None) is committed
+
+
+async def test_open_demands_read_copies_refs_exactly_and_passes_the_namespace():
+    seen = []
+
+    def response(request):
+        seen.append((request.url.path, json.loads(request.content)))
+        return httpx.Response(
+            200,
+            json={
+                "demands": [
+                    {
+                        "demand_ref": "odoo/e_agent.demand/1",
+                        "product_ref": "odoo/product.product/201",
+                        "product_name": "Widget A",
+                        "quantity": 12.0,
+                        "unit": "Units",
+                        "requested_date": "2026-10-20",
+                    }
+                ],
+                "complete": True,
+            },
+        )
+
+    client = OdooJson2Client(
+        "http://127.0.0.1:8069", "synthetic", transport=httpx.MockTransport(response), target=TARGET
+    )
+
+    class Credentials:
+        async def context_for(self, ctx, connection_id):
+            return AUTH
+
+    executor = OdooExecutor(client, Credentials(), "owned-test")
+    ctx = TaskContext(
+        run_id="run",
+        tenant_id="tenant",
+        principal=Principal(principal_id="actor", tenant_id="tenant", roles=frozenset()),
+        resource_scope=frozenset({"connection"}),
+    )
+    obs = await executor.read(
+        ctx,
+        SimpleNamespace(connection_id="connection"),  # type: ignore[arg-type]
+        ReadRequest("r", OPEN_DEMANDS_READ, "connection", {}),
+    )
+    [row] = obs.data["demands"]
+    assert row["quantity"] == "12"
+    assert row["demand_ref"] == "odoo/e_agent.demand/1"
+    assert row["product_ref"] == "odoo/product.product/201"
+    assert obs.data["complete"] is True
+    assert seen[0][0].endswith("/e_agent.bridge/read_open_demands")
+    assert seen[0][1]["namespace"] == "owned-test"

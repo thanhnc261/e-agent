@@ -10,7 +10,7 @@ from e_agent.contracts.context import Principal, TaskContext
 from e_agent.contracts.outcome import OutcomeStatus
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
 from e_agent.erp.plugin import create_plugin, load_manifest
-from e_agent.erp.procurement import CREATE_DRAFT_PO, DEMAND_READ, OFFERS_READ
+from e_agent.erp.procurement import CREATE_DRAFT_PO, DEMAND_READ, OFFERS_READ, OPEN_DEMANDS_READ
 from e_agent.erp.procurement.normalizer import collect_facts
 from e_agent.erp.procurement.verifier import DraftPurchaseOrderVerifier
 from e_agent.erp.testing.fake_erp import FakeErp
@@ -204,6 +204,25 @@ async def test_operation_key_is_idempotent_and_conflicts_on_new_payload() -> Non
     assert first.external_refs == again.external_refs and len(erp.orders) == 1
     with pytest.raises(KnownNoEffectError):
         await erp.execute(CTX, None, _action(digest="d2"), 3)  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+async def test_open_demands_read_lists_the_fixture_demand_with_exact_refs() -> None:
+    from e_agent.sdk.ports import ReadRequest
+
+    erp = FakeErp(SCENARIOS["valid"])
+    obs = await erp.read(CTX, None, ReadRequest("r", OPEN_DEMANDS_READ, "c", {}))  # type: ignore[arg-type]
+    assert obs.data["complete"] is True
+    [row] = obs.data["demands"]
+    assert row["demand_ref"] == "demand:d-001" and row["product_ref"] == "product:widget-a"
+    assert set(row) == {
+        "demand_ref",
+        "product_ref",
+        "product_name",
+        "quantity",
+        "unit",
+        "requested_date",
+    }
 
 
 @pytest.mark.asyncio

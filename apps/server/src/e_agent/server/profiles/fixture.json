@@ -33,6 +33,9 @@
     "fixture-erp.procurement.demand": [
       "conn-fixture-erp"
     ],
+    "fixture-erp.procurement.open-demands": [
+      "conn-fixture-erp"
+    ],
     "fixture-erp.procurement.offers": [
       "conn-fixture-erp"
     ],

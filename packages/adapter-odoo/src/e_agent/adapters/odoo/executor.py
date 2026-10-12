@@ -26,6 +26,7 @@ from e_agent.erp.procurement import (
     DEMAND_READ,
     DRAFT_RFQ_READ,
     OFFERS_READ,
+    OPEN_DEMANDS_READ,
     PURCHASE_ORDER_READ,
 )
 from e_agent.erp.procurement.api import AmendDraftRfq, DraftPurchaseOrder
@@ -232,6 +233,13 @@ class OdooExecutor:
                 for ld in raw.get("leads", [])
             ]
             return {"leads": leads}, self._evidence(ctx, "crm.lead", key, str(len(leads)))
+        if contract_id == OPEN_DEMANDS_READ:
+            raw = await self._call(ctx, cid, "read_open_demands", namespace=self._namespace)
+            data = {
+                "demands": [{**d, "quantity": dec(d["quantity"])} for d in raw["demands"]],
+                "complete": raw["complete"],
+            }
+            return data, self._evidence(ctx, "e_agent.demand", "open", None, raw["complete"])
         if contract_id == OPEN_ORDERS_READ:
             raw = await self._call(ctx, cid, "read_open_orders", as_of=str(args["as_of"]))
             data = {"as_of": raw["as_of"], "orders": raw["orders"]}

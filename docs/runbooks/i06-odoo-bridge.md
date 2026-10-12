@@ -2,14 +2,14 @@
 
 **Where:** the owner's machine. **Approved by:** plan §0 D4 (mount the addon path, create the integration user and API key). Never run against `odoo-bench` (port 8071) or any non-sandbox database.
 
-The historical 2026-10-06 results below used the previous bridge; they do not qualify the 19.0.0.3.0 remediation source or the owner installation.
+The historical 2026-10-06 results below used the previous bridge; they do not qualify the 19.0.0.4.0 remediation source or the owner installation.
 
 The same flow is automated for a throwaway Odoo built from source in `scripts/dev/odoo_from_source.sh` (dev container and the nightly `odoo-live` CI job). The live tests in `tests/integration/test_odoo_live.py` (ERP-01..03) and `tests/integration/test_odoo_live_tasks.py` (ERP-04..08) passed against that Odoo 19 build on 2026-10-06.
 
 ## 1. Mount and install the addon
 
 1. In `/Users/thanhnguyen/dev/study/erp/docker-compose.yml`, add a bind mount of this repository's `addons/` directory into the Odoo container (for example `- /path/to/e-agent/addons:/mnt/e-agent-addons:ro`) and append `/mnt/e-agent-addons` to the container's `addons_path`.
-2. Restart the stack, update the apps list, and install **e-agent bridge** (`e_agent_bridge` 19.0.0.3.0; depends on Purchase + Inventory, Sales + Inventory (`sale_stock`) and CRM, which Odoo installs with it). Upgrading from 0.1 installs the new dependencies.
+2. Restart the stack, update the apps list, and install **e-agent bridge** (`e_agent_bridge` 19.0.0.4.0; depends on Purchase + Inventory, Sales + Inventory (`sale_stock`) and CRM, which Odoo installs with it). Upgrading from 0.1 installs the new dependencies. Upgrade the addon in Odoo (Apps, then Upgrade) before the new `procurement.open-demands.read.v1` read works; the adapter pins the bridge version and fails identity until the upgrade is done.
 
 ## 2. Sandbox marker, integration user, keys
 
@@ -34,10 +34,10 @@ export E_AGENT_ODOO_URL=http://localhost:8069 E_AGENT_ODOO_DB=<db> E_AGENT_ODOO_
 uv run python scripts/odoo_sandbox.py info
 uv run python scripts/odoo_sandbox.py seed --namespace e-agent-demo \
   --expected-marker "$E_AGENT_EXPECTED_MARKER" --expected-company-id "$E_AGENT_EXPECTED_COMPANY_ID" \
-  --expected-bridge-version 19.0.0.3.0
+  --expected-bridge-version 19.0.0.4.0
 uv run python scripts/odoo_sandbox.py seed-tasks --namespace e-agent-demo \
   --expected-marker "$E_AGENT_EXPECTED_MARKER" --expected-company-id "$E_AGENT_EXPECTED_COMPANY_ID" \
-  --expected-bridge-version 19.0.0.3.0
+  --expected-bridge-version 19.0.0.4.0
 ```
 
 Set the two expected identity variables from the explicitly designated synthetic sandbox; never infer them from an arbitrary response and then authorize mutation. The host pins URL port 8069, database, company, marker and bridge version; the bridge repeats the identity check inside each write transaction.
@@ -48,7 +48,7 @@ Use the printed refs in a live profile (see `profiles/live.example.json`). `e-ag
 
 ## 4. Reset
 
-Reset requires the same expected marker/company/version arguments as seed. Version 19.0.0.3.0 records exact synthetic record IDs in an administrator-only `e_agent.fixture` inventory. It refuses legacy namespaces with no inventory, duplicate matches and unowned records. Choose a fresh `e-agent-...` namespace for a legacy installation; no automatic adoption or broad legacy cleanup is provided.
+Reset requires the same expected marker/company/version arguments as seed. Version 19.0.0.4.0 records exact synthetic record IDs in an administrator-only `e_agent.fixture` inventory. It refuses legacy namespaces with no inventory, duplicate matches and unowned records. Choose a fresh `e-agent-...` namespace for a legacy installation; no automatic adoption or broad legacy cleanup is provided.
 
 Reset removes eligible draft agent effects, cancels owned seed business documents and clears stock quantities only for owned fixture quants. Archived synthetic sources and cancelled audit records may remain; inspect the returned `remaining` inventory rather than assuming complete deletion. It refuses agent-created documents that have left the allowed draft state. Exact Odoo ORM behavior, repeated seed/reset and race handling still require the live test gate for this bridge version.
 

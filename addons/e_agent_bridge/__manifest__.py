@@ -1,6 +1,6 @@
 {
     "name": "e-agent bridge",
-    "version": "19.0.0.3.0",
+    "version": "19.0.0.4.0",
     "summary": "Narrow, transactional commands for the e-agent action gateway (ADR 0005)",
     "description": """
 Each public bridge command reserves an operation key, validates draft-only

@@ -15,6 +15,10 @@
       "contract_id": "procurement.demand.read.v1"
     },
     {
+      "binding_id": "odoo19.procurement.open-demands",
+      "contract_id": "procurement.open-demands.read.v1"
+    },
+    {
       "binding_id": "odoo19.procurement.offers",
       "contract_id": "procurement.offers.read.v1"
     },
@@ -74,6 +78,7 @@
   "requires_capabilities": [
     "inventory.availability.read.v1",
     "procurement.demand.read.v1",
+    "procurement.open-demands.read.v1",
     "procurement.offers.read.v1",
     "procurement.purchase-order.create-draft.v1",
     "procurement.purchase-order.read.v1",
@@ -127,7 +132,7 @@
       "expected_bridge_version": {
         "type": "string",
         "enum": [
-          "19.0.0.3.0"
+          "19.0.0.4.0"
         ]
       }
     },

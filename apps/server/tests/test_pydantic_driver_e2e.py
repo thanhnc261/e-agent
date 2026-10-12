@@ -23,6 +23,7 @@ def scripted_llm(first_offer: str) -> FunctionModel:
     def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
         names = {t.name for t in info.function_tools}
         assert "procurement_purchase_order_read_v1" not in names  # host-only capability
+        assert "procurement_open_demands_read_v1" in names  # discovery read is offered
         last = messages[-1]
         returns = [p for p in getattr(last, "parts", []) if isinstance(p, ToolReturnPart)]
         if len(messages) == 1:

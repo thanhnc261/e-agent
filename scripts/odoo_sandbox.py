@@ -31,7 +31,7 @@ async def main() -> int:
     )
     parser.add_argument("--expected-marker")
     parser.add_argument("--expected-company-id")
-    parser.add_argument("--expected-bridge-version", default="19.0.0.3.0")
+    parser.add_argument("--expected-bridge-version", default="19.0.0.4.0")
     args = parser.parse_args()
     url, db = os.environ["E_AGENT_ODOO_URL"], os.environ["E_AGENT_ODOO_DB"]
     target_url = urlsplit(url)

@@ -22,7 +22,7 @@
         "namespace": "e-agent-demo",
         "expected_sandbox_marker": "odoo19-learning",
         "expected_company_id": "<approved company id>",
-        "expected_bridge_version": "19.0.0.3.0"
+        "expected_bridge_version": "19.0.0.4.0"
       }
     }
   },
@@ -42,6 +42,9 @@
       "conn-odoo"
     ],
     "odoo19.procurement.demand": [
+      "conn-odoo"
+    ],
+    "odoo19.procurement.open-demands": [
       "conn-odoo"
     ],
     "odoo19.procurement.offers": [

@@ -19,6 +19,10 @@ class DemandQuery(Record):
     demand_ref: str = Field(description=_REFERENCE_DESCRIPTION)
 
 
+class OpenDemandsQuery(Record):
+    """List open procurement demands; takes no arguments."""
+
+
 class OfferQuery(Record):
     """Read supplier offers for a product, including approval status."""
 
@@ -37,6 +41,20 @@ class Demand(Record):
     requested_date: date
     budget: DecimalStr
     currency: str
+
+
+class OpenDemand(Record):
+    demand_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    product_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    product_name: str
+    quantity: str
+    unit: str
+    requested_date: str
+
+
+class OpenDemands(Record):
+    demands: tuple[OpenDemand, ...]
+    complete: bool
 
 
 class Offer(Record):
