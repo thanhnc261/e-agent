@@ -25,7 +25,12 @@ from e_agent.contracts.evidence import ApprovedFact, Completeness
 from e_agent.contracts.outcome import OutcomeReport, OutcomeStatus
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
-from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord, RunState
+from e_agent.contracts.run import (
+    ALLOWED_RUN_TRANSITIONS,
+    TERMINAL_RUN_STATES,
+    RunRecord,
+    RunState,
+)
 from e_agent.contracts.validation import Finding, ValidationResult, ValidationStatus
 from e_agent.sdk.auth import CredentialVersionProvider
 from e_agent.sdk.errors import DriverBudgetExceeded, KnownNoEffectError
@@ -237,9 +242,14 @@ class RunCoordinator:
     async def get_run(self, tenant_id: str, run_id: str) -> RunRecord:
         return await self._store.get_run(tenant_id, run_id)
 
+    def _check_run_transition(self, run: RunRecord, to: RunState) -> None:
+        if to not in ALLOWED_RUN_TRANSITIONS[run.state]:
+            raise KernelError(ErrorCode.CONFLICT, f"illegal run transition {run.state}->{to}")
+
     async def _set_run_state(
         self, run: RunRecord, state: RunState, reason: str | None = None
     ) -> RunRecord:
+        self._check_run_transition(run, state)
         events: list[EventSpec] = [
             (
                 RunEventType.RUN_STATE_CHANGED,
@@ -441,6 +451,7 @@ class RunCoordinator:
         if not text.strip() or len(text) > 4000:
             raise KernelError(ErrorCode.INVALID_REQUEST, "input must contain 1..4000 characters")
         await self._load_cont(actor.tenant_id, run_id)
+        self._check_run_transition(run, RunState.RUNNING)
         run = await self._store.update_run(
             run.model_copy(update={"revision": run.revision + 1, "state": RunState.RUNNING}),
             run.revision,
@@ -689,6 +700,7 @@ class RunCoordinator:
         cont.last_validation = validation
         cont.approval_requested_at = self._clock()
         run = await self._store.get_run(run.tenant_id, run.run_id)
+        self._check_run_transition(run, RunState.WAITING_APPROVAL)
         waiting = run.model_copy(
             update={
                 "state": RunState.WAITING_APPROVAL,

@@ -443,3 +443,13 @@ async def test_rule_bundle_change_requires_new_approval_even_when_validation_pas
     assert (await k.store.list_actions(TENANT, run.run_id))[0].state is ActionState.BLOCKED
     events = await k.store.list_events(TENANT, run.run_id)
     assert any(event.payload.get("reason") == "rules changed since approval" for event in events)
+
+
+async def test_terminal_run_rejects_further_transitions(make_kernel: MakeKernel) -> None:
+    k = make_kernel()
+    run = await _approve(k, (await _start(k)).run_id)
+    assert run.state is RunState.SUCCEEDED
+    with pytest.raises(KernelError) as err:
+        await k.coordinator._set_run_state(run, RunState.RUNNING, "must not happen")
+    assert err.value.code is ErrorCode.CONFLICT
+    assert (await k.coordinator.get_run(TENANT, run.run_id)).state is RunState.SUCCEEDED

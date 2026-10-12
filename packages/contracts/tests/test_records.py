@@ -6,6 +6,7 @@ from e_agent.contracts.capability import CapabilityDescriptor, EffectKind
 from e_agent.contracts.common import DecimalStr, Record, UtcDatetime, format_decimal
 from e_agent.contracts.connection import ConnectionDescriptor, ConnectionOwnership
 from e_agent.contracts.events import RunEvent, RunEventType
+from e_agent.contracts.run import ALLOWED_RUN_TRANSITIONS, TERMINAL_RUN_STATES, RunState
 from pydantic import ValidationError
 
 
@@ -104,3 +105,11 @@ def test_event_catalog_round_trip() -> None:
     data = event.model_dump(mode="json")
     assert data["type"] == "run.created"
     assert RunEvent.model_validate(data) == event
+
+
+def test_run_transition_table_covers_every_state_and_terminals_are_final() -> None:
+    assert set(ALLOWED_RUN_TRANSITIONS) == set(RunState)
+    for state in TERMINAL_RUN_STATES:
+        assert ALLOWED_RUN_TRANSITIONS[state] == frozenset()
+    for state, targets in ALLOWED_RUN_TRANSITIONS.items():
+        assert RunState.CREATED not in targets, f"{state} must not return to CREATED"
