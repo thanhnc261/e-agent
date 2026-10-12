@@ -44,9 +44,11 @@ class ReasonCode(StrEnum):
 TERMINAL_RUN_STATES = frozenset({RunState.SUCCEEDED, RunState.FAILED, RunState.CANCELLED})
 
 # Allowed run transitions (ADR 0018). Self-transitions carry a new reason or repair;
-# terminal states are final. Every pair was either observed in the kernel, server and
-# conformance suites or is reachable from a coordinator call site or crash-recovery rule
-# (MVP design §9) named in its comment. Pairs no code path reaches are deliberately absent.
+# terminal states are final. Every pair was observed in the kernel, server and conformance
+# suites or is tied to a coordinator call site or crash-recovery rule (MVP design §9) named in
+# its comment. Two pairs are marked "defensive": no current call site reaches them, and they
+# are kept for the recovery rule that marks an effect UNKNOWN regardless of run state. Other
+# pairs no code path reaches are deliberately absent.
 ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
     RunState.CREATED: frozenset(
         {
@@ -59,7 +61,9 @@ ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
         {
             RunState.WAITING_INPUT,
             RunState.WAITING_APPROVAL,  # approval checkpoint
-            RunState.NEEDS_RECONCILIATION,  # recovery: a persisted write outcome is unknown
+            # defensive: no current call site; kept for the recovery rule that marks an effect
+            # UNKNOWN regardless of run state
+            RunState.NEEDS_RECONCILIATION,
             RunState.SUCCEEDED,  # verified structured answer
             RunState.FAILED,
             RunState.CANCELLED,
@@ -89,7 +93,9 @@ ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
             RunState.VERIFYING,  # verifier missing / unavailable / inconclusive, re-checked later
             RunState.SUCCEEDED,
             RunState.FAILED,
-            RunState.NEEDS_RECONCILIATION,  # recovery: a persisted write outcome is unknown
+            # defensive: no current call site; kept for the recovery rule that marks an effect
+            # UNKNOWN regardless of run state
+            RunState.NEEDS_RECONCILIATION,
             RunState.CANCELLED,  # cancel() while verifying with no unresolved dispatch
         }
     ),

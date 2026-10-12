@@ -19,7 +19,7 @@ import re
 from collections.abc import AsyncIterable, Mapping, Sequence
 from decimal import Decimal
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import SplitResult, urlsplit
 
 from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.context import TaskContext
@@ -192,10 +192,20 @@ environment and send an unrelated real key to the proxy (ADR 0021, ADR 0001).
 """
 
 
+def _malformed_netloc(endpoint: SplitResult) -> bool:
+    """A netloc the HTTP client may read differently from urlsplit (bad port, percent escapes)."""
+    try:
+        endpoint.port  # noqa: B018 - raises ValueError for a non-numeric or out-of-range port
+    except ValueError:
+        return True
+    return "%" in endpoint.netloc
+
+
 def ollama_model(model_name: str, base_url: str) -> Model:
     endpoint = urlsplit(base_url)
     if (
-        endpoint.hostname not in _LOOPBACK_HOSTS
+        _malformed_netloc(endpoint)
+        or endpoint.hostname not in _LOOPBACK_HOSTS
         or endpoint.scheme != "http"
         or endpoint.username
         or endpoint.query
@@ -213,7 +223,8 @@ def litellm_model(model_name: str, base_url: str, api_key: str | None = None) ->
     """LiteLLM proxy on loopback only (ADR 0021); upstream routing is the proxy's configuration."""
     endpoint = urlsplit(base_url)
     if (
-        endpoint.hostname not in _LOOPBACK_HOSTS
+        _malformed_netloc(endpoint)
+        or endpoint.hostname not in _LOOPBACK_HOSTS
         or endpoint.scheme not in {"http", "https"}
         or endpoint.username
         or endpoint.password

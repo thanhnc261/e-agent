@@ -1049,6 +1049,7 @@ class RunCoordinator:
         try:
             cont = await self._peek_cont(run.tenant_id, run.run_id)
         except KernelError:
+            LOG.debug("approval sweep: no continuation for run %s/%s", run.tenant_id, run.run_id)
             return False
         if cont.pending_action_id is None or cont.approval_requested_at is None:
             return False
@@ -1083,6 +1084,7 @@ class RunCoordinator:
                     run.tenant_id,
                     run.run_id,
                     type(exc).__name__,
+                    exc_info=True,
                 )
         return queued
 
@@ -1622,7 +1624,17 @@ class RunCoordinator:
         for run in await self._store.list_unfinished_runs():
             if await self._store.has_pending_work(run.tenant_id, run.run_id):
                 continue
-            result = await self._recover_run(run)
+            try:
+                result = await self._recover_run(run)
+            except Exception as exc:  # one bad run must not block the rest of recovery
+                LOG.warning(
+                    "startup recovery skipped run %s/%s (%s)",
+                    run.tenant_id,
+                    run.run_id,
+                    type(exc).__name__,
+                    exc_info=True,
+                )
+                continue
             if result is not None:
                 recovered.append(result)
         return recovered

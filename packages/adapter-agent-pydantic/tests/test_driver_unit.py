@@ -271,6 +271,9 @@ def test_litellm_model_accepts_loopback_proxy(base_url: str) -> None:
         ("http://localhost:4000/#frag", "m"),
         ("ftp://localhost:4000", "m"),
         ("http://localhost:4000", ""),
+        ("http://localhost:99999", "m"),  # port out of range
+        ("http://localhost:80\\evil.com", "m"),  # backslash host smuggling
+        ("http://127.0.0.1:4000%40evil.com", "m"),  # percent-escaped userinfo separator
     ],
 )
 def test_litellm_model_refuses_non_loopback_or_malformed(base_url: str, model_name: str) -> None:
@@ -312,3 +315,19 @@ def test_ollama_model_endpoint_guard_is_unchanged() -> None:
     ]:
         with pytest.raises(ValueError, match="local Ollama endpoint"):
             ollama_model(name, url)
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "http://localhost:99999",
+        "http://localhost:80\\evil.com",
+        "http://127.0.0.1:4000%40evil.com",
+        "http://localhost:abc",
+    ],
+)
+def test_ollama_model_refuses_malformed_loopback_urls(base_url: str) -> None:
+    from e_agent.adapters.pydantic_ai import ollama_model
+
+    with pytest.raises(ValueError, match="local Ollama endpoint"):
+        ollama_model("qwen3", base_url)

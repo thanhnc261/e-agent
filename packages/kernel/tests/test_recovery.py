@@ -132,6 +132,55 @@ async def test_crash_during_driver_turn_fails_without_effects(make_kernel: MakeK
     assert k.backend.create_calls == 0
 
 
+async def _crash_two_runs(k: Kernel) -> None:
+    async def die(*args: Any) -> Any:
+        raise Crash
+
+    k.backend.read = die  # type: ignore[method-assign]
+    for _ in range(2):
+        with pytest.raises(Crash):
+            await k.coordinator.start_run(k.requester, "x", k.scope)
+
+
+async def test_one_failing_run_does_not_stop_recovery_of_the_others(
+    make_kernel: MakeKernel, caplog: pytest.LogCaptureFixture
+) -> None:
+    k = make_kernel()
+    await _crash_two_runs(k)
+    first, second = (r.run_id for r in await k.store.list_unfinished_runs())
+    fresh = restart(k)
+    real = fresh._recover_run
+
+    async def flaky(run: Any) -> Any:
+        if run.run_id == first:
+            raise RuntimeError("corrupt continuation")
+        return await real(run)
+
+    fresh._recover_run = flaky  # type: ignore[method-assign]
+    with caplog.at_level("WARNING"):
+        recovered = await fresh.recover()
+    assert [r.run_id for r in recovered] == [second]
+    assert recovered[0].state is RunState.FAILED
+    assert (await k.store.get_run(TENANT, first)).state is RunState.RUNNING
+    [record] = [r for r in caplog.records if "skipped run" in r.getMessage()]
+    assert first in record.getMessage() and record.exc_info is not None
+
+
+async def test_cancellation_is_not_swallowed_by_the_per_run_guard(make_kernel: MakeKernel) -> None:
+    import asyncio
+
+    k = make_kernel()
+    await _crash_two_runs(k)
+    fresh = restart(k)
+
+    async def cancelled(run: Any) -> Any:
+        raise asyncio.CancelledError
+
+    fresh._recover_run = cancelled  # type: ignore[method-assign]
+    with pytest.raises(asyncio.CancelledError):
+        await fresh.recover()
+
+
 @pytest.mark.parametrize("boundary", ["record_receipt", "record_outcome"])
 async def test_recovery_uses_durable_effect_when_run_state_lags(
     make_kernel: MakeKernel,
