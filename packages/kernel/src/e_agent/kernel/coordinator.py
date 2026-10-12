@@ -1240,8 +1240,9 @@ class RunCoordinator:
                 ],
             )
         except ConnectionBusy:
-            # ADR 0020: another action on this connection is DISPATCHING or UNKNOWN. Caught here,
-            # before any generic ConcurrencyConflict handler, so it never escapes as an HTTP 409.
+            # ADR 0020: another action on this connection is RESERVED, DISPATCHING or UNKNOWN.
+            # Caught here, before any generic ConcurrencyConflict handler, so it never escapes
+            # as an HTTP 409.
             await self._transition(action, ActionState.BLOCKED)
             cont.pending_action_id = None
             return await self._set_run_state(

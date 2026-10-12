@@ -314,19 +314,11 @@ class PostgresRunStore:
     ) -> ActionRecord:
         async with self._pool.connection() as conn, conn.transaction():
             await self._fence(conn)
-            # ADR 0020: serialize admission per connection inside this short transaction, then
-            # refuse while another action on the connection is DISPATCHING or UNKNOWN.
+            # ADR 0020: serialize admission per connection inside this short transaction.
             await conn.execute(
                 "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
                 (f"e-agent-admit:{action.tenant_id}:{action.connection_id}",),
             )
-            cur = await conn.execute(
-                "SELECT action_id FROM actions WHERE tenant_id = %s AND connection_id = %s"
-                " AND state IN ('DISPATCHING', 'UNKNOWN') AND action_id <> %s LIMIT 1",
-                (action.tenant_id, action.connection_id, action.action_id),
-            )
-            if await cur.fetchone() is not None:
-                raise ConnectionBusy(action.connection_id)
             await self._cas_action(conn, action, expected_revision)
             try:
                 async with conn.transaction():
@@ -343,6 +335,16 @@ class PostgresRunStore:
                     )
             except errors.UniqueViolation as exc:
                 raise DuplicateOperation(action.logical_operation_id) from exc
+            # A repeated logical operation reports DuplicateOperation above. Otherwise refuse
+            # while another action on the connection is RESERVED, DISPATCHING or UNKNOWN; the
+            # raise rolls back the CAS and the insert with this transaction.
+            cur = await conn.execute(
+                "SELECT action_id FROM actions WHERE tenant_id = %s AND connection_id = %s"
+                " AND state IN ('RESERVED', 'DISPATCHING', 'UNKNOWN') AND action_id <> %s LIMIT 1",
+                (action.tenant_id, action.connection_id, action.action_id),
+            )
+            if await cur.fetchone() is not None:
+                raise ConnectionBusy(action.connection_id)
             await self._append(conn, action.tenant_id, action.run_id, events)
         return action
 

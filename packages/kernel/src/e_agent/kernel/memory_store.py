@@ -216,19 +216,19 @@ class InMemoryRunStore:
     ) -> ActionRecord:
         async with self._lock:
             self._fence()
+            key = (action.tenant_id, action.connection_id, action.logical_operation_id)
+            if key in self._reservations:
+                raise DuplicateOperation(action.logical_operation_id)
+            self._check_action_cas(action, expected_revision)
             busy = any(
                 a.connection_id == action.connection_id
-                and a.state in {ActionState.DISPATCHING, ActionState.UNKNOWN}
+                and a.state in {ActionState.RESERVED, ActionState.DISPATCHING, ActionState.UNKNOWN}
                 and a.action_id != action.action_id
                 for (t, _), a in self._actions.items()
                 if t == action.tenant_id
             )
             if busy:
                 raise ConnectionBusy(action.connection_id)
-            key = (action.tenant_id, action.connection_id, action.logical_operation_id)
-            if key in self._reservations:
-                raise DuplicateOperation(action.logical_operation_id)
-            self._check_action_cas(action, expected_revision)
             self._reservations[key] = action.action_id
             self._actions[(action.tenant_id, action.action_id)] = action
             self._append(action.tenant_id, action.run_id, events)

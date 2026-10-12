@@ -42,7 +42,10 @@ class DuplicateOperation(Exception):
 
 
 class ConnectionBusy(ConcurrencyConflict):
-    """Another action on this connection is DISPATCHING or UNKNOWN (ADR 0020)."""
+    """Another action on this connection is RESERVED, DISPATCHING or UNKNOWN (ADR 0020).
+
+    Not retryable: the earlier write must resolve first. Handled in the coordinator's `_dispatch`.
+    """
 
 
 class NotFound(Exception):

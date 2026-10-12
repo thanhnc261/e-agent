@@ -60,15 +60,17 @@ def _action(
     state: ActionState = ActionState.PROPOSED,
     run_id: str = "run_1",
     op: str = "op_1",
+    tenant: str = "t1",
+    conn: str = "c",
 ) -> ActionRecord:
     return ActionRecord(
         action_id=aid,
-        tenant_id="t1",
+        tenant_id=tenant,
         run_id=run_id,
         logical_operation_id=op,
         contract_id="notes.note.create.v1",
         binding_id="b",
-        connection_id="c",
+        connection_id=conn,
         connection_version=1,
         credential_subject="c@1/s",
         arguments={"text": "hi", "n": "1"},
@@ -319,12 +321,15 @@ async def test_list_events_pages_in_sequence_order(store: Any) -> None:
     assert [e.sequence for e in await store.list_events("t1", "run_1")] == [1, 2, 3]
 
 
+@pytest.mark.parametrize(
+    "busy_state", [ActionState.RESERVED, ActionState.DISPATCHING, ActionState.UNKNOWN]
+)
 async def test_reservation_is_refused_while_the_connection_has_an_unresolved_write(
-    store: Any,
+    store: Any, busy_state: ActionState
 ) -> None:
     await store.create_run(_run("run_1"), [(RunEventType.RUN_CREATED, {}, None)])
     await store.create_run(_run("run_2"), [(RunEventType.RUN_CREATED, {}, None)])
-    in_flight = _action("act_1", rev=1, state=ActionState.DISPATCHING, run_id="run_1", op="op_1")
+    in_flight = _action("act_1", rev=1, state=busy_state, run_id="run_1", op="op_1")
     await store.put_action(in_flight, None, [])
     proposed = _action("act_2", rev=1, state=ActionState.PROPOSED, run_id="run_2", op="op_2")
     await store.put_action(proposed, None, [])
@@ -332,6 +337,31 @@ async def test_reservation_is_refused_while_the_connection_has_an_unresolved_wri
     with pytest.raises(ConnectionBusy):
         await store.reserve_operation(reserved, 1, [])
     # The earlier write resolves; the reservation now succeeds.
-    committed = in_flight.model_copy(update={"state": ActionState.COMMITTED, "revision": 2})
-    await store.put_action(committed, 1, [])
+    resolved = in_flight.model_copy(update={"state": ActionState.COMMITTED, "revision": 2})
+    await store.put_action(resolved, 1, [])
+    assert (await store.reserve_operation(reserved, 1, [])).state is ActionState.RESERVED
+
+
+@pytest.mark.parametrize("scope", ["other_connection", "other_tenant"])
+async def test_busy_row_on_another_connection_or_tenant_does_not_refuse(
+    store: Any, scope: str
+) -> None:
+    other_tenant = "t2" if scope == "other_tenant" else "t1"
+    other_conn = "c2" if scope == "other_connection" else "c"
+    await store.create_run(_run("run_1"), [(RunEventType.RUN_CREATED, {}, None)])
+    await store.create_run(
+        _run("run_2", tenant=other_tenant), [(RunEventType.RUN_CREATED, {}, None)]
+    )
+    busy = _action(
+        "act_1",
+        state=ActionState.DISPATCHING,
+        run_id="run_2",
+        op="op_9",
+        tenant=other_tenant,
+        conn=other_conn,
+    )
+    await store.put_action(busy, None, [])
+    proposed = _action("act_2", state=ActionState.PROPOSED, run_id="run_1", op="op_2")
+    await store.put_action(proposed, None, [])
+    reserved = proposed.model_copy(update={"state": ActionState.RESERVED, "revision": 2})
     assert (await store.reserve_operation(reserved, 1, [])).state is ActionState.RESERVED
