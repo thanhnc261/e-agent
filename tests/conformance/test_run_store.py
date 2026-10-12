@@ -293,3 +293,20 @@ async def test_expire_work_kind_is_accepted_by_the_queue(store: Any) -> None:
     claim = await store.claim_work("w1")
     assert claim is not None and claim.kind == "expire" and claim.payload == payload
     assert await store.claim_work("w2") is None
+
+
+async def test_list_events_pages_in_sequence_order(store: Any) -> None:
+    await store.create_run(_run(), [(RunEventType.RUN_CREATED, {}, None)])
+    await store.update_run(
+        _run(rev=2),
+        1,
+        [
+            (RunEventType.RUN_STATE_CHANGED, {"n": 2}, None),
+            (RunEventType.RUN_STATE_CHANGED, {"n": 3}, None),
+        ],
+    )
+    first = await store.list_events("t1", "run_1", 0, limit=2)
+    assert [e.sequence for e in first] == [1, 2]
+    rest = await store.list_events("t1", "run_1", first[-1].sequence, limit=2)
+    assert [e.sequence for e in rest] == [3]
+    assert [e.sequence for e in await store.list_events("t1", "run_1")] == [1, 2, 3]

@@ -549,3 +549,56 @@ async def test_sweeper_survives_a_failed_sweep_and_stops_on_cancel(monkeypatch) 
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
+
+
+def test_events_endpoint_pages_and_caps_the_limit(client: TestClient) -> None:
+    h = _login(client)
+    r = client.post(
+        "/v1/runs",
+        json={"task": "restock widget-a"},
+        headers={**h, "Idempotency-Key": "page-key-0001"},
+    )
+    run_id = r.json()["run_id"]
+    _wait(client, run_id, {"WAITING_APPROVAL"})
+    first = client.get(f"/v1/runs/{run_id}/events", params={"limit": 2}).json()
+    assert [e["sequence"] for e in first] == [1, 2]
+    rest = client.get(
+        f"/v1/runs/{run_id}/events", params={"after_sequence": 2, "limit": 1000}
+    ).json()
+    assert rest and rest[0]["sequence"] == 3
+    assert client.get(f"/v1/runs/{run_id}/events", params={"limit": 5000}).status_code == 422
+
+
+def test_stream_delivers_every_event_across_page_boundaries(
+    client: TestClient, monkeypatch: Any
+) -> None:
+    import e_agent.server.api as api_module
+
+    monkeypatch.setattr(api_module, "EVENT_PAGE", 2)
+    h = _login(client)
+    r = client.post(
+        "/v1/runs",
+        json={"task": "restock widget-a"},
+        headers={**h, "Idempotency-Key": "sse-page-0001"},
+    )
+    run_id = r.json()["run_id"]
+    pres = _wait(client, run_id, {"WAITING_APPROVAL"})["pending_approval"]
+    client.post(
+        f"/v1/runs/{run_id}/approvals",
+        headers=h,
+        json={
+            "action_id": pres["action_id"],
+            "digest": pres["digest"],
+            "expected_revision": pres["run_revision"],
+            "decision": "approved",
+        },
+    )
+    _wait(client, run_id, {"SUCCEEDED"})  # a terminal run, so the stream ends after the replay
+    expected = [e["sequence"] for e in client.get(f"/v1/runs/{run_id}/events").json()]
+    assert len(expected) > 4  # several pages of two
+    seen: list[int] = []
+    with client.stream("GET", f"/v1/runs/{run_id}/stream", headers=h) as resp:
+        for line in resp.iter_lines():
+            if line.startswith("id:"):
+                seen.append(int(line[3:].strip()))
+    assert seen == expected

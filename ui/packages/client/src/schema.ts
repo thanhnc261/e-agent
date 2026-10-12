@@ -952,6 +952,7 @@ export interface operations {
         parameters: {
             query?: {
                 after_sequence?: number;
+                limit?: number;
             };
             header?: {
                 "x-csrf-token"?: string | null;

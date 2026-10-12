@@ -276,9 +276,10 @@ class InMemoryRunStore:
 
     # -- queries --------------------------------------------------------------
     async def list_events(
-        self, tenant_id: str, run_id: str, after_sequence: int = 0
+        self, tenant_id: str, run_id: str, after_sequence: int = 0, limit: int | None = None
     ) -> list[RunEvent]:
-        return [e for e in self._events[(tenant_id, run_id)] if e.sequence > after_sequence]
+        events = [e for e in self._events[(tenant_id, run_id)] if e.sequence > after_sequence]
+        return events if limit is None else events[:limit]
 
     async def list_actions(self, tenant_id: str, run_id: str) -> list[ActionRecord]:
         return [a for (t, _), a in self._actions.items() if t == tenant_id and a.run_id == run_id]

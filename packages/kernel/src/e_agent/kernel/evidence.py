@@ -12,10 +12,12 @@ from collections.abc import Mapping
 from typing import Any
 
 from e_agent.contracts.common import utc_now
+from e_agent.contracts.events import RunEvent
 from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode
 from e_agent.sdk.store import RunStore
 
 EVIDENCE_SCHEMA = "e-agent-evidence-v1"
+EVIDENCE_PAGE = 1000  # events read per store call while exporting (ADR 0018)
 
 
 BLOCKED_BY_DESIGN = frozenset(
@@ -64,6 +66,18 @@ def classify(
     return f"{environment}:failed"
 
 
+async def _all_events(store: RunStore, tenant_id: str, run_id: str) -> list[RunEvent]:
+    """The whole ledger, read page by page so one export never issues an unbounded read."""
+    events: list[RunEvent] = []
+    cursor = 0
+    while True:
+        page = await store.list_events(tenant_id, run_id, cursor, limit=EVIDENCE_PAGE)
+        events.extend(page)
+        if len(page) < EVIDENCE_PAGE:
+            return events
+        cursor = page[-1].sequence
+
+
 async def build_evidence(
     store: RunStore,
     tenant_id: str,
@@ -73,7 +87,7 @@ async def build_evidence(
     versions: Mapping[str, Any],
 ) -> dict[str, Any]:
     run = await store.get_run(tenant_id, run_id)
-    events = await store.list_events(tenant_id, run_id)
+    events = await _all_events(store, tenant_id, run_id)
     actions = await store.list_actions(tenant_id, run_id)
     approvals, receipts = [], []
     for action in actions:

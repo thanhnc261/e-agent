@@ -39,7 +39,7 @@ from e_agent.kernel.discovery import (
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.evidence import build_evidence
 from e_agent.sdk.store import ConcurrencyConflict, NotFound, actor_scope, current_actor
-from fastapi import Depends, FastAPI, Header, Request, Response
+from fastapi import Depends, FastAPI, Header, Query, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from fastapi.staticfiles import StaticFiles
@@ -50,6 +50,7 @@ from .bootstrap import Runtime
 SESSION_COOKIE = "e_agent_session"
 LOOPBACK = {"127.0.0.1", "::1", "localhost", "testclient"}
 APPROVAL_SWEEP_SECONDS = 30
+EVENT_PAGE = 500  # events read per store call (ADR 0018)
 LOG = logging.getLogger(__name__)
 STATUS = {
     ErrorCode.INVALID_REQUEST: 400,
@@ -504,7 +505,15 @@ def create_app(
     async def get_run(run_id: str, s: Session = Depends(session)) -> RunSnapshot:
         rt = state().runtime
         run = await rt.store.get_run(s.principal.tenant_id, run_id)
-        events = await rt.store.list_events(s.principal.tenant_id, run_id)
+        latest_sequence = 0  # page through the ledger; only the last sequence is kept
+        while True:
+            page = await rt.store.list_events(
+                s.principal.tenant_id, run_id, latest_sequence, limit=EVENT_PAGE
+            )
+            if page:
+                latest_sequence = page[-1].sequence
+            if len(page) < EVENT_PAGE:
+                break
         actions = await rt.store.list_actions(s.principal.tenant_id, run_id)
         pending = None
         if run.state is RunState.WAITING_APPROVAL:
@@ -514,7 +523,7 @@ def create_app(
                 pending = None
         return RunSnapshot(
             run=run,
-            latest_sequence=events[-1].sequence if events else 0,
+            latest_sequence=latest_sequence,
             actions=[
                 ActionSummary(
                     action_id=a.action_id,
@@ -530,12 +539,15 @@ def create_app(
 
     @app.get("/v1/runs/{run_id}/events")
     async def events(
-        run_id: str, after_sequence: int = 0, s: Session = Depends(session)
+        run_id: str,
+        after_sequence: int = 0,
+        limit: int = Query(default=EVENT_PAGE, ge=1, le=1000),
+        s: Session = Depends(session),
     ) -> list[RunEvent]:
         rt = state().runtime
         await rt.store.get_run(s.principal.tenant_id, run_id)
         events: list[RunEvent] = await rt.store.list_events(
-            s.principal.tenant_id, run_id, after_sequence
+            s.principal.tenant_id, run_id, after_sequence, limit=limit
         )
         return events
 
@@ -560,20 +572,29 @@ def create_app(
         idle = 0
         text_cursor = 0
         while not await request.is_disconnected():
-            batch = await rt.store.list_events(s.principal.tenant_id, run_id, cursor)
-            for event in batch:
-                cursor = event.sequence
-                yield ServerSentEvent(
-                    data=event.model_dump(mode="json"), event="run_event", id=str(event.sequence)
+            delivered = 0  # events sent this tick, across every page drained below
+            while True:
+                page = await rt.store.list_events(
+                    s.principal.tenant_id, run_id, cursor, limit=EVENT_PAGE
                 )
+                for event in page:
+                    cursor = event.sequence
+                    yield ServerSentEvent(
+                        data=event.model_dump(mode="json"),
+                        event="run_event",
+                        id=str(event.sequence),
+                    )
+                delivered += len(page)
+                if len(page) < EVENT_PAGE:
+                    break
             for frame in state().text.after(s.principal.tenant_id, run_id, text_cursor):
                 text_cursor = frame.offset
                 yield ServerSentEvent(data=frame.model_dump(mode="json"), event="text_delta")
             run = await rt.store.get_run(s.principal.tenant_id, run_id)
-            if run.state in TERMINAL_RUN_STATES and not batch:
+            if run.state in TERMINAL_RUN_STATES and not delivered:
                 yield ServerSentEvent(data={"state": run.state}, event="end")
                 return
-            idle = 0 if batch else idle + 1
+            idle = 0 if delivered else idle + 1
             if idle and idle % 50 == 0:
                 yield ServerSentEvent(comment="keep-alive")
             await asyncio.sleep(0.2)

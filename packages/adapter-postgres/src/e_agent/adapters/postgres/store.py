@@ -396,13 +396,17 @@ class PostgresRunStore:
             return [row[0] for row in await cur.fetchall()]
 
     async def list_events(
-        self, tenant_id: str, run_id: str, after_sequence: int = 0
+        self, tenant_id: str, run_id: str, after_sequence: int = 0, limit: int | None = None
     ) -> list[RunEvent]:
-        rows = await self._records(
+        sql = (
             "SELECT record FROM run_events WHERE tenant_id = %s AND run_id = %s"
-            " AND sequence > %s ORDER BY sequence",
-            (tenant_id, run_id, after_sequence),
+            " AND sequence > %s ORDER BY sequence"
         )
+        params: tuple[Any, ...] = (tenant_id, run_id, after_sequence)
+        if limit is not None:
+            sql += " LIMIT %s"
+            params += (limit,)
+        rows = await self._records(sql, params)
         return [RunEvent.model_validate(r) for r in rows]
 
     async def list_actions(self, tenant_id: str, run_id: str) -> list[ActionRecord]:
