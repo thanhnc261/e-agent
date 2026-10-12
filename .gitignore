@@ -10,7 +10,7 @@ build/
 # local environment files and evidence exports never go to git
 .env
 *.local.json
-evidence/
+/evidence/
 
 # Local agent worktrees and plan-execution scratch
 .claude/worktrees/
