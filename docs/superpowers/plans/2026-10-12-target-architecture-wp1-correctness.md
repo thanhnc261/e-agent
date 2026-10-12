@@ -26,6 +26,11 @@ Copied from AGENTS.md, the design doc and the repository configuration:
 - Never commit credentials; never access live business data. All tests use the `notes` fixture domain (`packages/kernel/tests/conftest.py`) or the fixture profile.
 - Docs are English. Design doc status tags flip from `[P]` to `[I]` only in Task 9, after the code and tests exist.
 
+### Owner amendments (2026-10-12, at execution start)
+
+- **End to end after every task.** Each task's final verification runs the **full** CI gate (not only the touched subset) plus the PostgreSQL kernel/conformance run, and `make e2e` (UI build + Playwright conformance) whenever the task touches `apps/server`, the OpenAPI document or `ui/`. Baseline before Task 1: gate green (418 passed, 19 skipped; postgres 176 passed).
+- **Model providers.** Ollama stays the default provider (`DriverConfig.provider = "ollama"`). LiteLLM is added as an explicit, opt-in provider in Task 10 under ADR 0021 (drafted in Task 1). There is never a fallback from one provider to another.
+
 ## Review Focus
 
 Inputs the spec implies but no existing test exercises; each is pinned to a task below.
@@ -86,12 +91,13 @@ Inputs the spec implies but no existing test exercises; each is pinned to a task
 
 ---
 
-### Task 1: Draft ADRs 0018–0020 (Proposed) and index them
+### Task 1: Draft ADRs 0018–0021 (Proposed) and index them
 
 **Files:**
 - Create: `docs/adr/0018-run-transitions-reason-codes-event-attribution.md`
 - Create: `docs/adr/0019-approval-reachability-and-self-approval.md`
 - Create: `docs/adr/0020-connection-level-write-admission.md`
+- Create: `docs/adr/0021-litellm-model-provider.md` (owner amendment)
 - Modify: `docs/adr/README.md` (table, after the 0017 row)
 
 **Interfaces:**
@@ -216,22 +222,64 @@ Conformance test on both stores: a `DISPATCHING` action on the connection makes 
 reservation raise `ConnectionBusy`; after it reaches `COMMITTED`, reservation succeeds.
 ```
 
-- [ ] **Step 4: Add the three rows to `docs/adr/README.md` after the 0017 row**
+- [ ] **Step 3b: Write ADR 0021** (`docs/adr/0021-litellm-model-provider.md`)
+
+```markdown
+# ADR 0021: LiteLLM as an explicit second model provider
+
+Date: 2026-10-12. Status: Proposed. Refines ADR 0001 (Ollama first, no silent cloud fallback).
+
+## Context
+
+The Pydantic AI driver accepts only Ollama (`DriverConfig.provider: Literal["ollama"]`,
+`ollama_model()` refuses non-loopback endpoints and `-cloud` models). The owner asked to keep
+Ollama as the default and also support LiteLLM, which exposes many model backends behind one
+OpenAI-compatible proxy.
+
+## Decision
+
+- `DriverConfig.provider` becomes `Literal["ollama", "litellm"]`, default `"ollama"`.
+- `litellm` uses Pydantic AI's `LiteLLMProvider` against a LiteLLM proxy whose URL comes from the
+  environment variable named by `base_url_env` (default `E_AGENT_LITELLM_URL`, fallback
+  `http://localhost:4000`). The endpoint must be loopback (`localhost`, `127.0.0.1`, `::1`) over
+  http or https, with no userinfo, query or fragment — the same guard as Ollama.
+- An API key, if the proxy needs one, comes from the environment variable named by `api_key_env`;
+  the profile never contains the key, and the key never appears in errors, logs or evidence.
+- The profile must name the provider explicitly to use LiteLLM. There is no fallback between
+  providers: a missing model or an unreachable proxy rejects startup or fails the run.
+- Evidence runtime metadata records `model_provider` next to `model`.
+
+## Consequences
+
+Which upstream model the proxy routes to (local or hosted) is configured in the operator's LiteLLM
+proxy, outside e-agent; a hosted upstream is the operator's explicit choice, not a fallback, and
+data-egress review for it belongs to that deployment. Model qualification evidence remains
+per provider and model; a LiteLLM-routed model is not qualified by an Ollama run of a similar model.
+
+## Verification
+
+Unit tests for the endpoint guard and model construction; bootstrap tests that a `litellm` profile
+builds a driver, that a missing model or a remote endpoint is rejected, and that the API key is read
+from the named variable without being echoed.
+```
+
+- [ ] **Step 4: Add the four rows to `docs/adr/README.md` after the 0017 row**
 
 ```markdown
 | [0018](0018-run-transitions-reason-codes-event-attribution.md) | Run transition table, reason codes, event actor, paged events | Proposed | WP1 Tasks 2, 4, 5, 7 |
 | [0019](0019-approval-reachability-and-self-approval.md) | Approval expiry sweeper; self-approval forbidden unless profile allows | Proposed | WP1 Tasks 3, 6 |
 | [0020](0020-connection-level-write-admission.md) | Reservation refused while the connection has an unresolved write | Proposed | WP1 Task 8 |
+| [0021](0021-litellm-model-provider.md) | LiteLLM as an explicit, opt-in second model provider; Ollama stays default | Proposed | WP1 Task 10 |
 ```
 
 - [ ] **Step 5: Check the links render and nothing else changed**
 
 Run: `uv run python - <<'EOF'
 import pathlib,re
-for n in ("0018-run-transitions-reason-codes-event-attribution","0019-approval-reachability-and-self-approval","0020-connection-level-write-admission"):
+for n in ("0018-run-transitions-reason-codes-event-attribution","0019-approval-reachability-and-self-approval","0020-connection-level-write-admission","0021-litellm-model-provider"):
     assert pathlib.Path(f"docs/adr/{n}.md").exists(), n
 idx = pathlib.Path("docs/adr/README.md").read_text()
-assert idx.count("| [0018]") == 1 and idx.count("| [0019]") == 1 and idx.count("| [0020]") == 1
+assert all(idx.count(f"| [{n}]") == 1 for n in ("0018", "0019", "0020", "0021"))
 print("ok")
 EOF`
 Expected: `ok`
@@ -239,8 +287,8 @@ Expected: `ok`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add docs/adr/0018-run-transitions-reason-codes-event-attribution.md docs/adr/0019-approval-reachability-and-self-approval.md docs/adr/0020-connection-level-write-admission.md docs/adr/README.md
-git commit -m "docs(adr): propose 0018-0020 for run transitions, approval reachability and write admission"
+git add docs/adr/0018-run-transitions-reason-codes-event-attribution.md docs/adr/0019-approval-reachability-and-self-approval.md docs/adr/0020-connection-level-write-admission.md docs/adr/0021-litellm-model-provider.md docs/adr/README.md
+git commit -m "docs(adr): propose 0018-0021 for run transitions, approval reachability, write admission and LiteLLM"
 ```
 
 ---
@@ -1662,6 +1710,136 @@ Expected: all exit 0.
 ```bash
 git add docs/target-architecture.md docs/adr/README.md docs/README.md
 git commit -m "docs(design): mark WP1 mechanisms implemented; keep lease, inbox, grants proposed"
+```
+
+---
+
+### Task 10: LiteLLM as an explicit second model provider (owner amendment, ADR 0021)
+
+Executed **after Task 8 and before Task 9**, so Task 9's documentation pass and final gate cover it.
+
+**Files:**
+- Modify: `packages/adapter-agent-pydantic/src/e_agent/adapters/pydantic_ai/driver.py` (`litellm_model` next to `ollama_model`)
+- Modify: `packages/adapter-agent-pydantic/src/e_agent/adapters/pydantic_ai/__init__.py` (export)
+- Modify: `apps/server/src/e_agent/server/profile.py` (`DriverConfig`)
+- Modify: `apps/server/src/e_agent/server/bootstrap.py` (`build_driver`, runtime metadata)
+- Modify: `README.md` (how to run with LiteLLM; Ollama remains the default)
+- Test: `packages/adapter-agent-pydantic/tests/test_driver_unit.py`, the server test file that already covers `build_driver`/bootstrap (find it; otherwise `apps/server/tests/test_walking_skeleton.py`)
+
+**Interfaces:**
+- Produces: `litellm_model(model_name: str, base_url: str, api_key: str | None = None) -> Model`; `DriverConfig.provider: Literal["ollama", "litellm"] = "ollama"`; `DriverConfig.base_url_env: str | None = None`; `DriverConfig.api_key_env: str | None = None`; runtime metadata key `model_provider`.
+- No new dependency: `LiteLLMProvider` ships in `pydantic-ai-slim[openai]` 2.54 (`pydantic_ai.providers.litellm`), used with `pydantic_ai.models.openai.OpenAIChatModel`.
+
+- [ ] **Step 1: Write the failing adapter unit tests**
+
+Append to `packages/adapter-agent-pydantic/tests/test_driver_unit.py` tests that pin:
+- `litellm_model("ollama/qwen3", "http://localhost:4000")` and `litellm_model("m", "https://127.0.0.1:4000/v1")` return a model whose provider name is `"litellm"` and whose base URL is the given endpoint;
+- `ValueError` for `http://10.0.0.5:4000`, `https://proxy.example.com`, `http://user:pw@localhost:4000`, `http://localhost:4000/?x=1`, `ftp://localhost:4000`, and an empty model name;
+- an `api_key` argument reaches the provider client (`model.client.api_key` or the provider's client) and is never part of the `ValueError` text;
+- `ollama_model` behaviour is unchanged (existing tests still pass).
+
+Run: `uv run pytest -q packages/adapter-agent-pydantic -k litellm` → Expected: FAIL with `ImportError: cannot import name 'litellm_model'`.
+
+- [ ] **Step 2: Implement `litellm_model`**
+
+```python
+_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def litellm_model(model_name: str, base_url: str, api_key: str | None = None) -> Model:
+    """LiteLLM proxy on loopback only (ADR 0021); upstream routing is the proxy's configuration."""
+    endpoint = urlsplit(base_url)
+    if (
+        endpoint.hostname not in _LOOPBACK_HOSTS
+        or endpoint.scheme not in {"http", "https"}
+        or endpoint.username
+        or endpoint.query
+        or endpoint.fragment
+        or not model_name
+    ):
+        raise ValueError("LiteLLM inference requires a loopback proxy endpoint and a model name")
+    from pydantic_ai.models.openai import OpenAIChatModel
+    from pydantic_ai.providers.litellm import LiteLLMProvider
+
+    return OpenAIChatModel(model_name, provider=LiteLLMProvider(api_base=base_url, api_key=api_key))
+```
+
+Reuse `_LOOPBACK_HOSTS` in `ollama_model` instead of its inline set (no behaviour change). If `LiteLLMProvider(api_key=None)` raises because the OpenAI client demands a key, pass a fixed non-secret placeholder (`"not-required"`) when `api_key is None` and pin that in a test. Export `litellm_model` from `__init__.py` (`__all__` too).
+
+Run: `uv run pytest -q packages/adapter-agent-pydantic` → Expected: PASS.
+
+- [ ] **Step 3: Write the failing bootstrap tests**
+
+In the server test file that covers bootstrap, add tests that pin (use `monkeypatch.setenv`, never a real proxy; building the model makes no network call):
+- a profile whose driver is `{"kind": "pydantic-ai", "provider": "litellm", "model": "ollama/qwen3"}` builds a `PydanticAiDriver` and the runtime metadata reports `model_provider == "litellm"` and `model == "ollama/qwen3"`;
+- `E_AGENT_LITELLM_URL=https://proxy.example.com` → startup rejected with `ErrorCode.STARTUP_REJECTED`;
+- `api_key_env: "E_AGENT_TEST_LITELLM_KEY"` with the variable unset → `STARTUP_REJECTED`, and the message names the variable but never a value; with it set to `sk-test-123`, the driver builds and `sk-test-123` appears in no error text or metadata;
+- a pydantic-ai profile with no `provider` still builds an Ollama model (default unchanged) and reports `model_provider == "ollama"`;
+- a pydantic-ai profile with no `model` is rejected for either provider.
+
+Run them → Expected: FAIL (`provider` literal rejects `"litellm"`).
+
+- [ ] **Step 4: Widen `DriverConfig` and route in `build_driver`**
+
+`profile.py`:
+
+```python
+    provider: Literal["ollama", "litellm"] = "ollama"
+    """Ollama is the default; LiteLLM is explicit opt-in (ADR 0021). Never a fallback."""
+    model: str | None = None
+    base_url_env: str | None = None
+    """Env var holding the endpoint; defaults to E_AGENT_OLLAMA_URL or E_AGENT_LITELLM_URL."""
+    api_key_env: str | None = None
+    """LiteLLM only: env var holding the proxy key. The key itself is never in the profile."""
+```
+
+`bootstrap.py`:
+
+```python
+MODEL_ENDPOINTS: dict[str, tuple[str, str]] = {
+    "ollama": ("E_AGENT_OLLAMA_URL", "http://localhost:11434/v1"),
+    "litellm": ("E_AGENT_LITELLM_URL", "http://localhost:4000"),
+}
+
+
+def build_driver(profile: Profile, registry: PluginRegistry) -> AgentDriver:
+    cfg = profile.driver
+    if not cfg.model:
+        raise KernelError(ErrorCode.STARTUP_REJECTED, f"pydantic-ai driver needs a {cfg.provider} model")
+    env_name, default_url = MODEL_ENDPOINTS[cfg.provider]
+    base_url = os.environ.get(cfg.base_url_env or env_name, default_url)
+    try:
+        if cfg.provider == "litellm":
+            api_key = None
+            if cfg.api_key_env is not None:
+                api_key = os.environ.get(cfg.api_key_env)
+                if not api_key:
+                    raise KernelError(
+                        ErrorCode.STARTUP_REJECTED, f"{cfg.api_key_env} is not set for the LiteLLM proxy"
+                    )
+            model = litellm_model(cfg.model, base_url, api_key)
+        else:
+            model = ollama_model(cfg.model, base_url)
+    except ValueError as exc:
+        raise KernelError(ErrorCode.STARTUP_REJECTED, str(exc)) from exc
+    ...  # settings and PydanticAiDriver(...) as today, with `model`
+```
+
+If an existing test asserts that a non-loopback Ollama URL raises `ValueError` from bootstrap, update it to `STARTUP_REJECTED` and say so in the report. In the runtime metadata dict add `"model_provider": profile.driver.provider if profile.driver.kind == "pydantic-ai" else None,` after `"model"`.
+
+Run the Step 3 tests → Expected: PASS.
+
+- [ ] **Step 5: README**
+
+In the model/driver section, keep Ollama as the documented default and add a short "LiteLLM (optional)" block: profile snippet `{"kind": "pydantic-ai", "provider": "litellm", "model": "<proxy model name>", "api_key_env": "E_AGENT_LITELLM_KEY"}`, `E_AGENT_LITELLM_URL` (default `http://localhost:4000`, loopback only), no fallback, and that qualification evidence is per provider and model (ADR 0021). Do not claim any LiteLLM model is qualified.
+
+- [ ] **Step 6: Full gate, e2e, commit**
+
+Run the full CI gate, the PostgreSQL run and `make e2e` (owner amendment). Expected: PASS.
+
+```bash
+git add packages/adapter-agent-pydantic apps/server/src/e_agent/server/profile.py apps/server/src/e_agent/server/bootstrap.py apps/server/tests README.md
+git commit -m "feat(driver): LiteLLM as an explicit opt-in model provider; Ollama stays default (ADR 0021)"
 ```
 
 ---
