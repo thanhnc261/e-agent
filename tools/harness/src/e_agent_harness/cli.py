@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TextIO
 
-from e_agent_harness import gate, gitinfo, progress, scope, state, tasks
+from e_agent_harness import closecheck, gate, gitinfo, progress, scope, state, tasks
 from e_agent_harness import manifest as mf
 
 
@@ -57,6 +58,15 @@ def _parser() -> argparse.ArgumentParser:
     cp.add_argument("--session", default="manual")
     cp.add_argument(
         "--hook", action="store_true", help="PreCompact mode: payload on stdin, always exits 0"
+    )
+    ho = sub.add_parser("handoff", help="validate a task's handoff document")
+    ho.add_argument("task_id")
+    cc = sub.add_parser(
+        "close-check", help="the close ritual: clean tree, progress, evidence, handoff"
+    )
+    cc.add_argument("--session", default=None)
+    cc.add_argument(
+        "--hook", action="store_true", help="Stop mode: inert unless E_AGENT_HARNESS_UNATTENDED=1"
     )
     return parser
 
@@ -207,6 +217,48 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     return 0
 
 
+def _phase_of_task(paths: state.Paths, task_id: str) -> str | None:
+    matches = sorted(paths.state.glob(f"*/tasks/{task_id}.json"))
+    return matches[0].parent.parent.name if matches else None
+
+
+def cmd_handoff(args: argparse.Namespace) -> int:
+    root, paths, _m = _context(args)
+    active = state.load_active(paths) or {}
+    phase = str(active.get("phase") or _phase_of_task(paths, args.task_id) or "")
+    found = closecheck.handoff_problems(paths, root, phase, args.task_id)
+    for problem in found:
+        print(problem)
+    if found:
+        return 1
+    print(f"ok: handoff {args.task_id} valid")
+    return 0
+
+
+def cmd_close_check(args: argparse.Namespace) -> int:
+    if args.hook:
+        payload = json.load(args.stdin)
+        unattended = os.environ.get("E_AGENT_HARNESS_UNATTENDED") == "1"
+        if not unattended or payload.get("stop_hook_active"):
+            return 0
+        if not args.repo and payload.get("cwd"):
+            args.repo = Path(payload["cwd"])
+        root, paths, m = _context(args)
+        found = closecheck.problems(paths, m, root, session=str(payload.get("session_id") or ""))
+        if found:
+            print("close-check: " + "; ".join(found), file=sys.stderr)
+            return 2
+        return 0
+    root, paths, m = _context(args)
+    found = closecheck.problems(paths, m, root, session=args.session)
+    for problem in found:
+        print(problem)
+    if found:
+        return 1
+    print("ok: task may close")
+    return 0
+
+
 COMMANDS = {
     "validate-context": cmd_validate_context,
     "new-task": cmd_new_task,
@@ -214,6 +266,8 @@ COMMANDS = {
     "gate": cmd_gate,
     "live-check": cmd_live_check,
     "checkpoint": cmd_checkpoint,
+    "handoff": cmd_handoff,
+    "close-check": cmd_close_check,
 }
 
 
