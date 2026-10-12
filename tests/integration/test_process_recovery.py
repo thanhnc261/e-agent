@@ -26,6 +26,9 @@ async def main():
     store = await PostgresRunStore.open(dsn)
     k = ns['make_kernel'].__wrapped__(store)()
     if mode == 'writer':
+        # ADR 0020: an earlier boundary (intent, dispatch) leaves an unresolved write that makes the
+        # connection busy, so every boundary starts from an empty ledger.
+        await store.truncate_for_tests()
         run = await k.coordinator.start_run(k.requester, 'synthetic process recovery', k.scope)
         (folder / 'run.json').write_text(json.dumps({'run_id': run.run_id}))
         if boundary == 'waiting':

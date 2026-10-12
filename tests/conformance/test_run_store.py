@@ -11,7 +11,13 @@ from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.run import RunRecord, RunState
 from e_agent.kernel.memory_store import InMemoryRunStore
-from e_agent.sdk.store import ConcurrencyConflict, DuplicateOperation, NotFound, actor_scope
+from e_agent.sdk.store import (
+    ConcurrencyConflict,
+    ConnectionBusy,
+    DuplicateOperation,
+    NotFound,
+    actor_scope,
+)
 
 DSN = os.environ.get("E_AGENT_TEST_PG_DSN")
 KINDS = ["memory"] + (["postgres"] if DSN else [])
@@ -53,12 +59,13 @@ def _action(
     rev: int = 1,
     state: ActionState = ActionState.PROPOSED,
     run_id: str = "run_1",
+    op: str = "op_1",
 ) -> ActionRecord:
     return ActionRecord(
         action_id=aid,
         tenant_id="t1",
         run_id=run_id,
-        logical_operation_id="op_1",
+        logical_operation_id=op,
         contract_id="notes.note.create.v1",
         binding_id="b",
         connection_id="c",
@@ -310,3 +317,21 @@ async def test_list_events_pages_in_sequence_order(store: Any) -> None:
     rest = await store.list_events("t1", "run_1", first[-1].sequence, limit=2)
     assert [e.sequence for e in rest] == [3]
     assert [e.sequence for e in await store.list_events("t1", "run_1")] == [1, 2, 3]
+
+
+async def test_reservation_is_refused_while_the_connection_has_an_unresolved_write(
+    store: Any,
+) -> None:
+    await store.create_run(_run("run_1"), [(RunEventType.RUN_CREATED, {}, None)])
+    await store.create_run(_run("run_2"), [(RunEventType.RUN_CREATED, {}, None)])
+    in_flight = _action("act_1", rev=1, state=ActionState.DISPATCHING, run_id="run_1", op="op_1")
+    await store.put_action(in_flight, None, [])
+    proposed = _action("act_2", rev=1, state=ActionState.PROPOSED, run_id="run_2", op="op_2")
+    await store.put_action(proposed, None, [])
+    reserved = proposed.model_copy(update={"state": ActionState.RESERVED, "revision": 2})
+    with pytest.raises(ConnectionBusy):
+        await store.reserve_operation(reserved, 1, [])
+    # The earlier write resolves; the reservation now succeeds.
+    committed = in_flight.model_copy(update={"state": ActionState.COMMITTED, "revision": 2})
+    await store.put_action(committed, 1, [])
+    assert (await store.reserve_operation(reserved, 1, [])).state is ActionState.RESERVED

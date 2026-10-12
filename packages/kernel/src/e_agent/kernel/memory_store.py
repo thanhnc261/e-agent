@@ -15,7 +15,7 @@ from contextvars import ContextVar
 from datetime import timedelta
 from typing import Any
 
-from e_agent.contracts.action import ActionRecord
+from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.approval import ApprovalRecord
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.events import RunEvent
@@ -25,6 +25,7 @@ from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord
 from e_agent.contracts.work import WorkClaim
 from e_agent.sdk.store import (
     ConcurrencyConflict,
+    ConnectionBusy,
     DuplicateOperation,
     EventSpec,
     NotFound,
@@ -215,6 +216,15 @@ class InMemoryRunStore:
     ) -> ActionRecord:
         async with self._lock:
             self._fence()
+            busy = any(
+                a.connection_id == action.connection_id
+                and a.state in {ActionState.DISPATCHING, ActionState.UNKNOWN}
+                and a.action_id != action.action_id
+                for (t, _), a in self._actions.items()
+                if t == action.tenant_id
+            )
+            if busy:
+                raise ConnectionBusy(action.connection_id)
             key = (action.tenant_id, action.connection_id, action.logical_operation_id)
             if key in self._reservations:
                 raise DuplicateOperation(action.logical_operation_id)

@@ -49,7 +49,7 @@ from e_agent.sdk.ports import (
     SafeTextSink,
     ValidationInput,
 )
-from e_agent.sdk.store import DuplicateOperation, EventSpec, RunStore
+from e_agent.sdk.store import ConnectionBusy, DuplicateOperation, EventSpec, RunStore
 from pydantic import BaseModel, Field
 
 from .approval import (
@@ -1238,6 +1238,17 @@ class RunCoordinator:
                         action.action_id,
                     )
                 ],
+            )
+        except ConnectionBusy:
+            # ADR 0020: another action on this connection is DISPATCHING or UNKNOWN. Caught here,
+            # before any generic ConcurrencyConflict handler, so it never escapes as an HTTP 409.
+            await self._transition(action, ActionState.BLOCKED)
+            cont.pending_action_id = None
+            return await self._set_run_state(
+                run,
+                RunState.FAILED,
+                "connection has an unresolved write; reconcile it first",
+                code=ReasonCode.CONNECTION_BUSY,
             )
         except DuplicateOperation:
             await self._transition(action, ActionState.BLOCKED)

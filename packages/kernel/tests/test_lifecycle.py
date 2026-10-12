@@ -620,3 +620,25 @@ async def test_one_unreadable_continuation_does_not_block_sweeping_other_runs(
     claim = await k.store.claim_work("sweeper-test")
     assert claim is not None and claim.kind == "expire" and claim.run_id == good.run_id
     assert await k.store.claim_work("sweeper-test-2") is None, "the bad run was not enqueued"
+
+
+async def test_second_write_on_a_busy_connection_is_refused_with_a_typed_reason(
+    make_kernel: MakeKernel,
+) -> None:
+    k = make_kernel(["first note", "second note"])
+    first = await _start(k)
+    # Simulate a write whose outcome is unknown: the earlier run's action is stuck in UNKNOWN.
+    pres = await k.coordinator.pending_approval(TENANT, first.run_id)
+    stuck = await k.store.get_action(TENANT, pres.action_id)
+    await k.store.put_action(
+        stuck.model_copy(update={"state": ActionState.UNKNOWN, "revision": stuck.revision + 1}),
+        stuck.revision,
+        [],
+    )
+    second = await _start(k, "write another note")
+    run = await _approve(k, second.run_id)
+    assert run.state is RunState.FAILED
+    assert run.reason_code is ReasonCode.CONNECTION_BUSY
+    assert k.backend.create_calls == 0, "nothing was dispatched behind the unresolved write"
+    actions = await k.store.list_actions(TENANT, second.run_id)
+    assert actions[-1].state is ActionState.BLOCKED

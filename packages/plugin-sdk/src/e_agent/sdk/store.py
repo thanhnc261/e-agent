@@ -41,6 +41,10 @@ class DuplicateOperation(Exception):
     """A reservation for this logical operation already exists."""
 
 
+class ConnectionBusy(ConcurrencyConflict):
+    """Another action on this connection is DISPATCHING or UNKNOWN (ADR 0020)."""
+
+
 class NotFound(Exception):
     pass
 

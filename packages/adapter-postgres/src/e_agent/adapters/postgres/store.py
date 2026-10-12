@@ -22,6 +22,7 @@ from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord
 from e_agent.contracts.work import WorkClaim
 from e_agent.sdk.store import (
     ConcurrencyConflict,
+    ConnectionBusy,
     DuplicateOperation,
     EventSpec,
     NotFound,
@@ -313,6 +314,19 @@ class PostgresRunStore:
     ) -> ActionRecord:
         async with self._pool.connection() as conn, conn.transaction():
             await self._fence(conn)
+            # ADR 0020: serialize admission per connection inside this short transaction, then
+            # refuse while another action on the connection is DISPATCHING or UNKNOWN.
+            await conn.execute(
+                "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                (f"e-agent-admit:{action.tenant_id}:{action.connection_id}",),
+            )
+            cur = await conn.execute(
+                "SELECT action_id FROM actions WHERE tenant_id = %s AND connection_id = %s"
+                " AND state IN ('DISPATCHING', 'UNKNOWN') AND action_id <> %s LIMIT 1",
+                (action.tenant_id, action.connection_id, action.action_id),
+            )
+            if await cur.fetchone() is not None:
+                raise ConnectionBusy(action.connection_id)
             await self._cas_action(conn, action, expected_revision)
             try:
                 async with conn.transaction():
