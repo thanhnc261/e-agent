@@ -25,6 +25,7 @@ One decision per ADR. Statuses: **Proposed** (recommended, not yet accepted by t
 | [0019](0019-approval-reachability-and-self-approval.md) | Approval expiry sweeper; self-approval forbidden unless profile allows | Proposed | WP1 Tasks 3, 6 |
 | [0020](0020-connection-level-write-admission.md) | Reservation refused while the connection has an unresolved write | Proposed | WP1 Task 8 |
 | [0021](0021-litellm-model-provider.md) | LiteLLM as an explicit, opt-in second model provider; Ollama stays default | Proposed | WP1 Task 10 |
+| [0022](0022-conversational-turns-read-feedback-discovery.md) | Rejected reads as feedback, conversational replies, open-demand discovery | Proposed | Real-agent plan Tasks 2–4 |
 
 The [2026-10-06 architecture review](../reviews/2026-10-06-architecture-review.md) explains the findings behind 0002–0010. ADR 0012 comes from [integration management](../integration-management.md), ADR 0013 from [integration auth SDK](../integration-auth-sdk.md). ADR 0011 comes from the follow-up UI research in [UI architecture](../ui-architecture.md).
 
