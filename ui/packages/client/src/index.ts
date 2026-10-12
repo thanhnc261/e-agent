@@ -60,6 +60,9 @@ export interface ClientOptions {
   EventSource?: EventSourceCtor;
 }
 
+/** The largest page the events endpoint serves (ADR 0018). */
+const EVENT_PAGE_LIMIT = 1000;
+
 export function newIdempotencyKey(): string {
   return `ui-${crypto.randomUUID()}`;
 }
@@ -102,8 +105,23 @@ export class EAgentClient {
     return this.request("GET", `/v1/runs/${encodeURIComponent(runId)}`);
   }
 
-  listEvents(runId: string, afterSequence = 0): Promise<RunEvent[]> {
-    return this.request("GET", `/v1/runs/${encodeURIComponent(runId)}/events?after_sequence=${afterSequence}`);
+  /**
+   * Every event after ``afterSequence``. The server caps one response (500 by default,
+   * 1000 at most), so this pages with ``after_sequence`` until a short page comes back.
+   */
+  async listEvents(runId: string, afterSequence = 0): Promise<RunEvent[]> {
+    const path = `/v1/runs/${encodeURIComponent(runId)}/events`;
+    const events: RunEvent[] = [];
+    let cursor = afterSequence;
+    for (;;) {
+      const page = await this.request<RunEvent[]>(
+        "GET",
+        `${path}?after_sequence=${cursor}&limit=${EVENT_PAGE_LIMIT}`,
+      );
+      events.push(...page);
+      if (page.length < EVENT_PAGE_LIMIT) return events;
+      cursor = page[page.length - 1]!.sequence;
+    }
   }
 
   pendingApproval(runId: string): Promise<ApprovalPresentation> {
