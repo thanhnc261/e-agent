@@ -35,7 +35,7 @@ from e_agent.contracts.run import (
 )
 from e_agent.contracts.validation import Finding, ValidationResult, ValidationStatus
 from e_agent.sdk.auth import CredentialVersionProvider
-from e_agent.sdk.errors import DriverBudgetExceeded, KnownNoEffectError
+from e_agent.sdk.errors import AUTH_REQUIRED, DriverBudgetExceeded, KnownNoEffectError
 from e_agent.sdk.ports import (
     AgentDriver,
     AskClarification,
@@ -398,7 +398,7 @@ class RunCoordinator:
                     except TimeoutError:
                         return await self._exhausted(run, "active time or provider deadline")
                     except KnownNoEffectError as exc:
-                        if exc.code == "AUTH_REQUIRED":
+                        if exc.code == AUTH_REQUIRED:
                             # Credentials are not something the model can fix: fail, no feedback.
                             run = await self._store.get_run(run.tenant_id, run.run_id)
                             return await self._set_run_state(
@@ -498,22 +498,36 @@ class RunCoordinator:
                         )
                     cont.repairs += 1
                     await self._persist(run.run_id)
+                    repair_finding = Finding(
+                        rule_id="KERNEL-VERIFICATION",
+                        rule_version="1",
+                        status=ValidationStatus.FAIL,
+                        message=(
+                            "Plain text cannot complete this task. "
+                            "Propose a structured answer "
+                            "for independent verification, propose the requested action, "
+                            "or request clarification for missing user details."
+                        ),
+                    )
+                    await self._store.update_run(
+                        run.model_copy(update={"revision": run.revision + 1}),
+                        run.revision,
+                        [
+                            (
+                                RunEventType.VALIDATION_COMPLETED,
+                                {
+                                    "status": "FAIL",
+                                    "findings": [repair_finding.model_dump(mode="json")],
+                                },
+                                None,
+                            )
+                        ],
+                    )
+                    run = await self._store.get_run(run.tenant_id, run.run_id)
                     step_input = DriverInput(
                         task=run.task,
                         observations=tuple(cont.observations.values()),
-                        findings=(
-                            Finding(
-                                rule_id="KERNEL-VERIFICATION",
-                                rule_version="1",
-                                status=ValidationStatus.FAIL,
-                                message=(
-                                    "Plain text cannot complete this task. "
-                                    "Propose a structured answer "
-                                    "for independent verification, propose the requested action, "
-                                    "or request clarification for missing user details."
-                                ),
-                            ),
-                        ),
+                        findings=(repair_finding,),
                     )
                     continue
                 run = await self._store.update_run(

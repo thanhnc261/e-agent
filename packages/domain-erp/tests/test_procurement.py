@@ -215,6 +215,7 @@ async def test_open_demands_read_lists_the_fixture_demand_with_exact_refs() -> N
     assert obs.data["complete"] is True
     [row] = obs.data["demands"]
     assert row["demand_ref"] == "demand:d-001" and row["product_ref"] == "product:widget-a"
+    assert row["product_name"] == "Widget A"
     assert set(row) == {
         "demand_ref",
         "product_ref",

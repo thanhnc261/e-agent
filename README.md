@@ -166,7 +166,7 @@ set -a; . ~/.config/e-agent/live.env; set +a
 make dev PROFILE=profiles/live-odoo19-learning.local.json
 ```
 
-A real model with all ERP tools uses far more tokens per run than the fixture: give the live profile `"budgets": {"max_model_tokens": 200000, "max_validation_repairs": 4}` or runs end with `budget exhausted: model usage`. After changing domain or adapter code, rebuild the wheels and refresh the pins; after changing the bridge addon, upgrade it in the sandbox (`-u e_agent_bridge`) before starting the stack.
+A real model with all ERP tools uses far more tokens per run than the fixture: the committed profiles (`dev-ollama.json`, `live.example.json`) already set `max_model_tokens` 200000 and `max_validation_repairs` 4. A real model with the default budgets (32000 tokens, 2 repairs) ends with `budget exhausted: model usage`. After changing domain or adapter code, rebuild the wheels and refresh the pins; after changing the bridge addon, upgrade it in the sandbox (`-u e_agent_bridge`) before starting the stack.
 
 Python packages share the `e_agent` namespace: `e_agent.contracts`, `e_agent.sdk`, `e_agent.kernel`, `e_agent.erp`, `e_agent.server`.
 

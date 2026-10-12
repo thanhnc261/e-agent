@@ -38,6 +38,12 @@ can remain `WAITING_INPUT` after a reply until the user answers or stops it. The
 gains a read method, so `e_agent_bridge` is upgraded in the sandbox and plugin artifact hashes
 change. Correlation ids and multi-run conversations remain WP2/WP4.
 
+A provider rejection on a verifier read is still reported as an UNKNOWN verification, not as
+`read.rejected`. A rejected staleness re-read ends the run INTERRUPTED (pre-existing
+behavior). `connect.required` is the intended future home for `AUTH_REQUIRED` once
+user-delegated connections exist (WP2); until then it fails the run with `PROVIDER_ERROR`.
+"Open demands" lists every demand in the namespace until the bridge model gains a state.
+
 ## Verification
 
 Kernel tests for rejected reads (feedback, budget exhaustion) and for reply versus verified

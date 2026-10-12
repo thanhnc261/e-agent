@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+AUTH_REQUIRED = "AUTH_REQUIRED"
+"""Rejection code: credentials are unavailable; the model cannot fix this."""
+
 
 class KnownNoEffectError(Exception):
     """The provider authoritatively rejected the call; nothing was committed.

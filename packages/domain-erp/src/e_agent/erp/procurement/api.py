@@ -47,9 +47,9 @@ class OpenDemand(Record):
     demand_ref: str = Field(description=_REFERENCE_DESCRIPTION)
     product_ref: str = Field(description=_REFERENCE_DESCRIPTION)
     product_name: str
-    quantity: str
+    quantity: DecimalStr
     unit: str
-    requested_date: str
+    requested_date: date
 
 
 class OpenDemands(Record):

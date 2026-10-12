@@ -39,7 +39,7 @@ from e_agent.erp.sales import (
 )
 from e_agent.erp.sales.api import DraftQuotation
 from e_agent.sdk.auth import AuthError, CredentialResolver
-from e_agent.sdk.errors import KnownNoEffectError
+from e_agent.sdk.errors import AUTH_REQUIRED, KnownNoEffectError
 from e_agent.sdk.ports import Observation, ReadRequest
 
 from .client import OdooJson2Client, OdooRejected
@@ -69,7 +69,7 @@ class OdooExecutor:
             auth = await self._credentials.context_for(ctx, connection_id)
         except AuthError as exc:
             raise KnownNoEffectError(
-                "AUTH_REQUIRED", "credentials unavailable before provider call"
+                AUTH_REQUIRED, "credentials unavailable before provider call"
             ) from exc
         return await self._client.call(auth, BRIDGE, method, **kw)
 

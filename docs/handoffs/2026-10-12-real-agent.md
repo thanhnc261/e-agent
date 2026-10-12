@@ -28,12 +28,14 @@ The owner asked for "a real agentic, not a demo". The app the owner first saw us
 - **Live, against `odoo19-learning`:**
   - Bridge 19.0.0.4.0, company 1, Postgres ledger, Ollama.
   - The live profile has `max_model_tokens` 200000 and `max_validation_repairs` 4. With the defaults (32000 tokens, 2 repairs), runs ended with `budget exhausted: model usage` or `answer not verified`.
+  - The committed profiles (`dev-ollama.json`, `live.example.json`) now carry the same budgets; `fixture.json` keeps the defaults for deterministic tests.
 
 ### Live end-to-end runs
 
 | Flow | Messages | Result | What happened |
 |---|---|---|---|
 | 1 (API) | "hi" → "Which products are short for open demand?" | SUCCEEDED, `answered` | Reply (`kind: reply`), WAITING_INPUT, follow-up, `open-demands` → demand → availability reads, answer shortage −2 failed independent verification, model corrected to 0, VERIFIED |
+| 2 | Follow-up in the same run | Covered by Flow 1 | The plan's flow 2 is the "hi" then follow-up sequence in Flow 1. |
 | 3 | "Draft a purchase order for any shortage from the approved supplier" | SUCCEEDED, `verified` | Discovery and reads. An offer recommendation failed verification. A PO for 2 units was blocked by the rules (no real shortage). A verified zero-shortage answer followed. No write was proposed for approval, which is correct on this data. |
 | 3b | "Create a draft purchase order for 5 units for demand …/1 …" | FAILED, `budget_exhausted` (default budget, before the raise) | Both PO proposals (5, then 0 units) were blocked by the rules, then a verified zero shortage. The write path reached validation but stopped there because Odoo shows no shortage (demand 12, available 4, inbound 10). |
 | 4 | "Check demand demand-123" | SUCCEEDED, `answered` | `read.rejected` `E_AGENT_INVALID_REF`, `open-demands` discovery, real reads, wrong answer caught, corrected, VERIFIED. No crash. |
@@ -60,7 +62,6 @@ API keys created in part A expire **2026-10-19**. After that, re-run the user an
   - read feedback;
   - inferred conversational replies;
   - open-demands discovery.
-- **Committed profiles still have the default budgets** (32000 tokens, 2 repairs), and `dev-ollama.json` is affected too. Raising them is proposed in the final fix wave.
 - **Approval path not yet proven live.** To prove the approval path end to end, either seed a demand with a real shortage in the sandbox namespace or lower available stock. Both mutate sandbox data, so they need your go-ahead.
 - **Long chat runs.** Pure chat uses driver turns and eventually ends in `BUDGET_EXHAUSTED`. A chat run ends only when the user stops it.
 - **Remaining deferred minors** are listed in the execution ledger summary of the final review.

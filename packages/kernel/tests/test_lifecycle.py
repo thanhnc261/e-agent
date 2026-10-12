@@ -820,3 +820,113 @@ async def test_read_auth_failure_fails_the_run_without_model_feedback(
     assert run.reason == "provider authentication required"
     assert RunEventType.READ_REJECTED not in await _types(k, run.run_id)
     assert k.driver.calls == 1, "the model is not asked to fix credentials"
+
+
+async def test_plain_text_repair_turns_are_recorded_in_the_ledger(make_kernel: MakeKernel) -> None:
+    k = make_kernel()
+    k.coordinator._driver = _ReadThenReplyDriver("Widget-a is short by 7.")  # type: ignore[assignment]
+    run = await k.coordinator.start_run(k.requester, "is widget-a short?", k.scope)
+    assert run.state is RunState.FAILED
+    assert run.reason_code is ReasonCode.VERIFICATION_FAILED
+    cont = await k.coordinator._peek_cont(TENANT, run.run_id)
+    assert cont.repairs > 0
+    repairs = [
+        e
+        for e in await k.store.list_events(TENANT, run.run_id)
+        if e.type is RunEventType.VALIDATION_COMPLETED
+    ]
+    assert len(repairs) == cont.repairs
+    for event in repairs:
+        assert event.payload["status"] == "FAIL"
+        assert event.payload["findings"][0]["rule_id"] == "KERNEL-VERIFICATION"
+
+
+async def test_mixed_batch_keeps_the_good_observation_and_reports_the_rejected_read(
+    make_kernel: MakeKernel,
+) -> None:
+    from e_agent.sdk.ports import FinalAnswer, ReadRequest, RequestReads
+
+    from .conftest import READ
+
+    k = make_kernel()
+    k.backend.fail_mode = "read-reject-once"
+    seen = []
+
+    async def batch(ctx, step_input):  # type: ignore[no-untyped-def]
+        seen.append(step_input)
+        if len(seen) == 1:
+            return RequestReads(
+                reads=tuple(
+                    ReadRequest(
+                        request_id=rid,
+                        contract_id=READ.contract_id,
+                        connection_id=CONN,
+                        arguments={},
+                    )
+                    for rid in ("bad", "good")
+                )
+            )
+        return FinalAnswer(text="done")
+
+    k.driver.advance = batch  # type: ignore[method-assign]
+    await k.coordinator.start_run(k.requester, "x", k.scope)
+    second = seen[1]
+    assert [o for o in second.observations] and len(second.observations) == 1
+    assert list(second.read_errors) == ["bad"]
+
+
+async def test_continuation_snapshot_without_read_errors_still_loads(
+    make_kernel: MakeKernel,
+) -> None:
+    from e_agent.kernel.coordinator import _Continuation
+
+    k = make_kernel()
+    run = await _start(k)
+    stored = await k.store.load_continuation(TENANT, run.run_id)
+    assert stored is not None
+    data = dict(stored[0]["data"])
+    assert "read_errors" in data
+    del data["read_errors"]  # a row written before read feedback existed
+    assert _Continuation.model_validate(data).read_errors == {}
+
+
+@pytest.mark.parametrize("worked", ["read.recorded", "read.rejected", "proposal.created"])
+async def test_ledger_rows_of_every_kind_veto_a_reply(make_kernel: MakeKernel, worked: str) -> None:
+    from e_agent.sdk.ports import FinalAnswer, RequestReads
+
+    k = make_kernel(["first", "second"])
+    real = k.driver.advance
+    state = {"turn": 0, "forget": False}
+
+    async def forgetful(ctx, step_input):  # type: ignore[no-untyped-def]
+        state["turn"] += 1
+        if state["forget"]:
+            # Crash replay: the continuation forgot its work; the ledger did not.
+            for cont in k.coordinator._runs.values():
+                cont.read_calls = 0
+                cont.reads.clear()
+                cont.read_errors.clear()
+                cont.last_action_id = None
+                cont.pending_action_id = None
+            return FinalAnswer(text="Done.")
+        if worked == "proposal.created":
+            return await real(ctx, step_input)
+        if state["turn"] == 1:
+            return RequestReads(reads=(_read_request(),))
+        state["forget"] = True
+        return await forgetful(ctx, step_input)
+
+    k.driver.advance = forgetful  # type: ignore[method-assign]
+    if worked == "read.rejected":
+        k.backend.fail_mode = "read-reject-once"
+    run = await _start(k)
+    if worked == "proposal.created":
+        assert run.state is RunState.WAITING_APPROVAL
+        state["forget"] = True
+        k.backend.revision += 1  # stale approval sends the run back to the driver
+        run = await _approve(k, run.run_id)
+    types = {e.type.value for e in await k.store.list_events(TENANT, run.run_id)}
+    assert worked in types
+    assert run.state is RunState.FAILED
+    assert run.reason_code is ReasonCode.VERIFICATION_FAILED
+    assert k.backend.create_calls == 0

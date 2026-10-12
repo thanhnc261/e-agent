@@ -105,7 +105,7 @@ Capability contract IDs are named by business bounded context, e.g. `procurement
 
 ### 4.1 Initial `RunEvent` catalog
 
-Durable event types (payloads are versioned DTOs; unknown types are quarantined by readers and trigger a snapshot refresh in UIs): `run.created`, `run.state_changed`, `read.recorded`, `proposal.created`, `validation.completed`, `approval.requested`, `approval.decided`, `connect.required`, `input.requested`, `input.received`, `action.reserved`, `action.dispatching`, `action.receipt_recorded`, `action.unknown`, `reconciliation.completed`, `outcome.reported`, `message.final`, `budget.exhausted`, `run.cancel_requested`, `run.terminal`. Transient (not persisted): `text.delta`. Adding a type is a contract change with a schema snapshot update.
+Durable event types (payloads are versioned DTOs; unknown types are quarantined by readers and trigger a snapshot refresh in UIs): `run.created`, `run.state_changed`, `read.recorded`, `read.rejected`, `proposal.created`, `validation.completed`, `approval.requested`, `approval.decided`, `connect.required`, `input.requested`, `input.received`, `action.reserved`, `action.dispatching`, `action.receipt_recorded`, `action.unknown`, `reconciliation.completed`, `outcome.reported`, `message.final`, `budget.exhausted`, `run.cancel_requested`, `run.terminal`. `read.rejected`: the provider rejected a read with no effect; the payload carries the code and a safe message ([ADR 0022](adr/0022-conversational-turns-read-feedback-discovery.md)). `input.requested` carries `kind` (`reply` or `clarification`; absent on old rows). Transient (not persisted): `text.delta`. Adding a type is a contract change with a schema snapshot update.
 
 ### Approval digest
 

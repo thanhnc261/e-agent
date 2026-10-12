@@ -224,7 +224,7 @@ class FakeErp:
                 {
                     "demand_ref": s.demand_ref,
                     "product_ref": s.product_ref,
-                    "product_name": s.product_ref.split(":", 1)[-1],
+                    "product_name": s.product_ref.split(":", 1)[-1].replace("-", " ").title(),
                     "quantity": s.demand_quantity,
                     "unit": s.unit,
                     "requested_date": s.requested_date.isoformat(),
