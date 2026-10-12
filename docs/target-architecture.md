@@ -1,6 +1,6 @@
 # e-agent: target architecture (v2)
 
-**Status:** Proposed. **Date:** 2026-10-11, revised 2026-10-12 after three review rounds. **Verified against:** commit `af50c62` plus the uncommitted working-tree changes present on 2026-10-12; every `[I]` tag and `file:line` reference refers to that tree and must be re-checked after the next commit. **Baseline:** the [high-level design](high-level-design.md), the [MVP detailed design](mvp-detailed-design.md) and the accepted ADRs remain authoritative until the ADR candidates in §17 are accepted. This document does not change contracts or code. When an ADR candidate is accepted, its content moves into the HLD or MVP design and the matching section here is marked "merged", so this document does not become a second architecture specification.
+**Status:** Proposed. **Date:** 2026-10-11, revised 2026-10-12 after three review rounds. **Verified against:** commit `af50c62` plus the uncommitted working-tree changes present on 2026-10-12; every `[I]` tag and `file:line` reference refers to that tree and must be re-checked after the next commit. WP1 Tasks 2–8 and 10 re-verified against commit `591f3c6`. **Baseline:** the [high-level design](high-level-design.md), the [MVP detailed design](mvp-detailed-design.md) and the accepted ADRs remain authoritative until the ADR candidates in §17 are accepted. This document does not change contracts or code. When an ADR candidate is accepted, its content moves into the HLD or MVP design and the matching section here is marked "merged", so this document does not become a second architecture specification.
 
 **Implementation:** [WP1 correctness plan](superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) (verified defects D1–D7, ADR candidates 0018–0020) and the WP2–WP5 map in its Part A.
 
@@ -53,7 +53,7 @@ Rows R1–R6 are the first-round criteria, U1–U9 the second-round criteria and
 | R6 | HTTP framework | FastAPI confined to `apps/server` (§14) | [I] | import-linter forbids `fastapi` in core packages (exists) |
 | U1 | Explicit integration | Capability contract / binding / connection; adapter kinds native, bridge, MCP (§10) | [I] native, [P] MCP | New provider = new adapter + manifest only, with no kernel or domain edits |
 | U2 | Swappable runtime core | Seams: AgentDriver, RunStore work API, stores, knowledge, memory; trust anchor fixed (§4) | [Pa] | Two drivers pass the same driver-conformance suite; RunStore conformance passes on memory and PG stores (exists for stores) |
-| U3 | Traceable state | Typed run/action state machines with transition tables; append-only event log; step records (§5) | [Pa] (no run table) | Illegal action transition raises [I]; illegal run transition raises [P: run table, C6]; run reconstructable from `run_events` [P target, §5.1] |
+| U3 | Traceable state | Typed run/action state machines with transition tables; append-only event log; step records (§5) | [Pa] (run table [I]; reconstructability [P]) | Illegal action transition raises [I]; illegal run transition raises [I] (run table, C6); run reconstructable from `run_events` [P target, §5.1] |
 | U4 | Multi-step self-correction | Progress ledger + typed findings + repair budget (§6) | [Pa] | Injected invalid proposal is repaired within budget or stops safely; no write passes on model self-assessment |
 | U5 | Memory | Working / episodic / semantic / procedural mapped to stores; candidate → promotion (§8) | [P] | Memory candidate never affects a run before promotion; deleted source removes derived memory |
 | U6 | Context management | ContextAssembler policy (kernel) + rendering/compaction (driver) (§7) | [P] | Token budget respected over 12 turns; cleared tool result re-fetchable by EvidenceRef; tool set constant per run |
@@ -63,8 +63,8 @@ Rows R1–R6 are the first-round criteria, U1–U9 the second-round criteria and
 | Q1 | Authorization | Roles mapped by profile to task definitions, capabilities, connections and approval scopes; self-approval rule; run visibility (§13.2) | [Pa] (two static roles; approval iff write) | Requester outside a task's grant cannot start it; approver outside scope cannot decide; requester cannot approve their own write unless local mode; a non-participant cannot read the run or export its evidence |
 | Q2 | High load | §12.2 mechanisms; this round added nothing new | [P] | R1 fitness test |
 | Q3 | Concurrent requests | Idempotency keys, CAS revisions, 404 for foreign runs; request limits and bounded reads (§12.4) | [Pa] | Every row of the §12.4 table has a test: two identical creates make one run; two decides give one success and one 409; a 10 000-event run snapshots within the page limit |
-| Q4 | Auditing | Append-only event log with actor and correlation id on every event; database-enforced no UPDATE/DELETE; access log for reads and exports (§5.5) | [Pa] (append-only by code; actor on two event types) | Application roles cannot UPDATE or DELETE `run_events`, `approvals` or `receipts` (probe fails); every event carries an actor; exporting evidence writes an access-log entry with the actor |
-| Q5 | Explainability | Structured rationale with checked EvidenceRefs; reason codes; deterministic explanation projection (§5.6) | [P] (free-text `reason`; no rationale field) | Explanation projection answers the research 03 competency questions for any run without a model call (shared with G11); every rationale reference resolves to evidence recorded in the same run |
+| Q4 | Auditing | Append-only event log with actor and correlation id on every event; database-enforced no UPDATE/DELETE; access log for reads and exports (§5.5) | [Pa] (actor [I]; DB grants, access log [P]) | Application roles cannot UPDATE or DELETE `run_events`, `approvals` or `receipts` (probe fails); every event carries an actor; exporting evidence writes an access-log entry with the actor |
+| Q5 | Explainability | Structured rationale with checked EvidenceRefs; reason codes; deterministic explanation projection (§5.6) | [Pa] (reason codes [I]; rationale and projection [P]) | Explanation projection answers the research 03 competency questions for any run without a model call (shared with G11); every rationale reference resolves to evidence recorded in the same run |
 
 ---
 
@@ -310,7 +310,7 @@ The market evidence is that topology, not framework, dominates cost: about 2.1×
 
 ### 5.1 Principles
 
-1. **State is typed and transitions are tabled.** Both run and action states change only through allowed transitions with compare-and-swap revisions. The action table exists (`contracts/action.py: ALLOWED_ACTION_TRANSITIONS`). The run table is proposed (C6); `_set_run_state` does not check transitions today.
+1. **State is typed and transitions are tabled.** Both run and action states change only through allowed transitions with compare-and-swap revisions. The action table exists (`contracts/action.py: ALLOWED_ACTION_TRANSITIONS`). The run table exists (`contracts/run.py: ALLOWED_RUN_TRANSITIONS`) and `_set_run_state` enforces it [I] (ADR 0018).
 2. **The event log is the audit truth.** Every state change appends a typed, versioned `RunEvent` in the same short transaction [I]. Current-state rows stay authoritative for compare-and-swap concurrency control. Making those rows fully reconstructable from the log is a [P] target, tested by the U3 fitness row; it is not guaranteed today.
 3. **Steps are first-class.** A *step* is one driver turn or one kernel action. Each step records its inputs (as refs), outputs, findings and status, so later steps and the model reason over results instead of re-deriving them.
 4. **No hidden reasoning is persisted.** Model reasoning parts are stripped (ADR 0004) [I]. Explanations today are proposals, findings and a free-text `run.reason`; structured rationale fields are proposed in §5.6 [P]. No `rationale` field exists in the contracts, the driver or the evidence export.
@@ -421,10 +421,10 @@ The event log is the audit truth (§5.1), so its integrity and attribution are a
 |---|---|---|---|
 | Append-only | Enforced by code only: `store.py` contains no UPDATE or DELETE on `run_events`, `approvals` or `receipts`. `runs` and `actions` are compare-and-swap state rows (`store.py:131`, `store.py:225`) whose history lives in `run_events` (§5.1) | The control and tenant roles from §13.1 receive INSERT and SELECT only on `run_events`, `approvals` and `receipts`; `runs`, `actions` and the queue keep UPDATE; DDL belongs to a migration role. A probe test tries an UPDATE on each of the three append-only tables with each application role and must fail | [I] code / [P] grants |
 | Tamper evidence | None. The threat model (§4) accepts this residual for the MVP | Per-run hash chain: each event record carries the JCS digest of its predecessor; periodic anchoring of the latest digest to an external log | [C] trigger: external audit or compliance requirement, or multi-administrator production. Lifted at P5 at the earliest |
-| Actor attribution | `RunEvent` has no actor field. `actor_id` appears only in the `approval.decided` payload (`coordinator.py:1028`) and in `run.cancel_requested` (`coordinator.py:1397`). `correlation_id` is never set on events; only error responses mint one (`api.py:354`) | Every event carries `actor` (`principal:<id>`, `service:<id>` for triggers, `system:<role>` for kernel and worker) and the request's correlation id; the worker takes the correlation id from the work item | [Pa] |
+| Actor attribution | Every append stamps `RunEvent.actor` from the `current_actor` context variable (`sdk/store.py`, set with `actor_scope`; default `system:kernel`). The server sets `principal:<id>` for authenticated requests and `system:worker:<owner>` for recovery and expiry work, and a work item runs under the principal it acts for. `correlation_id` is never set on events; only error responses mint one (`api.py`) | Every event carries `actor` (`principal:<id>`, `service:<id>` for triggers, `system:<role>` for kernel and worker) and the request's correlation id; the worker takes the correlation id from the work item | [I] actor / [P] correlation id (WP2) |
 | Access audit | Reading a run, streaming it or exporting evidence appends nothing | An API access log (actor, run, operation, purpose, correlation id) for run reads, streams and evidence exports. Exports are deliberately not run events: an audit read must not advance the audited stream, reopen a terminal run (ADR 0007) or appear inside the next export | [P] |
 | Control-plane audit | No connection, profile, policy or role tables exist (three migrations: ledger, `api_idempotency`, `run_work`). Configuration changes are file edits under git, so git history is the audit trail today | Control-plane audit table (who changed which profile, binding, policy bundle or role grant, with digests before and after) | [C] trigger: the first administrative mutation API |
-| Failure classification | `evidence.classify()` substring-matches the free-text `reason` ("validation", "budget", "provider") (`evidence.py:21-31`) | Derived from `ReasonCode` (§5.6) | [Pa] |
+| Failure classification | `RunRecord.reason_code` carries a typed `ReasonCode`; `evidence.classify()` reads it first and falls back to substring-matching the free-text `reason` for runs without a code | Derived from `ReasonCode` (§5.6) | [I] (ReasonCode, ADR 0018) |
 
 Redaction rules for the export stay as in MVP §11. HLD §9 requires export authorization; today the export is tenant-scoped only (§13.2 closes this).
 
@@ -771,7 +771,7 @@ A trigger is a business event that asks e-agent to start a task. Triggers must n
 3. **Untrusted payload.** The event body is task input and evidence, handled like user text. It cannot carry approvals, budgets or policy.
 4. **Same approval.** Writes still need policy evaluation and, where required, human approval by an authorized approver. The service principal cannot approve its own run's writes.
 5. **Rate and budget limits** per trigger and tenant, enforced at admission.
-6. **Approval reachability.** Approval expires (MVP §10 default 15 minutes), and `approval_ttl` is a single coordinator setting today (`coordinator.py:119`). Expiry is checked only when a decision arrives (`coordinator.py:992-1001`), and no sweeper exists. A run started by a webhook at night therefore stays in `WAITING_APPROVAL` indefinitely; a late decision is rejected as stale and the run fails. Unwatched runs pile up and are rescanned at every startup. Add an **expiry sweeper [P]** that moves expired approvals to `BLOCKED` and then repairs or fails the run per the task definition. Triggered tasks that need approval therefore also need two things: an approver notification and inbox path [P], which is out of scope in ADR 0017 today, and an approval TTL set per task definition [P]. **Until both exist, triggers are limited to read/answer tasks and to writes that policy permits without approval.**
+6. **Approval reachability.** Approval expires (MVP §10 default 15 minutes), and `approval_ttl` is a single coordinator setting today (`coordinator.py:119`). Before WP1, expiry was checked only when a decision arrived and no sweeper existed, so a run started by a webhook at night stayed in `WAITING_APPROVAL` indefinitely. An **expiry sweeper [I]** (fenced `expire` work, ADR 0019) now runs every `APPROVAL_SWEEP_SECONDS = 30`: it enqueues `expire` work, and the worker re-checks the TTL under the claim, moves the pending action to `BLOCKED` and fails the run with `APPROVAL_EXPIRED`. Repairing the run per the task definition instead of failing it stays [P]. Triggered tasks that need approval therefore also need two things: an approver notification and inbox path [P], which is out of scope in ADR 0017 today, and an approval TTL set per task definition [P]. **Until both exist, triggers are limited to read/answer tasks and to writes that policy permits without approval.**
 
 ```python
 class TriggerSpec(BaseModel):          # profile-declared (proposed)
@@ -815,7 +815,7 @@ flowchart TB
 | Model-call retry policy | Retries on model 429/5xx are allowed because they have no side effect, but they consume the active-time and token budget. They are a different category from write retries, which are never automatic | [P] (policy to be written down) |
 | Shared-singleton audit before slots > 1 | The driver keys `_RunState` by `run_id`; work claim is a `ContextVar`; still check the executor client, text bus and caches | [P] |
 | LISTEN dispatcher + slow fallback poll | Streaming load independent of idle viewers | [P] |
-| Connection-level write admission: no new write while a `DISPATCHING`/`UNKNOWN` action exists on that connection | Restores the serialized-writer backstop even if a lock or lease is lost mid-call | [P] (safety) |
+| Connection-level write admission: no new write while a `RESERVED`, `DISPATCHING` or `UNKNOWN` action exists on that connection (`reserve_operation` raises `ConnectionBusy`; the run fails with `CONNECTION_BUSY`) | Restores the serialized-writer backstop even if a lock or lease is lost mid-call. `RESERVED` is in the set because the reservation commits before the action reaches `DISPATCHING` | [I] (ADR 0020; lease still [P]) |
 | Durable writer lease replacing the session advisory lock; TTL > provider timeout + margin | Stops pool connections being pinned during ERP I/O | [P] |
 | Separate pools per role (worker: slots + heartbeat + LISTEN; API) | Avoid starvation | [P] |
 | `e-agent worker` and `serve --no-worker` | Scale API and workers independently | [P] |
@@ -849,7 +849,7 @@ Results are labelled fixture/infrastructure evidence, never live qualification.
 | Input while the run is not `WAITING_INPUT` or the revision moved | 409 (`api.py:589`) | [I] |
 | Request on another tenant's run | 404 with a FORBIDDEN body; absent and foreign look the same (`api.py:510`) | [I] |
 | Many requests from one principal | No per-principal request limit; only budget exhaustion returns 429 (`api.py:58`) | [P] token-bucket limits per principal and per tenant at the API, separate from run budgets |
-| Snapshot or export of a long run | `list_events` has no LIMIT (`store.py:391-399`); `build_evidence` loads all events, actions, approvals and receipts into memory | [P] page size on events (`after_sequence` + limit); streamed evidence export; per-run event cap enforced by budgets |
+| Snapshot or export of a long run | `list_events(after_sequence, limit)` pages events; the API reads `EVENT_PAGE = 500` per call (the events endpoint `limit` ceiling is 1000) and evidence export reads `EVIDENCE_PAGE = 1000`; `build_evidence` still holds all events, actions, approvals and receipts in memory | [I] paged (EVENT_PAGE 500, ceiling 1000); [P] streamed evidence export; per-run event cap enforced by budgets |
 | Many SSE viewers of one run | One database poll per viewer (SR-02) | [P] LISTEN dispatcher (C2) plus a per-principal connection cap |
 | Decide racing cancel | Not analyzed in this review | [P] tabled in the C6 transition table |
 
@@ -881,7 +881,7 @@ Adding a domain means creating a pack distribution with ontology, contracts, rul
 
 ### 13.2 Authorization model
 
-**Today [I].** Two static roles, `requester` and `approver` (`kernel/policy.py:9-10`). `DefaultPolicy` permits when the principal has the requester role and the connection is in `resource_scope`, and requires approval exactly when the effect is a write (`policy.py:13-31`). `decide` requires the approver role (`coordinator.py:969`); input requires the principal to be the requester (`api.py:587`); run reads, the stream and the evidence export are tenant-scoped only (`api.py:472`, `api.py:510`, `api.py:615`). Roles come from the profile's operator in local mode (`bootstrap.py:161-166`). Reads are the odd one out: any tenant member can read any run and export its evidence, while HLD §9 requires export authorization.
+**Today [I].** Self-approval is refused unless `operator.allow_self_approval` is set (ADR 0019) [I]; the fixture profile sets it, `profiles/live.example.json` keeps the forbidden default, and `/health/ready` reports `self_approval_allowed`. Two static roles, `requester` and `approver` (`kernel/policy.py:9-10`). `DefaultPolicy` permits when the principal has the requester role and the connection is in `resource_scope`, and requires approval exactly when the effect is a write (`policy.py:13-31`). `decide` requires the approver role (`coordinator.py:969`); input requires the principal to be the requester (`api.py:587`); run reads, the stream and the evidence export are tenant-scoped only (`api.py:472`, `api.py:510`, `api.py:615`). Roles come from the profile's operator in local mode (`bootstrap.py:161-166`). Reads are the odd one out: any tenant member can read any run and export its evidence, while HLD §9 requires export authorization.
 
 **Target [P].** Extend this model; do not replace it with an external policy engine.
 
@@ -915,7 +915,7 @@ Rejected or deferred: an external policy decision point (OPA, Cedar) [C]. Trigge
 | HTTP | FastAPI + uvicorn (Granian optional) | Already confined to `apps/server`; the bottleneck is model/ERP latency and the worker, not routing; FastAPI 0.143.0 released 2026-10-08 | Litestar: last release 2.24.0 on 2026-06-11, msgspec gain moot with Pydantic contracts. Revisit if profiling after the review's P0 fixes shows HTTP overhead is significant |
 | Contracts | Pydantic v2 models, JSON Schema snapshots, JCS digests | Shared Python/TS golden vectors (ADR 0006) | — |
 | Agent framework | Pydantic AI 2.x behind AgentDriver | Typed, deferred tools, thin topology | LangGraph as a driver adapter only (ADR candidate C6) |
-| Model serving | Ollama locally; hosted providers through Pydantic AI providers | ADR 0001 | A model gateway (routing, quotas) when multiple tenants share providers [C] |
+| Model serving | Ollama locally (default); hosted providers through Pydantic AI providers. LiteLLM is an explicit, opt-in provider behind a loopback proxy (ADR 0021, Proposed); no LiteLLM-routed model is qualified | ADR 0001, ADR 0021 | A model gateway (routing, quotas) when multiple tenants share providers [C] |
 | System of record | PostgreSQL (CI runs 16; target the latest supported major in an ADR) via psycopg 3 async + pool | Transactions for ledger, queue, events; one operational system | — |
 | Work queue | PG `run_work` with `SKIP LOCKED`, leases, fencing | No extra infrastructure; fenced recovery exists | DBOS [C] if ADR 0003's trigger fires; Temporal [C] if multi-day orchestration across services is required |
 | Streaming | SSE + LISTEN/NOTIFY wake-ups | ADR 0007 resume semantics | WebSockets: no bidirectional need |
@@ -1041,22 +1041,22 @@ e-agent/
 |---|---|---|
 | C1 | Concurrent run slots per worker with per-tenant fairness; admission control at enqueue (queue depth checked in the enqueue transaction, token quotas); model-call retry policy (§12.2) | ADR 0003, 0014 |
 | C2 | LISTEN dispatcher for streams; text deltas in-process (combined mode) or coalesced NOTIFY from workers (split mode) | ADR 0007 |
-| C3 | Connection-level write admission rule + durable writer lease (TTL > provider timeout) | ADR 0003, 0014; MVP §9 |
+| C3 | Connection-level write admission rule + durable writer lease (TTL > provider timeout) — admission rule merged, lease pending | ADR 0003, 0014; MVP §9 |
 | C4 | API and worker process roles | HLD §4 |
 | C5 | HTTP framework stays FastAPI; revisit trigger | — |
-| C6 | Run transition table; no graph runtime in the kernel; LangGraph only as a driver adapter | ADR 0004; MVP §7 |
+| C6 | Run transition table; no graph runtime in the kernel; LangGraph only as a driver adapter — WP1 part merged | ADR 0004; MVP §7 |
 | C7 | Swappable-runtime boundary: trust anchor vs ports (§4) | HLD §6 |
 | C8 | Step records and progress ledger as kernel projections; plan updates are proposals; `KERNEL-REPEAT` finding for repeated blocked proposals (§6) | MVP §4, §7 |
 | C9 | ContextAssembler ownership split and context rules (§7) | ADR 0004 |
 | C10 | Memory model, promotion path and `MemoryStore` port (§8) | HLD §7 |
 | C11 | Task definitions with acceptance specs (AR-01) as the unit of specialization; per-task approval TTL; skill and task-definition versions recorded per run (§13) | ADR 0017 |
 | C12 | MCP as a capability binding type (§10.2) | ADR 0012, 0013 |
-| C13 | Event-triggered runs: service principal, idempotency, approval unchanged; approval reachability: expiry sweeper, approver notification/inbox, scope limited to no-approval tasks until both exist (§11.2) | MVP §10, §12; ADR 0017 |
+| C13 | Event-triggered runs: service principal, idempotency, approval unchanged; approval reachability: expiry sweeper, approver notification/inbox, scope limited to no-approval tasks until both exist (§11.2) — WP1 part merged | MVP §10, §12; ADR 0017 |
 | C14 | Knowledge service and projection selection when triggered (§9) | HLD §7 |
 | C15 | Tenancy hardening: RLS with a control role and a tenant role (§13.1), OIDC, vault adapter | HLD §9 |
-| C16 | Authorization bundle: role mappings, task and capability grants, approval scopes, self-approval rule, run visibility (§13.2) | HLD §3, §9; ADR 0006 (digest golden vectors); threat model T3, T19 |
-| C17 | Audit integrity: actor and correlation id on every event, database-enforced append-only, access audit; hash chain and control-plane log when triggered (§5.5) | HLD §9; threat model §4 |
-| C18 | Explanation contract: `ProposalRationale`, `ReasonCode`, deterministic explanation projection (§5.6) | ADR 0004; HLD §9 |
+| C16 | Authorization bundle: role mappings, task and capability grants, approval scopes, self-approval rule, run visibility (§13.2) — WP1 part merged | HLD §3, §9; ADR 0006 (digest golden vectors); threat model T3, T19 |
+| C17 | Audit integrity: actor and correlation id on every event, database-enforced append-only, access audit; hash chain and control-plane log when triggered (§5.5) — WP1 part merged | HLD §9; threat model §4 |
+| C18 | Explanation contract: `ProposalRationale`, `ReasonCode`, deterministic explanation projection (§5.6) — WP1 part merged | ADR 0004; HLD §9 |
 
 ---
 
@@ -1064,7 +1064,7 @@ e-agent/
 
 | Phase | Content | Exit evidence |
 |---|---|---|
-| **P0: runtime correctness at concurrency** | C3 writer admission rule + lease; C6 run transition table; singleton audit; C1 run slots; C2 LISTEN streaming | Existing suites green; new fault-injection tests (lease loss mid-dispatch, concurrent writes to one connection); K runs progress concurrently |
+| **P0: runtime correctness at concurrency** | C3 admission rule ✔, lease; C6 ✔; singleton audit; C1 run slots; C2 LISTEN streaming | Existing suites green; new fault-injection tests (lease loss mid-dispatch, concurrent writes to one connection); K runs progress concurrently |
 | **P1: roles and structure** | C4 worker role; cross-process cancel; SR-06 kernel split behind the facade; C11 task definitions + acceptance specs (also closes AR-01); C16 self-approval rule, approval scopes and run visibility; actor on every event (C17 part 1) | Two API + two worker processes on one DB with kill -9 tests; line-count and import contracts per kernel module; Q1 fitness tests |
 | **P2: cognition core** | C8 step records + progress ledger; C9 ContextAssembler; driver conformance suite; first context ablation (research 03 §8); C18 reason codes, rationale contract and explanation projection | Budget respected over 12 turns; repair success rate and token cost compared against the baseline on fixtures |
 | **P3: integration breadth** | C12 MCP binding; C13 triggers with the approval expiry sweeper and per-task TTL (inbox may follow); second domain pack (non-ERP, real use case) | G2/G3/G10 gates with a real second domain; triggered write waits for approval; expired approval of an unwatched run reaches `BLOCKED` without a restart |

@@ -15,7 +15,8 @@ OpenAI-compatible proxy.
 - `litellm` uses Pydantic AI's `LiteLLMProvider` against a LiteLLM proxy whose URL comes from the
   environment variable named by `base_url_env` (default `E_AGENT_LITELLM_URL`, fallback
   `http://localhost:4000`). The endpoint must be loopback (`localhost`, `127.0.0.1`, `::1`) over
-  http or https, with no userinfo, query or fragment — the same guard as Ollama.
+  http or https, with no userinfo, query or fragment, and the model name must be non-empty. The
+  Ollama guard differs: it allows http only and also refuses `-cloud` and `:cloud` models.
 - An API key, if the proxy needs one, comes from the environment variable named by `api_key_env`;
   the profile never contains the key, and the key never appears in errors, logs or evidence.
 - The profile must name the provider explicitly to use LiteLLM. There is no fallback between

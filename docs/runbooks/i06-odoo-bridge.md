@@ -44,6 +44,8 @@ Set the two expected identity variables from the explicitly designated synthetic
 
 Use the printed refs in a live profile (see `profiles/live.example.json`). `e-agent` checks database/company/marker/bridge identity. Live profiles also require a dedicated PostgreSQL ledger and `artifact_sha256` for both domain and provider plugins from an externally trusted wheel inventory. Generate that inventory with `uv run python scripts/plugin_inventory.py <trusted-wheel> > <inventory.json>`; use the inventory's artifact hash, rather than approving the installed files themselves.
 
+`profiles/live.example.json` is a single-operator profile: one principal holds both the requester and approver roles. Since ADR 0019, approvals by the requester are refused with `FORBIDDEN` unless the operator block sets `"allow_self_approval": true` explicitly. A single-operator live trial must therefore add that key to its own copy of the profile; the example keeps the forbidden default. `/health/ready` reports `self_approval_allowed`, so a release gate can refuse a deployment that enables it.
+
 ## 4. Reset
 
 Reset requires the same expected marker/company/version arguments as seed. Version 19.0.0.3.0 records exact synthetic record IDs in an administrator-only `e_agent.fixture` inventory. It refuses legacy namespaces with no inventory, duplicate matches and unowned records. Choose a fresh `e-agent-...` namespace for a legacy installation; no automatic adoption or broad legacy cleanup is provided.

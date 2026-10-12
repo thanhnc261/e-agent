@@ -17,11 +17,8 @@ One decision per ADR. Statuses: **Proposed** (recommended, not yet accepted by t
 | [0011](0011-layered-replaceable-ui.md) | Layered, themeable and replaceable UI over a shared headless core | Accepted | I08 |
 | [0012](0012-schema-driven-integration-management.md) | Schema-driven integration, connection and credential management | Accepted | I06 (seams); admin UI Phase 2 |
 | [0013](0013-integration-auth-sdk-and-delegated-connections.md) | Integration auth SDK, tenant app registrations and user-delegated connections | Accepted | I02/I06 (contracts, MVP subset); Phase 2 |
-
 | [0014](0014-mvp-remediation-boundaries.md) | MVP remediation boundaries, approval freshness and external uncertainty | Accepted (approved remediation plan) | FIX-02..06 |
-
 | [0015](0015-task-workspace-presentation.md) | Task workspace and host-owned presentation metadata | Accepted (requested UI implementation) | UI redesign / I08–I09 |
-
 | [0016](0016-selectable-agent-surfaces.md) | Selectable enterprise agent surfaces | Accepted (requested overlay design) | UI surfaces / I08–I09 |
 | [0017](0017-member-discovery-read-models.md) | Member-readable task catalog and connection projections | Accepted (requested overlay adoption, API-01) | Enterprise overlay / API-01, FE-06 |
 | [0018](0018-run-transitions-reason-codes-event-attribution.md) | Run transition table, reason codes, event actor, paged events | Proposed | WP1 Tasks 2, 4, 5, 7 |
