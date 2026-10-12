@@ -20,6 +20,8 @@ These documents define the implementation baseline and qualification process for
 | [Implementation plan](implementation-plan.md) | Task catalog, work packages, gates and local/CI test policy |
 | [Target architecture (v2)](target-architecture.md) | Post-MVP target design: swappable runtime, traceable state, self-correction, memory, knowledge, event-driven scale, authorization, audit and explanation; status-tagged against the tree |
 | [WP1 correctness plan](superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) | Bite-sized implementation plan for the verified kernel defects (run transitions, self-approval, event actor, reason codes, approval sweeper, paged events, write admission) and the WP2–WP5 map |
+| [Core: conversation, context and cognition plan](superpowers/plans/2026-10-12-core-conversation-cognition.md) | Proposed phased plan (roadmap P1 C11 + P2 C8/C9): visible chat defects, conversation model (ADR 0023), task definitions, step records, progress ledger, ContextAssembler, grounded answers, driver conformance |
+| [Odoo tools from ERP-Bench plan](superpowers/plans/2026-10-12-odoo-tools-from-erp-bench.md) | Proposed phased plan (roadmap P3): ERP-Bench-derived Odoo read/write capabilities, action plans (multi-write), approval model (ADR 0024), evaluation substrate; depends on the core plan |
 | [ADR index](adr/README.md) | Architecture decisions (all current ones accepted) and template |
 | [UI architecture](ui-architecture.md) | Layered default UI with theme, layout, component and whole-UI replacement; conformance suite |
 | [Integration management](integration-management.md) | Generic connections, credentials, OAuth and admin pages with no provider-specific UI |
