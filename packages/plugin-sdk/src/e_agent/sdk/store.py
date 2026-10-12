@@ -6,8 +6,9 @@ transaction open across model or provider calls (AGENTS.md, ADR 0003).
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from contextlib import AbstractAsyncContextManager
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import AbstractAsyncContextManager, contextmanager
+from contextvars import ContextVar
 from typing import Any, Protocol, runtime_checkable
 
 from e_agent.contracts.action import ActionRecord
@@ -17,6 +18,19 @@ from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import RunRecord
 from e_agent.contracts.work import WorkClaim
+
+current_actor: ContextVar[str] = ContextVar("e_agent_current_actor", default="system:kernel")
+"""Who causes the events appended in this context (ADR 0018): ``principal:<id>``,
+``system:kernel`` or ``system:worker:<owner>``. Set by the API session and the worker."""
+
+
+@contextmanager
+def actor_scope(actor: str) -> Iterator[None]:
+    token = current_actor.set(actor)
+    try:
+        yield
+    finally:
+        current_actor.reset(token)
 
 
 class ConcurrencyConflict(Exception):

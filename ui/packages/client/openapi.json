@@ -576,6 +576,17 @@
             ],
             "title": "Action Id"
           },
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor"
+          },
           "correlation_id": {
             "anyOf": [
               {

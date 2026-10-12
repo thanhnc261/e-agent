@@ -11,7 +11,7 @@ from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.run import RunRecord, RunState
 from e_agent.kernel.memory_store import InMemoryRunStore
-from e_agent.sdk.store import ConcurrencyConflict, DuplicateOperation, NotFound
+from e_agent.sdk.store import ConcurrencyConflict, DuplicateOperation, NotFound, actor_scope
 
 DSN = os.environ.get("E_AGENT_TEST_PG_DSN")
 KINDS = ["memory"] + (["postgres"] if DSN else [])
@@ -275,3 +275,11 @@ async def test_approval_and_action_transition_rollback_together(store: Any) -> N
     )
     assert (await store.get_action("t1", "act_1")).state == ActionState.APPROVED
     assert len(await store.list_approvals("t1", "act_1")) == 1
+
+
+async def test_events_record_the_current_actor(store: Any) -> None:
+    await store.create_run(_run(), [(RunEventType.RUN_CREATED, {}, None)])
+    with actor_scope("principal:alice"):
+        await store.update_run(_run(rev=2), 1, [(RunEventType.RUN_STATE_CHANGED, {}, None)])
+    events = await store.list_events("t1", "run_1")
+    assert [e.actor for e in events] == ["system:kernel", "principal:alice"]

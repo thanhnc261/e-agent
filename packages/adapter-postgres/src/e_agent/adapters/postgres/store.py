@@ -20,7 +20,13 @@ from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord
 from e_agent.contracts.work import WorkClaim
-from e_agent.sdk.store import ConcurrencyConflict, DuplicateOperation, EventSpec, NotFound
+from e_agent.sdk.store import (
+    ConcurrencyConflict,
+    DuplicateOperation,
+    EventSpec,
+    NotFound,
+    current_actor,
+)
 from psycopg import AsyncConnection, errors
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
@@ -90,6 +96,7 @@ class PostgresRunStore:
                 type=event_type,
                 occurred_at=utc_now(),
                 action_id=action_id,
+                actor=current_actor.get(),
                 payload=dict(payload),
             )
             await conn.execute(

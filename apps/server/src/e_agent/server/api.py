@@ -37,7 +37,7 @@ from e_agent.kernel.discovery import (
 )
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.evidence import build_evidence
-from e_agent.sdk.store import ConcurrencyConflict, NotFound
+from e_agent.sdk.store import ConcurrencyConflict, NotFound, actor_scope, current_actor
 from fastapi import Depends, FastAPI, Header, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
@@ -260,22 +260,31 @@ class ApiState:
                         }
                         for action in actions
                     )
-                if claim.fence > 1 and not untouched:
-                    await rt.coordinator.recover_run(claim.tenant_id, claim.run_id)
-                elif claim.kind == "start":
-                    await rt.coordinator.start_admitted_run(claim.tenant_id, claim.run_id)
-                elif claim.kind == "input":
-                    await rt.coordinator.continue_input(claim.tenant_id, claim.run_id)
+                if claim.kind == "decide":
+                    actor_label = f"principal:{claim.payload['actor']['principal_id']}"
+                elif claim.kind in {"start", "input"}:
+                    actor_label = f"principal:{run.requester_id}"
                 else:
-                    payload = claim.payload
-                    await rt.coordinator.decide(
-                        actor=Principal.model_validate(payload["actor"]),
-                        run_id=claim.run_id,
-                        action_id=payload["action_id"],
-                        action_digest=payload["digest"],
-                        expected_run_revision=payload["expected_revision"],
-                        decision=ApprovalDecision(payload["decision"]),
-                    )
+                    actor_label = f"system:worker:{claim.owner}"
+                if claim.fence > 1 and not untouched:
+                    with actor_scope(f"system:worker:{claim.owner}"):
+                        await rt.coordinator.recover_run(claim.tenant_id, claim.run_id)
+                else:
+                    with actor_scope(actor_label):
+                        if claim.kind == "start":
+                            await rt.coordinator.start_admitted_run(claim.tenant_id, claim.run_id)
+                        elif claim.kind == "input":
+                            await rt.coordinator.continue_input(claim.tenant_id, claim.run_id)
+                        else:
+                            payload = claim.payload
+                            await rt.coordinator.decide(
+                                actor=Principal.model_validate(payload["actor"]),
+                                run_id=claim.run_id,
+                                action_id=payload["action_id"],
+                                action_digest=payload["digest"],
+                                expected_run_revision=payload["expected_revision"],
+                                decision=ApprovalDecision(payload["decision"]),
+                            )
                 await rt.store.finish_work(claim)
         except asyncio.CancelledError:
             if not lease_lost or self.stopping:
@@ -288,7 +297,8 @@ class ApiState:
         except Exception:
             try:
                 async with rt.store.work_scope(claim):
-                    await self._mark_failed(claim.run_id)
+                    with actor_scope(f"system:worker:{claim.owner}"):
+                        await self._mark_failed(claim.run_id)
                     await rt.store.finish_work(claim)
             except Exception:
                 # Leave the claim for lease expiry and another owner to reconcile.
@@ -414,6 +424,7 @@ def create_app(
             x_csrf_token or "", found.csrf
         ):
             raise KernelError(ErrorCode.FORBIDDEN, "missing or invalid CSRF token")
+        current_actor.set(f"principal:{found.principal.principal_id}")
         return found
 
     # -- health -------------------------------------------------------------

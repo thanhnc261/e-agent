@@ -43,4 +43,6 @@ class RunEvent(Record):
     occurred_at: UtcDatetime
     action_id: str | None = None
     correlation_id: str | None = None
+    actor: str | None = None
+    """Who caused the event (ADR 0018). None on rows written before the field existed."""
     payload: dict[str, Any] = Field(default_factory=dict)

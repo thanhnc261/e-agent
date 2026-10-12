@@ -113,3 +113,18 @@ def test_run_transition_table_covers_every_state_and_terminals_are_final() -> No
         assert ALLOWED_RUN_TRANSITIONS[state] == frozenset()
     for state, targets in ALLOWED_RUN_TRANSITIONS.items():
         assert RunState.CREATED not in targets, f"{state} must not return to CREATED"
+
+
+def test_run_event_without_actor_still_parses() -> None:
+    event = RunEvent.model_validate(
+        {
+            "event_id": "evt_1",
+            "tenant_id": "t1",
+            "run_id": "run_1",
+            "sequence": 1,
+            "type": "run.created",
+            "occurred_at": "2026-10-06T00:00:00Z",
+            "payload": {},
+        }
+    )
+    assert event.actor is None

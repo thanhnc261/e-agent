@@ -476,6 +476,8 @@ export interface components {
         RunEvent: {
             /** Action Id */
             action_id?: string | null;
+            /** Actor */
+            actor?: string | null;
             /** Correlation Id */
             correlation_id?: string | null;
             /** Event Id */

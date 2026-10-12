@@ -28,6 +28,7 @@ from e_agent.sdk.store import (
     DuplicateOperation,
     EventSpec,
     NotFound,
+    current_actor,
 )
 
 _Stored = tuple[dict[str, Any], dict[str, Any] | None]
@@ -68,6 +69,7 @@ class InMemoryRunStore:
                     type=event_type,
                     occurred_at=utc_now(),
                     action_id=action_id,
+                    actor=current_actor.get(),
                     payload=dict(payload),
                 )
             )

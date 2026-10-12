@@ -461,3 +461,31 @@ def test_task_catalog_reports_real_availability(client: TestClient) -> None:
 def test_ready_reports_whether_self_approval_is_allowed(client: TestClient) -> None:
     body = client.get("/health/ready").json()
     assert body["self_approval_allowed"] is True  # fixture profile: one local operator
+
+
+def test_events_name_the_principal_who_caused_them(client: TestClient) -> None:
+    h = _login(client)
+    r = client.post(
+        "/v1/runs",
+        json={"task": "restock widget-a"},
+        headers={**h, "Idempotency-Key": "actor-key-0001"},
+    )
+    run_id = r.json()["run_id"]
+    body = _wait(client, run_id, {"WAITING_APPROVAL"})
+    pres = body["pending_approval"]
+    client.post(
+        f"/v1/runs/{run_id}/approvals",
+        json={
+            "action_id": pres["action_id"],
+            "digest": pres["digest"],
+            "expected_revision": pres["run_revision"],
+            "decision": "approved",
+        },
+        headers=h,
+    )
+    _wait(client, run_id, {"SUCCEEDED", "FAILED"})
+    events = client.get(f"/v1/runs/{run_id}/events").json()
+    by_type = {e["type"]: e["actor"] for e in events}
+    assert by_type["run.created"] == "principal:local-operator"
+    assert by_type["approval.decided"] == "principal:local-operator"
+    assert all(e["actor"] for e in events), "every event names an actor"
