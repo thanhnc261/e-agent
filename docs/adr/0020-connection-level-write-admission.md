@@ -17,6 +17,8 @@ to the same connection while the first is in flight.
 check and the reservation insert are serialized per connection with a transaction-scoped
 advisory lock. The coordinator blocks the action and fails the run with
 `reason_code = CONNECTION_BUSY`; reconciliation of the earlier action must finish first.
+`DuplicateOperation` takes precedence over `ConnectionBusy` for the same logical operation, so a
+retry of an already reserved operation is reported as a duplicate, not as a busy connection.
 The durable writer lease that replaces the session lock is a separate decision (WP2).
 
 ## Consequences

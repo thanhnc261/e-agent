@@ -421,10 +421,10 @@ The event log is the audit truth (§5.1), so its integrity and attribution are a
 |---|---|---|---|
 | Append-only | Enforced by code only: `store.py` contains no UPDATE or DELETE on `run_events`, `approvals` or `receipts`. `runs` and `actions` are compare-and-swap state rows (`store.py:131`, `store.py:225`) whose history lives in `run_events` (§5.1) | The control and tenant roles from §13.1 receive INSERT and SELECT only on `run_events`, `approvals` and `receipts`; `runs`, `actions` and the queue keep UPDATE; DDL belongs to a migration role. A probe test tries an UPDATE on each of the three append-only tables with each application role and must fail | [I] code / [P] grants |
 | Tamper evidence | None. The threat model (§4) accepts this residual for the MVP | Per-run hash chain: each event record carries the JCS digest of its predecessor; periodic anchoring of the latest digest to an external log | [C] trigger: external audit or compliance requirement, or multi-administrator production. Lifted at P5 at the earliest |
-| Actor attribution | Every append stamps `RunEvent.actor` from the `current_actor` context variable (`sdk/store.py`, set with `actor_scope`; default `system:kernel`). The server sets `principal:<id>` for authenticated requests and `system:worker:<owner>` for recovery and expiry work, and a work item runs under the principal it acts for. `correlation_id` is never set on events; only error responses mint one (`api.py`) | Every event carries `actor` (`principal:<id>`, `service:<id>` for triggers, `system:<role>` for kernel and worker) and the request's correlation id; the worker takes the correlation id from the work item | [I] actor / [P] correlation id (WP2) |
+| Actor attribution | Every append stamps `RunEvent.actor` from the `current_actor` context variable (`sdk/store.py`, set with `actor_scope`; default `system:kernel`). The server sets `principal:<id>` for authenticated requests and `system:worker:<owner>` for claimed recovery and expiry work (`system:worker:startup` for startup recovery), and a work item runs under the principal it acts for. `correlation_id` is never set on events; only error responses mint one (`api.py`) | Every event carries `actor` (`principal:<id>`, `service:<id>` for triggers, `system:<role>` for kernel and worker) and the request's correlation id; the worker takes the correlation id from the work item | [I] actor / [P] correlation id (WP2) |
 | Access audit | Reading a run, streaming it or exporting evidence appends nothing | An API access log (actor, run, operation, purpose, correlation id) for run reads, streams and evidence exports. Exports are deliberately not run events: an audit read must not advance the audited stream, reopen a terminal run (ADR 0007) or appear inside the next export | [P] |
 | Control-plane audit | No connection, profile, policy or role tables exist (three migrations: ledger, `api_idempotency`, `run_work`). Configuration changes are file edits under git, so git history is the audit trail today | Control-plane audit table (who changed which profile, binding, policy bundle or role grant, with digests before and after) | [C] trigger: the first administrative mutation API |
-| Failure classification | `RunRecord.reason_code` carries a typed `ReasonCode`; `evidence.classify()` reads it first and falls back to substring-matching the free-text `reason` for runs without a code | Derived from `ReasonCode` (§5.6) | [I] (ReasonCode, ADR 0018) |
+| Failure classification | `RunRecord.reason_code` carries a typed `ReasonCode`; `evidence.classify()` reads it first and falls back to substring-matching the free-text `reason` for runs without a code. Buckets: blocked-by-design (a kernel guard refused before any effect), infrastructure-or-budget, otherwise failed; `VERIFICATION_FAILED` is `failed` because it follows a COMMITTED write (ADR 0018) | Derived from `ReasonCode` (§5.6) | [I] (ReasonCode, ADR 0018) |
 
 Redaction rules for the export stay as in MVP §11. HLD §9 requires export authorization; today the export is tenant-scoped only (§13.2 closes this).
 
@@ -851,7 +851,7 @@ Results are labelled fixture/infrastructure evidence, never live qualification.
 | Many requests from one principal | No per-principal request limit; only budget exhaustion returns 429 (`api.py:58`) | [P] token-bucket limits per principal and per tenant at the API, separate from run budgets |
 | Snapshot or export of a long run | `list_events(after_sequence, limit)` pages events; the API reads `EVENT_PAGE = 500` per call (the events endpoint `limit` ceiling is 1000) and evidence export reads `EVIDENCE_PAGE = 1000`; `build_evidence` still holds all events, actions, approvals and receipts in memory | [I] paged (EVENT_PAGE 500, ceiling 1000); [P] streamed evidence export; per-run event cap enforced by budgets |
 | Many SSE viewers of one run | One database poll per viewer (SR-02) | [P] LISTEN dispatcher (C2) plus a per-principal connection cap |
-| Decide racing cancel | Not analyzed in this review | [P] tabled in the C6 transition table |
+| Decide racing cancel | Not analyzed in this review | [I] the run transition table exists (`ALLOWED_RUN_TRANSITIONS`, ADR 0018); [P] the decide/cancel race analysis |
 
 ---
 
@@ -892,7 +892,7 @@ class AuthorizationBundle(BaseModel):            # profile-declared, versioned (
     capability_grants: tuple[CapabilityGrant, ...] # role -> capability IDs and effect kinds
     approval_scopes: tuple[ApprovalScope, ...]     # role -> domains, connections, limits, daily cap
     visibility: VisibilityPolicy                   # requester | approvers in scope | operator | auditor
-    self_approval: Literal["forbidden", "local_mode_only"]
+    self_approval: Literal["forbidden", "profile_flag"]  # profile_flag: operator.allow_self_approval (ADR 0019)
 ```
 
 Rules:
