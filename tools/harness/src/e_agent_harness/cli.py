@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TextIO
 
-from e_agent_harness import gate, scope, state, tasks
+from e_agent_harness import gate, gitinfo, progress, scope, state, tasks
 from e_agent_harness import manifest as mf
 
 
@@ -50,6 +50,14 @@ def _parser() -> argparse.ArgumentParser:
         "live-check", help="run the live gate set against the sandbox, redacted"
     )
     live_p.add_argument("--timeout", type=int, default=1800)
+    cp = sub.add_parser("checkpoint", help="append a progress entry for the active task")
+    cp.add_argument("--next", dest="next_action", default=None)
+    cp.add_argument("--changed", default=None)
+    cp.add_argument("--open", dest="open_items", default="none")
+    cp.add_argument("--session", default="manual")
+    cp.add_argument(
+        "--hook", action="store_true", help="PreCompact mode: payload on stdin, always exits 0"
+    )
     return parser
 
 
@@ -164,12 +172,48 @@ def cmd_live_check(args: argparse.Namespace) -> int:
     return _run_gate(args, "live", lambda p, _t: p.live_evidence, None, False)
 
 
+def _one_line(text: str) -> str:
+    return " ".join(text.split()) or "none"
+
+
+def _append_checkpoint(args: argparse.Namespace, session: str) -> None:
+    root, paths, _m = _context(args)
+    loaded = state.load_task(paths)
+    changed = args.changed or ", ".join(gitinfo.status_files(root)) or "no working-tree changes"
+    next_action = args.next_action or (str(loaded[0]["acceptance"][0]) if loaded else "new-task")
+    entry = progress.ProgressEntry(
+        timestamp=datetime.now(UTC).isoformat(timespec="seconds"),
+        session=_one_line(session),
+        task=str(loaded[0]["id"]) if loaded else "none",
+        changed=_one_line(changed),
+        next=_one_line(next_action),
+        open=_one_line(args.open_items),
+    )
+    progress.append_entry(paths.progress, entry)
+
+
+def cmd_checkpoint(args: argparse.Namespace) -> int:
+    if args.hook:
+        try:
+            payload = json.load(args.stdin)
+            if not args.repo and payload.get("cwd"):
+                args.repo = Path(payload["cwd"])
+            _append_checkpoint(args, str(payload.get("session_id") or "hook"))
+        except Exception as exc:  # a compaction hook must never block
+            print(f"checkpoint skipped: {exc}", file=sys.stderr)
+        return 0
+    _append_checkpoint(args, args.session)
+    print("checkpoint appended to harness/state/progress.md")
+    return 0
+
+
 COMMANDS = {
     "validate-context": cmd_validate_context,
     "new-task": cmd_new_task,
     "check-scope": cmd_check_scope,
     "gate": cmd_gate,
     "live-check": cmd_live_check,
+    "checkpoint": cmd_checkpoint,
 }
 
 
