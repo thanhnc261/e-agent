@@ -586,9 +586,37 @@ async def test_sweep_only_enqueues_and_expire_resumes_after_an_interrupted_attem
                 update={"state": ActionState.BLOCKED, "revision": action.revision + 1}
             ),
             action.revision,
-            [],
+            [(RunEventType.APPROVAL_DECIDED, {"decision": "expired"}, action_id)],
         )
         resumed = await k.coordinator.expire_approval(TENANT, run.run_id, action_id)
         await k.store.finish_work(claim)
     assert resumed.state is RunState.FAILED
     assert resumed.reason_code is ReasonCode.APPROVAL_EXPIRED
+    decided = [
+        e
+        for e in await k.store.list_events(TENANT, run.run_id)
+        if e.type is RunEventType.APPROVAL_DECIDED and e.payload == {"decision": "expired"}
+    ]
+    assert len(decided) == 1, "the resume must not record the expiry twice"
+
+
+async def test_one_unreadable_continuation_does_not_block_sweeping_other_runs(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    k = make_kernel(["first", "second"])
+    bad = await _start(k, "write standup note one")
+    good = await _start(k, "write standup note two")
+    k.clock.advance(minutes=16)
+    original = k.coordinator._peek_cont
+
+    async def peek(tenant_id: str, run_id: str):
+        if run_id == bad.run_id:
+            raise ValueError("malformed continuation")  # not a KernelError
+        return await original(tenant_id, run_id)
+
+    monkeypatch.setattr(k.coordinator, "_peek_cont", peek)
+    k.coordinator._runs.pop(bad.run_id, None)
+    assert await k.coordinator.sweep_expired_approvals() == 1
+    claim = await k.store.claim_work("sweeper-test")
+    assert claim is not None and claim.kind == "expire" and claim.run_id == good.run_id
+    assert await k.store.claim_work("sweeper-test-2") is None, "the bad run was not enqueued"

@@ -8,6 +8,7 @@ report findings; executors only execute admitted invocations.
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime, timedelta
@@ -63,6 +64,7 @@ from .errors import ErrorCode, KernelError
 from .policy import APPROVER_ROLE
 from .registry import PluginRegistry
 
+LOG = logging.getLogger(__name__)
 DEFAULT_APPROVAL_TTL = timedelta(minutes=15)
 
 
@@ -1041,6 +1043,26 @@ class RunCoordinator:
             run, RunState.FAILED, "approval expired", code=ReasonCode.APPROVAL_EXPIRED
         )
 
+    async def _enqueue_expiry(self, run: RunRecord, now: datetime) -> bool:
+        if await self._store.has_pending_work(run.tenant_id, run.run_id):
+            return False  # a decision or an earlier sweep is already queued or running
+        try:
+            cont = await self._peek_cont(run.tenant_id, run.run_id)
+        except KernelError:
+            return False
+        if cont.pending_action_id is None or cont.approval_requested_at is None:
+            return False
+        if now <= cont.approval_requested_at + self._approval_ttl:
+            return False
+        payload = {
+            "action_id": cont.pending_action_id,
+            "requested_at": cont.approval_requested_at.isoformat(),
+        }
+        await self._store.enqueue_work(
+            run.tenant_id, run.run_id, "expire", payload, digest(payload)
+        )
+        return True
+
     async def sweep_expired_approvals(self) -> int:
         """Enqueue fenced `expire` work for every approval past its TTL.
 
@@ -1052,24 +1074,16 @@ class RunCoordinator:
         for run in await self._store.list_unfinished_runs():
             if run.state is not RunState.WAITING_APPROVAL:
                 continue
-            if await self._store.has_pending_work(run.tenant_id, run.run_id):
-                continue  # a decision or an earlier sweep is already queued or running
             try:
-                cont = await self._peek_cont(run.tenant_id, run.run_id)
-            except KernelError:
-                continue
-            if cont.pending_action_id is None or cont.approval_requested_at is None:
-                continue
-            if now <= cont.approval_requested_at + self._approval_ttl:
-                continue
-            payload = {
-                "action_id": cont.pending_action_id,
-                "requested_at": cont.approval_requested_at.isoformat(),
-            }
-            await self._store.enqueue_work(
-                run.tenant_id, run.run_id, "expire", payload, digest(payload)
-            )
-            queued += 1
+                if await self._enqueue_expiry(run, now):
+                    queued += 1
+            except Exception as exc:  # one bad run must not block the rest of the sweep
+                LOG.warning(
+                    "approval sweep skipped run %s/%s (%s)",
+                    run.tenant_id,
+                    run.run_id,
+                    type(exc).__name__,
+                )
         return queued
 
     async def expire_approval(self, tenant_id: str, run_id: str, action_id: str) -> RunRecord:
