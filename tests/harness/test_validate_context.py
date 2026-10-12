@@ -1,5 +1,4 @@
 import pytest
-
 from e_agent_harness import gitinfo, state
 
 

@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TextIO
 
 from e_agent_harness import manifest as mf
-from e_agent_harness import state
+from e_agent_harness import state, tasks
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -22,6 +23,18 @@ def _parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("validate-context", help="check the manifest against this checkout")
+    new_task = sub.add_parser("new-task", help="materialise a task contract and make it active")
+    new_task.add_argument("phase")
+    new_task.add_argument("task_id")
+    new_task.add_argument("--feature", action="append", default=[], required=True)
+    new_task.add_argument(
+        "--paths", action="append", default=[], required=True, help="allowed path glob"
+    )
+    new_task.add_argument("--acceptance", action="append", default=[])
+    new_task.add_argument(
+        "--gate", default="quick", choices=["quick", "full", "pg", "e2e", "live"]
+    )
+    new_task.add_argument("--replace", action="store_true", help="replace the active task")
     return parser
 
 
@@ -46,7 +59,34 @@ def cmd_validate_context(args: argparse.Namespace) -> int:
     return 0
 
 
-COMMANDS = {"validate-context": cmd_validate_context}
+def cmd_new_task(args: argparse.Namespace) -> int:
+    root, paths, m = _context(args)
+    active = state.load_active(paths)
+    if active and active.get("task") and active["task"] != args.task_id and not args.replace:
+        print(f"task {active['task']} is active; finish it with close-check or pass --replace")
+        return 1
+    try:
+        contract = tasks.materialise(
+            paths,
+            m,
+            root,
+            phase=args.phase,
+            task_id=args.task_id,
+            feature_ids=args.feature,
+            allowed_paths=args.paths,
+            acceptance=args.acceptance,
+            gate_set=args.gate,
+            now=datetime.now(UTC),
+        )
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+    written = paths.task(args.phase, args.task_id).relative_to(root)
+    print(f"task {contract['id']} materialised at {written}")
+    return 0
+
+
+COMMANDS = {"validate-context": cmd_validate_context, "new-task": cmd_new_task}
 
 
 def main(argv: list[str] | None = None, stdin: TextIO | None = None) -> int:

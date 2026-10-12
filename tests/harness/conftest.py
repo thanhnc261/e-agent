@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import NamedTuple
 
 import pytest
-
 from e_agent_harness import cli
 
 MANIFEST = """
