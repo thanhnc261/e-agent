@@ -22,6 +22,10 @@ class Budgets(Record):
     max_read_calls: int = 20
     max_validation_repairs: int = 2
     max_admitted_writes: int = 1
+    max_active_seconds: int = Field(default=120, ge=1)
+    max_model_tokens: int = Field(default=32000, ge=1)
+    model_timeout_seconds: int = Field(default=60, ge=1)
+    provider_timeout_seconds: int = Field(default=20, ge=1)
 
 
 class TaskContext(Record):
@@ -31,6 +35,7 @@ class TaskContext(Record):
     resource_scope: frozenset[str]
     deadline: UtcDatetime | None = None
     budgets: Budgets = Budgets()
+    credential_versions: dict[str, str] = Field(default_factory=dict)
 
 
 class ResourceHint(Record):

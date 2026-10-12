@@ -1,0 +1,46 @@
+{
+  "kind": "recorded-public-model-parts-fixture-replay",
+  "environment": "synthetic fixture ERP; replay is not live evidence",
+  "task": "late-orders",
+  "prompt": "Report late sales orders as of 2026-10-06.",
+  "model_digest": "bc006a921f692e792f201c133807f63238a8fc3ed22d9da4a919600f39c487de",
+  "context_length": 32768,
+  "temperature": 0,
+  "seed": 0,
+  "pydantic_ai_version": "2.54.0",
+  "expected_contract": "sales.late-orders.answer.v1",
+  "expected_fixture_writes": 0,
+  "responses": [
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "sales_open_orders_read_v1",
+          "args": "{\"as_of\":\"2026-10-06\"}",
+          "tool_call_id": "call_zxchbl24",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "sales_late_orders_answer_v1",
+          "args": "{\"as_of\":\"2026-10-06\",\"late_order_refs\":[\"order:so-1\",\"order:so-4\"],\"summary\":\"As of 2026-10-06, two sales orders are late: order:so-1 with a promised date of 2026-10-01 and order:so-4 with a promised date of 2026-09-30.\"}",
+          "tool_call_id": "call_fntelgrq",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "content": "As of 2026-10-06, the following sales orders are late:\n\n- **Order Reference:** order:so-1  \n  **Promised Date:** 2026-10-01  \n\n- **Order Reference:** order:so-4  \n  **Promised Date:** 2026-09-30  \n\nThese orders have not been delivered by the promised dates.",
+          "part_kind": "text"
+        }
+      ]
+    }
+  ]
+}

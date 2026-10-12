@@ -45,3 +45,19 @@ async def test_invalid_refs_rejected(tmp_path: Path) -> None:
     store = LocalSecretStore(tmp_path / "s.json", generate_key())
     with pytest.raises(ValueError, match="secretref"):
         await store.put("plain-name", Secret("x"))
+
+
+async def test_rotation_changes_nonsecret_version_and_rejects_stale_resolution(
+    tmp_path: Path,
+) -> None:
+    from e_agent.sdk.auth import CredentialRevoked
+
+    store = LocalSecretStore(tmp_path / "s.json", generate_key())
+    await store.put("secretref:local/a", Secret("first"))
+    before = await store.version("secretref:local/a")
+    await store.put("secretref:local/a", Secret("second"))
+    after = await store.version("secretref:local/a")
+    assert before != after
+    with pytest.raises(CredentialRevoked):
+        await store.get("secretref:local/a", expected_version=before)
+    assert (await store.get("secretref:local/a", expected_version=after)).reveal() == "second"

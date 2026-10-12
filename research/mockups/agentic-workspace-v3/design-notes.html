@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>e-agent · Design rationale</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body {
+        padding: 40px 24px 80px;
+      }
+      .notes {
+        max-width: 1080px;
+        margin: auto;
+      }
+      .notes > header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 52px;
+      }
+      .notes h1 {
+        max-width: 700px;
+        font-size: 44px;
+      }
+      .lede {
+        font-size: 16px;
+        max-width: 720px;
+        line-height: 1.8;
+      }
+      .notes-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin: 32px 0;
+      }
+      .note-card {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 25px;
+      }
+      .note-card p {
+        font-size: 14px;
+        line-height: 1.8;
+      }
+      .note-card a {
+        font-size: 12px;
+        color: var(--accent);
+      }
+      .note-card .eyebrow {
+        color: var(--accent);
+        font-size: 10px;
+      }
+      .preview {
+        display: block;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        margin: 20px 0 35px;
+        background: var(--surface);
+      }
+      .preview img {
+        display: block;
+        width: 100%;
+      }
+      .notes ol,
+      .notes ul {
+        padding-left: 22px;
+        color: var(--muted);
+        line-height: 1.9;
+      }
+      .notes > section {
+        margin-top: 45px;
+      }
+      .swatches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .swatches span {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 12px;
+      }
+      .swatches i {
+        display: block;
+        width: 25px;
+        height: 25px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        text-align: left;
+        border-bottom: 1px solid var(--line);
+        padding: 13px 10px;
+        vertical-align: top;
+      }
+      td {
+        color: var(--muted);
+      }
+      @media (max-width: 650px) {
+        body {
+          padding: 25px 18px;
+        }
+        .notes h1 {
+          font-size: 32px;
+        }
+        .notes-grid {
+          grid-template-columns: 1fr;
+        }
+        .notes > header {
+          margin-bottom: 30px;
+        }
+        .notes > header .caption {
+          display: none;
+        }
+        table {
+          font-size: 11px;
+        }
+      }
+    </style>
+    <script type="module">
+      import { paintIcons } from "./icons.js";
+      paintIcons();
+    </script>
+  </head>
+  <body>
+    <main class="notes">
+      <header>
+        <a class="brand" href="index.html"><span class="mark">e</span>e-agent</a
+        ><span class="caption">DESIGN STUDY 03 · 9 OCTOBER 2026</span
+        ><a class="secondary" href="index.html">Open prototype ↗</a>
+      </header>
+      <p class="eyebrow">RESEARCH → DESIGN → REVIEW</p>
+      <h1>Make the work clear.<br />Make the decision human.</h1>
+      <p class="lede">
+        An enterprise agent should help people understand and advance a task.
+        This concept puts the outcome, source context, and approval boundary
+        into a familiar workspace and an assistant that can stay inside another
+        app.
+      </p>
+      <p>
+        All organizations, identities, data, integrations, and workflow results
+        in this study are fictional. The six scenarios illustrate a product
+        direction, not e-agent’s currently implemented integration coverage.
+      </p>
+      <a class="preview" href="screenshots/01-workspace.png"
+        ><img
+          src="screenshots/01-workspace.png"
+          alt="Workspace mockup with a prominent composer, six enterprise workflow examples, and recent work"
+      /></a>
+      <p>
+        <a class="secondary" href="design-system.html"
+          >Logo, icons &amp; components ↗</a
+        >
+        <a class="secondary" href="source-coverage.html"
+          >All 32 pattern pages ↗</a
+        >
+      </p>
+      <h2>How the references shaped the mockup</h2>
+      <div class="notes-grid">
+        <article class="note-card">
+          <p class="eyebrow">01 · TASKS BEYOND CHAT</p>
+          <h2>Intent, artifact, decision, result</h2>
+          <p>
+            A chat message sets the task. A document or action card makes the
+            proposed outcome inspectable. Status and recovery are visible
+            outside the conversation.
+          </p>
+          <a href="https://agentic-design.ai/patterns/ui-ux-patterns"
+            >Agentic Design · UI/UX pattern library ↗</a
+          >
+        </article>
+        <article class="note-card">
+          <p class="eyebrow">02 · CONTEXT THAT STAYS</p>
+          <h2>Keep sources close to the work</h2>
+          <p>
+            Minimizing or expanding preserves the task. Source excerpts open in
+            a focused dialog and return to the review. Rich artifacts provide
+            structure without introducing branching conversations.
+          </p>
+          <a
+            href="https://agentic-design.ai/patterns/ui-ux-patterns/chat-interface-patterns"
+            >Agentic Design · Chat Interface Patterns ↗</a
+          >
+        </article>
+        <article class="note-card">
+          <p class="eyebrow">03 · ASSISTANCE IN PLACE</p>
+          <h2>No mandatory trip to an AI screen</h2>
+          <p>
+            The customer record includes “Prepare delivery handoff.” The
+            assistant appears with that context. It asks for missing information
+            at the point it matters and keeps the person in control.
+          </p>
+          <a
+            href="https://medium.com/design-bootcamp/agentic-ux-7-principles-for-designing-systems-with-agents-019512c2caa9"
+            >Alexandra Vasquez · 7 principles for agentic UX ↗</a
+          >
+        </article>
+        <article class="note-card">
+          <p class="eyebrow">04 · ENTERPRISE CLARITY</p>
+          <h2>Predictable navigation and components</h2>
+          <p>
+            The workspace separates work from connection setup. Consistent
+            cards, labels, spacing, and disclosure patterns serve several
+            domains. The People example explains missing access instead of
+            pretending to complete a task.
+          </p>
+          <a href="https://uxpilot.ai/blogs/enterprise-ux-design"
+            >UX Pilot · Enterprise UX Design ↗</a
+          >
+        </article>
+      </div>
+      <h2>The core review surface</h2>
+      <p>
+        One primary task column. Supporting context appears beside it when space
+        allows. The action footer stays visible while the proposal scrolls.
+      </p>
+      <a class="preview" href="screenshots/04-expanded-review.png"
+        ><img
+          src="screenshots/04-expanded-review.png"
+          alt="Expanded assistant with the draft handoff document, source context, and explicit approval footer"
+      /></a>
+      <table>
+        <thead>
+          <tr>
+            <th>Pattern</th>
+            <th>Concrete design decision</th>
+            <th>Guardrail</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <a
+                href="https://agentic-design.ai/patterns/ui-ux-patterns/human-in-the-loop"
+                >Human in the loop</a
+              >
+            </td>
+            <td>
+              Review the artifact, then explicitly confirm the exact action.
+            </td>
+            <td>Approving a document cannot also approve a message.</td>
+          </tr>
+          <tr>
+            <td>
+              <a
+                href="https://agentic-design.ai/patterns/ui-ux-patterns/progressive-disclosure-patterns"
+                >Progressive disclosure</a
+              >
+            </td>
+            <td>
+              Summary and material terms first; sources and audit details on
+              demand.
+            </td>
+            <td>
+              Scope and material terms precede content and are repeated in
+              confirmation. Warnings stay visible; full content remains
+              scrollable.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <a
+                href="https://agentic-design.ai/patterns/ui-ux-patterns/agent-status-activity-patterns"
+                >Agent status and activity</a
+              >
+            </td>
+            <td>
+              Working, needs input, needs review, verifying, verified, and
+              unknown are distinct.
+            </td>
+            <td>No invented completion percentage or confidence score.</td>
+          </tr>
+          <tr>
+            <td>
+              <a
+                href="https://agentic-design.ai/patterns/ui-ux-patterns/trust-transparency-patterns"
+                >Trust and transparency</a
+              >
+            </td>
+            <td>
+              Source excerpts, revision labels, acting identity, and action
+              scope.
+            </td>
+            <td>
+              Explanations use visible evidence, not hidden model reasoning.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <a
+                href="https://agentic-design.ai/patterns/ui-ux-patterns/error-recovery-patterns"
+                >Error recovery</a
+              >
+            </td>
+            <td>
+              Unknown effects offer a read-back check; stale proposals require a
+              fresh review.
+            </td>
+            <td>An unresolved check stays unresolved. No blind retry.</td>
+          </tr>
+          <tr>
+            <td>
+              <a
+                href="https://agentic-design.ai/patterns/ui-ux-patterns/mixed-initiative-interface-patterns"
+                >Mixed initiative</a
+              >
+            </td>
+            <td>
+              The assistant prepares; the user clarifies, inspects, rejects, or
+              approves.
+            </td>
+            <td>Authority is never inferred from conversational text.</td>
+          </tr>
+          <tr>
+            <td>
+              <a
+                href="https://agentic-design.ai/patterns/ui-ux-patterns/ambient-agent-patterns"
+                >Ambient assistance</a
+              >
+            </td>
+            <td>
+              Contextual launch from a customer record, with minimize and
+              resume.
+            </td>
+            <td>The prototype reads only its fictional fixture context.</td>
+          </tr>
+        </tbody>
+      </table>
+      <section>
+        <h2>A restrained visual system</h2>
+        <div class="swatches">
+          <span><i style="background: #faf9f5"></i>Canvas</span
+          ><span><i style="background: #fff"></i>Surface</span
+          ><span><i style="background: #233f70"></i>Action</span
+          ><span><i style="background: #287153"></i>Verified</span
+          ><span><i style="background: #95621d"></i>Attention</span>
+        </div>
+        <p style="margin-top: 20px">
+          System sans-serif for controls and information. A serif document
+          heading distinguishes the artifact from the assistant. Line icons,
+          quiet borders, modest elevation, text-labelled status, visible
+          keyboard focus, and reduced-motion support keep the visual language
+          consistent.
+        </p>
+      </section>
+      <section>
+        <h2>Try these flows</h2>
+        <ol>
+          <li>
+            Open <strong>Prepare a customer handoff</strong>. Expand the
+            assistant and inspect a source.
+          </li>
+          <li>
+            Review and approve the document. Simulate its read-back. Observe the
+            separate message approval.
+          </li>
+          <li>
+            Choose <strong>Unknown outcome</strong> in the study bar. Check the
+            existing result; it remains unresolved.
+          </li>
+          <li>
+            Choose <strong>Needs input</strong>, select an audience, and return
+            to the updated review.
+          </li>
+          <li>
+            Try <strong>Prepare an onboarding plan</strong> to see the
+            missing-connection state.
+          </li>
+          <li>
+            Select <strong>Try inside an app</strong>, then launch the handoff
+            directly from the customer record.
+          </li>
+        </ol>
+      </section>
+      <section>
+        <h2>What this does not establish</h2>
+        <p>
+          This is a reviewable interaction prototype. It does not demonstrate
+          live integration coverage, permission enforcement, enterprise
+          readiness, or usability improvement. Role research and task-based
+          evaluation with real users remain necessary. The existing e-agent
+          approval and verification contracts remain the implementation
+          baseline.
+        </p>
+        <p>
+          The original repository research reports 12–14 remain unchanged.
+          Earlier application edits were paused when the user requested this
+          mockup first. This concept has not been applied to production
+          components.
+        </p>
+        <a class="primary" href="index.html">Explore the mockup →</a>
+      </section>
+    </main>
+  </body>
+</html>

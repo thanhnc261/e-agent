@@ -46,7 +46,7 @@ class ScriptedProcurementDriver:
 
     async def advance(self, ctx: TaskContext, step_input: DriverInput) -> DriverStep:
         if step_input.action_result is not None:
-            if self.task_kind != "draft-po":
+            if self.task_kind != "draft-po" or not step_input.action_result.get("external_refs"):
                 return FinalAnswer(text="Answer verified by the host.")
             refs = ", ".join(step_input.action_result.get("external_refs", []))
             return FinalAnswer(text=f"Created and verified draft purchase order {refs}.")
@@ -71,7 +71,7 @@ class ScriptedProcurementDriver:
         if self.task_kind != "draft-po":
             return self._answer(ctx, facts, required, bool(step_input.findings))
         if required == 0:
-            return FinalAnswer(text="No shortage: available stock covers demand. No order needed.")
+            return self._answer(ctx, facts, required, bool(step_input.findings))
         attempt = self._proposed.get(ctx.run_id, 0)
         self._proposed[ctx.run_id] = attempt + 1
         bad_first = self.mode == "always-invalid" or (
@@ -107,7 +107,7 @@ class ScriptedProcurementDriver:
     def _answer(self, ctx: TaskContext, facts: Any, required: Decimal, retry: bool) -> DriverStep:
         wrong = self.mode == "wrong-answer-then-correct" and not retry
         demand = facts.demand
-        if self.task_kind == "shortage":
+        if self.task_kind == "shortage" or (self.task_kind == "draft-po" and required == 0):
             stock = facts.available if facts.available is not None else Decimal(0)
             return ProposeAction(
                 proposal=ActionProposal(

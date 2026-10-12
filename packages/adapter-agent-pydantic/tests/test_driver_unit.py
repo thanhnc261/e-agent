@@ -56,7 +56,11 @@ def test_numbers_become_decimal_strings_only_for_string_fields() -> None:
 @pytest.mark.asyncio
 async def test_reads_then_write_then_final_with_no_thinking_in_snapshot() -> None:
     def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
-        assert {t.name for t in info.function_tools} == {READ.name, WRITE.name}
+        assert {t.name for t in info.function_tools} == {
+            READ.name,
+            WRITE.name,
+            "request_clarification",
+        }
         turn = sum(isinstance(m, ModelResponse) for m in messages)
         if turn == 0:
             return ModelResponse(
@@ -135,3 +139,107 @@ async def test_mixed_read_and_write_defers_the_write() -> None:
     assert isinstance(step, RequestReads) and len(step.reads) == 1
     await driver.advance(CTX, DriverInput(task=""))
     assert "read facts first" in str(seen[-1])
+
+
+@pytest.mark.asyncio
+async def test_streaming_emits_only_public_text_not_thinking_or_tool_arguments() -> None:
+    from pydantic_ai.models.function import DeltaThinkingPart
+
+    async def stream_model(messages, info):
+        yield {0: DeltaThinkingPart(content="HIDDEN-REASONING")}
+        yield "Public "
+        yield "answer"
+
+    emitted = []
+
+    class Sink:
+        async def emit(self, ctx, text, *, new_message=False):
+            emitted.append((text, new_message))
+
+    driver = PydanticAiDriver(FunctionModel(stream_function=stream_model), [])
+    driver.set_text_sink(Sink())
+    result = await driver.advance(CTX, DriverInput(task="answer"))
+    assert isinstance(result, FinalAnswer)
+    assert "".join(text for text, _ in emitted) == "Public answer"
+    assert emitted[0][1] is True
+    assert "HIDDEN-REASONING" not in json.dumps(driver.snapshot(CTX.run_id))
+
+
+async def test_token_usage_is_cumulative_across_restored_continuation() -> None:
+    from e_agent.contracts.context import Budgets
+    from e_agent.sdk.errors import DriverBudgetExceeded
+    from pydantic_ai.usage import RequestUsage
+
+    def model(messages, info):
+        return ModelResponse(
+            parts=[ToolCallPart(READ.name, {}, "r1")],
+            usage=RequestUsage(input_tokens=10, output_tokens=5),
+        )
+
+    ctx = CTX.model_copy(update={"budgets": Budgets(max_model_tokens=20)})
+    first = PydanticAiDriver(FunctionModel(model), [READ])
+    assert isinstance(await first.advance(ctx, DriverInput(task="answer")), RequestReads)
+    assert first.tokens_used(ctx.run_id) == 15
+    state = json.loads(json.dumps(first.snapshot(ctx.run_id)))
+    restored = PydanticAiDriver(FunctionModel(model), [READ])
+    restored.restore(ctx.run_id, state)
+    with pytest.raises(DriverBudgetExceeded, match="model usage"):
+        await restored.advance(ctx, DriverInput(task="answer", user_input="next question"))
+    assert restored.tokens_used(ctx.run_id) == 30
+
+
+async def test_clarification_tool_resumes_after_restore_without_granting_authority():
+    from e_agent.sdk.ports import AskClarification
+
+    def model(messages, info):
+        if len(messages) == 1:
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        "request_clarification", {"question": "Which customer?"}, "input-1"
+                    )
+                ]
+            )
+        assert "customer:acme" in str(messages[-1])
+        return ModelResponse(parts=[TextPart("Received your customer reference.")])
+
+    driver = PydanticAiDriver(FunctionModel(model), [READ, WRITE])
+    result = await driver.advance(CTX, DriverInput(task="create a quotation"))
+    assert isinstance(result, AskClarification) and result.question == "Which customer?"
+    snapshot = json.loads(json.dumps(driver.snapshot(CTX.run_id)))
+    restored = PydanticAiDriver(FunctionModel(model), [READ, WRITE])
+    restored.restore(CTX.run_id, snapshot)
+    resumed = await restored.advance(
+        CTX, DriverInput(task="create a quotation", user_input="customer:acme")
+    )
+    assert isinstance(resumed, FinalAnswer)
+    assert CTX.resource_scope == frozenset({"c"})
+
+
+async def test_reasoning_tags_split_across_text_deltas_never_escape_or_persist():
+    async def stream(messages, info):
+        for fragment in ["<thi", "nk>HIDDEN-TEXT-REASONING</th", "ink>Public ", "answer"]:
+            yield fragment
+
+    emitted = []
+
+    class Sink:
+        async def emit(self, ctx, text, *, new_message=False):
+            emitted.append(text)
+
+    driver = PydanticAiDriver(FunctionModel(stream_function=stream), [])
+    driver.set_text_sink(Sink())
+    result = await driver.advance(CTX, DriverInput(task="answer"))
+    assert isinstance(result, FinalAnswer) and result.text == "Public answer"
+    assert "".join(emitted) == "Public answer"
+    assert "HIDDEN-TEXT-REASONING" not in json.dumps(driver.snapshot(CTX.run_id))
+
+
+def test_reasoning_split_between_text_parts_is_removed_from_history():
+    response = ModelResponse(
+        parts=[TextPart("<think>"), TextPart("HIDDEN-MULTIPART</think>Public answer")],
+        provider_details={"reasoning": "HIDDEN-PROVIDER-METADATA"},
+    )
+    clean = strip_thinking([response])
+    assert "HIDDEN" not in str(clean)
+    assert "Public answer" in str(clean)

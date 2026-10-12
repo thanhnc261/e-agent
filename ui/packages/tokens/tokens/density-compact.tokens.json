@@ -1,0 +1,20 @@
+{
+  "space": {
+    "$type": "dimension",
+    "md": { "$value": { "value": 0.5, "unit": "rem" } },
+    "lg": { "$value": { "value": 0.875, "unit": "rem" } },
+    "xl": { "$value": { "value": 1.25, "unit": "rem" } },
+    "2xl": { "$value": { "value": 1.75, "unit": "rem" } }
+  },
+  "control": {
+    "$type": "dimension",
+    "min-height": { "$value": { "value": 2.25, "unit": "rem" } }
+  },
+  "font": {
+    "size": {
+      "$type": "dimension",
+      "display": { "$value": { "value": 1.75, "unit": "rem" } },
+      "xl": { "$value": { "value": 1.3125, "unit": "rem" } }
+    }
+  }
+}

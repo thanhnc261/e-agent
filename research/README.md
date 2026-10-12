@@ -45,3 +45,17 @@
 - [Knowledge Graphs, GraphRAG & the Retrieval Stack — September 2026](<Knowledge Graphs, GraphRAG & the Retrieval Stack — 2026 State of the Art (1).md>)
 
 Hai bản gốc được giữ nguyên. Bản bổ sung này chuyển trọng tâm từ danh mục công nghệ sang kiến trúc, kiểm soát và thí nghiệm cần làm để lựa chọn công nghệ.
+
+## Enterprise agent overlay design
+
+[11 — Enterprise agent overlay: research and design](11-enterprise-agent-overlay-design.md) reviews primary enterprise AI design references and specifies the selectable Compact, Workbench, Docked and Workspace surfaces. It extends the UI design without replacing the earlier research reports.
+
+[12 — Modern enterprise agent overlay: research-first UX brief](12-agentic-overlay-ux-research.md) sets the research and candidate-design requirements, including comparable visual directions and honest outcome states.
+
+[13 — Agentic overlay: trend research and interactive design study](13-agentic-overlay-mockup-study.md) adds current primary sources, technology recommendations, an annotated reference board and a standalone synthetic mockup with Calm, AI Presence and Operator directions. Run instructions, screenshots and actual verification notes are linked in the study.
+
+[14 — Enterprise-wide agent experience: research and mockup revision 2](14-enterprise-wide-agent-experience.md) corrects the ERP-centered framing with cross-application work, connection capabilities and identity, read-only answers, independent per-action approvals, missing access and partial outcomes. The procurement prototype is preserved as revision 1.
+
+[15 — Agentic UX patterns: mockup before implementation](15-agentic-ux-patterns-mockup.md) provides a new isolated design study based on the user-supplied pattern library and enterprise UX articles. It includes a source-linked visual rationale, six fictional enterprise scenarios, contextual overlays, per-action review, recovery states and desktop/mobile evidence. Application implementation is paused for this design review.
+
+[16 — Conversation-first enterprise workspace](16-conversation-workspace-revision.md) responds to the owner's rejection of study 03: a focused chat, collapsible navigation and an on-demand artifact workspace on the right. Earlier studies are preserved; this is the current candidate for visual review.

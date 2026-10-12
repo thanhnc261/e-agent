@@ -1,0 +1,164 @@
+/* Reusable primitive roles. Geometry stays with the layouts; these set surface,
+   interaction and status presentation from semantic tokens only. */
+
+.ea-button {
+  font: inherit;
+  font-size: var(--ea-font-size-sm);
+  font-weight: var(--ea-font-weight-semibold);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ea-space-sm);
+  color: var(--ea-color-text);
+  background: var(--ea-color-card);
+  border: 1px solid var(--ea-color-border);
+  border-radius: var(--ea-radius-md);
+  padding: var(--ea-space-sm) var(--ea-space-lg);
+  min-height: var(--ea-control-min-height);
+  /* No background/colour transition: a theme change must apply text and surface together. */
+  transition: box-shadow var(--ea-duration-fast) ease-out;
+}
+.ea-button[data-hovered] {
+  background: var(--ea-color-surface-raised);
+}
+.ea-button[data-pressed] {
+  background: var(--ea-color-accent-soft);
+}
+.ea-button[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.ea-button[data-pending] {
+  cursor: progress;
+}
+.ea-button-primary {
+  background: var(--ea-color-accent);
+  color: var(--ea-color-accent-text);
+  border-color: var(--ea-color-accent);
+  box-shadow: var(--ea-shadow-sm);
+}
+.ea-button-primary[data-hovered],
+.ea-button-primary[data-pressed] {
+  background: var(--ea-color-accent-strong);
+  border-color: var(--ea-color-accent-strong);
+}
+.ea-button-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ea-color-text-muted);
+}
+.ea-button-quiet[data-hovered] {
+  color: var(--ea-color-text);
+  background: var(--ea-color-surface-raised);
+}
+
+.ea-surface {
+  background: var(--ea-color-card);
+  border: 1px solid var(--ea-color-border-subtle);
+  border-radius: var(--ea-radius-lg);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ea-surface-raised {
+  box-shadow: var(--ea-shadow-md);
+}
+.ea-surface-sunken {
+  background: var(--ea-color-surface-sunken);
+}
+.ea-surface-accent {
+  background: var(--ea-color-accent-soft);
+  border-color: var(--ea-color-accent-quiet);
+}
+.ea-surface-attention {
+  background: var(--ea-color-status-unknown-surface);
+  border-color: var(--ea-color-status-unknown);
+}
+.ea-surface-failed {
+  background: var(--ea-color-status-failed-surface);
+  border-color: var(--ea-color-status-failed);
+}
+.ea-surface-verified {
+  background: var(--ea-color-status-verified-surface);
+  border-color: var(--ea-color-status-verified);
+}
+
+.ea-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ea-space-xs);
+  font-size: var(--ea-font-size-sm);
+  font-weight: var(--ea-font-weight-medium);
+  border: 1px solid var(--ea-color-border);
+  border-radius: var(--ea-radius-lg);
+  padding: var(--ea-space-xs) var(--ea-space-md);
+  min-height: var(--ea-control-min-target);
+  color: var(--ea-color-text-subtle);
+  background: var(--ea-color-surface-raised);
+}
+.ea-badge-marker {
+  font-size: var(--ea-font-size-xs);
+  line-height: 1;
+}
+.ea-badge-progress {
+  color: var(--ea-color-text-subtle);
+}
+.ea-badge-attention {
+  color: var(--ea-color-status-unknown);
+  border-color: var(--ea-color-status-unknown);
+  background: var(--ea-color-status-unknown-surface);
+}
+.ea-badge-verified {
+  color: var(--ea-color-status-verified);
+  border-color: var(--ea-color-status-verified);
+  background: var(--ea-color-status-verified-surface);
+}
+.ea-badge-failed {
+  color: var(--ea-color-status-failed);
+  border-color: var(--ea-color-status-failed);
+  background: var(--ea-color-status-failed-surface);
+}
+.ea-badge-unknown {
+  color: var(--ea-color-status-unknown);
+  border-color: var(--ea-color-status-unknown);
+  background: var(--ea-color-status-unknown-surface);
+}
+
+.ea-disclosure > summary {
+  cursor: pointer;
+  font-weight: var(--ea-font-weight-semibold);
+  display: flex;
+  align-items: center;
+  gap: var(--ea-space-sm);
+  min-height: var(--ea-control-min-target);
+  padding: var(--ea-space-xs) 0;
+}
+.ea-disclosure > summary::before {
+  content: "＋";
+  font-weight: var(--ea-font-weight-regular);
+}
+.ea-disclosure[open] > summary::before {
+  content: "−";
+}
+.ea-disclosure-label {
+  margin-right: auto;
+}
+
+.ea-field-description,
+.ea-field-error {
+  display: block;
+  font-size: var(--ea-font-size-sm);
+  margin-top: var(--ea-space-xs);
+}
+.ea-field-description {
+  color: var(--ea-color-text-muted);
+}
+.ea-field-error {
+  color: var(--ea-color-status-failed);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ea-button {
+    transition: none;
+  }
+}

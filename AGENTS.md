@@ -4,7 +4,7 @@
 
 e-agent is a plugin-driven enterprise agent product. The first implementation target is a bounded procurement workflow with executable ontology validation, explicit approval, a draft PO in an isolated Odoo sandbox and independent outcome verification.
 
-Implementation has started (milestone M1: workspace, contracts and the fixture walking skeleton). Live model, Odoo, PostgreSQL and UI work are not implemented yet. The README lists the verified commands; do not describe planned behavior as implemented or invent results.
+The kernel, adapters, PostgreSQL store, eight ERP tasks and UI are implemented. The approved 2026-10-07 remediation candidate has separate fixture, persistent-ledger, UI and local model evidence. Owner Odoo installation and integrated human-approved live qualification remain open; consult the README and latest remediation retest. Do not describe historical or fixture evidence as current live release qualification, or invent results.
 
 ## Read before changing code or architecture
 

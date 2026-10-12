@@ -6,6 +6,7 @@ from enum import StrEnum
 from typing import Any
 
 from .common import Record
+from .evidence import ApprovedFact
 
 
 class ActionState(StrEnum):
@@ -59,6 +60,8 @@ class ActionRecord(Record):
     connection_id: str
     connection_version: int
     credential_subject: str
+    credential_version: str = "none"
+    approved_facts: tuple[ApprovedFact, ...] = ()
     arguments: dict[str, Any]
     digest: str
     state: ActionState

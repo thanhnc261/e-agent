@@ -6,6 +6,7 @@ payload digest returns the stored result; a different digest is a conflict.
 """
 
 import datetime
+import re
 
 import psycopg2
 from odoo import api, fields, models
@@ -27,6 +28,24 @@ class EAgentBridge(models.AbstractModel):
     def _check(self):
         if not self.env.user.has_group(GROUP):
             raise AccessError("E_AGENT_FORBIDDEN: user is not an e-agent integration user")
+
+    def _check_target(self):
+        """Fail closed inside the same ERP transaction as the scoped read or mutation."""
+        self._check()
+        expected = self.env.context.get("e_agent_target")
+        if not isinstance(expected, dict) or not all(
+            expected.get(k) for k in ("database", "company_id", "sandbox_marker", "bridge_version")
+        ):
+            raise UserError("E_AGENT_TARGET_REQUIRED: explicit synthetic sandbox identity required")
+        module = self.env["ir.module.module"].sudo().search([("name", "=", "e_agent_bridge")])
+        actual = {
+            "database": self.env.cr.dbname,
+            "company_id": str(self.env.company.id),
+            "sandbox_marker": self.env["ir.config_parameter"].sudo().get_param(MARKER),
+            "bridge_version": module.latest_version,
+        }
+        if actual != expected:
+            raise UserError("E_AGENT_TARGET_MISMATCH: sandbox identity changed")
 
     def _id(self, ref, model):
         prefix = f"odoo/{model}/"
@@ -77,6 +96,8 @@ class EAgentBridge(models.AbstractModel):
         module = self.env["ir.module.module"].sudo().search([("name", "=", "e_agent_bridge")])
         return {
             "sandbox_marker": param or None,
+            "database": self.env.cr.dbname,
+            "company_id": str(self.env.company.id),
             "bridge_version": module.latest_version,
             "company": self.env.company.name,
             "server_version": self.env["ir.module.module"]
@@ -88,7 +109,7 @@ class EAgentBridge(models.AbstractModel):
     @api.model
     @api.readonly
     def read_demand(self, demand_ref):
-        self._check()
+        self._check_target()
         demand = self.env["e_agent.demand"].search(
             [
                 ("id", "=", self._id(demand_ref, "e_agent.demand")),
@@ -112,7 +133,7 @@ class EAgentBridge(models.AbstractModel):
     @api.model
     @api.readonly
     def read_availability(self, product_ref):
-        self._check()
+        self._check_target()
         product = self.env["product.product"].browse(self._id(product_ref, "product.product"))
         product = product.with_company(self.env.company).exists()
         if not product:
@@ -136,7 +157,7 @@ class EAgentBridge(models.AbstractModel):
     @api.model
     @api.readonly
     def read_offers(self, product_ref):
-        self._check()
+        self._check_target()
         product = self.env["product.product"].browse(self._id(product_ref, "product.product"))
         product = product.exists()
         if not product:
@@ -165,7 +186,7 @@ class EAgentBridge(models.AbstractModel):
     @api.readonly
     def read_operation(self, namespace, operation_key):
         """Reconciliation and verification read-back: by operation key, never fuzzy."""
-        self._check()
+        self._check_target()
         op = self._operation(namespace, operation_key)
         if not op:
             return {"found": False, "orders": []}
@@ -174,16 +195,24 @@ class EAgentBridge(models.AbstractModel):
             po = self.env["purchase.order"].browse(op.result_id).exists()
             if po:
                 orders.append(self._po_view(po))
-        return {"found": True, "payload_digest": op.payload_digest, "orders": orders}
+        return {
+            "found": True,
+            "payload_digest": op.payload_digest,
+            "command": op.command,
+            "orders": orders,
+        }
 
     # ------------------------------------------------------------- writes
     @api.model
     def create_draft_purchase_order(self, namespace, operation_key, payload_digest, payload):
         """Reserve the operation key and create ONE draft PO in the same transaction."""
-        self._check()
+        self._check_target()
         existing = self._operation(namespace, operation_key)
         if existing:
-            if existing.payload_digest != payload_digest:
+            if (
+                existing.payload_digest != payload_digest
+                or existing.command != "create_draft_purchase_order"
+            ):
                 raise UserError("E_AGENT_CONFLICT: operation key reused with a different payload")
             return {"status": "existing", **self.read_operation(namespace, operation_key)}
         try:
@@ -256,30 +285,88 @@ class EAgentBridge(models.AbstractModel):
 
     # ------------------------------------------------------- sandbox tools
     def _require_sandbox(self):
-        self._check()
+        self._check_target()
         if not self.env.user.has_group("base.group_system"):
             raise AccessError("E_AGENT_FORBIDDEN: sandbox tools need an administrator")
         if not self.env["ir.config_parameter"].sudo().get_param(MARKER):
             raise UserError("E_AGENT_NOT_SANDBOX: e_agent.sandbox_marker is not set")
 
+    def _fixture(self, namespace, *, create=False):
+        if not isinstance(namespace, str) or not re.fullmatch(
+            r"e-agent-[A-Za-z0-9_-]{1,80}", namespace
+        ):
+            raise UserError("E_AGENT_INVALID: explicit e-agent synthetic namespace required")
+        fixture = (
+            self.env["e_agent.fixture"]
+            .sudo()
+            .search(
+                [("namespace", "=", namespace), ("company_id", "=", self.env.company.id)], limit=1
+            )
+        )
+        if fixture:
+            return fixture
+        if not create:
+            raise UserError("E_AGENT_RESET_REFUSED: no owned fixture inventory")
+        collisions = [
+            ("res.partner", [("ref", "=like", namespace + ":%")]),
+            ("product.product", [("default_code", "=like", namespace + ":%")]),
+            ("e_agent.demand", [("namespace", "=", namespace)]),
+            ("sale.order", [("client_order_ref", "=", namespace)]),
+            ("account.move", [("ref", "=", namespace)]),
+            ("purchase.order", [("origin", "=", f"e-agent-seed:{namespace}")]),
+        ]
+        if any(
+            self.env[model].sudo().with_context(active_test=False).search(domain, limit=1)
+            for model, domain in collisions
+        ):
+            raise UserError("E_AGENT_RESET_REFUSED: namespace has unowned records")
+        return (
+            self.env["e_agent.fixture"]
+            .sudo()
+            .create({"namespace": namespace, "company_id": self.env.company.id})
+        )
+
+    def _seed_lookup(self, fixture, model, domain):
+        rows = self.env[model].with_context(active_test=False).search(domain, limit=2)
+        owned = (fixture.inventory or {}).get(model, [])
+        if len(rows) > 1 or any(row.id not in owned for row in rows):
+            raise UserError("E_AGENT_RESET_REFUSED: seed would adopt an unowned record")
+        return rows
+
+    def _remember_fixture(self, fixture, records, references=None):
+        inventory = dict(fixture.inventory or {})
+        for model, rows in records.items():
+            inventory[model] = sorted(set(inventory.get(model, [])) | set(rows.ids))
+        values = {"inventory": inventory}
+        if references is not None:
+            values["references"] = {**(fixture.references or {}), **references}
+        fixture.write(values)
+
+    def _fixture_remaining(self, fixture):
+        return {
+            model: self.env[model].sudo().with_context(active_test=False).browse(ids).exists().ids
+            for model, ids in (fixture.inventory or {}).items()
+        }
+
     @api.model
     def sandbox_seed(self, namespace, scenario="valid"):
         """Idempotently create the synthetic procurement fixture (MVP design §2)."""
         self._require_sandbox()
+        fixture = self._fixture(namespace, create=True)
         company = self.env.company
         partner = self.env["res.partner"]
-        approved = partner.search(
-            [("ref", "=", f"{namespace}:approved-co")], limit=1
+        approved = self._seed_lookup(
+            fixture, "res.partner", [("ref", "=", f"{namespace}:approved-co")]
         ) or partner.create(
             {"name": "E-Agent Approved Co", "ref": f"{namespace}:approved-co", "is_company": True}
         )
-        unvetted = partner.search(
-            [("ref", "=", f"{namespace}:unvetted-co")], limit=1
+        unvetted = self._seed_lookup(
+            fixture, "res.partner", [("ref", "=", f"{namespace}:unvetted-co")]
         ) or partner.create(
             {"name": "E-Agent Unvetted Co", "ref": f"{namespace}:unvetted-co", "is_company": True}
         )
-        product = self.env["product.product"].search(
-            [("default_code", "=", f"{namespace}:widget-a")], limit=1
+        product = self._seed_lookup(
+            fixture, "product.product", [("default_code", "=", f"{namespace}:widget-a")]
         )
         if not product:
             product = self.env["product.product"].create(
@@ -292,9 +379,13 @@ class EAgentBridge(models.AbstractModel):
                     "taxes_id": [(6, 0, [])],
                 }
             )
+        (approved | unvetted).write({"active": True})
         tmpl = product.product_tmpl_id
-        tmpl.seller_ids.unlink()
-        self.env["product.supplierinfo"].create(
+        tmpl.active = True
+        self.env["product.supplierinfo"].browse(
+            (fixture.inventory or {}).get("product.supplierinfo", [])
+        ).exists().unlink()
+        sellers = self.env["product.supplierinfo"].create(
             [
                 {
                     "partner_id": approved.id,
@@ -314,8 +405,16 @@ class EAgentBridge(models.AbstractModel):
                 },
             ]
         )
+        prior_moves = self.env["stock.move"].search([("product_id", "=", product.id)])
+        prior_quants = self.env["stock.quant"].search([("product_id", "=", product.id)])
         available = {"zero-shortage": 12.0}.get(scenario, 5.0)
         warehouse = self.env["stock.warehouse"].search([("company_id", "=", company.id)], limit=1)
+        owned_quants = (fixture.inventory or {}).get("stock.quant", [])
+        if any(
+            quant.location_id == warehouse.lot_stock_id and quant.id not in owned_quants
+            for quant in prior_quants
+        ):
+            raise UserError("E_AGENT_RESET_REFUSED: seed would change an unowned stock quant")
         self.env["stock.quant"].with_context(inventory_mode=True).create(
             {
                 "product_id": product.id,
@@ -323,8 +422,8 @@ class EAgentBridge(models.AbstractModel):
                 "inventory_quantity": available,
             }
         ).action_apply_inventory()
-        demand = self.env["e_agent.demand"].search(
-            [("namespace", "=", namespace), ("name", "=", "D-001")], limit=1
+        demand = self._seed_lookup(
+            fixture, "e_agent.demand", [("namespace", "=", namespace), ("name", "=", "D-001")]
         )
         values = {
             "name": "D-001",
@@ -337,18 +436,39 @@ class EAgentBridge(models.AbstractModel):
         demand = (
             demand.write(values) and demand if demand else self.env["e_agent.demand"].create(values)
         )
-        return {
+        references = {
             "demand_ref": _ref(demand),
             "product_ref": _ref(product),
             "approved_supplier_ref": _ref(approved),
             "unvetted_supplier_ref": _ref(unvetted),
         }
+        self._remember_fixture(
+            fixture,
+            {
+                "res.partner": approved | unvetted,
+                "product.product": product,
+                "product.template": tmpl,
+                "product.supplierinfo": sellers,
+                "e_agent.demand": demand,
+                "stock.quant": self.env["stock.quant"].search([("product_id", "=", product.id)])
+                - prior_quants,
+                "stock.move": self.env["stock.move"].search([("product_id", "=", product.id)])
+                - prior_moves,
+            },
+            references,
+        )
+        return references
 
     @api.model
     def sandbox_reset(self, namespace):
-        """Remove draft POs and ledger rows created in this namespace only."""
+        """Reset owned synthetic effects and report retained audit/source records."""
         self._require_sandbox()
-        ops = self.env["e_agent.operation"].sudo().search([("namespace", "=", namespace)])
+        fixture = self._fixture(namespace)
+        ops = (
+            self.env["e_agent.operation"]
+            .sudo()
+            .search([("namespace", "=", namespace), ("company_id", "=", self.env.company.id)])
+        )
         pos = (
             self.env["purchase.order"]
             .browse([o.result_id for o in ops if o.result_model == "purchase.order"])
@@ -361,4 +481,27 @@ class EAgentBridge(models.AbstractModel):
         drafts.filtered(lambda p: p.state == "draft").button_cancel()  # Odoo 19: cancel first
         drafts.unlink()
         ops.unlink()
-        return {"removed_orders": removed}
+        inventory = fixture.inventory or {}
+        quants = self.env["stock.quant"].browse(inventory.get("stock.quant", [])).exists()
+        internal = quants.filtered(lambda q: q.location_id.usage == "internal")
+        if internal:
+            internal.with_context(inventory_mode=True).write({"inventory_quantity": 0})
+            internal.action_apply_inventory()
+        for model in ("e_agent.demand", "product.supplierinfo"):
+            self.env[model].browse(inventory.get(model, [])).exists().unlink()
+        for model in ("product.template", "res.partner", "crm.team", "utm.source"):
+            records = (
+                self.env[model]
+                .with_context(active_test=False)
+                .browse(inventory.get(model, []))
+                .exists()
+            )
+            if "active" in records._fields:
+                records.write({"active": False})
+        fixture.references = {}
+        return {
+            "removed_orders": removed,
+            "owned_inventory": inventory,
+            "remaining_records": self._fixture_remaining(fixture),
+            "retention": "cancelled audit records and archived synthetic sources retained",
+        }

@@ -1,0 +1,113 @@
+// Run from any directory after starting the static server documented in the study.
+// Uses the repository's existing, locked Playwright installation.
+import { createRequire } from 'node:module';
+import { mkdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import assert from 'node:assert/strict';
+const require = createRequire(new URL('../../../ui/package.json', import.meta.url));
+const { chromium } = require('@playwright/test');
+const output = fileURLToPath(new URL('./screenshots/', import.meta.url));
+await mkdir(output, { recursive: true });
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
+const errors = [];
+const external = [];
+page.on('pageerror', error => errors.push(error.message));
+page.on('request', request => { if (!request.url().startsWith('http://127.0.0.1:4178/')) external.push(request.url()); });
+const scene = value => page.locator('#scenario').selectOption(value);
+const shot = name => page.screenshot({ path: `${output}${name}.png`, fullPage: name === 'reference-board' });
+async function noOverflow() {
+  await page.waitForTimeout(250);
+  const panel = await page.locator('#agent').boundingBox();
+  assert.ok(panel.x >= 0, 'panel clipped on left');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'page horizontal overflow');
+  assert.equal(await page.locator('#agent').evaluate(el => el.scrollWidth <= el.clientWidth), true, 'panel horizontal overflow');
+  const footer = await page.locator('#agent-footer').boundingBox();
+  const studio = await page.locator('.studio-controls').boundingBox();
+  assert.ok(footer.y + footer.height <= studio.y, 'decision footer overlaps studio');
+}
+try {
+  await page.goto('http://127.0.0.1:4178/');
+  await noOverflow();
+  for (const preset of ['calm', 'presence', 'operator']) {
+    await page.locator('#direction').selectOption(preset);
+    await shot(`${preset}-review`);
+  }
+  await page.locator('#direction').selectOption('calm');
+  await page.locator('#approve').click();
+  assert.equal(await page.locator('#confirmation').evaluate(el => el.open), true);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'confirm-title');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#scenario').inputValue(), 'review', 'Enter on heading must not approve');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#confirmation').evaluate(el => el.open), false);
+  await page.locator('#approve').click();
+  await page.locator('#confirm').click();
+  assert.equal(await page.locator('#scenario').inputValue(), 'executing');
+  await page.locator('#advance').click();
+  assert.equal(await page.locator('#scenario').inputValue(), 'verifying');
+  await page.locator('#advance').click();
+  assert.equal(await page.locator('#scenario').inputValue(), 'verified');
+  await shot('verified');
+  await scene('uncertain');
+  await page.locator('#reconcile').click();
+  assert.equal(await page.locator('#scenario').inputValue(), 'uncertain', 'status check must not infer success');
+  assert.match(await page.locator('#stream').innerText(), /Status still unresolved/);
+  assert.equal(await page.locator('#approve').count(), 0);
+  await shot('uncertain');
+  await scene('stale');
+  assert.equal(await page.locator('#approve').count(), 0);
+  await page.locator('#refresh').click();
+  await page.locator('#decline').click();
+  assert.equal(await page.locator('#scenario').inputValue(), 'rejected');
+  await scene('working');
+  await page.locator('#stop').click();
+  assert.equal(await page.locator('#scenario').inputValue(), 'cancelled');
+  await scene('ready');
+  await page.locator('#prompt').fill('Keep my draft while changing appearance');
+  await page.locator('#direction').selectOption('presence');
+  assert.equal(await page.locator('#prompt').inputValue(), 'Keep my draft while changing appearance');
+  await page.locator('#minimize').click();
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'launcher');
+  await page.locator('#launcher').click();
+  assert.equal(await page.locator('#prompt').inputValue(), 'Keep my draft while changing appearance');
+  await page.locator('#prompt').fill('<img src=x onerror=alert(1)>');
+  await page.getByRole('button', {name:'Send task', exact:true}).click();
+  assert.equal(await page.locator('#scenario').inputValue(), 'clarify');
+  assert.equal(await page.locator('.user-message img').count(), 0, 'input must render as text');
+  await page.locator('#central').click();
+  await page.locator('#restart').click();
+  await page.locator('#expand').click();
+  await page.waitForTimeout(250);
+  await noOverflow();
+  await shot('expanded');
+  await page.locator('#appearance').click();
+  await page.getByRole('button', {name:'Docked', exact:true}).click();
+  await page.locator('#appearance').click();
+  await page.waitForTimeout(250);
+  await noOverflow();
+  await shot('docked');
+  await scene('ready');
+  await page.locator('#prompt').fill('Prepare the packaging sleeve order');
+  await shot('ready');
+  await page.locator('#restart').click();
+  await page.setViewportSize({width:390,height:844});
+  for(const value of ['ready','working','clarify','review','executing','verifying','uncertain','verified','stale']) {
+    await scene(value);
+    await noOverflow();
+    if (['review','ready','uncertain','verified'].includes(value)) await shot(`mobile-${value}`);
+  }
+  await scene('review');
+  await page.locator('#approve').click();
+  await shot('mobile-confirmation');
+  await page.locator('#back').click();
+  await page.setViewportSize({width:320,height:740});
+  await noOverflow();
+  await page.setViewportSize({width:1440,height:1000});
+  await page.goto('http://127.0.0.1:4178/board.html');
+  await shot('reference-board');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  assert.deepEqual(errors, [], 'browser errors');
+  assert.deepEqual(external, [], 'unexpected external requests');
+  console.log('PASS: candidate views, approval/Enter/Escape boundary, state progression, unknown/stale/declined/stopped scenes, draft retention, minimize focus, escaped input, desktop/mobile overflow and static reference board. No browser errors or external requests.');
+} finally { await browser.close(); }

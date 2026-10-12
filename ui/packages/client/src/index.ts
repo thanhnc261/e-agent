@@ -5,6 +5,7 @@
 import type { components } from "./schema.ts";
 
 type S = components["schemas"];
+export type TextFrame = S["TextFrame"];
 export type RunEvent = S["RunEvent"];
 export type RunEventType = S["RunEventType"];
 export type RunRecord = S["RunRecord"];
@@ -20,6 +21,10 @@ export type CreateRunResponse = S["CreateRunResponse"];
 export type StateResponse = S["StateResponse"];
 export type Decision = S["Decide"]["decision"];
 export type HostContext = S["HostContext"];
+export type MemberConnection = S["MemberConnection"];
+export type MemberConnections = S["MemberConnections"];
+export type TaskTemplate = S["TaskTemplate"];
+export type TaskCatalog = S["TaskCatalog"];
 export type { components, paths } from "./schema.ts";
 
 export class ApiError extends Error {
@@ -35,6 +40,7 @@ export class ApiError extends Error {
 
 export interface StreamHandlers {
   onEvent(event: RunEvent): void;
+  onText?(frame: TextFrame): void;
   onOpen?(): void;
   onEnd?(state: string): void;
   /** ``closed`` is true when the browser gave up and the caller must reopen. */
@@ -69,6 +75,8 @@ export class EAgentClient {
     this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.es = options.EventSource ?? (globalThis as { EventSource?: EventSourceCtor }).EventSource;
   }
+
+  get storageOrigin(): string { return this.base || "same-origin"; }
 
   get hasSession(): boolean {
     return this.csrf !== null;
@@ -109,6 +117,12 @@ export class EAgentClient {
     return this.request("POST", `/v1/runs/${encodeURIComponent(runId)}/approvals`, body);
   }
 
+  submitInput(runId: string, input: string, expectedRevision: number): Promise<{ status: string }> {
+    return this.request("POST", `/v1/runs/${encodeURIComponent(runId)}/inputs`, {
+      input, expected_revision: expectedRevision,
+    });
+  }
+
   cancel(runId: string): Promise<StateResponse> {
     return this.request("POST", `/v1/runs/${encodeURIComponent(runId)}/cancel`, {});
   }
@@ -122,6 +136,18 @@ export class EAgentClient {
   }
 
   /**
+   * Member-readable discovery projections (ADR 0017). Both are read-only views of
+   * admitted metadata: they never probe a provider and never return credentials.
+   */
+  myConnections(): Promise<MemberConnections> {
+    return this.request("GET", "/v1/me/connections");
+  }
+
+  myTaskCatalog(): Promise<TaskCatalog> {
+    return this.request("GET", "/v1/me/task-catalog");
+  }
+
+  /**
    * Subscribe to run events after ``afterSequence``. The browser resumes with
    * ``Last-Event-ID`` on transient drops; callers dedupe by ``sequence`` anyway.
    */
@@ -131,6 +157,9 @@ export class EAgentClient {
     const source = new this.es(url, { withCredentials: this.base !== "" });
     source.addEventListener("run_event", (msg) => {
       handlers.onEvent(JSON.parse((msg as MessageEvent<string>).data) as RunEvent);
+    });
+    source.addEventListener("text_delta", (msg) => {
+      handlers.onText?.(JSON.parse((msg as MessageEvent<string>).data) as TextFrame);
     });
     source.addEventListener("end", (msg) => {
       source.close();

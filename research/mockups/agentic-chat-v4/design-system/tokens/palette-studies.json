@@ -1,0 +1,107 @@
+[
+  {
+    "id": "soft-lagoon",
+    "name": "Soft Lagoon \u00b7 current",
+    "description": "Lighter warm teal, airy ivory and soft sage surfaces.",
+    "roles": {}
+  },
+  {
+    "id": "sage-lagoon",
+    "name": "Sage Lagoon",
+    "description": "A warmer sage accent with a pale linen canvas.",
+    "roles": {
+      "brand": "#839675",
+      "accent": "#4a7561",
+      "accent-strong": "#365d49",
+      "accent-soft": "#eff1e6",
+      "canvas": "#faf9f2",
+      "surface": "#fffef9",
+      "surface-raised": "#fffef9",
+      "surface-sunken": "#f2f1e6",
+      "surface-hover": "#edeedf",
+      "surface-selected": "#e6eadb",
+      "message-user": "#edf0e3",
+      "border": "#dddfd0",
+      "border-subtle": "#e5e5d9",
+      "focus": "#4a7561"
+    }
+  },
+  {
+    "id": "sea-glass",
+    "name": "Sea Glass",
+    "description": "A soft blue-green accent balanced by warm paper and neutral text.",
+    "roles": {
+      "brand": "#649a94",
+      "accent": "#397571",
+      "accent-strong": "#295a55",
+      "accent-soft": "#e8f2ee",
+      "canvas": "#f8f9f4",
+      "surface": "#fffefb",
+      "surface-raised": "#fffefb",
+      "surface-sunken": "#edf1e9",
+      "surface-hover": "#e7eee5",
+      "surface-selected": "#dfe9df",
+      "message-user": "#e7f0e8",
+      "border": "#d9e2d7",
+      "border-subtle": "#e2e8dd",
+      "focus": "#397571"
+    }
+  },
+  {
+    "id": "clay",
+    "name": "Rose Clay",
+    "description": "Dusty terracotta on warm porcelain; soft and grounded.",
+    "roles": {
+      "brand": "#b07c68",
+      "accent": "#985c48",
+      "accent-strong": "#764431",
+      "accent-soft": "#f4eae3",
+      "canvas": "#fbf7f2",
+      "surface": "#fffefb",
+      "surface-raised": "#fffefb",
+      "surface-sunken": "#f4eae3",
+      "surface-hover": "#f4eae3",
+      "surface-selected": "#f4eae3",
+      "message-user": "#f4eae3",
+      "focus": "#985c48"
+    }
+  },
+  {
+    "id": "lavender",
+    "name": "Dusty Iris",
+    "description": "Muted violet with warm ivory; quiet and contemporary.",
+    "roles": {
+      "brand": "#9586ae",
+      "accent": "#73618e",
+      "accent-strong": "#58496e",
+      "accent-soft": "#efebf4",
+      "canvas": "#faf8f5",
+      "surface": "#fffefb",
+      "surface-raised": "#fffefb",
+      "surface-sunken": "#efebf4",
+      "surface-hover": "#efebf4",
+      "surface-selected": "#efebf4",
+      "message-user": "#efebf4",
+      "focus": "#73618e"
+    }
+  },
+  {
+    "id": "blue",
+    "name": "Linen Blue",
+    "description": "Soft mineral blue paired with linen and warm ink.",
+    "roles": {
+      "brand": "#748ba6",
+      "accent": "#506e91",
+      "accent-strong": "#3c5472",
+      "accent-soft": "#e9eff5",
+      "canvas": "#f9f8f3",
+      "surface": "#fffefb",
+      "surface-raised": "#fffefb",
+      "surface-sunken": "#e9eff5",
+      "surface-hover": "#e9eff5",
+      "surface-selected": "#e9eff5",
+      "message-user": "#e9eff5",
+      "focus": "#506e91"
+    }
+  }
+]

@@ -14,3 +14,7 @@ class KnownNoEffectError(Exception):
         super().__init__(f"{code}: {safe_message}")
         self.code = code
         self.safe_message = safe_message
+
+
+class DriverBudgetExceeded(Exception):
+    """The driver exhausted a host-supplied usage bound; no tool was dispatched."""

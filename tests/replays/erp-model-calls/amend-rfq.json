@@ -1,0 +1,46 @@
+{
+  "kind": "recorded-public-model-parts-fixture-replay",
+  "environment": "synthetic fixture ERP; replay is not live evidence",
+  "task": "amend-rfq",
+  "prompt": "Amend draft RFQ rfq:po-100 to quantity 15, retaining its current requested date.",
+  "model_digest": "bc006a921f692e792f201c133807f63238a8fc3ed22d9da4a919600f39c487de",
+  "context_length": 32768,
+  "temperature": 0,
+  "seed": 0,
+  "pydantic_ai_version": "2.54.0",
+  "expected_contract": "procurement.draft-rfq.amend.v1",
+  "expected_fixture_writes": 1,
+  "responses": [
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "procurement_draft_rfq_read_v1",
+          "args": "{\"purchase_order_ref\":\"rfq:po-100\"}",
+          "tool_call_id": "call_rqaka86s",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "procurement_draft_rfq_amend_v1",
+          "args": "{\"purchase_order_ref\":\"rfq:po-100\",\"expected_revision\":\"rev-1\",\"quantity\":\"15\",\"requested_date\":\"2026-10-20\"}",
+          "tool_call_id": "call_cfiqqkf1",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "content": "The draft RFQ rfq:po-100 has been successfully amended to a quantity of 15, with the requested date remaining unchanged on 2026-10-20.",
+          "part_kind": "text"
+        }
+      ]
+    }
+  ]
+}

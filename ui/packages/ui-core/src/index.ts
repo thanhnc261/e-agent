@@ -5,3 +5,22 @@ export * from "./format.ts";
 export * from "./i18n.ts";
 export * from "./sanitize.ts";
 export * from "./store.ts";
+export * from "./presentation.ts";
+export * from "./selectors/discovery.ts";
+export * from "./selectors/evidence.ts";
+export * from "./selectors/outcome.ts";
+
+/**
+ * Wire contracts upper layers render. L3 owns the projection boundary, so L6/L7
+ * type their props from here instead of importing the L2 client directly.
+ */
+export type {
+  ActionState,
+  ActionSummary,
+  ApprovalPresentation,
+  Finding,
+  MaterialField,
+  RunEvent,
+  RunRecord,
+  RunState,
+} from "@e-agent/client";

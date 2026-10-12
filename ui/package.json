@@ -7,15 +7,19 @@
     "node": ">=22.12"
   },
   "scripts": {
+    "dev": "vite --config apps/web/vite.config.ts",
+    "gallery": "vite --config apps/gallery/vite.config.ts",
     "gen": "openapi-typescript packages/client/openapi.json -o packages/client/src/schema.ts && node packages/tokens/build.mjs",
     "gen:check": "pnpm gen && git diff --exit-code -- packages/client/src/schema.ts packages/tokens/src/generated",
+    "format": "node scripts/format.mjs --write",
+    "format:check": "node scripts/format.mjs --check",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "lint:boundaries": "depcruise --config .dependency-cruiser.cjs packages apps",
     "lint:neutral": "node scripts/check-provider-neutrality.mjs",
     "build": "vite build --config apps/web/vite.config.ts && vite build --config packages/overlay-element/vite.config.ts && vite build --config apps/reference-vanilla/vite.config.ts",
     "conformance": "playwright test --config packages/ui-conformance/playwright.config.ts",
-    "check": "pnpm typecheck && pnpm test && pnpm lint:boundaries && pnpm lint:neutral && pnpm build"
+    "check": "pnpm typecheck && pnpm format:check && pnpm test && pnpm lint:boundaries && pnpm lint:neutral && pnpm build"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",
@@ -27,6 +31,7 @@
     "dependency-cruiser": "18.5.0",
     "happy-dom": "20.14.5",
     "openapi-typescript": "7.13.0",
+    "prettier": "3.6.2",
     "typescript": "5.9.3",
     "vite": "8.3.3",
     "vitest": "5.0.3"

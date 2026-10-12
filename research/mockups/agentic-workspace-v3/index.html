@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>e-agent · Design study 03</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to workspace</a>
+    <aside class="sidebar">
+      <a class="brand" href="#home"
+        ><span class="mark">e</span>e-agent<span class="brand-label"
+          >WORKSPACE</span
+        ></a
+      >
+      <div class="workspace-name">
+        <span class="workspace-icon">N</span>
+        <div>Northstar<small>Example organization</small></div>
+      </div>
+      <button class="new-task" data-action="new">
+        ＋ <span>New task</span><kbd>N</kbd>
+      </button>
+      <p class="eyebrow nav-heading">WORKSPACE</p>
+      <nav aria-label="Workspace">
+        <button data-page="home" class="active">
+          <span data-icon="home"></span>Overview</button
+        ><button data-page="work">
+          <span data-icon="work"></span>My work<span class="nav-count"
+            >3</span
+          ></button
+        ><button data-page="connections">
+          <span data-icon="connections"></span>Connections
+        </button>
+      </nav>
+      <div class="recent-nav">
+        <p class="eyebrow">PICK UP WHERE YOU LEFT OFF</p>
+        <button data-scenario="handoff">
+          <i class="dot amber"></i>Prepare customer handoff</button
+        ><button data-scenario="knowledge">
+          <i class="dot green"></i>Find the travel policy</button
+        ><button data-scenario="service">
+          <i class="dot violet"></i>Triage a service request
+        </button>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="sidebar-note">
+          <span data-icon="shield"></span>
+          <p>Your intent.<br />Your final say.</p>
+        </div>
+        <a href="design-system.html" class="brand-kit-link"
+          >Logo, icons &amp; components <span>↗</span></a
+        >
+        <a href="design-notes.html">Design rationale <span>↗</span></a>
+        <div class="identity">
+          <span class="avatar">JL</span>
+          <div>Jamie Lee<small>Example workspace member</small></div>
+        </div>
+      </div>
+    </aside>
+    <div class="shell">
+      <header class="topbar">
+        <div>
+          <span>Workspace</span><b>/</b
+          ><strong id="page-title">Overview</strong>
+        </div>
+        <div>
+          <span class="prototype-badge">Interactive concept</span
+          ><button
+            class="icon-button"
+            data-action="theme"
+            aria-label="Switch color theme"
+          >
+            <span data-icon="sun"></span>
+          </button>
+        </div>
+      </header>
+      <main id="main" tabindex="-1"></main>
+    </div>
+    <section
+      id="agent"
+      class="agent"
+      aria-label="Task assistant"
+      role="complementary"
+      hidden
+    >
+      <header class="agent-header">
+        <div class="assistant-brand">
+          <span class="mark">e</span>
+          <div>
+            <strong>e-agent</strong
+            ><small id="agent-subtitle">Customer handoff</small>
+          </div>
+        </div>
+        <div class="agent-controls">
+          <span id="agent-status" class="pill amber">Needs review</span
+          ><button
+            class="icon-button"
+            id="expand"
+            aria-label="Expand assistant"
+          >
+            <span data-icon="expand"></span></button
+          ><button
+            class="icon-button"
+            id="minimize"
+            aria-label="Minimize assistant"
+          >
+            <span data-icon="minus"></span>
+          </button>
+        </div>
+      </header>
+      <div id="agent-body" class="agent-body"></div>
+      <footer id="agent-footer" class="agent-footer"></footer>
+    </section>
+    <button id="launcher" class="launcher" hidden>
+      <span class="mark">e</span
+      ><span
+        >Return to task<small id="launcher-status">Needs review</small></span
+      ><span data-icon="arrow"></span>
+    </button>
+    <div class="studio">
+      <div>
+        <span class="study-dot"></span><strong>DESIGN STUDY 03</strong
+        ><span class="studio-note">Sample data · no live integrations</span>
+      </div>
+      <div>
+        <button data-action="host" id="host-toggle">
+          Try inside an app <span>↗</span></button
+        ><label for="scene" class="sr-only">Preview task state</label
+        ><select id="scene" disabled>
+          <option value="review">Needs review</option>
+          <option value="working">Working</option>
+          <option value="clarify">Needs input</option>
+          <option value="verifying">Verifying</option>
+          <option value="done">Verified result</option>
+          <option value="unknown">Unknown outcome</option>
+          <option value="stale">Stale proposal</option>
+          <option value="blocked">Setup needed</option>
+          <option value="rejected">Not approved</option></select
+        ><button data-action="reset" aria-label="Reset prototype">Reset</button>
+      </div>
+    </div>
+    <dialog id="modal" aria-labelledby="modal-title">
+      <div id="modal-content"></div>
+    </dialog>
+    <div id="announcement" class="sr-only" aria-live="polite"></div>
+  </body>
+</html>

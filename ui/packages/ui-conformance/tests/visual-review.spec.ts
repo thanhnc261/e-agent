@@ -1,0 +1,81 @@
+import { choosePreference } from "../src/preferences.ts";
+/** Opt-in fixture screenshots; never run against a configured ERP or model. */
+import { expect, test } from "@playwright/test";
+import { mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
+
+const destination = process.env["E_AGENT_UI_CAPTURE_DIR"];
+test("capture task workspace and review states for visual inspection", async ({ page }) => {
+  test.skip(!destination, "Set E_AGENT_UI_CAPTURE_DIR to an unused evidence directory");
+  const dir = resolve(destination!);
+  await mkdir(dir, { recursive: false });
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  await page.goto("/");
+  await expect(page.locator(".ea-welcome")).toBeVisible();
+  await page.screenshot({ path: resolve(dir, "desktop-overview.png"), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: resolve(dir, "mobile-overview.png"), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  await page.getByTestId("section-connections").click();
+  await expect(page.getByTestId("page-connections")).toBeVisible();
+  await page.screenshot({ path: resolve(dir, "desktop-capabilities.png"), fullPage: true });
+  await page.getByTestId("section-overview").click();
+  await expect(page.getByTestId("page-overview")).toBeVisible();
+  await page.getByTestId("composer-input").fill("restock widget-a");
+  await page.getByTestId("composer-submit").click();
+  await expect(page.getByTestId("approval-approve")).toBeEnabled();
+  await page.screenshot({ path: resolve(dir, "desktop-approval.png"), fullPage: true });
+  await choosePreference(page, "density", "compact");
+  await page.screenshot({ path: resolve(dir, "desktop-approval-compact.png"), fullPage: true });
+  await choosePreference(page, "density", "comfortable");
+  for (const appearance of ["presence", "operator"]) {
+    await choosePreference(page, "appearance", appearance);
+    await page.screenshot({ path: resolve(dir, `desktop-approval-${appearance}.png`), fullPage: true });
+  }
+  await choosePreference(page, "appearance", "calm");
+  await choosePreference(page, "theme", "dark");
+  await page.screenshot({ path: resolve(dir, "desktop-dark.png"), fullPage: true });
+  await choosePreference(page, "theme", "high-contrast");
+  await page.screenshot({ path: resolve(dir, "desktop-high-contrast.png"), fullPage: true });
+  await choosePreference(page, "theme", "light");
+  await page.emulateMedia({ forcedColors: "active" });
+  await page.screenshot({ path: resolve(dir, "desktop-forced-colors.png"), fullPage: true });
+  await page.emulateMedia({ forcedColors: "none" });
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.screenshot({ path: resolve(dir, "tablet-approval.png"), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByTestId("approval").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: resolve(dir, "mobile-approval.png") });
+  await page.getByTestId("approval-approve").click();
+  await page.getByTestId("approval-confirm").click();
+  await expect(page.getByTestId("outcome-state")).toHaveAttribute("data-state", "SUCCEEDED");
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: resolve(dir, "desktop-result.png"), fullPage: true });
+  for (const theme of ["dark", "high-contrast"]) {
+    await choosePreference(page, "theme", theme);
+    await page.screenshot({ path: resolve(dir, `desktop-result-${theme}.png`), fullPage: true });
+  }
+  await choosePreference(page, "theme", "light");
+  await page.getByTestId("evidence").locator(":scope > summary").click();
+  await page.getByTestId("evidence-load").click();
+  await expect(page.locator(".ea-source").first()).toBeVisible();
+  await page.screenshot({ path: resolve(dir, "desktop-evidence.png"), fullPage: true });
+  await page.goto("/host.html");
+  await page.getByTestId("overlay-launcher").click();
+  await page.getByTestId("composer-input").fill("restock widget-a");
+  await page.getByTestId("composer-submit").click();
+  await expect(page.getByTestId("approval-approve")).toBeEnabled();
+  await page.getByTestId("approval-approve").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: resolve(dir, "overlay-approval.png") });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByTestId("approval-approve").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: resolve(dir, "mobile-overlay-approval.png") });
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  await page.goto("/?layout=sidebar");
+  await page.getByTestId("composer-input").fill("restock widget-a");
+  await page.getByTestId("composer-submit").click();
+  await expect(page.getByTestId("approval-approve")).toBeEnabled();
+  await page.getByTestId("approval-approve").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: resolve(dir, "sidebar-approval.png") });
+});

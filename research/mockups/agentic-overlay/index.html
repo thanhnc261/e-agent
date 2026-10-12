@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>e-agent · Your work, connected</title><link rel="stylesheet" href="styles.css"><script src="fixtures.js" defer></script><script src="app.js" defer></script></head>
+<body data-theme="calm">
+<aside class="sidebar">
+  <a class="brand" href="index.html"><span class="brand-symbol">✳</span>e-agent<span class="brand-dot">®</span></a>
+  <div class="organization"><span class="org-icon">N</span><div>Northstar<small>Enterprise workspace</small></div><span class="org-chevron">⌄</span></div>
+  <button class="new-task" data-nav="home"><span>＋</span> New task <kbd>N</kbd></button>
+  <div class="nav-label">WORKSPACE</div>
+  <nav aria-label="Main navigation"><button data-nav="home" class="active"><span>⌂</span>Overview</button><button data-nav="work"><span>▤</span>My work <b id="work-count">3</b></button><button data-nav="approvals"><span>☑</span>Needs review <b id="review-count">2</b></button><button data-nav="connections"><span>⌘</span>Connections</button></nav>
+  <div class="sidebar-divider"></div><div class="nav-label">PICK UP WHERE YOU LEFT OFF</div><div id="sidebar-recent"></div>
+  <div class="sidebar-bottom"><div class="workspace-note"><span>◇</span><div>One workspace.<br>All the right context.</div></div><a href="board.html" class="research-link">Research & design notes ↗</a><div class="profile"><span class="avatar">JL</span><div>Jamie Lee<small>Workspace member</small></div><span>⌄</span></div></div>
+</aside>
+<div class="app-shell"><header class="topbar"><div><span class="breadcrumb">Workspace</span><span class="slash">/</span><b id="page-title">Overview</b></div><div class="topbar-right"><span class="demo-badge"><i></i>Concept prototype</span><span class="date">8 October 2026</span><button class="avatar" data-action="profile" aria-label="View demo identity">JL</button></div></header><main id="main"></main></div>
+<section id="agent" class="agent" data-mode="floating" aria-label="Enterprise task assistant" hidden>
+ <header class="agent-header"><div class="agent-heading"><span class="brand-symbol">✳</span><div><b>e-agent</b><small id="task-domain">Your work, connected</small></div></div><div class="agent-tools"><button id="appearance" class="icon-button" aria-label="Appearance and placement" aria-expanded="false">☷</button><button id="expand" class="icon-button" aria-label="Expand task">⤢</button><button id="minimize" class="icon-button" aria-label="Minimize task">−</button></div></header>
+ <div id="preferences" class="preferences" hidden><div><label for="theme">Appearance</label><select id="theme"><option value="calm">Calm</option><option value="presence">AI Presence</option><option value="operator">Operator</option></select></div><div><label for="placement">Placement</label><select id="placement"><option value="floating">Floating</option><option value="docked">Docked</option><option value="expanded">Expanded</option></select></div><small>Your task and review stay with you.</small></div>
+ <div id="task-context" class="task-context"></div><div id="stream" class="stream"></div><footer id="task-footer" class="task-footer"></footer><div class="task-disclaimer">Simulated workflow · no external actions or real connections</div>
+</section>
+<button id="launcher" class="launcher" hidden><span>✳</span><div>Return to task<small id="launcher-label"></small></div><span>↗</span></button>
+<div class="studio"><div><span class="studio-symbol">◈</span><b>DESIGN STUDY 02</b><span class="studio-note">Enterprise-wide · all data and connections are simulated</span></div><div><label for="scene">Task state</label><select id="scene" disabled><option value="review">Review</option><option value="working">Working</option><option value="executing">Approved / executing</option><option value="verifying">Committed / verifying</option><option value="unknown">Unknown outcome</option><option value="stale">Stale proposal</option><option value="done">Verified result</option></select><button id="reset">↺ Reset demo</button></div></div>
+<dialog id="modal" aria-labelledby="modal-title"><div id="modal-content"></div></dialog>
+<div id="toast" class="toast" role="status" hidden></div><div id="announcement" class="sr-only" aria-live="polite"></div>
+</body></html>

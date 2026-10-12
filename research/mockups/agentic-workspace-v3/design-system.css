@@ -1,0 +1,340 @@
+.kit-page {
+  padding: 0 32px 64px;
+}
+.kit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 88px;
+  max-width: 1160px;
+  margin: auto;
+  border-bottom: 1px solid var(--line);
+}
+.kit-header > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.kit {
+  max-width: 1080px;
+  margin: 60px auto 0;
+}
+.kit h1 {
+  font-size: 44px;
+  line-height: 1.15;
+  margin-bottom: 20px;
+}
+.kit-intro {
+  max-width: 670px;
+  font-size: 16px;
+  line-height: 1.8;
+}
+.kit-nav {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid var(--line);
+  padding: 24px 0;
+  flex-wrap: wrap;
+}
+.kit-nav a {
+  font-size: 13px;
+  text-decoration: none;
+  color: var(--muted);
+}
+.kit section {
+  margin-top: 55px;
+  scroll-margin-top: 24px;
+}
+.kit section > .section-heading {
+  margin-bottom: 24px;
+}
+.kit section h2 {
+  font-size: 20px;
+}
+.identity-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.logo-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 280px;
+  background: var(--sidebar);
+}
+.logo-stage strong {
+  font-size: 44px;
+  letter-spacing: -2px;
+  font-weight: 650;
+}
+.hero-mark {
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+}
+.identity-notes {
+  padding: 32px;
+}
+.identity-notes p {
+  font-size: 13px;
+  line-height: 1.8;
+}
+.asset-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  font-size: 12px;
+  color: var(--accent);
+  margin-top: 20px;
+}
+.logo-variants {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+.logo-variants > div {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  border: 1px solid var(--line);
+  padding: 28px;
+  border-radius: 10px;
+  background: var(--surface);
+}
+.logo-variants img {
+  width: 44px;
+  height: 44px;
+}
+.logo-variants span {
+  font-size: 12px;
+}
+.logo-variants .navy-sample {
+  background: #233f70;
+  color: white;
+}
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+}
+.color-swatch {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.color-swatch i {
+  display: block;
+  height: 85px;
+  border-bottom: 1px solid var(--line);
+}
+.color-swatch strong,
+.color-swatch span {
+  display: block;
+  padding: 12px 12px 0;
+  font-size: 12px;
+}
+.color-swatch span {
+  color: var(--muted);
+  font-size: 11px;
+  padding-top: 3px;
+  padding-bottom: 12px;
+}
+.type-board {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 32px;
+  background: var(--surface);
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.type-board p {
+  font-size: 13px;
+}
+.type-board h2 {
+  font-size: 30px !important;
+}
+.type-board strong {
+  display: inline-block;
+  width: 70px;
+}
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.icon-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  justify-content: center;
+  padding: 25px 8px 18px;
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.icon-tile:hover {
+  border-color: var(--accent);
+}
+.icon-tile svg {
+  width: 24px;
+  height: 24px;
+}
+.icon-tile span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.component-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.component-sample {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 25px;
+  background: var(--surface);
+}
+.component-sample > p:last-child {
+  font-size: 12px;
+  margin: 18px 0 0;
+}
+.sample-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.sample-row .text-button {
+  padding-inline: 10px;
+}
+.kit-disclosure {
+  margin-top: 18px;
+  padding: 15px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.kit-disclosure p {
+  margin: 12px 0 0;
+}
+.kit-disclosure dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.kit-disclosure dd {
+  margin: 0;
+}
+.component-sample.wide {
+  grid-column: 1/-1;
+}
+.component-sample .notice {
+  margin-top: 0;
+}
+.kit-announcement {
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--accent);
+  min-height: 22px;
+}
+.pattern-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin: 24px 0;
+}
+.pattern-grid > article {
+  border-top: 1px solid var(--line);
+  padding-top: 22px;
+}
+.pattern-grid svg {
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.pattern-grid p {
+  font-size: 13px;
+}
+@media (max-width: 800px) {
+  .kit-page {
+    padding-inline: 20px;
+  }
+  .kit-header > .caption {
+    display: none;
+  }
+  .identity-board,
+  .type-board {
+    grid-template-columns: 1fr;
+  }
+  .logo-stage {
+    min-height: 220px;
+  }
+  .logo-variants {
+    grid-template-columns: 1fr;
+  }
+  .color-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .icon-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+  .component-grid {
+    grid-template-columns: 1fr;
+  }
+  .pattern-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 450px) {
+  .kit {
+    margin-top: 35px;
+  }
+  .kit h1 {
+    font-size: 32px;
+  }
+  .kit-nav {
+    gap: 16px;
+  }
+  .kit-header .secondary {
+    font-size: 11px;
+  }
+  .kit-header > div {
+    gap: 5px;
+  }
+  .kit-header .brand {
+    font-size: 20px;
+  }
+  .logo-stage strong {
+    font-size: 38px;
+  }
+  .hero-mark {
+    width: 56px;
+    height: 56px;
+  }
+  .identity-notes {
+    padding: 23px;
+  }
+  .icon-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .color-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pattern-grid {
+    grid-template-columns: 1fr;
+  }
+  .component-sample {
+    padding: 20px;
+  }
+}

@@ -50,7 +50,8 @@ function sameProposal(a: ApprovalPresentation, b: ApprovalPresentation): boolean
 }
 
 export function isExpired(p: ApprovalPresentation, now: number = Date.now()): boolean {
-  return Date.parse(p.expires_at) <= now;
+  const expires = Date.parse(p.expires_at);
+  return !Number.isFinite(expires) || expires <= now;
 }
 
 export function reduceApproval(state: ApprovalState, event: ApprovalEvent): ApprovalState {
@@ -58,7 +59,7 @@ export function reduceApproval(state: ApprovalState, event: ApprovalEvent): Appr
     case "PRESENTED": {
       const current = state.presentation;
       if (current && sameProposal(current, event.presentation)) {
-        return state.digestOk === event.digestOk ? state : { ...state, digestOk: event.digestOk };
+        return state.digestOk === event.digestOk && JSON.stringify(current) === JSON.stringify(event.presentation) ? state : { ...state, presentation: event.presentation, digestOk: event.digestOk };
       }
       if (current && (state.phase === "reviewing" || state.phase === "confirming")) {
         // A new revision or digest while the user is looking: force re-review.
@@ -89,8 +90,24 @@ export function reduceApproval(state: ApprovalState, event: ApprovalEvent): Appr
   }
 }
 
+/**
+ * Phases where the decision is still the user's to make or is in flight. A
+ * presentation change must not move the surface out from under one of these; a
+ * recorded, expired or failed decision no longer holds the user in place.
+ */
+const AWAITING: ReadonlySet<ApprovalPhase> = new Set<ApprovalPhase>([
+  "reviewing",
+  "confirming",
+  "submitting",
+  "stale",
+]);
+
+export function isAwaitingDecision(phase: ApprovalPhase): boolean {
+  return AWAITING.has(phase);
+}
+
 /** Guard used by every UI: Approve may be offered only when all of these hold. */
 export function canRequestApprove(state: ApprovalState, now: number = Date.now()): boolean {
   const p = state.presentation;
-  return p !== null && state.digestOk === true && !isExpired(p, now) && state.phase !== "stale";
+  return p !== null && state.digestOk === true && p.findings.every(f => f.status === "PASS") && !isExpired(p, now) && state.phase !== "stale";
 }

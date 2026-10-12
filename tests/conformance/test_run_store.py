@@ -174,3 +174,104 @@ async def test_idempotency_claims(store: Any) -> None:
     assert await store.claim_idempotency("t1", "u", "k1", "d1", "run_a") == ("run_a", "d1")
     assert await store.claim_idempotency("t1", "u", "k1", "d2", "run_b") == ("run_a", "d1")
     assert await store.claim_idempotency("t1", "v", "k1", "d1", "run_c") == ("run_c", "d1")
+
+
+async def test_run_checkpoint_is_atomic_with_events_and_cas(store: Any) -> None:
+    await store.create_run(_run(), [EV])
+    first = ({"schema": "test", "pending_action_id": "act-1"}, {"turn": 1})
+    await store.update_run(_run(rev=2), 1, [EV], continuation=first)
+    assert await store.load_continuation("t1", "run_1") == first
+    with pytest.raises(ConcurrencyConflict):
+        await store.update_run(
+            _run(rev=3), 1, [EV], continuation=({"pending_action_id": "wrong"}, None)
+        )
+    assert await store.load_continuation("t1", "run_1") == first
+    assert len(await store.list_events("t1", "run_1")) == 2
+
+
+async def test_request_admission_includes_run_checkpoint_and_start_work(store: Any) -> None:
+    checkpoint = {"schema": "fixture", "data": {"task": "x"}}
+    result = await store.create_run_idempotent(_run(), [EV], checkpoint, "u", "request-1", "d1")
+    assert result == ("run_1", "d1")
+    assert await store.load_continuation("t1", "run_1") == (checkpoint, None)
+    again = await store.create_run_idempotent(_run("unused"), [EV], {}, "u", "request-1", "d2")
+    assert again == ("run_1", "d1")
+    with pytest.raises(NotFound):
+        await store.get_run("t1", "unused")
+    claim = await store.claim_work("worker-1")
+    assert claim and claim.run_id == "run_1" and claim.kind == "start"
+    assert await store.claim_work("worker-2") is None
+    await store.finish_work(claim)
+    assert not await store.has_pending_work("t1", "run_1")
+
+
+async def test_parallel_claimers_cannot_own_two_jobs_for_one_run(store: Any) -> None:
+    await store.create_run(_run(), [EV])
+    await store.enqueue_work("t1", "run_1", "input", {}, "request-1")
+    await store.enqueue_work("t1", "run_1", "input", {}, "request-2")
+    claims = await asyncio.gather(store.claim_work("worker-1"), store.claim_work("worker-2"))
+    owned = [c for c in claims if c is not None]
+    assert len(owned) == 1
+    await store.finish_work(owned[0])
+    assert await store.claim_work("worker-3") is not None
+
+
+async def test_expired_worker_cannot_commit_or_overwrite_continuation(store: Any) -> None:
+    await store.create_run(_run(), [EV])
+    await store.enqueue_work("t1", "run_1", "input", {}, "request-1")
+    old = await store.claim_work("worker-old", lease_seconds=1)
+    assert old is not None
+    await asyncio.sleep(1.05)
+    new = await store.claim_work("worker-new")
+    assert new is not None and new.fence == old.fence + 1
+    assert not await store.renew_work(old)
+    with pytest.raises(ConcurrencyConflict):
+        async with store.work_scope(old):
+            await store.update_run(_run(rev=2), 1, [EV], continuation=({"bad": True}, None))
+    assert await store.load_continuation("t1", "run_1") is None
+    assert len(await store.list_events("t1", "run_1")) == 1
+    async with store.work_scope(new):
+        await store.update_run(_run(rev=2), 1, [EV], continuation=({"owner": "new"}, None))
+    assert await store.load_continuation("t1", "run_1") == ({"owner": "new"}, None)
+
+
+async def test_work_replay_requires_the_exact_admitted_payload(store: Any) -> None:
+    await store.create_run(_run(), [EV])
+    await store.enqueue_work("t1", "run_1", "decide", {"decision": "approved"}, "approval-slot")
+    await store.enqueue_work("t1", "run_1", "decide", {"decision": "approved"}, "approval-slot")
+    with pytest.raises(ConcurrencyConflict):
+        await store.enqueue_work("t1", "run_1", "decide", {"decision": "rejected"}, "approval-slot")
+    claim = await store.claim_work("worker")
+    assert claim is not None and claim.payload == {"decision": "approved"}
+    await store.finish_work(claim)
+    assert await store.claim_work("worker") is None
+
+
+async def test_approval_and_action_transition_rollback_together(store: Any) -> None:
+    from e_agent.contracts.approval import ApprovalDecision, ApprovalRecord
+
+    await store.create_run(_run(), [EV])
+    await store.put_action(_action(state=ActionState.AWAITING_APPROVAL), None, [])
+    approval = ApprovalRecord(
+        approval_id="approval-1",
+        tenant_id="t1",
+        run_id="run_1",
+        action_id="act_1",
+        action_digest="d",
+        actor_id="approver",
+        decision=ApprovalDecision.APPROVED,
+        policy_version="1",
+        issued_at=T0,
+        expires_at=T0,
+    )
+    with pytest.raises(ConcurrencyConflict):
+        await store.record_approval(
+            approval, [EV], action=_action(rev=2, state=ActionState.APPROVED), expected_revision=7
+        )
+    assert await store.list_approvals("t1", "act_1") == []
+    assert (await store.get_action("t1", "act_1")).state == ActionState.AWAITING_APPROVAL
+    await store.record_approval(
+        approval, [EV], action=_action(rev=2, state=ActionState.APPROVED), expected_revision=1
+    )
+    assert (await store.get_action("t1", "act_1")).state == ActionState.APPROVED
+    assert len(await store.list_approvals("t1", "act_1")) == 1

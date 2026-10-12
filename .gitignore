@@ -15,3 +15,6 @@ evidence/
 # Local agent worktrees and plan-execution scratch
 .claude/worktrees/
 .superpowers/
+
+# Playwright MCP session captures
+.playwright-mcp/

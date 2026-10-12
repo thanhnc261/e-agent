@@ -48,6 +48,7 @@ class Runtime:
     operator: Principal
     scope: frozenset[str]
     fake_erp: FakeErp | None
+    connections: ConnectionCatalog | None = None
     sandbox: dict[str, Any] = field(default_factory=dict)
     versions: dict[str, Any] = field(default_factory=dict)
 
@@ -75,6 +76,8 @@ def runtime_versions(
 
 async def open_store(profile: Profile) -> Any:
     if profile.store.kind == "memory":
+        if profile.environment == "live":
+            raise KernelError(ErrorCode.STARTUP_REJECTED, "live runs require a PostgreSQL ledger")
         return InMemoryRunStore()
     dsn = os.environ.get(profile.store.dsn_env)
     if not dsn:
@@ -178,7 +181,13 @@ async def build_runtime(
     credentials = CredentialService(catalog, _secret_store(profile), AUTH_PLACEMENT)
     registry = PluginRegistry(profile.bindings)
     enabled = {
-        pid: EnabledPlugin(cfg.version, cfg.manifest_sha256, dict(cfg.settings))
+        pid: EnabledPlugin(
+            cfg.version,
+            cfg.manifest_sha256,
+            dict(cfg.settings),
+            artifact_sha256=cfg.artifact_sha256,
+            allow_unverified_fixture=profile.environment == "fixture",
+        )
         for pid, cfg in profile.enabled_plugins.items()
     }
     registry.admit(discover(plugin_paths), enabled, credentials_for=credentials.scoped)
@@ -234,6 +243,7 @@ async def build_runtime(
         policy=DefaultPolicy(),
         driver=driver,
         budgets=profile.budgets,
+        credentials=credentials,
     )
     return Runtime(
         profile,
@@ -243,6 +253,7 @@ async def build_runtime(
         operator,
         scope,
         fake_erp,
+        catalog,
         sandbox,
         runtime_versions(profile, registry, driver),
     )
@@ -270,7 +281,17 @@ async def _check_sandbox(
             if conn.integration_id != pid:
                 continue
             info = await probes[0].sandbox_info(ctx, conn.connection_id)
-            if info.get("sandbox_marker") != expected:
+            target = {
+                "sandbox_marker": expected,
+                "database": cfg.settings.get("database"),
+                "company_id": str(cfg.settings.get("expected_company_id", "")),
+                "bridge_version": cfg.settings.get("expected_bridge_version"),
+            }
+            if (
+                not all(target.values())
+                or any(info.get(k) != v for k, v in target.items())
+                or not str(info.get("server_version", "")).startswith("19.0")
+            ):
                 raise KernelError(
                     ErrorCode.STARTUP_REJECTED,
                     f"{conn.connection_id}: sandbox marker mismatch; refusing to start",

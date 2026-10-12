@@ -81,11 +81,25 @@ class AmendDraftRfqVerifier:
         want = AmendDraftRfq.model_validate(action.arguments)
         obs = await reader.read(PURCHASE_ORDER_READ, {"operation_key": action.logical_operation_id})
         orders = [PurchaseOrderView.model_validate(o) for o in obs.data.get("orders", [])]
-        checks = [check("exactly_one_order", 1, len(orders))]
+        baseline = next(
+            (
+                DraftRfq.model_validate(f.data)
+                for f in action.approved_facts
+                if f.contract_id == DRAFT_RFQ_READ
+                and f.data.get("purchase_order_ref") == want.purchase_order_ref
+            ),
+            None,
+        )
+        checks = [
+            check("exactly_one_order", 1, len(orders)),
+            check("approved_baseline_present", True, baseline is not None),
+        ]
         if len(orders) == 1:
             po = orders[0]
             checks += [
+                check("operation_key", action.logical_operation_id, po.operation_key),
                 check("same_rfq", want.purchase_order_ref, po.purchase_order_ref),
+                check("line_count", 1, po.line_count),
                 check("still_draft", "draft", po.state),
                 check(
                     "external_ref_matches_receipt", ",".join(receipt.external_refs), po.external_ref
@@ -98,4 +112,12 @@ class AmendDraftRfqVerifier:
                     po.subtotal,
                 ),
             ]
+            if baseline is not None:
+                checks += [
+                    check("supplier_unchanged", baseline.supplier_ref, po.supplier_ref),
+                    check("product_unchanged", baseline.product_ref, po.product_ref),
+                    check("unit_unchanged", baseline.unit, po.unit),
+                    check("currency_unchanged", baseline.currency, po.currency),
+                    num_check("unit_price_unchanged", baseline.unit_price, po.unit_price),
+                ]
         return report(ctx, action, self.verifier_id, checks, [obs.evidence.evidence_id])

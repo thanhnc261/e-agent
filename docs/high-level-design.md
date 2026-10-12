@@ -1,5 +1,11 @@
 # e-agent: high-level design
 
+Selectable overlay follow-up (2026-10-08): [ADR 0016](adr/0016-selectable-agent-surfaces.md) adds a responsive Workbench and an in-app View selector over the same controller and approval authority. See [research/design](../research/11-enterprise-agent-overlay-design.md).
+
+
+UI implementation clarification (2026-10-08): [ADR 0015](adr/0015-task-workspace-presentation.md) specializes the shared layered UI into a task workspace with exact readable approval, bounded session navigation, truthful outcome states and authorized evidence inspection. Presentation annotations do not change domain rules, provider routing or approval digests. See [UI architecture](ui-architecture.md) for the implemented scope and limits.
+
+Implementation clarification (2026-10-07): [ADR 0014](adr/0014-mvp-remediation-boundaries.md) defines short transactions with work fencing, conservative external uncertainty, approved fact/credential binding and transient public text offsets. These implementation seams require the remediation and live qualification gates; source availability does not establish readiness.
 **Status:** proposed implementation baseline. **Date:** 2026-10-06. **Implementation status:** research/design only.
 
 > **Scope update.** [ADR 0001](adr/0001-local-mvp-scope.md) (accepted) expands the MVP to a local Pydantic AI + Ollama driver, the `odoo19-learning` Odoo 19 sandbox with an `e_agent_bridge` addon, 5–10 Odoo tasks, a streaming overlay UI and a read-only BigQuery integration. Where this document says "MVP", read it together with that ADR and the [implementation plan](implementation-plan.md). Refinements are recorded in ADRs 0002–0013 ([index](adr/README.md)), accepted by the project owner on 2026-10-06 (plan §0, D1–D5).

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>e-agent · Connected graph identity</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="design-system/catalog.css" />
+    <link rel="stylesheet" href="design-system/brand.css" />
+  </head>
+  <body>
+    <header class="ds-header">
+      <a class="ds-brand" href="./"
+        ><span id="identity-mark" class="brand-mark"></span>e-agent <span>Identity</span></a
+      >
+      <div class="ds-tools">
+        <a class="secondary" href="components.html#identity">Component system</a
+        ><a class="secondary" href="overlay.html">Overlay preview</a>
+      </div>
+    </header>
+    <main class="ds-catalog">
+      <p class="overline">E-AGENT / CONNECTED NODES / SCULPTED COLOR</p>
+      <h1 class="brand-title">Connections with depth.</h1>
+      <p class="brand-intro">
+        The connected-node mark turns clockwise and leans back into perspective. Lighter Lagoon colors, soft
+        ivory, solid sidewalls, reflective highlights and a soft cast shadow give the nodes a tactile,
+        sculpted finish.
+      </p>
+      <section class="brand-hero" aria-label="Primary logo">
+        <div id="identity-lockup"></div>
+        <p id="identity-pose-caption">22.5° clockwise · 35° backward tilt</p>
+      </section>
+      <section class="brand-pose" aria-label="Logo perspective preview">
+        <div class="brand-pose-tools">
+          <label for="identity-tilt"
+            >Backward tilt
+            <select id="identity-tilt">
+              <option value="20">Light · 20°</option>
+              <option value="35" selected>Balanced · 35°</option>
+              <option value="45">Pronounced · 45°</option>
+            </select></label
+          ><label for="identity-depth"
+            >3D depth<select id="identity-depth">
+              <option value="1">Subtle</option>
+              <option value="3" selected>Sculpted</option>
+              <option value="5">Deep</option>
+            </select></label
+          ><label for="identity-shadow"
+            >Shadow<select id="identity-shadow">
+              <option value="none">None</option>
+              <option value="soft" selected>Soft</option>
+              <option value="raised">Raised</option>
+            </select></label
+          ><label for="identity-finish"
+            >Surface<select id="identity-finish">
+              <option value="satin">Satin</option>
+              <option value="glossy" selected>Glossy reflection</option>
+            </select></label
+          ><a id="identity-selected-download" download="e-agent-node-3d.svg">Download this symbol ↗</a>
+        </div>
+        <fieldset>
+          <legend>Clockwise rotation</legend>
+          <div id="identity-angles" class="brand-angles"></div>
+        </fieldset>
+      </section>
+      <section class="brand-pose" aria-label="Choose a color palette">
+        <h2>Choose a color</h2>
+        <div class="brand-pose-tools">
+          <label for="identity-color-mode"
+            >Node colors<select id="identity-color-mode">
+              <option value="brand">One brand color</option>
+              <option value="multicolor">Color per node</option>
+            </select></label
+          >
+        </div>
+        <p class="view-intro">
+          The center and connections keep your brand color. In Color per node, the four outer nodes use
+          different colors from these palettes.
+        </p>
+        <div id="identity-colors" class="brand-colors"></div>
+        <p id="identity-color-status" class="view-intro" role="status"></p>
+      </section>
+      <section class="brand-palette" id="identity-palette" aria-label="Soft Lagoon palette"></section>
+      <p class="view-intro"><a href="palettes.html">Compare all six colors in a conversation →</a></p>
+      <section class="brand-variants" id="identity-variants" aria-label="Logo variants"></section>
+      <section class="brand-specs">
+        <article>
+          <h2>Small by design</h2>
+          <div id="identity-sizes" class="brand-sizes"></div>
+          <p>
+            Use the bare symbol at 24px and above. Optional app tiles start at 32px. The overlay launcher is a
+            48px target.
+          </p>
+        </article>
+        <article>
+          <h2>Room to breathe</h2>
+          <p>
+            Keep at least one quarter of the symbol width clear on every side. Preserve the proportions and
+            spaces between nodes. Use either one brand hue or four distinct outer-node colors; the center and
+            connections retain the brand hue. Surface reflections and sidewall shading are decorative. Lockups
+            use the theme's mark and text colors; status belongs beside the identity.
+          </p>
+          <p>
+            Use a named button around decorative SVGs. The symbol never replaces the accessible product name.
+          </p>
+        </article>
+      </section>
+      <p class="view-intro">
+        Original vector geometry. No font download, animation, gradient or raster dependency. This is a design
+        proposal, not a trademark-clearance claim.
+      </p>
+    </main>
+    <script type="module" src="design-system/identity.js"></script>
+  </body>
+</html>

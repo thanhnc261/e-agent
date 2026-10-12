@@ -2,12 +2,14 @@
 
 **Where:** the owner's machine. **Approved by:** plan §0 D4 (mount the addon path, create the integration user and API key). Never run against `odoo-bench` (port 8071) or any non-sandbox database.
 
+The historical 2026-10-06 results below used the previous bridge; they do not qualify the 19.0.0.3.0 remediation source or the owner installation.
+
 The same flow is automated for a throwaway Odoo built from source in `scripts/dev/odoo_from_source.sh` (dev container and the nightly `odoo-live` CI job). The live tests in `tests/integration/test_odoo_live.py` (ERP-01..03) and `tests/integration/test_odoo_live_tasks.py` (ERP-04..08) passed against that Odoo 19 build on 2026-10-06.
 
 ## 1. Mount and install the addon
 
 1. In `/Users/thanhnguyen/dev/study/erp/docker-compose.yml`, add a bind mount of this repository's `addons/` directory into the Odoo container (for example `- /path/to/e-agent/addons:/mnt/e-agent-addons:ro`) and append `/mnt/e-agent-addons` to the container's `addons_path`.
-2. Restart the stack, update the apps list, and install **e-agent bridge** (`e_agent_bridge` 19.0.0.2.0; depends on Purchase + Inventory, Sales + Inventory (`sale_stock`) and CRM, which Odoo installs with it). Upgrading from 0.1 installs the new dependencies.
+2. Restart the stack, update the apps list, and install **e-agent bridge** (`e_agent_bridge` 19.0.0.3.0; depends on Purchase + Inventory, Sales + Inventory (`sale_stock`) and CRM, which Odoo installs with it). Upgrading from 0.1 installs the new dependencies.
 
 ## 2. Sandbox marker, integration user, keys
 
@@ -30,14 +32,22 @@ uv run e-agent secret set secretref:local/odoo-integration   # paste the integra
 ```bash
 export E_AGENT_ODOO_URL=http://localhost:8069 E_AGENT_ODOO_DB=<db> E_AGENT_ODOO_ADMIN_KEY=<admin key>
 uv run python scripts/odoo_sandbox.py info
-uv run python scripts/odoo_sandbox.py seed --namespace e-agent-demo     # prints demand/product refs
-uv run python scripts/odoo_sandbox.py seed-tasks --namespace e-agent-demo  # ERP-04..08: RFQs, customers, orders, team, invoices
+uv run python scripts/odoo_sandbox.py seed --namespace e-agent-demo \
+  --expected-marker "$E_AGENT_EXPECTED_MARKER" --expected-company-id "$E_AGENT_EXPECTED_COMPANY_ID" \
+  --expected-bridge-version 19.0.0.3.0
+uv run python scripts/odoo_sandbox.py seed-tasks --namespace e-agent-demo \
+  --expected-marker "$E_AGENT_EXPECTED_MARKER" --expected-company-id "$E_AGENT_EXPECTED_COMPANY_ID" \
+  --expected-bridge-version 19.0.0.3.0
 ```
 
-Use the printed refs in a live profile (see `profiles/live.example.json`). `e-agent` refuses to start if the database's marker does not match `expected_sandbox_marker`.
+Set the two expected identity variables from the explicitly designated synthetic sandbox; never infer them from an arbitrary response and then authorize mutation. The host pins URL port 8069, database, company, marker and bridge version; the bridge repeats the identity check inside each write transaction.
+
+Use the printed refs in a live profile (see `profiles/live.example.json`). `e-agent` checks database/company/marker/bridge identity. Live profiles also require a dedicated PostgreSQL ledger and `artifact_sha256` for both domain and provider plugins from an externally trusted wheel inventory. Generate that inventory with `uv run python scripts/plugin_inventory.py <trusted-wheel> > <inventory.json>`; use the inventory's artifact hash, rather than approving the installed files themselves.
 
 ## 4. Reset
 
-`uv run python scripts/odoo_sandbox.py reset --namespace e-agent-demo` cancels and removes only draft orders, draft quotations, leads and ledger rows created in that namespace, cancels the namespace's seeded RFQs and sales orders, and resets its seeded invoices to draft and cancels them. It refuses if any e-agent-created order or quotation in the namespace left draft state.
+Reset requires the same expected marker/company/version arguments as seed. Version 19.0.0.3.0 records exact synthetic record IDs in an administrator-only `e_agent.fixture` inventory. It refuses legacy namespaces with no inventory, duplicate matches and unowned records. Choose a fresh `e-agent-...` namespace for a legacy installation; no automatic adoption or broad legacy cleanup is provided.
+
+Reset removes eligible draft agent effects, cancels owned seed business documents and clears stock quantities only for owned fixture quants. Archived synthetic sources and cancelled audit records may remain; inspect the returned `remaining` inventory rather than assuming complete deletion. It refuses agent-created documents that have left the allowed draft state. Exact Odoo ORM behavior, repeated seed/reset and race handling still require the live test gate for this bridge version.
 
 `seed-tasks` posts two synthetic customer invoices as sandbox setup by the administrator. No e-agent capability can post, pay or write off; the integration user has read-only accounting rights.

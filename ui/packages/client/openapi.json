@@ -94,6 +94,25 @@
             "title": "Digest",
             "type": "string"
           },
+          "display_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Title"
+          },
+          "expected_effects": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Expected Effects",
+            "type": "array"
+          },
           "expires_at": {
             "title": "Expires At",
             "type": "string"
@@ -358,6 +377,28 @@
             "title": "Changed",
             "type": "boolean"
           },
+          "comparison": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparison"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
           "path": {
             "title": "Path",
             "type": "string"
@@ -373,6 +414,17 @@
             ],
             "title": "Previous Value"
           },
+          "proposal_previous_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Previous Value"
+          },
           "value": {
             "title": "Value",
             "type": "string"
@@ -383,6 +435,100 @@
           "value"
         ],
         "title": "MaterialField",
+        "type": "object"
+      },
+      "MemberConnection": {
+        "description": "Member-safe connection summary (ADR 0017). No secret or administrative field.",
+        "properties": {
+          "acting_identity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acting Identity"
+          },
+          "allowed_resources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Resources",
+            "type": "array"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "configuration_status": {
+            "title": "Configuration Status",
+            "type": "string"
+          },
+          "connection_id": {
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "integration_id": {
+            "title": "Integration Id",
+            "type": "string"
+          },
+          "observed_health": {
+            "const": "unknown",
+            "title": "Observed Health",
+            "type": "string"
+          },
+          "ownership": {
+            "title": "Ownership",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "connection_id",
+          "integration_id",
+          "ownership",
+          "acting_identity",
+          "allowed_resources",
+          "capabilities",
+          "configuration_status",
+          "observed_health",
+          "revision"
+        ],
+        "title": "MemberConnection",
+        "type": "object"
+      },
+      "MemberConnections": {
+        "properties": {
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/MemberConnection"
+            },
+            "title": "Connections",
+            "type": "array"
+          },
+          "observed_at": {
+            "title": "Observed At",
+            "type": "string"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "observed_at",
+          "connections"
+        ],
+        "title": "MemberConnections",
         "type": "object"
       },
       "ResourceHint": {
@@ -596,6 +742,16 @@
           },
           "run": {
             "$ref": "#/components/schemas/RunRecord"
+          },
+          "streaming_text": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TextFrame"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -660,6 +816,157 @@
           "state"
         ],
         "title": "StateResponse",
+        "type": "object"
+      },
+      "SubmitInput": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "input": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Input",
+            "type": "string"
+          }
+        },
+        "required": [
+          "input",
+          "expected_revision"
+        ],
+        "title": "SubmitInput",
+        "type": "object"
+      },
+      "TaskCatalog": {
+        "properties": {
+          "observed_at": {
+            "title": "Observed At",
+            "type": "string"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "templates": {
+            "items": {
+              "$ref": "#/components/schemas/TaskTemplate"
+            },
+            "title": "Templates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "observed_at",
+          "templates"
+        ],
+        "title": "TaskCatalog",
+        "type": "object"
+      },
+      "TaskTemplate": {
+        "description": "An admitted task type, with the availability the requester actually has.",
+        "properties": {
+          "availability": {
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Availability",
+            "type": "string"
+          },
+          "bounded_context": {
+            "title": "Bounded Context",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "input_intent": {
+            "const": "free_text",
+            "title": "Input Intent",
+            "type": "string"
+          },
+          "required_capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Capabilities",
+            "type": "array"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "no_usable_connection",
+                  "ambiguous_binding",
+                  "no_executor",
+                  "no_verifier"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          }
+        },
+        "required": [
+          "template_id",
+          "title",
+          "description",
+          "input_intent",
+          "availability",
+          "unavailable_reason",
+          "required_capabilities",
+          "bounded_context"
+        ],
+        "title": "TaskTemplate",
+        "type": "object"
+      },
+      "TextFrame": {
+        "properties": {
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "reset": {
+            "title": "Reset",
+            "type": "boolean"
+          },
+          "stream_id": {
+            "title": "Stream Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id",
+          "stream_id",
+          "offset",
+          "text",
+          "reset"
+        ],
+        "title": "TextFrame",
         "type": "object"
       },
       "ValidationError": {
@@ -778,6 +1085,98 @@
           }
         },
         "summary": "Local Session"
+      }
+    },
+    "/v1/me/connections": {
+      "get": {
+        "operationId": "my_connections_v1_me_connections_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberConnections"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Connections"
+      }
+    },
+    "/v1/me/task-catalog": {
+      "get": {
+        "operationId": "my_task_catalog_v1_me_task_catalog_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCatalog"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Task Catalog"
       }
     },
     "/v1/runs": {
@@ -1201,6 +1600,71 @@
           }
         },
         "summary": "Evidence"
+      }
+    },
+    "/v1/runs/{run_id}/inputs": {
+      "post": {
+        "operationId": "submit_input_v1_runs__run_id__inputs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Input"
       }
     },
     "/v1/runs/{run_id}/reconcile": {

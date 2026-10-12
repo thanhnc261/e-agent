@@ -1,6 +1,6 @@
 {
     "name": "e-agent bridge",
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.3.0",
     "summary": "Narrow, transactional commands for the e-agent action gateway (ADR 0005)",
     "description": """
 Each public bridge command reserves an operation key, validates draft-only
@@ -15,6 +15,7 @@ e_agent.sandbox_marker system parameter.
     "data": [
         "security/groups.xml",
         "security/ir.model.access.csv",
+        "security/company_rules.xml",
     ],
     "installable": True,
     "application": False,

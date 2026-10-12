@@ -37,7 +37,7 @@ from e_agent.erp.sales import (
     QUOTATION_READ,
 )
 from e_agent.erp.sales.api import DraftQuotation
-from e_agent.sdk.auth import CredentialResolver
+from e_agent.sdk.auth import AuthError, CredentialResolver
 from e_agent.sdk.errors import KnownNoEffectError
 from e_agent.sdk.ports import Observation, ReadRequest
 
@@ -64,7 +64,12 @@ class OdooExecutor:
         return binding.plugin_id == PLUGIN_ID
 
     async def _call(self, ctx: TaskContext, connection_id: str, method: str, **kw: Any) -> Any:
-        auth = await self._credentials.context_for(ctx, connection_id)
+        try:
+            auth = await self._credentials.context_for(ctx, connection_id)
+        except AuthError as exc:
+            raise KnownNoEffectError(
+                "AUTH_REQUIRED", "credentials unavailable before provider call"
+            ) from exc
         return await self._client.call(auth, BRIDGE, method, **kw)
 
     def _evidence(
@@ -260,6 +265,7 @@ class OdooExecutor:
             "external_ref": o["external_ref"],
             "purchase_order_ref": o.get("purchase_order_ref"),
             "requested_date": o.get("requested_date"),
+            "line_count": o.get("line_count"),
             "operation_key": operation_key,
             "state": o["state"],
             "product_ref": o["product_ref"],
@@ -321,8 +327,14 @@ class OdooExecutor:
                 payload_digest=action.digest,
                 payload=payload,
             )
-        except OdooRejected as exc:  # authoritative: nothing committed
+        except OdooRejected as exc:
+            if exc.code in {"E_AGENT_DUPLICATE_IN_FLIGHT", "E_AGENT_CONFLICT"}:
+                # A prior matching operation may be committing or already committed.
+                # This rejection cannot prove that the logical operation had no effect.
+                raise RuntimeError("operation identity requires reconciliation") from exc
             raise KnownNoEffectError(exc.code, exc.safe_message) from exc
+        if raw.get("command") != command or raw.get("payload_digest") != action.digest:
+            raise RuntimeError("provider result does not match the dispatched operation identity")
         return ExecutionReceipt(
             action_id=action.action_id,
             attempt=attempt,
@@ -343,7 +355,12 @@ class OdooExecutor:
             namespace=self._namespace,
             operation_key=action.logical_operation_id,
         )
-        if not raw["found"] or raw["payload_digest"] != action.digest:
+        expected_command, _ = self._command(action)
+        if (
+            not raw["found"]
+            or raw.get("payload_digest") != action.digest
+            or raw.get("command") != expected_command
+        ):
             return None
         refs = self._result_refs(raw)
         if not refs:

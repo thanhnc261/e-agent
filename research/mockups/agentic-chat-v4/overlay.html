@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>e-agent · Embedded foundation review</title>
+    <link rel="stylesheet" href="design-system/overlay-host.css" />
+  </head>
+  <body>
+    <header class="host-header">
+      <div>
+        <strong>e-agent / Embedded foundation</strong>
+        <p>Review the default styling inside another application. Local examples only.</p>
+      </div>
+      <nav>
+        <a href="identity.html">New identity</a><a href="components.html">Components</a
+        ><a href="./">Full chat</a>
+      </nav>
+    </header>
+    <section class="host-controls" aria-label="Preview settings">
+      <label
+        >Panel width<select id="panel-width">
+          <option value="420">420px · docked</option>
+          <option value="640">640px · expanded</option>
+          <option value="1040">1040px · workspace</option>
+          <option value="320">320px · narrow</option>
+        </select></label
+      ><label
+        >Theme<select id="panel-theme">
+          <option value="light">Warm light</option>
+          <option value="dark">Warm dark</option>
+          <option value="high-contrast">High contrast</option>
+        </select></label
+      ><label class="host-check"><input id="host-stress" type="checkbox" />Conflicting host CSS</label>
+      <p>
+        Panel width controls layout independently of the browser width. Your draft stays when the panel
+        changes.
+      </p>
+    </section>
+    <main class="host-workspace">
+      <p class="host-eyebrow">EXAMPLE HOST APPLICATION</p>
+      <h1>Delivery workspace</h1>
+      <p>The host keeps its own typography, controls and colors.</p>
+      <div class="host-cards">
+        <article>
+          <h2>Launch readiness</h2>
+          <p>Three source documents ready for review.</p>
+          <button id="host-button">Host action</button>
+        </article>
+        <article>
+          <h2>Team notes</h2>
+          <p>Align scope, owner and kickoff before sharing the handoff.</p>
+          <label>Host note<input id="host-input" value="Quarterly delivery plan" /></label>
+        </article>
+      </div>
+      <p id="host-result" role="status"></p>
+    </main>
+    <e-agent-foundation-preview id="overlay-preview" data-theme="light"></e-agent-foundation-preview>
+    <script type="module" src="design-system/overlay-preview.js"></script>
+  </body>
+</html>

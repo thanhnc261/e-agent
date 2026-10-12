@@ -1,0 +1,8 @@
+# Generated build outputs and token/schema artifacts are never hand-formatted.
+dist/
+node_modules/
+pnpm-lock.yaml
+packages/*/test-results/
+packages/client/src/schema.ts
+packages/client/openapi.json
+packages/tokens/src/generated/

@@ -1,0 +1,37 @@
+# Paths under formatting control, one glob per line. The repository is migrated
+# increment by increment (enterprise overlay adoption plan FE-00/FE-01): a module
+# joins this list in the same change that formats it, so unrelated files are never
+# reformatted and `pnpm format:check` stays a meaningful gate.
+.prettierrc.json
+.dependency-cruiser.cjs
+scripts/format.mjs
+packages/components/src/**/*.tsx
+packages/components/src/**/*.ts
+packages/layouts/src/**/*.tsx
+packages/layouts/src/**/*.ts
+packages/layouts/test/public-api.test.ts
+packages/ui-core/src/index.ts
+packages/ui-core/test/public-api.test.ts
+packages/ui-react/src/**/*.tsx
+packages/ui-react/src/**/*.ts
+packages/layouts/test/preferences.test.ts
+packages/tokens/src/index.ts
+packages/tokens/test/contrast.test.ts
+packages/tokens/build.mjs
+packages/components/src/**/*.css
+apps/gallery/**/*.ts
+apps/gallery/**/*.tsx
+apps/web/src/main.tsx
+packages/overlay-element/src/index.tsx
+packages/ui-core/src/selectors/*.ts
+packages/ui-core/test/selectors.test.ts
+packages/components/test/*.tsx
+apps/web/src/**/*.ts
+apps/web/src/**/*.tsx
+apps/web/src/**/*.css
+apps/web/test/*.ts
+packages/ui-conformance/src/targets.ts
+packages/ui-conformance/src/mock-api.ts
+packages/ui-conformance/tests/*.spec.ts
+packages/tokens/tokens/*.json
+apps/web/src/pages/TaskUnavailable.tsx

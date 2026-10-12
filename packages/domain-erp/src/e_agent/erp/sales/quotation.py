@@ -92,6 +92,8 @@ class DraftQuotationVerifier:
         if len(quotes) == 1:
             got = quotes[0]
             checks += [
+                check("operation_key", action.logical_operation_id, got.operation_key),
+                check("line_count", 1, got.line_count),
                 check("state_is_draft", "draft", got.state),
                 check("not_sent", False, got.sent),
                 check(

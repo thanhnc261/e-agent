@@ -43,6 +43,7 @@ class QuotationQuery(Record):
 
 
 class QuotationView(Record):
+    line_count: int | None = None
     external_ref: str
     operation_key: str
     state: str

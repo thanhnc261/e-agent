@@ -16,6 +16,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from plugin_inventory import inventory
+
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 PACKAGES = {
@@ -86,6 +88,27 @@ def main() -> int:
             run([str(python), "-c", smoke], cwd=neutral)
             print(f"ok  {name}: installs and imports from its own dependency closure")
         server_python = neutral / "venv-e-agent-server" / "bin" / "python"
+        pins = {}
+        for stem in ("e_agent_domain_erp", "e_agent_adapter_odoo"):
+            item = inventory(next(DIST.glob(stem + "-*.whl")))
+            pins[item["plugin_id"]] = item["artifact_sha256"]
+        run(
+            [
+                str(server_python),
+                "-c",
+                (
+                    "import json, sys\n"
+                    "from e_agent.sdk.discovery import discover, artifact_digest\n"
+                    "expected = json.loads(sys.argv[1])\n"
+                    "found = {p.manifest.plugin_id: p for p in discover()}\n"
+                    "for plugin, pin in expected.items():\n"
+                    "    assert artifact_digest(found[plugin].artifact_files) == pin, plugin\n"
+                ),
+                json.dumps(pins),
+            ],
+            cwd=neutral,
+        )
+        print("ok  installed plugin bytes match trusted wheel inventories before activation")
         out = run(
             [str(server_python), "-m", "e_agent.server.cli", "demo", "--json", "--approve"],
             cwd=neutral,

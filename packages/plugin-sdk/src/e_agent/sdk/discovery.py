@@ -6,11 +6,13 @@ without importing any plugin code (MVP design §6, step 2).
 
 from __future__ import annotations
 
-import importlib.util
+import hashlib
 import json
+import sys
 from collections.abc import Iterable
 from dataclasses import dataclass
 from importlib import metadata
+from importlib.machinery import PathFinder
 from pathlib import Path
 
 from . import ENTRY_POINT_GROUP, MANIFEST_FILENAME
@@ -29,6 +31,7 @@ class DiscoveredPlugin:
     distribution_version: str
     manifest: PluginManifest
     manifest_text: str
+    artifact_files: tuple[tuple[str, Path], ...] = ()
 
 
 def _manifest_package(entry_value: str) -> str:
@@ -48,12 +51,61 @@ def _read_manifest(dist: metadata.Distribution, entry_value: str) -> str:
     # 2. Editable installs only record a .pth file: locate the package directory
     #    with find_spec, which does not execute the plugin package itself (only
     #    namespace parents such as ``e_agent``, which contain no code).
-    spec = importlib.util.find_spec(".".join(package_parts))
+    spec = _package_spec(package_parts)
     for location in (spec.submodule_search_locations or []) if spec else []:
         candidate = Path(location) / MANIFEST_FILENAME
         if candidate.is_file():
             return candidate.read_text(encoding="utf-8")
     raise DiscoveryError(f"{dist.metadata['Name']}: missing packaged {MANIFEST_FILENAME}")
+
+
+def _package_spec(parts: tuple[str, ...]):  # type: ignore[no-untyped-def]
+    """Walk import paths without executing any parent package."""
+    search = sys.path
+    spec = None
+    for index in range(len(parts)):
+        spec = PathFinder.find_spec(".".join(parts[: index + 1]), search)
+        if spec is None:
+            return None
+        search = list(spec.submodule_search_locations or ())
+    return spec
+
+
+def artifact_files(dist: metadata.Distribution, entry_value: str) -> tuple[tuple[str, Path], ...]:
+    """Inventory package resources and executable parent packages without importing."""
+    package = tuple(_manifest_package(entry_value).split("."))
+    result: dict[str, Path] = {}
+    for item in dist.files or ():
+        if item.parts[: len(package)] == package and "__pycache__" not in item.parts:
+            result[str(item)] = Path(str(dist.locate_file(item)))
+    roots = {
+        path.parents[len(Path(name).parts) - len(package) - 1] for name, path in result.items()
+    }
+    for root in roots:
+        for path in root.rglob("*"):
+            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
+                result["/".join(package) + "/" + path.relative_to(root).as_posix()] = path
+    if not result:
+        spec = _package_spec(package)
+        for location in (spec.submodule_search_locations or ()) if spec else ():
+            root = Path(location)
+            for path in root.rglob("*"):
+                if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
+                    result["/".join(package) + "/" + path.relative_to(root).as_posix()] = path
+    for index in range(1, len(package)):
+        spec = _package_spec(package[:index])
+        if spec and spec.origin and spec.origin != "namespace":
+            result["/".join(package[:index]) + "/__init__.py"] = Path(spec.origin)
+    return tuple(sorted(result.items()))
+
+
+def artifact_digest(files: tuple[tuple[str, Path], ...]) -> str:
+    """Compare these bytes with an independently approved build inventory digest."""
+    inventory = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in files}
+    if not inventory:
+        raise DiscoveryError("plugin has no artifact inventory")
+    raw = json.dumps(inventory, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
 
 
 def discover(paths: Iterable[str] | None = None) -> list[DiscoveredPlugin]:
@@ -84,6 +136,7 @@ def discover(paths: Iterable[str] | None = None) -> list[DiscoveredPlugin]:
                     distribution_version=dist.version,
                     manifest=manifest,
                     manifest_text=text,
+                    artifact_files=artifact_files(dist, ep.value),
                 )
             )
     return found

@@ -29,6 +29,17 @@ class CredentialService:
     def scoped(self, integration_id: str) -> ScopedCredentials:
         return ScopedCredentials(self, integration_id)
 
+    async def version(self, ctx: TaskContext, connection_id: str) -> str:
+        conn = self._catalog.usable(ctx, connection_id)
+        if (
+            self._methods.get(conn.integration_id, {}).get("method") == "none"
+            or conn.secret_ref is None
+        ):
+            return "none"
+        if self._secrets is None:
+            raise AuthRequired(conn.integration_id, "credential metadata unavailable")
+        return await self._secrets.version(conn.secret_ref)
+
     async def _context(
         self, ctx: TaskContext, connection_id: str, integration_id: str
     ) -> AuthContext:
@@ -41,7 +52,12 @@ class CredentialService:
         if method != "none":
             if conn.secret_ref is None or self._secrets is None:
                 raise AuthRequired(integration_id, "no credential configured for connection")
-            secret = await self._secrets.get(conn.secret_ref)
+            expected = ctx.credential_versions.get(connection_id)
+            secret = (
+                await self._secrets.get(conn.secret_ref, expected_version=expected)
+                if expected is not None
+                else await self._secrets.get(conn.secret_ref)
+            )
         return AuthContext(
             connection_id=conn.connection_id,
             connection_version=conn.version,

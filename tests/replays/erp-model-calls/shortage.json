@@ -1,0 +1,52 @@
+{
+  "kind": "recorded-public-model-parts-fixture-replay",
+  "environment": "synthetic fixture ERP; replay is not live evidence",
+  "task": "shortage",
+  "prompt": "Calculate the shortage of product:widget-a for demand:d-001.",
+  "model_digest": "bc006a921f692e792f201c133807f63238a8fc3ed22d9da4a919600f39c487de",
+  "context_length": 32768,
+  "temperature": 0,
+  "seed": 0,
+  "pydantic_ai_version": "2.54.0",
+  "expected_contract": "procurement.shortage.answer.v1",
+  "expected_fixture_writes": 0,
+  "responses": [
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "procurement_demand_read_v1",
+          "args": "{\"demand_ref\":\"demand:d-001\"}",
+          "tool_call_id": "call_t81bw2te",
+          "part_kind": "tool-call"
+        },
+        {
+          "tool_name": "inventory_availability_read_v1",
+          "args": "{\"product_ref\":\"product:widget-a\"}",
+          "tool_call_id": "call_40wjt2or",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "procurement_shortage_answer_v1",
+          "args": "{\"demand_ref\":\"demand:d-001\",\"product_ref\":\"product:widget-a\",\"demand_quantity\":\"12\",\"available\":\"5\",\"inbound\":\"0\",\"shortage\":\"7\"}",
+          "tool_call_id": "call_leenaj9i",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "content": "The shortage for product:widget-a for demand:d-001 is 7 Units. This is calculated as the demand quantity (12 Units) minus the available stock (5 Units) and inbound stock (0 Units).",
+          "part_kind": "text"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+/* Gallery chrome only. Component styles always come from the product stylesheets. */
+.gal-root { max-width: 60rem; margin: 0 auto; padding: var(--ea-space-xl); display: grid; gap: var(--ea-space-xl); }
+.gal-header h1 { margin-bottom: var(--ea-space-sm); }
+.gal-entry { border-top: 1px solid var(--ea-color-border-subtle); padding-top: var(--ea-space-lg); }
+.gal-purpose { max-width: 48rem; color: var(--ea-color-text-muted); }
+.gal-spec { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: var(--ea-space-xs) var(--ea-space-md); font-size: var(--ea-font-size-sm); }
+.gal-spec > div { display: contents; }
+.gal-spec dt { color: var(--ea-color-text-muted); }
+.gal-spec dd { margin: 0; overflow-wrap: anywhere; }
+.gal-demo { margin: var(--ea-space-lg) 0; display: grid; gap: var(--ea-space-md); }
+.gal-row { display: flex; flex-wrap: wrap; gap: var(--ea-space-md); align-items: center; }
+.gal-row label { display: inline-flex; gap: var(--ea-space-xs); align-items: center; font-size: var(--ea-font-size-sm); }
+.gal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--ea-space-md); }
+.gal-surface { padding: var(--ea-space-lg); display: grid; gap: var(--ea-space-sm); }
+.gal-example { font-family: var(--ea-font-mono); font-size: var(--ea-font-size-sm); background: var(--ea-color-surface-sunken); border: 1px solid var(--ea-color-border-subtle); border-radius: var(--ea-radius-md); padding: var(--ea-space-md); overflow-x: auto; }
+.gal-brand-large { width: 4rem; height: 4rem; }

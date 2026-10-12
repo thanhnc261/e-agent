@@ -1,12 +1,25 @@
 # Design documentation
 
-These documents define the implementation baseline for e-agent. They describe planned behavior; the repository currently contains research and design, not a runnable application.
+These documents define the implementation baseline and qualification process for e-agent. Implementation and tests now exist; design intent and historical implementation-reported results are not substitutes for independent local qualification.
 
 | Document | Purpose |
 |---|---|
+| [Enterprise overlay adoption plan](plans/2026-10-08-enterprise-overlay-adoption.md) | Proposed phased migration of the enterprise mockup; reusable frontend structure, API dependencies and acceptance gates |
+| [Frontend development guide](frontend-development-guide.md) | Proposed component organization, state ownership, tokens, accessibility and extension conventions for that migration |
+| [UI redesign implementation](handoffs/2026-10-08-ui-redesign.md) | Task workspace, presentation boundary, verified checks/screenshots and remaining live/backend limits |
+| [Remediation retest](reviews/2026-10-07-mvp-remediation-retest.md) | Current candidate changes, observed retests and remaining owner release gates |
+| [MVP fix and readiness plan](reviews/2026-10-07-mvp-fix-plan.md) | Ordered corrections, design-boundary ownership, Odoo bridge explanation and release gates |
+| [Independent MVP review](reviews/2026-10-07-mvp-review-report.md) | Reproduced safety/interaction findings and NOT_READY verdict for the local live MVP |
+| [Requirement/evidence matrix](reviews/2026-10-07-mvp-requirement-matrix.md) | Fixture, PostgreSQL, UI, live model and blocked ERP coverage kept separate |
+| [Local test results](reviews/2026-10-07-local-test-report.md) | Newly observed commands/results, trial failures, evidence limitations and cleanup |
+| [Sol 6.1 review handoff](handoffs/2026-10-07-sol-6.1-mvp-review.md) | Entry point for independent implementation review and owner-machine qualification |
+| [MVP review plan](reviews/2026-10-07-mvp-review-plan.md) | Risk-prioritized source review, known evidence gaps, findings and coverage requirements |
+| [Local test plan](testing/2026-10-07-local-test-plan.md) | Staged commands, isolated databases, live Ollama/Odoo/UI checks and evidence/cleanup requirements |
 | [High-level design](high-level-design.md) | Product boundaries, components, dependencies, trust, knowledge architecture, evolution and delivery phases |
 | [MVP detailed design](mvp-detailed-design.md) | Procurement workflow, contracts, plugin registration, persistence, execution states, recovery, APIs and acceptance gates |
 | [Implementation plan](implementation-plan.md) | Task catalog, work packages, gates and local/CI test policy |
+| [Target architecture (v2)](target-architecture.md) | Post-MVP target design: swappable runtime, traceable state, self-correction, memory, knowledge, event-driven scale, authorization, audit and explanation; status-tagged against the tree |
+| [WP1 correctness plan](superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) | Bite-sized implementation plan for the verified kernel defects (run transitions, self-approval, event actor, reason codes, approval sweeper, paged events, write admission) and the WP2–WP5 map |
 | [ADR index](adr/README.md) | Architecture decisions (all current ones accepted) and template |
 | [UI architecture](ui-architecture.md) | Layered default UI with theme, layout, component and whole-UI replacement; conformance suite |
 | [Integration management](integration-management.md) | Generic connections, credentials, OAuth and admin pages with no provider-specific UI |

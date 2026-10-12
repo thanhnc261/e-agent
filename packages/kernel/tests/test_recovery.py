@@ -130,3 +130,51 @@ async def test_crash_during_driver_turn_fails_without_effects(make_kernel: MakeK
     [recovered] = await restart(k).recover()
     assert recovered.state is RunState.FAILED
     assert k.backend.create_calls == 0
+
+
+@pytest.mark.parametrize("boundary", ["record_receipt", "record_outcome"])
+async def test_recovery_uses_durable_effect_when_run_state_lags(
+    make_kernel: MakeKernel,
+    boundary: str,
+) -> None:
+    k = make_kernel()
+    run = await k.coordinator.start_run(k.requester, "x", k.scope)
+    original = getattr(k.store, boundary)
+
+    async def commit_then_die(*args: Any) -> Any:
+        await original(*args)
+        raise Crash
+
+    setattr(k.store, boundary, commit_then_die)
+    with pytest.raises(Crash):
+        await _approve(k.coordinator, k, run.run_id)
+    setattr(k.store, boundary, original)
+    [recovered] = await restart(k).recover()
+    assert recovered.state is RunState.SUCCEEDED
+    assert k.backend.create_calls == 1
+    assert [a.state for a in await k.store.list_actions(TENANT, run.run_id)] == [
+        ActionState.VERIFIED
+    ]
+
+
+async def test_verified_earlier_answer_cannot_hide_unknown_write(make_kernel: MakeKernel) -> None:
+    from e_agent.contracts.common import new_id
+
+    k = make_kernel()
+    k.backend.fail_mode = "timeout"
+    run = await k.coordinator.start_run(k.requester, "x", k.scope)
+    run = await _approve(k.coordinator, k, run.run_id)
+    assert run.state is RunState.NEEDS_RECONCILIATION
+    [write] = await k.store.list_actions(TENANT, run.run_id)
+    answer = write.model_copy(
+        update={
+            "action_id": new_id("act"),
+            "contract_id": "notes.answer.v1",
+            "state": ActionState.VERIFIED,
+            "revision": 1,
+        }
+    )
+    await k.store.put_action(answer, None, [])
+    recovered = await restart(k).recover_run(TENANT, run.run_id)
+    assert recovered.state is RunState.NEEDS_RECONCILIATION
+    assert k.backend.create_calls == 1

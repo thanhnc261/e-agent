@@ -9,13 +9,14 @@ each ciphertext to its reference so blobs cannot be swapped between refs.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import secrets
 from pathlib import Path
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from e_agent.sdk.auth import Secret
+from e_agent.sdk.auth import CredentialRevoked, Secret
 
 PREFIX = "secretref:local/"
 
@@ -77,10 +78,12 @@ class LocalSecretStore:
         self._check(secret_ref)
         dek = AESGCM.generate_key(bit_length=256)
         nonce, wrap_nonce = secrets.token_bytes(12), secrets.token_bytes(12)
-        aad = secret_ref.encode()
+        revision = secrets.token_hex(16)
+        aad = (secret_ref + "#" + revision).encode()
         data = self._load()
         data[secret_ref] = {
-            "v": "1",
+            "v": "2",
+            "revision": revision,
             "ct": _b64(AESGCM(dek).encrypt(nonce, value.reveal().encode(), aad)),
             "n": _b64(nonce),
             "wk": _b64(self._kek.encrypt(wrap_nonce, dek, aad)),
@@ -88,15 +91,34 @@ class LocalSecretStore:
         }
         self._save(data)
 
-    async def get(self, secret_ref: str) -> Secret:
+    async def get(self, secret_ref: str, *, expected_version: str | None = None) -> Secret:
         self._check(secret_ref)
         entry = self._load().get(secret_ref)
         if entry is None:
             raise SecretNotFound(secret_ref)
-        aad = secret_ref.encode()
+        if expected_version is not None and self._entry_version(entry) != expected_version:
+            raise CredentialRevoked("credential changed since approval")
+        aad = (
+            (secret_ref + "#" + entry["revision"]).encode()
+            if entry["v"] == "2"
+            else secret_ref.encode()
+        )
         dek = self._kek.decrypt(_unb64(entry["wn"]), _unb64(entry["wk"]), aad)
         plain = AESGCM(dek).decrypt(_unb64(entry["n"]), _unb64(entry["ct"]), aad)
         return Secret(plain.decode())
+
+    @staticmethod
+    def _entry_version(entry: dict[str, str]) -> str:
+        return (
+            entry.get("revision") or "legacy-v1:" + hashlib.sha256(entry["ct"].encode()).hexdigest()
+        )
+
+    async def version(self, secret_ref: str) -> str:
+        self._check(secret_ref)
+        entry = self._load().get(secret_ref)
+        if entry is None:
+            raise SecretNotFound(secret_ref)
+        return self._entry_version(entry)
 
     async def delete(self, secret_ref: str) -> None:
         self._check(secret_ref)

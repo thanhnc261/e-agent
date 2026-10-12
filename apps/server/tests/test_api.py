@@ -57,7 +57,7 @@ def test_full_run_with_approval_over_http(client: TestClient) -> None:
     body = _wait(client, run_id, {"WAITING_APPROVAL"})
     pres = body["pending_approval"]
     assert pres["digest"].startswith("jcs-sha256-v1:")
-    assert [f["path"] for f in pres["material_fields"]][:2] == ["currency", "demand_ref"]
+    assert [f["path"] for f in pres["material_fields"]][:2] == ["demand_ref", "product_ref"]
     r = client.post(
         f"/v1/runs/{run_id}/approvals",
         headers=h,
@@ -230,3 +230,229 @@ def test_ledger_must_not_share_the_provider_database() -> None:
     with pytest.raises(KernelError):
         check_ledger_separation(profile, "postgresql://u@h:5432/erp_prod")
     check_ledger_separation(profile, "postgresql://u@h:5432/e_agent")
+
+
+def test_clarification_resumes_same_run_and_input_replay_is_idempotent() -> None:
+    from e_agent.erp.testing.scripted_tasks import ScriptedErpDriver
+    from e_agent.sdk.ports import AskClarification
+
+    class ClarifyingDriver:
+        driver_id = "clarification-fixture"
+
+        def __init__(self):
+            self.received = False
+            self.delegate = ScriptedErpDriver(
+                connection_id="conn-fixture-erp", task_kind="draft-po"
+            )
+
+        async def advance(self, ctx, step_input):
+            if step_input.user_input:
+                self.received = True
+            if self.received:
+                return await self.delegate.advance(ctx, step_input)
+            return AskClarification(question="Which demand?")
+
+    with TestClient(
+        create_app(
+            lambda: build_runtime(
+                load_profile(),
+                driver_factory=lambda registry: ClarifyingDriver(),
+            )
+        )
+    ) as client:
+        headers = {**_login(client), "Idempotency-Key": "clarification-001"}
+        rid = client.post("/v1/runs", json={"task": "draft PO"}, headers=headers).json()["run_id"]
+        snapshot = _wait(client, rid, {"WAITING_INPUT"})
+        body = {"input": "demand:d-001", "expected_revision": snapshot["run"]["revision"]}
+        assert client.post(f"/v1/runs/{rid}/inputs", json=body, headers=headers).status_code == 202
+        final = _wait(client, rid, {"WAITING_APPROVAL"})
+        assert final["run"]["run_id"] == rid
+        assert final["pending_approval"] is not None
+        assert client.post(f"/v1/runs/{rid}/inputs", json=body, headers=headers).status_code == 202
+        assert (
+            client.post(
+                f"/v1/runs/{rid}/inputs", json={**body, "input": "different"}, headers=headers
+            ).status_code
+            == 409
+        )
+        events = client.get(f"/v1/runs/{rid}/events").json()
+        assert sum(e["type"] == "input.received" for e in events) == 1
+
+
+async def test_lost_work_lease_stops_claim_without_killing_worker(monkeypatch) -> None:
+    import asyncio
+
+    from e_agent.contracts.common import utc_now
+    from e_agent.contracts.work import WorkClaim
+    from e_agent.server.api import ApiState
+
+    runtime = await build_runtime(load_profile())
+    state = ApiState(runtime)
+    started = asyncio.Event()
+    original_sleep = asyncio.sleep
+
+    async def sleep(seconds):
+        if seconds == 5:
+            await started.wait()
+        else:
+            await original_sleep(seconds)
+
+    async def lost(claim):
+        return False
+
+    async def stalled(*args):
+        started.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(asyncio, "sleep", sleep)
+    monkeypatch.setattr(runtime.store, "renew_work", lost)
+    monkeypatch.setattr(runtime.coordinator, "start_admitted_run", stalled)
+    claim = WorkClaim(
+        work_id="work-test",
+        tenant_id="tenant-demo",
+        run_id="run-test",
+        kind="start",
+        payload={},
+        owner="worker-test",
+        fence=1,
+        lease_until=utc_now(),
+    )
+    await asyncio.wait_for(state._run_work(claim), 1)
+    assert asyncio.current_task().cancelling() == 0
+
+
+@pytest.mark.parametrize("kind", ["start", "decide"])
+async def test_takeover_executes_durable_command_that_never_started(kind):
+    from e_agent.contracts.common import new_id
+    from e_agent.contracts.run import RunState
+    from e_agent.server.api import ApiState
+
+    runtime = await build_runtime(load_profile())
+    state = ApiState(runtime)
+    if kind == "start":
+        run_id, created = await runtime.coordinator.admit_run(
+            runtime.operator,
+            "restock",
+            runtime.scope,
+            run_id=new_id("run"),
+            idempotency_key="takeover-start",
+            request_digest="request",
+        )
+        assert created
+    else:
+        run = await runtime.coordinator.start_run(runtime.operator, "restock", runtime.scope)
+        run_id = run.run_id
+        p = await runtime.coordinator.pending_approval(runtime.operator.tenant_id, run_id)
+        await runtime.store.enqueue_work(
+            runtime.operator.tenant_id,
+            run_id,
+            "decide",
+            {
+                "actor": runtime.operator.model_dump(mode="json"),
+                "action_id": p.action_id,
+                "digest": p.digest,
+                "expected_revision": p.run_revision,
+                "decision": "approved",
+            },
+            "approved-command",
+        )
+    lost = await runtime.store.claim_work("dead-owner", lease_seconds=0)
+    assert lost is not None
+    claim = await runtime.store.claim_work("replacement-owner")
+    assert claim is not None and claim.fence == 2
+    await state._run_work(claim)
+    recovered = await runtime.store.get_run(runtime.operator.tenant_id, run_id)
+    assert recovered.state is (RunState.WAITING_APPROVAL if kind == "start" else RunState.SUCCEEDED)
+    assert runtime.fake_erp.create_calls == (0 if kind == "start" else 1)
+
+
+def test_conflicting_decision_is_rejected_before_the_worker_runs():
+    admitted = {}
+
+    async def factory():
+        runtime = await build_runtime(load_profile())
+        run = await runtime.coordinator.start_run(runtime.operator, "restock", runtime.scope)
+        admitted["run_id"] = run.run_id
+
+        async def no_claim(*args, **kwargs):
+            return None
+
+        runtime.store.claim_work = no_claim
+        return runtime
+
+    with TestClient(create_app(factory)) as client:
+        headers = _login(client)
+        run_id = admitted["run_id"]
+        presentation = client.get(f"/v1/runs/{run_id}").json()["pending_approval"]
+        body = {
+            "action_id": presentation["action_id"],
+            "digest": presentation["digest"],
+            "expected_revision": presentation["run_revision"],
+            "decision": "approved",
+        }
+        endpoint = f"/v1/runs/{run_id}/approvals"
+        assert client.post(endpoint, headers=headers, json=body).status_code == 202
+        assert client.post(endpoint, headers=headers, json=body).status_code == 202
+        assert (
+            client.post(
+                endpoint, headers=headers, json={**body, "decision": "rejected"}
+            ).status_code
+            == 409
+        )
+        assert client.get(f"/v1/runs/{run_id}").json()["run"]["state"] == "WAITING_APPROVAL"
+
+
+def test_member_discovery_requires_a_session(client: TestClient) -> None:
+    for path in ("/v1/me/connections", "/v1/me/task-catalog"):
+        r = client.get(path)
+        assert r.status_code == 404 and r.json()["code"] == "FORBIDDEN"
+
+
+def test_member_connections_expose_no_secret_or_administrative_field(
+    client: TestClient,
+) -> None:
+    _login(client)
+    body = client.get("/v1/me/connections").json()
+    assert body["schema_version"] == "1" and body["observed_at"]
+    assert body["connections"], "the fixture profile has at least one usable connection"
+    for conn in body["connections"]:
+        # ADR 0017: configuration status and observed health are different facts, and
+        # rendering never probes a provider.
+        assert conn["observed_health"] == "unknown"
+        assert conn["configuration_status"] == "active"
+        assert set(conn) == {
+            "connection_id",
+            "integration_id",
+            "ownership",
+            "acting_identity",
+            "allowed_resources",
+            "capabilities",
+            "configuration_status",
+            "observed_health",
+            "revision",
+        }
+    text = json.dumps(body)
+    for forbidden in ("secret", "credential", "password", "token", "api_key"):
+        assert forbidden not in text.lower()
+
+
+def test_task_catalog_reports_real_availability(client: TestClient) -> None:
+    _login(client)
+    body = client.get("/v1/me/task-catalog").json()
+    assert body["schema_version"] == "1"
+    templates = body["templates"]
+    assert templates, "the fixture profile admits at least one task type"
+    for template in templates:
+        assert template["input_intent"] == "free_text"
+        assert template["availability"] in {"available", "unavailable"}
+        if template["availability"] == "available":
+            assert template["unavailable_reason"] is None
+        else:
+            assert template["unavailable_reason"] in {
+                "no_usable_connection",
+                "ambiguous_binding",
+                "no_executor",
+                "no_verifier",
+            }
+        # A template never hands the client a binding or a connection to choose.
+        assert "connection_id" not in template and "binding_id" not in template

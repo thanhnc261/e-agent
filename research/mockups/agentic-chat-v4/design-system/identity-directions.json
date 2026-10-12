@@ -1,0 +1,60 @@
+{
+  "concepts": [
+    {
+      "id": "bond",
+      "name": "Bond",
+      "description": "Two connected loops. A compact symbol for relationships between systems.",
+      "glyph": "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M26 37H20A11 11 0 0 1 9 26V20A11 11 0 0 1 20 9H26A11 11 0 0 1 37 20V26\"/><path transform=\"rotate(180 32 32)\" d=\"M26 37H20A11 11 0 0 1 9 26V20A11 11 0 0 1 20 9H26A11 11 0 0 1 37 20V26\"/></g>"
+    },
+    {
+      "id": "orbit",
+      "name": "Orbit",
+      "description": "Three linked loops. A softer expression of shared knowledge.",
+      "glyph": "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"7\" stroke-linejoin=\"round\"><path transform=\"rotate(0 32 32)\" d=\"M32 32C21 32 16 26 16 19C16 11 23 6 30 10C37 14 36 25 32 32Z\"/><path transform=\"rotate(120 32 32)\" d=\"M32 32C21 32 16 26 16 19C16 11 23 6 30 10C37 14 36 25 32 32Z\"/><path transform=\"rotate(240 32 32)\" d=\"M32 32C21 32 16 26 16 19C16 11 23 6 30 10C37 14 36 25 32 32Z\"/></g>"
+    },
+    {
+      "id": "mesh",
+      "name": "Mesh",
+      "description": "Crossing loops with a clear center. A structured expression of connected work.",
+      "glyph": "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"7\"><rect x=\"7\" y=\"20\" width=\"50\" height=\"24\" rx=\"12\"/><rect x=\"20\" y=\"7\" width=\"24\" height=\"50\" rx=\"12\"/></g>"
+    }
+  ],
+  "palettes": [
+    {
+      "id": "ember",
+      "name": "Ember",
+      "accent": "#b54b32",
+      "hover": "#953a25",
+      "canvas": "#faf8f5",
+      "surface": "#ffffff",
+      "soft": "#f4e9e2",
+      "text": "#302824",
+      "muted": "#655952",
+      "border": "#ded7cf"
+    },
+    {
+      "id": "iris",
+      "name": "Iris",
+      "accent": "#6751b5",
+      "hover": "#503b97",
+      "canvas": "#f8f7fb",
+      "surface": "#ffffff",
+      "soft": "#ede8f7",
+      "text": "#2d2935",
+      "muted": "#625a71",
+      "border": "#ded9e8"
+    },
+    {
+      "id": "lagoon",
+      "name": "Lagoon",
+      "accent": "#24696a",
+      "hover": "#184f50",
+      "canvas": "#f5f9f8",
+      "surface": "#ffffff",
+      "soft": "#e2efec",
+      "text": "#25312f",
+      "muted": "#52645e",
+      "border": "#d4e0db"
+    }
+  ]
+}

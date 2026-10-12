@@ -47,9 +47,24 @@ jobs:
           done
           curl -sf -o /dev/null http://127.0.0.1:8069/web/login || (tail -50 "$RUNNER_TEMP/odoo.log"; exit 1)
       - run: uv sync --locked
+      - name: build trusted plugin inventories and separate ledger
+        run: |
+          uv build --package e-agent-domain-erp --wheel --out-dir "$RUNNER_TEMP/plugin-wheels"
+          uv build --package e-agent-adapter-odoo --wheel --out-dir "$RUNNER_TEMP/plugin-wheels"
+          uv run python - <<'PYCODE'
+          import json, os, pathlib, runpy
+          inventory = runpy.run_path("scripts/plugin_inventory.py")["inventory"]
+          pins = [inventory(w) for w in pathlib.Path(os.environ["RUNNER_TEMP"]).joinpath("plugin-wheels").glob("*.whl")]
+          pathlib.Path(os.environ["RUNNER_TEMP"]).joinpath("plugin-pins.json").write_text(json.dumps({p["plugin_id"]: p["artifact_sha256"] for p in pins}))
+          PYCODE
+          PGUSER=postgres PGPASSWORD=ci createdb e_agent_live_test
       - name: live integration tests
         run: |
           export E_AGENT_TEST_ODOO_URL=http://127.0.0.1:8069 E_AGENT_TEST_ODOO_DB=e_agent_odoo
           export E_AGENT_TEST_ODOO_KEY=$(python3 -c "import json;print(json.load(open('$ODOO_KEYS_FILE'))['integration'])")
           export E_AGENT_TEST_ODOO_ADMIN_KEY=$(python3 -c "import json;print(json.load(open('$ODOO_KEYS_FILE'))['admin'])")
+          export E_AGENT_TEST_ODOO_MARKER=e-agent-ci-sandbox
+          export E_AGENT_TEST_ODOO_COMPANY_ID=$(python3 -c "import json;print(json.load(open('$ODOO_KEYS_FILE'))['company_id'])")
+          export E_AGENT_TEST_PLUGIN_PINS="$RUNNER_TEMP/plugin-pins.json"
+          export E_AGENT_TEST_LIVE_PG_DSN=postgresql://postgres:ci@127.0.0.1:5432/e_agent_live_test
           uv run pytest -q tests/integration/test_odoo_live.py tests/integration/test_odoo_live_tasks.py

@@ -16,6 +16,7 @@ from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import RunRecord
+from e_agent.contracts.work import WorkClaim
 
 
 class ConcurrencyConflict(Exception):
@@ -38,15 +39,45 @@ EventSpec = tuple[RunEventType, Mapping[str, Any], str | None]
 class RunStore(Protocol):
     async def create_run(self, run: RunRecord, events: Sequence[EventSpec]) -> None: ...
 
+    async def create_run_idempotent(
+        self,
+        run: RunRecord,
+        events: Sequence[EventSpec],
+        state: Mapping[str, Any],
+        actor_id: str,
+        key: str,
+        request_digest: str,
+    ) -> tuple[str, str]:
+        """Atomically admit the request, run, continuation and start work."""
+        ...
+
     async def get_run(self, tenant_id: str, run_id: str) -> RunRecord: ...
 
     async def update_run(
-        self, run: RunRecord, expected_revision: int, events: Sequence[EventSpec]
+        self,
+        run: RunRecord,
+        expected_revision: int,
+        events: Sequence[EventSpec],
+        *,
+        continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None] | None = None,
+        work: tuple[str, Mapping[str, Any], str] | None = None,
     ) -> RunRecord: ...
 
     async def put_action(
         self, action: ActionRecord, expected_revision: int | None, events: Sequence[EventSpec]
     ) -> ActionRecord: ...
+
+    async def wait_for_approval(
+        self,
+        action: ActionRecord,
+        expected_action_revision: int,
+        run: RunRecord,
+        expected_run_revision: int,
+        continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None],
+        events: Sequence[EventSpec],
+    ) -> None:
+        """Checkpoint the pending action, run, continuation and presentation events together."""
+        ...
 
     async def get_action(self, tenant_id: str, action_id: str) -> ActionRecord: ...
 
@@ -61,7 +92,12 @@ class RunStore(Protocol):
         ...
 
     async def record_approval(
-        self, approval: ApprovalRecord, events: Sequence[EventSpec]
+        self,
+        approval: ApprovalRecord,
+        events: Sequence[EventSpec],
+        *,
+        action: ActionRecord | None = None,
+        expected_revision: int | None = None,
     ) -> None: ...
 
     async def record_receipt(
@@ -117,3 +153,22 @@ class RunStore(Protocol):
         """Serializes writes per (tenant, connection) when the provider lacks atomic
         uniqueness (ADR 0003). Held across the provider call, never a DB transaction."""
         ...
+
+    async def enqueue_work(
+        self,
+        tenant_id: str,
+        run_id: str,
+        kind: str,
+        payload: Mapping[str, Any],
+        request_digest: str,
+    ) -> None: ...
+
+    async def claim_work(self, owner: str, lease_seconds: int = 30) -> WorkClaim | None: ...
+
+    async def renew_work(self, claim: WorkClaim, lease_seconds: int = 30) -> bool: ...
+
+    async def finish_work(self, claim: WorkClaim) -> None: ...
+
+    def work_scope(self, claim: WorkClaim) -> AbstractAsyncContextManager[None]: ...
+
+    async def has_pending_work(self, tenant_id: str, run_id: str) -> bool: ...

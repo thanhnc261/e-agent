@@ -43,6 +43,7 @@ class Observation:
 @dataclass(frozen=True)
 class DriverInput:
     task: str
+    user_input: str | None = None
     observations: tuple[Observation, ...] = ()
     findings: tuple[Finding, ...] = ()
     action_result: Mapping[str, Any] | None = None
@@ -69,6 +70,13 @@ class AskClarification:
 
 
 DriverStep = RequestReads | ProposeAction | FinalAnswer | AskClarification
+
+
+@runtime_checkable
+class SafeTextSink(Protocol):
+    """Transient public answer text only; no thinking, tool arguments or durable events."""
+
+    async def emit(self, ctx: TaskContext, text: str, *, new_message: bool = False) -> None: ...
 
 
 @runtime_checkable

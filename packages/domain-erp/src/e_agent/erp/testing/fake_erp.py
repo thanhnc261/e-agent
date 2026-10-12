@@ -192,6 +192,7 @@ class FakeErp:
         return {
             "external_ref": r.external_ref,
             "purchase_order_ref": r.purchase_order_ref,
+            "line_count": 1,
             "operation_key": key,
             "state": r.state,
             "product_ref": r.product_ref,
@@ -273,11 +274,13 @@ class FakeErp:
         raise KnownNoEffectError("UNSUPPORTED", "unsupported read")
 
     @staticmethod
-    def _view(order: _Order) -> dict[str, str]:
+    def _view(order: _Order) -> dict[str, Any]:
         a = order.args
         return {
             "external_ref": order.external_ref,
             "operation_key": order.operation_key,
+            "requested_date": a.requested_date.isoformat(),
+            "line_count": 1,
             "state": order.state,
             "product_ref": a.product_ref,
             "supplier_ref": a.supplier_ref,
@@ -294,6 +297,12 @@ class FakeErp:
         if action.contract_id not in WRITES:
             raise KnownNoEffectError("UNSUPPORTED", "unsupported write")
         self.create_calls += 1
+        key = action.logical_operation_id
+        ledgered = self.ledger.get(key)
+        if (key in self.orders and action.contract_id != CREATE_DRAFT_PO) or (
+            ledgered is not None and ledgered.contract_id != action.contract_id
+        ):
+            raise KnownNoEffectError("CONFLICT", "operation key reused for another command")
         if action.contract_id != CREATE_DRAFT_PO:
             return self._execute_ledgered(action, attempt)
         started = utc_now()
@@ -382,6 +391,7 @@ class FakeErp:
                 "operation_key": key,
                 "state": "draft",
                 "sent": False,
+                "line_count": 1,
             }
             return _Op(digest, action.contract_id, ref, record)
         lead = CreateLead.model_validate(action.arguments)
@@ -394,7 +404,7 @@ class FakeErp:
     ) -> ExecutionReceipt | None:
         op = self.ledger.get(action.logical_operation_id)
         if op is not None:
-            if op.payload_digest != action.digest:
+            if op.payload_digest != action.digest or op.contract_id != action.contract_id:
                 return None
             now = utc_now()
             return ExecutionReceipt(

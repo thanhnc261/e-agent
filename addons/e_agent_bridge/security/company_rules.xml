@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="operation_company_rule" model="ir.rule">
+        <field name="name">e-agent operation company scope</field>
+        <field name="model_id" ref="model_e_agent_operation"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="demand_company_rule" model="ir.rule">
+        <field name="name">e-agent demand company scope</field>
+        <field name="model_id" ref="model_e_agent_demand"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="fixture_company_rule" model="ir.rule">
+        <field name="name">e-agent fixture company scope</field>
+        <field name="model_id" ref="model_e_agent_fixture"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

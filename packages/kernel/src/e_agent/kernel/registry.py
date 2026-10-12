@@ -14,7 +14,7 @@ from typing import Any
 
 from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor
 from e_agent.sdk import SDK_API_VERSION
-from e_agent.sdk.discovery import DiscoveredPlugin
+from e_agent.sdk.discovery import DiscoveredPlugin, DiscoveryError, artifact_digest
 from e_agent.sdk.manifest import BindingTemplate
 from e_agent.sdk.ports import (
     ActionExecutor,
@@ -34,6 +34,8 @@ class EnabledPlugin:
     version: str
     manifest_sha256: str | None = None
     settings: Mapping[str, Any] = field(default_factory=dict)
+    artifact_sha256: str | None = None
+    allow_unverified_fixture: bool = False
 
 
 @dataclass
@@ -60,6 +62,7 @@ class PluginRegistry:
         self.input_schemas: dict[str, Mapping[str, Any]] = {}
         self.agent_guidance: list[str] = []
         self.report = AdmissionReport()
+        self._admitted_inventory: dict[str, dict[str, Any]] = {}
 
     def surface_digest(self) -> str:
         """Digest of the tool surface a run is planned against (threat model T17):
@@ -68,6 +71,7 @@ class PluginRegistry:
         import json
 
         surface = {
+            "admission": self._admitted_inventory,
             "capabilities": {
                 cid: [c.effect.value, c.input_schema_id, self.input_schemas.get(c.input_schema_id)]
                 for cid, c in sorted(self.capabilities.items())
@@ -102,6 +106,11 @@ class PluginRegistry:
                 self.report.skipped.append(pid)  # never imported
                 continue
             self._check_admissible(plugin, config)
+            self._admitted_inventory[pid] = {
+                "version": config.version,
+                "artifact_sha256": config.artifact_sha256,
+                "settings": dict(config.settings),
+            }
             creds = credentials_for(pid) if credentials_for is not None else None
             contribution = self._load(plugin, config, creds)
             self.register(
@@ -123,6 +132,15 @@ class PluginRegistry:
             actual = hashlib.sha256(plugin.manifest_text.encode("utf-8")).hexdigest()
             if actual != config.manifest_sha256:
                 raise _reject(f"{pid}: manifest digest does not match the approved inventory")
+        if config.artifact_sha256 is not None:
+            try:
+                actual = artifact_digest(plugin.artifact_files)
+            except (DiscoveryError, OSError) as exc:
+                raise _reject(f"{pid}: artifact inventory unavailable") from exc
+            if actual != config.artifact_sha256:
+                raise _reject(f"{pid}: artifact bytes differ from the approved build inventory")
+        elif not config.allow_unverified_fixture:
+            raise _reject(f"{pid}: an approved artifact inventory is required")
         if not manifest.supports_sdk(SDK_API_VERSION):
             raise _reject(f"{pid}: incompatible SDK API range {manifest.sdk_api}")
         if plugin.entry_point_value != manifest.factory:

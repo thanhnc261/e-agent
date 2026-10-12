@@ -20,9 +20,14 @@ for (const target of TARGETS) {
       await expect(page.getByTestId("material-field").first()).toBeVisible();
       await page.getByTestId("approval-approve").click();
       await page.getByTestId("approval-confirm").click();
-      await expect(page.locator('[data-testid="outcome-state"][data-state="SUCCEEDED"]')).toBeVisible({ timeout: 15_000 });
+      await expect(page.locator('[data-testid="outcome-state"][data-state="SUCCEEDED"]')).toBeVisible({
+        timeout: 15_000,
+      });
       await expect(page.locator('[data-testid="action"][data-state="VERIFIED"]')).toHaveCount(1);
       await expect(page.getByTestId("final-message")).toContainText("draft purchase order");
+      const inspector = page.getByTestId("evidence");
+      const summary = inspector.locator(":scope > summary");
+      if (await summary.count()) await summary.click();
       await page.getByTestId("evidence-load").click();
       await expect(page.getByTestId("evidence-bundle")).toContainText("e-agent-evidence-v1");
     });
@@ -30,7 +35,11 @@ for (const target of TARGETS) {
     test("reject writes nothing", async ({ page }) => {
       await start(page, target.url(), target.open);
       await page.getByTestId("approval-reject").click();
-      await expect(page.getByTestId("outcome-state")).not.toHaveAttribute("data-state", /WAITING_APPROVAL|RUNNING/, { timeout: 15_000 });
+      await expect(page.getByTestId("outcome-state")).not.toHaveAttribute(
+        "data-state",
+        /WAITING_APPROVAL|RUNNING/,
+        { timeout: 15_000 },
+      );
       await expect(page.locator('[data-testid="action"][data-state="VERIFIED"]')).toHaveCount(0);
       await expect(page.locator('[data-testid="action"][data-state="COMMITTED"]')).toHaveCount(0);
     });
@@ -41,7 +50,9 @@ for (const target of TARGETS) {
       await page.getByTestId("approval-confirm").click();
       await page.reload();
       await target.open(page);
-      await expect(page.locator('[data-testid="outcome-state"][data-state="SUCCEEDED"]')).toBeVisible({ timeout: 15_000 });
+      await expect(page.locator('[data-testid="outcome-state"][data-state="SUCCEEDED"]')).toBeVisible({
+        timeout: 15_000,
+      });
       await expect(page.getByTestId("action")).toHaveCount(1);
       const created = page.getByTestId("timeline-item").filter({ hasText: /Run created|Đã tạo/ });
       await expect(created).toHaveCount(1);

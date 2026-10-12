@@ -10,7 +10,7 @@ function fakeClient(snap: () => Promise<ReturnType<typeof snapshot>>) {
     startLocalSession: vi.fn(),
     createRun: vi.fn(async () => ({ run_id: "run-1", created: true })),
     getRun: vi.fn(async () => snap()),
-    listEvents: vi.fn(async () => []),
+    listEvents: vi.fn(async (): Promise<ReturnType<typeof ev>[]> => []),
     decide: vi.fn(async (_runId: string, _body: Record<string, unknown>) => ({ status: "accepted" })),
     stream: vi.fn((_id: string, _after: number, h: StreamHandlers) => {
       handlers = h;
@@ -76,4 +76,98 @@ describe("RunController", () => {
     await c.attach("run-x");
     expect(c.getState().runId).toBeNull();
   });
+});
+
+it("answers clarification through the same run", async () => {
+  const { client } = fakeClient(async () => snapshot("WAITING_INPUT", null));
+  const submitInput = vi.fn(async () => ({ status: "accepted" }));
+  const c = new RunController({ client: { ...client, submitInput } as unknown as EAgentClient, storage: null });
+  await c.attach("run-1");
+  await c.start("demand:d-001");
+  expect(submitInput).toHaveBeenCalledWith("run-1", "demand:d-001", 5);
+  expect(client.createRun).not.toHaveBeenCalled();
+});
+
+
+it("refreshes again when gap-fill is newer than the snapshot", async () => {
+  const pres = await presentation();
+  let reads = 0;
+  const { client } = fakeClient(async () => ++reads === 1
+    ? snapshot("RUNNING", null, 0) : snapshot("WAITING_APPROVAL", pres, 1));
+  client.listEvents.mockResolvedValueOnce([ev(1, "approval.requested")]);
+  const controller = new RunController({ client: client as unknown as EAgentClient, storage: null });
+  await controller.start("restock");
+  expect(reads).toBe(2);
+  expect(controller.getState().view.run?.state).toBe("WAITING_APPROVAL");
+  expect(controller.getState().approval.presentation?.digest).toBe(pres.digest);
+  controller.dispose();
+});
+
+it("preserves submission identity across a lost response, including reload", async () => {
+  const data = new Map<string, string>();
+  const storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v), removeItem: (k: string) => void data.delete(k) };
+  const { client } = fakeClient(async () => snapshot("RUNNING", null));
+  client.createRun.mockRejectedValueOnce(new TypeError("network failure"));
+  const first = new RunController({ client: client as unknown as EAgentClient, storage });
+  expect(await first.start("restock")).toBe(false);
+  first.dispose();
+  const resumed = new RunController({ client: client as unknown as EAgentClient, storage });
+  await resumed.init();
+  expect(await resumed.start("restock")).toBe(true);
+  const calls = client.createRun.mock.calls as unknown as [string, string][];
+  expect(calls[0]?.[1]).toBeTruthy();
+  expect(calls[0]?.[1]).toBe(calls[1]?.[1]);
+  resumed.dispose();
+});
+
+it("retries refresh after admission without creating another run", async () => {
+  let unavailable = true;
+  const { client } = fakeClient(async () => {
+    if (unavailable) throw new TypeError("offline");
+    return snapshot("RUNNING", null);
+  });
+  const c = new RunController({ client: client as unknown as EAgentClient, storage: null });
+  expect(await c.start("restock")).toBe(false);
+  unavailable = false;
+  expect(await c.start("restock")).toBe(true);
+  expect(client.createRun).toHaveBeenCalledTimes(1);
+  c.dispose();
+});
+
+it("protects an unfinished task and retains it after explicit navigation", async () => {
+  const { client } = fakeClient(async () => snapshot("WAITING_APPROVAL", await presentation()));
+  const c = new RunController({ client: client as unknown as EAgentClient, storage: null });
+  await c.start("restock");
+  expect(await c.start("unrelated task")).toBe(false);
+  expect(client.createRun).toHaveBeenCalledTimes(1);
+  c.newTask();
+  expect(c.getState().runId).toBeNull();
+  expect(c.getState().history).toMatchObject([{ runId: "run-1", state: "WAITING_APPROVAL" }]);
+  await c.attach("run-1");
+  expect(c.getState().approval.phase).toBe("reviewing");
+  c.dispose();
+});
+
+it("isolates remembered runs by session identity", async () => {
+  const data = new Map<string, string>([["e-agent.run", "old-unscoped-run"]]);
+  const storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v), removeItem: (k: string) => void data.delete(k) };
+  const { client } = fakeClient(async () => snapshot("RUNNING", null));
+  const scoped = { ...client, hasSession: false, storageOrigin: "same-origin", startLocalSession: vi.fn(async () => ({ tenant: "t", principal: "u" })) };
+  const c = new RunController({ client: scoped as unknown as EAgentClient, storage });
+  await c.init();
+  expect(client.getRun).not.toHaveBeenCalled();
+  await c.start("restock");
+  expect(data.get("e-agent.run.same-origin.t.u")).toBe("run-1");
+  c.dispose();
+});
+
+
+it("keeps an unsent draft in the shared controller across presentation mounts", () => {
+  const { client } = fakeClient(async () => snapshot("RUNNING", null));
+  const c = new RunController({ client: client as unknown as EAgentClient, storage: null });
+  c.setDraft("Draft business request");
+  c.setLocale("vi");
+  c.back();
+  expect(c.getState().draft).toBe("Draft business request");
+  c.dispose();
 });

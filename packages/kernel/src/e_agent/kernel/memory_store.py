@@ -11,6 +11,8 @@ import asyncio
 from collections import defaultdict
 from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
+from datetime import timedelta
 from typing import Any
 
 from e_agent.contracts.action import ActionRecord
@@ -20,6 +22,7 @@ from e_agent.contracts.events import RunEvent
 from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord
+from e_agent.contracts.work import WorkClaim
 from e_agent.sdk.store import (
     ConcurrencyConflict,
     DuplicateOperation,
@@ -46,6 +49,10 @@ class InMemoryRunStore:
             tuple[str, str], tuple[dict[str, Any], dict[str, Any] | None]
         ] = {}
         self._writer_locks: dict[tuple[str, str], asyncio.Lock] = defaultdict(asyncio.Lock)
+        self._work: dict[str, dict[str, Any]] = {}
+        self._work_claim: ContextVar[WorkClaim | None] = ContextVar(
+            "memory_work_claim", default=None
+        )
         self._idempotency: dict[tuple[str, str, str], tuple[str, str]] = {}
 
     # -- helpers (caller holds the lock) --------------------------------------
@@ -78,11 +85,47 @@ class InMemoryRunStore:
     # -- runs ---------------------------------------------------------------
     async def create_run(self, run: RunRecord, events: Sequence[EventSpec]) -> None:
         async with self._lock:
+            self._fence()
             key = (run.tenant_id, run.run_id)
             if key in self._runs:
                 raise ConcurrencyConflict(f"run {run.run_id} exists")
             self._runs[key] = run
             self._append(run.tenant_id, run.run_id, events)
+
+    async def create_run_idempotent(
+        self,
+        run: RunRecord,
+        events: Sequence[EventSpec],
+        state: Mapping[str, Any],
+        actor_id: str,
+        key: str,
+        request_digest: str,
+    ) -> tuple[str, str]:
+        async with self._lock:
+            idem = (run.tenant_id, actor_id, key)
+            if idem in self._idempotency:
+                return self._idempotency[idem]
+            run_key = (run.tenant_id, run.run_id)
+            if run_key in self._runs:
+                raise ConcurrencyConflict("run already exists")
+            self._runs[run_key] = run
+            self._continuations[run_key] = (dict(state), None)
+            self._append(run.tenant_id, run.run_id, events)
+            self._idempotency[idem] = (run.run_id, request_digest)
+            wid = new_id("work")
+            self._work[wid] = dict(
+                work_id=wid,
+                tenant_id=run.tenant_id,
+                run_id=run.run_id,
+                kind="start",
+                payload={},
+                request_digest=request_digest,
+                state="PENDING",
+                owner=None,
+                fence=0,
+                lease_until=None,
+            )
+            return run.run_id, request_digest
 
     async def get_run(self, tenant_id: str, run_id: str) -> RunRecord:
         try:
@@ -91,15 +134,31 @@ class InMemoryRunStore:
             raise NotFound(run_id) from None
 
     async def update_run(
-        self, run: RunRecord, expected_revision: int, events: Sequence[EventSpec]
+        self,
+        run: RunRecord,
+        expected_revision: int,
+        events: Sequence[EventSpec],
+        *,
+        continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None] | None = None,
+        work: tuple[str, Mapping[str, Any], str] | None = None,
     ) -> RunRecord:
         async with self._lock:
+            self._fence()
             key = (run.tenant_id, run.run_id)
             current = self._runs.get(key)
             if current is None or current.revision != expected_revision:
                 raise ConcurrencyConflict(f"run {run.run_id} changed")
             if run.revision != expected_revision + 1:
                 raise ConcurrencyConflict("new revision must be expected + 1")
+            if continuation is not None:
+                state, driver_state = continuation
+                self._continuations[key] = (
+                    dict(state),
+                    dict(driver_state) if driver_state else None,
+                )
+            if work is not None:
+                kind, payload, request_digest = work
+                self._enqueue_work(run.tenant_id, run.run_id, kind, payload, request_digest)
             self._runs[key] = run
             self._append(run.tenant_id, run.run_id, events)
             return run
@@ -109,10 +168,39 @@ class InMemoryRunStore:
         self, action: ActionRecord, expected_revision: int | None, events: Sequence[EventSpec]
     ) -> ActionRecord:
         async with self._lock:
+            self._fence()
             self._check_action_cas(action, expected_revision)
             self._actions[(action.tenant_id, action.action_id)] = action
             self._append(action.tenant_id, action.run_id, events)
             return action
+
+    async def wait_for_approval(
+        self,
+        action: ActionRecord,
+        expected_action_revision: int,
+        run: RunRecord,
+        expected_run_revision: int,
+        continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None],
+        events: Sequence[EventSpec],
+    ) -> None:
+        async with self._lock:
+            self._fence()
+            self._check_action_cas(action, expected_action_revision)
+            current = self._runs.get((run.tenant_id, run.run_id))
+            if (
+                current is None
+                or current.revision != expected_run_revision
+                or run.revision != expected_run_revision + 1
+            ):
+                raise ConcurrencyConflict("run changed before approval checkpoint")
+            state, driver_state = continuation
+            self._actions[(action.tenant_id, action.action_id)] = action
+            self._runs[(run.tenant_id, run.run_id)] = run
+            self._continuations[(run.tenant_id, run.run_id)] = (
+                dict(state),
+                dict(driver_state) if driver_state is not None else None,
+            )
+            self._append(run.tenant_id, run.run_id, events)
 
     async def get_action(self, tenant_id: str, action_id: str) -> ActionRecord:
         try:
@@ -124,6 +212,7 @@ class InMemoryRunStore:
         self, action: ActionRecord, expected_revision: int, events: Sequence[EventSpec]
     ) -> ActionRecord:
         async with self._lock:
+            self._fence()
             key = (action.tenant_id, action.connection_id, action.logical_operation_id)
             if key in self._reservations:
                 raise DuplicateOperation(action.logical_operation_id)
@@ -133,8 +222,21 @@ class InMemoryRunStore:
             self._append(action.tenant_id, action.run_id, events)
             return action
 
-    async def record_approval(self, approval: ApprovalRecord, events: Sequence[EventSpec]) -> None:
+    async def record_approval(
+        self,
+        approval: ApprovalRecord,
+        events: Sequence[EventSpec],
+        *,
+        action: ActionRecord | None = None,
+        expected_revision: int | None = None,
+    ) -> None:
         async with self._lock:
+            self._fence()
+            if action is not None:
+                if expected_revision is None:
+                    raise ConcurrencyConflict("approval transition requires a revision")
+                self._check_action_cas(action, expected_revision)
+                self._actions[(action.tenant_id, action.action_id)] = action
             self._approvals[(approval.tenant_id, approval.action_id)].append(approval)
             self._append(approval.tenant_id, approval.run_id, events)
 
@@ -146,6 +248,7 @@ class InMemoryRunStore:
         events: Sequence[EventSpec],
     ) -> ActionRecord:
         async with self._lock:
+            self._fence()
             self._check_action_cas(action, expected_revision)
             self._receipts[(action.tenant_id, action.action_id)].append(receipt)
             self._actions[(action.tenant_id, action.action_id)] = action
@@ -161,6 +264,7 @@ class InMemoryRunStore:
         events: Sequence[EventSpec],
     ) -> None:
         async with self._lock:
+            self._fence()
             run = self._runs[(tenant_id, outcome.run_id)]
             if action is not None:
                 self._check_action_cas(action, expected_revision)
@@ -187,6 +291,7 @@ class InMemoryRunStore:
         self, tenant_id: str, actor_id: str, key: str, request_digest: str, run_id: str
     ) -> tuple[str, str]:
         async with self._lock:
+            self._fence()
             return self._idempotency.setdefault(
                 (tenant_id, actor_id, key), (run_id, request_digest)
             )
@@ -201,6 +306,7 @@ class InMemoryRunStore:
         state: Mapping[str, Any],
         driver_state: Mapping[str, Any] | None,
     ) -> None:
+        self._fence()
         self._continuations[(tenant_id, run_id)] = (
             dict(state),
             dict(driver_state) if driver_state is not None else None,
@@ -214,4 +320,123 @@ class InMemoryRunStore:
     @asynccontextmanager
     async def writer_lock(self, tenant_id: str, connection_id: str) -> AsyncIterator[None]:
         async with self._writer_locks[(tenant_id, connection_id)]:
+            self._fence()
             yield
+
+    def _fence(self) -> None:
+        claim = self._work_claim.get()
+        if claim is None:
+            return
+        current = self._work.get(claim.work_id)
+        if (
+            current is None
+            or current["state"] != "CLAIMED"
+            or current["owner"] != claim.owner
+            or current["fence"] != claim.fence
+            or current["lease_until"] <= utc_now()
+        ):
+            raise ConcurrencyConflict("worker lease or fencing token is stale")
+
+    async def enqueue_work(
+        self,
+        tenant_id: str,
+        run_id: str,
+        kind: str,
+        payload: Mapping[str, Any],
+        request_digest: str,
+    ) -> None:
+        async with self._lock:
+            self._enqueue_work(tenant_id, run_id, kind, payload, request_digest)
+
+    def _enqueue_work(
+        self,
+        tenant_id: str,
+        run_id: str,
+        kind: str,
+        payload: Mapping[str, Any],
+        request_digest: str,
+    ) -> None:
+        for work in self._work.values():
+            if (
+                work["tenant_id"] == tenant_id
+                and work["run_id"] == run_id
+                and work["kind"] == kind
+                and work["request_digest"] == request_digest
+            ):
+                if work["payload"] != dict(payload):
+                    raise ConcurrencyConflict("work request conflicts with the admitted command")
+                return
+        wid = new_id("work")
+        self._work[wid] = dict(
+            work_id=wid,
+            tenant_id=tenant_id,
+            run_id=run_id,
+            kind=kind,
+            payload=dict(payload),
+            request_digest=request_digest,
+            state="PENDING",
+            owner=None,
+            fence=0,
+            lease_until=None,
+        )
+
+    async def claim_work(self, owner: str, lease_seconds: int = 30) -> WorkClaim | None:
+        async with self._lock:
+            now = utc_now()
+            for item in self._work.values():
+                if item["state"] == "DONE" or (item["lease_until"] and item["lease_until"] > now):
+                    continue
+                if any(
+                    other["tenant_id"] == item["tenant_id"]
+                    and other["run_id"] == item["run_id"]
+                    and other["state"] == "CLAIMED"
+                    and other["lease_until"] > now
+                    for other in self._work.values()
+                ):
+                    continue
+                item.update(
+                    state="CLAIMED",
+                    owner=owner,
+                    fence=item["fence"] + 1,
+                    lease_until=now + timedelta(seconds=lease_seconds),
+                )
+                return WorkClaim.model_validate({k: item[k] for k in WorkClaim.model_fields})
+            return None
+
+    async def renew_work(self, claim: WorkClaim, lease_seconds: int = 30) -> bool:
+        async with self._lock:
+            item = self._work.get(claim.work_id)
+            if (
+                item is None
+                or item["owner"] != claim.owner
+                or item["fence"] != claim.fence
+                or item["state"] != "CLAIMED"
+                or item["lease_until"] <= utc_now()
+            ):
+                return False
+            item["lease_until"] = utc_now() + timedelta(seconds=lease_seconds)
+            return True
+
+    async def finish_work(self, claim: WorkClaim) -> None:
+        async with self._lock:
+            token = self._work_claim.set(claim)
+            try:
+                self._fence()
+                self._work[claim.work_id]["state"] = "DONE"
+            finally:
+                self._work_claim.reset(token)
+
+    @asynccontextmanager
+    async def work_scope(self, claim: WorkClaim) -> AsyncIterator[None]:
+        token = self._work_claim.set(claim)
+        try:
+            self._fence()
+            yield
+        finally:
+            self._work_claim.reset(token)
+
+    async def has_pending_work(self, tenant_id: str, run_id: str) -> bool:
+        return any(
+            w["tenant_id"] == tenant_id and w["run_id"] == run_id and w["state"] != "DONE"
+            for w in self._work.values()
+        )

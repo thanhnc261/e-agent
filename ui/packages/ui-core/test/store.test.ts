@@ -30,3 +30,41 @@ describe("run view reducer", () => {
     expect(v.finalMessage).toBe("done");
   });
 });
+
+it("keeps transient text offsets separate from durable event sequence", () => {
+  let v = reduceRunView(emptyRunView, { type: "snapshot", snapshot: snapshot("RUNNING", null) });
+  v = reduceRunView(v, { type: "text", frame: { message_id: "message-1", stream_id: "text-1", offset: 1, text: "Public ", reset: true } });
+  v = reduceRunView(v, { type: "text", frame: { message_id: "message-1", stream_id: "text-1", offset: 2, text: "answer", reset: false } });
+  const duplicate = reduceRunView(v, { type: "text", frame: { message_id: "message-1", stream_id: "text-1", offset: 2, text: "answer", reset: false } });
+  expect(duplicate.streamingText).toBe("Public answer");
+  expect(duplicate.lastSequence).toBe(0);
+  expect(duplicate.events).toHaveLength(0);
+  v = reduceRunView(v, { type: "text", frame: { message_id: "message-1", stream_id: "new-process", offset: 1, text: "Restored", reset: true } });
+  expect(v.streamingText).toBe("Restored");
+  expect(v.lastSequence).toBe(0);
+});
+
+it("does not interpret a known event with an unsupported schema version", () => {
+  const base = reduceRunView(emptyRunView, { type: "snapshot", snapshot: snapshot("RUNNING", null) });
+  const event = { ...ev(1, "run.state_changed", { to: "SUCCEEDED" }), schema_version: "999" };
+  const view = reduceRunView(base, { type: "events", events: [event] });
+  expect(view.run?.state).toBe("RUNNING");
+  expect(view.needsSnapshot).toBe(true);
+  expect(selectTimeline(view)[0]?.supported).toBe(false);
+});
+
+it("distinguishes unknown verification from verified outcome", () => {
+  const view = reduceRunView(emptyRunView, { type: "events", events: [ev(1, "outcome.reported", { status: "UNKNOWN" })] });
+  expect(selectTimeline(view)[0]?.labelKey).toBe("outcome.UNKNOWN");
+});
+
+it("correlates verified result fields and committed references with the same action", async () => {
+  const { selectVerifiedResults } = await import("../src/store.ts");
+  const snap = snapshot("SUCCEEDED", null);
+  snap.actions = [{ action_id: "a", contract_id: "example.answer.v1", state: "VERIFIED", arguments: { quantity: "7" } }];
+  let view = reduceRunView(emptyRunView, { type: "snapshot", snapshot: snap });
+  view = reduceRunView(view, { type: "events", events: [ev(1, "outcome.reported", { action_id: "other", status: "VERIFIED" })] });
+  expect(selectVerifiedResults(view)).toEqual([]);
+  view = reduceRunView(view, { type: "events", events: [ev(2, "outcome.reported", { action_id: "a", status: "VERIFIED" }), ev(3, "action.receipt_recorded", { action_id: "a", status: "COMMITTED", external_refs: ["record:1"] })] });
+  expect(selectVerifiedResults(view)).toEqual([{ actionId: "a", fields: { quantity: "7" }, externalRefs: ["record:1"] }]);
+});

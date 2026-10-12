@@ -12,6 +12,7 @@ import os
 import uuid
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
@@ -29,7 +30,9 @@ URL = os.environ.get("E_AGENT_TEST_ODOO_URL")
 DB = os.environ.get("E_AGENT_TEST_ODOO_DB", "")
 KEY = os.environ.get("E_AGENT_TEST_ODOO_KEY", "")
 ADMIN_KEY = os.environ.get("E_AGENT_TEST_ODOO_ADMIN_KEY", "")
-MARKER = os.environ.get("E_AGENT_TEST_ODOO_MARKER", "e-agent-ci-sandbox")
+MARKER = os.environ.get("E_AGENT_TEST_ODOO_MARKER", "")
+COMPANY = os.environ.get("E_AGENT_TEST_ODOO_COMPANY_ID", "")
+BRIDGE_VERSION = "19.0.0.3.0"
 pytestmark = [pytest.mark.asyncio, pytest.mark.skipif(not URL, reason="no sandbox Odoo")]
 
 
@@ -46,7 +49,22 @@ def _auth(key: str) -> AuthContext:
 
 
 async def _bridge(method: str, key: str = KEY, **kw: Any) -> Any:
-    return await OdooJson2Client(str(URL), DB).call(_auth(key), "e_agent.bridge", method, **kw)
+    endpoint = urlsplit(str(URL))
+    assert endpoint.scheme == "http" and endpoint.hostname in {"localhost", "127.0.0.1"}
+    assert endpoint.port == 8069 and endpoint.path in {"", "/"}
+    assert not endpoint.query and not endpoint.fragment and not endpoint.username
+    assert DB and MARKER and COMPANY and key, "explicit sandbox identity and private key required"
+    target = {
+        "database": DB,
+        "company_id": COMPANY,
+        "sandbox_marker": MARKER,
+        "bridge_version": BRIDGE_VERSION,
+    }
+    client = OdooJson2Client(str(URL), DB, target=target)
+    info = await client.call(_auth(key), "e_agent.bridge", "sandbox_info")
+    assert info.get("database") == DB and str(info.get("company_id")) == COMPANY
+    assert info.get("sandbox_marker") == MARKER and info.get("bridge_version") == BRIDGE_VERSION
+    return await client.call(_auth(key), "e_agent.bridge", method, **kw)
 
 
 @pytest.fixture
@@ -143,21 +161,29 @@ def _profile(
     marker: str = MARKER,
     task_kind: str = "draft-po",
 ) -> Profile:
+    pins_path = os.environ.get("E_AGENT_TEST_PLUGIN_PINS")
+    assert pins_path, "trusted build inventory required for live plugin admission"
+    pins = json.loads(Path(pins_path).read_text())
+    assert os.environ.get("E_AGENT_TEST_LIVE_PG_DSN"), "dedicated persistent live ledger required"
     return Profile.model_validate(
         {
             "profile_version": "1",
             "environment": "live",
+            "store": {"kind": "postgres", "dsn_env": "E_AGENT_TEST_LIVE_PG_DSN"},
             "tenant_id": "tenant-live",
             "operator": {"principal_id": "op", "roles": ["requester", "approver"]},
             "enabled_plugins": {
-                "domain-erp": {"version": "0.1.0"},
+                "domain-erp": {"version": "0.1.0", "artifact_sha256": pins["domain-erp"]},
                 "odoo19": {
                     "version": "0.1.0",
+                    "artifact_sha256": pins["odoo19"],
                     "settings": {
                         "base_url": URL,
                         "database": DB,
                         "namespace": namespace,
                         "expected_sandbox_marker": marker,
+                        "expected_company_id": COMPANY,
+                        "expected_bridge_version": BRIDGE_VERSION,
                     },
                 },
             },

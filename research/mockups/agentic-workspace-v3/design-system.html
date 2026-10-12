@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>e-agent · Identity and component system</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="design-system.css" />
+    <script type="module" src="design-system.js"></script>
+  </head>
+  <body class="kit-page">
+    <header class="kit-header">
+      <a class="brand" href="index.html"><span class="mark"></span>e-agent</a
+      ><span class="caption">IDENTITY &amp; UI SYSTEM · DESIGN STUDY 03</span>
+      <div>
+        <button
+          class="icon-button"
+          id="kit-theme"
+          aria-label="Switch color theme"
+        >
+          <span data-icon="sun"></span></button
+        ><a class="secondary" href="index.html"
+          >Open mockup <span data-icon="external"></span
+        ></a>
+      </div>
+    </header>
+    <main class="kit">
+      <p class="eyebrow">CALM BY DEFAULT. CLEAR WHEN IT MATTERS.</p>
+      <h1>A connected identity.<br />A consistent interface.</h1>
+      <p class="kit-intro">
+        Original vector identity, a 27-icon family, and shared components for
+        e-agent. Warm paper surfaces, charcoal type, navy actions, and a quiet
+        violet cue for the assistant.
+      </p>
+      <nav class="kit-nav" aria-label="Design system sections">
+        <a href="#identity">01 Identity</a><a href="#colors">02 Color</a
+        ><a href="#icons">03 Icons</a><a href="#components">04 Components</a
+        ><a href="#patterns">05 Patterns</a>
+      </nav>
+      <section id="identity">
+        <div class="section-heading">
+          <h2>01 / Identity</h2>
+          <a class="text-button" href="assets/logo-wordmark.svg" download
+            >Download wordmark <span data-icon="arrow"></span
+          ></a>
+        </div>
+        <div class="identity-board">
+          <div class="logo-stage">
+            <span class="mark hero-mark"></span><strong>e-agent</strong>
+          </div>
+          <div class="identity-notes">
+            <p class="eyebrow">THE OPEN “E”</p>
+            <h3>Connection, with a clear endpoint.</h3>
+            <p>
+              An open circular stroke and a horizontal link form the letter e.
+              The terminal point represents a deliberate handoff: the system
+              moves work forward while a person controls the decision.
+            </p>
+            <p class="caption">
+              Original geometry. Not the Agentic Design or UX Pilot logo.
+            </p>
+            <div class="asset-links">
+              <a href="assets/logo-mark.svg" download>Light SVG ↗</a
+              ><a href="assets/logo-mark-dark.svg" download>Dark SVG ↗</a
+              ><a href="assets/logo-mark-mono.svg" download
+                >Monochrome SVG ↗</a
+              >
+            </div>
+          </div>
+        </div>
+        <div class="logo-variants">
+          <div>
+            <img src="assets/logo-mark.svg" alt="Navy e-agent app icon" /><span
+              >App icon · 32px grid</span
+            >
+          </div>
+          <div class="navy-sample">
+            <img
+              src="assets/logo-mark-dark.svg"
+              alt="Light blue e-agent icon for dark backgrounds"
+            /><span>Dark surface</span>
+          </div>
+          <div>
+            <img
+              src="assets/logo-mark-mono.svg"
+              alt="Monochrome e-agent symbol"
+            /><span>Single color</span>
+          </div>
+        </div>
+      </section>
+      <section id="colors">
+        <div class="section-heading">
+          <h2>02 / Color and type</h2>
+          <span class="caption">Semantic roles, not page-specific colors</span>
+        </div>
+        <div id="swatches" class="color-grid"></div>
+        <div class="type-board">
+          <div>
+            <p class="eyebrow">WORKSPACE HEADING</p>
+            <h2>Focus on the next decision.</h2>
+            <p>
+              System sans-serif · familiar, readable, and locally available.
+            </p>
+          </div>
+          <div>
+            <p class="eyebrow">TYPE SCALE</p>
+            <p><strong>40 / 44</strong> Page title</p>
+            <p><strong>20 / 28</strong> Section or artifact title</p>
+            <p><strong>14 / 22</strong> Body and controls</p>
+            <p><strong>12 / 18</strong> Supporting information</p>
+          </div>
+        </div>
+      </section>
+      <section id="icons">
+        <div class="section-heading">
+          <div>
+            <h2>03 / Icon family</h2>
+            <p>
+              24-unit grid · 1.65-unit rounded stroke · one meaning per symbol
+            </p>
+          </div>
+          <a class="text-button" href="assets/icons.svg" download
+            >Download SVG sprite <span data-icon="arrow"></span
+          ></a>
+        </div>
+        <div id="icon-grid" class="icon-grid"></div>
+        <p class="caption">
+          Icons supplement labels. Status always includes text; color alone
+          never carries meaning. Each icon links to its standalone SVG.
+        </p>
+      </section>
+      <section id="components">
+        <div class="section-heading">
+          <div>
+            <h2>04 / Components</h2>
+            <p>
+              The same visual rules support intent, review, evidence, and
+              recovery.
+            </p>
+          </div>
+        </div>
+        <div class="component-grid">
+          <article class="component-sample">
+            <p class="eyebrow">ACTIONS</p>
+            <div class="sample-row">
+              <button class="primary" data-demo="Primary action selected">
+                Review &amp; approve <span data-icon="arrow"></span></button
+              ><button class="secondary" data-demo="Returned to review">
+                Back to review</button
+              ><button class="text-button" data-demo="Proposal rejected">
+                Reject</button
+              ><button class="primary" disabled>Unavailable</button>
+            </div>
+            <p>
+              One primary action per decision. Secondary actions remain visually
+              quiet.
+            </p>
+          </article>
+          <article class="component-sample">
+            <p class="eyebrow">STATE, WITH WORDS</p>
+            <div class="sample-row">
+              <span class="pill violet">Working</span
+              ><span class="pill amber">Needs review</span
+              ><span class="pill green">Verified</span
+              ><span class="pill amber">Outcome unknown</span
+              ><span class="pill neutral">Not connected</span>
+            </div>
+            <p>Committed effects and verified outcomes are separate states.</p>
+          </article>
+          <article class="component-sample">
+            <p class="eyebrow">CONTEXT AND SOURCES</p>
+            <div class="sample-row">
+              <span class="system-chip"
+                ><span data-icon="connections"></span>Documents</span
+              ><span class="system-chip"
+                ><span data-icon="lock"></span>Delivery team only</span
+              >
+            </div>
+            <details class="kit-disclosure">
+              <summary>Signed scope · revision 4</summary>
+              <p>
+                Sample excerpt: the approved scope covers onboarding, reporting,
+                and a guided pilot. Source details stay available without
+                competing with the decision.
+              </p>
+            </details>
+          </article>
+          <article class="component-sample">
+            <p class="eyebrow">PROGRESSIVE DISCLOSURE</p>
+            <details class="kit-disclosure">
+              <summary>Exact action &amp; audit details</summary>
+              <dl>
+                <dt>Action</dt>
+                <dd>Create one document</dd>
+                <dt>Identity</dt>
+                <dd>Jamie Lee · fictional</dd>
+                <dt>Scope</dt>
+                <dd>Delivery team only</dd>
+              </dl>
+            </details>
+            <p>
+              Use disclosure for supporting detail. Keep material approval terms
+              in the main review and confirmation.
+            </p>
+          </article>
+          <article class="component-sample wide">
+            <p class="eyebrow">INTENT COMPOSER</p>
+            <form class="composer" id="kit-composer">
+              <label for="kit-intent" class="sr-only">Example task</label
+              ><textarea
+                id="kit-intent"
+                placeholder="Describe the outcome you need…"
+                rows="2"
+              ></textarea>
+              <div class="composer-bottom">
+                <span
+                  ><span data-icon="shield"></span>You review changes before
+                  they happen</span
+                ><button class="primary">
+                  Start a task <span data-icon="arrow"></span>
+                </button>
+              </div>
+            </form>
+          </article>
+          <article class="component-sample wide">
+            <p class="eyebrow">RECOVERY</p>
+            <div class="notice">
+              <strong>The result is not confirmed.</strong>
+              <p>
+                The action may have completed. Check the existing result before
+                taking another step.
+              </p>
+            </div>
+            <button
+              class="secondary"
+              data-demo="Sample read-back remains unresolved. No action was resent."
+            >
+              Check existing result <span data-icon="search"></span>
+            </button>
+          </article>
+        </div>
+        <p id="kit-announcement" role="status" class="kit-announcement">
+          Component examples use local demonstration interactions only.
+        </p>
+      </section>
+      <section id="patterns">
+        <h2>05 / Patterns, applied selectively</h2>
+        <p>
+          <a class="text-button" href="source-coverage.html"
+            >Read the complete 32-page source audit ↗</a
+          >
+        </p>
+        <div class="pattern-grid">
+          <article>
+            <span data-icon="shield"></span>
+            <h3>Human control</h3>
+            <p>
+              Explicit approval, exact action scope, separate decisions for
+              separate effects.
+            </p>
+          </article>
+          <article>
+            <span data-icon="file"></span>
+            <h3>Structured work</h3>
+            <p>
+              Readable artifacts and material terms, with sources and activity
+              nearby.
+            </p>
+          </article>
+          <article>
+            <span data-icon="connections"></span>
+            <h3>Assistance in context</h3>
+            <p>One compact surface that expands when a task needs more room.</p>
+          </article>
+          <article>
+            <span data-icon="alert"></span>
+            <h3>Honest recovery</h3>
+            <p>
+              Clear missing access, stale proposals, and unresolved outcomes.
+            </p>
+          </article>
+        </div>
+        <p>
+          Background and restraint are informed by the rendered
+          <a href="https://agentic-design.ai/patterns/ui-ux-patterns"
+            >Agentic Design library</a
+          >. Workflow principles also use the supplied
+          <a href="https://uxpilot.ai/blogs/enterprise-ux-design"
+            >enterprise UX reference</a
+          >
+          and
+          <a
+            href="https://medium.com/design-bootcamp/agentic-ux-7-principles-for-designing-systems-with-agents-019512c2caa9"
+            >agentic UX principles</a
+          >. The logo and icons are original, and the palette is an e-agent
+          design decision.
+        </p>
+        <a class="secondary" href="design-notes.html"
+          >Read the full design rationale <span data-icon="arrow"></span
+        ></a>
+      </section>
+    </main>
+  </body>
+</html>

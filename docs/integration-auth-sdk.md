@@ -1,5 +1,6 @@
 # Integration auth SDK: credentials and authentication for every integration
 
+Implementation clarification (2026-10-07): [ADR 0014](adr/0014-mvp-remediation-boundaries.md) defines short transactions with work fencing, conservative external uncertainty, approved fact/credential binding and transient public text offsets. These implementation seams require the remediation and live qualification gates; source availability does not establish readiness.
 **Date:** 2026-10-06. **Status:** accepted design ([ADR 0013](adr/0013-integration-auth-sdk-and-delegated-connections.md)); nothing is implemented. It refines [integration management](integration-management.md) (ADR 0012). Admin and user pages are **Phase 2**; the MVP implements only the subset in §11.
 
 ## 1. Goal
@@ -304,6 +305,8 @@ Composite tenant keys prevent cross-tenant references, consistent with MVP desig
 | Provider redirect | `/v1/oauth/callback` | — |
 
 All forms are rendered from manifest schemas (ADR 0012). There are no provider-specific pages.
+
+**Implemented subset (2026-10-09).** `GET /v1/me/connections` exists today as a *read-only* member projection ([ADR 0017](adr/0017-member-discovery-read-models.md)), alongside `GET /v1/me/task-catalog`. It returns only connections the caller may actually use — the same `ConnectionCatalog.usable` rule execution applies — with integration id, ownership, acting identity when disclosed, permitted resources, admitted capabilities, recorded configuration status, revision and an always-unknown observed health. It carries no secret reference and no administrative field, performs no provider probe, and a connection outside the caller's tenant, scope or delegation is absent rather than marked as withheld. The create, test, `oauth/start` and disconnect operations in the row above, and every `/v1/admin/*` prefix, remain unimplemented; the UI deliberately offers no control that would imply them.
 
 ## 10. Security requirements and conformance kit
 

@@ -67,11 +67,15 @@ INPUT_SCHEMAS = {
 GUIDANCE = (
     "Procurement: read the demand, current stock and supplier offers first. "
     "The quantity to order is demand minus available minus inbound stock (never negative). "
-    "If nothing is needed, say so and do not propose an order. Otherwise propose one draft "
+    "Copy complete resource references from read results, including their prefixes. "
+    "For a request to create an order, use the purchase order proposal tool after reading. "
+    "If nothing is needed, report the zero shortage with the shortage answer tool. "
+    "Otherwise propose one draft "
     "purchase order from an approved offer that delivers by the requested date and stays "
     "within budget; subtotal = quantity x unit price. Write all quantities and amounts as "
     "decimal strings. A host rule engine validates every proposal; if it is blocked, read "
-    "the findings and propose a corrected order or explain why none is possible. "
+    "the findings and propose a corrected order. If no offer is eligible, use the "
+    "offer recommendation tool with null offer and supplier and unit price, then explain why. "
     "When asked only about availability or shortage, report it with the shortage answer "
     "tool; when asked which offer to use, report it with the offer recommendation tool "
     "(offer_ref null if no offer is eligible). Answers are verified by the host.\n"
@@ -83,7 +87,9 @@ GUIDANCE = (
     "use a listed source or none.\n"
     "Late orders and overdue invoices: always state the as-of date you used, read with "
     "it, and report exactly the matching references (and totals per currency). These "
-    "are read-only questions: never propose any change."
+    "are read-only questions: never propose any change. Use the late-orders answer tool "
+    "for late orders and the overdue-invoices answer tool for overdue invoices, so the "
+    "host independently verifies the structured result before your final explanation."
 )
 
 

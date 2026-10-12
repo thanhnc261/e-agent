@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+import hashlib
+import json
+import re
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from e_agent.contracts.action import ActionRecord
@@ -27,6 +30,8 @@ def digest_input(
     evidence: Iterable[EvidenceRef],
     rule_bundle_version: str,
     policy_version: str,
+    fact_digests: Mapping[str, str] | None = None,
+    credential_version: str = "none",
 ) -> dict[str, Any]:
     return {
         "tenant_id": tenant_id,
@@ -37,15 +42,30 @@ def digest_input(
         "connection_id": connection_id,
         "connection_version": str(connection_version),
         "credential_subject": credential_subject,
+        "credential_version": credential_version,
         "arguments": arguments,
         "expected_effects": list(expected_effects),
         "evidence": [
-            {"id": e.evidence_id, "source": e.source, "revision": e.revision or ""}
+            {
+                "id": e.evidence_id,
+                "source": e.source,
+                "revision": e.revision or "",
+                "completeness": str(e.completeness),
+                "fact_digest": (fact_digests or {}).get(e.evidence_id, ""),
+            }
             for e in sorted(evidence, key=lambda e: e.evidence_id)
         ],
         "rule_bundle_version": rule_bundle_version,
         "policy_version": policy_version,
     }
+
+
+def fact_digest(data: Mapping[str, Any]) -> str:
+    """Fingerprint authorized facts, excluding observation metadata and timestamps."""
+    encoded = json.dumps(
+        dict(data), sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+    ).encode("utf-8")
+    return "facts-json-v1:" + hashlib.sha256(encoded).hexdigest()
 
 
 def compute_digest(canonical_proposal: dict[str, Any]) -> str:
@@ -55,8 +75,11 @@ def compute_digest(canonical_proposal: dict[str, Any]) -> str:
 class MaterialField(Record):
     path: str
     value: str
-    previous_value: str | None = None  # value in the superseded (blocked) proposal
+    previous_value: str | None = None  # baseline selected by comparison (current/proposal)
     changed: bool = False
+    label: str | None = None
+    proposal_previous_value: str | None = None
+    comparison: str | None = None
 
 
 class ApprovalPresentation(Record):
@@ -74,6 +97,8 @@ class ApprovalPresentation(Record):
     canonical_proposal: dict[str, Any]
     material_fields: tuple[MaterialField, ...]
     findings: tuple[Finding, ...]
+    display_title: str | None = None
+    expected_effects: tuple[str, ...] = ()
 
 
 def _flatten(arguments: dict[str, Any], prefix: str = "") -> dict[str, str]:
@@ -110,7 +135,48 @@ def presentation_for(
     findings: Iterable[Finding],
     expires_at: Any,
     previous_arguments: dict[str, Any] | None = None,
+    input_schema: Mapping[str, Any] | None = None,
 ) -> ApprovalPresentation:
+    schema = input_schema or {}
+    fields = material_fields(action.arguments, previous_arguments)
+    metadata = schema.get("x-presentation", {})
+    baseline_field = metadata.get("baseline_reference") if isinstance(metadata, dict) else None
+    baseline = None
+    if baseline_field and baseline_field in action.arguments:
+        candidates = [
+            f.data
+            for f in action.approved_facts
+            if f.data.get(baseline_field) == action.arguments[baseline_field]
+        ]
+        if len(candidates) == 1:
+            baseline = candidates[0]
+    properties = schema.get("properties", {})
+    labeled = []
+    for field in fields:
+        prop = properties.get(field.path, {})
+        prior = None if baseline is None else _flatten(baseline).get(field.path)
+        labeled.append(
+            field.model_copy(
+                update={
+                    "label": prop.get("title"),
+                    "proposal_previous_value": field.previous_value,
+                    "previous_value": prior if baseline_field else field.previous_value,
+                    "changed": (prior is not None and prior != field.value)
+                    if baseline_field
+                    else field.changed,
+                    "comparison": "current"
+                    if baseline_field
+                    else "proposal"
+                    if previous_arguments
+                    else None,
+                }
+            )
+        )
+    order = {path: index for index, path in enumerate(properties)}
+    labeled.sort(key=lambda field: (order.get(field.path, len(order)), field.path))
+    title = schema.get("title")
+    if isinstance(title, str):
+        title = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", title)
     return ApprovalPresentation(
         run_id=action.run_id,
         action_id=action.action_id,
@@ -122,6 +188,8 @@ def presentation_for(
         connection_id=action.connection_id,
         credential_subject=action.credential_subject,
         canonical_proposal=canonical_proposal,
-        material_fields=material_fields(action.arguments, previous_arguments),
+        material_fields=tuple(labeled),
+        display_title=title if isinstance(title, str) else None,
+        expected_effects=tuple(canonical_proposal.get("expected_effects", ())),
         findings=tuple(findings),
     )

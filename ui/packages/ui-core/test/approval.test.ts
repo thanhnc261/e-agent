@@ -51,3 +51,17 @@ describe("approval state machine", () => {
     expect(reduceApproval(s, { type: "FAILED", error: "x", stale: false }).phase).toBe("error");
   });
 });
+
+it.each(["FAIL", "UNKNOWN", "ERROR"] as const)("does not offer approval of a %s finding", async status => {
+  const p = await presentation({ findings: [{ rule_id: "R", rule_version: "1", status, message: "blocked", evidence_ids: [] }] });
+  const s = reduceApproval(initialApproval, { type: "PRESENTED", presentation: p, digestOk: true });
+  expect(canRequestApprove(s)).toBe(false);
+  expect(reduceApproval(s, { type: "REQUEST_CONFIRM" })).toBe(s);
+});
+
+it("refreshes changed findings for the same action identity", async () => {
+  const state = await reviewing();
+  const p = { ...state.presentation!, findings: [{ rule_id: "R", rule_version: "1", status: "UNKNOWN" as const, message: "unavailable", evidence_ids: [] }] };
+  const next = reduceApproval(state, { type: "PRESENTED", presentation: p, digestOk: true });
+  expect(canRequestApprove(next)).toBe(false);
+});

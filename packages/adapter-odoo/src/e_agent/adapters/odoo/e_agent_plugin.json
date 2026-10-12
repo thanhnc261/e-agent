@@ -94,7 +94,10 @@
     "required": [
       "base_url",
       "database",
-      "namespace"
+      "namespace",
+      "expected_sandbox_marker",
+      "expected_company_id",
+      "expected_bridge_version"
     ],
     "properties": {
       "base_url": {
@@ -113,7 +116,19 @@
         "default": "20"
       },
       "expected_sandbox_marker": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1
+      },
+      "expected_company_id": {
+        "type": "string",
+        "pattern": "^[1-9][0-9]*$",
+        "description": "Explicit approved sandbox company ID"
+      },
+      "expected_bridge_version": {
+        "type": "string",
+        "enum": [
+          "19.0.0.3.0"
+        ]
       }
     },
     "additionalProperties": false

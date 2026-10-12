@@ -90,6 +90,7 @@ class LeadVerifier:
         if len(leads) == 1:
             got = leads[0]
             checks += [
+                check("operation_key", action.logical_operation_id, got.operation_key),
                 check(
                     "external_ref_matches_receipt",
                     ",".join(receipt.external_refs),

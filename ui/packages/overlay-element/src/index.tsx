@@ -1,5 +1,7 @@
 /**
- * <e-agent-overlay server="" theme="light|dark|high-contrast" lang="vi|en" layout="overlay|sidebar">
+ * <e-agent-overlay server="" theme="light|dark|high-contrast" appearance="calm"
+ *                   density="comfortable|compact" lang="vi|en"
+ *                   layout="overlay|workbench|sidebar">
  *
  * Shadow DOM isolates the UI from host-page CSS; the public styling API is the
  * token custom properties plus ::part(launcher|panel). Attributes never carry
@@ -10,8 +12,7 @@ import componentsCss from "@e-agent/components/components.css?inline";
 import layoutsCss from "@e-agent/layouts/layouts.css?inline";
 import { createRoot, type Root } from "react-dom/client";
 import { EAgentClient } from "@e-agent/client";
-import { Layout, parseLayoutConfig, type LayoutConfig } from "@e-agent/layouts";
-import { isThemeName } from "@e-agent/tokens";
+import { Layout, parseLayoutConfig, type HostPresentation, type LayoutConfig } from "@e-agent/layouts";
 import { resolveLocale, RunController } from "@e-agent/ui-core";
 import { RunProvider, SlotProvider } from "@e-agent/ui-react";
 // React Aria resolves press/focus targets across shadow roots only with this flag
@@ -23,7 +24,7 @@ enableShadowDOM();
 const HOST_RESET = ":host { all: initial; display: contents; }";
 
 export class EAgentOverlay extends HTMLElement {
-  static observedAttributes = ["theme", "lang", "layout"];
+  static observedAttributes = ["theme", "appearance", "density", "lang", "layout"];
   private root: Root | null = null;
   private controller: RunController | null = null;
   private mount: HTMLDivElement | null = null;
@@ -48,7 +49,6 @@ export class EAgentOverlay extends HTMLElement {
         resource_hints: [],
       }),
     });
-    this.applyTheme();
     this.root = createRoot(this.mount);
     this.render();
     void this.controller.init();
@@ -63,15 +63,17 @@ export class EAgentOverlay extends HTMLElement {
 
   attributeChangedCallback(name: string): void {
     if (!this.controller) return;
-    if (name === "theme") this.applyTheme();
     if (name === "lang") this.controller.setLocale(resolveLocale(this.getAttribute("lang")));
-    if (name === "layout") this.render();
+    else this.render();
   }
 
-  private applyTheme(): void {
-    const theme = this.getAttribute("theme");
-    this.dataset["theme"] = isThemeName(theme) ? theme : "light";
-  }
+  /** The element is the shadow host, so presentation is reflected on itself. */
+  private applyPresentation = (presentation: HostPresentation): void => {
+    this.dataset["theme"] = presentation.theme;
+    this.dataset["appearance"] = presentation.appearance;
+    this.dataset["density"] = presentation.density;
+    this.lang = presentation.locale;
+  };
 
   private config(): LayoutConfig {
     try {
@@ -86,7 +88,18 @@ export class EAgentOverlay extends HTMLElement {
     this.root.render(
       <RunProvider controller={this.controller}>
         <SlotProvider overrides={{}}>
-          <Layout config={this.config()} />
+          <Layout
+            config={this.config()}
+            embedded
+            restorePreference={!this.hasAttribute("layout")}
+            preferenceKey={`e-agent.surface.embedded.${this.id || "default"}`}
+            presentation={{
+              theme: this.getAttribute("theme"),
+              appearance: this.getAttribute("appearance"),
+              density: this.getAttribute("density"),
+            }}
+            onPresentation={this.applyPresentation}
+          />
         </SlotProvider>
       </RunProvider>,
     );

@@ -1,0 +1,8 @@
+{
+  "printWidth": 110,
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "arrowParens": "avoid",
+  "overrides": [{ "files": ["*.json", "*.md"], "options": { "printWidth": 100 } }]
+}

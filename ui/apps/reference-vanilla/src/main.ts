@@ -7,6 +7,10 @@ import "./style.css";
 import { EAgentClient } from "@e-agent/client";
 import {
   canRequestApprove,
+  canCompose,
+  readableLabel,
+  runStatusKey,
+  actionStatusKey,
   formatFieldValue,
   resolveLocale,
   RunController,
@@ -55,12 +59,12 @@ const form = el("form", { "data-testid": "composer" }, input, submit);
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   const task = input.value;
-  if (task.trim()) void controller.start(task).then(() => (input.value = ""));
+  if (task.trim()) void controller.start(task).then(ok => { if (ok) input.value = ""; });
 });
 app.append(header, messages, form, approval, outcome, timeline, evidence);
 
 function renderHeader(s: ControllerState) {
-  const state = s.view.run ? el("span", { "data-testid": "run-state", "data-state": s.view.run.state }, `${t("run.state")}: ${s.view.run.state}`) : null;
+  const state = s.view.run ? el("span", { "data-testid": "run-state", "data-state": s.view.run.state }, t(runStatusKey(s.view.run.state, s.view.actions))) : null;
   header.replaceChildren(
     el("h1", {}, `${t("app.title")} — reference`),
     el("span", { "data-testid": "connection-status", "data-status": s.connection, role: "status" }, t(`connection.${s.connection}`)),
@@ -73,6 +77,10 @@ function renderMessages(s: ControllerState) {
   const children: (Node | string)[] = [el("h2", {}, t("messages.title"))];
   if (!s.view.run) children.push(el("p", {}, t("messages.empty")));
   else children.push(el("p", { "data-testid": "run-task" }, s.view.run.task));
+  if (s.view.question) children.push(el("p", { "data-testid": "clarification-question" }, s.view.question));
+  if (s.view.streamingText && s.view.run?.state !== "SUCCEEDED") {
+    children.push(el("p", { "data-testid": "streaming-message", "aria-live": "polite" }, s.view.streamingText));
+  }
   if (s.view.finalMessage) {
     const msg = el("div", { "data-testid": "final-message" }, `${t("messages.final")}: `);
     for (const seg of segmentText(s.view.finalMessage)) {
@@ -90,7 +98,7 @@ function renderApproval(s: ControllerState) {
   const a = s.approval;
   const p = a.presentation;
   approval.dataset["phase"] = p ? a.phase : "idle";
-  const out: (Node | string)[] = [el("h2", {}, t("approval.title"))];
+  const out: (Node | string)[] = [el("h2", {}, p?.display_title ?? t("approval.title"))];
   if (!p || a.phase === "idle") {
     out.push(el("p", {}, t("approval.none")));
     approval.replaceChildren(...out);
@@ -101,7 +109,7 @@ function renderApproval(s: ControllerState) {
     el(
       "tr",
       { "data-testid": "material-field", "data-path": f.path, "data-changed": String(f.changed) },
-      el("th", { scope: "row" }, f.path),
+      el("th", { scope: "row" }, f.label ?? readableLabel(f.path)),
       el("td", {}, formatFieldValue(f.path, f.value, locale), f.changed ? ` (${t("approval.changed")})` : ""),
       el("td", {}, f.changed ? (f.previous_value ?? "—") : ""),
     ),
@@ -141,7 +149,7 @@ function renderOutcome(s: ControllerState) {
   const out: (Node | string)[] = [
     el("h2", {}, t("outcome.title")),
     el("p", { "data-testid": "outcome-state", "data-state": run.state }, `${run.state}${run.reason ? ` — ${run.reason}` : ""}`),
-    el("ul", {}, ...s.view.actions.map((a) => el("li", { "data-testid": "action", "data-state": a.state }, `${a.contract_id}: ${a.state}`))),
+    el("ul", {}, ...s.view.actions.map((a) => el("li", { "data-testid": "action", "data-state": a.state }, `${a.contract_id}: ${t(actionStatusKey(a.state))}`))),
   ];
   if (run.state === "NEEDS_RECONCILIATION") {
     out.push(el("p", { class: "alert", role: "alert", "data-testid": "outcome-unresolved" }, t("outcome.unresolved")));
@@ -159,10 +167,9 @@ function renderTimeline(s: ControllerState) {
 
 function renderEvidence(s: ControllerState) {
   const run = s.view.run;
-  const done = run && ["SUCCEEDED", "FAILED", "CANCELLED", "NEEDS_RECONCILIATION"].includes(run.state);
   const out: (Node | string)[] = [el("h2", {}, t("evidence.title"))];
   if (s.evidence) out.push(el("pre", { "data-testid": "evidence-bundle" }, JSON.stringify(s.evidence, null, 2)));
-  else if (done) out.push(button(t("evidence.load"), "evidence-load", () => void controller.loadEvidence()));
+  else if (run) out.push(button(t("evidence.load"), "evidence-load", () => void controller.loadEvidence()));
   else out.push(el("p", {}, t("evidence.empty")));
   evidence.replaceChildren(...out);
 }
@@ -172,12 +179,13 @@ let prev: ControllerState | null = null;
 function render() {
   const s = controller.getState();
   if (!prev || prev.connection !== s.connection || prev.view.run !== s.view.run) renderHeader(s);
-  if (!prev || prev.view.run !== s.view.run || prev.view.finalMessage !== s.view.finalMessage || prev.error !== s.error) renderMessages(s);
+  if (!prev || prev.view.run !== s.view.run || prev.view.finalMessage !== s.view.finalMessage || prev.view.streamingText !== s.view.streamingText || prev.view.question !== s.view.question || prev.error !== s.error) renderMessages(s);
   if (!prev || prev.approval !== s.approval) renderApproval(s);
   if (!prev || prev.view.run !== s.view.run || prev.view.actions !== s.view.actions) renderOutcome(s);
   if (!prev || prev.view.events !== s.view.events) renderTimeline(s);
   if (!prev || prev.view.run !== s.view.run || prev.evidence !== s.evidence) renderEvidence(s);
-  submit.disabled = s.busy;
+  submit.disabled = s.busy || !canCompose(s.view.run?.state);
+  input.disabled = s.busy || !canCompose(s.view.run?.state);
   prev = s;
 }
 controller.subscribe(render);

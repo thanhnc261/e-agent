@@ -299,3 +299,147 @@ async def test_capability_surface_change_blocks_resume(make_kernel: MakeKernel) 
     run = await k.coordinator.get_run(TENANT, run.run_id)
     assert run.state is RunState.FAILED and run.reason == "capability surface changed"
     assert k.backend.create_calls == 0
+
+
+async def test_policy_version_change_requires_new_approval(make_kernel: MakeKernel) -> None:
+    k = make_kernel()
+    run = await _start(k)
+    k.coordinator._policy.version = "policy-mvp-2"
+    await _approve(k, run.run_id)
+    assert k.backend.create_calls == 0
+    assert (await k.store.list_actions(TENANT, run.run_id))[0].state is ActionState.BLOCKED
+
+
+async def test_validator_unavailable_at_dispatch_blocks_write(make_kernel: MakeKernel) -> None:
+    k = make_kernel()
+    run = await _start(k)
+    k.validator.explode = True
+    await _approve(k, run.run_id)
+    assert k.backend.create_calls == 0
+
+
+async def test_unversioned_material_facts_require_new_approval(make_kernel: MakeKernel) -> None:
+    from dataclasses import replace
+
+    k = make_kernel()
+    original = k.backend.read
+
+    async def unversioned(*args):
+        observation = await original(*args)
+        return replace(
+            observation, evidence=observation.evidence.model_copy(update={"revision": None})
+        )
+
+    k.backend.read = unversioned
+    run = await _start(k)
+    pres = await k.coordinator.pending_approval(TENANT, run.run_id)
+    assert pres.canonical_proposal["evidence"][0]["fact_digest"].startswith("facts-json-v1:")
+    k.backend.notes["preexisting"] = {"key": "preexisting", "text": "changed facts"}
+    await _approve(k, run.run_id)
+    assert k.backend.create_calls == 0
+
+
+async def test_cancel_interrupts_inference_before_any_effect(make_kernel: MakeKernel) -> None:
+    import asyncio
+
+    k = make_kernel()
+    entered = asyncio.Event()
+
+    async def blocked(ctx, step_input):
+        entered.set()
+        await asyncio.Event().wait()
+
+    k.driver.advance = blocked
+    work = asyncio.create_task(_start(k))
+    await asyncio.wait_for(entered.wait(), 1)
+    [run] = await k.store.list_unfinished_runs()
+    cancelled = await k.coordinator.cancel(k.requester, run.run_id)
+    assert cancelled.state is RunState.CANCELLED
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(work, 1)
+    assert k.backend.create_calls == 0
+
+
+async def test_model_deadline_stops_without_dispatch(make_kernel: MakeKernel) -> None:
+    import asyncio
+
+    k = make_kernel(budgets=Budgets(model_timeout_seconds=1))
+
+    async def blocked(ctx, step_input):
+        await asyncio.Event().wait()
+
+    k.driver.advance = blocked
+    run = await _start(k)
+    assert run.state is RunState.FAILED
+    assert "deadline" in run.reason
+    assert k.backend.create_calls == 0
+
+
+async def test_credential_rotation_invalidates_approval_without_connection_edit(
+    make_kernel: MakeKernel,
+) -> None:
+    k = make_kernel()
+
+    class CredentialMetadata:
+        revision = "credential-1"
+
+        async def version(self, ctx, connection_id):
+            return self.revision
+
+    credentials = CredentialMetadata()
+    k.coordinator._credentials = credentials
+    run = await _start(k)
+    before = await k.coordinator.pending_approval(TENANT, run.run_id)
+    assert before.canonical_proposal["credential_version"] == "credential-1"
+    credentials.revision = "credential-2"
+    await _approve(k, run.run_id)
+    assert k.backend.create_calls == 0
+
+
+async def test_driver_usage_limit_is_persisted_as_budget_failure_without_dispatch(make_kernel):
+    from e_agent.sdk.errors import DriverBudgetExceeded
+
+    k = make_kernel()
+
+    async def exhausted(*args):
+        raise DriverBudgetExceeded("model usage limit")
+
+    k.driver.advance = exhausted
+    run = await k.coordinator.start_run(k.requester, "x", k.scope)
+    assert run.state is RunState.FAILED
+    assert k.backend.create_calls == 0
+    events = await k.store.list_events(TENANT, run.run_id)
+    assert any(e.type == "budget.exhausted" for e in events)
+
+
+async def test_plain_model_text_cannot_mark_a_business_task_succeeded(make_kernel):
+    from e_agent.sdk.ports import FinalAnswer
+
+    k = make_kernel()
+
+    async def unverified(*args):
+        return FinalAnswer(text="I completed the business task.")
+
+    k.driver.advance = unverified
+    run = await k.coordinator.start_run(k.requester, "x", k.scope)
+    assert run.state is RunState.FAILED and k.backend.create_calls == 0
+    assert run.reason == "no independently verified outcome"
+    events = await k.store.list_events(TENANT, run.run_id)
+    assert not any(e.type == "message.final" for e in events)
+
+
+async def test_rule_bundle_change_requires_new_approval_even_when_validation_passes(make_kernel):
+    k = make_kernel()
+    run = await _start(k)
+    original = k.validator.validate
+
+    async def changed_bundle(*args):
+        validation = await original(*args)
+        return validation.model_copy(update={"rule_bundle_version": "notes@2"})
+
+    k.validator.validate = changed_bundle
+    await _approve(k, run.run_id)
+    assert k.backend.create_calls == 0
+    assert (await k.store.list_actions(TENANT, run.run_id))[0].state is ActionState.BLOCKED
+    events = await k.store.list_events(TENANT, run.run_id)
+    assert any(event.payload.get("reason") == "rules changed since approval" for event in events)

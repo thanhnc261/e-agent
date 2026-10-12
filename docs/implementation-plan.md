@@ -1,5 +1,12 @@
 # MVP implementation plan
 
+Enterprise UI planning follow-up (2026-10-08): [overlay adoption plan](plans/2026-10-08-enterprise-overlay-adoption.md) sequences FE-00–FE-07 and API-01, with Delivery A using existing run contracts and Delivery B adding authorized discovery. The companion [frontend guide](frontend-development-guide.md) defines proposed reuse and organization conventions. These planned increments do not change current MVP scope or live qualification status.
+
+Selectable overlay follow-up (2026-10-08): [ADR 0016](adr/0016-selectable-agent-surfaces.md) adds a responsive Workbench and an in-app View selector over the same controller and approval authority. See [research/design](../research/11-enterprise-agent-overlay-design.md).
+
+
+UI follow-up (2026-10-08): the requested task-workspace change is recorded in [ADR 0015](adr/0015-task-workspace-presentation.md) and the [handoff](handoffs/2026-10-08-ui-redesign.md). It extends I08/I09 fixture verification; owner live release qualification remains required.
+
 **Date:** 2026-10-06. **Status:** actionable planning baseline; implementation in progress (see the README status table). User decisions are recorded in [ADR 0001](adr/0001-local-mvp-scope.md). Read with the [HLD](high-level-design.md) and [detailed design](mvp-detailed-design.md). ADRs 0002–0013 ([index](adr/README.md)) were accepted on 2026-10-06 (decisions D1–D5); D6/D7 remain open. §0 lists what must be decided before development starts; the [MVP readiness review](reviews/2026-10-06-mvp-readiness-review.md) records how this was checked. The scoped [threat model](threat-model.md) defines security tests used by I05–I09 and I12.
 
 ## 0. Readiness: decisions and Day-1 checklist
@@ -134,7 +141,7 @@ The local kernel still records approval and dispatch before network invocation. 
 
 ## 6. Overlay UI and event transport
 
-The UI is layered per [UI architecture](ui-architecture.md) (ADR 0011): a generated typed client and a framework-free `ui-core` are shared by every UI. On top of them sit the default React components (React Aria primitives), DTCG design-token themes, `overlay`/`sidebar`/`full-page` layouts, and the hosts: `apps/web` and a Shadow-DOM `<e-agent-overlay>` custom element that embeds in any web page. No layer is tied to Odoo or another system. Custom themes, layouts, components or whole UIs reuse the lower layers and must pass the UI conformance suite. Proposed web implementation: TypeScript with React/Vite and a pnpm workspace. A later system-specific host adapter (for example inside Odoo or an intranet portal) would only mount the same element and supply a generic `HostContext`. Validate the chosen host/asset approach before adopting it. No desktop wrapper or browser extension is assumed.
+The UI is layered per [UI architecture](ui-architecture.md) (ADR 0011): a generated typed client and a framework-free `ui-core` are shared by every UI. On top of them sit the default React components (React Aria primitives), DTCG design-token themes, `overlay`/`workbench`/`sidebar`/`full-page` layouts, and the hosts: `apps/web` and a Shadow-DOM `<e-agent-overlay>` custom element that embeds in any web page. No layer is tied to Odoo or another system. Custom themes, layouts, components or whole UIs reuse the lower layers and must pass the UI conformance suite. Proposed web implementation: TypeScript with React/Vite and a pnpm workspace. A later system-specific host adapter (for example inside Odoo or an intranet portal) would only mount the same element and supply a generic `HostContext`. Validate the chosen host/asset approach before adopting it. No desktop wrapper or browser extension is assumed.
 
 Required UI: expandable overlay, task/chat input, streamed response, live status timeline, evidence/rule links, exact proposal diff, explicit approve/reject, stop/cancel, reconnect indicator, final verified/failed/unresolved state. It is not a graph-governance authoring UI.
 

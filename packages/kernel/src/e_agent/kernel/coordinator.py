@@ -7,8 +7,11 @@ report findings; executors only execute admitted invocations.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+import asyncio
+import time
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime, timedelta
+from functools import partial
 from typing import Any
 
 from e_agent.contracts.action import ALLOWED_ACTION_TRANSITIONS, ActionRecord, ActionState
@@ -16,15 +19,16 @@ from e_agent.contracts.approval import ApprovalDecision, ApprovalRecord
 from e_agent.contracts.capability import CapabilityBinding, EffectKind
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.context import Budgets, HostContext, Principal, TaskContext
-from e_agent.contracts.digest import CanonicalizationError
+from e_agent.contracts.digest import CanonicalizationError, digest
 from e_agent.contracts.events import RunEventType
-from e_agent.contracts.evidence import EvidenceRef
+from e_agent.contracts.evidence import ApprovedFact, Completeness
 from e_agent.contracts.outcome import OutcomeReport, OutcomeStatus
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord, RunState
 from e_agent.contracts.validation import Finding, ValidationResult, ValidationStatus
-from e_agent.sdk.errors import KnownNoEffectError
+from e_agent.sdk.auth import CredentialVersionProvider
+from e_agent.sdk.errors import DriverBudgetExceeded, KnownNoEffectError
 from e_agent.sdk.ports import (
     AgentDriver,
     AskClarification,
@@ -35,12 +39,19 @@ from e_agent.sdk.ports import (
     ProposeAction,
     ReadRequest,
     RequestReads,
+    SafeTextSink,
     ValidationInput,
 )
 from e_agent.sdk.store import DuplicateOperation, EventSpec, RunStore
 from pydantic import BaseModel, Field
 
-from .approval import ApprovalPresentation, compute_digest, digest_input, presentation_for
+from .approval import (
+    ApprovalPresentation,
+    compute_digest,
+    digest_input,
+    fact_digest,
+    presentation_for,
+)
 from .connections import ConnectionCatalog
 from .errors import ErrorCode, KernelError
 from .policy import APPROVER_ROLE
@@ -70,6 +81,7 @@ class _Continuation(BaseModel):
     canonical_proposal: dict[str, Any] = Field(default_factory=dict)
     last_validation: ValidationResult | None = None
     approval_requested_at: datetime | None = None
+    active_seconds: float = 0
     surface_digest: str = ""  # tool surface at run start; resume is blocked if it changed
 
 
@@ -88,7 +100,10 @@ class _GatewayReader:
             connection_id=self._connection_id,
             arguments=dict(arguments),
         )
-        return await self._coordinator._gateway_read(self._cont, request, count_budget=False)
+        observation = await self._coordinator._gateway_read(self._cont, request, count_budget=True)
+        if observation.evidence.completeness is not Completeness.COMPLETE:
+            raise KernelError(ErrorCode.DEPENDENCY_UNAVAILABLE, "verification read is incomplete")
+        return observation
 
 
 class RunCoordinator:
@@ -103,19 +118,22 @@ class RunCoordinator:
         clock: Callable[[], datetime] = utc_now,
         approval_ttl: timedelta = DEFAULT_APPROVAL_TTL,
         budgets: Budgets | None = None,
+        credentials: CredentialVersionProvider | None = None,
     ) -> None:
         self._store = store
         self._registry = registry
         self._connections = connections
         self._policy = policy
+        self._credentials = credentials
         self._driver = driver
         self._clock = clock
         self._approval_ttl = approval_ttl
         self._budgets = budgets or Budgets()
         self._runs: dict[str, _Continuation] = {}
+        self._active_calls: dict[str, asyncio.Task[Any]] = {}
 
     # ------------------------------------------------------------------ runs
-    async def start_run(
+    def _prepare_run(
         self,
         principal: Principal,
         task: str,
@@ -123,7 +141,7 @@ class RunCoordinator:
         *,
         run_id: str | None = None,
         host_context: HostContext | None = None,
-    ) -> RunRecord:
+    ) -> tuple[RunRecord, _Continuation, list[EventSpec]]:
         run_id = run_id or new_id("run")
         ctx = TaskContext(
             run_id=run_id,
@@ -153,10 +171,68 @@ class RunCoordinator:
                 "resolved_hints": [h.model_dump() for h in resolved],
                 "dropped_hints": dropped,
             }
-        await self._store.create_run(run, [(RunEventType.RUN_CREATED, created, None)])
-        self._runs[run_id] = _Continuation(ctx=ctx, surface_digest=self._registry.surface_digest())
+        cont = _Continuation(ctx=ctx, surface_digest=self._registry.surface_digest())
+        return run, cont, [(RunEventType.RUN_CREATED, created, None)]
+
+    async def start_run(
+        self,
+        principal: Principal,
+        task: str,
+        resource_scope: frozenset[str],
+        *,
+        run_id: str | None = None,
+        host_context: HostContext | None = None,
+    ) -> RunRecord:
+        run, cont, events = self._prepare_run(
+            principal, task, resource_scope, run_id=run_id, host_context=host_context
+        )
+        await self._store.create_run(run, events)
+        self._runs[run.run_id] = cont
         run = await self._set_run_state(run, RunState.RUNNING)
         return await self._drive(run, DriverInput(task=task))
+
+    async def admit_run(
+        self,
+        principal: Principal,
+        task: str,
+        resource_scope: frozenset[str],
+        *,
+        run_id: str,
+        idempotency_key: str,
+        request_digest: str,
+        host_context: HostContext | None = None,
+    ) -> tuple[str, bool]:
+        run, cont, events = self._prepare_run(
+            principal, task, resource_scope, run_id=run_id, host_context=host_context
+        )
+        claimed, previous_digest = await self._store.create_run_idempotent(
+            run,
+            events,
+            {"schema": CONTINUATION_SCHEMA, "data": cont.model_dump(mode="json")},
+            principal.principal_id,
+            idempotency_key,
+            request_digest,
+        )
+        if previous_digest != request_digest:
+            raise KernelError(ErrorCode.CONFLICT, "idempotency key reused with another request")
+        return claimed, claimed == run_id
+
+    async def start_admitted_run(self, tenant_id: str, run_id: str) -> RunRecord:
+        run = await self._store.get_run(tenant_id, run_id)
+        if run.state is not RunState.CREATED:
+            raise KernelError(ErrorCode.CONFLICT, "run has already started")
+        await self._load_cont(tenant_id, run_id)
+        run = await self._set_run_state(run, RunState.RUNNING)
+        return await self._drive(run, DriverInput(task=run.task))
+
+    def set_text_sink(self, sink: SafeTextSink) -> None:
+        attach = getattr(self._driver, "set_text_sink", None)
+        if attach is not None:
+            attach(sink)
+
+    def release_continuation(self, run_id: str) -> None:
+        """Discard a worker's cached checkpoint before a new host claim loads it."""
+        self._runs.pop(run_id, None)
 
     async def get_run(self, tenant_id: str, run_id: str) -> RunRecord:
         return await self._store.get_run(tenant_id, run_id)
@@ -176,8 +252,12 @@ class RunCoordinator:
         updated = run.model_copy(
             update={"state": state, "revision": run.revision + 1, "reason": reason}
         )
-        await self._persist(run.run_id)
-        return await self._store.update_run(updated, run.revision, events)
+        return await self._store.update_run(
+            updated,
+            run.revision,
+            events,
+            continuation=self._snapshot(run.run_id),
+        )
 
     async def _load_cont(self, tenant_id: str, run_id: str) -> _Continuation:
         cont = self._runs.get(run_id)
@@ -196,18 +276,47 @@ class RunCoordinator:
         self._runs[run_id] = cont
         return cont
 
-    async def _persist(self, run_id: str) -> None:
+    def _snapshot(self, run_id: str) -> tuple[dict[str, Any], dict[str, Any] | None] | None:
         cont = self._runs.get(run_id)
         if cont is None:
-            return
+            return None
         snapshot = getattr(self._driver, "snapshot", None)
         driver_state = snapshot(run_id) if snapshot is not None else None
-        await self._store.save_continuation(
-            cont.ctx.tenant_id,
-            run_id,
-            {"schema": CONTINUATION_SCHEMA, "data": cont.model_dump(mode="json")},
-            driver_state,
-        )
+        return ({"schema": CONTINUATION_SCHEMA, "data": cont.model_dump(mode="json")}, driver_state)
+
+    async def _persist(self, run_id: str) -> None:
+        snapshot = self._snapshot(run_id)
+        if snapshot is not None:
+            cont = self._runs[run_id]
+            await self._store.save_continuation(cont.ctx.tenant_id, run_id, *snapshot)
+
+    async def _timed[T](
+        self,
+        cont: _Continuation,
+        call: Callable[[], Awaitable[T]],
+        limit: int,
+        *,
+        cancellable: bool = True,
+    ) -> T:
+        remaining = cont.ctx.budgets.max_active_seconds - cont.active_seconds
+        if remaining <= 0:
+            raise TimeoutError("active execution budget exhausted")
+        started = time.perf_counter()
+
+        async def invoke() -> T:
+            return await call()
+
+        task: asyncio.Task[T] = asyncio.create_task(invoke())
+        if cancellable:
+            self._active_calls[cont.ctx.run_id] = task
+        try:
+            async with asyncio.timeout(min(limit, remaining)):
+                return await task
+        finally:
+            if self._active_calls.get(cont.ctx.run_id) is task:
+                self._active_calls.pop(cont.ctx.run_id, None)
+            cont.active_seconds += time.perf_counter() - started
+            await self._persist(cont.ctx.run_id)
 
     # ---------------------------------------------------------------- driving
     async def _drive(self, run: RunRecord, step_input: DriverInput) -> RunRecord:
@@ -217,13 +326,33 @@ class RunCoordinator:
             if cont.turns >= ctx.budgets.max_driver_turns:
                 return await self._exhausted(run, "driver turns")
             cont.turns += 1
-            step = await self._driver.advance(ctx, step_input)
+            tokens_used = getattr(self._driver, "tokens_used", lambda _: 0)(ctx.run_id)
+            if tokens_used >= ctx.budgets.max_model_tokens:
+                return await self._exhausted(run, "model tokens")
+            try:
+                step = await self._timed(
+                    cont,
+                    partial(self._driver.advance, ctx, step_input),
+                    ctx.budgets.model_timeout_seconds,
+                )
+            except DriverBudgetExceeded:
+                return await self._exhausted(run, "model usage")
+            except TimeoutError:
+                return await self._exhausted(run, "active time or model deadline")
 
+            if (
+                getattr(self._driver, "tokens_used", lambda _: 0)(ctx.run_id)
+                >= ctx.budgets.max_model_tokens
+            ):
+                return await self._exhausted(run, "model tokens")
             if isinstance(step, RequestReads):
                 for request in step.reads:
                     if cont.read_calls >= ctx.budgets.max_read_calls:
                         return await self._exhausted(run, "read calls")
-                    obs = await self._gateway_read(cont, request, count_budget=True)
+                    try:
+                        obs = await self._gateway_read(cont, request, count_budget=True)
+                    except TimeoutError:
+                        return await self._exhausted(run, "active time or provider deadline")
                     cont.reads[request.request_id] = request
                     cont.observations[request.request_id] = obs
                 await self._persist(run.run_id)
@@ -241,6 +370,7 @@ class RunCoordinator:
                 continue
 
             if isinstance(step, AskClarification):
+                run = await self._store.get_run(run.tenant_id, run.run_id)
                 await self._store.update_run(
                     run.model_copy(update={"revision": run.revision + 1}),
                     run.revision,
@@ -251,6 +381,38 @@ class RunCoordinator:
 
             if isinstance(step, FinalAnswer):
                 run = await self._store.get_run(run.tenant_id, run.run_id)
+                last_action = (
+                    await self._store.get_action(run.tenant_id, cont.last_action_id)
+                    if cont.last_action_id
+                    else None
+                )
+                if cont.pending_action_id is None and (
+                    last_action is None or last_action.state is not ActionState.VERIFIED
+                ):
+                    if cont.repairs >= ctx.budgets.max_validation_repairs:
+                        return await self._set_run_state(
+                            run, RunState.FAILED, "no independently verified outcome"
+                        )
+                    cont.repairs += 1
+                    await self._persist(run.run_id)
+                    step_input = DriverInput(
+                        task=run.task,
+                        observations=tuple(cont.observations.values()),
+                        findings=(
+                            Finding(
+                                rule_id="KERNEL-VERIFICATION",
+                                rule_version="1",
+                                status=ValidationStatus.FAIL,
+                                message=(
+                                    "Plain text cannot complete this task. "
+                                    "Propose a structured answer "
+                                    "for independent verification, propose the requested action, "
+                                    "or request clarification for missing user details."
+                                ),
+                            ),
+                        ),
+                    )
+                    continue
                 run = await self._store.update_run(
                     run.model_copy(update={"revision": run.revision + 1}),
                     run.revision,
@@ -260,6 +422,70 @@ class RunCoordinator:
                     return await self._set_run_state(run, RunState.SUCCEEDED, "answered")
                 return run
             raise KernelError(ErrorCode.INVALID_REQUEST, "driver returned an unknown step")
+
+    async def accept_input(
+        self,
+        actor: Principal,
+        run_id: str,
+        text: str,
+        expected_revision: int,
+        *,
+        enqueue: bool = False,
+    ) -> RunRecord:
+        """Resume the requester's persisted run; input grants no additional authority."""
+        run = await self._store.get_run(actor.tenant_id, run_id)
+        if actor.principal_id != run.requester_id:
+            raise KernelError(ErrorCode.FORBIDDEN, "only the requester may answer")
+        if run.revision != expected_revision or run.state is not RunState.WAITING_INPUT:
+            raise KernelError(ErrorCode.CONFLICT, "input does not match the pending question")
+        if not text.strip() or len(text) > 4000:
+            raise KernelError(ErrorCode.INVALID_REQUEST, "input must contain 1..4000 characters")
+        await self._load_cont(actor.tenant_id, run_id)
+        run = await self._store.update_run(
+            run.model_copy(update={"revision": run.revision + 1, "state": RunState.RUNNING}),
+            run.revision,
+            [
+                (
+                    RunEventType.INPUT_RECEIVED,
+                    {"input": text, "expected_revision": expected_revision},
+                    None,
+                ),
+                (RunEventType.RUN_STATE_CHANGED, {"state": RunState.RUNNING}, None),
+            ],
+            continuation=self._snapshot(run_id),
+            work=("input", {}, digest({"revision": str(expected_revision), "input": text}))
+            if enqueue
+            else None,
+        )
+        return run
+
+    async def continue_input(self, tenant_id: str, run_id: str) -> RunRecord:
+        run = await self._store.get_run(tenant_id, run_id)
+        if run.state is not RunState.RUNNING:
+            raise KernelError(ErrorCode.CONFLICT, "run is no longer awaiting input work")
+        events = await self._store.list_events(tenant_id, run_id)
+        received = [e for e in events if e.type is RunEventType.INPUT_RECEIVED]
+        if not received:
+            raise KernelError(ErrorCode.CONFLICT, "no accepted input")
+        cont = await self._load_cont(tenant_id, run_id)
+        return await self._drive(
+            run,
+            DriverInput(
+                task=run.task,
+                user_input=str(received[-1].payload["input"]),
+                observations=tuple(cont.observations.values()),
+            ),
+        )
+
+    async def resume_input(
+        self,
+        actor: Principal,
+        run_id: str,
+        text: str,
+        expected_revision: int,
+    ) -> RunRecord:
+        await self.accept_input(actor, run_id, text, expected_revision)
+        return await self.continue_input(actor.tenant_id, run_id)
 
     async def _exhausted(self, run: RunRecord, what: str) -> RunRecord:
         run = await self._store.get_run(run.tenant_id, run.run_id)
@@ -275,6 +501,8 @@ class RunCoordinator:
         self, cont: _Continuation, request: ReadRequest, *, count_budget: bool
     ) -> Observation:
         ctx = cont.ctx
+        if count_budget and cont.read_calls >= ctx.budgets.max_read_calls:
+            raise KernelError(ErrorCode.DEPENDENCY_UNAVAILABLE, "read call budget exhausted")
         descriptor = self._registry.descriptor(request.contract_id)
         if descriptor.effect is not EffectKind.READ:
             raise KernelError(ErrorCode.INVALID_REQUEST, "write capability requested as a read")
@@ -283,7 +511,19 @@ class RunCoordinator:
         if not decision.permitted:
             raise KernelError(ErrorCode.FORBIDDEN, "read not permitted")
         binding = self._registry.resolve(request.contract_id, request.connection_id)
-        obs = await self._registry.executor_for(binding).read(ctx, binding, request)
+        obs = await self._timed(
+            cont,
+            lambda: self._registry.executor_for(binding).read(ctx, binding, request),
+            ctx.budgets.provider_timeout_seconds,
+        )
+        if (
+            obs.evidence.tenant_id != ctx.tenant_id
+            or obs.request_id != request.request_id
+            or obs.contract_id != request.contract_id
+        ):
+            raise KernelError(
+                ErrorCode.FORBIDDEN, "read result does not match the authorized request"
+            )
         if count_budget:
             cont.read_calls += 1
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
@@ -323,6 +563,11 @@ class RunCoordinator:
         decision = self._policy.evaluate(ctx, descriptor, proposal.connection_id)
         validation = await self._validate(ctx, cont, proposal, binding)
 
+        credential_version = (
+            await self._credentials.version(ctx, proposal.connection_id)
+            if self._credentials
+            else "none"
+        )
         evidence = [cont.observations[r].evidence for r in sorted(cont.observations)]
         canonical = digest_input(
             tenant_id=ctx.tenant_id,
@@ -338,6 +583,12 @@ class RunCoordinator:
             evidence=evidence,
             rule_bundle_version=validation.rule_bundle_version,
             policy_version=decision.policy_version,
+            credential_version=credential_version,
+            fact_digests={
+                o.evidence.evidence_id: fact_digest(o.data)
+                for o in cont.observations.values()
+                if o.evidence.revision is None
+            },
         )
         try:
             action_digest = compute_digest(canonical)
@@ -368,6 +619,11 @@ class RunCoordinator:
             connection_id=connection.connection_id,
             connection_version=connection.version,
             credential_subject=connection.credential_subject(),
+            credential_version=credential_version,
+            approved_facts=tuple(
+                ApprovedFact(contract_id=o.contract_id, data=dict(o.data), evidence=o.evidence)
+                for o in cont.observations.values()
+            ),
             arguments=dict(proposal.arguments),
             digest=action_digest,
             state=ActionState.PROPOSED,
@@ -432,19 +688,41 @@ class RunCoordinator:
         cont.canonical_proposal = canonical
         cont.last_validation = validation
         cont.approval_requested_at = self._clock()
-        action = await self._transition(
-            action,
-            ActionState.AWAITING_APPROVAL,
-            (
-                RunEventType.APPROVAL_REQUESTED,
-                {
-                    "digest": action.digest,
-                    "expires_at": (cont.approval_requested_at + self._approval_ttl).isoformat(),
-                },
-            ),
-        )
         run = await self._store.get_run(run.tenant_id, run.run_id)
-        return await self._set_run_state(run, RunState.WAITING_APPROVAL)
+        waiting = run.model_copy(
+            update={
+                "state": RunState.WAITING_APPROVAL,
+                "revision": run.revision + 1,
+                "reason": None,
+            }
+        )
+        checkpoint = self._snapshot(run.run_id)
+        assert checkpoint is not None
+        await self._store.wait_for_approval(
+            action.model_copy(
+                update={"state": ActionState.AWAITING_APPROVAL, "revision": action.revision + 1}
+            ),
+            action.revision,
+            waiting,
+            run.revision,
+            checkpoint,
+            [
+                (
+                    RunEventType.APPROVAL_REQUESTED,
+                    {
+                        "digest": action.digest,
+                        "expires_at": (cont.approval_requested_at + self._approval_ttl).isoformat(),
+                    },
+                    action.action_id,
+                ),
+                (
+                    RunEventType.RUN_STATE_CHANGED,
+                    {"from": run.state, "to": RunState.WAITING_APPROVAL, "reason": None},
+                    None,
+                ),
+            ],
+        )
+        return waiting
 
     async def _handle_answer(
         self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
@@ -462,6 +740,18 @@ class RunCoordinator:
             )
         except CanonicalizationError:
             action_digest = "invalid"
+        if cont.last_action_id is not None:
+            previous = await self._store.get_action(ctx.tenant_id, cont.last_action_id)
+            if (
+                previous.state is ActionState.VERIFIED
+                and previous.contract_id == proposal.contract_id
+                and previous.connection_id == connection.connection_id
+                and previous.digest == action_digest
+                and previous.arguments == dict(proposal.arguments)
+            ):
+                return await self._finish_verified(
+                    cont, (), "The structured answer was independently verified.", acknowledge=False
+                )
         action = ActionRecord(
             action_id=new_id("act"),
             tenant_id=ctx.tenant_id,
@@ -558,6 +848,22 @@ class RunCoordinator:
         proposal: ActionProposal,
         binding: CapabilityBinding,
     ) -> ValidationResult:
+        if any(
+            o.evidence.completeness is not Completeness.COMPLETE for o in cont.observations.values()
+        ):
+            return ValidationResult(
+                status=ValidationStatus.UNKNOWN,
+                findings=(
+                    Finding(
+                        rule_id="KERNEL-EVIDENCE",
+                        rule_version="1",
+                        status=ValidationStatus.UNKNOWN,
+                        message="proposal evidence is incomplete",
+                    ),
+                ),
+                rule_bundle_version="kernel-evidence-v1",
+                validator_id="kernel",
+            )
         validators = self._registry.validators_for(proposal.contract_id)
         if not validators:
             return ValidationResult(
@@ -577,7 +883,13 @@ class RunCoordinator:
         results: list[ValidationResult] = []
         for validator in validators:
             try:
-                results.append(await validator.validate(ctx, item))
+                results.append(
+                    await self._timed(
+                        cont,
+                        partial(validator.validate, ctx, item),
+                        ctx.budgets.provider_timeout_seconds,
+                    )
+                )
             except Exception as exc:  # engine failure blocks the write (MVP §11)
                 results.append(
                     ValidationResult(
@@ -634,6 +946,9 @@ class RunCoordinator:
         return presentation_for(
             action,
             previous_arguments=previous,
+            input_schema=self._registry.input_schemas.get(
+                self._registry.descriptor(action.contract_id).input_schema_id
+            ),
             run_revision=run.revision,
             canonical_proposal=cont.canonical_proposal,
             findings=cont.last_validation.findings if cont.last_validation else (),
@@ -693,11 +1008,17 @@ class RunCoordinator:
             action_digest=action_digest,
             actor_id=actor.principal_id,
             decision=decision,
-            policy_version=self._policy.evaluate(
-                cont.ctx, self._registry.descriptor(action.contract_id), action.connection_id
-            ).policy_version,
+            policy_version=str(cont.canonical_proposal["policy_version"]),
             issued_at=now,
             expires_at=now + self._approval_ttl,
+        )
+        approved_action = action.model_copy(
+            update={
+                "state": ActionState.BLOCKED
+                if decision is ApprovalDecision.REJECTED
+                else ActionState.APPROVED,
+                "revision": action.revision + 1,
+            }
         )
         await self._store.record_approval(
             record,
@@ -708,14 +1029,14 @@ class RunCoordinator:
                     action_id,
                 )
             ],
+            action=approved_action,
+            expected_revision=action.revision,
         )
         if decision is ApprovalDecision.REJECTED:
-            await self._transition(action, ActionState.BLOCKED)
             cont.pending_action_id = None
             run = await self._store.get_run(actor.tenant_id, run_id)
             return await self._set_run_state(run, RunState.FAILED, "rejected by approver")
-        action = await self._transition(action, ActionState.APPROVED)
-        return await self._dispatch(cont, action, record)
+        return await self._dispatch(cont, approved_action, record)
 
     # -------------------------------------------------------------- dispatch
     async def _dispatch(
@@ -723,7 +1044,12 @@ class RunCoordinator:
     ) -> RunRecord:
         ctx = cont.ctx
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
-        stale_reason = await self._staleness(cont, action)
+        try:
+            stale_reason = await self._staleness(cont, action)
+        except TimeoutError:
+            await self._transition(action, ActionState.BLOCKED)
+            cont.pending_action_id = None
+            return await self._exhausted(run, "active time or provider deadline")
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)  # reads advanced revision
         if stale_reason is None and self._clock() > approval.expires_at:
             stale_reason = "approval expired before dispatch"
@@ -775,10 +1101,23 @@ class RunCoordinator:
         )
         binding = self._registry.resolve(action.contract_id, action.connection_id)
         executor = self._registry.executor_for(binding)
+        dispatch_ctx = ctx.model_copy(
+            update={
+                "credential_versions": {
+                    **ctx.credential_versions,
+                    action.connection_id: action.credential_version,
+                }
+            }
+        )
         started = self._clock()
         try:
             async with self._store.writer_lock(ctx.tenant_id, action.connection_id):
-                receipt = await executor.execute(ctx, binding, action, 1)
+                receipt = await self._timed(
+                    cont,
+                    lambda: executor.execute(dispatch_ctx, binding, action, 1),
+                    ctx.budgets.provider_timeout_seconds,
+                    cancellable=False,
+                )
         except KnownNoEffectError as exc:
             receipt = ExecutionReceipt(
                 action_id=action.action_id,
@@ -805,18 +1144,54 @@ class RunCoordinator:
             connection = self._connections.usable(ctx, action.connection_id)
         except KernelError as exc:
             return f"connection unavailable: {exc.code}"
-        if connection.version != action.connection_version:
+        if (
+            connection.version != action.connection_version
+            or connection.credential_subject() != action.credential_subject
+        ):
             return "connection changed since approval"
+        if self._registry.surface_digest() != cont.surface_digest:
+            return "tool surface changed since approval"
+        if self._credentials is not None:
+            current_version = await self._credentials.version(ctx, action.connection_id)
+            if current_version != action.credential_version:
+                return "credential changed since approval"
         descriptor = self._registry.descriptor(action.contract_id)
-        if not self._policy.evaluate(ctx, descriptor, action.connection_id).permitted:
+        decision = self._policy.evaluate(ctx, descriptor, action.connection_id)
+        if not decision.permitted:
             return "policy no longer permits the action"
+        if decision.policy_version != cont.canonical_proposal.get("policy_version"):
+            return "policy changed since approval"
+        stale_reason = None
         for request_id, request in cont.reads.items():
-            fresh = await self._gateway_read(cont, request, count_budget=False)
-            before: EvidenceRef = cont.observations[request_id].evidence
-            if fresh.evidence.revision != before.revision:
-                cont.observations[request_id] = fresh
-                return f"material source changed: {request.contract_id}"
-        return None
+            fresh = await self._gateway_read(cont, request, count_budget=True)
+            before = cont.observations[request_id]
+            cont.observations[request_id] = fresh
+            if (
+                fresh.evidence.revision != before.evidence.revision
+                or fresh.evidence.completeness != before.evidence.completeness
+                or (
+                    (fresh.evidence.revision is None or before.evidence.revision is None)
+                    and fact_digest(fresh.data) != fact_digest(before.data)
+                )
+            ):
+                stale_reason = f"material source changed: {request.contract_id}"
+        binding = self._registry.resolve(action.contract_id, action.connection_id)
+        validation = await self._validate(
+            ctx,
+            cont,
+            ActionProposal(
+                contract_id=action.contract_id,
+                connection_id=action.connection_id,
+                arguments=action.arguments,
+                expected_effects=tuple(cont.canonical_proposal.get("expected_effects", [])),
+            ),
+            binding,
+        )
+        if validation.blocks_write:
+            return "fresh validation blocked the action"
+        if validation.rule_bundle_version != cont.canonical_proposal.get("rule_bundle_version"):
+            return "rules changed since approval"
+        return stale_reason
 
     async def _apply_receipt(
         self, cont: _Continuation, action: ActionRecord, receipt: ExecutionReceipt
@@ -916,14 +1291,57 @@ class RunCoordinator:
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
         if target is ActionState.VERIFICATION_FAILED:
             return await self._set_run_state(run, RunState.FAILED, "outcome verification failed")
-        final = await self._driver.advance(
-            ctx,
-            DriverInput(
-                task=run.task,
-                observations=tuple(cont.observations.values()),
-                action_result={"status": "VERIFIED", "external_refs": list(receipt.external_refs)},
-            ),
+        return await self._finish_verified(
+            cont, receipt.external_refs, "The approved action was independently verified."
         )
+
+    async def _finish_verified(
+        self,
+        cont: _Continuation,
+        external_refs: tuple[str, ...],
+        fallback: str,
+        *,
+        acknowledge: bool = True,
+    ) -> RunRecord:
+        """Finish a verified write or repeated answer without executing acknowledgement tools."""
+        ctx = cont.ctx
+        run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
+        final: Any = FinalAnswer(text=fallback)
+        try:
+            if acknowledge and (
+                getattr(self._driver, "tokens_used", lambda _: 0)(ctx.run_id)
+                < ctx.budgets.max_model_tokens
+            ):
+                final = await self._timed(
+                    cont,
+                    lambda: self._driver.advance(
+                        ctx,
+                        DriverInput(
+                            task=run.task,
+                            observations=tuple(cont.observations.values()),
+                            action_result={
+                                "status": "VERIFIED",
+                                "external_refs": list(external_refs),
+                            },
+                        ),
+                    ),
+                    ctx.budgets.model_timeout_seconds,
+                )
+        except Exception as exc:
+            run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
+            run = await self._store.update_run(
+                run.model_copy(update={"revision": run.revision + 1}),
+                run.revision,
+                [
+                    (
+                        RunEventType.BUDGET_EXHAUSTED,
+                        {"budget": "final response", "error": type(exc).__name__},
+                        None,
+                    )
+                ],
+            )
+        if not isinstance(final, FinalAnswer):
+            final = FinalAnswer(text=fallback)
         if isinstance(final, FinalAnswer):
             run = await self._store.update_run(
                 run.model_copy(update={"revision": run.revision + 1}),
@@ -991,7 +1409,11 @@ class RunCoordinator:
             if ActionState.BLOCKED in ALLOWED_ACTION_TRANSITIONS[pending.state]:
                 await self._transition(pending, ActionState.BLOCKED)
             cont.pending_action_id = None
-        return await self._set_run_state(run, RunState.CANCELLED, "cancelled before dispatch")
+        cancelled = await self._set_run_state(run, RunState.CANCELLED, "cancelled before dispatch")
+        active = self._active_calls.get(run_id)
+        if active is not None:
+            active.cancel()
+        return cancelled
 
     # --------------------------------------------------------------- recovery
     async def recover(self) -> list[RunRecord]:
@@ -1004,6 +1426,8 @@ class RunCoordinator:
         """
         recovered: list[RunRecord] = []
         for run in await self._store.list_unfinished_runs():
+            if await self._store.has_pending_work(run.tenant_id, run.run_id):
+                continue
             result = await self._recover_run(run)
             if result is not None:
                 recovered.append(result)
@@ -1019,6 +1443,16 @@ class RunCoordinator:
 
     async def _recover_run(self, run: RunRecord) -> RunRecord | None:
         actions = await self._store.list_actions(run.tenant_id, run.run_id)
+        events = await self._store.list_events(run.tenant_id, run.run_id)
+        latest_id = next(
+            (
+                event.action_id
+                for event in reversed(events)
+                if event.type is RunEventType.PROPOSAL_CREATED
+            ),
+            None,
+        )
+        latest = next((action for action in actions if action.action_id == latest_id), None)
         try:
             cont = await self._load_cont(run.tenant_id, run.run_id)
         except KernelError:
@@ -1049,9 +1483,27 @@ class RunCoordinator:
             return await self._set_run_state(
                 run, RunState.FAILED, "interrupted before dispatch; approve a new run"
             )
-        elif committed and cont is not None and run.state is RunState.VERIFYING:
+        elif committed and cont is not None:
             receipts = await self._store.list_receipts(run.tenant_id, committed[0].action_id)
             return await self._verify(cont, committed[0], receipts[-1])
+        elif any(a.state is ActionState.UNKNOWN for a in actions):
+            return await self._set_run_state(
+                run, RunState.NEEDS_RECONCILIATION, "persisted write outcome unknown"
+            )
+        elif (
+            latest is not None
+            and latest.state is ActionState.VERIFIED
+            and run.state
+            not in {
+                RunState.WAITING_APPROVAL,
+                RunState.WAITING_INPUT,
+            }
+        ):
+            if cont is not None:
+                cont.pending_action_id = None
+            return await self._set_run_state(run, RunState.SUCCEEDED, "outcome verified")
+        elif latest is not None and latest.state is ActionState.VERIFICATION_FAILED:
+            return await self._set_run_state(run, RunState.FAILED, "outcome verification failed")
         elif run.state in {RunState.RUNNING, RunState.CREATED}:
             return await self._set_run_state(run, RunState.FAILED, "interrupted during driver turn")
         return None

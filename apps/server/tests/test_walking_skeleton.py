@@ -50,7 +50,11 @@ def test_rejection_creates_nothing(capsys) -> None:  # type: ignore[no-untyped-d
 def test_zero_shortage_is_a_verified_no_op(capsys) -> None:  # type: ignore[no-untyped-def]
     result = _run(capsys, "--scenario", "zero-shortage")
     assert result["run"]["state"] == "SUCCEEDED"
-    assert "proposal.created" not in _types(result)
+    assert "action.dispatching" not in _types(result)
+    assert any(
+        event["type"] == "outcome.reported" and event["payload"]["status"] == "VERIFIED"
+        for event in result["events"]
+    )
 
 
 def test_over_budget_is_blocked(capsys) -> None:  # type: ignore[no-untyped-def]

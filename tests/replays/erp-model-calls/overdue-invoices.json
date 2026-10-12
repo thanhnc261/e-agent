@@ -1,0 +1,61 @@
+{
+  "kind": "recorded-public-model-parts-fixture-replay",
+  "environment": "synthetic fixture ERP; replay is not live evidence",
+  "task": "overdue-invoices",
+  "prompt": "Report overdue customer invoices as of 2026-10-06.",
+  "model_digest": "bc006a921f692e792f201c133807f63238a8fc3ed22d9da4a919600f39c487de",
+  "context_length": 32768,
+  "temperature": 0,
+  "seed": 0,
+  "pydantic_ai_version": "2.54.0",
+  "expected_contract": "receivables.overdue-invoices.answer.v1",
+  "expected_fixture_writes": 0,
+  "responses": [
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "receivables_open_invoices_read_v1",
+          "args": "{\"as_of\":\"2026-10-06\"}",
+          "tool_call_id": "call_xvfa381e",
+          "part_kind": "tool-call"
+        },
+        {
+          "tool_name": "receivables_overdue_invoices_answer_v1",
+          "args": "{\"as_of\":\"2026-10-06\",\"overdue_invoice_refs\":[],\"totals\":[],\"summary\":\"No overdue invoices found as of 2026-10-06.\"}",
+          "tool_call_id": "call_ze67ocew",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "content": "As of 2026-10-06, there are overdue customer invoices. Here is the summary:\n\n- **Invoice**: INV/FIXTURE/inv-1 (Due: 2026-09-20) - Residual: 500 VND\n- **Invoice**: INV/FIXTURE/inv-4 (Due: 2026-09-25) - Residual: 120.5 USD\n- **Invoice**: INV/FIXTURE/inv-5 (Due: 2026-09-28) - Residual: 250 VND\n\nTotal overdue amounts:\n- 500 VND\n- 120.5 USD\n- 250 VND\n\nPlease confirm if you would like to proceed with any actions related to these invoices.",
+          "part_kind": "text"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "receivables_overdue_invoices_answer_v1",
+          "args": "{\"as_of\":\"2026-10-06\",\"overdue_invoice_refs\":[\"invoice:inv-1\",\"invoice:inv-4\",\"invoice:inv-5\"],\"totals\":[{\"currency\":\"VND\",\"total\":\"750\"},{\"currency\":\"USD\",\"total\":\"120.5\"}],\"summary\":\"Overdue invoices as of 2026-10-06: INV/FIXTURE/inv-1 (500 VND), INV/FIXTURE/inv-4 (120.5 USD), INV/FIXTURE/inv-5 (250 VND).\"}",
+          "tool_call_id": "call_d7d6qqlm",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "content": "As of 2026-10-06, the following customer invoices are overdue:\n\n- **Invoice**: INV/FIXTURE/inv-1 (Due: 2026-09-20) - Residual: 500 VND\n- **Invoice**: INV/FIXTURE/inv-4 (Due: 2026-09-25) - Residual: 120.5 USD\n- **Invoice**: INV/FIXTURE/inv-5 (Due: 2026-09-28) - Residual: 250 VND\n\n**Total Overdue Amounts**:\n- 500 VND\n- 120.5 USD\n- 250 VND\n\nThe summary of overdue invoices is as follows:\n- **INV/FIXTURE/inv-1**: 500 VND\n- **INV/FIXTURE/inv-4**: 120.5 USD\n- **INV/FIXTURE/inv-5**: 250 VND\n\nNo further action has been proposed. Please confirm if you would like to proceed with any actions related to these invoices.",
+          "part_kind": "text"
+        }
+      ]
+    }
+  ]
+}

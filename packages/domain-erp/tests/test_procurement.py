@@ -217,3 +217,32 @@ async def test_offers_read_reports_approval_status() -> None:
         "offer:b": False,
     }
     assert obs.evidence.environment == "fixture"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("requested_date", "2099-01-01"),
+        ("requested_date", None),
+        ("line_count", 2),
+        ("line_count", None),
+        ("operation_key", "another-operation"),
+    ],
+)
+async def test_verifier_rejects_inexact_readback(field: str, value: object) -> None:
+    from dataclasses import replace
+
+    erp = FakeErp(SCENARIOS["valid"])
+    receipt = await erp.execute(CTX, None, _action(), 1)
+    reader = _Reader(erp)
+    original = reader.read
+
+    async def corrupt(contract_id, arguments):
+        obs = await original(contract_id, arguments)
+        return replace(obs, data={"orders": [{**obs.data["orders"][0], field: value}]})
+
+    reader.read = corrupt
+    report = await DraftPurchaseOrderVerifier().verify(CTX, _action(), receipt, reader)
+    assert report.status is OutcomeStatus.FAILED
+    assert not next(c for c in report.checks if c.name == field).passed

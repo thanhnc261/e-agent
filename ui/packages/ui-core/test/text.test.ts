@@ -23,7 +23,7 @@ describe("model text policy", () => {
 describe("i18n and formatting", () => {
   it("vi and en catalogs have the same keys", () => {
     expect(catalogKeys("vi").sort()).toEqual(catalogKeys("en").sort());
-    expect(translate("vi", "approval.title")).toBe("Phê duyệt");
+    expect(translate("vi", "approval.title")).toBe("Xem xét thay đổi được đề xuất");
   });
 
   it("formats decimals without floats", () => {

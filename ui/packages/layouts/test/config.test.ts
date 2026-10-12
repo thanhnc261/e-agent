@@ -10,6 +10,10 @@ describe("layout config schema", () => {
     });
   });
 
+  it("accepts the workbench surface", () => {
+    expect(parseLayoutConfig({ layout: "workbench" })).toEqual({ layout: "workbench" });
+  });
+
   it.each([
     [null],
     [{ layout: "floating" }],

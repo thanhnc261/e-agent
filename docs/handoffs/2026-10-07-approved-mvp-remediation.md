@@ -1,0 +1,11 @@
+# Approved MVP remediation handoff
+
+Date: 2026-10-07. Baseline: `3ae9aafb13b112a207ea6474c006e74a3dc157d2`. Changes are uncommitted; no deployment or owner ERP mutation performed.
+
+Start with the [current retest and readiness matrix](../reviews/2026-10-07-mvp-remediation-retest.md), [approved fix plan](../reviews/2026-10-07-mvp-fix-plan.md) and [ADR 0014](../adr/0014-mvp-remediation-boundaries.md). The original [Sol 6.1 review handoff](2026-10-07-sol-6.1-mvp-review.md), reports and `evidence/review/` remain historical evidence; `evidence/review/current-session` was not repointed.
+
+The candidate fixes approval freshness, atomic ledger transitions, durable worker ownership and recovery, material field verification, artifact admission, in-transaction Odoo target/correlation checks, seed ownership, clarification, public text and execution bounds. Keep provider checks in the adapter/addon, acceptance rules in domains, host authority in the kernel and provider-neutral presentation in shared UI layers.
+
+Observed final verification: 317 Python tests passed (19 live Odoo skipped), 59 kernel tests passed against PostgreSQL, 40 durability checks passed including eight actual process deaths, ten independent wheels passed, and UI checks plus 47 browser tests passed. The frozen local model fixture series counts 115 actual trials, including recording attempts; all eight checkpoints are met, with the two late-orders failures retained (16/18 overall). Nine offline model-call replay checks passed; their eight recorded public traces are checked in under `tests/replays/erp-model-calls/`. Detailed rates and limits are in the retest report. Raw evidence, hashes, working-tree archive, candidate source hashes, synthetic PostgreSQL dump and cleanup record are under `evidence/remediation/20261007-approved/` (ignored by git). No credentials or hidden reasoning are included in the handoff.
+
+The owner live MVP remains NOT_READY. The exact private sandbox profile, bridge installation, provider ORM/race tests and persistent API/UI trials with human approval are required next. Do not infer those from fixture success, historical reports or source version. Live BigQuery, desktop and full knowledge governance are deferred; all eight ERP tasks remain in scope.

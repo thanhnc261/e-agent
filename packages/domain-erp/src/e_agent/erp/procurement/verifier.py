@@ -11,6 +11,7 @@ from decimal import Decimal
 from e_agent.contracts.action import ActionRecord
 from e_agent.contracts.common import utc_now
 from e_agent.contracts.context import TaskContext
+from e_agent.contracts.evidence import Completeness
 from e_agent.contracts.outcome import OutcomeCheck, OutcomeReport, OutcomeStatus
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.sdk.ports import ScopedReader
@@ -40,15 +41,27 @@ class DraftPurchaseOrderVerifier:
         orders = [PurchaseOrderView.model_validate(o) for o in obs.data.get("orders", [])]
         checks = [
             OutcomeCheck(
+                name="complete_readback",
+                passed=obs.evidence.completeness is Completeness.COMPLETE,
+                expected="complete",
+                observed=str(obs.evidence.completeness),
+            ),
+            OutcomeCheck(
                 name="exactly_one_order",
                 passed=len(orders) == 1,
                 expected="1",
                 observed=str(len(orders)),
-            )
+            ),
         ]
         if len(orders) == 1:
             po = orders[0]
             pairs = {
+                "operation_key": (action.logical_operation_id, po.operation_key),
+                "requested_date": (
+                    expected.requested_date.isoformat(),
+                    po.requested_date.isoformat() if po.requested_date else "missing",
+                ),
+                "line_count": ("1", str(po.line_count)),
                 "state_is_draft": ("draft", po.state),
                 "product": (expected.product_ref, po.product_ref),
                 "supplier": (expected.supplier_ref, po.supplier_ref),

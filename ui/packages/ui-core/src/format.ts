@@ -17,6 +17,13 @@ export function formatDateTime(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "medium" }).format(t);
 }
 
+/** Time of day only, for lists whose items share a date (the full value goes in a title). */
+export function formatTime(iso: string, locale: string): string {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return iso;
+  return new Intl.DateTimeFormat(locale, { timeStyle: "medium" }).format(t);
+}
+
 const DECIMAL_FIELD = /(quantity|price|subtotal|amount|total|available|inbound|shortage)$/;
 
 /** Values in approval tables: decimals by field name, everything else verbatim. */

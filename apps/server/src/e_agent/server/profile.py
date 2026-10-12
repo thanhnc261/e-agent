@@ -22,6 +22,7 @@ class OperatorConfig(Record):
 class EnabledPluginConfig(Record):
     version: str
     manifest_sha256: str | None = None
+    artifact_sha256: str | None = None
     settings: dict[str, object] = Field(default_factory=dict)
 
 

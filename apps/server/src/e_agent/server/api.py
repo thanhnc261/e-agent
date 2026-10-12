@@ -21,15 +21,23 @@ from typing import Any, Literal
 
 from e_agent.contracts.action import ActionState
 from e_agent.contracts.approval import ApprovalDecision
-from e_agent.contracts.common import new_id
-from e_agent.contracts.context import HostContext, Principal
+from e_agent.contracts.common import new_id, utc_now
+from e_agent.contracts.context import HostContext, Principal, TaskContext
 from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEvent
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord, RunState
+from e_agent.contracts.work import WorkClaim
 from e_agent.kernel.approval import ApprovalPresentation
+from e_agent.kernel.discovery import (
+    SCHEMA_VERSION as DISCOVERY_SCHEMA_VERSION,
+)
+from e_agent.kernel.discovery import (
+    member_connections,
+    task_catalog,
+)
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.evidence import build_evidence
-from e_agent.sdk.store import NotFound
+from e_agent.sdk.store import ConcurrencyConflict, NotFound
 from fastapi import Depends, FastAPI, Header, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
@@ -74,6 +82,11 @@ class Decide(_Body):
     decision: Literal["approved", "rejected"]
 
 
+class SubmitInput(_Body):
+    input: str = Field(min_length=1, max_length=4000)
+    expected_revision: int = Field(ge=1)
+
+
 class CreateRunResponse(BaseModel):
     run_id: str
     created: bool
@@ -86,11 +99,20 @@ class ActionSummary(BaseModel):
     arguments: dict[str, Any]
 
 
+class TextFrame(BaseModel):
+    message_id: str
+    stream_id: str
+    offset: int
+    text: str
+    reset: bool
+
+
 class RunSnapshot(BaseModel):
     run: RunRecord
     latest_sequence: int
     actions: list[ActionSummary]
     pending_approval: ApprovalPresentation | None
+    streaming_text: TextFrame | None = None
 
 
 class Accepted(BaseModel):
@@ -114,26 +136,166 @@ class Session:
     csrf: str
 
 
+class PublicTextBus:
+    """Bounded process memory; never writes public token fragments to the ledger."""
+
+    def __init__(self) -> None:
+        self.stream_id = new_id("text_stream")
+        self.frames: dict[tuple[str, str], list[TextFrame]] = {}
+        self.prefixes: dict[tuple[str, str], str] = {}
+        self.messages: dict[tuple[str, str], str] = {}
+
+    async def emit(self, ctx: TaskContext, text: str, *, new_message: bool = False) -> None:
+        key = (ctx.tenant_id, ctx.run_id)
+        if key not in self.frames and len(self.frames) >= 128:
+            oldest = next(iter(self.frames))
+            self.frames.pop(oldest)
+            self.prefixes.pop(oldest, None)
+            self.messages.pop(oldest, None)
+        frames = self.frames.setdefault(key, [])
+        if new_message or key not in self.messages:
+            self.messages[key] = new_id("message")
+        prefix = "" if new_message else self.prefixes.get(key, "")
+        text = text[: max(0, 32000 - len(prefix))]
+        if not text:
+            return
+        offset = frames[-1].offset + 1 if frames else 1
+        frames.append(
+            TextFrame(
+                message_id=self.messages[key],
+                stream_id=self.stream_id,
+                offset=offset,
+                text=text,
+                reset=new_message,
+            )
+        )
+        self.frames[key] = frames[-128:]
+        self.prefixes[key] = prefix + text
+
+    def snapshot(self, tenant_id: str, run_id: str) -> TextFrame | None:
+        key = (tenant_id, run_id)
+        frames = self.frames.get(key, [])
+        if not frames:
+            return None
+        return TextFrame(
+            message_id=self.messages[key],
+            stream_id=self.stream_id,
+            offset=frames[-1].offset,
+            text=self.prefixes[key],
+            reset=True,
+        )
+
+    def after(self, tenant_id: str, run_id: str, offset: int) -> list[TextFrame]:
+        frames = self.frames.get((tenant_id, run_id), [])
+        if frames and offset < frames[0].offset - 1:
+            snapshot = self.snapshot(tenant_id, run_id)
+            return [snapshot] if snapshot else []
+        return [frame for frame in frames if frame.offset > offset]
+
+
 class ApiState:
     def __init__(self, runtime: Runtime) -> None:
         self.runtime = runtime
         self.sessions: dict[str, Session] = {}
+        self.text = PublicTextBus()
+        runtime.coordinator.set_text_sink(self.text)
         self.tasks: set[asyncio.Task[Any]] = set()
-        self.run_locks: dict[str, asyncio.Lock] = {}
+        self.stopping = False
 
-    def spawn(self, run_id: str, work: Callable[[], Awaitable[Any]]) -> None:
-        lock = self.run_locks.setdefault(run_id, asyncio.Lock())
+    async def worker(self) -> None:
+        owner = new_id("worker")
+        while True:
+            try:
+                claim = await self.runtime.store.claim_work(owner)
+            except Exception:
+                await asyncio.sleep(0.2)
+                continue
+            if claim is None:
+                await asyncio.sleep(0.05)
+                continue
+            await self._run_work(claim)
 
-        async def guarded() -> None:
-            async with lock:
+    async def _run_work(self, claim: WorkClaim) -> None:
+        rt = self.runtime
+        current = asyncio.current_task()
+        assert current is not None
+
+        lease_lost = False
+
+        async def heartbeat() -> None:
+            nonlocal lease_lost
+            while True:
+                await asyncio.sleep(5)
                 try:
-                    await work()
+                    renewed = await rt.store.renew_work(claim)
                 except Exception:
-                    await self._mark_failed(run_id)
+                    renewed = False
+                if not renewed:
+                    lease_lost = True
+                    current.cancel()
+                    return
 
-        task = asyncio.create_task(guarded())
-        self.tasks.add(task)
-        task.add_done_callback(self.tasks.discard)
+        pulse = asyncio.create_task(heartbeat())
+        try:
+            async with rt.store.work_scope(claim):
+                rt.coordinator.release_continuation(claim.run_id)
+                run = await rt.store.get_run(claim.tenant_id, claim.run_id)
+                untouched = claim.kind == "start" and run.state is RunState.CREATED
+                if claim.kind == "decide" and run.state is RunState.WAITING_APPROVAL:
+                    action = await rt.store.get_action(claim.tenant_id, claim.payload["action_id"])
+                    untouched = (
+                        action.state is ActionState.AWAITING_APPROVAL
+                        and run.revision == claim.payload["expected_revision"]
+                    )
+                if claim.kind == "input" and run.state is RunState.RUNNING:
+                    actions = await rt.store.list_actions(claim.tenant_id, claim.run_id)
+                    checkpoint = await rt.store.load_continuation(claim.tenant_id, claim.run_id)
+                    untouched = bool(checkpoint and checkpoint[1] is not None) and all(
+                        action.state
+                        in {
+                            ActionState.BLOCKED,
+                            ActionState.FAILED,
+                            ActionState.VERIFIED,
+                            ActionState.VERIFICATION_FAILED,
+                        }
+                        for action in actions
+                    )
+                if claim.fence > 1 and not untouched:
+                    await rt.coordinator.recover_run(claim.tenant_id, claim.run_id)
+                elif claim.kind == "start":
+                    await rt.coordinator.start_admitted_run(claim.tenant_id, claim.run_id)
+                elif claim.kind == "input":
+                    await rt.coordinator.continue_input(claim.tenant_id, claim.run_id)
+                else:
+                    payload = claim.payload
+                    await rt.coordinator.decide(
+                        actor=Principal.model_validate(payload["actor"]),
+                        run_id=claim.run_id,
+                        action_id=payload["action_id"],
+                        action_digest=payload["digest"],
+                        expected_run_revision=payload["expected_revision"],
+                        decision=ApprovalDecision(payload["decision"]),
+                    )
+                await rt.store.finish_work(claim)
+        except asyncio.CancelledError:
+            if not lease_lost or self.stopping:
+                raise
+            # A lost lease stops this claim, not the server worker loop.
+            current.uncancel()
+        except ConcurrencyConflict:
+            # Another owner or a cancellation won. This worker has no recovery authority.
+            return
+        except Exception:
+            try:
+                async with rt.store.work_scope(claim):
+                    await self._mark_failed(claim.run_id)
+                    await rt.store.finish_work(claim)
+            except Exception:
+                # Leave the claim for lease expiry and another owner to reconcile.
+                return
+        finally:
+            pulse.cancel()
+            await asyncio.gather(pulse, return_exceptions=True)
 
     async def _mark_failed(self, run_id: str) -> None:
         """Unexpected host error: apply the crash rules, never guess an outcome."""
@@ -142,6 +304,48 @@ class ApiState:
             await rt.coordinator.recover_run(rt.operator.tenant_id, run_id)
         except NotFound:
             return
+
+
+class MemberConnection(BaseModel):
+    """Member-safe connection summary (ADR 0017). No secret or administrative field."""
+
+    connection_id: str
+    integration_id: str
+    ownership: str
+    acting_identity: str | None
+    allowed_resources: list[str]
+    capabilities: list[str]
+    configuration_status: str
+    observed_health: Literal["unknown"]
+    """Always unknown: rendering a view never probes a provider."""
+    revision: int
+
+
+class MemberConnections(BaseModel):
+    schema_version: str
+    observed_at: str
+    connections: list[MemberConnection]
+
+
+class TaskTemplate(BaseModel):
+    """An admitted task type, with the availability the requester actually has."""
+
+    template_id: str
+    title: str
+    description: str
+    input_intent: Literal["free_text"]
+    availability: Literal["available", "unavailable"]
+    unavailable_reason: (
+        Literal["no_usable_connection", "ambiguous_binding", "no_executor", "no_verifier"] | None
+    )
+    required_capabilities: list[str]
+    bounded_context: str
+
+
+class TaskCatalog(BaseModel):
+    schema_version: str
+    observed_at: str
+    templates: list[TaskTemplate]
 
 
 def _error(code: ErrorCode, message: str) -> JSONResponse:
@@ -164,10 +368,14 @@ def create_app(
         runtime = await runtime_factory()
         await runtime.coordinator.recover()
         holder["state"] = ApiState(runtime)
+        worker = asyncio.create_task(holder["state"].worker())
+        holder["state"].tasks.add(worker)
         yield
         state = holder["state"]
+        state.stopping = True
         for task in list(state.tasks):
             task.cancel()
+        await asyncio.gather(*state.tasks, return_exceptions=True)
         close = getattr(runtime.store, "close", None)
         if close is not None:
             await close()
@@ -180,6 +388,10 @@ def create_app(
     @app.exception_handler(KernelError)
     async def kernel_error(_: Request, exc: KernelError) -> JSONResponse:
         return _error(exc.code, exc.safe_message)
+
+    @app.exception_handler(ConcurrencyConflict)
+    async def concurrency_conflict(_: Request, exc: ConcurrencyConflict) -> JSONResponse:
+        return _error(ErrorCode.CONFLICT, "request conflicts with the current run")
 
     @app.exception_handler(NotFound)
     async def not_found(_: Request, exc: NotFound) -> JSONResponse:
@@ -245,19 +457,16 @@ def create_app(
         rt = state().runtime
         request_digest = digest(body.model_dump(mode="json", exclude_none=True))
         run_id = new_id("run")
-        claimed, existing_digest = await rt.store.claim_idempotency(
-            s.principal.tenant_id, s.principal.principal_id, idempotency_key, request_digest, run_id
+        claimed, created = await rt.coordinator.admit_run(
+            s.principal,
+            body.task,
+            rt.scope,
+            run_id=run_id,
+            idempotency_key=idempotency_key,
+            request_digest=request_digest,
+            host_context=body.host_context,
         )
-        if existing_digest != request_digest:
-            raise KernelError(ErrorCode.CONFLICT, "idempotency key reused with another request")
-        if claimed == run_id:
-            state().spawn(
-                run_id,
-                lambda: rt.coordinator.start_run(
-                    s.principal, body.task, rt.scope, run_id=run_id, host_context=body.host_context
-                ),
-            )
-        return CreateRunResponse(run_id=claimed, created=claimed == run_id)
+        return CreateRunResponse(run_id=claimed, created=created)
 
     @app.get("/v1/runs/{run_id}")
     async def get_run(run_id: str, s: Session = Depends(session)) -> RunSnapshot:
@@ -284,6 +493,7 @@ def create_app(
                 for a in actions
             ],
             pending_approval=pending,
+            streaming_text=state().text.snapshot(s.principal.tenant_id, run_id),
         )
 
     @app.get("/v1/runs/{run_id}/events")
@@ -316,6 +526,7 @@ def create_app(
         header = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
         cursor = max(header, after_sequence)
         idle = 0
+        text_cursor = 0
         while not await request.is_disconnected():
             batch = await rt.store.list_events(s.principal.tenant_id, run_id, cursor)
             for event in batch:
@@ -323,6 +534,9 @@ def create_app(
                 yield ServerSentEvent(
                     data=event.model_dump(mode="json"), event="run_event", id=str(event.sequence)
                 )
+            for frame in state().text.after(s.principal.tenant_id, run_id, text_cursor):
+                text_cursor = frame.offset
+                yield ServerSentEvent(data=frame.model_dump(mode="json"), event="text_delta")
             run = await rt.store.get_run(s.principal.tenant_id, run_id)
             if run.state in TERMINAL_RUN_STATES and not batch:
                 yield ServerSentEvent(data={"state": run.state}, event="end")
@@ -347,17 +561,43 @@ def create_app(
             raise KernelError(ErrorCode.APPROVAL_STALE, "approval does not match pending action")
         if pres.run_revision != body.expected_revision:
             raise KernelError(ErrorCode.CONFLICT, "run changed; reload before deciding")
-        decision = ApprovalDecision(body.decision)
-        state().spawn(
-            run_id,
-            lambda: rt.coordinator.decide(
-                actor=s.principal,
-                run_id=run_id,
-                action_id=body.action_id,
-                action_digest=body.digest,
-                expected_run_revision=body.expected_revision,
-                decision=decision,
-            ),
+        actor = s.principal.model_dump(mode="json")
+        actor["roles"] = sorted(s.principal.roles)
+        payload = {**body.model_dump(mode="json"), "actor": actor}
+        request_digest = digest(
+            {
+                "action_id": body.action_id,
+                "digest": body.digest,
+                "revision": str(body.expected_revision),
+            }
+        )
+        await rt.store.enqueue_work(
+            s.principal.tenant_id, run_id, "decide", payload, request_digest
+        )
+        return Accepted(status="accepted")
+
+    @app.post("/v1/runs/{run_id}/inputs", status_code=202)
+    async def submit_input(
+        run_id: str,
+        body: SubmitInput,
+        s: Session = Depends(session),
+    ) -> Accepted:
+        rt = state().runtime
+        run = await rt.store.get_run(s.principal.tenant_id, run_id)
+        if run.requester_id != s.principal.principal_id:
+            raise KernelError(ErrorCode.FORBIDDEN, "only the requester may answer")
+        if run.revision != body.expected_revision or run.state is not RunState.WAITING_INPUT:
+            events = await rt.store.list_events(s.principal.tenant_id, run_id)
+            if any(
+                e.type == "input.received"
+                and e.payload.get("expected_revision") == body.expected_revision
+                and e.payload.get("input") == body.input
+                for e in events
+            ):
+                return Accepted(status="accepted")
+            raise KernelError(ErrorCode.CONFLICT, "input does not match the pending question")
+        await rt.coordinator.accept_input(
+            s.principal, run_id, body.input, body.expected_revision, enqueue=True
         )
         return Accepted(status="accepted")
 
@@ -380,6 +620,44 @@ def create_app(
             run_id,
             environment=rt.profile.environment,
             versions=rt.versions,
+        )
+
+    # -- member discovery (ADR 0017): read-only projections of admitted metadata ---
+    def _member_context(s: Session) -> TaskContext:
+        rt = state().runtime
+        return TaskContext(
+            run_id="discovery",
+            tenant_id=s.principal.tenant_id,
+            principal=s.principal,
+            resource_scope=rt.scope,
+        )
+
+    @app.get("/v1/me/connections")
+    async def my_connections(s: Session = Depends(session)) -> MemberConnections:
+        rt = state().runtime
+        catalog = rt.connections
+        projected = (
+            member_connections(catalog, rt.registry, _member_context(s))
+            if catalog is not None
+            else ()
+        )
+        return MemberConnections(
+            schema_version=DISCOVERY_SCHEMA_VERSION,
+            observed_at=utc_now().isoformat(),
+            connections=[MemberConnection(**vars(c)) for c in projected],
+        )
+
+    @app.get("/v1/me/task-catalog")
+    async def my_task_catalog(s: Session = Depends(session)) -> TaskCatalog:
+        rt = state().runtime
+        catalog = rt.connections
+        projected = (
+            task_catalog(catalog, rt.registry, _member_context(s)) if catalog is not None else ()
+        )
+        return TaskCatalog(
+            schema_version=DISCOVERY_SCHEMA_VERSION,
+            observed_at=utc_now().isoformat(),
+            templates=[TaskTemplate(**vars(t)) for t in projected],
         )
 
     if static_dir is not None and static_dir.is_dir():

@@ -8,7 +8,7 @@ import { TARGETS, type UiTarget } from "../src/targets.ts";
 
 async function startRun(page: Page, target: UiTarget, api: MockApi, lang: "en" | "vi" = "en") {
   const errors: string[] = [];
-  page.on("pageerror", (e) => errors.push(String(e)));
+  page.on("pageerror", e => errors.push(String(e)));
   await api.install(page);
   await page.goto(target.url(lang));
   await target.open(page);
@@ -21,19 +21,76 @@ const approval = (page: Page) => page.getByTestId("approval");
 
 for (const target of TARGETS) {
   test.describe(`${target.name} UI`, () => {
+    test("public text appears incrementally and reconnect does not duplicate it", async ({ page }) => {
+      const api = new MockApi();
+      api.emit("run.created", { task: "public streaming" });
+      api.emit("run.state_changed", { from: "CREATED", to: "RUNNING" });
+      await startRun(page, target, api);
+      api.emitText("Public ", true);
+      await expect(page.getByTestId("streaming-message")).toHaveText("Public ");
+      api.emitText("answer");
+      await expect(page.getByTestId("streaming-message")).toHaveText("Public answer");
+      await page.waitForTimeout(500);
+      await expect(page.getByTestId("streaming-message")).toHaveText("Public answer");
+      api.emit("message.final", { text: "Public answer" });
+      api.state = "SUCCEEDED";
+      api.emit("run.state_changed", { from: "RUNNING", to: "SUCCEEDED" });
+      await expect(page.getByTestId("streaming-message")).toHaveCount(0);
+      await expect(page.getByTestId("final-message")).toContainText("Public answer");
+      expect(api.createRuns).toBe(1);
+    });
+
+    test("clarification answers the same run without creating or approving another", async ({ page }) => {
+      const api = new MockApi();
+      api.emit("run.created", { task: "clarify" });
+      api.emit("input.requested", { question: "Which customer?" });
+      api.emit("run.state_changed", { from: "RUNNING", to: "WAITING_INPUT" });
+      api.state = "WAITING_INPUT";
+      await startRun(page, target, api);
+      await expect(page.getByTestId("clarification-question")).toHaveText("Which customer?");
+      await page.getByTestId("composer-input").fill("customer:acme");
+      await page.getByTestId("composer-submit").click();
+      await expect(page.getByTestId("clarification-question")).toHaveCount(0);
+      expect(api.inputs).toEqual([{ input: "customer:acme", expected_revision: 1 }]);
+      expect(api.createRuns).toBe(1);
+      expect(api.decisions).toHaveLength(0);
+    });
+
     test("1. shows every material field, marks changes, shows findings", async ({ page }) => {
-      const api = new MockApi().waitingForApproval();
+      const api = new MockApi().waitingForApproval(
+        presentation({
+          findings: [
+            { rule_id: "PR-001", rule_version: "1", status: "PASS", message: "satisfied", evidence_ids: [] },
+            {
+              rule_id: "PR-004",
+              rule_version: "1",
+              status: "UNKNOWN",
+              message: "fact missing",
+              evidence_ids: [],
+            },
+          ],
+        }),
+      );
       await startRun(page, target, api);
       await expect(page.getByTestId("material-field")).toHaveCount(3);
-      await expect(page.locator('[data-testid="material-field"][data-path="quantity"]')).toHaveAttribute("data-changed", "true");
-      await expect(page.locator('[data-testid="material-field"][data-path="unit_price"]')).toHaveAttribute("data-changed", "false");
+      await expect(page.locator('[data-testid="material-field"][data-path="quantity"]')).toHaveAttribute(
+        "data-changed",
+        "true",
+      );
+      await expect(page.locator('[data-testid="material-field"][data-path="unit_price"]')).toHaveAttribute(
+        "data-changed",
+        "false",
+      );
       await expect(page.getByTestId("finding")).toHaveCount(2);
       await expect(page.locator('[data-testid="finding"][data-status="UNKNOWN"]')).toBeVisible();
     });
 
     test("2a. approve is disabled on a digest mismatch", async ({ page }) => {
       const good = presentation();
-      const tampered = { ...good, canonical_proposal: { ...good.canonical_proposal, arguments: { quantity: "4000" } } };
+      const tampered = {
+        ...good,
+        canonical_proposal: { ...good.canonical_proposal, arguments: { quantity: "4000" } },
+      };
       const api = new MockApi().waitingForApproval(tampered);
       await startRun(page, target, api);
       await expect(page.getByTestId("approval-digest-mismatch")).toBeVisible();
@@ -43,7 +100,9 @@ for (const target of TARGETS) {
     });
 
     test("2b. approve is disabled after expiry", async ({ page }) => {
-      const api = new MockApi().waitingForApproval(presentation({ expires_at: new Date(Date.now() - 1000).toISOString() }));
+      const api = new MockApi().waitingForApproval(
+        presentation({ expires_at: new Date(Date.now() - 1000).toISOString() }),
+      );
       await startRun(page, target, api);
       await expect(page.getByTestId("approval-expired")).toBeVisible();
       await expect(page.getByTestId("approval-approve")).toHaveCount(0);
@@ -85,7 +144,7 @@ for (const target of TARGETS) {
 
     test("4. model text never loads remote content and shows full link URLs", async ({ page }) => {
       const remote: string[] = [];
-      page.on("request", (r) => {
+      page.on("request", r => {
         if (r.url().includes("evil.example")) remote.push(r.url());
       });
       const api = new MockApi();
@@ -109,16 +168,21 @@ for (const target of TARGETS) {
       const api = new MockApi().waitingForApproval();
       await startRun(page, target, api);
       await expect(page.getByTestId("approval-approve")).toBeEnabled();
-      await page.getByTestId("composer-input").focus();
-      await page.keyboard.press("Enter");
+      await page.getByTestId("composer-input").evaluate(el => {
+        el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      });
       await page.getByTestId("approval-approve").click();
-      await page.getByTestId("composer-input").focus();
+      await page.getByTestId("approval-confirm-prompt").focus();
       await page.keyboard.press("Enter");
       await page.waitForTimeout(200);
       expect(api.decisions).toHaveLength(0);
       await page.getByTestId("approval-confirm").click();
       await expect.poll(() => api.decisions.length).toBe(1);
-      expect(api.decisions[0]).toMatchObject({ action_id: "act-1", expected_revision: 6, decision: "approved" });
+      expect(api.decisions[0]).toMatchObject({
+        action_id: "act-1",
+        expected_revision: 6,
+        decision: "approved",
+      });
       expect(api.decisions[0]?.["digest"]).toBe(api.pending?.digest);
     });
 
@@ -135,18 +199,24 @@ for (const target of TARGETS) {
     });
 
     test("7. Vietnamese labels render without overflow", async ({ page }) => {
-      const long = "Đơn đặt hàng nháp cho nhà cung cấp được phê duyệt với số lượng và đơn giá đã kiểm tra ".repeat(4);
+      const long =
+        "Đơn đặt hàng nháp cho nhà cung cấp được phê duyệt với số lượng và đơn giá đã kiểm tra ".repeat(4);
       const p = presentation();
       const api = new MockApi().waitingForApproval({
         ...p,
-        material_fields: [...p.material_fields, { path: "ghi_chu_rat_dai_khong_co_khoang_trang_".repeat(3), value: long, changed: false }],
+        material_fields: [
+          ...p.material_fields,
+          { path: "ghi_chu_rat_dai_khong_co_khoang_trang_".repeat(3), value: long, changed: false },
+        ],
       });
       await startRun(page, target, api, "vi");
-      await expect(approval(page)).toContainText("Phê duyệt");
-      await expect(page.getByTestId("approval-approve")).toContainText("Phê duyệt");
-      const overflow = await approval(page).evaluate((el) => el.scrollWidth - el.clientWidth);
+      await expect(approval(page)).toContainText("Xem xét thay đổi");
+      await expect(page.getByTestId("approval-approve")).toContainText("phê duyệt");
+      const overflow = await approval(page).evaluate(el => el.scrollWidth - el.clientWidth);
       expect(overflow).toBeLessThanOrEqual(1);
-      const pageOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      const pageOverflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth,
+      );
       expect(pageOverflow).toBeLessThanOrEqual(0);
     });
 
@@ -160,15 +230,19 @@ for (const target of TARGETS) {
           while (a?.shadowRoot?.activeElement) a = a.shadowRoot.activeElement;
           return a?.getAttribute("data-testid") ?? null;
         });
-      for (let i = 0; i < 60 && (await activeTestId()) !== "approval-approve"; i++) await page.keyboard.press("Tab");
+      for (let i = 0; i < 60 && (await activeTestId()) !== "approval-approve"; i++)
+        await page.keyboard.press("Tab");
       expect(await activeTestId()).toBe("approval-approve");
-      const outline = await page.getByTestId("approval-approve").evaluate((el) => getComputedStyle(el).outlineStyle);
+      const outline = await page
+        .getByTestId("approval-approve")
+        .evaluate(el => getComputedStyle(el).outlineStyle);
       expect(outline).not.toBe("none");
       await page.keyboard.press("Enter");
       await expect(page.getByTestId("approval-confirm")).toBeVisible();
       expect(await activeTestId()).not.toBe("approval-confirm"); // confirming needs its own action
       expect(api.decisions).toHaveLength(0);
-      for (let i = 0; i < 10 && (await activeTestId()) !== "approval-confirm"; i++) await page.keyboard.press("Tab");
+      for (let i = 0; i < 10 && (await activeTestId()) !== "approval-confirm"; i++)
+        await page.keyboard.press("Tab");
       expect(await activeTestId()).toBe("approval-confirm");
       await page.keyboard.press("Enter");
       await expect.poll(() => api.decisions.length).toBe(1);

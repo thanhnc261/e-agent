@@ -1,0 +1,2 @@
+// Generated from icons.js
+export type IconName = "plus" | "panel" | "attachment" | "edit" | "copy" | "download" | "upload" | "more" | "stop" | "play" | "pause" | "filter" | "chevronDown" | "help" | "calendar" | "table" | "sort" | "trash" | "spinner" | "settings" | "lock" | "chevron" | "retry" | "alert" | "send" | "external" | "home" | "work" | "connections" | "shield" | "arrow" | "expand" | "minus" | "sun" | "handoff" | "service" | "purchase" | "book" | "people" | "file" | "check" | "clock" | "search" | "close" | "chat" | "info";

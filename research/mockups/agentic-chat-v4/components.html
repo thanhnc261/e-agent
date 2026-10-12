@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>e-agent · Warm design system</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="design-system/catalog.css" />
+  </head>
+  <body>
+    <header class="ds-header">
+      <a class="ds-brand" href="./"
+        ><span class="brand-mark" id="kit-logo"></span>e-agent <span>Design system</span></a
+      >
+      <div class="ds-tools">
+        <label for="theme">Theme</label
+        ><select id="theme">
+          <option value="light">Warm light</option>
+          <option value="dark">Warm dark</option>
+          <option value="high-contrast">High contrast</option></select
+        ><a href="./" id="open-mockup" class="secondary">Open mockup</a>
+      </div>
+    </header>
+    <main class="ds-catalog">
+      <section class="ds-intro">
+        <p class="overline">FOUNDATIONS → CONTROLS → WORKSPACE</p>
+        <h1>One language.<br />Every interaction.</h1>
+        <p>
+          A warm, quiet system for conversation and enterprise work. Shared tokens, an original icon family,
+          and the states that make an interface complete.
+        </p>
+        <div class="ds-intro-links">
+          <a href="design-system/tokens/base.tokens.json" download>Download token source ↗</a
+          ><a href="design-system/generated/assets/icons.svg" download>Download icon sprite ↗</a
+          ><a href="design-system/README.md">Frontend specification ↗</a
+          ><a href="identity.html">Connected nodes · Warm Lagoon ↗</a
+          ><a href="overlay.html">Embedded foundation ↗</a><a href="palettes.html">Color directions ↗</a>
+        </div>
+      </section>
+      <nav class="ds-section-nav" aria-label="Component sections">
+        <a href="#foundations">Foundations</a><a href="#identity">Identity & icons</a
+        ><a href="#controls">Controls</a><a href="#forms">Forms</a><a href="#conversation-kit">Conversation</a
+        ><a href="#work">Work & evidence</a><a href="#feedback">Feedback</a
+        ><a href="#overlays">Navigation & overlays</a>
+      </nav>
+      <div id="catalog"></div>
+      <footer class="ds-bottom">
+        Candidate design system · local examples only. Production contracts and approval enforcement stay in
+        the existing core/server.
+      </footer>
+    </main>
+    <dialog id="kit-dialog" aria-labelledby="kit-dialog-title"></dialog>
+    <div id="kit-announcement" class="sr-only" role="status" aria-live="polite"></div>
+    <script type="module" src="design-system/catalog.js"></script>
+  </body>
+</html>

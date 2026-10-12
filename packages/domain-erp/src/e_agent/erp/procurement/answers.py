@@ -58,15 +58,36 @@ def _num_check(name: str, expected: Decimal, observed: str | None) -> OutcomeChe
 
 async def _facts(
     reader: ScopedReader, demand_ref: str, product_ref: str
-) -> tuple[Demand, Decimal, Decimal, list[str]]:
+) -> tuple[Demand, Decimal, Decimal, list[str], list[OutcomeCheck]]:
     d_obs = await reader.read(DEMAND_READ, {"demand_ref": demand_ref})
     s_obs = await reader.read(INVENTORY_AVAILABILITY_READ, {"product_ref": product_ref})
     demand = Demand.model_validate(d_obs.data)
+    checks = [
+        OutcomeCheck(
+            name="demand_reference",
+            passed=demand.demand_ref == demand_ref,
+            expected=demand.demand_ref,
+            observed=demand_ref,
+        ),
+        OutcomeCheck(
+            name="product_reference",
+            passed=demand.product_ref == product_ref,
+            expected=demand.product_ref,
+            observed=product_ref,
+        ),
+        OutcomeCheck(
+            name="stock_reference",
+            passed=s_obs.data.get("product_ref") == product_ref,
+            expected=str(s_obs.data.get("product_ref")),
+            observed=product_ref,
+        ),
+    ]
     return (
         demand,
         Decimal(str(s_obs.data["available"])),
         Decimal(str(s_obs.data["inbound"])),
         [d_obs.evidence.evidence_id, s_obs.evidence.evidence_id],
+        checks,
     )
 
 
@@ -84,11 +105,12 @@ class ShortageAnswerVerifier:
         reader: ScopedReader,
     ) -> OutcomeReport:
         answer = ShortageAnswer.model_validate(action.arguments)
-        demand, available, inbound, refs = await _facts(
+        demand, available, inbound, refs, reference_checks = await _facts(
             reader, answer.demand_ref, answer.product_ref
         )
         shortage = max(Decimal(demand.quantity) - available - inbound, Decimal(0))
         checks = [
+            *reference_checks,
             OutcomeCheck(
                 name="product_matches_demand",
                 passed=demand.product_ref == answer.product_ref,
@@ -131,21 +153,30 @@ class OfferRecommendationVerifier:
         reader: ScopedReader,
     ) -> OutcomeReport:
         answer = OfferRecommendation.model_validate(action.arguments)
-        demand, available, inbound, refs = await _facts(
+        demand, available, inbound, refs, reference_checks = await _facts(
             reader, answer.demand_ref, answer.product_ref
         )
         o_obs = await reader.read(OFFERS_READ, {"product_ref": answer.product_ref})
         offers = Offers.model_validate(o_obs.data)
+        reference_checks.append(
+            OutcomeCheck(
+                name="offers_reference",
+                passed=offers.product_ref == answer.product_ref,
+                expected=offers.product_ref,
+                observed=answer.product_ref,
+            )
+        )
         shortage = max(Decimal(demand.quantity) - available - inbound, Decimal(0))
         eligible = eligible_offers(demand, offers, shortage) if shortage > 0 else []
         best = eligible[0] if eligible else None
         checks = [
+            *reference_checks,
             OutcomeCheck(
                 name="recommended_offer",
                 passed=answer.offer_ref == (best.offer_ref if best else None),
                 expected=str(best.offer_ref if best else None),
                 observed=str(answer.offer_ref),
-            )
+            ),
         ]
         if best is not None and answer.offer_ref == best.offer_ref:
             checks.append(

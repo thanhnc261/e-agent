@@ -1,5 +1,7 @@
 # Integration, connection and credential management
 
+The approved [ADR 0014](adr/0014-mvp-remediation-boundaries.md) clarifies current artifact admission, credential/fact freshness, worker ownership, target checks and public text boundaries. Current evidence and unresolved live gates are recorded in the [remediation retest](reviews/2026-10-07-mvp-remediation-retest.md).
+
 **Date:** 2026-10-06. **Status:** accepted design ([ADR 0012](adr/0012-schema-driven-integration-management.md)); nothing is implemented. Admin pages are confirmed for **Phase 2**. The auth SDK, tenant app registrations and user-delegated connections are detailed in [integration auth SDK](integration-auth-sdk.md) ([ADR 0013](adr/0013-integration-auth-sdk-and-delegated-connections.md)). It extends HLD §5 (domain / capability / binding / connection) and the [UI architecture](ui-architecture.md).
 
 ## 1. Goal
@@ -103,6 +105,10 @@ Rules:
 All admin changes are written as audit events in the same transaction as the change.
 
 ## 8. Admin UI
+### Member-readable projection (implemented 2026-10-09)
+
+The admin surfaces below remain unimplemented. What exists is a member-safe read model, `GET /v1/me/connections` ([ADR 0017](adr/0017-member-discovery-read-models.md)), and its read-only Connections view. It lists only connections the requester may use, separates recorded configuration status from observed health (always unknown, because rendering never probes a provider), and exposes no credential, settings or lifecycle control. Enabling, connecting, re-authorizing, disabling and revoking stay administrative operations with no API and no UI yet.
+
 
 - `@e-agent/admin` is another L8 app on the shared layers (client, ui-core, tokens, components). Re-theming, re-layout and custom admin UIs work exactly as for the agent UI.
 - A **schema-form renderer** at L6 renders `connection_schema` + `ui_schema` with the default components. Candidate: JSON Forms core with our own renderers; the choice is confirmed in a spike. Secret fields render as "set / not set / replace" inputs that never show a value.

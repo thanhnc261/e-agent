@@ -176,3 +176,23 @@ def test_manifest_digest_must_match_inventory(tmp_path: Path) -> None:
             {"notes-fixture": EnabledPlugin("0.3.0", manifest_sha256="0" * 64)},
         )
     assert not marker.exists()
+
+
+def test_artifact_bytes_are_checked_before_import(tmp_path: Path) -> None:
+    from e_agent.sdk.discovery import artifact_digest
+
+    marker = _install(tmp_path)
+    [plugin] = discover([str(tmp_path)])
+    pin = artifact_digest(plugin.artifact_files)
+    factory = plugin.manifest.factory.split(":")[0].split(".")
+    source = tmp_path.joinpath(*factory).with_suffix(".py")
+    assert source.exists()
+    source.write_text(source.read_text() + "\n# changed after build inventory approval\n")
+    with pytest.raises(KernelError, match="artifact bytes differ"):
+        PluginRegistry({}).admit(
+            [plugin],
+            {
+                "notes-fixture": EnabledPlugin("0.3.0", artifact_sha256=pin),
+            },
+        )
+    assert not marker.exists()

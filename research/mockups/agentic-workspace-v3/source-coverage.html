@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>e-agent · Source coverage</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body {
+        padding: 40px 24px;
+      }
+      main {
+        max-width: 1200px;
+        margin: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      td,
+      th {
+        padding: 16px 12px;
+        vertical-align: top;
+        text-align: left;
+        border-bottom: 1px solid var(--line);
+      }
+      td:first-child {
+        min-width: 200px;
+      }
+      th {
+        background: var(--sidebar);
+      }
+      .table-wrap {
+        overflow: auto;
+      }
+      h1 {
+        margin-top: 35px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="secondary" href="design-system.html"
+        >← Identity and component system</a
+      >
+      <h1>32 patterns. One considered interface.</h1>
+      <p>
+        All 32 UI/UX pattern pages and the two supplied articles were read on 9
+        October 2026. No unresolved access failures. Three narrowly scoped
+        research agents covered disjoint sets to reduce repeated work.
+      </p>
+      <p>
+        This is page-by-page text research. The primary agent additionally
+        inspected rendered screenshots and computed styles of the Agentic Design
+        category page and UX Pilot article. Interactive demos and every rendered
+        subpage were not visually exercised. Guidance below is paraphrased; the
+        design implications are project judgments, not claims of implemented
+        capability.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Source / access</th>
+              <th>Source guidance</th>
+              <th>Design implication</th>
+              <th>Condition or pitfall</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/human-in-the-loop"
+                  >Human-in-the-Loop</a
+                >
+                — accessed
+              </td>
+              <td>
+                Put human judgment at consequential or ambiguous decision
+                points; route reviews to appropriate people and capture
+                decisions.
+              </td>
+              <td>
+                Use a decision card with the proposed action, affected record,
+                impact, reviewer and clear approval/rejection controls. Keep
+                review items discoverable after leaving the conversation.
+              </td>
+              <td>
+                Source: over-escalation creates bottlenecks and rushed reviews.
+                Application condition: thresholds never replace required
+                explicit approval.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/human-on-the-loop"
+                  >Human On the Loop</a
+                >
+                — accessed
+              </td>
+              <td>
+                Supervise bounded autonomous work with exception alerts, context
+                and readily available intervention.
+              </td>
+              <td>
+                During authorized background preparation, show current work and
+                a supported stop/pause control; surface exceptions in the same
+                task view.
+              </td>
+              <td>
+                Source: oversight fails when people cannot realistically
+                respond, or alerts overload attention. Do not substitute
+                supervision for required active approval.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/progressive-disclosure-patterns"
+                  >Progressive Disclosure</a
+                >
+                — accessed
+              </td>
+              <td>
+                Present essential information first, with consistent expansion
+                controls and clear typography; remember useful disclosure
+                preferences.
+              </td>
+              <td>
+                Keep the result and next action visible. Put source excerpts and
+                activity history in separately labeled expandable sections,
+                using one consistent chevron component.
+              </td>
+              <td>
+                Source: critical information must not be buried, and deep
+                nesting impedes use. Inference: never hide action scope or
+                material uncertainty behind a disclosure; show evidence
+                summaries rather than hidden model reasoning.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/confidence-visualization-patterns"
+                  >Confidence Visualization</a
+                >
+                — accessed
+              </td>
+              <td>
+                Explain uncertainty and its drivers, calibrate against actual
+                correctness, and avoid false numerical precision or confidence
+                as the only decision factor.
+              </td>
+              <td>
+                Prefer factual evidence labels such as “Source unavailable,”
+                “Needs confirmation,” and “Checked against record.” Do not add a
+                decorative percentage confidence gauge.
+              </td>
+              <td>
+                Source: normal uncertainty should not look like an emergency;
+                deterministic outputs do not need model confidence. Inference:
+                numerical confidence requires an actual calibrated basis, which
+                this fixture does not establish.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/mixed-initiative-interface-patterns"
+                  >Mixed-Initiative Interfaces</a
+                >
+                — accessed
+              </td>
+              <td>
+                Make human/AI ownership and handoffs visible, present
+                suggestions as editable proposals, and provide ways to regain
+                control.
+              </td>
+              <td>
+                Allow review and revision within the artifact card; use explicit
+                labels such as “Your review” and “Preparing draft” at
+                transitions.
+              </td>
+              <td>
+                Source: unexpected takeover and rigid collaboration frustrate
+                users. Inference: a changed action becomes a fresh proposal and
+                cannot inherit approval silently.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/agent-status-activity-patterns"
+                  >Agent Status & Activity</a
+                >
+                — accessed
+              </td>
+              <td>
+                Describe the current activity, use consistent state indicators,
+                and offer timestamped history; avoid generic loading messages
+                and flickering states.
+              </td>
+              <td>
+                Use one compact status row with icon plus text: “Checking source
+                records,” “Waiting for review,” or “Verifying result.” Expand
+                history on demand.
+              </td>
+              <td>
+                Source: too many simultaneous indicators overwhelm. Inference:
+                show percentages or time estimates only when supported;
+                distinguish completed dispatch from independently verified
+                outcome.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/monitoring-control-patterns"
+                  >Monitoring and Control</a
+                >
+                — accessed
+              </td>
+              <td>
+                Use summary-to-detail hierarchy, exception-based alerts,
+                accessible controls and an audit trail of interventions.
+              </td>
+              <td>
+                Put active tasks and review requests in a small work list, with
+                context-specific controls in each task.
+              </td>
+              <td>
+                Source: comprehensive mission-control dashboards are unsuitable
+                for simple agents/prototypes. Inference: do not inflate the
+                landing page with operational charts or imply that stopping
+                reverses an already committed effect.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/error-recovery-patterns"
+                  >Error Handling and Recovery</a
+                >
+                — accessed
+              </td>
+              <td>
+                Explain the problem, known cause and next step; preserve user
+                work and reveal technical detail only when useful.
+              </td>
+              <td>
+                Use an inline recovery card beside the preserved draft. An
+                unknown write outcome should offer “Check outcome,” while
+                missing access should show the relevant access path.
+              </td>
+              <td>
+                Source: generic advice, silent failure and unnecessary modal
+                dialogs impede recovery. Repository condition: the source's
+                generic retry advice cannot justify replaying a possibly
+                committed write.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/risk-tiered-approval-escalation"
+                  >Approval Queues & Escalation Chains</a
+                >
+                — accessed
+              </td>
+              <td>
+                Treat approval as a workflow with contextual review packages,
+                asynchronous waiting, explicit escalation signals and preserved
+                state.
+              </td>
+              <td>
+                A review queue item should carry owner, waiting time, action
+                summary and impact; reopening it restores the exact proposal and
+                highlights stale context.
+              </td>
+              <td>
+                Source: delayed reviews can resume with drifted or incomplete
+                context. Repository condition: do not adopt the page's
+                auto-approval or privileged-agent adjudication suggestions where
+                explicit human approval is required; revalidate before
+                execution.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/trust-transparency-patterns"
+                  >Trust and Transparency</a
+                >
+                — accessed
+              </td>
+              <td>
+                Attribute sources, distinguish generated material and explain
+                consequential decisions at suitable depth; transparency should
+                support understanding and action.
+              </td>
+              <td>
+                Mark generated drafts clearly and attach source excerpts and a
+                concise decision summary to the artifact; link verification
+                evidence to the outcome.
+              </td>
+              <td>
+                Source: excessive detail and explanations without actionable
+                information undermine usefulness. Inference: show provenance and
+                concise rationale, never hidden chain-of-thought or a trust
+                badge unsupported by evidence.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/accessibility-agent-design"
+                  >Accessibility in Agent Design</a
+                >
+                — accessed
+              </td>
+              <td>
+                Design keyboard and assistive-technology support from the start,
+                use semantic controls, simplify language, and avoid color-only
+                meaning.
+              </td>
+              <td>
+                Pair status colors with text/icons; keep visible focus,
+                meaningful button labels, accessible disclosure controls and
+                stable focus during updates.
+              </td>
+              <td>
+                Source: one accommodation cannot serve every disability, and
+                overlays are insufficient. Inference: retain these basics in the
+                prototype despite the page's “avoid” suggestions for internal
+                demos; automated checks alone do not establish accessibility.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/conversational-interface-patterns"
+                  >Conversational Interface Patterns</a
+                >
+                — accessed
+              </td>
+              <td>
+                Support natural multi-step exchanges, recoverable interruptions,
+                progressive disclosure, and context-sensitive communication. Use
+                clear machine language.
+              </td>
+              <td>
+                Keep a concise conversation beside a structured task artifact;
+                label activity “Checking sources” or “Preparing draft.”
+              </td>
+              <td>
+                Endless scrolling chat is unsuitable for every task; proactive
+                interruptions can become intrusive.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/chat-interface-patterns"
+                  >Chat Interface Patterns</a
+                >
+                — accessed
+              </td>
+              <td>
+                Preserve topic context and expose rich content, citations, and
+                expandable details.
+              </td>
+              <td>
+                Give each task a resumable conversation and source drawer; use
+                reusable document and action cards.
+              </td>
+              <td>
+                Branching, presence, and reactions increase cognitive load; the
+                page advises against full complexity for minimal or single-user
+                needs.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/agent-collaboration-ux"
+                  >Agent Collaboration UX</a
+                >
+                — accessed
+              </td>
+              <td>
+                Preserve context during handoffs; show responsibilities,
+                activity, and human intervention points with consistent
+                indicators.
+              </td>
+              <td>
+                A compact activity row can state who is handling the current
+                step and why a handoff occurred, with details on demand.
+              </td>
+              <td>
+                Do not make users repeat context; coordination overhead is
+                unjustified for simple tasks. Multi-step work alone does not
+                establish a need for multiple agents in e-agent.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/adaptive-interface-patterns"
+                  >Adaptive Interface Patterns</a
+                >
+                — accessed
+              </td>
+              <td>
+                Begin with explicit preferences, explain adaptations, allow
+                overrides, and retain core functionality.
+              </td>
+              <td>
+                Let users choose compact or expanded assistant mode and retain
+                that choice within the study.
+              </td>
+              <td>
+                Frequent unexplained layout changes undermine stability;
+                regulated or time-critical contexts may need consistency.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/context-window-management-patterns"
+                  >Context Window Management UI</a
+                >
+                — accessed
+              </td>
+              <td>
+                Warn before capacity limits, let users preserve important
+                context, and make summarization reversible.
+              </td>
+              <td>
+                Show a plain-language context summary with attached
+                records/sources; surface capacity details only when they affect
+                a decision.
+              </td>
+              <td>
+                Silent removal or compression can lose essential facts. A
+                permanent token meter is unnecessary for short tasks.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/onboarding-education-patterns"
+                  >Onboarding and Education Patterns</a
+                >
+                — accessed
+              </td>
+              <td>
+                Introduce boundaries progressively through practice, immediate
+                feedback, and contextual help.
+              </td>
+              <td>
+                Use a small set of realistic starter tasks with an explicit
+                sample label and brief explanation of when approval is required.
+              </td>
+              <td>
+                Avoid long mandatory tours or promises beyond actual capability;
+                the page explicitly limits heavy onboarding for temporary
+                prototypes.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/ambient-agent-patterns"
+                  >Ambient Agent Patterns</a
+                >
+                — accessed
+              </td>
+              <td>
+                Maintain background state and request attention selectively
+                through notifications, questions, or reviews.
+              </td>
+              <td>
+                Keep a quiet task inbox with an actionable count; reserve
+                interruption for a decision or failure that needs the user.
+              </td>
+              <td>
+                Excess alerts create fatigue; background sensing and
+                unpredictable actions can feel invasive. A mockup must not imply
+                real continuous monitoring.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/cross-platform-agent-ux"
+                  >Cross-Platform Agent UX</a
+                >
+                — accessed after retry
+              </td>
+              <td>
+                Share a design system while adapting interactions and layout to
+                the platform; preserve task context across transitions.
+              </td>
+              <td>
+                Use one icon, type, spacing, and component system; collapse the
+                assistant into a focused mobile surface while keeping task
+                identity visible.
+              </td>
+              <td>
+                Forcing the desktop layout onto mobile harms usability. Real
+                device synchronization needs implementation beyond responsive
+                styling.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/visual-reasoning-patterns"
+                  >Visual Reasoning Patterns</a
+                >
+                — accessed
+              </td>
+              <td>
+                Reveal workflow progress, sources, uncertainty, and decision
+                factors progressively; make visualizations functional.
+              </td>
+              <td>
+                Use an expandable activity/evidence timeline with observed
+                checks and concise decision summaries.
+              </td>
+              <td>
+                Dense diagrams obscure understanding, and numerical confidence
+                can be mistaken for a guarantee. e-agent must not display hidden
+                chain-of-thought or fabricated scores.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/multimodal-interaction-patterns"
+                  >Multimodal Interaction Patterns</a
+                >
+                — accessed
+              </td>
+              <td>
+                Keep meaning consistent across input modes, support transitions
+                and fallback, and respect environmental/accessibility needs.
+              </td>
+              <td>
+                Keep text and keyboard operation complete; add attachment or
+                voice affordances only when the demonstrated workflow supports
+                them.
+              </td>
+              <td>
+                Too many simultaneous channels overwhelm; privacy, latency, and
+                synchronization can make multimodal interaction inappropriate.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/generative-ui"
+                  >Generative UI</a
+                >
+                — accessed
+              </td>
+              <td>
+                Match interactive presentation to intent/content: forms for
+                actions, tables for comparison, charts for trends; isolate
+                generated rendering.
+              </td>
+              <td>
+                Use a small approved library of structured artifact components
+                inside a stable shell, with host-owned approval controls. This
+                is an adaptation, not a claim of runtime-generated UI.
+              </td>
+              <td>
+                Rendering and compatibility failures compound agent errors;
+                dynamically generated content requires testing and containment.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/privacy-security-ux"
+                  >Privacy and Security UX</a
+                >
+                — accessed
+              </td>
+              <td>
+                Explain data use plainly; offer discoverable, granular
+                permissions and access/deletion controls.
+              </td>
+              <td>
+                Place a short “Data access” summary beside a task's connected
+                sources, with details on demand.
+              </td>
+              <td>
+                Attractive controls are misleading unless downstream access
+                actually respects them.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/privacy-by-design-principles"
+                  >Privacy-by-Design Principles</a
+                >
+                — accessed
+              </td>
+              <td>
+                Make privacy protective defaults, data minimization, purpose
+                limits, and lifecycle protection architectural concerns.
+              </td>
+              <td>
+                Default task context to explicitly selected sources and show
+                their purpose before execution.
+              </td>
+              <td>
+                Incomplete threat modeling leaves gaps; privacy is costly to
+                retrofit.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/granular-privacy-controls"
+                  >Granular Privacy Controls</a
+                >
+                — accessed
+              </td>
+              <td>
+                Separate permissions by data type, purpose, sharing context, and
+                retention; enable revocation.
+              </td>
+              <td>
+                Use a compact source-permission list with plain scope labels,
+                rather than one “Allow everything” toggle.
+              </td>
+              <td>
+                People may grant broad access without reading; granularity alone
+                does not create informed choices.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/progressive-consent-communication"
+                  >Progressive Consent & Communication</a
+                >
+                — accessed
+              </td>
+              <td>
+                Ask at the point of need, explain risks briefly, and reveal
+                detailed terms progressively.
+              </td>
+              <td>
+                Request new access inline when a task first needs it, with one
+                short explanation and expandable scope.
+              </td>
+              <td>Repetitive requests still cause consent fatigue.</td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/transparent-data-handling"
+                  >Transparent Data Handling</a
+                >
+                — accessed
+              </td>
+              <td>
+                Show understandable data processing, storage, sharing, and
+                access activity.
+              </td>
+              <td>
+                Let a task's evidence drawer explain which source was read and
+                how it contributed to the result.
+              </td>
+              <td>
+                Excessive technical detail overwhelms; excessive simplification
+                conceals material risks.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/user-empowerment-privacy-dashboard"
+                  >User Empowerment Privacy Dashboard</a
+                >
+                — accessed
+              </td>
+              <td>
+                Centralize visibility and controls for personal data across
+                agents, including export and deletion.
+              </td>
+              <td>
+                Keep a single secondary “Data & access” settings page with
+                source inventory and request status.
+              </td>
+              <td>
+                Heterogeneous backends can leave stale copies or incomplete
+                deletions; UI completion must reflect actual results.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/regulatory-compliance-ux"
+                  >Regulatory Compliance UX</a
+                >
+                — accessed
+              </td>
+              <td>
+                Make explanations, rights requests, consent, and audit evidence
+                understandable in context.
+              </td>
+              <td>
+                Expose a concise “Why this needs review” explanation with
+                evidence in approval details.
+              </td>
+              <td>
+                Disclosure walls and ceremonial compliance checkboxes can
+                obscure decisions.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/advanced-privacy-technologies-ux"
+                  >Advanced Privacy Technologies UX</a
+                >
+                — accessed
+              </td>
+              <td>
+                Explain privacy technology guarantees in ordinary language, with
+                verifiable supporting detail.
+              </td>
+              <td>
+                If a supported protection is displayed, explain its actual scope
+                through an adjacent details link.
+              </td>
+              <td>
+                Simplified explanations can imply guarantees stronger than the
+                technology provides.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/realtime-voice-agents"
+                  >Realtime Voice Agents</a
+                >
+                — accessed
+              </td>
+              <td>
+                Spoken interactions need clear turn taking, interruption,
+                tool-call handling, guardrails, and handoff.
+              </td>
+              <td>
+                Omit voice from the primary procurement workspace unless a
+                concrete voice workflow is established; any later voice control
+                needs visible listening/stopped states.
+              </td>
+              <td>
+                Tool latency, network loss, and voice activity detection errors
+                disrupt conversation.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://agentic-design.ai/patterns/ui-ux-patterns/ag-ui-protocol"
+                  >AG-UI Protocol</a
+                >
+                — accessed
+              </td>
+              <td>
+                Structured lifecycle, activity, and state events let frontends
+                render live progress and return user controls.
+              </td>
+              <td>
+                Use stable task states and a compact activity history; visibly
+                distinguish reconnecting/stale status from completed work.
+              </td>
+              <td>
+                Streaming requires ordering, replay, and state reconciliation.
+                This pattern alone does not warrant a protocol migration.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://uxpilot.ai/blogs/enterprise-ux-design"
+                  >UX Pilot: 8 Enterprise UX Design Best Practices and
+                  Principles</a
+                >
+                — accessed
+              </td>
+              <td>
+                Research distinct roles; maintain reusable components; embed
+                help and AI suggestions in workflows; support role-aware data
+                and measure task efficiency and errors.
+              </td>
+              <td>
+                Build the workspace around a focused work list and selected
+                task, sharing one table, button, badge, field, and icon system
+                across views.
+              </td>
+              <td>
+                Dense workflows need learnability; abbreviated labels and
+                icon-only actions can confuse new users.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://medium.com/design-bootcamp/agentic-ux-7-principles-for-designing-systems-with-agents-019512c2caa9"
+                  >Alexandra Vasquez: Agentic UX—7 principles</a
+                >
+                — accessed
+              </td>
+              <td>
+                Establish consistent information architecture, embed agents in
+                existing workflows, offer useful next steps, maintain context,
+                reuse familiar patterns, gather timely inputs, and preserve
+                human control.
+              </td>
+              <td>
+                Put proposed action, explanation, review controls, and resulting
+                state beside the affected task instead of a separate AI
+                destination.
+              </td>
+              <td>
+                Separate AI panels create context switching; automation must
+                remain visible and appropriately reversible.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </body>
+</html>

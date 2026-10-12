@@ -1,23 +1,82 @@
 {
   "color": {
     "$type": "color",
-    "surface": { "$value": "{palette.gray-950}" },
-    "surface-raised": { "$value": "{palette.gray-900}" },
-    "border": { "$value": "{palette.gray-600}" },
-    "text": { "$value": "{palette.gray-100}" },
-    "text-muted": { "$value": "{palette.gray-300}" },
-    "accent": { "$value": "{palette.blue-300}" },
-    "accent-text": { "$value": "{palette.gray-950}" },
-    "focus": { "$value": "{palette.blue-300}" },
+    "surface": {
+      "$value": "{palette.night-surface}"
+    },
+    "surface-raised": {
+      "$value": "{palette.night-raised}"
+    },
+    "border": {
+      "$value": "{palette.night-border}"
+    },
+    "text": {
+      "$value": "{palette.night-text}"
+    },
+    "text-muted": {
+      "$value": "{palette.night-text-muted}"
+    },
+    "accent": {
+      "$value": "{palette.night-accent}"
+    },
+    "accent-text": {
+      "$value": "{palette.night-accent-text}"
+    },
+    "focus": {
+      "$value": "{palette.night-focus}"
+    },
     "status": {
-      "verified": { "$value": "{palette.green-300}" },
-      "failed": { "$value": "{palette.red-300}" },
-      "unknown": { "$value": "{palette.amber-300}" },
-      "blocked": { "$value": "{palette.violet-300}" }
+      "verified": {
+        "$value": "{palette.night-verified}"
+      },
+      "failed": {
+        "$value": "{palette.night-failed}"
+      },
+      "unknown": {
+        "$value": "{palette.night-unknown}"
+      },
+      "blocked": {
+        "$value": "{palette.night-blocked}"
+      },
+      "verified-surface": {
+        "$value": "{palette.night-verified-surface}"
+      },
+      "failed-surface": {
+        "$value": "{palette.night-failed-surface}"
+      },
+      "unknown-surface": {
+        "$value": "{palette.night-unknown-surface}"
+      }
+    },
+    "accent-strong": {
+      "$value": "{palette.night-accent-strong}"
+    },
+    "accent-soft": {
+      "$value": "{palette.night-accent-soft}"
+    },
+    "accent-quiet": {
+      "$value": "{palette.night-accent-quiet}"
+    },
+    "border-subtle": {
+      "$value": "{palette.night-border-subtle}"
+    },
+    "border-strong": {
+      "$value": "{palette.night-border-strong}"
+    },
+    "surface-sunken": {
+      "$value": "{palette.night-sunken}"
+    },
+    "text-subtle": {
+      "$value": "{palette.night-text-subtle}"
+    },
+    "canvas": {
+      "$value": "{palette.night-canvas}"
     }
   },
   "approval": {
     "$type": "color",
-    "material-change": { "$value": "{palette.amber-300}" }
+    "material-change": {
+      "$value": "{palette.night-unknown}"
+    }
   }
 }

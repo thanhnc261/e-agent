@@ -16,6 +16,12 @@ def create_plugin(services: PluginServices) -> PluginContribution:
         str(settings["base_url"]),
         str(settings["database"]),
         timeout=float(str(settings.get("timeout_seconds", "20"))),
+        target={
+            "database": str(settings["database"]),
+            "company_id": str(settings["expected_company_id"]),
+            "sandbox_marker": str(settings["expected_sandbox_marker"]),
+            "bridge_version": str(settings["expected_bridge_version"]),
+        },
     )
     executor = OdooExecutor(client, services.credentials, str(settings["namespace"]))
     return PluginContribution(executors=(executor,))

@@ -18,6 +18,13 @@ One decision per ADR. Statuses: **Proposed** (recommended, not yet accepted by t
 | [0012](0012-schema-driven-integration-management.md) | Schema-driven integration, connection and credential management | Accepted | I06 (seams); admin UI Phase 2 |
 | [0013](0013-integration-auth-sdk-and-delegated-connections.md) | Integration auth SDK, tenant app registrations and user-delegated connections | Accepted | I02/I06 (contracts, MVP subset); Phase 2 |
 
+| [0014](0014-mvp-remediation-boundaries.md) | MVP remediation boundaries, approval freshness and external uncertainty | Accepted (approved remediation plan) | FIX-02..06 |
+
+| [0015](0015-task-workspace-presentation.md) | Task workspace and host-owned presentation metadata | Accepted (requested UI implementation) | UI redesign / I08–I09 |
+
+| [0016](0016-selectable-agent-surfaces.md) | Selectable enterprise agent surfaces | Accepted (requested overlay design) | UI surfaces / I08–I09 |
+| [0017](0017-member-discovery-read-models.md) | Member-readable task catalog and connection projections | Accepted (requested overlay adoption, API-01) | Enterprise overlay / API-01, FE-06 |
+
 The [2026-10-06 architecture review](../reviews/2026-10-06-architecture-review.md) explains the findings behind 0002–0010. ADR 0012 comes from [integration management](../integration-management.md), ADR 0013 from [integration auth SDK](../integration-auth-sdk.md). ADR 0011 comes from the follow-up UI research in [UI architecture](../ui-architecture.md).
 
 ## Mapping from research 08 proposals

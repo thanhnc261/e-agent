@@ -1,0 +1,48 @@
+/** Original e-agent monoline icon family: 24-unit grid, 1.65-unit rounded stroke. */
+export const iconPaths = {
+  settings: "M4 7h16M4 17h16M8 4v6m8 4v6",
+  lock: "M6 10h12v11H6ZM8 10V6a4 4 0 0 1 8 0v4m-4 4v3",
+  chevron: "m8 5 7 7-7 7",
+  retry: "M4 10a8 8 0 1 1 1 8M4 4v6h6",
+  alert: "m12 3 10 18H2Zm0 6v5m0 3v1",
+  send: "M12 20V4m-6 6 6-6 6 6",
+  external: "M13 3h8v8M21 3 10 14M9 5H3v16h16v-6",
+  home: "M3 10 12 3l9 7v11h-6v-7H9v7H3Z",
+  work: "M8 5V3h8v2M3 9h18M3 5h18v16H3ZM9 13h6",
+  connections:
+    "M8 8h8v8H8ZM3 3h3v3H3Zm15 0h3v3h-3ZM3 18h3v3H3Zm15 0h3v3h-3ZM6 6l2 2m8 0 2-2M6 18l2-2m8 0 2 2",
+  shield: "M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6ZM8 12l3 3 5-6",
+  arrow: "M5 12h14m-5-5 5 5-5 5",
+  expand: "M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5",
+  minus: "M5 12h14",
+  sun: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2",
+  handoff: "M3 6h7v12H3Zm11 0h7v12h-7M7 12h10m-3-3 3 3-3 3",
+  service: "M4 10a8 8 0 0 1 16 0v7h-4v-7h4M4 10H2v7h4v-7Zm16 7v4h-8",
+  purchase: "M4 7h16l-1 14H5ZM8 7V5a4 4 0 0 1 8 0v2",
+  book: "M12 5C8 2 3 4 3 4v16s5-2 9 1c4-3 9-1 9-1V4s-5-2-9 1Zm0 0v16",
+  people:
+    "M9 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM2 21v-5a7 7 0 0 1 14 0v5m1-18a3 3 0 0 1 0 6m2 4c3 1 3 5 3 8",
+  file: "M5 3h10l4 4v14H5ZM15 3v5h4M9 12h6m-6 4h6",
+  check: "m5 12 4 4L19 6",
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 4v5l3 2",
+  search: "M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm5 12 6 6",
+  close: "m6 6 12 12M6 18 18 6",
+  chat: "M3 4h18v13H9l-6 4Z",
+  info: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 7v7m0-11v1",
+};
+export const icon = (name) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${iconPaths[name] || iconPaths.file}"/></svg>`;
+
+export const logoGlyph =
+  '<path d="M24 9a10 10 0 1 0 0 14M6 16h18" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/><circle cx="24" cy="16" r="2" fill="currentColor"/>';
+export const logo = () =>
+  `<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">${logoGlyph}</svg>`;
+export function paintIcons(root = document) {
+  root
+    .querySelectorAll("[data-icon]")
+    .forEach((e) => (e.innerHTML = icon(e.dataset.icon)));
+  root.querySelectorAll(".mark").forEach((e) => {
+    e.innerHTML = logo();
+    e.setAttribute("aria-hidden", "true");
+  });
+}

@@ -1,0 +1,58 @@
+{
+  "kind": "recorded-public-model-parts-fixture-replay",
+  "environment": "synthetic fixture ERP; replay is not live evidence",
+  "task": "draft-po",
+  "prompt": "Restock product:widget-a for demand:d-001 by creating a draft purchase order.",
+  "model_digest": "bc006a921f692e792f201c133807f63238a8fc3ed22d9da4a919600f39c487de",
+  "context_length": 32768,
+  "temperature": 0,
+  "seed": 0,
+  "pydantic_ai_version": "2.54.0",
+  "expected_contract": "procurement.purchase-order.create-draft.v1",
+  "expected_fixture_writes": 1,
+  "responses": [
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "procurement_demand_read_v1",
+          "args": "{\"demand_ref\":\"demand:d-001\"}",
+          "tool_call_id": "call_yea3z9h5",
+          "part_kind": "tool-call"
+        },
+        {
+          "tool_name": "inventory_availability_read_v1",
+          "args": "{\"product_ref\":\"product:widget-a\"}",
+          "tool_call_id": "call_8f8y7xli",
+          "part_kind": "tool-call"
+        },
+        {
+          "tool_name": "procurement_offers_read_v1",
+          "args": "{\"product_ref\":\"product:widget-a\"}",
+          "tool_call_id": "call_4zzb1w2u",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "procurement_purchase_order_create_draft_v1",
+          "args": "{\"demand_ref\":\"demand:d-001\",\"product_ref\":\"product:widget-a\",\"supplier_ref\":\"supplier:approved-co\",\"offer_ref\":\"offer:a\",\"quantity\":\"7\",\"unit\":\"Units\",\"currency\":\"VND\",\"unit_price\":\"100\",\"subtotal\":\"700\",\"requested_date\":\"2026-10-20\"}",
+          "tool_call_id": "call_hx9b4pvh",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "content": "A draft purchase order has been created for the restock of product:widget-a for demand:d-001. The order is for 7 Units from supplier:approved-co at a unit price of 100 VND, with a subtotal of 700 VND. The requested delivery date is 2026-10-20. The purchase order reference is PO/FIXTURE/0001.",
+          "part_kind": "text"
+        }
+      ]
+    }
+  ]
+}

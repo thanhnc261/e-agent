@@ -5,18 +5,24 @@ from __future__ import annotations
 from datetime import date
 
 from e_agent.contracts.common import DecimalStr, Record
+from pydantic import ConfigDict, Field
+
+_REFERENCE_DESCRIPTION = (
+    "Opaque resource identifier; copy the complete exact reference, including its prefix, "
+    "from authorized read data or user input."
+)
 
 
 class DemandQuery(Record):
     """Read one procurement demand (quantity, unit, requested date, budget)."""
 
-    demand_ref: str
+    demand_ref: str = Field(description=_REFERENCE_DESCRIPTION)
 
 
 class OfferQuery(Record):
     """Read supplier offers for a product, including approval status."""
 
-    product_ref: str
+    product_ref: str = Field(description=_REFERENCE_DESCRIPTION)
 
 
 class PurchaseOrderQuery(Record):
@@ -24,8 +30,8 @@ class PurchaseOrderQuery(Record):
 
 
 class Demand(Record):
-    demand_ref: str
-    product_ref: str
+    demand_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    product_ref: str = Field(description=_REFERENCE_DESCRIPTION)
     quantity: DecimalStr
     unit: str
     requested_date: date
@@ -34,9 +40,9 @@ class Demand(Record):
 
 
 class Offer(Record):
-    offer_ref: str
-    supplier_ref: str
-    product_ref: str
+    offer_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    supplier_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    product_ref: str = Field(description=_REFERENCE_DESCRIPTION)
     unit_price: DecimalStr
     currency: str
     unit: str
@@ -45,17 +51,17 @@ class Offer(Record):
 
 
 class Offers(Record):
-    product_ref: str
+    product_ref: str = Field(description=_REFERENCE_DESCRIPTION)
     offers: tuple[Offer, ...]
 
 
 class DraftPurchaseOrder(Record):
     """Arguments of procurement.purchase-order.create-draft.v1."""
 
-    demand_ref: str
-    product_ref: str
-    supplier_ref: str
-    offer_ref: str
+    demand_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    product_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    supplier_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    offer_ref: str = Field(description=_REFERENCE_DESCRIPTION)
     quantity: DecimalStr
     unit: str
     currency: str
@@ -67,8 +73,8 @@ class DraftPurchaseOrder(Record):
 class ShortageAnswer(Record):
     """ERP-01 answer: availability for a demand and the resulting shortage."""
 
-    demand_ref: str
-    product_ref: str
+    demand_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    product_ref: str = Field(description=_REFERENCE_DESCRIPTION)
     demand_quantity: DecimalStr
     available: DecimalStr
     inbound: DecimalStr
@@ -78,10 +84,10 @@ class ShortageAnswer(Record):
 class OfferRecommendation(Record):
     """ERP-02 answer: the eligible offer to use, or none (offer_ref null)."""
 
-    demand_ref: str
-    product_ref: str
-    offer_ref: str | None
-    supplier_ref: str | None
+    demand_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    product_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    offer_ref: str | None = Field(description=_REFERENCE_DESCRIPTION)
+    supplier_ref: str | None = Field(description=_REFERENCE_DESCRIPTION)
     unit_price: DecimalStr | None
     explanation: str
 
@@ -89,18 +95,18 @@ class OfferRecommendation(Record):
 class DraftRfqQuery(Record):
     """Read one draft request for quotation (draft purchase order) by reference."""
 
-    purchase_order_ref: str
+    purchase_order_ref: str = Field(description=_REFERENCE_DESCRIPTION)
 
 
 class DraftRfq(Record):
     """Current values of a draft RFQ; ``revision`` is its optimistic version."""
 
-    purchase_order_ref: str
-    external_ref: str
+    purchase_order_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    external_ref: str = Field(description=_REFERENCE_DESCRIPTION)
     state: str
     revision: str
-    supplier_ref: str
-    product_ref: str
+    supplier_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    product_ref: str = Field(description=_REFERENCE_DESCRIPTION)
     quantity: DecimalStr
     unit: str
     unit_price: DecimalStr
@@ -115,20 +121,25 @@ class AmendDraftRfq(Record):
     change if the RFQ moved on since (optimistic concurrency).
     """
 
-    purchase_order_ref: str
+    model_config = ConfigDict(
+        json_schema_extra={"x-presentation": {"baseline_reference": "purchase_order_ref"}}
+    )
+
+    purchase_order_ref: str = Field(description=_REFERENCE_DESCRIPTION)
     expected_revision: str
     quantity: DecimalStr
     requested_date: date
 
 
 class PurchaseOrderView(Record):
-    external_ref: str
+    external_ref: str = Field(description=_REFERENCE_DESCRIPTION)
     operation_key: str
     state: str
     purchase_order_ref: str | None = None
     requested_date: date | None = None
-    product_ref: str
-    supplier_ref: str
+    line_count: int | None = None
+    product_ref: str = Field(description=_REFERENCE_DESCRIPTION)
+    supplier_ref: str = Field(description=_REFERENCE_DESCRIPTION)
     quantity: DecimalStr
     unit: str
     currency: str

@@ -1,0 +1,174 @@
+/* Standalone route chrome. The task surface itself keeps the product stylesheets. */
+.ea-workspace-nav {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ea-sections {
+  padding: var(--ea-space-xl) var(--ea-space-md) 0;
+}
+.ea-sections ul {
+  list-style: none;
+  padding: 0;
+  margin: var(--ea-space-sm) 0 0;
+  display: grid;
+  gap: var(--ea-space-xs);
+}
+.ea-section-link {
+  display: flex;
+  align-items: center;
+  gap: var(--ea-space-md);
+  min-height: var(--ea-control-min-height);
+  padding: var(--ea-space-xs) var(--ea-space-md);
+  border-radius: var(--ea-radius-md);
+  color: var(--ea-color-text);
+  text-decoration: none;
+  font-weight: var(--ea-font-weight-medium);
+}
+.ea-section-link:hover {
+  background: var(--ea-color-surface-raised);
+}
+.ea-section-link[aria-current="page"] {
+  background: var(--ea-color-accent-soft);
+  color: var(--ea-color-accent-strong);
+}
+.ea-scope-card,
+.ea-work-list {
+  padding: var(--ea-space-lg);
+  display: grid;
+  gap: var(--ea-space-sm);
+}
+.ea-work-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--ea-space-xs);
+}
+@media (max-width: 760px) {
+  .ea-workspace-nav {
+    flex-direction: column;
+  }
+  .ea-sections {
+    padding: var(--ea-space-md) var(--ea-space-md) 0;
+  }
+  .ea-sections ul {
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    overflow-x: auto;
+  }
+}
+
+/* Overview (owner review 2026-10-12): the composer and recent prompts only, in one
+   calm column a little above the optical centre. */
+.ea-overview {
+  max-width: 44rem;
+  margin-inline: auto;
+  padding: clamp(3rem, 14vh, 9rem) 2rem 3rem;
+}
+.ea-overview-content {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+.ea-overview .ea-welcome {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  justify-content: center;
+}
+.ea-overview .ea-welcome-mark {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+.ea-overview h1 {
+  font-size: clamp(1.625rem, 2.6vw, 2.125rem);
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  margin: 0;
+  font-weight: var(--ea-font-weight-medium);
+}
+.ea-overview .ea-composer {
+  padding: 1rem 1rem 0.75rem;
+}
+.ea-overview .ea-input {
+  min-height: 4.5rem;
+}
+.ea-ai-disclosure {
+  font-size: var(--ea-font-size-sm);
+  line-height: 1.55;
+  color: var(--ea-color-text-muted);
+  text-align: center;
+}
+.ea-ai-disclosure > p {
+  margin: 0;
+}
+.ea-ai-disclosure .ea-disclosure {
+  display: inline-block;
+  text-align: left;
+  margin-top: var(--ea-space-xs);
+}
+.ea-ai-disclosure .ea-disclosure > summary {
+  justify-content: center;
+  font-size: var(--ea-font-size-sm);
+  color: var(--ea-color-text);
+}
+.ea-ai-disclosure ul {
+  margin: var(--ea-space-sm) 0 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: var(--ea-space-xs);
+  color: var(--ea-color-text);
+}
+.ea-recent-prompts {
+  margin-top: var(--ea-space-lg);
+}
+.ea-recent-prompts h2 {
+  font-size: var(--ea-font-size-sm);
+  font-weight: var(--ea-font-weight-medium);
+  color: var(--ea-color-text-muted);
+  margin: 0;
+}
+.ea-recent-prompts > p {
+  margin: 0 0 var(--ea-space-sm);
+}
+.ea-recent-prompts ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--ea-space-xs);
+}
+.ea-root .ea-recent-prompt {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  color: var(--ea-color-text);
+  border: 1px solid var(--ea-color-border-subtle);
+  background: var(--ea-color-surface);
+  font-weight: var(--ea-font-weight-regular);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.ea-workspace-nav .ea-nav-hint {
+  line-height: 1.6;
+}
+.ea-inventory {
+  display: grid;
+  gap: var(--ea-space-2xl);
+}
+@media (max-width: 760px) {
+  .ea-overview {
+    padding: 2rem 1.25rem;
+  }
+  .ea-sections .ea-eyebrow {
+    display: none;
+  }
+  .ea-section-link {
+    gap: var(--ea-space-sm);
+    padding-inline: var(--ea-space-sm);
+  }
+}

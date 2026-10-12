@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from typing import Any
 
 from e_agent.contracts.action import ActionRecord
@@ -18,6 +19,7 @@ from e_agent.contracts.events import RunEvent
 from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord
+from e_agent.contracts.work import WorkClaim
 from e_agent.sdk.store import ConcurrencyConflict, DuplicateOperation, EventSpec, NotFound
 from psycopg import AsyncConnection, errors
 from psycopg.types.json import Jsonb
@@ -35,6 +37,9 @@ class PostgresRunStore:
 
     def __init__(self, pool: AsyncConnectionPool[AsyncConnection[Any]]) -> None:
         self._pool = pool
+        self._work_claim: ContextVar[WorkClaim | None] = ContextVar(
+            "postgres_work_claim", default=None
+        )
 
     @classmethod
     async def open(cls, dsn: str, *, min_size: int = 1, max_size: int = 8) -> PostgresRunStore:
@@ -52,7 +57,7 @@ class PostgresRunStore:
         async with self._pool.connection() as conn:
             await conn.execute(
                 "TRUNCATE runs, run_events, actions, operation_reservations, approvals,"
-                " receipts, outcome_reports, continuations, api_idempotency"
+                " receipts, outcome_reports, continuations, api_idempotency, run_work"
             )
 
     # -- helpers --------------------------------------------------------------
@@ -140,6 +145,7 @@ class PostgresRunStore:
     # -- runs ---------------------------------------------------------------
     async def create_run(self, run: RunRecord, events: Sequence[EventSpec]) -> None:
         async with self._pool.connection() as conn, conn.transaction():
+            await self._fence(conn)
             try:
                 async with conn.transaction():
                     await conn.execute(
@@ -150,6 +156,46 @@ class PostgresRunStore:
             except errors.UniqueViolation as exc:
                 raise ConcurrencyConflict(f"run {run.run_id} exists") from exc
             await self._append(conn, run.tenant_id, run.run_id, events)
+
+    async def create_run_idempotent(
+        self,
+        run: RunRecord,
+        events: Sequence[EventSpec],
+        state: Mapping[str, Any],
+        actor_id: str,
+        key: str,
+        request_digest: str,
+    ) -> tuple[str, str]:
+        async with self._pool.connection() as conn, conn.transaction():
+            cur = await conn.execute(
+                "INSERT INTO api_idempotency"
+                " (tenant_id, actor_id, idem_key, request_digest, run_id)"
+                " VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING RETURNING run_id",
+                (run.tenant_id, actor_id, key, request_digest, run.run_id),
+            )
+            if await cur.fetchone() is None:
+                cur = await conn.execute(
+                    "SELECT run_id, request_digest FROM api_idempotency"
+                    " WHERE tenant_id = %s AND actor_id = %s AND idem_key = %s",
+                    (run.tenant_id, actor_id, key),
+                )
+                row = await cur.fetchone()
+                assert row is not None
+                return str(row[0]), str(row[1])
+            await conn.execute(
+                "INSERT INTO runs (tenant_id, run_id, state, revision, record)"
+                " VALUES (%s, %s, %s, %s, %s)",
+                (run.tenant_id, run.run_id, run.state, run.revision, _json(run)),
+            )
+            await self._save_continuation(conn, run.tenant_id, run.run_id, state, None)
+            await self._append(conn, run.tenant_id, run.run_id, events)
+            await conn.execute(
+                "INSERT INTO run_work"
+                " (work_id, tenant_id, run_id, kind, payload, request_digest)"
+                " VALUES (%s, %s, %s, 'start', '{}', %s)",
+                (new_id("work"), run.tenant_id, run.run_id, request_digest),
+            )
+            return run.run_id, request_digest
 
     async def get_run(self, tenant_id: str, run_id: str) -> RunRecord:
         async with self._pool.connection() as conn:
@@ -163,11 +209,18 @@ class PostgresRunStore:
         return RunRecord.model_validate(row[0])
 
     async def update_run(
-        self, run: RunRecord, expected_revision: int, events: Sequence[EventSpec]
+        self,
+        run: RunRecord,
+        expected_revision: int,
+        events: Sequence[EventSpec],
+        *,
+        continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None] | None = None,
+        work: tuple[str, Mapping[str, Any], str] | None = None,
     ) -> RunRecord:
         if run.revision != expected_revision + 1:
             raise ConcurrencyConflict("new revision must be expected + 1")
         async with self._pool.connection() as conn, conn.transaction():
+            await self._fence(conn)
             cur = await conn.execute(
                 "UPDATE runs SET state = %s, revision = %s, record = %s, updated_at = now()"
                 " WHERE tenant_id = %s AND run_id = %s AND revision = %s",
@@ -175,6 +228,24 @@ class PostgresRunStore:
             )
             if cur.rowcount != 1:
                 raise ConcurrencyConflict(f"run {run.run_id} changed")
+            if continuation is not None:
+                state, driver_state = continuation
+                await self._save_continuation(conn, run.tenant_id, run.run_id, state, driver_state)
+            if work is not None:
+                kind, payload, request_digest = work
+                await conn.execute(
+                    "INSERT INTO run_work"
+                    " (work_id, tenant_id, run_id, kind, payload, request_digest)"
+                    " VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                    (
+                        new_id("work"),
+                        run.tenant_id,
+                        run.run_id,
+                        kind,
+                        Jsonb(dict(payload)),
+                        request_digest,
+                    ),
+                )
             await self._append(conn, run.tenant_id, run.run_id, events)
         return run
 
@@ -183,9 +254,41 @@ class PostgresRunStore:
         self, action: ActionRecord, expected_revision: int | None, events: Sequence[EventSpec]
     ) -> ActionRecord:
         async with self._pool.connection() as conn, conn.transaction():
+            await self._fence(conn)
             await self._cas_action(conn, action, expected_revision)
             await self._append(conn, action.tenant_id, action.run_id, events)
         return action
+
+    async def wait_for_approval(
+        self,
+        action: ActionRecord,
+        expected_action_revision: int,
+        run: RunRecord,
+        expected_run_revision: int,
+        continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None],
+        events: Sequence[EventSpec],
+    ) -> None:
+        if run.revision != expected_run_revision + 1:
+            raise ConcurrencyConflict("new revision must be expected + 1")
+        async with self._pool.connection() as conn, conn.transaction():
+            await self._fence(conn)
+            cur = await conn.execute(
+                "UPDATE runs SET state = %s, revision = %s, record = %s, updated_at = now()"
+                " WHERE tenant_id = %s AND run_id = %s AND revision = %s",
+                (
+                    run.state,
+                    run.revision,
+                    _json(run),
+                    run.tenant_id,
+                    run.run_id,
+                    expected_run_revision,
+                ),
+            )
+            if cur.rowcount != 1:
+                raise ConcurrencyConflict("run changed before approval checkpoint")
+            await self._cas_action(conn, action, expected_action_revision)
+            await self._save_continuation(conn, run.tenant_id, run.run_id, *continuation)
+            await self._append(conn, run.tenant_id, run.run_id, events)
 
     async def get_action(self, tenant_id: str, action_id: str) -> ActionRecord:
         async with self._pool.connection() as conn:
@@ -202,6 +305,7 @@ class PostgresRunStore:
         self, action: ActionRecord, expected_revision: int, events: Sequence[EventSpec]
     ) -> ActionRecord:
         async with self._pool.connection() as conn, conn.transaction():
+            await self._fence(conn)
             await self._cas_action(conn, action, expected_revision)
             try:
                 async with conn.transaction():
@@ -221,8 +325,20 @@ class PostgresRunStore:
             await self._append(conn, action.tenant_id, action.run_id, events)
         return action
 
-    async def record_approval(self, approval: ApprovalRecord, events: Sequence[EventSpec]) -> None:
+    async def record_approval(
+        self,
+        approval: ApprovalRecord,
+        events: Sequence[EventSpec],
+        *,
+        action: ActionRecord | None = None,
+        expected_revision: int | None = None,
+    ) -> None:
         async with self._pool.connection() as conn, conn.transaction():
+            await self._fence(conn)
+            if action is not None:
+                if expected_revision is None:
+                    raise ConcurrencyConflict("approval transition requires a revision")
+                await self._cas_action(conn, action, expected_revision)
             await conn.execute(
                 "INSERT INTO approvals (tenant_id, approval_id, action_id, record)"
                 " VALUES (%s, %s, %s, %s)",
@@ -238,6 +354,7 @@ class PostgresRunStore:
         events: Sequence[EventSpec],
     ) -> ActionRecord:
         async with self._pool.connection() as conn, conn.transaction():
+            await self._fence(conn)
             await self._cas_action(conn, action, expected_revision)
             await conn.execute(
                 "INSERT INTO receipts (tenant_id, action_id, record) VALUES (%s, %s, %s)",
@@ -255,6 +372,7 @@ class PostgresRunStore:
         events: Sequence[EventSpec],
     ) -> None:
         async with self._pool.connection() as conn, conn.transaction():
+            await self._fence(conn)
             if action is not None:
                 await self._cas_action(conn, action, expected_revision)
             await conn.execute(
@@ -306,6 +424,7 @@ class PostgresRunStore:
         self, tenant_id: str, actor_id: str, key: str, request_digest: str, run_id: str
     ) -> tuple[str, str]:
         async with self._pool.connection() as conn, conn.transaction():
+            await self._fence(conn)
             await conn.execute(
                 "INSERT INTO api_idempotency"
                 " (tenant_id, actor_id, idem_key, request_digest, run_id)"
@@ -337,19 +456,30 @@ class PostgresRunStore:
         driver_state: Mapping[str, Any] | None,
     ) -> None:
         async with self._pool.connection() as conn, conn.transaction():
-            await conn.execute(
-                "INSERT INTO continuations (tenant_id, run_id, state, driver_state)"
-                " VALUES (%s, %s, %s, %s)"
-                " ON CONFLICT (tenant_id, run_id) DO UPDATE"
-                " SET state = EXCLUDED.state, driver_state = EXCLUDED.driver_state,"
-                " updated_at = now()",
-                (
-                    tenant_id,
-                    run_id,
-                    Jsonb(dict(state)),
-                    Jsonb(dict(driver_state)) if driver_state is not None else None,
-                ),
-            )
+            await self._fence(conn)
+            await self._save_continuation(conn, tenant_id, run_id, state, driver_state)
+
+    @staticmethod
+    async def _save_continuation(
+        conn: AsyncConnection[Any],
+        tenant_id: str,
+        run_id: str,
+        state: Mapping[str, Any],
+        driver_state: Mapping[str, Any] | None,
+    ) -> None:
+        await conn.execute(
+            "INSERT INTO continuations (tenant_id, run_id, state, driver_state)"
+            " VALUES (%s, %s, %s, %s)"
+            " ON CONFLICT (tenant_id, run_id) DO UPDATE"
+            " SET state = EXCLUDED.state, driver_state = EXCLUDED.driver_state,"
+            " updated_at = now()",
+            (
+                tenant_id,
+                run_id,
+                Jsonb(dict(state)),
+                Jsonb(dict(driver_state)) if driver_state is not None else None,
+            ),
+        )
 
     async def load_continuation(
         self, tenant_id: str, run_id: str
@@ -371,7 +501,104 @@ class PostgresRunStore:
             await conn.set_autocommit(True)
             await conn.execute("SELECT pg_advisory_lock(hashtextextended(%s, 0))", (key,))
             try:
+                await self._fence(conn)
                 yield
             finally:
                 await conn.execute("SELECT pg_advisory_unlock(hashtextextended(%s, 0))", (key,))
                 await conn.set_autocommit(False)
+
+    async def _fence(self, conn: AsyncConnection[Any]) -> None:
+        claim = self._work_claim.get()
+        if claim is None:
+            return
+        cur = await conn.execute(
+            "SELECT 1 FROM run_work WHERE work_id = %s AND owner = %s AND fence = %s"
+            " AND state = 'CLAIMED' AND lease_until > now() FOR UPDATE",
+            (claim.work_id, claim.owner, claim.fence),
+        )
+        if await cur.fetchone() is None:
+            raise ConcurrencyConflict("worker lease or fencing token is stale")
+
+    async def enqueue_work(
+        self,
+        tenant_id: str,
+        run_id: str,
+        kind: str,
+        payload: Mapping[str, Any],
+        request_digest: str,
+    ) -> None:
+        async with self._pool.connection() as conn, conn.transaction():
+            await conn.execute(
+                "INSERT INTO run_work"
+                " (work_id, tenant_id, run_id, kind, payload, request_digest)"
+                " VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                (new_id("work"), tenant_id, run_id, kind, Jsonb(dict(payload)), request_digest),
+            )
+            cur = await conn.execute(
+                "SELECT payload FROM run_work WHERE tenant_id = %s AND run_id = %s"
+                " AND kind = %s AND request_digest = %s",
+                (tenant_id, run_id, kind, request_digest),
+            )
+            row = await cur.fetchone()
+            if row is None or row[0] != dict(payload):
+                raise ConcurrencyConflict("work request conflicts with the admitted command")
+
+    async def claim_work(self, owner: str, lease_seconds: int = 30) -> WorkClaim | None:
+        async with self._pool.connection() as conn, conn.transaction():
+            # Lock the parent run too: concurrent claimers cannot select two jobs for one run.
+            cur = await conn.execute(
+                "SELECT w.work_id FROM run_work w JOIN runs r"
+                " ON r.tenant_id = w.tenant_id AND r.run_id = w.run_id WHERE w.state != 'DONE'"
+                " AND (w.lease_until IS NULL OR w.lease_until <= now())"
+                " AND NOT EXISTS (SELECT 1 FROM run_work active"
+                " WHERE active.tenant_id = w.tenant_id"
+                " AND active.run_id = w.run_id AND active.state = 'CLAIMED'"
+                " AND active.lease_until > now()) ORDER BY w.created_at, w.work_id"
+                " FOR UPDATE OF w, r SKIP LOCKED LIMIT 1"
+            )
+            row = await cur.fetchone()
+            if row is None:
+                return None
+            cur = await conn.execute(
+                "UPDATE run_work SET state = 'CLAIMED', owner = %s, fence = fence + 1,"
+                " lease_until = now() + make_interval(secs => %s) WHERE work_id = %s"
+                " RETURNING work_id, tenant_id, run_id, kind, payload, owner, fence, lease_until",
+                (owner, lease_seconds, row[0]),
+            )
+            claimed = await cur.fetchone()
+            assert claimed is not None
+            return WorkClaim.model_validate(dict(zip(WorkClaim.model_fields, claimed, strict=True)))
+
+    async def renew_work(self, claim: WorkClaim, lease_seconds: int = 30) -> bool:
+        async with self._pool.connection() as conn, conn.transaction():
+            cur = await conn.execute(
+                "UPDATE run_work SET lease_until = now() + make_interval(secs => %s)"
+                " WHERE work_id = %s AND owner = %s AND fence = %s AND state = 'CLAIMED'"
+                " AND lease_until > now()",
+                (lease_seconds, claim.work_id, claim.owner, claim.fence),
+            )
+            return cur.rowcount == 1
+
+    async def finish_work(self, claim: WorkClaim) -> None:
+        async with self.work_scope(claim), self._pool.connection() as conn, conn.transaction():
+            await self._fence(conn)
+            await conn.execute(
+                "UPDATE run_work SET state = 'DONE' WHERE work_id = %s", (claim.work_id,)
+            )
+
+    @asynccontextmanager
+    async def work_scope(self, claim: WorkClaim) -> AsyncIterator[None]:
+        token = self._work_claim.set(claim)
+        try:
+            yield
+        finally:
+            self._work_claim.reset(token)
+
+    async def has_pending_work(self, tenant_id: str, run_id: str) -> bool:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "SELECT 1 FROM run_work WHERE tenant_id = %s AND run_id = %s"
+                " AND state != 'DONE' LIMIT 1",
+                (tenant_id, run_id),
+            )
+            return await cur.fetchone() is not None

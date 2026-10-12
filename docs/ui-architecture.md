@@ -1,8 +1,11 @@
 # UI architecture: layered, themeable and replaceable
 
-**Date:** 2026-10-06. **Status:** accepted design ([ADR 0011](adr/0011-layered-replaceable-ui.md)); implemented in I08/I09 under `ui/` (see §9 for deviations). It refines the overlay UI that [ADR 0001](adr/0001-local-mvp-scope.md) puts in the MVP and builds on the stream contract in [ADR 0007](adr/0007-run-event-stream-contract.md).
+Implementation clarification (2026-10-07): [ADR 0014](adr/0014-mvp-remediation-boundaries.md) defines short transactions with work fencing, conservative external uncertainty, approved fact/credential binding and transient public text offsets. These implementation seams require the remediation and live qualification gates; source availability does not establish readiness.
+**Date:** 2026-10-08. **Status:** accepted design ([ADR 0011](adr/0011-layered-replaceable-ui.md), [ADR 0015](adr/0015-task-workspace-presentation.md), [ADR 0016](adr/0016-selectable-agent-surfaces.md)); implemented in I08/I09 under `ui/` (see §9 for deviations). It refines the overlay UI that [ADR 0001](adr/0001-local-mvp-scope.md) puts in the MVP and builds on the stream contract in [ADR 0007](adr/0007-run-event-stream-contract.md).
 
 ## 1. Goal
+
+Planned follow-up (2026-10-08): the [enterprise overlay adoption plan](plans/2026-10-08-enterprise-overlay-adoption.md) applies the enterprise-wide mockup within these layers. The [frontend development guide](frontend-development-guide.md) proposes internal feature folders and reuse conventions. These are implementation proposals, not completed changes; new discovery APIs require a focused ADR and affected design updates before implementation.
 
 e-agent ships a **default UI** in two forms: a standalone web app and an embeddable overlay. A deployer must be able to:
 
@@ -43,7 +46,7 @@ flowchart TB
     subgraph Default["Default UI (replaceable)"]
         R["L5 @e-agent/ui-react<br/>hooks + slot registry"]
         COMP["L6 @e-agent/components<br/>default design system"]
-        LAY["L7 layouts: overlay / sidebar / full page"]
+        LAY["L7 layouts: compact / workbench / sidebar / full page"]
         HOST["L8 hosts: apps/web, &lt;e-agent-overlay&gt;, optional host adapters"]
     end
     API --> C --> CORE --> R --> COMP --> LAY --> HOST
@@ -82,16 +85,19 @@ All UIs must show the same approval content, so the server produces it:
 
 ```text
 ApprovalPresentation {
-  action_id, run_revision, digest ("jcs-sha256-v1:…"), expires_at,
-  capability_id, binding_display, connection_display,
+  run_id, action_id, run_revision, digest ("jcs-sha256-v1:…"), expires_at,
+  contract_id, binding_id, connection_id, credential_subject,
   canonical_proposal,                 # the exact digest input
-  material_fields: [{path, label_key, value, previous_value?, changed: bool}],
-  findings: [{rule_id, status, message_key, evidence_refs}],
-  policy_obligations: [...]
+  display_title?, expected_effects,
+  material_fields: [{path, label?, value, previous_value?, changed,
+                     comparison?, proposal_previous_value?}],
+  findings: [{rule_id, rule_version, status, message, evidence_ids}]
 }
 ```
 
-ui-core recomputes the JCS digest of `canonical_proposal` and refuses to enable "Approve" on a mismatch. The approve command sends `action_id`, `digest` and `expected_revision`, and the server revalidates regardless.
+The kernel derives titles, labels and field order from the admitted capability input schema. A domain can declare `x-presentation.baseline_reference` for an amendment: exactly one matching host-retained approved fact supplies current values; missing/ambiguous values stay unknown. `comparison` distinguishes current values from a superseded proposal, whose values remain separately inspectable. No canonical argument or digest changes for these display annotations.
+
+ui-core recomputes the JCS digest of `canonical_proposal` and checks the complete, unique displayed values, scope identifiers and expected effects against it. It refuses to enable "Approve" on a mismatch or a non-PASS finding. The approve command sends `action_id`, `digest` and `expected_revision`, and the server revalidates regardless.
 
 ### 4.3 Approval state machine (L3)
 
@@ -99,15 +105,16 @@ ui-core recomputes the JCS digest of `canonical_proposal` and refuses to enable 
 
 ### 4.4 Slots and layouts (L5–L7)
 
-Named slots: `header`, `composer`, `messages`, `timeline`, `approval`, `evidence`, `outcome`, `connection-status`, `footer`.
+Named slots: `header`, `navigation`, `composer`, `messages`, `timeline`, `approval`, `evidence`, `outcome`, `connection-status`, `footer`, `task-overview`.
 
 | Layout | Use | Default arrangement |
 |---|---|---|
-| `overlay` | Floating, expandable panel over any page | Collapsed launcher → panel with messages + timeline; approval as a modal layer inside the panel; evidence as a drawer |
-| `sidebar` | Panel docked to the left or right edge of whatever page it is on (any web app, intranet portal or the standalone app), pushing or overlapping the content | Full-height column; tabs for chat / timeline / evidence |
-| `full-page` | Standalone web app | Three columns: conversation, timeline + approval, evidence |
+| `overlay` | Floating, expandable panel over any page | Collapsed launcher → nonmodal task panel; bounded scrolling review body and reachable action footer; collapsible evidence/activity |
+| `workbench` | Expanded floating enterprise agent workspace | Shared task/review column plus task overview, evidence and activity; stacks at narrow widths |
+| `sidebar` | Panel docked to the left or right edge of whatever page it is on (any web app, intranet portal or the standalone app), pushing or overlapping the content | Full-height task panel with the shared review body and collapsible inspectors |
+| `full-page` | Standalone web app | Navigation rail, readable task/conversation/decision/result column, contextual evidence/activity inspector; one column on narrow viewports |
 
-The `approval` slot may be overridden only by a component that passes the UI conformance suite (§6). Layouts are configured with a JSON layout config (`{layout, slots: {timeline: {hidden}}, order}`), validated against a schema.
+The `approval` slot may be overridden only by a component that passes the UI conformance suite (§6). Layouts are configured with a JSON layout config (`{layout, slots: {timeline: {hidden}}, order}`), validated by the shared parser. `order` reorders primary task slots; every primary slot omitted from the order is still appended. Pending approval cannot be hidden.
 
 ### 4.5 Theming (L4)
 
@@ -185,7 +192,7 @@ No package under `ui/` may contain provider identifiers (a CI denylist covers `o
 | Layer boundaries | dependency-cruiser rules fail on upward or sideways imports; `ui-core` builds and tests with no DOM or React |
 | Contract sync | Generated TS types match the committed OpenAPI snapshot; event fixture round-trip |
 | Theming | Swapping theme files changes appearance with zero component diff; contrast checks pass |
-| Layout | The three presets render from the same component set; layout config schema validated |
+| Layout | The four presets render from the same component set; layout config schema validated |
 | Replaceability | A minimal non-React **reference custom UI** (vanilla TS or Lit, test fixture only) built on `ui-core` passes the conformance suite |
 | Embedding | The overlay element works on a test host page whose aggressive global CSS does not change it |
 
@@ -198,7 +205,71 @@ What exists in `ui/` and where it differs from the text above:
 - **Tokens:** a small in-repo DTCG compiler (`packages/tokens/build.mjs`, aliases and the types we use) replaces Style Dictionary to avoid a build dependency for a few dozen tokens. Contrast gates are Vitest checks over the resolved values.
 - **TypeScript 5.9**, not 7: openapi-typescript 7 needs the TypeScript 5 compiler API. Layer rules use dependency-cruiser only (no ESLint yet).
 - **Stream resume:** the browser resumes with `Last-Event-ID`; a fresh `EventSource` (after a snapshot or a closed connection) uses `?after_sequence=`, because it cannot set headers. Clients deduplicate by `sequence` and treat a gap like an unknown event: they re-read the snapshot.
-- **Approval:** `MaterialField` carries `previous_value`/`changed` against the superseded (blocked) proposal. Approve focuses the confirmation prompt, not the confirm button, so confirming always needs a separate action. Hiding the `approval` slot is ignored while a decision is pending.
+- **Approval:** `MaterialField` carries the complete exact argument set, schema labels and either current-baseline or previous-proposal comparison (ADR 0015). Approve focuses the confirmation prompt, not the confirm button, so confirming always needs a separate action. Hiding the `approval` slot is ignored while a decision is pending.
 - **Overlay:** React Aria needs its shadow-DOM flag (`enableShadowDOM` from `react-stately/private/flags/flags`, an unstable export; re-check on upgrades) for pointer presses inside the shadow root. The host element resets inherited text properties, because a host page can set them on the element with `!important`. Only `::part(panel)` is exposed so far. The element opens itself once per new pending approval. The `server` attribute exists, but the MVP session cookie is `SameSite=Strict`, so it works only same-origin until allowlisted-origin auth exists.
 - **Host context (§4.7):** `POST /v1/runs` accepts `host_context`. `page_url_origin` must be an origin. A hint resolves only when exactly one in-scope connection that this requester can use has `integration_id == system_hint` (and lists the resource type if it restricts resources); every other hint is dropped and counted. The `run.created` event records the resolved hints as untrusted context; `selection_text` is never persisted and is not yet given to the driver. The overlay sends `host_kind=embedded` plus its origin.
 - **Not implemented:** host adapters for specific systems (out of MVP scope) and AG-UI output.
+
+## 10. Task workspace implementation (2026-10-08)
+
+The default app starts with a focused task input and hides empty audit/approval panels. Navigation retains up to 20 session-local task references; New task explicitly leaves unfinished work reachable without stopping it. The controller scopes storage to API origin/tenant/principal, preserves failed submissions with a stable request key and returns an admission result so the composer only clears accepted input. No full-history/list service is implemented.
+
+Clarifications and prior answers remain in the conversation; public text streams without announcing the entire paragraph per token. Status copy distinguishes approval recorded, checking a result, verified, failed and unresolved. Outcome fields correlate VERIFIED actions with authoritative reports and COMMITTED receipt references; model prose supplies no verified fields. Evidence has source/time/completeness records with inspectable data and a separate complete authorized audit export, available during review.
+
+Mobile, sidebar and overlay use bounded review-body scrolling with an action footer and disclosures for details. Current implementation uses native disclosures rather than separate sheets/tabs. Light/dark/high-contrast tokens and EN/VI controls are shared. Domain schema labels are currently English; unavailable resource names remain exact references. Human usability/a11y certification, admitted task examples and richer typed/localized source/result projections remain future work. See the [handoff](handoffs/2026-10-08-ui-redesign.md) for exact checks and screenshots.
+
+### Selectable presentation surfaces
+
+The header View selector offers Compact, Workbench, Docked and (standalone only) Workspace. One controller remains above layout changes, retaining active task, history, exact approval state, locale/theme and the in-memory composer draft. Switching resets an open confirmation to review, restores focus to View and never issues a decision. Overlay Escape backs out of confirmation before minimizing; minimization returns focus to the launcher and keeps a pending-review badge. Validated session-local layout preferences are overridden by explicit URL/element configuration. Embedded preferences are scoped by element ID; distinct IDs isolate multiple instances. Draft text is not persisted across reload.
+
+L3 owns draft state; L5 supplies a narrow presentation context; L6 renders controls/overview; L7 owns layout selection/preferences/focus; L8 constrains embedded modes. Workbench shows only authoritative run state and supported recorded milestones, without generated plans or progress estimates. See [research and visual design](../research/11-enterprise-agent-overlay-design.md) and [verification/screenshots](handoffs/2026-10-08-enterprise-overlay.md).
+
+## 11. Enterprise overlay adoption (2026-10-09)
+
+Implemented under the [adoption plan](plans/2026-10-08-enterprise-overlay-adoption.md) work packages FE-00 to FE-07 and API-01, with [ADR 0017](adr/0017-member-discovery-read-models.md) for the new contracts. The layer boundaries, slot names, public exports and approval authority of §3–§5 are unchanged; the §9/§10 notes above still hold.
+
+### Module organization
+
+Each package entry file is now a public surface only; implementations live beside it by concern — `ui-core/selectors/`, `ui-react/{providers,hooks,slots,presentation}/`, `components/{primitives,features/*}/`, `layouts/{config,shared,overlay,sidebar,full-page,presentation}/`. Export and slot inventories are pinned by Vitest so an extraction cannot silently drop a name. dependency-cruiser additionally forbids primitives importing feature hooks or transport, feature-to-feature imports, surface-to-surface imports and deep cross-package paths. Formatting is migrated module by module through `.prettierscope`; `pnpm format:check` gates only the migrated scope.
+
+### Presentation dimensions
+
+Theme, appearance, density and surface are independent. L7 resolves each dimension with the precedence explicit host configuration → scoped session preference → validated default, marks a host-pinned dimension as locked (the UI then offers no control for it), and reports the resolved values to L8 through an `onPresentation` callback. L8 — `apps/web` and `<e-agent-overlay>` — is the only layer that writes `data-theme`, `data-appearance`, `data-density` and `lang` on its document or shadow host; no component inspects its own root node any more. The token compiler emits a delta block per dimension value per theme.
+
+An appearance changes emphasis, shape, scale and motion only, never colour roles the theme defined, so a theme's contrast guarantees cannot be weakened by a variant; the contrast suite checks every theme × appearance combination and both densities. `calm`, `presence` and `operator` ship; `comfortable` and `compact` ship, both above the WCAG 2.2 AA minimum target size.
+
+### Shared task surface and responsive ownership
+
+One `TaskSurface` module decides region membership and order for every placement; a placement chooses only a geometry variant (`page`, `split`, `stack`). L7 measures its own surface with a `ResizeObserver` and publishes a semantic `compact` value through the L5 surface context, replacing the `window.innerWidth` and ancestor queries that components used. A new proposal is brought into view once in every placement, honouring `prefers-reduced-motion`, and never takes focus.
+
+### Standalone routes
+
+`apps/web` adds validated hash routes — `#/overview`, `#/connections` (shown as Capabilities), `#/task[/<runId>]` — (`#/work` was removed on 2026-10-12 and now falls back to the overview) with an explicit fallback for anything unknown, including malformed percent-encoding. The controller is created above the router and never remounted, so navigation issues no run or command and preserves the active run, the submission identity and the draft. A host-supplied page body is honoured on the standalone surface only, and only while no decision is outstanding, so navigating can never move a pending review out of reach.
+
+Ownership between the address and the controller is explicit, because the obvious "reconcile them on every render" rule is wrong in both directions. A requested run id is a navigation request acted on **once per navigation**: the controller attaches, re-reads the run and applies its safeguards, and the result is `attached` or a terminal `unavailable` state that is never retried — a missing or denied run makes the controller detach, which would otherwise keep the reconcile condition true forever. In the other direction, once an address has settled as attached, **the address follows the controller**: a deliberate detach or a different task chosen from history moves the route (replacing the history entry) instead of the stale address undoing the user's action. The route is the only place that attaches; pages navigate and nothing else.
+
+### Member discovery projections
+
+`GET /v1/me/connections` and `GET /v1/me/task-catalog` (ADR 0017) are read-only projections assembled from admitted metadata and authorized with the same `ConnectionCatalog.usable` rule execution uses. Availability is decided by calling the host's own resolution rules — `PluginRegistry.resolve`, `executor_for`, and `verifier_for` for answers — and reporting their refusal, so the catalog cannot promise what the coordinator would reject; no execution rule is relaxed to make a catalog claim true. The browser validates the `schema_version` envelope *and* the payload shape at the client/core boundary and maps it with pure functions; loading, empty, denied, unsupported, malformed and error are distinct states. A declared version that is not honoured is malformed rather than an empty inventory, one malformed entry fails the whole response instead of quietly shortening it, and the Connections section is hidden only when the workspace does not provide the view at all. Observed health is always unknown because rendering performs no provider probe, and the view offers no connect, re-authorize or repair control because no API implements one.
+
+### Still not implemented
+
+A durable cross-session or tenant-wide work/review inbox, a pending-review count for other people's work, proposal editing, administrative connection management, delegated OAuth, icon or manifest asset delivery, and cross-origin embedding. A development-only component gallery (`pnpm --dir ui gallery`) documents the primitives; it is excluded from every production build.
+
+### Visual foundation adoption (2026-10-12)
+
+Results: [handoff](handoffs/2026-10-12-ui-foundation-adoption-results.md). Review: [UX review](reviews/2026-10-12-ui-adoption-ux-review.md). These changes add public exports; the layer boundaries are unchanged.
+
+- `@e-agent/components` exports `BrandMark`, the owner-approved product mark as one pinned SVG. It is decorative (`aria-hidden`) and never recoloured per theme.
+- `@e-agent/ui-core` exports `runStatusKey(state, actions)` and `actionStatusKey(state)`. While a run is in flight, the run-status label names a change the server reports as sending, recorded or unconfirmed. These helpers are pure label mappings over server states; the browser never infers or promotes a phase.
+- Forced colours (`@media (forced-colors: active)`) are handled in `components.css` and asserted in `forced-colors.spec.ts`.
+
+### Owner review rework, slice 1 (2026-10-12)
+
+Plan: [UI rework 2](superpowers/plans/2026-10-12-ui-rework-2.md).
+
+- **Task status.** The status (`RunStatus`: `run-state`, the polite live region, and Stop) sits above the composer. The header carries only product identity, stream state and preferences.
+- **Composer.** A Context panel (`ContextPreview`) shows exactly what `RunController.hostContextPreview()` returns. This is the same source `start()` sends, and the panel says so when it is nothing.
+- **Overview.** Only the composer, a one-line AI disclosure with details on demand, and recent prompts. A recent prompt only refills the composer.
+- **Capabilities.** The task catalog (or the installed-scope statement) moves to the Capabilities page, above the connections. Session work is removed: the sidebar's Recent tasks list opens a task through the route (`TaskNavigation onOpen`), so the route stays the one place that attaches.
+- **Inspector.** It is 23rem wide with body-size type. The timeline shows state changes with localised labels (`TimelineItem.transition`) and a time of day (`formatTime`), with the full date in a title.

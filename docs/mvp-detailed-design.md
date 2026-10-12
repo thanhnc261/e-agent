@@ -1,5 +1,11 @@
 # e-agent MVP: detailed design
 
+Selectable overlay follow-up (2026-10-08): [ADR 0016](adr/0016-selectable-agent-surfaces.md) adds a responsive Workbench and an in-app View selector over the same controller and approval authority. See [research/design](../research/11-enterprise-agent-overlay-design.md).
+
+
+UI implementation clarification (2026-10-08): [ADR 0015](adr/0015-task-workspace-presentation.md) specializes the shared layered UI into a task workspace with exact readable approval, bounded session navigation, truthful outcome states and authorized evidence inspection. Presentation annotations do not change domain rules, provider routing or approval digests. See [UI architecture](ui-architecture.md) for the implemented scope and limits.
+
+Implementation clarification (2026-10-07): [ADR 0014](adr/0014-mvp-remediation-boundaries.md) defines short transactions with work fencing, conservative external uncertainty, approved fact/credential binding and transient public text offsets. These implementation seams require the remediation and live qualification gates; source availability does not establish readiness.
 **Status:** implementation specification, not implemented. **Date:** 2026-10-06.
 
 This document specializes the [high-level design](high-level-design.md). It selects a bounded procurement demo and independent adapter distributions, superseding the broader first-demo alternatives in [research 06](../research/06-erp-mvp-delivery-plan.md). Numbers below are initial demo defaults and acceptance targets, not measured results or production SLAs.
@@ -232,7 +238,7 @@ Prefer provider-side idempotency when the selected Odoo deployment can enforce i
 
 ADR 0001 selected Pydantic AI; target the 2.x line (stable since 2026-06-23) pinned exactly ([ADR 0004](adr/0004-agent-driver-integration.md)). The driver remains behind the AgentDriver port. Qualification (plan I04) must demonstrate external/deferred tool requests, correlation-preserving resume, cancellation/error mapping, structured proposals and no route to raw ERP execution. If qualification fails, change the driver or its configuration and record the decision without changing kernel semantics.
 
-Initial per-run defaults: 12 driver turns, 20 read calls, 2 validation repairs, 1 admitted business write, 120 seconds of cumulative active execution time excluding human wait, and a configured token budget. Approval expires after 15 minutes. Separate configurable deadlines apply to model and provider calls. Budget exhaustion stops new work; a possibly dispatched write still requires reconciliation.
+Initial per-run defaults: 12 driver turns, 20 read calls, 2 validation repairs, 1 admitted business write, 120 seconds of cumulative active execution time excluding human wait, and 32,000 cumulative model input/output tokens for the measured remediation candidate. Approval expires after 15 minutes. Separate configurable deadlines apply to model and provider calls. Budget exhaustion stops new work; a possibly dispatched write still requires reconciliation.
 
 Check budgets before each step and record usage afterward; record cancellation/overshoot if a provider cannot enforce the exact token/time limit. Model text, extracted documents and tool responses cannot raise budgets, grant permissions or choose hidden credentials.
 

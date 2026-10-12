@@ -15,6 +15,7 @@ import asyncio
 import json
 import os
 import sys
+from urllib.parse import urlsplit
 
 from e_agent.adapters.odoo.client import OdooJson2Client
 from e_agent.contracts.connection import ConnectionOwnership
@@ -28,11 +29,24 @@ async def main() -> int:
     parser.add_argument(
         "--scenario", default="valid", choices=["valid", "zero-shortage", "over-budget"]
     )
+    parser.add_argument("--expected-marker")
+    parser.add_argument("--expected-company-id")
+    parser.add_argument("--expected-bridge-version", default="19.0.0.3.0")
     args = parser.parse_args()
     url, db = os.environ["E_AGENT_ODOO_URL"], os.environ["E_AGENT_ODOO_DB"]
-    if url.rstrip("/").endswith(":8071"):
-        sys.stderr.write("refusing: port 8071 is the benchmark instance\n")
-        return 2
+    target_url = urlsplit(url)
+    if (
+        target_url.scheme != "http"
+        or target_url.hostname not in {"localhost", "127.0.0.1"}
+        or target_url.port != 8069
+        or target_url.path not in {"", "/"}
+        or target_url.query
+        or target_url.fragment
+        or target_url.username
+    ):
+        parser.error("only the authorized loopback learning sandbox on port 8069 is allowed")
+    if args.action != "info" and (not args.expected_marker or not args.expected_company_id):
+        parser.error("mutations require the explicitly approved marker and company id")
     auth = AuthContext(
         connection_id="admin",
         connection_version=1,
@@ -43,20 +57,35 @@ async def main() -> int:
         _placement={"header": "Authorization", "prefix": "bearer "},
     )
     client = OdooJson2Client(url, db)
+    info = await client.call(auth, "e_agent.bridge", "sandbox_info")
     if args.action == "info":
-        result = await client.call(auth, "e_agent.bridge", "sandbox_info")
-    elif args.action == "seed-tasks":  # ERP-04..08 data (also seeds the procurement fixture)
-        result = await client.call(
-            auth, "e_agent.bridge", "sandbox_seed_tasks", namespace=args.namespace
-        )
-    elif args.action == "seed":
-        result = await client.call(
-            auth, "e_agent.bridge", "sandbox_seed", namespace=args.namespace, scenario=args.scenario
-        )
+        result = info
     else:
-        result = await client.call(
-            auth, "e_agent.bridge", "sandbox_reset", namespace=args.namespace
-        )
+        target = {
+            "database": db,
+            "company_id": args.expected_company_id,
+            "sandbox_marker": args.expected_marker,
+            "bridge_version": args.expected_bridge_version,
+        }
+        if any(info.get(k) != v for k, v in target.items()):
+            parser.error("sandbox preflight identity mismatch; no seed or reset was dispatched")
+        client = OdooJson2Client(url, db, target=target)
+        if args.action == "seed-tasks":
+            result = await client.call(
+                auth, "e_agent.bridge", "sandbox_seed_tasks", namespace=args.namespace
+            )
+        elif args.action == "seed":
+            result = await client.call(
+                auth,
+                "e_agent.bridge",
+                "sandbox_seed",
+                namespace=args.namespace,
+                scenario=args.scenario,
+            )
+        else:
+            result = await client.call(
+                auth, "e_agent.bridge", "sandbox_reset", namespace=args.namespace
+            )
     sys.stdout.write(json.dumps(result, indent=2) + "\n")
     return 0
 

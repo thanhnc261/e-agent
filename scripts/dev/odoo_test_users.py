@@ -38,6 +38,7 @@ keys = {
 }
 env.cr.commit()
 path = os.environ["ODOO_KEYS_FILE"]  # required: a private path chosen by the caller
+keys["company_id"] = str(env.company.id)
 with open(path, "w") as fh:
     json.dump(keys, fh)
 os.chmod(path, 0o600)

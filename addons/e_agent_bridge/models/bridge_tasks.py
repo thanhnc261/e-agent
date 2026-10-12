@@ -24,9 +24,10 @@ class EAgentBridgeTasks(models.AbstractModel):
     # ------------------------------------------------------------ ledger
     def _reserve(self, namespace, operation_key, payload_digest, command):
         """Reserve the key in this transaction, or return the existing row (or conflict)."""
+        self._check_target()
         existing = self._operation(namespace, operation_key)
         if existing:
-            if existing.payload_digest != payload_digest:
+            if existing.payload_digest != payload_digest or existing.command != command:
                 raise UserError("E_AGENT_CONFLICT: operation key reused with a different payload")
             return existing, False
         try:
@@ -96,7 +97,7 @@ class EAgentBridgeTasks(models.AbstractModel):
     @api.model
     @api.readonly
     def read_draft_rfq(self, purchase_order_ref):
-        self._check()
+        self._check_target()
         po = self._rfq(purchase_order_ref)
         if not po or len(po.order_line) != 1:
             return {"found": False}
@@ -157,7 +158,7 @@ class EAgentBridgeTasks(models.AbstractModel):
     @api.model
     @api.readonly
     def read_pricing(self, customer_ref, product_ref):
-        self._check()
+        self._check_target()
         partner = (
             self.env["res.partner"]
             .with_context(active_test=False)
@@ -190,6 +191,7 @@ class EAgentBridgeTasks(models.AbstractModel):
             "external_ref": so.name,
             "state": "draft" if so.state == "draft" else so.state,
             "sent": so.state == "sent",
+            "line_count": len(so.order_line),
             "customer_ref": _ref(so.partner_id),
             "product_ref": _ref(line.product_id) if line else None,
             "quantity": line.product_uom_qty if line else 0.0,
@@ -253,7 +255,7 @@ class EAgentBridgeTasks(models.AbstractModel):
     @api.model
     @api.readonly
     def read_open_orders(self, as_of):
-        self._check()
+        self._check_target()
         orders = self.env["sale.order"].search(
             [("state", "=", "sale"), ("company_id", "=", self.env.company.id)],
             order="id",
@@ -279,7 +281,7 @@ class EAgentBridgeTasks(models.AbstractModel):
     @api.model
     @api.readonly
     def read_contact(self, contact_ref):
-        self._check()
+        self._check_target()
         partner = (
             self.env["res.partner"]
             .with_context(active_test=False)
@@ -298,7 +300,7 @@ class EAgentBridgeTasks(models.AbstractModel):
     @api.model
     @api.readonly
     def read_teams(self):
-        self._check()
+        self._check_target()
         teams = self.env["crm.team"].search(
             [("company_id", "in", [self.env.company.id, False])], limit=100
         )
@@ -369,7 +371,7 @@ class EAgentBridgeTasks(models.AbstractModel):
     @api.model
     @api.readonly
     def read_open_invoices(self, as_of):
-        self._check()
+        self._check_target()
         moves = self.env["account.move"].search(
             [
                 ("move_type", "=", "out_invoice"),
@@ -409,14 +411,19 @@ class EAgentBridgeTasks(models.AbstractModel):
         today = fields.Date.context_today(self)
         company = self.env.company
         base = self.sandbox_seed(namespace)
+        fixture = self._fixture(namespace)
+        if (fixture.references or {}).get("rfq_ref"):
+            return dict(fixture.references)
         product = self.env["product.product"].browse(
             self._id(base["product_ref"], "product.product")
         )
+        prior_moves = self.env["stock.move"].search([("product_id", "=", product.id)])
+        prior_quants = self.env["stock.quant"].search([("product_id", "=", product.id)])
         product.write({"sale_ok": True, "list_price": 150.0})
         Partner = self.env["res.partner"].with_context(active_test=False)
 
         def partner(key, name, active=True):
-            found = Partner.search([("ref", "=", f"{namespace}:{key}")], limit=1)
+            found = self._seed_lookup(fixture, "res.partner", [("ref", "=", f"{namespace}:{key}")])
             found = found or Partner.create(
                 {"name": name, "ref": f"{namespace}:{key}", "is_company": True}
             )
@@ -427,8 +434,8 @@ class EAgentBridgeTasks(models.AbstractModel):
         archived_customer = partner("archived-customer", "E-Agent Archived Customer", active=False)
         contact = partner("lead-contact", "E-Agent Lead Contact")
         archived_contact = partner("old-contact", "E-Agent Old Contact", active=False)
-        unsaleable = self.env["product.product"].search(
-            [("default_code", "=", f"{namespace}:gadget-x")], limit=1
+        unsaleable = self._seed_lookup(
+            fixture, "product.product", [("default_code", "=", f"{namespace}:gadget-x")]
         )
         unsaleable = unsaleable or self.env["product.product"].create(
             {
@@ -439,6 +446,7 @@ class EAgentBridgeTasks(models.AbstractModel):
                 "taxes_id": [(6, 0, [])],
             }
         )
+        unsaleable.product_tmpl_id.active = True
         supplier = self.env["res.partner"].browse(
             self._id(base["approved_supplier_ref"], "res.partner")
         )
@@ -501,7 +509,9 @@ class EAgentBridgeTasks(models.AbstractModel):
 
         late, future, delivered = order(-5, False), order(5, False), order(-3, True)
 
-        team = self.env["crm.team"].search([("name", "=", f"E-Agent Direct {namespace}")], limit=1)
+        team = self._seed_lookup(
+            fixture, "crm.team", [("name", "=", f"E-Agent Direct {namespace}")]
+        )
         admin = self.env.ref("base.user_admin")
         team = team or self.env["crm.team"].create(
             {
@@ -510,9 +520,14 @@ class EAgentBridgeTasks(models.AbstractModel):
                 "company_id": company.id,
             }
         )
+        team.active = True
         outsider = self.env["res.users"].search([("login", "=", "e-agent-integration")], limit=1)
-        source = self.env["utm.source"].search([("name", "=", f"E-Agent Web {namespace}")], limit=1)
+        source = self._seed_lookup(
+            fixture, "utm.source", [("name", "=", f"E-Agent Web {namespace}")]
+        )
         source = source or self.env["utm.source"].create({"name": f"E-Agent Web {namespace}"})
+        if "active" in source._fields:
+            source.active = True
 
         def invoice(due_days, amount):
             move = self.env["account.move"].create(
@@ -541,7 +556,7 @@ class EAgentBridgeTasks(models.AbstractModel):
             return move
 
         overdue, not_due = invoice(-10, 500.0), invoice(10, 300.0)
-        return {
+        references = {
             **base,
             "as_of": fields.Date.to_string(today),
             "rfq_ref": _ref(draft_rfq),
@@ -562,12 +577,39 @@ class EAgentBridgeTasks(models.AbstractModel):
             "overdue_invoice_ref": _ref(overdue),
             "not_due_invoice_ref": _ref(not_due),
         }
+        self._remember_fixture(
+            fixture,
+            {
+                "res.partner": customer | archived_customer | contact | archived_contact,
+                "product.product": unsaleable,
+                "product.template": unsaleable.product_tmpl_id,
+                "purchase.order": draft_rfq | confirmed_rfq,
+                "sale.order": late | future | delivered,
+                "crm.team": team,
+                "utm.source": source,
+                "account.move": overdue | not_due,
+                "stock.picking": (draft_rfq | confirmed_rfq).picking_ids
+                | (late | future | delivered).picking_ids,
+                "stock.move": self.env["stock.move"].search([("product_id", "=", product.id)])
+                - prior_moves,
+                "stock.quant": self.env["stock.quant"].search([("product_id", "=", product.id)])
+                - prior_quants,
+            },
+            references,
+        )
+        return references
 
     @api.model
     def sandbox_reset(self, namespace):
-        """Also undo ERP-04..08 seeds and results in this namespace only."""
+        """Also undo ERP-04..08 seeds and results in the owned inventory only."""
         self._require_sandbox()
-        ops = self.env["e_agent.operation"].sudo().search([("namespace", "=", namespace)])
+        fixture = self._fixture(namespace)
+        inventory = fixture.inventory or {}
+        ops = (
+            self.env["e_agent.operation"]
+            .sudo()
+            .search([("namespace", "=", namespace), ("company_id", "=", self.env.company.id)])
+        )
         for op in ops.filtered(
             lambda o: o.result_model in ("sale.order", "crm.lead") and o.result_id
         ):
@@ -579,9 +621,7 @@ class EAgentBridgeTasks(models.AbstractModel):
             ):
                 raise UserError("E_AGENT_RESET_REFUSED: non-draft quotation in namespace")
             record.unlink()
-        seeded_pos = self.env["purchase.order"].search(
-            [("origin", "=", f"e-agent-seed:{namespace}")]
-        )
+        seeded_pos = self.env["purchase.order"].browse(inventory.get("purchase.order", [])).exists()
         amended = set(
             ops.filtered(lambda o: o.result_model == "purchase.order").mapped("result_id")
         )
@@ -590,11 +630,9 @@ class EAgentBridgeTasks(models.AbstractModel):
                 po.button_cancel()
             if po.id not in amended:
                 po.unlink()
-        for so in self.env["sale.order"].search([("client_order_ref", "=", namespace)]):
+        for so in self.env["sale.order"].browse(inventory.get("sale.order", [])).exists():
             so.with_context(disable_cancel_warning=True)._action_cancel()
-        for move in self.env["account.move"].search(
-            [("ref", "=", namespace), ("move_type", "=", "out_invoice")]
-        ):
+        for move in self.env["account.move"].browse(inventory.get("account.move", [])).exists():
             move.button_draft()
             move.button_cancel()
         return super().sandbox_reset(namespace)

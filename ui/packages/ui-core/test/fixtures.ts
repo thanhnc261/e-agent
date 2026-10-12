@@ -30,6 +30,7 @@ export async function presentation(
     connection_id: "c",
     credential_subject: "c@1/svc",
     canonical_proposal: canonical,
+    expected_effects: [],
     material_fields: [{ path: "quantity", value: quantity, changed: false }],
     findings: [],
     ...overrides,

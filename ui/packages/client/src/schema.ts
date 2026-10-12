@@ -55,6 +55,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Connections */
+        get: operations["my_connections_v1_me_connections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/task-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Task Catalog */
+        get: operations["my_task_catalog_v1_me_task_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/runs": {
         parameters: {
             query?: never;
@@ -174,6 +208,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/runs/{run_id}/inputs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Input */
+        post: operations["submit_input_v1_runs__run_id__inputs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/runs/{run_id}/reconcile": {
         parameters: {
             query?: never;
@@ -262,6 +313,13 @@ export interface components {
             credential_subject: string;
             /** Digest */
             digest: string;
+            /** Display Title */
+            display_title?: string | null;
+            /**
+             * Expected Effects
+             * @default []
+             */
+            expected_effects: string[];
             /** Expires At */
             expires_at: string;
             /** Findings */
@@ -353,12 +411,54 @@ export interface components {
              * @default false
              */
             changed: boolean;
+            /** Comparison */
+            comparison?: string | null;
+            /** Label */
+            label?: string | null;
             /** Path */
             path: string;
             /** Previous Value */
             previous_value?: string | null;
+            /** Proposal Previous Value */
+            proposal_previous_value?: string | null;
             /** Value */
             value: string;
+        };
+        /**
+         * MemberConnection
+         * @description Member-safe connection summary (ADR 0017). No secret or administrative field.
+         */
+        MemberConnection: {
+            /** Acting Identity */
+            acting_identity: string | null;
+            /** Allowed Resources */
+            allowed_resources: string[];
+            /** Capabilities */
+            capabilities: string[];
+            /** Configuration Status */
+            configuration_status: string;
+            /** Connection Id */
+            connection_id: string;
+            /** Integration Id */
+            integration_id: string;
+            /**
+             * Observed Health
+             * @constant
+             */
+            observed_health: "unknown";
+            /** Ownership */
+            ownership: string;
+            /** Revision */
+            revision: number;
+        };
+        /** MemberConnections */
+        MemberConnections: {
+            /** Connections */
+            connections: components["schemas"]["MemberConnection"][];
+            /** Observed At */
+            observed_at: string;
+            /** Schema Version */
+            schema_version: string;
         };
         /**
          * ResourceHint
@@ -432,6 +532,7 @@ export interface components {
             latest_sequence: number;
             pending_approval: components["schemas"]["ApprovalPresentation"] | null;
             run: components["schemas"]["RunRecord"];
+            streaming_text?: components["schemas"]["TextFrame"] | null;
         };
         /**
          * RunState
@@ -455,6 +556,63 @@ export interface components {
              * @default false
              */
             unresolved: boolean;
+        };
+        /** SubmitInput */
+        SubmitInput: {
+            /** Expected Revision */
+            expected_revision: number;
+            /** Input */
+            input: string;
+        };
+        /** TaskCatalog */
+        TaskCatalog: {
+            /** Observed At */
+            observed_at: string;
+            /** Schema Version */
+            schema_version: string;
+            /** Templates */
+            templates: components["schemas"]["TaskTemplate"][];
+        };
+        /**
+         * TaskTemplate
+         * @description An admitted task type, with the availability the requester actually has.
+         */
+        TaskTemplate: {
+            /**
+             * Availability
+             * @enum {string}
+             */
+            availability: "available" | "unavailable";
+            /** Bounded Context */
+            bounded_context: string;
+            /** Description */
+            description: string;
+            /**
+             * Input Intent
+             * @constant
+             */
+            input_intent: "free_text";
+            /** Required Capabilities */
+            required_capabilities: string[];
+            /** Template Id */
+            template_id: string;
+            /** Title */
+            title: string;
+            /** Unavailable Reason */
+            unavailable_reason: ("no_usable_connection" | "ambiguous_binding" | "no_executor" | "no_verifier") | null;
+        };
+        /** TextFrame */
+        TextFrame: {
+            /** Message Id */
+            message_id: string;
+            /** Offset */
+            offset: number;
+            /** Reset */
+            reset: boolean;
+            /** Stream Id */
+            stream_id: string;
+            /** Text */
+            text: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -543,6 +701,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+        };
+    };
+    my_connections_v1_me_connections_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberConnections"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_task_catalog_v1_me_task_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskCatalog"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -776,6 +996,43 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_input_v1_runs__run_id__inputs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Accepted"];
                 };
             };
             /** @description Validation Error */
