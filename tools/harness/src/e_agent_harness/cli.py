@@ -9,12 +9,13 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TextIO
 
+from e_agent_harness import gate, scope, state, tasks
 from e_agent_harness import manifest as mf
-from e_agent_harness import scope, state, tasks
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -40,6 +41,15 @@ def _parser() -> argparse.ArgumentParser:
     scope_p.add_argument(
         "--hook", action="store_true", help="PreToolUse mode: hook JSON on stdin, exit 2 denies"
     )
+    gate_p = sub.add_parser("gate", help="run a gate set and write evidence")
+    gate_p.add_argument("set_name")
+    gate_p.add_argument("--package", default=None)
+    gate_p.add_argument("--timeout", type=int, default=1800)
+    gate_p.add_argument("--keep-going", action="store_true")
+    live_p = sub.add_parser(
+        "live-check", help="run the live gate set against the sandbox, redacted"
+    )
+    live_p.add_argument("--timeout", type=int, default=1800)
     return parser
 
 
@@ -112,10 +122,54 @@ def cmd_check_scope(args: argparse.Namespace) -> int:
     return 1 if problems else 0
 
 
+def _run_gate(
+    args: argparse.Namespace,
+    set_name: str,
+    directory_for: Callable[[state.Paths, str], Path],
+    package: str | None,
+    keep_going: bool,
+) -> int:
+    root, paths, m = _context(args)
+    loaded = state.load_task(paths)
+    task_id = str(loaded[0]["id"]) if loaded else "no-task"
+    try:
+        evidence = gate.run_gate(
+            m,
+            set_name,
+            root,
+            task_id=task_id,
+            package=package,
+            timeout=args.timeout,
+            keep_going=keep_going,
+            now=datetime.now(UTC),
+        )
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+    path = gate.write_evidence(directory_for(paths, task_id), evidence)
+    for entry in evidence["commands"]:
+        print(f"[{entry['exit_code']}] {entry['command']}")
+    print(
+        f"evidence: {path.relative_to(root)} "
+        f"(commit {evidence['commit'][:7]}, clean_tree={evidence['clean_tree']})"
+    )
+    return 0 if evidence["ok"] else 1
+
+
+def cmd_gate(args: argparse.Namespace) -> int:
+    return _run_gate(args, args.set_name, lambda p, t: p.evidence(t), args.package, args.keep_going)
+
+
+def cmd_live_check(args: argparse.Namespace) -> int:
+    return _run_gate(args, "live", lambda p, _t: p.live_evidence, None, False)
+
+
 COMMANDS = {
     "validate-context": cmd_validate_context,
     "new-task": cmd_new_task,
     "check-scope": cmd_check_scope,
+    "gate": cmd_gate,
+    "live-check": cmd_live_check,
 }
 
 

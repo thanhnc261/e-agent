@@ -9,7 +9,15 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-SCHEMAS: tuple[str, ...] = ("plan", "task", "features", "handoff", "review", "progress-entry")
+SCHEMAS: tuple[str, ...] = (
+    "plan",
+    "task",
+    "features",
+    "handoff",
+    "review",
+    "progress-entry",
+    "gate-evidence",
+)
 
 
 @cache

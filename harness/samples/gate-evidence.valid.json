@@ -1,0 +1,19 @@
+{
+  "gate_set": "quick",
+  "task": "1c.1",
+  "commit": "e5dca6f000000000000000000000000000000000",
+  "clean_tree": true,
+  "started_at": "2026-10-13T06:00:00+00:00",
+  "ok": true,
+  "commands": [
+    {
+      "command": "uv run pytest -q packages/kernel",
+      "exit_code": 0,
+      "seconds": 4.2,
+      "output_tail": "120 passed in 4.1s",
+      "counts": {
+        "passed": 120
+      }
+    }
+  ]
+}
