@@ -4,9 +4,9 @@ Date: 2026-10-08. Status: candidate design and isolated synthetic prototype. Bui
 
 ## Deliverables and how to run
 
-- [Interactive mockup](mockups/agentic-overlay/index.html): three appearance candidates using the same procurement fixture; floating, docked and expanded placement; responsive mobile layout.
-- [Visual reference board](mockups/agentic-overlay/board.html): comparable candidate compositions and eight annotated pattern studies with source links. These are original schematics, not reproduced vendor screenshots.
-- [Prototype source](mockups/agentic-overlay/app.js) and [style system](mockups/agentic-overlay/styles.css).
+- [Interactive mockup](../archive/research/mockups/agentic-overlay/index.html): three appearance candidates using the same procurement fixture; floating, docked and expanded placement; responsive mobile layout.
+- [Visual reference board](../archive/research/mockups/agentic-overlay/board.html): comparable candidate compositions and eight annotated pattern studies with source links. These are original schematics, not reproduced vendor screenshots.
+- [Prototype source](../archive/research/mockups/agentic-overlay/app.js) and [style system](../archive/research/mockups/agentic-overlay/styles.css).
 
 From the repository root:
 
@@ -80,4 +80,4 @@ Success criteria are design targets, not observed results: users correctly ident
 
 ## Verification
 
-See [prototype QA notes](mockups/agentic-overlay/QA.md) for actual checks and retained screenshots. Product integration, localization, actual host projections and live human-approved sandbox qualification remain outside this mockup.
+See [prototype QA notes](../archive/research/mockups/agentic-overlay/QA.md) for actual checks and retained screenshots. Product integration, localization, actual host projections and live human-approved sandbox qualification remain outside this mockup.

@@ -1,10 +1,10 @@
 # Enterprise overlay adoption plan
 
-**Date:** 2026-10-08. **Status:** implemented 2026-10-09 for FE-00 to FE-07 and API-01, against deterministic fixtures. This document remains the plan; the delivered behaviour, the checks that were actually run and the remaining gaps are in the [implementation results handoff](../handoffs/2026-10-08-enterprise-overlay-implementation-results.md). Fixture success is not a live-release qualification and does not change the readiness claim in the README.
+**Date:** 2026-10-08. **Status:** implemented 2026-10-09 for FE-00 to FE-07 and API-01, against deterministic fixtures. This document remains the plan; the delivered behaviour, the checks that were actually run and the remaining gaps are in the [implementation results handoff](../../../docs/handoffs/2026-10-08-enterprise-overlay-implementation-results.md). Fixture success is not a live-release qualification and does not change the readiness claim in the README.
 
 Apply the [enterprise-wide mockup](../../research/mockups/agentic-overlay/index.html) to e-agent in two deliveries: first improve the existing task experience and frontend maintainability, then introduce enterprise discovery and connection views backed by authorized server APIs. The product remains domain-neutral; available workflows must reflect implemented capabilities.
 
-Read with [research 12](../../research/12-agentic-overlay-ux-research.md), [research 14](../../research/14-enterprise-wide-agent-experience.md), the accepted [UI architecture](../ui-architecture.md), and the companion [frontend development guide](../frontend-development-guide.md). ADRs [0011](../adr/0011-layered-replaceable-ui.md), [0015](../adr/0015-task-workspace-presentation.md) and [0016](../adr/0016-selectable-agent-surfaces.md) remain the baseline. New discovery contracts need a focused ADR and corresponding design updates before implementation; this plan does not silently adopt them.
+Read with [research 12](../../../research/12-agentic-overlay-ux-research.md), [research 14](../../../research/14-enterprise-wide-agent-experience.md), the accepted [UI architecture](../../../docs/ui-architecture.md), and the companion [frontend development guide](../../../docs/frontend-development-guide.md). ADRs [0011](../../../docs/adr/0011-layered-replaceable-ui.md), [0015](../../../docs/adr/0015-task-workspace-presentation.md) and [0016](../../../docs/adr/0016-selectable-agent-surfaces.md) remain the baseline. New discovery contracts need a focused ADR and corresponding design updates before implementation; this plan does not silently adopt them.
 
 ## 1. Recommended scope
 
@@ -27,7 +27,7 @@ Do not port the prototype's simulated task engine, fixture integrations, fake st
 | Shadow-DOM embedding and a non-React reference host already exist. | Preserve inline CSS bundling, keyboard/press behavior and lower-layer replaceability. Current cookie auth limits embedding to same-origin. |
 | TypeScript, Vitest, Playwright, boundary and neutrality gates exist; a general formatter does not. | Use existing checks, add scoped formatting in its own change, and add tests for changed behavior. |
 
-Assessment is from source inspection on the stated date, not a new test run. Existing live readiness limits remain in the [remediation retest](../reviews/2026-10-07-mvp-remediation-retest.md).
+Assessment is from source inspection on the stated date, not a new test run. Existing live readiness limits remain in the [remediation retest](../../../docs/reviews/2026-10-07-mvp-remediation-retest.md).
 
 ## 3. Map the mockup to the product
 
@@ -59,7 +59,7 @@ Retain the dependency flow: host → layouts → components → React bindings �
 | `@e-agent/layouts` | Placement, responsive composition, shared presentation preferences and focus transitions. |
 | `apps/web` / `overlay-element` | Bootstrap, route/attribute parsing, controller lifetime, host DOM attributes and embedding lifecycle. |
 
-The [development guide](../frontend-development-guide.md) defines the target folder tree, extraction rules and extension recipes. Keep current exported component names and slot IDs compatible during the migration. An existing consumer should not need to change imports merely because a file moved.
+The [development guide](../../../docs/frontend-development-guide.md) defines the target folder tree, extraction rules and extension recipes. Keep current exported component names and slot IDs compatible during the migration. An existing consumer should not need to change imports merely because a file moved.
 
 Separate these presentation dimensions:
 
@@ -92,7 +92,7 @@ Each row is a separately reviewable PR; every PR records its actual checks. Do n
 
 ### API-01 contract sketch, not an implemented API
 
-Prefer alignment with the existing [Phase 2 auth API design](../integration-auth-sdk.md#9-apis-and-pages-phase-2): a member-readable `GET /v1/me/connections` projection rather than granting access to admin endpoints. A proposed `GET /v1/me/task-catalog` would expose admitted task templates. Final routes, DTO names and compatibility/version policy belong in the ADR.
+Prefer alignment with the existing [Phase 2 auth API design](../../../docs/integration-auth-sdk.md#9-apis-and-pages-phase-2): a member-readable `GET /v1/me/connections` projection rather than granting access to admin endpoints. A proposed `GET /v1/me/task-catalog` would expose admitted task templates. Final routes, DTO names and compatibility/version policy belong in the ADR.
 
 Connection summaries need stable opaque identity, allowed display metadata, ownership/acting-identity description when disclosable, permitted scope summary, available capabilities, revision and observation time. Configuration status and observed health must be separate; absent checks mean unknown. Icons require a host-controlled delivery policy, not automatic requests to arbitrary manifest URLs. Do not return credential material or hidden tenant connections to explain missing access.
 

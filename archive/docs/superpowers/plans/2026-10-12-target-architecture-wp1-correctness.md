@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12, Pydantic v2 `Record` contracts (`extra="forbid"`, frozen), psycopg 3 async + packaged SQL migrations, `InMemoryRunStore` for tests, FastAPI, pytest-asyncio (`asyncio_mode = "auto"`), `openapi-typescript` for the TS client.
 
-**Spec:** [docs/target-architecture.md](../../target-architecture.md) (v2, revised 2026-10-12). Sections closed by this plan: §5.1 principle 1, §5.5 "Actor attribution" and "Failure classification", §5.6 `ReasonCode`, §11.2 rule 6 (sweeper), §12.2 "Connection-level write admission", §12.4 "Snapshot or export of a long run", §13.2 rule 2. ADR candidates: C3 (part 1), C6, C13 (part), C16 (part), C17 (part 1), C18 (part 1).
+**Spec:** [docs/target-architecture.md](../../../../docs/target-architecture.md) (v2, revised 2026-10-12). Sections closed by this plan: §5.1 principle 1, §5.5 "Actor attribution" and "Failure classification", §5.6 `ReasonCode`, §11.2 rule 6 (sweeper), §12.2 "Connection-level write admission", §12.4 "Snapshot or export of a long run", §13.2 rule 2. ADR candidates: C3 (part 1), C6, C13 (part), C16 (part), C17 (part 1), C18 (part 1).
 
 ## Reading of the request
 
@@ -109,7 +109,7 @@ Inputs the spec implies but no existing test exercises; each is pinned to a task
 # ADR 0018: Run transition table, reason codes and event attribution
 
 Date: 2026-10-12. Status: Proposed. Refines ADRs 0003, 0007; MVP design §7, §11.
-Source: [target architecture](../target-architecture.md) §5.1, §5.5, §5.6, §12.4 (candidates C6, C17 part 1, C18 part 1).
+Source: [target architecture](../../../../docs/superpowers/target-architecture.md) §5.1, §5.5, §5.6, §12.4 (candidates C6, C17 part 1, C18 part 1).
 
 ## Context
 
@@ -153,7 +153,7 @@ logs (the error is CONFLICT with the pair named).
 # ADR 0019: Approval reachability and the self-approval rule
 
 Date: 2026-10-12. Status: Proposed. Refines ADR 0014; MVP design §10; HLD §3.
-Source: [target architecture](../target-architecture.md) §11.2 rule 6, §13.2 rule 2 (C13, C16).
+Source: [target architecture](../../../../docs/superpowers/target-architecture.md) §11.2 rule 6, §13.2 rule 2 (C13, C16).
 
 ## Context
 
@@ -193,7 +193,7 @@ endpoint reports `self_approval_allowed`.
 # ADR 0020: Connection-level write admission rule
 
 Date: 2026-10-12. Status: Proposed. Refines ADRs 0003, 0005, 0014; MVP design §9.
-Source: [target architecture](../target-architecture.md) §12.2, §19 (C3 part 1).
+Source: [target architecture](../../../../docs/superpowers/target-architecture.md) §12.2, §19 (C3 part 1).
 
 ## Context
 
@@ -266,10 +266,10 @@ from the named variable without being echoed.
 - [ ] **Step 4: Add the four rows to `docs/adr/README.md` after the 0017 row**
 
 ```markdown
-| [0018](0018-run-transitions-reason-codes-event-attribution.md) | Run transition table, reason codes, event actor, paged events | Proposed | WP1 Tasks 2, 4, 5, 7 |
-| [0019](0019-approval-reachability-and-self-approval.md) | Approval expiry sweeper; self-approval forbidden unless profile allows | Proposed | WP1 Tasks 3, 6 |
-| [0020](0020-connection-level-write-admission.md) | Reservation refused while the connection has an unresolved write | Proposed | WP1 Task 8 |
-| [0021](0021-litellm-model-provider.md) | LiteLLM as an explicit, opt-in second model provider; Ollama stays default | Proposed | WP1 Task 10 |
+| [0018](../../../../docs/superpowers/plans/0018-run-transitions-reason-codes-event-attribution.md) | Run transition table, reason codes, event actor, paged events | Proposed | WP1 Tasks 2, 4, 5, 7 |
+| [0019](../../../../docs/superpowers/plans/0019-approval-reachability-and-self-approval.md) | Approval expiry sweeper; self-approval forbidden unless profile allows | Proposed | WP1 Tasks 3, 6 |
+| [0020](../../../../docs/superpowers/plans/0020-connection-level-write-admission.md) | Reservation refused while the connection has an unresolved write | Proposed | WP1 Task 8 |
+| [0021](../../../../docs/superpowers/plans/0021-litellm-model-provider.md) | LiteLLM as an explicit, opt-in second model provider; Ollama stays default | Proposed | WP1 Task 10 |
 ```
 
 - [ ] **Step 5: Check the links render and nothing else changed**

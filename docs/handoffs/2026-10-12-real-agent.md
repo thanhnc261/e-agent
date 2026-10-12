@@ -2,7 +2,7 @@
 
 The owner asked for "a real agentic, not a demo". The app the owner first saw used the scripted fixture driver, which ignores the user's message and always proposes the same PO. This work makes the local stack run the real Pydantic AI + Ollama agent, first on fixture data and then against the owner's `odoo19-learning` Odoo sandbox. It also fixes the four gaps found in the first live run.
 
-- **Plan:** [2026-10-12 real agent](../superpowers/plans/2026-10-12-real-agent.md).
+- **Plan:** [2026-10-12 real agent](../../archive/docs/superpowers/plans/2026-10-12-real-agent.md).
 - **ADR:** [0022](../adr/0022-conversational-turns-read-feedback-discovery.md), Proposed.
 - **Branch:** `feat/real-agent`, from `main` `05f2e55`, not merged.
 

@@ -4,7 +4,7 @@
 
 This handoff reports the result of the WP1 correctness plan.
 
-- **Plan:** [2026-10-12 target architecture WP1](../superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md). It covers defects D1–D8, plus an owner amendment (Task 10).
+- **Plan:** [2026-10-12 target architecture WP1](../../archive/docs/superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md). It covers defects D1–D8, plus an owner amendment (Task 10).
 - **Spec:** [target architecture v2](../target-architecture.md).
 - **Branch:** `feat/wp1-correctness`. It is not merged and not pushed.
 - **ADRs 0018–0021 are Proposed.** Contract-changing work merges only after the owner accepts them (plan Global Constraints).

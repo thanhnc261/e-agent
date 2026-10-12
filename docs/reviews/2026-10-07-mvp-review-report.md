@@ -2,7 +2,7 @@
 
 Date: 2026-10-07. Candidate: `3ae9aafb13b112a207ea6474c006e74a3dc157d2`. Verdict: **NOT_READY** for the local model + Odoo + UI MVP.
 
-This review executed the [handoff](../handoffs/2026-10-07-sol-6.1-mvp-review.md), [review plan](2026-10-07-mvp-review-plan.md) and independent portions of the [local test plan](../testing/2026-10-07-local-test-plan.md). See the [test report](2026-10-07-local-test-report.md) for commands, environment, failures and cleanup, and the [requirement matrix](2026-10-07-mvp-requirement-matrix.md) for coverage. Historical implementation results were not counted as new evidence.
+This review executed the [handoff](../handoffs/2026-10-07-sol-6.1-mvp-review.md), [review plan](2026-10-07-mvp-review-plan.md) and independent portions of the [local test plan](../../archive/docs/testing/2026-10-07-local-test-plan.md). See the [test report](2026-10-07-local-test-report.md) for commands, environment, failures and cleanup, and the [requirement matrix](2026-10-07-mvp-requirement-matrix.md) for coverage. Historical implementation results were not counted as new evidence.
 
 ## Result
 

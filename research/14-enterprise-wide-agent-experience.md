@@ -1,6 +1,6 @@
 # Enterprise-wide agent experience: research and mockup revision 2
 
-Date: 2026-10-08. Status: product-vision mockup, using synthetic fixtures only. User clarification: e-agent serves enterprise work across integrations; ERP is one domain, not the product boundary. This study supersedes the procurement-centered visual framing of [research 13](13-agentic-overlay-mockup-study.md), while preserving that report and the [original prototype](mockups/procurement-overlay-v1/index.html).
+Date: 2026-10-08. Status: product-vision mockup, using synthetic fixtures only. User clarification: e-agent serves enterprise work across integrations; ERP is one domain, not the product boundary. This study supersedes the procurement-centered visual framing of [research 13](13-agentic-overlay-mockup-study.md), while preserving that report and the [original prototype](../archive/research/mockups/procurement-overlay-v1/index.html).
 
 ## Answer: is e-agent only for ERP?
 
@@ -50,7 +50,7 @@ The overlay is the portable task surface, with floating, docked and expanded pla
 | Provider binding | A particular CRM/document/chat implementation | Mapping to provider API and guarantees |
 | Connection | Jamie's approved account in the Northstar workspace | Identity, credentials, scope, version and health |
 
-Provider names and display metadata in the prototype come from [fixtures.js](mockups/agentic-overlay/fixtures.js), outside production `ui/` packages. The rendering code does not contain provider-name conditionals. These fixture objects are **not** claimed to implement the production manifest contract. In production, admitted server projections must supply this metadata.
+Provider names and display metadata in the prototype come from [fixtures.js](../archive/research/mockups/agentic-overlay/fixtures.js), outside production `ui/` packages. The rendering code does not contain provider-name conditionals. These fixture objects are **not** claimed to implement the production manifest contract. In production, admitted server projections must supply this metadata.
 
 ## Reworked scenarios
 
@@ -91,9 +91,9 @@ No architecture ADR is changed because this is an isolated visual/interaction st
 
 ## Artifact, operation and evidence
 
-- [Current mockup](mockups/agentic-overlay/index.html), [reference board](mockups/agentic-overlay/board.html), [QA report](mockups/agentic-overlay/QA.md).
-- [Preserved procurement v1](mockups/procurement-overlay-v1/index.html), including its original screenshots and verification files.
-- Shared interaction and rendering: [app.js](mockups/agentic-overlay/app.js). Authored connection/task data: [fixtures.js](mockups/agentic-overlay/fixtures.js).
+- [Current mockup](../archive/research/mockups/agentic-overlay/index.html), [reference board](../archive/research/mockups/agentic-overlay/board.html), [QA report](../archive/research/mockups/agentic-overlay/QA.md).
+- [Preserved procurement v1](../archive/research/mockups/procurement-overlay-v1/index.html), including its original screenshots and verification files.
+- Shared interaction and rendering: [app.js](../archive/research/mockups/agentic-overlay/app.js). Authored connection/task data: [fixtures.js](../archive/research/mockups/agentic-overlay/fixtures.js).
 
 Run from the repository root:
 

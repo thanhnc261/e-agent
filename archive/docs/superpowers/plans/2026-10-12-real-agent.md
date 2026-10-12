@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12, Pydantic v2 records, pydantic-ai 2.54, FastAPI, psycopg 3, Odoo 19 addon (Python), React/TypeScript UI (`ui/`, pnpm, vitest, Playwright).
 
-**Spec:** Owner request 2026-10-12 ("do all 4"), the four gaps reported from the first live run, and [docs/target-architecture.md](../../target-architecture.md) §5–§7 (driver/kernel boundary). Rulings made while writing this plan are listed under "Rulings" and must be honoured by every task.
+**Spec:** Owner request 2026-10-12 ("do all 4"), the four gaps reported from the first live run, and [docs/target-architecture.md](../../../../docs/target-architecture.md) §5–§7 (driver/kernel boundary). Rulings made while writing this plan are listed under "Rulings" and must be honoured by every task.
 
 ## Global Constraints
 
@@ -92,7 +92,7 @@ reply label; a live end-to-end against `odoo19-learning` from "hi" to a validate
 - [ ] **Step 2: Add the index row after the 0021 row in `docs/adr/README.md`**
 
 ```markdown
-| [0022](0022-conversational-turns-read-feedback-discovery.md) | Rejected reads as feedback, conversational replies, open-demand discovery | Proposed | Real-agent plan Tasks 2–4 |
+| [0022](../../../../docs/superpowers/plans/0022-conversational-turns-read-feedback-discovery.md) | Rejected reads as feedback, conversational replies, open-demand discovery | Proposed | Real-agent plan Tasks 2–4 |
 ```
 
 - [ ] **Step 3: Check and commit**

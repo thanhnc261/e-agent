@@ -41,8 +41,8 @@
 
 ## Hai tài liệu đầu vào
 
-- [Agent Frameworks, Orchestration Runtimes and Managed Agent Platforms — September 2026](<Agent Frameworks, Orchestration Runtimes and Managed Agent Platforms — State of the Market, September 2026.md>)
-- [Knowledge Graphs, GraphRAG & the Retrieval Stack — September 2026](<Knowledge Graphs, GraphRAG & the Retrieval Stack — 2026 State of the Art (1).md>)
+- [Agent Frameworks, Orchestration Runtimes and Managed Agent Platforms — September 2026](18-agent-frameworks-market-2026-09.md)
+- [Knowledge Graphs, GraphRAG & the Retrieval Stack — September 2026](19-knowledge-graphs-retrieval-stack-2026.md)
 
 Hai bản gốc được giữ nguyên. Bản bổ sung này chuyển trọng tâm từ danh mục công nghệ sang kiến trúc, kiểm soát và thí nghiệm cần làm để lựa chọn công nghệ.
 

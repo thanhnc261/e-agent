@@ -29,7 +29,7 @@ All examples, access checks and results are fictional. Free-text submission open
 
 ## Research applied to the structure
 
-This reuses the earlier [32-page source audit](../agentic-workspace-v3/source-coverage.html), not a new research or usability claim.
+This reuses the earlier [32-page source audit](../../../archive/research/mockups/agentic-workspace-v3/source-coverage.html), not a new research or usability claim.
 
 - [Chat interface patterns](https://agentic-design.ai/patterns/ui-ux-patterns/chat-interface-patterns): a persistent conversation with a structured document beside it. Chat is the entry and coordination surface, not the container for every complex review field.
 - [Progressive disclosure](https://agentic-design.ai/patterns/ui-ux-patterns/progressive-disclosure-patterns): history, sources, activity and connection details appear when requested. Scope and material values stay in the document review; exact confirmation repeats the full action.

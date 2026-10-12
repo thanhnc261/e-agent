@@ -8,7 +8,7 @@
 
 **Tech Stack:** Markdown; Python 3.12 stdlib (`re`, `pathlib`, `dataclasses`, `argparse`); pytest via `uv run`; ruff.
 
-**Spec:** [docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md](../specs/2026-10-11-ag-ux-skills-design.md). Read §1–§5, §7 and §8 phase 1 before starting.
+**Spec:** [docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md). Read §1–§5, §7 and §8 phase 1 before starting.
 
 **Scope:** spec phase 1 only. Phases 2–5 (`ag-ux-review` with the gap audit, brief, mockup, implement, docs alignment) each get their own plan after the owner reviews this standard (Task 9).
 
@@ -171,7 +171,7 @@ def make_repo(
     refs.mkdir(parents=True)
     (skill / "SKILL.md").write_text(
         f"---\nname: ag-ux-foundations\ndescription: {description}\n---\n\n# Foundations\n\n"
-        "See [standard](references/standard.md).\n"
+        "See [standard](../../../../docs/superpowers/plans/references/standard.md).\n"
     )
     (refs / "sources.md").write_text(SOURCES)
     (refs / "standard.md").write_text("# Standard\n\n## Group\n\n" + standard)
@@ -240,7 +240,7 @@ def test_claude_link_wrong_target(tmp_path):
 
 
 def test_broken_relative_link(tmp_path):
-    root = make_repo(tmp_path, extra={"metrics.md": "# M\n\nSee [x](missing.md).\n"})
+    root = make_repo(tmp_path, extra={"metrics.md": "# M\n\nSee [x](../../../../docs/superpowers/plans/missing.md).\n"})
     assert any("broken link 'missing.md'" in m for m in messages(root))
 
 
@@ -1102,7 +1102,7 @@ Then one block per requirement:
 ### EA-2 — Exact one-action approval
 
 - **Requirement:** The decision surface renders the complete server-owned approval presentation for exactly one action; the client never reinterprets terms.
-- **Binding source:** [ADR 0006](../../../../docs/adr/0006-approval-digest-canonicalization.md), [UI architecture §4.2](../../../../docs/ui-architecture.md)
+- **Binding source:** [ADR 0006](../../../../../docs/adr/0006-approval-digest-canonicalization.md), [UI architecture §4.2](../../../../../docs/ui-architecture.md)
 - **Standard cross-reference:** AG-APPR-1, AG-APPR-2, AG-FE-1
 - **Kind:** ADR
 ```
@@ -1190,10 +1190,10 @@ This is the standard that agentic UI/UX work is built and reviewed against. It i
 
 ## Reading order
 
-1. [standard.md](references/standard.md): interaction criteria.
-2. [state-model.md](references/state-model.md): the normative task states.
-3. [e-agent.md](references/e-agent.md): binding requirements for this repository.
-4. As the task needs: [patterns.md](references/patterns.md), [design-system.md](references/design-system.md), [frontend.md](references/frontend.md), [metrics.md](references/metrics.md), [sources.md](references/sources.md).
+1. [standard.md](../../../../docs/superpowers/plans/references/standard.md): interaction criteria.
+2. [state-model.md](../../../../docs/superpowers/plans/references/state-model.md): the normative task states.
+3. [e-agent.md](../../../../docs/superpowers/plans/references/e-agent.md): binding requirements for this repository.
+4. As the task needs: [patterns.md](../../../../docs/superpowers/plans/references/patterns.md), [design-system.md](../../../../docs/superpowers/plans/references/design-system.md), [frontend.md](../../../../docs/superpowers/plans/references/frontend.md), [metrics.md](../../../../docs/superpowers/plans/references/metrics.md), [sources.md](../../../../docs/superpowers/plans/references/sources.md).
 
 ## Rules for every use
 

@@ -1,6 +1,6 @@
 # Applying this visual direction later
 
-Date: 2026-10-09. Candidate implementation mapping only; application changes remain paused. Keep the existing [frontend guide](../../../docs/frontend-development-guide.md), [UI architecture](../../../docs/ui-architecture.md) and [adoption plan](../../../docs/plans/2026-10-08-enterprise-overlay-adoption.md) as the structural baseline. This mockup updates the proposed appearance, not execution contracts.
+Date: 2026-10-09. Candidate implementation mapping only; application changes remain paused. Keep the existing [frontend guide](../../../../docs/frontend-development-guide.md), [UI architecture](../../../../docs/ui-architecture.md) and [adoption plan](../../../docs/plans/2026-10-08-enterprise-overlay-adoption.md) as the structural baseline. This mockup updates the proposed appearance, not execution contracts.
 
 | Study asset or composition | Existing owner | Implementation rule |
 | --- | --- | --- |

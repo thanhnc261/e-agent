@@ -1,6 +1,6 @@
 # Enterprise overlay implementation: results
 
-Date: 2026-10-09 (Asia/Ho_Chi_Minh), revised the same day after independent review. This is the implementation report requested by the [2026-10-08 Claude implementation handoff](2026-10-08-claude-overlay-implementation.md), for the [enterprise overlay adoption plan](../plans/2026-10-08-enterprise-overlay-adoption.md). It replaces the interim [progress check](2026-10-09-overlay-progress-check.md).
+Date: 2026-10-09 (Asia/Ho_Chi_Minh), revised the same day after independent review. This is the implementation report requested by the [2026-10-08 Claude implementation handoff](2026-10-08-claude-overlay-implementation.md), for the [enterprise overlay adoption plan](../../archive/docs/plans/2026-10-08-enterprise-overlay-adoption.md). It replaces the interim [progress check](2026-10-09-overlay-progress-check.md).
 
 The [independent implementation check](../reviews/2026-10-09-overlay-implementation-check.md) reproduced five defects in the first delivery. All five are corrected; §8 records what was wrong, what changed and the actual outcomes. Revision 1 of this report claimed the work was complete when it was not: the browser suite it cited did not cover a missing task link, a deliberate detach while a task address was current, or a malformed address, and the discovery tests it cited accepted malformed payloads. Those gaps are now closed by tests that fail against the original code.
 

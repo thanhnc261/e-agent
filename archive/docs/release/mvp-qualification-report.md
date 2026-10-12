@@ -10,10 +10,10 @@
 | Eight Odoo tasks ERP-01..08 | **Qualified with the scripted driver against a live Odoo 19 sandbox** (built from source in the dev container) |
 | Streaming API and layered UI (default app, overlay, reference UI) | **Qualified** against the fixture server (41 Playwright conformance tests) |
 | Local model driver (Pydantic AI + Ollama) | Driver implemented and tested with deterministic models; **live model qualification pending** on the owner's machine (Ollama registry blocked in the container) |
-| Owner's `odoo19-learning` stack | **Pending**: install the bridge per the [I06 runbook](../runbooks/i06-odoo-bridge.md) |
+| Owner's `odoo19-learning` stack | **Pending**: install the bridge per the [I06 runbook](../../../docs/runbooks/i06-odoo-bridge.md) |
 | BigQuery BQ-01/02 (I12/I13) | **Blocked** on decision D6 (project, region, data permission) |
 
-The MVP is feature-complete for the Odoo scope and UI. Three owner-side gates remain (§6) before the release criteria in the [implementation plan](../implementation-plan.md) are fully met.
+The MVP is feature-complete for the Odoo scope and UI. Three owner-side gates remain (§6) before the release criteria in the [implementation plan](../../../docs/implementation-plan.md) are fully met.
 
 ## 2. Gates run for this report
 
@@ -28,7 +28,7 @@ All commands are in the README and run in CI unless marked *local*.
 | Kernel + store conformance on PostgreSQL | `E_AGENT_TEST_STORE=postgres uv run pytest -q packages/kernel tests/conformance` | 66 passed |
 | Live Odoo 19 (*local* + nightly `odoo-live`) | `uv run pytest -q tests/integration/test_odoo_live*.py` | 19 passed |
 | Independent artifacts | `uv run python scripts/check_wheels.py` | every wheel installs and imports from its own dependency closure; installed demo plus ERP-04..08 demos succeed outside the repository |
-| Release task matrix | `uv run python scripts/release_report.py` | 21/21 cases ([report](../../evals/reports/fixture-release.json)) |
+| Release task matrix | `uv run python scripts/release_report.py` | 21/21 cases ([report](../../../evals/reports/fixture-release.json)) |
 | OpenAPI and generated TS | `scripts/export_openapi.py --check`, `pnpm gen:check` | current |
 | UI checks | `cd ui && pnpm check` | typecheck, 38 Vitest tests, dependency-cruiser layer rules, provider-neutrality gate, builds |
 | UI conformance | `cd ui && pnpm conformance` | 41 passed (default, overlay on a hostile host page, non-React reference UI) |
@@ -83,8 +83,8 @@ All commands are in the README and run in CI unless marked *local*.
 
 ## 6. Owner gates to close the MVP
 
-1. **Environment (I00):** run `scripts/env_check.py` and the [I00 runbook](../runbooks/i00-environment-qualification.md).
+1. **Environment (I00):** run `scripts/env_check.py` and the [I00 runbook](../../../docs/runbooks/i00-environment-qualification.md).
 2. **Bridge on `odoo19-learning` (I06):** install `e_agent_bridge` 19.0.0.2.0, create the integration user with the groups listed in the runbook, set the sandbox marker, then run `scripts/odoo_sandbox.py seed-tasks` and the live tests against it.
 3. **Model qualification (I04/ADR 0010):** `uv run python scripts/qualify_model.py --model <candidate> --trials 10`, keep every trial in `evals/reports/`, and record the selected model in the profile.
-4. **Live demo:** follow the [demo runbook](../runbooks/demo.md) with the qualified model and the UI.
+4. **Live demo:** follow the [demo runbook](../../../docs/runbooks/demo.md) with the qualified model and the UI.
 5. **D6:** decide BigQuery scope before I12/I13 start.

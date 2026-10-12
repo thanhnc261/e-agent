@@ -2,7 +2,7 @@
 
 Date: 2026-10-07. Executor: Sol 6.1. Status: **not run**. Baseline source inspected: `3ae9aafb13b112a207ea6474c006e74a3dc157d2`.
 
-Use with the [review plan](../reviews/2026-10-07-mvp-review-plan.md) and [handoff](../handoffs/2026-10-07-sol-6.1-mvp-review.md). Commands below are derived from checked-in code/configuration; they were not executed as part of writing this plan. Revalidate options after a code change.
+Use with the [review plan](../../../docs/reviews/2026-10-07-mvp-review-plan.md) and [handoff](../../../docs/handoffs/2026-10-07-sol-6.1-mvp-review.md). Commands below are derived from checked-in code/configuration; they were not executed as part of writing this plan. Revalidate options after a code change.
 
 ## 1. Evidence and environment classes
 
@@ -155,7 +155,7 @@ uv run --locked python scripts/odoo_sandbox.py info > "$E_AGENT_REVIEW_DIR/T07-s
 
 These require the relevant private environment settings; the second uses admin credentials but calls `sandbox_info`. Explicitly verify URL, DB identity, marker value, company, modules, bridge version, integration-user permissions and sandbox ownership. The first script's zero exit does not certify readiness. An integration account denied access to admin metadata is not automatically unhealthy; validate through the supported bridge/admin read path.
 
-Known target is the `odoo19-learning` service at 8069; **not** `odoo-bench` at 8071. Port alone is insufficient identity. If bridge installation is needed, use [I06 runbook](../runbooks/i06-odoo-bridge.md) and existing authorization to customize this sandbox. Inspect actual config, preserve it and record changes. Missing database selection/keys are BLOCKED dependent gates, not permission to guess another DB.
+Known target is the `odoo19-learning` service at 8069; **not** `odoo-bench` at 8071. Port alone is insufficient identity. If bridge installation is needed, use [I06 runbook](../../../docs/runbooks/i06-odoo-bridge.md) and existing authorization to customize this sandbox. Inspect actual config, preserve it and record changes. Missing database selection/keys are BLOCKED dependent gates, not permission to guess another DB.
 
 Maintain separate variables for runtime (`E_AGENT_ODOO_*`), live pytest (`E_AGENT_TEST_ODOO_*`) and ledger (`E_AGENT_PG_DSN` versus destructive test `E_AGENT_TEST_PG_DSN`). Record only non-secret endpoint/DB/marker mappings. Load credentials from private input/store, not command-line literals or committed files.
 

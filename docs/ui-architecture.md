@@ -5,7 +5,7 @@ Implementation clarification (2026-10-07): [ADR 0014](adr/0014-mvp-remediation-b
 
 ## 1. Goal
 
-Planned follow-up (2026-10-08): the [enterprise overlay adoption plan](plans/2026-10-08-enterprise-overlay-adoption.md) applies the enterprise-wide mockup within these layers. The [frontend development guide](frontend-development-guide.md) proposes internal feature folders and reuse conventions. These are implementation proposals, not completed changes; new discovery APIs require a focused ADR and affected design updates before implementation.
+Planned follow-up (2026-10-08): the [enterprise overlay adoption plan](../archive/docs/plans/2026-10-08-enterprise-overlay-adoption.md) applies the enterprise-wide mockup within these layers. The [frontend development guide](frontend-development-guide.md) proposes internal feature folders and reuse conventions. These are implementation proposals, not completed changes; new discovery APIs require a focused ADR and affected design updates before implementation.
 
 e-agent ships a **default UI** in two forms: a standalone web app and an embeddable overlay. A deployer must be able to:
 
@@ -226,7 +226,7 @@ L3 owns draft state; L5 supplies a narrow presentation context; L6 renders contr
 
 ## 11. Enterprise overlay adoption (2026-10-09)
 
-Implemented under the [adoption plan](plans/2026-10-08-enterprise-overlay-adoption.md) work packages FE-00 to FE-07 and API-01, with [ADR 0017](adr/0017-member-discovery-read-models.md) for the new contracts. The layer boundaries, slot names, public exports and approval authority of §3–§5 are unchanged; the §9/§10 notes above still hold.
+Implemented under the [adoption plan](../archive/docs/plans/2026-10-08-enterprise-overlay-adoption.md) work packages FE-00 to FE-07 and API-01, with [ADR 0017](adr/0017-member-discovery-read-models.md) for the new contracts. The layer boundaries, slot names, public exports and approval authority of §3–§5 are unchanged; the §9/§10 notes above still hold.
 
 ### Module organization
 
@@ -266,7 +266,7 @@ Results: [handoff](handoffs/2026-10-12-ui-foundation-adoption-results.md). Revie
 
 ### Owner review rework, slice 1 (2026-10-12)
 
-Plan: [UI rework 2](superpowers/plans/2026-10-12-ui-rework-2.md).
+Plan: [UI rework 2](../archive/docs/superpowers/plans/2026-10-12-ui-rework-2.md).
 
 - **Task status.** The status (`RunStatus`: `run-state`, the polite live region, and Stop) sits above the composer. The header carries only product identity, stream state and preferences.
 - **Composer.** A Context panel (`ContextPreview`) shows exactly what `RunController.hostContextPreview()` returns. This is the same source `start()` sends, and the panel says so when it is nothing.

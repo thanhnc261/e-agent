@@ -6,11 +6,11 @@ The owner requested a new mockup using the full [Agentic Design UI/UX pattern li
 
 ## Deliverable
 
-[Design study 03](mockups/agentic-workspace-v3/README.md) is a standalone interactive prototype. It contains a workspace, six fictional enterprise workflow examples, connection/access information, contextual launch inside a customer record, compact/expanded review, sources, clarification, separate approvals, and recovery states. The [visual rationale](mockups/agentic-workspace-v3/design-notes.html) maps the design to the references.
+[Design study 03](../archive/research/mockups/agentic-workspace-v3/README.md) is a standalone interactive prototype. It contains a workspace, six fictional enterprise workflow examples, connection/access information, contextual launch inside a customer record, compact/expanded review, sources, clarification, separate approvals, and recovery states. The [visual rationale](../archive/research/mockups/agentic-workspace-v3/design-notes.html) maps the design to the references.
 
 The direction is intentionally broader than procurement. It does not claim that the existing product implements all six domains or all illustrated integrations. All data and outcomes are labelled as samples.
 
-The [identity and component catalog](mockups/agentic-workspace-v3/design-system.html) includes an original SVG logo, four variants, 27 matching icons, warm neutral/navy colors and reusable component examples. [Source coverage](mockups/agentic-workspace-v3/source-coverage.html) records text review of all 32 pattern pages and both articles. The pattern index and enterprise article were also visually inspected; not every interactive pattern demo was exercised.
+The [identity and component catalog](../archive/research/mockups/agentic-workspace-v3/design-system.html) includes an original SVG logo, four variants, 27 matching icons, warm neutral/navy colors and reusable component examples. [Source coverage](../archive/research/mockups/agentic-workspace-v3/source-coverage.html) records text review of all 32 pattern pages and both articles. The pattern index and enterprise article were also visually inspected; not every interactive pattern demo was exercised.
 
 ## Reference use
 
@@ -41,4 +41,4 @@ Earlier application visual edits remain in the working tree and are paused; they
 
 The repeatable browser script passes with no page errors or external requests. It captures desktop, 390px and 320px layouts and exercises approval separation, focus-safe confirmation, clarification, source inspection, rejection, stale/unknown states, escaped input and retained context. Screenshots were inspected; a wrapped brand and dark-theme foreground/background problem were corrected.
 
-See [QA](mockups/agentic-workspace-v3/QA.md) for evidence and limitations. No live-system testing, screen-reader certification or measured usability improvement is claimed. Before adoption, have users explain what will change, which sources support it, who has access, and what “unknown outcome” means while performing the example tasks.
+See [QA](../archive/research/mockups/agentic-workspace-v3/QA.md) for evidence and limitations. No live-system testing, screen-reader certification or measured usability improvement is claimed. Before adoption, have users explain what will change, which sources support it, who has access, and what “unknown outcome” means while performing the example tasks.

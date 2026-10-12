@@ -1,6 +1,6 @@
 # MVP implementation plan
 
-Enterprise UI planning follow-up (2026-10-08): [overlay adoption plan](plans/2026-10-08-enterprise-overlay-adoption.md) sequences FE-00–FE-07 and API-01, with Delivery A using existing run contracts and Delivery B adding authorized discovery. The companion [frontend guide](frontend-development-guide.md) defines proposed reuse and organization conventions. These planned increments do not change current MVP scope or live qualification status.
+Enterprise UI planning follow-up (2026-10-08): [overlay adoption plan](../archive/docs/plans/2026-10-08-enterprise-overlay-adoption.md) sequences FE-00–FE-07 and API-01, with Delivery A using existing run contracts and Delivery B adding authorized discovery. The companion [frontend guide](frontend-development-guide.md) defines proposed reuse and organization conventions. These planned increments do not change current MVP scope or live qualification status.
 
 Selectable overlay follow-up (2026-10-08): [ADR 0016](adr/0016-selectable-agent-surfaces.md) adds a responsive Workbench and an in-app View selector over the same controller and approval authority. See [research/design](../research/11-enterprise-agent-overlay-design.md).
 

@@ -4,7 +4,7 @@ These documents define the implementation baseline and qualification process for
 
 | Document | Purpose |
 |---|---|
-| [Enterprise overlay adoption plan](plans/2026-10-08-enterprise-overlay-adoption.md) | Proposed phased migration of the enterprise mockup; reusable frontend structure, API dependencies and acceptance gates |
+| [Enterprise overlay adoption plan](../archive/docs/plans/2026-10-08-enterprise-overlay-adoption.md) | Proposed phased migration of the enterprise mockup; reusable frontend structure, API dependencies and acceptance gates |
 | [Frontend development guide](frontend-development-guide.md) | Proposed component organization, state ownership, tokens, accessibility and extension conventions for that migration |
 | [UI redesign implementation](handoffs/2026-10-08-ui-redesign.md) | Task workspace, presentation boundary, verified checks/screenshots and remaining live/backend limits |
 | [Remediation retest](reviews/2026-10-07-mvp-remediation-retest.md) | Current candidate changes, observed retests and remaining owner release gates |
@@ -14,12 +14,12 @@ These documents define the implementation baseline and qualification process for
 | [Local test results](reviews/2026-10-07-local-test-report.md) | Newly observed commands/results, trial failures, evidence limitations and cleanup |
 | [Sol 6.1 review handoff](handoffs/2026-10-07-sol-6.1-mvp-review.md) | Entry point for independent implementation review and owner-machine qualification |
 | [MVP review plan](reviews/2026-10-07-mvp-review-plan.md) | Risk-prioritized source review, known evidence gaps, findings and coverage requirements |
-| [Local test plan](testing/2026-10-07-local-test-plan.md) | Staged commands, isolated databases, live Ollama/Odoo/UI checks and evidence/cleanup requirements |
+| [Local test plan](../archive/docs/testing/2026-10-07-local-test-plan.md) | Staged commands, isolated databases, live Ollama/Odoo/UI checks and evidence/cleanup requirements |
 | [High-level design](high-level-design.md) | Product boundaries, components, dependencies, trust, knowledge architecture, evolution and delivery phases |
 | [MVP detailed design](mvp-detailed-design.md) | Procurement workflow, contracts, plugin registration, persistence, execution states, recovery, APIs and acceptance gates |
 | [Implementation plan](implementation-plan.md) | Task catalog, work packages, gates and local/CI test policy |
 | [Target architecture (v2)](target-architecture.md) | Post-MVP target design: swappable runtime, traceable state, self-correction, memory, knowledge, event-driven scale, authorization, audit and explanation; status-tagged against the tree |
-| [WP1 correctness plan](superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) | Bite-sized implementation plan for the verified kernel defects (run transitions, self-approval, event actor, reason codes, approval sweeper, paged events, write admission) and the WP2–WP5 map |
+| [WP1 correctness plan](../archive/docs/superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) | Bite-sized implementation plan for the verified kernel defects (run transitions, self-approval, event actor, reason codes, approval sweeper, paged events, write admission) and the WP2–WP5 map |
 | [Core: conversation, context and cognition plan](superpowers/plans/2026-10-12-core-conversation-cognition.md) | Proposed phased plan (roadmap P1 C11 + P2 C8/C9): visible chat defects, conversation model (ADR 0023), task definitions, step records, progress ledger, ContextAssembler, grounded answers, driver conformance |
 | [Odoo tools from ERP-Bench plan](superpowers/plans/2026-10-12-odoo-tools-from-erp-bench.md) | Proposed phased plan (roadmap P3): ERP-Bench-derived Odoo read/write capabilities, action plans (multi-write), approval model (ADR 0024), evaluation substrate; depends on the core plan |
 | [ADR index](adr/README.md) | Architecture decisions (all current ones accepted) and template |

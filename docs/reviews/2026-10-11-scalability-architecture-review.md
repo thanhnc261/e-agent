@@ -144,7 +144,7 @@ Measure: runs started and completed per minute; queue wait (enqueue to claim); t
 
 ## 8. Sources
 
-- Repository: HLD §§4, 6, 8, 10; MVP design §§6, 7, 9, 12; ADR 0003, 0004, 0007, 0014; `research/Agent Frameworks, Orchestration Runtimes and Managed Agent Platforms — State of the Market, September 2026.md` §§2, 4.
+- Repository: HLD §§4, 6, 8, 10; MVP design §§6, 7, 9, 12; ADR 0003, 0004, 0007, 0014; `research/18-agent-frameworks-market-2026-09.md` §§2, 4.
 - Pydantic AI durable execution backends: <https://pydantic.dev/docs/ai/capabilities/durable_execution/overview/>
 - DBOS with Pydantic AI: <https://docs.dbos.dev/integrations/pydantic-ai>
 - Temporal with Pydantic AI: <https://temporal.io/blog/build-durable-ai-agents-pydantic-ai-and-temporal>

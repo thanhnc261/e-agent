@@ -2,7 +2,7 @@
 
 Date: 2026-10-07, Asia/Ho_Chi_Minh. Candidate: `3ae9aafb13b112a207ea6474c006e74a3dc157d2`. Verdict: **NOT_READY** for the live MVP; the existing fixture demonstration passes its current suite.
 
-Companions: [review findings](2026-10-07-mvp-review-report.md), [requirement matrix](2026-10-07-mvp-requirement-matrix.md), [execution plan](../testing/2026-10-07-local-test-plan.md). Evidence root `E = evidence/review/20261007-075816-3ae9aaf/`; raw artifacts are ignored/private.
+Companions: [review findings](2026-10-07-mvp-review-report.md), [requirement matrix](2026-10-07-mvp-requirement-matrix.md), [execution plan](../../archive/docs/testing/2026-10-07-local-test-plan.md). Evidence root `E = evidence/review/20261007-075816-3ae9aaf/`; raw artifacts are ignored/private.
 
 ## Candidate and environment
 

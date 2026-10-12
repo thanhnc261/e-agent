@@ -2,7 +2,7 @@
 
 Date: 2026-10-07. Executor: Sol 6.1. Status: **plan prepared; independent review and local qualification not executed by this document's author**.
 
-Source baseline inspected: `3ae9aafb13b112a207ea6474c006e74a3dc157d2` (`feat: MVP implementation I03–I14 (#3)`). Record the actual candidate SHA at execution time; do not assume it still matches. Companion documents: [local test plan](../testing/2026-10-07-local-test-plan.md), [handoff](../handoffs/2026-10-07-sol-6.1-mvp-review.md).
+Source baseline inspected: `3ae9aafb13b112a207ea6474c006e74a3dc157d2` (`feat: MVP implementation I03–I14 (#3)`). Record the actual candidate SHA at execution time; do not assume it still matches. Companion documents: [local test plan](../../archive/docs/testing/2026-10-07-local-test-plan.md), [handoff](../handoffs/2026-10-07-sol-6.1-mvp-review.md).
 
 ## 1. Objective and authority
 
