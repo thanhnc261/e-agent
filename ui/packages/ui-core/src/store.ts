@@ -172,13 +172,27 @@ export function selectTimeline(view: RunView): TimelineItem[] {
 export const TERMINAL_STATES: ReadonlySet<string> = new Set(["SUCCEEDED", "FAILED", "CANCELLED"]);
 const RUN_STATES = new Set(["CREATED", "RUNNING", "WAITING_INPUT", "WAITING_APPROVAL", "VERIFYING", "NEEDS_RECONCILIATION", ...TERMINAL_STATES]);
 
-export function selectConversation(view: RunView): { id: string; role: "user" | "agent"; text: string; pending: boolean }[] {
+export interface ConversationItem {
+  id: string;
+  role: "user" | "agent";
+  text: string;
+  pending: boolean;
+  /** "reply" is a conversational turn the kernel did not verify (ADR 0022); old rows have no kind. */
+  kind: "reply" | "message";
+}
+
+export function selectConversation(view: RunView): ConversationItem[] {
   return view.events.flatMap(e => {
     if (e.schema_version !== "1") return [];
     const p = e.payload ?? {};
     const text = e.type === "input.requested" ? p["question"] : e.type === "input.received" ? p["input"] : e.type === "message.final" ? p["text"] : null;
-    return typeof text === "string" ? [{ id: e.event_id, role: e.type === "input.received" ? "user" as const : "agent" as const, text, pending: e.type === "input.requested" && text === view.question }] : [];
+    return typeof text === "string" ? [{ id: e.event_id, role: e.type === "input.received" ? "user" as const : "agent" as const, text, pending: e.type === "input.requested" && text === view.question, kind: e.type === "input.requested" && p["kind"] === "reply" ? "reply" as const : "message" as const }] : [];
   });
+}
+
+/** True while the run waits on a conversational reply (not a clarification question). */
+export function selectPendingReply(view: RunView): boolean {
+  return view.run?.state === "WAITING_INPUT" && selectConversation(view).some(m => m.pending && m.kind === "reply");
 }
 
 /** Correlate host verification with the exact action; model prose supplies no fields. */

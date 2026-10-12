@@ -51,7 +51,12 @@ const IN_FLIGHT = new Set(["RUNNING", "VERIFYING"]);
  * committed or unknown is named in its own words, read from the server's action
  * states only. The browser never infers or promotes a phase.
  */
-export function runStatusKey(state: string | undefined, actions: readonly { state: string }[] = []): string {
+export function runStatusKey(
+  state: string | undefined,
+  actions: readonly { state: string }[] = [],
+  replyPending = false,
+): string {
+  if (state === "WAITING_INPUT" && replyPending) return "status.WAITING_INPUT.reply";
   if (state && IN_FLIGHT.has(state)) {
     const states = new Set(actions.map(a => a.state));
     if (states.has("UNKNOWN")) return "status.phase.UNKNOWN";

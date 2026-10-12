@@ -56,6 +56,42 @@ for (const target of TARGETS) {
       expect(api.decisions).toHaveLength(0);
     });
 
+    test("a conversational reply is labelled as not verified and waits for the user's turn", async ({
+      page,
+    }) => {
+      test.skip(
+        target.name === "reference",
+        "the minimal reference UI renders no status badge or message labels",
+      );
+      const api = new MockApi();
+      api.emit("run.created", { task: "hi" });
+      api.emit("input.requested", { question: "Hello! What would you like me to do?", kind: "reply" });
+      api.emit("run.state_changed", { from: "RUNNING", to: "WAITING_INPUT" });
+      api.state = "WAITING_INPUT";
+      await startRun(page, target, api);
+      await expect(page.getByTestId("clarification-question")).toContainText(
+        "Hello! What would you like me to do?",
+      );
+      await expect(page.getByTestId("reply-label")).toHaveText("Reply · not a verified result");
+      await expect(page.getByTestId("run-state")).toContainText("Your turn");
+      await expect(page.getByTestId("final-message")).toHaveCount(0);
+    });
+
+    test("a clarification without kind keeps its label and status (old rows)", async ({ page }) => {
+      test.skip(
+        target.name === "reference",
+        "the minimal reference UI renders no status badge or message labels",
+      );
+      const api = new MockApi();
+      api.emit("run.created", { task: "clarify" });
+      api.emit("input.requested", { question: "Which customer?" });
+      api.emit("run.state_changed", { from: "RUNNING", to: "WAITING_INPUT" });
+      api.state = "WAITING_INPUT";
+      await startRun(page, target, api);
+      await expect(page.getByTestId("reply-label")).toHaveCount(0);
+      await expect(page.getByTestId("run-state")).toContainText("Your answer is needed");
+    });
+
     test("1. shows every material field, marks changes, shows findings", async ({ page }) => {
       const api = new MockApi().waitingForApproval(
         presentation({

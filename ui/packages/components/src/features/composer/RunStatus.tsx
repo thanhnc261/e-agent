@@ -3,8 +3,8 @@
  * composer, with Stop beside it. Labels come from the server's run and action states
  * only (runStatusKey), and the badge is the polite live region for state changes.
  */
-import { runStatusKey, TERMINAL_STATES } from "@e-agent/ui-core";
-import { useController, useI18n, useRun } from "@e-agent/ui-react";
+import { runStatusKey, selectPendingReply, TERMINAL_STATES } from "@e-agent/ui-core";
+import { useController, useI18n, useRun, useRunState } from "@e-agent/ui-react";
 import { ActionButton } from "../../primitives/ActionButton.tsx";
 import { StatusBadge } from "../../primitives/StatusBadge.tsx";
 import { runStateTone } from "./runStateTone.ts";
@@ -13,8 +13,9 @@ export function RunStatus() {
   const { t } = useI18n();
   const { run, actions } = useRun();
   const controller = useController();
+  const { view } = useRunState();
   if (!run) return null;
-  const status = runStatusKey(run.state, actions);
+  const status = runStatusKey(run.state, actions, selectPendingReply(view));
   // Stopping cannot change an effect that may already have happened, so an
   // unresolved outcome offers a check (in the result) instead of Stop.
   const stoppable = !TERMINAL_STATES.has(run.state) && run.state !== "NEEDS_RECONCILIATION";

@@ -45,6 +45,7 @@ describe("public ui-core exports", () => {
       "selectConversation",
       "selectEvidence",
       "selectOutcome",
+      "selectPendingReply",
       "selectTimeline",
       "selectVerifiedResults",
       "statusKey",

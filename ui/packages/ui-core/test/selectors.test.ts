@@ -5,7 +5,13 @@
 import { describe, expect, it } from "vitest";
 import { EVIDENCE_SCHEMA, selectEvidence } from "../src/selectors/evidence.ts";
 import { hasResult, selectOutcome } from "../src/selectors/outcome.ts";
-import { emptyRunView, reduceRunView, type RunView } from "../src/store.ts";
+import {
+  emptyRunView,
+  reduceRunView,
+  selectConversation,
+  selectPendingReply,
+  type RunView,
+} from "../src/store.ts";
 import type { RunEvent, RunRecord } from "@e-agent/client";
 
 function run(state: RunRecord["state"], reason: string | null = null): RunRecord {
@@ -143,5 +149,27 @@ describe("outcome projection", () => {
       event(2, "outcome.reported", { checks: [{ name: "second", passed: true }] }),
     ]);
     expect(selectOutcome(view).checks.map(c => c.name)).toEqual(["second"]);
+  });
+});
+
+describe("conversation item kind (ADR 0022)", () => {
+  const kindOf = (payload: Record<string, unknown>) =>
+    selectConversation(viewWith("WAITING_INPUT", [event(1, "input.requested", payload)]))[0]?.kind;
+
+  it("marks a reply, and treats a clarification or an old row without kind as a message", () => {
+    expect(kindOf({ question: "Hello!", kind: "reply" })).toBe("reply");
+    expect(kindOf({ question: "Which one?", kind: "clarification" })).toBe("message");
+    expect(kindOf({ question: "Which one?" })).toBe("message");
+    expect(kindOf({ question: "x", kind: "something-new" })).toBe("message");
+  });
+
+  it("marks only the pending question and flags a pending reply for the status label", () => {
+    const view = viewWith("WAITING_INPUT", [
+      event(1, "input.requested", { question: "Hello!", kind: "reply" }),
+    ]);
+    expect(selectConversation(view)[0]).toMatchObject({ kind: "reply", pending: true });
+    expect(selectPendingReply(view)).toBe(true);
+    const old = viewWith("WAITING_INPUT", [event(1, "input.requested", { question: "Which?" })]);
+    expect(selectPendingReply(old)).toBe(false);
   });
 });

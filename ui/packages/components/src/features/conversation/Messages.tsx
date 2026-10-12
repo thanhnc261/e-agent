@@ -52,6 +52,11 @@ export function Messages() {
             )}
             <div>
               <p className="ea-message-author">{t(m.role === "user" ? "messages.you" : "messages.agent")}</p>
+              {m.kind === "reply" && (
+                <p className="ea-muted ea-small" data-testid="reply-label">
+                  {t("conversation.reply")}
+                </p>
+              )}
               <div className="ea-message-body" data-testid={m.pending ? "clarification-question" : undefined}>
                 <MessageText text={m.text} />
               </div>

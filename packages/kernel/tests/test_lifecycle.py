@@ -422,12 +422,101 @@ async def test_driver_usage_limit_is_persisted_as_budget_failure_without_dispatc
     assert any(e.type == "budget.exhausted" for e in events)
 
 
-async def test_plain_model_text_cannot_mark_a_business_task_succeeded(make_kernel):
-    from e_agent.sdk.ports import FinalAnswer
+class _ReplyDriver:
+    driver_id = "reply-driver"
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+    async def advance(self, ctx, step_input):  # type: ignore[no-untyped-def]
+        from e_agent.sdk.ports import FinalAnswer
+
+        return FinalAnswer(text=self.text)
+
+
+class _ReadThenReplyDriver(_ReplyDriver):
+    async def advance(self, ctx, step_input):  # type: ignore[no-untyped-def]
+        from e_agent.sdk.ports import FinalAnswer, RequestReads
+
+        if not step_input.observations and not step_input.read_errors:
+            return RequestReads(reads=(_read_request(),))
+        return FinalAnswer(text=self.text)
+
+
+def _read_request():  # type: ignore[no-untyped-def]
+    from e_agent.sdk.ports import ReadRequest
+
+    from .conftest import CONN, READ
+
+    return ReadRequest(
+        request_id="r1", contract_id=READ.contract_id, connection_id=CONN, arguments={}
+    )
+
+
+async def test_plain_reply_without_any_work_waits_for_the_user(make_kernel: MakeKernel) -> None:
+    k = make_kernel()
+    k.coordinator._driver = _ReplyDriver("Hello! What would you like me to do?")  # type: ignore[assignment]
+    run = await k.coordinator.start_run(k.requester, "hi", k.scope)
+    assert run.state is RunState.WAITING_INPUT
+    events = await k.store.list_events(TENANT, run.run_id)
+    asked = [e for e in events if e.type is RunEventType.INPUT_REQUESTED]
+    assert asked[-1].payload == {
+        "question": "Hello! What would you like me to do?",
+        "kind": "reply",
+    }
+
+
+async def test_plain_answer_after_reads_still_requires_verification(
+    make_kernel: MakeKernel,
+) -> None:
+    k = make_kernel()
+    k.coordinator._driver = _ReadThenReplyDriver("Widget-a is short by 7.")  # type: ignore[assignment]
+    run = await k.coordinator.start_run(k.requester, "is widget-a short?", k.scope)
+    assert run.state is RunState.FAILED
+    assert run.reason_code is ReasonCode.VERIFICATION_FAILED
+
+
+async def test_plain_answer_after_a_rejected_read_still_requires_verification(
+    make_kernel: MakeKernel,
+) -> None:
+    from e_agent.sdk.errors import KnownNoEffectError
 
     k = make_kernel()
 
-    async def unverified(*args):
+    async def reject(*args, **kwargs):  # type: ignore[no-untyped-def]
+        raise KnownNoEffectError("E_AGENT_INVALID_REF", "no such ref")
+
+    k.backend.read = reject  # type: ignore[method-assign]
+    k.coordinator._driver = _ReadThenReplyDriver("All fine.")  # type: ignore[assignment]
+    run = await k.coordinator.start_run(k.requester, "x", k.scope)
+    assert run.state is RunState.FAILED
+    assert run.reason_code is ReasonCode.VERIFICATION_FAILED
+
+
+async def test_clarification_payload_carries_its_kind(make_kernel: MakeKernel) -> None:
+    from e_agent.sdk.ports import AskClarification
+
+    k = make_kernel()
+
+    async def ask(*args):  # type: ignore[no-untyped-def]
+        return AskClarification(question="Which one?")
+
+    k.driver.advance = ask  # type: ignore[method-assign]
+    run = await k.coordinator.start_run(k.requester, "x", k.scope)
+    assert run.state is RunState.WAITING_INPUT
+    events = await k.store.list_events(TENANT, run.run_id)
+    asked = [e for e in events if e.type is RunEventType.INPUT_REQUESTED]
+    assert asked[-1].payload == {"question": "Which one?", "kind": "clarification"}
+
+
+async def test_plain_model_text_cannot_mark_a_business_task_succeeded(make_kernel):
+    from e_agent.sdk.ports import FinalAnswer, RequestReads
+
+    k = make_kernel()
+
+    async def unverified(ctx, step_input):
+        if not step_input.observations:
+            return RequestReads(reads=(_read_request(),))
         return FinalAnswer(text="I completed the business task.")
 
     k.driver.advance = unverified

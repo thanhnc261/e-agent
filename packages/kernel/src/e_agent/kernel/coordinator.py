@@ -433,13 +433,43 @@ class RunCoordinator:
                 await self._store.update_run(
                     run.model_copy(update={"revision": run.revision + 1}),
                     run.revision,
-                    [(RunEventType.INPUT_REQUESTED, {"question": step.question}, None)],
+                    [
+                        (
+                            RunEventType.INPUT_REQUESTED,
+                            {"question": step.question, "kind": "clarification"},
+                            None,
+                        )
+                    ],
                 )
                 run = await self._store.get_run(run.tenant_id, run.run_id)
                 return await self._set_run_state(run, RunState.WAITING_INPUT)
 
             if isinstance(step, FinalAnswer):
                 run = await self._store.get_run(run.tenant_id, run.run_id)
+                # Ruling 3 (ADR 0022): a plain reply is only conversational when the run has
+                # made no reads, read attempts (read_calls counts successes and rejections and
+                # is never decremented) or proposals. Anything else is an unverified claim.
+                conversational = (
+                    cont.read_calls == 0
+                    and not cont.reads
+                    and not cont.read_errors
+                    and cont.last_action_id is None
+                    and cont.pending_action_id is None
+                )
+                if conversational:
+                    await self._store.update_run(
+                        run.model_copy(update={"revision": run.revision + 1}),
+                        run.revision,
+                        [
+                            (
+                                RunEventType.INPUT_REQUESTED,
+                                {"question": step.text, "kind": "reply"},
+                                None,
+                            )
+                        ],
+                    )
+                    run = await self._store.get_run(run.tenant_id, run.run_id)
+                    return await self._set_run_state(run, RunState.WAITING_INPUT)
                 last_action = (
                     await self._store.get_action(run.tenant_id, cont.last_action_id)
                     if cont.last_action_id

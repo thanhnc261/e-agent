@@ -37,6 +37,12 @@ describe("run status keeps working, sending, recorded and unconfirmed apart", ()
     expect(runStatusKey(undefined)).toBe("status.idle");
   });
 
+  it("names a waiting reply as the user's turn, never as a needed answer", () => {
+    expect(runStatusKey("WAITING_INPUT", [], true)).toBe("status.WAITING_INPUT.reply");
+    expect(runStatusKey("WAITING_INPUT", [], false)).toBe("status.WAITING_INPUT");
+    expect(runStatusKey("RUNNING", [], true)).toBe("status.RUNNING");
+  });
+
   it("has a label in every locale for every action state", () => {
     const states = [
       "PROPOSED",
