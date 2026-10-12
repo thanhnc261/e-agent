@@ -23,6 +23,9 @@
 
 Phases 0–2 can run in parallel with the core plan.
 
+
+> **Phase order is governed by the [roadmap](../../roadmap.md)** (owner decision 2026-10-12): action plans (Phase 0.3 here) are built in roadmap Phase 2 (execution IR); this plan is roadmap Phase 5. Every new runtime feature here ships behind a profile toggle (`off/shadow/on`) with a fallback to the existing path before any write is reserved.
+
 **Status:** Proposed. Nothing implemented.
 
 ## Source pin (decision D7, implementation-plan §8)

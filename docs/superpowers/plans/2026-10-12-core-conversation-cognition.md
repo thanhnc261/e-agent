@@ -8,6 +8,9 @@
 
 **Design anchor:** [target architecture](../../target-architecture.md) roadmap **P1 (C11)** and **P2 (C8, C9, driver conformance)**: §5.4 step record, §6 multi-step reasoning and the progress ledger, §7 context management and the §7.4 rendering rules, §17 ADR candidates C8, C9, C11. The design does **not** specify a conversation that spans runs, so Phase 1 adds it through a new ADR.
 
+
+> **Phase order is governed by the [roadmap](../../roadmap.md)** (owner decision 2026-10-12): this plan's Phase 2 (task definitions) moves into roadmap Phase 2 (execution IR); Phases 3–4 are roadmap Phase 3; Phases 0–1 are roadmap Phase 4. Every new runtime feature here ships behind a profile toggle (`off/shadow/on`) with a fallback to the existing path before any write is reserved.
+
 **Status:** Proposed. Nothing in this plan is implemented. Every phase below is `[P]`.
 
 ## Owner complaints and where each one is resolved
