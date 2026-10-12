@@ -477,7 +477,14 @@ class RunCoordinator:
         await self._load_cont(actor.tenant_id, run_id)
         self._check_run_transition(run, RunState.RUNNING)
         run = await self._store.update_run(
-            run.model_copy(update={"revision": run.revision + 1, "state": RunState.RUNNING}),
+            run.model_copy(
+                update={
+                    "revision": run.revision + 1,
+                    "state": RunState.RUNNING,
+                    "reason": None,
+                    "reason_code": None,
+                }
+            ),
             run.revision,
             [
                 (
@@ -736,6 +743,7 @@ class RunCoordinator:
                 "state": RunState.WAITING_APPROVAL,
                 "revision": run.revision + 1,
                 "reason": None,
+                "reason_code": None,
             }
         )
         checkpoint = self._snapshot(run.run_id)
@@ -759,7 +767,12 @@ class RunCoordinator:
                 ),
                 (
                     RunEventType.RUN_STATE_CHANGED,
-                    {"from": run.state, "to": RunState.WAITING_APPROVAL, "reason": None},
+                    {
+                        "from": run.state,
+                        "to": RunState.WAITING_APPROVAL,
+                        "reason": None,
+                        "reason_code": None,
+                    },
                     None,
                 ),
             ],

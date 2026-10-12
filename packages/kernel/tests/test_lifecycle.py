@@ -141,6 +141,16 @@ async def test_changed_source_after_approval_forces_new_proposal(make_kernel: Ma
     second = await k.coordinator.pending_approval(TENANT, run.run_id)
     assert second.digest != first.digest
     assert (await k.store.get_action(TENANT, first.action_id)).state is ActionState.BLOCKED
+    assert run.reason is None and run.reason_code is None, "stale code must not leak"
+    assert (await k.store.get_run(TENANT, run.run_id)).reason_code is None
+    changed = [
+        e
+        for e in await k.store.list_events(TENANT, run.run_id)
+        if e.type is RunEventType.RUN_STATE_CHANGED
+    ]
+    assert changed[-1].payload["to"] == "WAITING_APPROVAL"
+    assert changed[-1].payload["reason_code"] is None
+    assert any(e.payload.get("reason_code") == "stale" for e in changed)
     run = await _approve(k, run.run_id)
     assert run.state is RunState.SUCCEEDED and k.backend.create_calls == 1
 
