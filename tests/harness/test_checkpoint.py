@@ -42,3 +42,13 @@ def test_checkpoint_hook_uses_session_id_and_never_fails(repo) -> None:
     result = repo.invoke("checkpoint", "--hook", stdin=payload)
     assert result.code == 0
     assert result.err.strip()
+
+
+def test_checkpoint_hook_finds_repository_from_subdirectory(repo) -> None:
+    payload = json.dumps(
+        {"session_id": "s9", "trigger": "auto", "cwd": str(repo.root / "src" / "pkg")}
+    )
+    result = repo.invoke_raw("checkpoint", "--hook", stdin=payload)
+    assert result.code == 0
+    assert result.err == ""
+    assert _entries(repo)[0].session == "s9"

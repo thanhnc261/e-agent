@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
+import os
 import re
+import signal
 import subprocess
 import time
 from collections.abc import Callable
@@ -17,9 +20,13 @@ from e_agent_harness.state import write_json
 TAIL_LINES = 40
 TIMEOUT_EXIT = 124
 COUNT_RE = re.compile(r"(\d+) (passed|failed|skipped|errors?|xfailed|xpassed|warnings?)\b")
-SECRET_RE = re.compile(
-    r"(?i)((?:password|passwd|secret|token|api[_-]?key|authorization|bearer|dsn)\s*[=:]\s*)(\S+)"
-)
+_KEY = r"(?:password|passwd|secret|token|api[_-]?key|authorization|dsn)"
+# key=value, key: value, "key": "value", --key=value (quotes optional on both sides)
+SECRET_RE = re.compile(rf"(?i)([\"']?(?:--)?{_KEY}[\"']?\s*[=:]\s*)(\"[^\"]*\"|'[^']*'|\S+)")
+# --key value (CLI flag with a separate argument)
+FLAG_RE = re.compile(rf"(?i)(--{_KEY}\s+)(\S+)")
+# Bearer <token>
+BEARER_RE = re.compile(r"(?i)(\bbearer\s+)(\S+)")
 URL_PASSWORD_RE = re.compile(r"(://[^:/\s@]+:)[^@\s]+@")
 
 Runner = Callable[[str, Path, int], tuple[int, str]]
@@ -27,6 +34,8 @@ Runner = Callable[[str, Path, int], tuple[int, str]]
 
 def redact(text: str) -> str:
     text = URL_PASSWORD_RE.sub(r"\1[REDACTED]@", text)
+    text = BEARER_RE.sub(r"\1[REDACTED]", text)
+    text = FLAG_RE.sub(r"\1[REDACTED]", text)
     return SECRET_RE.sub(r"\1[REDACTED]", text)
 
 
@@ -51,19 +60,25 @@ def _text(data: str | bytes | None) -> str:
 
 def run_shell(command: str, cwd: Path, timeout: int) -> tuple[int, str]:
     # Gate commands come from the committed manifest, not from model output.
+    # The command runs in its own session so a timeout kills the whole process group,
+    # not only the shell (pytest under ``uv run`` would otherwise keep running).
+    proc = subprocess.Popen(
+        command,
+        shell=True,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        start_new_session=True,
+    )
     try:
-        proc = subprocess.run(
-            command,
-            shell=True,
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as exc:
-        return TIMEOUT_EXIT, f"{_text(exc.stdout)}\n[timeout after {timeout}s]"
-    return proc.returncode, proc.stdout + proc.stderr
+        output, _ = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        output, _ = proc.communicate()
+        return TIMEOUT_EXIT, f"{_text(output)}\n[timeout after {timeout}s]"
+    return proc.returncode, _text(output)
 
 
 def run_gate(

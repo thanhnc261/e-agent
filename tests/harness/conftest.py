@@ -118,6 +118,13 @@ class Repo:
     def invoke(self, *args: str, stdin: str = "") -> Result:
         return self.invoke_at(self.root, *args, stdin=stdin)
 
+    def invoke_raw(self, *args: str, stdin: str = "") -> Result:
+        """No --repo flag: the command must find the repository itself (hook modes)."""
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = cli.main([*args], stdin=io.StringIO(stdin))
+        return Result(code, out.getvalue(), err.getvalue())
+
 
 @pytest.fixture
 def repo(tmp_path: Path) -> Repo:

@@ -97,3 +97,11 @@ def test_hook_resolves_repository_from_payload_cwd_not_repo_flag(repo, tmp_path)
     result = repo.invoke_at(other, "check-scope", "--hook", stdin=payload)
     assert result.code == 2
     assert "protected path" in result.err
+
+
+def test_hook_fails_closed_on_corrupt_state(repo) -> None:
+    _activate(repo)
+    (repo.root / "harness/state/active.json").write_text("{not json")
+    result = repo.invoke("check-scope", "--hook", stdin=_payload(repo, "Edit", "src/pkg/mod.py"))
+    assert result.code == 2
+    assert "check-scope error" in result.err

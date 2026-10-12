@@ -129,8 +129,11 @@ def _resolve_for_hook(repo_root: Path) -> tuple[mf.Manifest, dict[str, Any] | No
 
 def cmd_check_scope(args: argparse.Namespace) -> int:
     if args.hook:
-        payload = json.load(args.stdin)
-        code, reason = scope.hook_decision(payload, _resolve_for_hook)
+        try:
+            payload = json.load(args.stdin)
+            code, reason = scope.hook_decision(payload, _resolve_for_hook)
+        except Exception as exc:  # fail closed: a broken check must not let an edit through
+            code, reason = 2, f"check-scope error: {exc}"
         if code:
             print(reason, file=sys.stderr)
         return code
@@ -209,7 +212,7 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
         try:
             payload = json.load(args.stdin)
             if not args.repo and payload.get("cwd"):
-                args.repo = Path(payload["cwd"])
+                args.repo = state.find_repo_root(Path(payload["cwd"]))
             _append_checkpoint(args, str(payload.get("session_id") or "hook"))
         except Exception as exc:  # a compaction hook must never block
             print(f"checkpoint skipped: {exc}", file=sys.stderr)
@@ -227,7 +230,10 @@ def _phase_of_task(paths: state.Paths, task_id: str) -> str | None:
 def cmd_handoff(args: argparse.Namespace) -> int:
     root, paths, _m = _context(args)
     active = state.load_active(paths) or {}
-    phase = str(active.get("phase") or _phase_of_task(paths, args.task_id) or "")
+    if active.get("task") == args.task_id:
+        phase = str(active.get("phase") or "")
+    else:
+        phase = str(_phase_of_task(paths, args.task_id) or active.get("phase") or "")
     found = closecheck.handoff_problems(paths, root, phase, args.task_id)
     for problem in found:
         print(problem)
@@ -244,7 +250,7 @@ def cmd_close_check(args: argparse.Namespace) -> int:
         if not unattended or payload.get("stop_hook_active"):
             return 0
         if not args.repo and payload.get("cwd"):
-            args.repo = Path(payload["cwd"])
+            args.repo = state.find_repo_root(Path(payload["cwd"]))
         root, paths, m = _context(args)
         found = closecheck.problems(paths, m, root, session=str(payload.get("session_id") or ""))
         if found:

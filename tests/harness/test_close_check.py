@@ -132,3 +132,65 @@ def test_close_check_hook_is_inert_unless_unattended(repo, monkeypatch) -> None:
     assert "working tree is not clean" in result.err
     looping = json.dumps({"session_id": "s1", "stop_hook_active": True, "cwd": str(repo.root)})
     assert repo.invoke("close-check", "--hook", stdin=looping).code == 0
+
+
+def test_close_check_rejects_failed_gate_evidence(repo) -> None:
+    _start(repo)
+    manifest = repo.root / "harness/context.toml"
+    manifest.write_text(
+        manifest.read_text().replace(
+            "quick = [\"echo '3 passed, 1 skipped'\"]", 'quick = ["false"]'
+        )
+    )
+    repo.commit("failing gate")
+    assert repo.invoke("gate", "quick").code == 1
+    (path,) = (repo.root / "evidence/gates/1c.1").glob("*.json")
+    evidence = str(path.relative_to(repo.root))
+    _bookkeeping(repo, evidence)
+    result = repo.invoke("close-check")
+    assert result.code == 1
+    assert "failed gate" in result.out
+
+
+def test_close_check_rejects_evidence_recorded_for_another_task(repo) -> None:
+    _start(repo)
+    evidence = _evidence_path(repo)
+    path = repo.root / evidence
+    doc = json.loads(path.read_text())
+    doc["task"] = "other"
+    path.write_text(json.dumps(doc) + "\n")
+    _bookkeeping(repo, evidence)
+    result = repo.invoke("close-check")
+    assert result.code == 1
+    assert "recorded for task other" in result.out
+
+
+def test_handoff_command_finds_task_in_another_phase(repo) -> None:
+    _start(repo)
+    repo.write("harness/state/1/handoffs/1c.1.json", json.dumps(HANDOFF) + "\n")
+    features2 = {
+        "phase": "2",
+        "entries": [
+            {"id": "F-9", "category": "x", "description": "d", "steps": ["s"], "passes": False}
+        ],
+    }
+    repo.write("harness/state/2/features.json", json.dumps(features2) + "\n")
+    assert (
+        repo.invoke(
+            "new-task", "2", "2a.1", "--feature", "F-9", "--paths", "src/**", "--replace"
+        ).code
+        == 0
+    )
+    assert repo.invoke("handoff", "1c.1").code == 0
+
+
+def test_close_check_hook_finds_repository_from_subdirectory(repo, monkeypatch) -> None:
+    _start(repo)
+    repo.write("src/pkg/new.py", "Y = 2\n")
+    monkeypatch.setenv("E_AGENT_HARNESS_UNATTENDED", "1")
+    payload = json.dumps(
+        {"session_id": "s1", "stop_hook_active": False, "cwd": str(repo.root / "src")}
+    )
+    result = repo.invoke_raw("close-check", "--hook", stdin=payload)
+    assert result.code == 2
+    assert "working tree is not clean" in result.err

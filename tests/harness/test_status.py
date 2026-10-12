@@ -61,3 +61,20 @@ def test_next_action_order(repo) -> None:
     assert status.next_action(status.collect(paths, m, repo.root)).startswith("new-task")
     assert repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**").code == 0
     assert status.next_action(status.collect(paths, m, repo.root)).startswith("commit the work")
+
+
+def test_status_ignores_failed_gate_evidence_for_next_action(repo) -> None:
+    manifest = repo.root / "harness/context.toml"
+    manifest.write_text(
+        manifest.read_text().replace(
+            "quick = [\"echo '3 passed, 1 skipped'\"]", 'quick = ["false"]'
+        )
+    )
+    repo.commit("failing gate")  # before the task starts, so the digest stays current
+    assert repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**").code == 0
+    repo.commit("contract")
+    assert repo.invoke("gate", "quick").code == 1
+    paths = state.Paths(repo.root)
+    m = mf.load_manifest(paths.manifest)
+    action = status.next_action(status.collect(paths, m, repo.root))
+    assert action.startswith("run e-agent-harness gate"), action

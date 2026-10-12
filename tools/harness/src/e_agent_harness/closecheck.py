@@ -15,7 +15,13 @@ def _is_bookkeeping(path: str) -> bool:
     return any(path_matches(path, pattern) for pattern in BOOKKEEPING)
 
 
-def evidence_ties_to_head(repo_root: Path, evidence: dict[str, Any]) -> str | None:
+def evidence_ties_to_head(
+    repo_root: Path, evidence: dict[str, Any], task_id: str | None = None
+) -> str | None:
+    if task_id is not None and evidence.get("task") != task_id:
+        return f"evidence recorded for task {evidence.get('task')}, not {task_id}"
+    if not evidence.get("ok"):
+        return "evidence is from a failed gate; fix the failure and run the gate again"
     if not evidence.get("clean_tree"):
         return "evidence was recorded on a dirty tree; commit first, then run the gate again"
     commit = str(evidence.get("commit", ""))
@@ -84,7 +90,7 @@ def problems(
         if not evidence_file.is_file():
             found.append(f"feature {fid}: evidence missing: {ref}")
             continue
-        reason = evidence_ties_to_head(repo_root, state.read_json(evidence_file))
+        reason = evidence_ties_to_head(repo_root, state.read_json(evidence_file), task_id)
         if reason:
             found.append(f"feature {fid}: {reason}")
     found.extend(handoff_problems(paths, repo_root, phase, task_id))

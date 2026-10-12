@@ -41,7 +41,9 @@ def is_clean(root: Path) -> bool:
 
 
 def diff_names(root: Path, base: str, head: str = "HEAD") -> list[str]:
-    out = git(root, "diff", "--name-only", f"{base}..{head}")
+    """Paths changed on ``head`` since its merge base with ``base`` (three-dot diff),
+    so upstream commits merged into a task branch are not attributed to the task."""
+    out = git(root, "diff", "--name-only", f"{base}...{head}")
     return sorted(line for line in out.splitlines() if line)
 
 

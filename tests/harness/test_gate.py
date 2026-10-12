@@ -105,3 +105,26 @@ def test_output_tail_is_capped(repo) -> None:
     doc = json.loads(_evidence_files(repo.root, "no-task")[0].read_text())
     assert doc["commands"][0]["output_tail"].splitlines()[-1] == "500"
     assert len(doc["commands"][0]["output_tail"].splitlines()) <= gate.TAIL_LINES
+
+
+def test_redact_covers_bearer_json_and_cli_flags() -> None:
+    samples = {
+        "Authorization: Bearer sk-live-TOK1": "sk-live-TOK1",
+        '{"password": "hunter2-J"}': "hunter2-J",
+        "--password hunter2-F": "hunter2-F",
+        "--api-key=sk-live-TOK2": "sk-live-TOK2",
+        "export TOKEN=sk-live-TOK3": "sk-live-TOK3",
+    }
+    for text, secret in samples.items():
+        redacted = gate.redact(text)
+        assert secret not in redacted, (text, redacted)
+        assert "[REDACTED]" in redacted
+
+
+def test_gate_timeout_kills_the_whole_process_group(repo) -> None:
+    import subprocess
+
+    _set_gate(repo, 'pg = ["echo pg ok"]', 'pg = ["sleep 31.7"]')
+    assert repo.invoke("gate", "pg", "--timeout", "1").code == 1
+    leftover = subprocess.run(["pgrep", "-f", "sleep 31.7"], capture_output=True, text=True)
+    assert leftover.returncode != 0, f"orphaned: {leftover.stdout}"

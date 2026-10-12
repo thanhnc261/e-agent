@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from e_agent_harness import gitinfo, progress, state
+from e_agent_harness import closecheck, gitinfo, progress, state
 from e_agent_harness.digest import is_stale
 from e_agent_harness.manifest import Manifest, validate_manifest
 
@@ -55,7 +55,10 @@ def collect(paths: state.Paths, m: Manifest, repo_root: Path) -> StatusData:
         data.gate_set = str(contract["gate_set"])
         data.acceptance = list(contract["acceptance"])
         data.stale = is_stale(str(contract["context_digest"]), repo_root, m)
-        data.has_evidence = any(paths.evidence(data.task_id or "").glob("*.json"))
+        data.has_evidence = any(
+            closecheck.evidence_ties_to_head(repo_root, state.read_json(f), data.task_id) is None
+            for f in paths.evidence(data.task_id or "").glob("*.json")
+        )
     if paths.progress.is_file():
         entries = progress.parse_progress(paths.progress.read_text(encoding="utf-8"))
         data.entries = entries[-ENTRIES_SHOWN:]

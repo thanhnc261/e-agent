@@ -35,6 +35,8 @@ def materialise(
     if unknown:
         raise ValueError(f"unknown feature id(s): {', '.join(unknown)}")
     steps = list(acceptance) or [step for f in feature_ids for step in entries[f]["steps"]]
+    task_path = paths.task(phase, task_id)
+    previous: dict[str, Any] = state.read_json(task_path) if task_path.is_file() else {}
     contract: dict[str, Any] = {
         "id": task_id,
         "phase": phase,
@@ -44,12 +46,14 @@ def materialise(
         "allowed_paths": [*allowed_paths, *IMPLICIT_PATHS, m.authoritative.active_plan],
         "acceptance": steps,
         "gate_set": gate_set,
-        "base_commit": gitinfo.head_sha(repo_root),
-        "created_at": now.isoformat(timespec="seconds"),
+        # Re-materialising the same task keeps its base and birth: the scope check
+        # must still see every commit made since the task started.
+        "base_commit": previous.get("base_commit") or gitinfo.head_sha(repo_root),
+        "created_at": previous.get("created_at") or now.isoformat(timespec="seconds"),
     }
     problems = contracts.validate("task", contract)
     if problems:
         raise ValueError("task contract invalid: " + "; ".join(problems))
-    state.write_json(paths.task(phase, task_id), contract)
+    state.write_json(task_path, contract)
     state.save_active(paths, phase, task_id)
     return contract

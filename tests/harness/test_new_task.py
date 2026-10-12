@@ -54,3 +54,20 @@ def test_new_task_uses_explicit_acceptance_when_given(repo) -> None:
     assert result.code == 0
     contract = json.loads((repo.root / "harness/state/1/tasks/1c.1.json").read_text())
     assert contract["acceptance"] == ["pytest -q src passes", "openapi unchanged"]
+
+
+def test_replace_keeps_base_commit_and_created_at_for_the_same_task(repo) -> None:
+    assert repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**").code == 0
+    first = json.loads((repo.root / "harness/state/1/tasks/1c.1.json").read_text())
+    repo.write("docs/other.md", "out of scope\n")
+    repo.commit("drift")
+    assert (
+        repo.invoke(
+            "new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**", "--replace"
+        ).code
+        == 0
+    )
+    again = json.loads((repo.root / "harness/state/1/tasks/1c.1.json").read_text())
+    assert again["base_commit"] == first["base_commit"] == repo.base
+    assert again["created_at"] == first["created_at"]
+    assert repo.invoke("check-scope").code == 1  # the drift is still visible
