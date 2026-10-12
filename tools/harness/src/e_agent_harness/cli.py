@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TextIO
 
-from e_agent_harness import closecheck, gate, gitinfo, progress, scope, state, tasks
+from e_agent_harness import closecheck, gate, gitinfo, progress, scope, state, status, tasks
 from e_agent_harness import manifest as mf
 
 
@@ -68,6 +68,8 @@ def _parser() -> argparse.ArgumentParser:
     cc.add_argument(
         "--hook", action="store_true", help="Stop mode: inert unless E_AGENT_HARNESS_UNATTENDED=1"
     )
+    st = sub.add_parser("status", help="the session brief: state, boundaries, one next action")
+    st.add_argument("--format", dest="fmt", choices=["text", "hook"], default="text")
     return parser
 
 
@@ -259,6 +261,16 @@ def cmd_close_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_status(args: argparse.Namespace) -> int:
+    root, paths, m = _context(args)
+    data = status.collect(paths, m, root)
+    if args.fmt == "hook":
+        print(status.render_hook(data, m.status.token_budget))
+    else:
+        print(status.render_text(data, m.status.language_order))
+    return 0
+
+
 COMMANDS = {
     "validate-context": cmd_validate_context,
     "new-task": cmd_new_task,
@@ -268,6 +280,7 @@ COMMANDS = {
     "checkpoint": cmd_checkpoint,
     "handoff": cmd_handoff,
     "close-check": cmd_close_check,
+    "status": cmd_status,
 }
 
 
