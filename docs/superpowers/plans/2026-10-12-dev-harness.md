@@ -153,6 +153,12 @@ This is the local dev loop every task follows, attended or not. The `eng-session
 | `handoff <task>` | Validates the handoff document against its schema and checks that every evidence ref it cites exists. |
 | `status [--format text\|hook]` | Prints the human status contract (Vietnamese ELI5 first if chosen in H0). `--format hook` emits the SessionStart `additionalContext` JSON with a `sessionTitle`, within the manifest's token budget, written as facts rather than imperatives. |
 
+**Done 2026-10-13** (branch `harness/h2-cli`, [plan](2026-10-13-harness-h2-cli.md), [handoff](../../handoffs/2026-10-13-harness-h2.md)). Rulings recorded there:
+- `live-check` runs the manifest's `live` gate set (identity, environment) with redaction and writes under `evidence/live/`; the configured live flows wait for the H5 pilot, which has the live profile.
+- Close-ritual order: commit the code, run `gate` on the clean tree, then checkpoint, handoff and a bookkeeping commit. `close-check` accepts evidence from an ancestor commit only when every later change is bookkeeping (`harness/state/**`, `docs/handoffs/**`, `evidence/**`).
+- A contract's `allowed_paths` always include `harness/state/**`, `docs/handoffs/**` and the active plan, written into the contract so nothing is implicit.
+- "Plan updated if acceptance changed" is not checked by code: re-materialising with `--replace` makes the change visible in git.
+
 **Exit:**
 - Each command has unit tests.
 - `check-scope` rejects a planted out-of-scope change, both as a command and as a hook.

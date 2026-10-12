@@ -128,6 +128,9 @@ uv run lint-imports                       # architecture dependency gates
 uv run pytest -q
 uv run python scripts/check_wheels.py     # each wheel installs/runs outside the repo
 uv run pytest -q tests/conformance/test_harness_context.py  # dev-harness manifest and contract samples
+uv run e-agent-harness status                 # dev-harness brief: state, boundaries, one next action
+uv run e-agent-harness validate-context       # manifest vs checkout
+uv run e-agent-harness gate quick --package packages/kernel   # evidence under evidence/gates/
 
 # HTTP API + web UI (loopback only; Node 22.12+/24 and pnpm 10 for ui/)
 (cd ui && pnpm install && pnpm build)
