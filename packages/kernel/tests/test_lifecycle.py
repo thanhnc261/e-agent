@@ -453,3 +453,38 @@ async def test_terminal_run_rejects_further_transitions(make_kernel: MakeKernel)
         await k.coordinator._set_run_state(run, RunState.RUNNING, "must not happen")
     assert err.value.code is ErrorCode.CONFLICT
     assert (await k.coordinator.get_run(TENANT, run.run_id)).state is RunState.SUCCEEDED
+
+
+async def test_requester_with_approver_role_cannot_approve_own_run(make_kernel: MakeKernel) -> None:
+    k = make_kernel()
+    carol = principal("carol", {"requester", "approver"})
+    run = await k.coordinator.start_run(carol, "write standup note", k.scope)
+    assert run.state is RunState.WAITING_APPROVAL
+    pres = await k.coordinator.pending_approval(TENANT, run.run_id)
+    with pytest.raises(KernelError) as err:
+        await k.coordinator.decide(
+            actor=carol,
+            run_id=run.run_id,
+            action_id=pres.action_id,
+            action_digest=pres.digest,
+            expected_run_revision=pres.run_revision,
+            decision=ApprovalDecision.APPROVED,
+        )
+    assert err.value.code is ErrorCode.FORBIDDEN
+    assert (await k.coordinator.get_run(TENANT, run.run_id)).state is RunState.WAITING_APPROVAL
+
+
+async def test_profile_may_allow_self_approval_for_local_demo(make_kernel: MakeKernel) -> None:
+    k = make_kernel(allow_self_approval=True)
+    carol = principal("carol", {"requester", "approver"})
+    run = await k.coordinator.start_run(carol, "write standup note", k.scope)
+    pres = await k.coordinator.pending_approval(TENANT, run.run_id)
+    run = await k.coordinator.decide(
+        actor=carol,
+        run_id=run.run_id,
+        action_id=pres.action_id,
+        action_digest=pres.digest,
+        expected_run_revision=pres.run_revision,
+        decision=ApprovalDecision.APPROVED,
+    )
+    assert run.state is RunState.SUCCEEDED

@@ -456,3 +456,8 @@ def test_task_catalog_reports_real_availability(client: TestClient) -> None:
             }
         # A template never hands the client a binding or a connection to choose.
         assert "connection_id" not in template and "binding_id" not in template
+
+
+def test_ready_reports_whether_self_approval_is_allowed(client: TestClient) -> None:
+    body = client.get("/health/ready").json()
+    assert body["self_approval_allowed"] is True  # fixture profile: one local operator

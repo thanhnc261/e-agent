@@ -242,6 +242,7 @@ async def build_runtime(
         connections=catalog,
         policy=DefaultPolicy(),
         driver=driver,
+        allow_self_approval=profile.operator.allow_self_approval,
         budgets=profile.budgets,
         credentials=credentials,
     )

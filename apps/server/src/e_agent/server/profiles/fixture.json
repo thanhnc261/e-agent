@@ -8,7 +8,8 @@
       "requester",
       "approver"
     ],
-    "display_name": "Local operator (demo mode)"
+    "display_name": "Local operator (demo mode)",
+    "allow_self_approval": true
   },
   "enabled_plugins": {
     "domain-erp": {

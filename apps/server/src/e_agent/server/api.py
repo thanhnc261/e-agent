@@ -429,6 +429,7 @@ def create_app(
             "environment": rt.profile.environment,
             "plugins": rt.registry.report.admitted,
             "store": rt.profile.store.kind,
+            "self_approval_allowed": rt.profile.operator.allow_self_approval,
         }
 
     # -- local session (loopback only, never production auth) ---------------

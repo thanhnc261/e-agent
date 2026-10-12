@@ -171,7 +171,11 @@ def _profile(
             "environment": "live",
             "store": {"kind": "postgres", "dsn_env": "E_AGENT_TEST_LIVE_PG_DSN"},
             "tenant_id": "tenant-live",
-            "operator": {"principal_id": "op", "roles": ["requester", "approver"]},
+            "operator": {
+                "principal_id": "op",
+                "roles": ["requester", "approver"],
+                "allow_self_approval": True,
+            },
             "enabled_plugins": {
                 "domain-erp": {"version": "0.1.0", "artifact_sha256": pins["domain-erp"]},
                 "odoo19": {

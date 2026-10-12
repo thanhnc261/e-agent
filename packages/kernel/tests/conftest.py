@@ -282,6 +282,7 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
         budgets: Budgets | None = None,
         connections: list[ConnectionDescriptor] | None = None,
         binding_connections: dict[str, tuple[str, ...]] | None = None,
+        allow_self_approval: bool = False,
     ) -> Kernel:
         backend, validator, verifier = NotesBackend(), NotesValidator(), NotesVerifier()
         driver = NotesDriver(texts=list(texts or ["standup notes"]))
@@ -320,6 +321,7 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
             driver=driver,
             clock=clock,
             budgets=budgets,
+            allow_self_approval=allow_self_approval,
         )
         return Kernel(
             coordinator,

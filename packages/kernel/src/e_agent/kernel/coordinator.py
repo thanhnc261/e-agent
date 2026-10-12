@@ -122,6 +122,7 @@ class RunCoordinator:
         driver: AgentDriver,
         clock: Callable[[], datetime] = utc_now,
         approval_ttl: timedelta = DEFAULT_APPROVAL_TTL,
+        allow_self_approval: bool = False,
         budgets: Budgets | None = None,
         credentials: CredentialVersionProvider | None = None,
     ) -> None:
@@ -133,6 +134,7 @@ class RunCoordinator:
         self._driver = driver
         self._clock = clock
         self._approval_ttl = approval_ttl
+        self._allow_self_approval = allow_self_approval
         self._budgets = budgets or Budgets()
         self._runs: dict[str, _Continuation] = {}
         self._active_calls: dict[str, asyncio.Task[Any]] = {}
@@ -980,6 +982,8 @@ class RunCoordinator:
         run = await self._store.get_run(actor.tenant_id, run_id)
         if APPROVER_ROLE not in actor.roles:
             raise KernelError(ErrorCode.FORBIDDEN, "actor is not an approver")
+        if actor.principal_id == run.requester_id and not self._allow_self_approval:
+            raise KernelError(ErrorCode.FORBIDDEN, "the requester cannot approve their own run")
         if run.revision != expected_run_revision:
             raise KernelError(ErrorCode.CONFLICT, "run changed; reload before deciding")
         cont = await self._load_cont(run.tenant_id, run_id)

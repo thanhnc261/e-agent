@@ -17,6 +17,8 @@ class OperatorConfig(Record):
     principal_id: str
     roles: frozenset[str]
     display_name: str | None = None
+    allow_self_approval: bool = False
+    """Local demo only: one operator holds requester and approver (HLD §3, ADR 0019)."""
 
 
 class EnabledPluginConfig(Record):
