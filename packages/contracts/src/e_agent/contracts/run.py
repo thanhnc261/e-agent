@@ -23,8 +23,8 @@ TERMINAL_RUN_STATES = frozenset({RunState.SUCCEEDED, RunState.FAILED, RunState.C
 
 # Allowed run transitions (ADR 0018). Self-transitions carry a new reason or repair;
 # terminal states are final. Every pair was either observed in the kernel, server and
-# conformance suites on both stores or is named below by the coordinator call site or
-# crash-recovery rule (MVP design §9) that reaches it; there are no other pairs.
+# conformance suites or is reachable from a coordinator call site or crash-recovery rule
+# (MVP design §9) named in its comment. Pairs no code path reaches are deliberately absent.
 ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
     RunState.CREATED: frozenset(
         {
@@ -46,6 +46,9 @@ ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
     RunState.WAITING_INPUT: frozenset(
         {
             RunState.RUNNING,  # accept_input
+            # recovery: _recover_run VERIFICATION_FAILED rule does not exclude waiting states
+            # (an answer failed verification with repairs left, then the driver asked a question)
+            RunState.FAILED,
             RunState.CANCELLED,
         }
     ),

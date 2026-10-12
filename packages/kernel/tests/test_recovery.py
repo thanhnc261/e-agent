@@ -178,3 +178,46 @@ async def test_verified_earlier_answer_cannot_hide_unknown_write(make_kernel: Ma
     recovered = await restart(k).recover_run(TENANT, run.run_id)
     assert recovered.state is RunState.NEEDS_RECONCILIATION
     assert k.backend.create_calls == 1
+
+
+class _AskDriver:
+    driver_id = "ask-driver"
+
+    async def advance(self, ctx: Any, step_input: Any) -> Any:
+        from e_agent.sdk.ports import AskClarification
+
+        return AskClarification(question="which note?")
+
+
+async def test_waiting_input_run_with_failed_answer_verification_recovers_to_failed(
+    make_kernel: MakeKernel,
+) -> None:
+    """`_recover_run` fails a run whose latest action is VERIFICATION_FAILED even while the
+    run waits for input (an answer failed verification with repairs left, then the driver
+    asked a question). That WAITING_INPUT->FAILED pair must stay in the transition table,
+    otherwise one such run raises CONFLICT and aborts startup recovery."""
+    from e_agent.contracts.common import new_id
+    from e_agent.contracts.events import RunEventType
+
+    k = make_kernel()
+    template_run = await k.coordinator.start_run(k.requester, "x", k.scope)
+    [template] = await k.store.list_actions(TENANT, template_run.run_id)
+    k.coordinator._driver = _AskDriver()  # type: ignore[assignment]
+    run = await k.coordinator.start_run(k.requester, "y", k.scope)
+    assert run.state is RunState.WAITING_INPUT
+    failed_answer = template.model_copy(
+        update={
+            "action_id": new_id("act"),
+            "run_id": run.run_id,
+            "state": ActionState.VERIFICATION_FAILED,
+            "revision": 1,
+        }
+    )
+    await k.store.put_action(
+        failed_answer,
+        None,
+        [(RunEventType.PROPOSAL_CREATED, {}, failed_answer.action_id)],
+    )
+    recovered = await restart(k).recover_run(TENANT, run.run_id)
+    assert recovered.state is RunState.FAILED
+    assert recovered.reason == "outcome verification failed"
