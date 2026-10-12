@@ -90,6 +90,7 @@ function applyEvent(view: RunView, event: RunEvent): RunView {
     const state = payload["to"] ?? payload["state"];
     if (typeof state !== "string" || !RUN_STATES.has(state)) return { ...next, needsSnapshot: true };
     next.run = { ...next.run, state: state as RunRecord["state"] };
+    if (state === "WAITING_INPUT") next.streamingText = ""; // the state change commits after input.requested
   }
   if (type === "message.final" && typeof payload["text"] === "string") {
     next.finalMessage = payload["text"];

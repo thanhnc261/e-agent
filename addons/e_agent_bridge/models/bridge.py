@@ -144,7 +144,7 @@ class EAgentBridge(models.AbstractModel):
                 {
                     "demand_ref": _ref(d),
                     "product_ref": _ref(d.product_id),
-                    "product_name": d.product_id.display_name,
+                    "product_name": d.product_id.name,
                     "quantity": d.quantity,
                     "unit": d.product_id.uom_id.name,
                     "requested_date": fields.Date.to_string(d.requested_date),

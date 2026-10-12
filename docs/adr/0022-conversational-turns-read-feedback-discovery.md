@@ -25,6 +25,12 @@ outcome other than a verification failure.
 - The domain pack adds `procurement.open-demands.read.v1` so the model discovers demand and
   product references instead of guessing them.
 
+## Alternatives considered
+
+- Fail the run on a rejected read (status quo): rejected. A guessable mistake kills the task and hides the cause; feedback within the read budget lets the model correct itself while still bounding retries.
+- A dedicated reply tool the model must call for small talk: rejected for now. Local models call it unreliably and it adds a tool to every turn; inferring "reply" from a run with no reads, read attempts or proposals (plus a ledger check) is deterministic and cannot let a business claim through.
+- Relax exact references (fuzzy matching of names to records in the bridge): rejected. It moves ambiguity resolution into the provider and weakens the exact-reference invariant; a listing capability keeps references exact and auditable.
+
 ## Consequences
 
 A conversational reply is not verified and claims nothing; the UI labels it as a reply. A run

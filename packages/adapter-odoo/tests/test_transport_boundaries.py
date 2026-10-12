@@ -210,6 +210,7 @@ async def test_open_demands_read_copies_refs_exactly_and_passes_the_namespace():
                         "quantity": 12.0,
                         "unit": "Units",
                         "requested_date": "2026-10-20",
+                        "secret_note": "x",
                     }
                 ],
                 "complete": True,
@@ -237,6 +238,14 @@ async def test_open_demands_read_copies_refs_exactly_and_passes_the_namespace():
         ReadRequest("r", OPEN_DEMANDS_READ, "connection", {}),
     )
     [row] = obs.data["demands"]
+    assert set(row) == {
+        "demand_ref",
+        "product_ref",
+        "product_name",
+        "quantity",
+        "unit",
+        "requested_date",
+    }
     assert row["quantity"] == "12"
     assert row["demand_ref"] == "odoo/e_agent.demand/1"
     assert row["product_ref"] == "odoo/product.product/201"

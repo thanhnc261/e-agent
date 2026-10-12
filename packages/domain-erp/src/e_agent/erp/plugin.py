@@ -69,7 +69,7 @@ INPUT_SCHEMAS = {
 GUIDANCE = (
     "Procurement: if the user names no demand reference, list open demands first "
     "and copy the exact demand_ref and product_ref from that result. "
-    "Read the demand, current stock and supplier offers first. "
+    "Then read the demand, current stock and supplier offers. "
     "The quantity to order is demand minus available minus inbound stock (never negative). "
     "Copy complete resource references from read results, including their prefixes. "
     "For a request to create an order, use the purchase order proposal tool after reading. "

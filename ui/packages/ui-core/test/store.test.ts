@@ -78,3 +78,11 @@ it("correlates verified result fields and committed references with the same act
   view = reduceRunView(view, { type: "events", events: [ev(2, "outcome.reported", { action_id: "a", status: "VERIFIED" }), ev(3, "action.receipt_recorded", { action_id: "a", status: "COMMITTED", external_refs: ["record:1"] })] });
   expect(selectVerifiedResults(view)).toEqual([{ actionId: "a", fields: { quantity: "7" }, externalRefs: ["record:1"] }]);
 });
+
+it("clears streaming text when the run moves to WAITING_INPUT (state change commits after input.requested)", () => {
+  let v = reduceRunView(emptyRunView, { type: "snapshot", snapshot: snapshot("RUNNING", null) });
+  v = reduceRunView(v, { type: "text", frame: { message_id: "message-1", stream_id: "text-1", offset: 1, text: "Which demand?", reset: true } });
+  expect(v.streamingText).toBe("Which demand?");
+  v = reduceRunView(v, { type: "events", events: [ev(1, "run.state_changed", { to: "WAITING_INPUT" })] });
+  expect(v.streamingText).toBe("");
+});

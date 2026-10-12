@@ -155,7 +155,9 @@ class PublicTextBus:
 
         Offsets keep counting so a connected client never sees a rewind."""
         key = (tenant_id, run_id)
-        frames = self.frames.get(key)
+        if key not in self.frames:
+            return
+        frames = self.frames[key]
         if frames:
             self.last_offsets[key] = frames[-1].offset
         self.frames[key] = []

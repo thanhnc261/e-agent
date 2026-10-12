@@ -236,7 +236,17 @@ class OdooExecutor:
         if contract_id == OPEN_DEMANDS_READ:
             raw = await self._call(ctx, cid, "read_open_demands", namespace=self._namespace)
             data = {
-                "demands": [{**d, "quantity": dec(d["quantity"])} for d in raw["demands"]],
+                "demands": [
+                    {
+                        "demand_ref": d["demand_ref"],
+                        "product_ref": d["product_ref"],
+                        "product_name": d["product_name"],
+                        "quantity": dec(d["quantity"]),
+                        "unit": d["unit"],
+                        "requested_date": d["requested_date"],
+                    }
+                    for d in raw["demands"]
+                ],
                 "complete": raw["complete"],
             }
             return data, self._evidence(ctx, "e_agent.demand", "open", None, raw["complete"])

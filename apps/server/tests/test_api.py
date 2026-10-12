@@ -708,3 +708,11 @@ async def test_waiting_input_run_has_no_buffered_text_to_restore() -> None:
     await bus.emit(Ctx(), "next", new_message=True)  # type: ignore[arg-type]
     frame = bus.snapshot("t", "r")
     assert frame is not None and frame.text == "next" and frame.offset == 2
+
+
+async def test_discard_on_unknown_key_does_not_grow_the_buffers() -> None:
+    from e_agent.server.api import PublicTextBus
+
+    bus = PublicTextBus()
+    bus.discard("t", "never-streamed")
+    assert len(bus.frames) == 0
