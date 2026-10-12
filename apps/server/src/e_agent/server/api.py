@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import secrets
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -48,6 +49,8 @@ from .bootstrap import Runtime
 
 SESSION_COOKIE = "e_agent_session"
 LOOPBACK = {"127.0.0.1", "::1", "localhost", "testclient"}
+APPROVAL_SWEEP_SECONDS = 30
+LOG = logging.getLogger(__name__)
 STATUS = {
     ErrorCode.INVALID_REQUEST: 400,
     ErrorCode.FORBIDDEN: 404,  # never reveal existence across scope
@@ -215,6 +218,14 @@ class ApiState:
                 continue
             await self._run_work(claim)
 
+    async def sweeper(self) -> None:
+        while True:
+            await asyncio.sleep(APPROVAL_SWEEP_SECONDS)
+            try:
+                await self.runtime.coordinator.sweep_expired_approvals()
+            except Exception as exc:  # the next tick retries; sweeping never fails the server
+                LOG.warning("approval sweep failed (%s); retrying next tick", type(exc).__name__)
+
     async def _run_work(self, claim: WorkClaim) -> None:
         rt = self.runtime
         current = asyncio.current_task()
@@ -266,6 +277,9 @@ class ApiState:
                     actor_label = f"principal:{run.requester_id}"
                 else:
                     actor_label = f"system:worker:{claim.owner}"
+                if claim.kind == "expire":
+                    # expire_approval re-checks state, pending action and TTL, so replay is safe.
+                    untouched = True
                 if claim.fence > 1 and not untouched:
                     with actor_scope(f"system:worker:{claim.owner}"):
                         await rt.coordinator.recover_run(claim.tenant_id, claim.run_id)
@@ -275,6 +289,10 @@ class ApiState:
                             await rt.coordinator.start_admitted_run(claim.tenant_id, claim.run_id)
                         elif claim.kind == "input":
                             await rt.coordinator.continue_input(claim.tenant_id, claim.run_id)
+                        elif claim.kind == "expire":
+                            await rt.coordinator.expire_approval(
+                                claim.tenant_id, claim.run_id, claim.payload["action_id"]
+                            )
                         else:
                             payload = claim.payload
                             await rt.coordinator.decide(
@@ -380,6 +398,8 @@ def create_app(
         holder["state"] = ApiState(runtime)
         worker = asyncio.create_task(holder["state"].worker())
         holder["state"].tasks.add(worker)
+        sweeper = asyncio.create_task(holder["state"].sweeper())
+        holder["state"].tasks.add(sweeper)
         yield
         state = holder["state"]
         state.stopping = True

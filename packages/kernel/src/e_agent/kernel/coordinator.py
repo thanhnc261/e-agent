@@ -288,17 +288,29 @@ class RunCoordinator:
             continuation=self._snapshot(run.run_id),
         )
 
-    async def _load_cont(self, tenant_id: str, run_id: str) -> _Continuation:
-        cont = self._runs.get(run_id)
-        if cont is not None:
-            return cont
+    async def _read_cont(
+        self, tenant_id: str, run_id: str
+    ) -> tuple[_Continuation, dict[str, Any] | None]:
         stored = await self._store.load_continuation(tenant_id, run_id)
         if stored is None:
             raise KernelError(ErrorCode.NOT_FOUND, "run has no continuation")
         state, driver_state = stored
         if state.get("schema") != CONTINUATION_SCHEMA:
             raise KernelError(ErrorCode.CONFLICT, "unsupported continuation schema")
-        cont = _Continuation.model_validate(state["data"])
+        return _Continuation.model_validate(state["data"]), driver_state
+
+    async def _peek_cont(self, tenant_id: str, run_id: str) -> _Continuation:
+        """Read a continuation without caching it or restoring driver state (sweeper)."""
+        cont = self._runs.get(run_id)
+        if cont is not None:
+            return cont
+        return (await self._read_cont(tenant_id, run_id))[0]
+
+    async def _load_cont(self, tenant_id: str, run_id: str) -> _Continuation:
+        cont = self._runs.get(run_id)
+        if cont is not None:
+            return cont
+        cont, driver_state = await self._read_cont(tenant_id, run_id)
         restore = getattr(self._driver, "restore", None)
         if driver_state is not None and restore is not None:
             restore(run_id, driver_state)
@@ -1012,6 +1024,67 @@ class RunCoordinator:
             expires_at=cont.approval_requested_at + self._approval_ttl,
         )
 
+    async def _expire_pending(self, cont: _Continuation, action: ActionRecord) -> RunRecord:
+        """Expiry outcome of a pending approval, shared by decide and the sweeper (ADR 0019).
+
+        The continuation is persisted by `_set_run_state` together with the run update.
+        """
+        if action.state is not ActionState.BLOCKED:  # BLOCKED: resuming an interrupted expiry
+            await self._transition(
+                action,
+                ActionState.BLOCKED,
+                (RunEventType.APPROVAL_DECIDED, {"decision": "expired"}),
+            )
+        cont.pending_action_id = None
+        run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
+        return await self._set_run_state(
+            run, RunState.FAILED, "approval expired", code=ReasonCode.APPROVAL_EXPIRED
+        )
+
+    async def sweep_expired_approvals(self) -> int:
+        """Enqueue fenced `expire` work for every approval past its TTL.
+
+        Never mutates run, action or continuation state: the worker applies the expiry
+        under a work claim (ADR 0019).
+        """
+        now = self._clock()
+        queued = 0
+        for run in await self._store.list_unfinished_runs():
+            if run.state is not RunState.WAITING_APPROVAL:
+                continue
+            if await self._store.has_pending_work(run.tenant_id, run.run_id):
+                continue  # a decision or an earlier sweep is already queued or running
+            try:
+                cont = await self._peek_cont(run.tenant_id, run.run_id)
+            except KernelError:
+                continue
+            if cont.pending_action_id is None or cont.approval_requested_at is None:
+                continue
+            if now <= cont.approval_requested_at + self._approval_ttl:
+                continue
+            payload = {
+                "action_id": cont.pending_action_id,
+                "requested_at": cont.approval_requested_at.isoformat(),
+            }
+            await self._store.enqueue_work(
+                run.tenant_id, run.run_id, "expire", payload, digest(payload)
+            )
+            queued += 1
+        return queued
+
+    async def expire_approval(self, tenant_id: str, run_id: str, action_id: str) -> RunRecord:
+        """Executed under a work claim: re-check everything, then apply the expiry outcome."""
+        run = await self._store.get_run(tenant_id, run_id)
+        if run.state is not RunState.WAITING_APPROVAL:
+            return run
+        cont = await self._load_cont(tenant_id, run_id)
+        if cont.pending_action_id != action_id or cont.approval_requested_at is None:
+            return run
+        if self._clock() <= cont.approval_requested_at + self._approval_ttl:
+            return run
+        action = await self._store.get_action(tenant_id, action_id)
+        return await self._expire_pending(cont, action)
+
     async def decide(
         self,
         *,
@@ -1051,16 +1124,7 @@ class RunCoordinator:
         now = self._clock()
         assert cont.approval_requested_at is not None
         if now > cont.approval_requested_at + self._approval_ttl:
-            await self._transition(
-                action,
-                ActionState.BLOCKED,
-                (RunEventType.APPROVAL_DECIDED, {"decision": "expired"}),
-            )
-            cont.pending_action_id = None
-            run = await self._store.get_run(actor.tenant_id, run_id)
-            await self._set_run_state(
-                run, RunState.FAILED, "approval expired", code=ReasonCode.APPROVAL_EXPIRED
-            )
+            await self._expire_pending(cont, action)
             raise KernelError(ErrorCode.APPROVAL_STALE, "approval window expired")
 
         record = ApprovalRecord(

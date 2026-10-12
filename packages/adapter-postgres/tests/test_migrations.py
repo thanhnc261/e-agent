@@ -22,6 +22,7 @@ async def test_migrations_apply_once_and_are_idempotent() -> None:
         "0001_initial.sql",
         "0002_api_idempotency.sql",
         "0003_run_work.sql",
+        "0004_run_work_expire.sql",
     ]
     assert await migrate.apply_migrations(dsn) == []
 

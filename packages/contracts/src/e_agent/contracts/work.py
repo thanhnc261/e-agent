@@ -9,7 +9,7 @@ class WorkClaim(Record):
     work_id: str
     tenant_id: str
     run_id: str
-    kind: Literal["start", "decide", "input"]
+    kind: Literal["start", "decide", "input", "expire"]
     payload: dict[str, Any]
     owner: str
     fence: int

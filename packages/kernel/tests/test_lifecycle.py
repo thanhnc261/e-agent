@@ -512,3 +512,83 @@ async def test_rejected_approval_records_a_reason_code(make_kernel: MakeKernel) 
         if e.type is RunEventType.RUN_STATE_CHANGED
     ]
     assert changed[-1].payload["reason_code"] == "approval_rejected"
+
+
+async def test_expired_approval_is_swept_to_failed_without_a_decision(
+    make_kernel: MakeKernel,
+) -> None:
+    k = make_kernel()
+    run = await _start(k)
+    assert await k.coordinator.sweep_expired_approvals() == 0, "not expired yet"
+    k.clock.advance(minutes=16)
+    assert await k.coordinator.sweep_expired_approvals() == 1
+    assert await k.coordinator.sweep_expired_approvals() == 0, "idempotent while queued"
+    claim = await k.store.claim_work("sweeper-test")
+    assert claim is not None and claim.kind == "expire", claim
+    async with k.store.work_scope(claim):
+        run = await k.coordinator.expire_approval(TENANT, run.run_id, claim.payload["action_id"])
+        await k.store.finish_work(claim)
+    assert run.state is RunState.FAILED
+    assert run.reason_code is ReasonCode.APPROVAL_EXPIRED
+    actions = await k.store.list_actions(TENANT, run.run_id)
+    assert actions[-1].state is ActionState.BLOCKED
+    decided = [
+        e
+        for e in await k.store.list_events(TENANT, run.run_id)
+        if e.type is RunEventType.APPROVAL_DECIDED
+    ]
+    assert decided[-1].payload == {"decision": "expired"}
+    with pytest.raises(KernelError) as err:
+        await _approve(k, run.run_id)
+    assert err.value.code is ErrorCode.NOT_FOUND  # no pending approval any more
+
+
+async def test_late_decision_after_sweep_sees_stale_not_double_change(
+    make_kernel: MakeKernel,
+) -> None:
+    k = make_kernel()
+    run = await _start(k)
+    k.clock.advance(minutes=16)
+    assert await k.coordinator.sweep_expired_approvals() == 1
+    # The approver's decision arrives first and is itself rejected as expired.
+    with pytest.raises(KernelError) as err:
+        await _approve(k, run.run_id)
+    assert err.value.code is ErrorCode.APPROVAL_STALE
+    failed = await k.coordinator.get_run(TENANT, run.run_id)
+    assert failed.state is RunState.FAILED
+    # The queued expire claim then finds nothing to do and changes nothing.
+    claim = await k.store.claim_work("sweeper-test")
+    assert claim is not None and claim.kind == "expire"
+    async with k.store.work_scope(claim):
+        again = await k.coordinator.expire_approval(TENANT, run.run_id, claim.payload["action_id"])
+        await k.store.finish_work(claim)
+    assert again.revision == failed.revision
+
+
+async def test_sweep_only_enqueues_and_expire_resumes_after_an_interrupted_attempt(
+    make_kernel: MakeKernel,
+) -> None:
+    k = make_kernel()
+    run = await _start(k)
+    k.clock.advance(minutes=16)
+    before = await k.store.list_events(TENANT, run.run_id)
+    assert await k.coordinator.sweep_expired_approvals() == 1
+    assert await k.coordinator.get_run(TENANT, run.run_id) == run, "the sweeper never mutates"
+    assert await k.store.list_events(TENANT, run.run_id) == before
+    claim = await k.store.claim_work("sweeper-test")
+    assert claim is not None and claim.kind == "expire"
+    # Simulate a worker that died after blocking the action but before failing the run.
+    action_id = claim.payload["action_id"]
+    async with k.store.work_scope(claim):
+        action = await k.store.get_action(TENANT, action_id)
+        await k.store.put_action(
+            action.model_copy(
+                update={"state": ActionState.BLOCKED, "revision": action.revision + 1}
+            ),
+            action.revision,
+            [],
+        )
+        resumed = await k.coordinator.expire_approval(TENANT, run.run_id, action_id)
+        await k.store.finish_work(claim)
+    assert resumed.state is RunState.FAILED
+    assert resumed.reason_code is ReasonCode.APPROVAL_EXPIRED

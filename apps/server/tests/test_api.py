@@ -489,3 +489,63 @@ def test_events_name_the_principal_who_caused_them(client: TestClient) -> None:
     assert by_type["run.created"] == "principal:local-operator"
     assert by_type["approval.decided"] == "principal:local-operator"
     assert all(e["actor"] for e in events), "every event names an actor"
+
+
+@pytest.mark.parametrize("takeover", [False, True])
+async def test_expired_approval_is_failed_by_the_worker_under_a_system_actor(takeover):
+    from datetime import timedelta
+
+    from e_agent.contracts.run import ReasonCode, RunState
+    from e_agent.server.api import ApiState
+
+    runtime = await build_runtime(load_profile())
+    state = ApiState(runtime)
+    tenant = runtime.operator.tenant_id
+    run = await runtime.coordinator.start_run(runtime.operator, "restock", runtime.scope)
+    assert await runtime.coordinator.sweep_expired_approvals() == 0
+    real_clock = runtime.coordinator._clock
+    runtime.coordinator._clock = lambda: real_clock() + timedelta(hours=1)
+    assert await runtime.coordinator.sweep_expired_approvals() == 1
+    assert (await runtime.store.get_run(tenant, run.run_id)).state is RunState.WAITING_APPROVAL
+    if takeover:  # a dead owner held the claim: fence 2 must still just expire
+        assert await runtime.store.claim_work("dead-owner", lease_seconds=0) is not None
+    claim = await runtime.store.claim_work("worker-test")
+    assert claim is not None and claim.kind == "expire"
+    assert claim.fence == (2 if takeover else 1)
+    await state._run_work(claim)
+    failed = await runtime.store.get_run(tenant, run.run_id)
+    assert failed.state is RunState.FAILED and failed.reason_code is ReasonCode.APPROVAL_EXPIRED
+    events = await runtime.store.list_events(tenant, run.run_id)
+    changed = [e for e in events if e.type.value in {"approval.decided", "run.state_changed"}]
+    assert changed[-2].type.value == "approval.decided"
+    assert all(e.actor == "system:worker:worker-test" for e in changed[-2:]), changed[-2:]
+    assert runtime.fake_erp.create_calls == 0
+
+
+async def test_sweeper_survives_a_failed_sweep_and_stops_on_cancel(monkeypatch) -> None:
+    import asyncio
+
+    from e_agent.server import api
+    from e_agent.server.api import ApiState
+
+    runtime = await build_runtime(load_profile())
+    state = ApiState(runtime)
+    calls: list[int] = []
+
+    async def sweep() -> int:
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("transient store error")
+        return 0
+
+    monkeypatch.setattr(api, "APPROVAL_SWEEP_SECONDS", 0.01)
+    monkeypatch.setattr(runtime.coordinator, "sweep_expired_approvals", sweep)
+    task = asyncio.create_task(state.sweeper())
+    for _ in range(100):
+        if len(calls) >= 3:
+            break
+        await asyncio.sleep(0.01)
+    assert len(calls) >= 3, "the loop kept sweeping after the first failure"
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task

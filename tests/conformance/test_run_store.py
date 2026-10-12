@@ -283,3 +283,13 @@ async def test_events_record_the_current_actor(store: Any) -> None:
         await store.update_run(_run(rev=2), 1, [(RunEventType.RUN_STATE_CHANGED, {}, None)])
     events = await store.list_events("t1", "run_1")
     assert [e.actor for e in events] == ["system:kernel", "principal:alice"]
+
+
+async def test_expire_work_kind_is_accepted_by_the_queue(store: Any) -> None:
+    await store.create_run(_run(), [(RunEventType.RUN_CREATED, {}, None)])
+    payload = {"action_id": "act_1", "requested_at": "2026-10-06T00:00:00+00:00"}
+    await store.enqueue_work("t1", "run_1", "expire", payload, "digest-expire-1")
+    await store.enqueue_work("t1", "run_1", "expire", payload, "digest-expire-1")  # idempotent
+    claim = await store.claim_work("w1")
+    assert claim is not None and claim.kind == "expire" and claim.payload == payload
+    assert await store.claim_work("w2") is None
