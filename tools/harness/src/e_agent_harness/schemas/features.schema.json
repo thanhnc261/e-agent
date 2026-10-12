@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://e-agent.local/harness/features.schema.json",
+  "title": "Phase feature list",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["phase", "entries"],
+  "properties": {
+    "phase": {"type": "string", "minLength": 1},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "category", "description", "steps", "passes"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "category": {"type": "string", "minLength": 1},
+          "description": {"type": "string", "minLength": 1},
+          "steps": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "passes": {"type": "boolean"},
+          "evidence": {"type": "string", "pattern": "^evidence/"}
+        },
+        "if": {"properties": {"passes": {"const": true}}},
+        "then": {"required": ["evidence"]}
+      }
+    }
+  }
+}

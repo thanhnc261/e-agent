@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://e-agent.local/harness/handoff.schema.json",
+  "title": "Task handoff",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task", "changed", "evidence_refs", "open_items", "rulings", "outside_repo"],
+  "properties": {
+    "task": {"type": "string", "minLength": 1},
+    "changed": {"type": "string", "minLength": 1},
+    "evidence_refs": {"type": "array", "items": {"type": "string", "pattern": "^evidence/"}},
+    "open_items": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "rulings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ruling", "cost_if_wrong"],
+        "properties": {
+          "ruling": {"type": "string", "minLength": 1},
+          "cost_if_wrong": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "outside_repo": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["change", "undo"],
+        "properties": {
+          "change": {"type": "string", "minLength": 1},
+          "undo": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

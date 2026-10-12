@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://e-agent.local/harness/review.schema.json",
+  "title": "Independent review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task", "verdict", "findings", "reviewer"],
+  "properties": {
+    "task": {"type": "string", "minLength": 1},
+    "verdict": {"enum": ["accept", "rework"]},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "severity", "affects", "summary", "evidence"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "severity": {"enum": ["Low", "Medium", "High", "Blocker"]},
+          "affects": {"enum": ["correctness", "contract", "style"]},
+          "summary": {"type": "string", "minLength": 1},
+          "evidence": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "fresh_context"],
+      "properties": {
+        "provider": {"type": "string", "minLength": 1},
+        "fresh_context": {"const": true}
+      }
+    }
+  }
+}

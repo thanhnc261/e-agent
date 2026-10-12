@@ -1,0 +1,8 @@
+{
+  "task": "1c.1",
+  "changed": "coordinator.py split into run_lifecycle.py, approvals.py, verification.py; behaviour unchanged",
+  "evidence_refs": ["evidence/gates/1c.1/2026-10-12T10-00-00.json"],
+  "open_items": ["owner decision on module naming"],
+  "rulings": [{"ruling": "kept the mixin order", "cost_if_wrong": "one rename"}],
+  "outside_repo": []
+}

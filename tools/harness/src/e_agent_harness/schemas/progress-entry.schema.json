@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://e-agent.local/harness/progress-entry.schema.json",
+  "title": "Progress log entry (parsed from progress.md)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["timestamp", "session", "task", "changed", "next", "open"],
+  "properties": {
+    "timestamp": {"type": "string", "format": "date-time"},
+    "session": {"type": "string", "minLength": 1},
+    "task": {"type": "string", "minLength": 1},
+    "changed": {"type": "string", "minLength": 1},
+    "next": {"type": "string", "minLength": 1},
+    "open": {"type": "string", "minLength": 1}
+  }
+}

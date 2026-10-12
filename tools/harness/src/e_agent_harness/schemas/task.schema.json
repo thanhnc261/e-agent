@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://e-agent.local/harness/task.schema.json",
+  "title": "Task contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "phase", "plan_ref", "feature_ids", "context_digest", "allowed_paths", "acceptance", "gate_set", "base_commit", "created_at"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "phase": {"type": "string", "minLength": 1},
+    "plan_ref": {"type": "string", "pattern": "\\.md$"},
+    "feature_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "context_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "allowed_paths": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "acceptance": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "gate_set": {"enum": ["quick", "full", "pg", "e2e", "live"]},
+    "base_commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+    "created_at": {"type": "string", "format": "date-time"}
+  }
+}

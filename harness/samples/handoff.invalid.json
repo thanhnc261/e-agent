@@ -1,0 +1,1 @@
+{"expect": "evidence_refs/0", "document": {"task": "1c.1", "changed": "x", "evidence_refs": ["notes/foo.json"], "open_items": [], "rulings": [], "outside_repo": []}}

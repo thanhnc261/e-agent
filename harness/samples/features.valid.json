@@ -1,0 +1,7 @@
+{
+  "phase": "1",
+  "entries": [
+    {"id": "F-1c-1", "category": "kernel", "description": "coordinator.py split into focused modules", "steps": ["run the kernel suite", "check the MRO fitness test"], "passes": false},
+    {"id": "F-1c-2", "category": "kernel", "description": "api.py split", "steps": ["export_openapi.py --check"], "passes": true, "evidence": "evidence/gates/1c.2/2026-10-12T10-00-00.json"}
+  ]
+}

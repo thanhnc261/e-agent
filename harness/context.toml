@@ -1,0 +1,62 @@
+# e-agent development harness: context manifest (harness plan H1).
+# Paths are those of the current checkout; roadmap Phase 1b moves docs and
+# updates this file. tests/conformance/test_harness_context.py checks it.
+
+[authoritative]
+# Ordered. A task pins the digest of these files; a change invalidates the task.
+files = [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "docs/roadmap.md",
+  "docs/high-level-design.md",
+  "docs/mvp-detailed-design.md",
+  "docs/target-architecture.md",
+  "docs/adr/README.md",
+]
+active_plan = "docs/superpowers/plans/2026-10-12-phase1-structure-refactor.md"
+# Section names the sibling plans already use. From roadmap Phase 2 on, plans
+# also need "Toggles and fallback" and "Gate" sections (harness plan, eng-phase-plan).
+active_plan_required_sections = ["Global Constraints", "Review Focus"]
+
+[protected]
+read_only = ["archive/**", "research/**"]
+bump_required = ["addons/**"]
+bump_file = "addons/e_agent_bridge/__manifest__.py"
+secrets = ["profiles/*.local.json", ".env", "~/.config/e-agent/**"]
+
+[environment]
+# Roadmap rule 5: only the odoo19-learning sandbox and containers e-agent creates.
+allowed_containers = ["odoo19-learning-*", "e-agent-ledger", "e-agent-test-*"]
+denied_containers = ["odoo-bench*"]
+denied_paths = [
+  "**/enterprise-agent/experiment/**",
+  "**/ERP-Bench/**/solution/**",
+  "**/ERP-Bench/**/tests/**",
+]
+
+[gates]
+quick = ["uv run ruff check .", "uv run ruff format --check .", "uv run pytest -q {package}"]
+full = [
+  "uv sync --locked",
+  "uv run ruff check .",
+  "uv run ruff format --check .",
+  "uv run mypy",
+  "uv run lint-imports",
+  "uv run python scripts/export_openapi.py --check",
+  "uv run pytest -q",
+  "pnpm --dir ui gen:check",
+]
+pg = ["E_AGENT_TEST_PG_DSN=$E_AGENT_PG_DSN E_AGENT_TEST_STORE=postgres uv run pytest -q packages/kernel"]
+e2e = ["make e2e"]
+live = ["uv run python scripts/env_check.py", "uv run python scripts/odoo_sandbox.py info"]
+
+[roles]
+# Skills land in harness phase H3; names are checked for shape only until then.
+implementer = "eng-implement"
+reviewer = "eng-review"
+verifier = "eng-verify"
+sandbox = "live-sandbox"
+
+[status]
+token_budget = 1500
+language_order = ["vi-eli5", "en"]
