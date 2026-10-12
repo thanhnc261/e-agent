@@ -14,6 +14,7 @@ class RunEventType(StrEnum):
     RUN_CREATED = "run.created"
     RUN_STATE_CHANGED = "run.state_changed"
     READ_RECORDED = "read.recorded"
+    READ_REJECTED = "read.rejected"
     PROPOSAL_CREATED = "proposal.created"
     VALIDATION_COMPLETED = "validation.completed"
     APPROVAL_REQUESTED = "approval.requested"

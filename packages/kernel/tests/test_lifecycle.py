@@ -642,3 +642,35 @@ async def test_second_write_on_a_busy_connection_is_refused_with_a_typed_reason(
     assert k.backend.create_calls == 0, "nothing was dispatched behind the unresolved write"
     actions = await k.store.list_actions(TENANT, second.run_id)
     assert actions[-1].state is ActionState.BLOCKED
+
+
+async def test_rejected_read_is_fed_back_and_the_run_continues(make_kernel: MakeKernel) -> None:
+    k = make_kernel()
+    k.backend.fail_mode = "read-reject-once"
+    seen: list[dict[str, str]] = []
+    original = k.driver.advance
+
+    async def spy(ctx, step_input):  # type: ignore[no-untyped-def]
+        seen.append(dict(step_input.read_errors))
+        return await original(ctx, step_input)
+
+    k.driver.advance = spy  # type: ignore[method-assign]
+    run = await _start(k)
+    assert run.state is RunState.WAITING_APPROVAL
+    assert {"r1": "E_AGENT_INVALID_REF: Odoo rejected the request"} in seen
+    rejected = [
+        e
+        for e in await k.store.list_events(TENANT, run.run_id)
+        if e.type is RunEventType.READ_REJECTED
+    ]
+    assert rejected and rejected[0].payload["code"] == "E_AGENT_INVALID_REF"
+    assert rejected[0].payload["message"] == "Odoo rejected the request"
+
+
+async def test_repeated_rejected_reads_exhaust_the_read_budget(make_kernel: MakeKernel) -> None:
+    k = make_kernel(budgets=Budgets(max_read_calls=3))
+    k.backend.fail_mode = "read-reject"
+    run = await _start(k)
+    assert run.state is RunState.FAILED
+    assert run.reason_code is ReasonCode.BUDGET_EXHAUSTED
+    assert run.reason == "budget exhausted: read calls"

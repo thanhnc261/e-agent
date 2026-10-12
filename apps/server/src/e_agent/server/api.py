@@ -314,6 +314,7 @@ class ApiState:
             # Another owner or a cancellation won. This worker has no recovery authority.
             return
         except Exception:
+            LOG.exception("run work failed (run=%s kind=%s)", claim.run_id, claim.kind)
             try:
                 async with rt.store.work_scope(claim):
                     with actor_scope(f"system:worker:{claim.owner}"):

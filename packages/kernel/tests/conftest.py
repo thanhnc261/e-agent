@@ -69,7 +69,9 @@ class NotesBackend:
     revision: int = 1
     notes: dict[str, dict[str, str]] = field(default_factory=dict)
     create_calls: int = 0
-    fail_mode: str | None = None  # None | "timeout" | "reject" | "timeout-no-commit"
+    read_calls: int = 0
+    # None | "timeout" | "reject" | "timeout-no-commit" | "read-reject" | "read-reject-once"
+    fail_mode: str | None = None
 
     def supports(self, binding: CapabilityBinding) -> bool:
         return binding.plugin_id == "notes-fixture"
@@ -77,6 +79,11 @@ class NotesBackend:
     async def read(
         self, ctx: TaskContext, binding: CapabilityBinding, request: ReadRequest
     ) -> Observation:
+        self.read_calls += 1
+        if self.fail_mode == "read-reject" or (
+            self.fail_mode == "read-reject-once" and self.read_calls == 1
+        ):
+            raise KnownNoEffectError("E_AGENT_INVALID_REF", "Odoo rejected the request")
         key = request.arguments.get("operation_key")
         data: dict[str, Any] = (
             {"notes": [n for n in self.notes.values() if n["key"] == key]}

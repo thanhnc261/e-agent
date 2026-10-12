@@ -402,7 +402,7 @@ class PydanticAiDriver:
             results.calls[call_id] = (
                 {"data": dict(obs.data), "evidence_id": obs.evidence.evidence_id}
                 if obs is not None
-                else {"error": "read was not executed"}
+                else {"error": step_input.read_errors.get(call_id, "read was not executed")}
             )
         if st.pending_write is not None:
             if step_input.action_result is not None:

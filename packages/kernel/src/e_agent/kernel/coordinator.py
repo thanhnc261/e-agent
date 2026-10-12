@@ -82,6 +82,7 @@ class _Continuation(BaseModel):
     findings: tuple[Finding, ...] = ()
     turns: int = 0
     read_calls: int = 0
+    read_errors: dict[str, str] = Field(default_factory=dict)
     repairs: int = 0
     writes: int = 0
     pending_action_id: str | None = None
@@ -396,11 +397,16 @@ class RunCoordinator:
                         obs = await self._gateway_read(cont, request, count_budget=True)
                     except TimeoutError:
                         return await self._exhausted(run, "active time or provider deadline")
+                    except KnownNoEffectError as exc:
+                        await self._record_rejected_read(cont, request, exc)
+                        continue
                     cont.reads[request.request_id] = request
                     cont.observations[request.request_id] = obs
                 await self._persist(run.run_id)
                 step_input = DriverInput(
-                    task=run.task, observations=tuple(cont.observations.values())
+                    task=run.task,
+                    observations=tuple(cont.observations.values()),
+                    read_errors=dict(cont.read_errors),
                 )
                 continue
 
@@ -530,6 +536,7 @@ class RunCoordinator:
                 task=run.task,
                 user_input=str(received[-1].payload["input"]),
                 observations=tuple(cont.observations.values()),
+                read_errors=dict(cont.read_errors),
             ),
         )
 
@@ -603,6 +610,31 @@ class RunCoordinator:
             ],
         )
         return obs
+
+    async def _record_rejected_read(
+        self, cont: _Continuation, request: ReadRequest, exc: KnownNoEffectError
+    ) -> None:
+        """A provider-rejected read had no effect: count it and tell the driver (ADR 0022)."""
+        cont.read_calls += 1
+        cont.read_errors[request.request_id] = f"{exc.code}: {exc.safe_message}"
+        run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
+        await self._store.update_run(
+            run.model_copy(update={"revision": run.revision + 1}),
+            run.revision,
+            [
+                (
+                    RunEventType.READ_REJECTED,
+                    {
+                        "request_id": request.request_id,
+                        "contract_id": request.contract_id,
+                        "connection_id": request.connection_id,
+                        "code": exc.code,
+                        "message": exc.safe_message,
+                    },
+                    None,
+                )
+            ],
+        )
 
     # ------------------------------------------------------------- proposals
     async def _handle_proposal(

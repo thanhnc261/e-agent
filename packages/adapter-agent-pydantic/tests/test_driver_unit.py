@@ -331,3 +331,22 @@ def test_ollama_model_refuses_malformed_loopback_urls(base_url: str) -> None:
 
     with pytest.raises(ValueError, match="local Ollama endpoint"):
         ollama_model("qwen3", base_url)
+
+
+async def test_read_error_reaches_the_model_as_the_tool_result() -> None:
+    error = "E_AGENT_INVALID_REF: Odoo rejected the request"
+    received: list[str] = []
+
+    def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        if sum(isinstance(m, ModelResponse) for m in messages) == 0:
+            return ModelResponse(parts=[ToolCallPart(READ.name, {"topic": "guess"}, "c1")])
+        received.append(str(messages[-1]))
+        return ModelResponse(parts=[TextPart("let me correct that")])
+
+    driver = PydanticAiDriver(FunctionModel(model), [READ, WRITE])
+    step = await driver.advance(CTX, DriverInput(task="read it"))
+    assert isinstance(step, RequestReads) and step.reads[0].request_id == "c1"
+    step = await driver.advance(CTX, DriverInput(task="read it", read_errors={"c1": error}))
+    assert isinstance(step, FinalAnswer)
+    assert received and error in received[0]
+    assert "read was not executed" not in received[0]

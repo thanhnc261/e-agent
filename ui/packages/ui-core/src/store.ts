@@ -9,6 +9,7 @@ export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
   "run.created",
   "run.state_changed",
   "read.recorded",
+  "read.rejected",
   "proposal.created",
   "validation.completed",
   "approval.requested",

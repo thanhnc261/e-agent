@@ -25,6 +25,16 @@ describe("run view reducer", () => {
     expect(selectTimeline(v)[0]).toMatchObject({ supported: false, labelKey: "event.unsupported", detail: null });
   });
 
+  it("accepts read.rejected as a known event without a snapshot refresh", () => {
+    const v = reduceRunView(base, {
+      type: "events",
+      events: [ev(1, "read.rejected", { request_id: "r1", contract_id: "c", connection_id: "k", code: "E_AGENT_INVALID_REF", message: "Odoo rejected the request" })],
+    });
+    expect(v.needsSnapshot).toBe(false);
+    expect(v.unsupportedEvents).toBe(0);
+    expect(selectTimeline(v)[0]).toMatchObject({ supported: true, labelKey: "event.read.rejected" });
+  });
+
   it("records the final message as data", () => {
     const v = reduceRunView(base, { type: "events", events: [ev(1, "message.final", { text: "done" })] });
     expect(v.finalMessage).toBe("done");

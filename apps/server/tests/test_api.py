@@ -661,3 +661,30 @@ def test_startup_recovery_events_are_attributed_to_the_startup_worker() -> None:
         events = client.get(f"/v1/runs/{run_id}/events").json()
         recovery = [e for e in events if e["type"] == "run.state_changed"][-1]
         assert recovery["actor"] == "system:worker:startup"
+
+
+def test_unexpected_worker_failure_is_logged_with_traceback(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    async def factory() -> Any:
+        runtime = await build_runtime(load_profile())
+
+        async def boom(tenant_id: str, run_id: str) -> None:
+            raise RuntimeError("boom")
+
+        runtime.coordinator.start_admitted_run = boom  # type: ignore[method-assign]
+        return runtime
+
+    with (
+        caplog.at_level("ERROR", logger="e_agent.server.api"),
+        TestClient(create_app(factory)) as c,
+    ):
+        h = _login(c)
+        r = c.post("/v1/runs", json={"task": "x"}, headers={**h, "Idempotency-Key": "boom-0001"})
+        body = _wait(c, r.json()["run_id"], {"FAILED", "SUCCEEDED"})
+        assert body["run"]["state"] == "FAILED"
+        assert "boom" not in json.dumps(body)
+    records = [rec for rec in caplog.records if "run work failed" in rec.getMessage()]
+    assert records and records[0].levelname == "ERROR"
+    assert records[0].exc_info is not None and records[0].exc_info[0] is RuntimeError
+    assert r.json()["run_id"] in records[0].getMessage()
