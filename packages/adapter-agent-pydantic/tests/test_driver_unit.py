@@ -243,3 +243,72 @@ def test_reasoning_split_between_text_parts_is_removed_from_history():
     clean = strip_thinking([response])
     assert "HIDDEN" not in str(clean)
     assert "Public answer" in str(clean)
+
+
+# --- LiteLLM provider (ADR 0021) ---
+
+
+@pytest.mark.parametrize(
+    "base_url", ["http://localhost:4000", "https://127.0.0.1:4000/v1", "http://[::1]:4000"]
+)
+def test_litellm_model_accepts_loopback_proxy(base_url: str) -> None:
+    from e_agent.adapters.pydantic_ai import litellm_model
+
+    model = litellm_model("ollama/qwen3", base_url)
+    assert model.model_name == "ollama/qwen3"
+    provider = model._provider  # type: ignore[attr-defined]
+    assert provider.name == "litellm"
+    assert str(provider.base_url).rstrip("/") == base_url.rstrip("/")
+
+
+@pytest.mark.parametrize(
+    ("base_url", "model_name"),
+    [
+        ("http://10.0.0.5:4000", "m"),
+        ("https://proxy.example.com", "m"),
+        ("http://user:pw@localhost:4000", "m"),
+        ("http://localhost:4000/?x=1", "m"),
+        ("http://localhost:4000/#frag", "m"),
+        ("ftp://localhost:4000", "m"),
+        ("http://localhost:4000", ""),
+    ],
+)
+def test_litellm_model_refuses_non_loopback_or_malformed(base_url: str, model_name: str) -> None:
+    from e_agent.adapters.pydantic_ai import litellm_model
+
+    with pytest.raises(ValueError, match="loopback proxy endpoint"):
+        litellm_model(model_name, base_url, "sk-secret-value")
+
+
+def test_litellm_api_key_reaches_client_but_never_the_error() -> None:
+    from e_agent.adapters.pydantic_ai import litellm_model
+
+    model = litellm_model("m", "http://localhost:4000", "sk-secret-value")
+    assert model.client.api_key == "sk-secret-value"  # type: ignore[attr-defined]
+    with pytest.raises(ValueError, match="loopback") as caught:
+        litellm_model("m", "https://proxy.example.com", "sk-secret-value")
+    assert "sk-secret-value" not in str(caught.value)
+
+
+def test_litellm_without_a_key_never_falls_back_to_the_process_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from e_agent.adapters.pydantic_ai import litellm_model
+
+    monkeypatch.setenv("OPENAI_API_KEY", "should-not-be-read")
+    model = litellm_model("m", "http://localhost:4000")
+    assert model.client.api_key == "not-required"  # type: ignore[attr-defined]
+    assert "should-not-be-read" not in repr(model.client.api_key)  # type: ignore[attr-defined]
+
+
+def test_ollama_model_endpoint_guard_is_unchanged() -> None:
+    from e_agent.adapters.pydantic_ai import ollama_model
+
+    ollama_model("qwen3", "http://localhost:11434/v1")
+    for url, name in [
+        ("https://localhost:11434/v1", "qwen3"),  # ollama stays http-only
+        ("http://10.0.0.5:11434/v1", "qwen3"),
+        ("http://localhost:11434/v1", "qwen3:cloud"),
+    ]:
+        with pytest.raises(ValueError, match="local Ollama endpoint"):
+            ollama_model(name, url)

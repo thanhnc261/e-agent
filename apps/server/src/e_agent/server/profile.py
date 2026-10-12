@@ -41,9 +41,13 @@ class StoreConfig(Record):
 
 class DriverConfig(Record):
     kind: Literal["scripted", "pydantic-ai"] = "scripted"
-    provider: Literal["ollama"] = "ollama"
+    provider: Literal["ollama", "litellm"] = "ollama"
+    """Ollama is the default; LiteLLM is explicit opt-in (ADR 0021). Never a fallback."""
     model: str | None = None
-    base_url_env: str = "E_AGENT_OLLAMA_URL"
+    base_url_env: str | None = None
+    """Env var holding the endpoint; defaults to E_AGENT_OLLAMA_URL or E_AGENT_LITELLM_URL."""
+    api_key_env: str | None = None
+    """LiteLLM only: env var holding the proxy key. The key itself is never in the profile."""
     requests_per_step: int = 4
     temperature: str | None = None
     task_kind: Literal[

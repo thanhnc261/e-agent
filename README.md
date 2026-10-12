@@ -140,6 +140,22 @@ uv run e-agent --profile my-profile.json recover
 E_AGENT_TEST_PG_DSN=$E_AGENT_PG_DSN E_AGENT_TEST_STORE=postgres uv run pytest -q packages/kernel
 ```
 
+### Model provider: Ollama (default) or LiteLLM (optional)
+
+A `pydantic-ai` driver profile uses Ollama unless it names another provider: `{"kind": "pydantic-ai", "model": "<ollama model>"}` reads `E_AGENT_OLLAMA_URL` (default `http://localhost:11434/v1`).
+
+LiteLLM is an explicit opt-in ([ADR 0021](docs/adr/0021-litellm-model-provider.md), Proposed):
+
+```json
+{"kind": "pydantic-ai", "provider": "litellm", "model": "<proxy model name>", "api_key_env": "E_AGENT_LITELLM_KEY"}
+```
+
+- The proxy URL comes from `E_AGENT_LITELLM_URL` (default `http://localhost:4000`); it must be loopback (`localhost`, `127.0.0.1`, `::1`) over http or https.
+- `api_key_env` names the environment variable holding the proxy key; the profile never contains the key. Without `api_key_env`, a fixed placeholder is sent and no other environment key (such as `OPENAI_API_KEY`) is read.
+- There is no fallback between providers: a missing model, a refused endpoint or an unset key variable rejects startup.
+- Which upstream model the proxy routes to is the operator's LiteLLM configuration. Qualification evidence is per provider and model; no LiteLLM-routed model has been qualified, and an Ollama qualification does not carry over.
+- Evidence runtime metadata records `model_provider` next to `model`.
+
 Python packages share the `e_agent` namespace: `e_agent.contracts`, `e_agent.sdk`, `e_agent.kernel`, `e_agent.erp`, `e_agent.server`.
 
 See the [implementation plan](docs/implementation-plan.md) for owner decisions, milestones and work packages.

@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from e_agent.adapters.postgres import PostgresRunStore, apply_migrations, database_name
-from e_agent.adapters.pydantic_ai import PydanticAiDriver, ToolSpec, ollama_model
+from e_agent.adapters.pydantic_ai import PydanticAiDriver, ToolSpec, litellm_model, ollama_model
 from e_agent.adapters.secretstore_local import LocalSecretStore
 from e_agent.adapters.shacl import ShaclPlanValidator
 from e_agent.contracts.capability import EffectKind
@@ -70,6 +70,7 @@ def runtime_versions(
         "driver": getattr(driver, "driver_id", type(driver).__name__),
         "driver_versions": getattr(driver, "versions", {}),
         "model": profile.driver.model if profile.driver.kind == "pydantic-ai" else None,
+        "model_provider": profile.driver.provider if profile.driver.kind == "pydantic-ai" else None,
         "profile_environment": profile.environment,
     }
 
@@ -132,16 +133,41 @@ def tool_specs(registry: PluginRegistry, profile: Profile) -> list[ToolSpec]:
     return specs
 
 
+MODEL_ENDPOINTS: dict[str, tuple[str, str]] = {
+    "ollama": ("E_AGENT_OLLAMA_URL", "http://localhost:11434/v1"),
+    "litellm": ("E_AGENT_LITELLM_URL", "http://localhost:4000"),
+}
+"""Default endpoint variable and URL per model provider (ADR 0021)."""
+
+
 def build_driver(profile: Profile, registry: PluginRegistry) -> AgentDriver:
     cfg = profile.driver
-    if cfg.provider != "ollama" or not cfg.model:
-        raise KernelError(ErrorCode.STARTUP_REJECTED, "pydantic-ai driver needs an ollama model")
-    base_url = os.environ.get(cfg.base_url_env, "http://localhost:11434/v1")
+    if not cfg.model:
+        raise KernelError(
+            ErrorCode.STARTUP_REJECTED, f"pydantic-ai driver needs a {cfg.provider} model"
+        )
+    env_name, default_url = MODEL_ENDPOINTS[cfg.provider]
+    base_url = os.environ.get(cfg.base_url_env or env_name, default_url)
+    try:
+        if cfg.provider == "litellm":
+            api_key = None
+            if cfg.api_key_env is not None:
+                api_key = os.environ.get(cfg.api_key_env)
+                if not api_key:
+                    raise KernelError(
+                        ErrorCode.STARTUP_REJECTED,
+                        f"{cfg.api_key_env} is not set for the LiteLLM proxy",
+                    )
+            model = litellm_model(cfg.model, base_url, api_key)
+        else:
+            model = ollama_model(cfg.model, base_url)
+    except ValueError as exc:
+        raise KernelError(ErrorCode.STARTUP_REJECTED, str(exc)) from exc
     settings: dict[str, object] = {}
     if cfg.temperature is not None:
         settings["temperature"] = float(cfg.temperature)
     return PydanticAiDriver(
-        ollama_model(cfg.model, base_url),
+        model,
         tool_specs(registry, profile),
         guidance=registry.agent_guidance,
         requests_per_step=cfg.requests_per_step,

@@ -183,10 +183,19 @@ def _coerce(value: Any, schema: Mapping[str, Any] | None) -> Any:
     return value
 
 
+_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+_NO_API_KEY = "not-required"
+"""Fixed non-secret key sent when the proxy needs none.
+
+Passing ``None`` would let the OpenAI client read ``OPENAI_API_KEY`` from the process
+environment and send an unrelated real key to the proxy (ADR 0021, ADR 0001).
+"""
+
+
 def ollama_model(model_name: str, base_url: str) -> Model:
     endpoint = urlsplit(base_url)
     if (
-        endpoint.hostname not in {"localhost", "127.0.0.1", "::1"}
+        endpoint.hostname not in _LOOPBACK_HOSTS
         or endpoint.scheme != "http"
         or endpoint.username
         or endpoint.query
@@ -198,6 +207,26 @@ def ollama_model(model_name: str, base_url: str) -> Model:
     from pydantic_ai.providers.ollama import OllamaProvider
 
     return OllamaModel(model_name, provider=OllamaProvider(base_url=base_url))
+
+
+def litellm_model(model_name: str, base_url: str, api_key: str | None = None) -> Model:
+    """LiteLLM proxy on loopback only (ADR 0021); upstream routing is the proxy's configuration."""
+    endpoint = urlsplit(base_url)
+    if (
+        endpoint.hostname not in _LOOPBACK_HOSTS
+        or endpoint.scheme not in {"http", "https"}
+        or endpoint.username
+        or endpoint.password
+        or endpoint.query
+        or endpoint.fragment
+        or not model_name
+    ):
+        raise ValueError("LiteLLM inference requires a loopback proxy endpoint and a model name")
+    from pydantic_ai.models.openai import OpenAIChatModel
+    from pydantic_ai.providers.litellm import LiteLLMProvider
+
+    provider = LiteLLMProvider(api_base=base_url, api_key=api_key or _NO_API_KEY)
+    return OpenAIChatModel(model_name, provider=provider)
 
 
 class PydanticAiDriver:
