@@ -395,7 +395,9 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         runtime = await runtime_factory()
-        await runtime.coordinator.recover()
+        # Startup recovery runs outside any work claim (ADR 0018).
+        with actor_scope("system:worker:startup"):
+            await runtime.coordinator.recover()
         holder["state"] = ApiState(runtime)
         worker = asyncio.create_task(holder["state"].worker())
         holder["state"].tasks.add(worker)

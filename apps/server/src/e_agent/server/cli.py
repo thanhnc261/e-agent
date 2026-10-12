@@ -15,6 +15,7 @@ from e_agent.erp.testing.scripted_tasks import DEFAULT_REFS, TASK_KINDS
 from e_agent.kernel.errors import KernelError
 from e_agent.kernel.evidence import build_evidence
 from e_agent.sdk.discovery import discover
+from e_agent.sdk.store import actor_scope
 
 from .bootstrap import build_runtime, open_store
 from .profile import load_profile
@@ -137,7 +138,9 @@ async def _recover(args: argparse.Namespace) -> int:
     profile = load_profile(args.profile)
     rt = await build_runtime(profile)
     try:
-        for run in await rt.coordinator.recover():
+        with actor_scope("system:worker:startup"):
+            recovered = await rt.coordinator.recover()
+        for run in recovered:
             _print(f"{run.run_id}: {run.state} ({run.reason or ''})")
     finally:
         await _close(rt.store)

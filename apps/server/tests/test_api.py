@@ -463,6 +463,19 @@ def test_ready_reports_whether_self_approval_is_allowed(client: TestClient) -> N
     assert body["self_approval_allowed"] is True  # fixture profile: one local operator
 
 
+def test_ready_reports_self_approval_disallowed_when_the_profile_flag_is_unset() -> None:
+    from e_agent.server.profile import OperatorConfig
+
+    profile = load_profile()
+    operator = OperatorConfig(  # allow_self_approval deliberately left unset
+        principal_id=profile.operator.principal_id, roles=profile.operator.roles
+    )
+    assert operator.allow_self_approval is False
+    app = create_app(lambda: build_runtime(profile.model_copy(update={"operator": operator})))
+    with TestClient(app) as c:
+        assert c.get("/health/ready").json()["self_approval_allowed"] is False
+
+
 def test_events_name_the_principal_who_caused_them(client: TestClient) -> None:
     h = _login(client)
     r = client.post(
@@ -488,7 +501,9 @@ def test_events_name_the_principal_who_caused_them(client: TestClient) -> None:
     by_type = {e["type"]: e["actor"] for e in events}
     assert by_type["run.created"] == "principal:local-operator"
     assert by_type["approval.decided"] == "principal:local-operator"
-    assert all(e["actor"] for e in events), "every event names an actor"
+    assert not any(e["actor"] == "system:kernel" for e in events), (
+        "every happy-path event runs under a principal scope"
+    )
 
 
 @pytest.mark.parametrize("takeover", [False, True])
@@ -602,3 +617,47 @@ def test_stream_delivers_every_event_across_page_boundaries(
             if line.startswith("id:"):
                 seen.append(int(line[3:].strip()))
     assert seen == expected
+
+
+def test_startup_recovery_events_are_attributed_to_the_startup_worker() -> None:
+    from e_agent.contracts.action import ActionState
+    from e_agent.contracts.approval import ApprovalDecision
+
+    class Crash(BaseException):
+        """The process dies between reservation and dispatch."""
+
+    crashed: dict[str, str] = {}
+
+    async def factory():
+        runtime = await build_runtime(load_profile())
+        run = await runtime.coordinator.start_run(runtime.operator, "restock", runtime.scope)
+        pres = await runtime.coordinator.pending_approval(runtime.operator.tenant_id, run.run_id)
+        original = runtime.store.put_action
+
+        async def die_on_dispatching(action, expected, events):
+            if action.state is ActionState.DISPATCHING:
+                raise Crash
+            return await original(action, expected, events)
+
+        runtime.store.put_action = die_on_dispatching
+        with pytest.raises(Crash):
+            await runtime.coordinator.decide(
+                actor=runtime.operator,
+                run_id=run.run_id,
+                action_id=pres.action_id,
+                action_digest=pres.digest,
+                expected_run_revision=pres.run_revision,
+                decision=ApprovalDecision.APPROVED,
+            )
+        runtime.store.put_action = original
+        crashed["run_id"] = run.run_id
+        return runtime
+
+    with TestClient(create_app(factory)) as client:  # lifespan runs startup recovery
+        _login(client)
+        run_id = crashed["run_id"]
+        body = client.get(f"/v1/runs/{run_id}").json()
+        assert body["run"]["state"] == "FAILED", body
+        events = client.get(f"/v1/runs/{run_id}/events").json()
+        recovery = [e for e in events if e["type"] == "run.state_changed"][-1]
+        assert recovery["actor"] == "system:worker:startup"
