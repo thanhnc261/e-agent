@@ -6,7 +6,12 @@ from e_agent.contracts.capability import CapabilityDescriptor, EffectKind
 from e_agent.contracts.common import DecimalStr, Record, UtcDatetime, format_decimal
 from e_agent.contracts.connection import ConnectionDescriptor, ConnectionOwnership
 from e_agent.contracts.events import RunEvent, RunEventType
-from e_agent.contracts.run import ALLOWED_RUN_TRANSITIONS, TERMINAL_RUN_STATES, RunState
+from e_agent.contracts.run import (
+    ALLOWED_RUN_TRANSITIONS,
+    TERMINAL_RUN_STATES,
+    RunRecord,
+    RunState,
+)
 from pydantic import ValidationError
 
 
@@ -128,3 +133,20 @@ def test_run_event_without_actor_still_parses() -> None:
         }
     )
     assert event.actor is None
+
+
+def test_run_record_without_reason_code_still_parses() -> None:
+    run = RunRecord.model_validate(
+        {
+            "run_id": "run_1",
+            "tenant_id": "t1",
+            "requester_id": "u",
+            "task": "x",
+            "state": "FAILED",
+            "revision": 3,
+            "logical_operation_id": "op_1",
+            "created_at": "2026-10-06T00:00:00Z",
+            "reason": "validation blocked",
+        }
+    )
+    assert run.reason_code is None

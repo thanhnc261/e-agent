@@ -12,17 +12,50 @@ from collections.abc import Mapping
 from typing import Any
 
 from e_agent.contracts.common import utc_now
-from e_agent.contracts.run import TERMINAL_RUN_STATES
+from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode
 from e_agent.sdk.store import RunStore
 
 EVIDENCE_SCHEMA = "e-agent-evidence-v1"
 
 
-def classify(run_state: str, reason: str | None, environment: str) -> str:
+BLOCKED_BY_DESIGN = frozenset(
+    {
+        ReasonCode.VALIDATION_FAILED,
+        ReasonCode.POLICY_DENIED,
+        ReasonCode.STALE,
+        ReasonCode.SURFACE_CHANGED,
+        ReasonCode.APPROVAL_REJECTED,
+        ReasonCode.OPERATION_RESERVED,
+        ReasonCode.VERIFICATION_FAILED,
+    }
+)
+INFRASTRUCTURE_OR_BUDGET = frozenset(
+    {
+        ReasonCode.BUDGET_EXHAUSTED,
+        ReasonCode.INTERRUPTED,
+        ReasonCode.PROVIDER_ERROR,
+        ReasonCode.CONNECTION_BUSY,
+    }
+)
+
+
+def classify(
+    run_state: str,
+    reason: str | None,
+    environment: str,
+    reason_code: ReasonCode | None = None,
+) -> str:
     if run_state == "SUCCEEDED":
         return f"{environment}:succeeded"
     if run_state not in {str(s) for s in TERMINAL_RUN_STATES}:
         return f"{environment}:unresolved"
+    if reason_code is not None:
+        if reason_code in BLOCKED_BY_DESIGN:
+            return f"{environment}:blocked-by-design"
+        if reason_code in INFRASTRUCTURE_OR_BUDGET:
+            return f"{environment}:infrastructure-or-budget"
+        return f"{environment}:failed"
+    # Rows written before ADR 0018 carry no code: keep the historical text rules.
     text = (reason or "").lower()
     if "validation" in text or "rejected" in text or "policy" in text:
         return f"{environment}:blocked-by-design"
@@ -64,7 +97,7 @@ async def build_evidence(
         "schema": EVIDENCE_SCHEMA,
         "generated_at": utc_now().isoformat(),
         "environment": environment,
-        "classification": classify(run.state, run.reason, environment),
+        "classification": classify(run.state, run.reason, environment, run.reason_code),
         "versions": dict(versions),
         "rules_evaluated": rule_bundles,
         "run": run.model_dump(mode="json"),

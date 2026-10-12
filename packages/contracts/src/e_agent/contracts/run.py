@@ -19,6 +19,28 @@ class RunState(StrEnum):
     CANCELLED = "CANCELLED"
 
 
+class ReasonCode(StrEnum):
+    """Typed cause of a run state change (ADR 0018). The human `reason` text stays."""
+
+    ANSWERED = "answered"
+    VERIFIED = "verified"
+    VERIFICATION_PENDING = "verification_pending"
+    VERIFICATION_FAILED = "verification_failed"
+    VALIDATION_FAILED = "validation_failed"
+    POLICY_DENIED = "policy_denied"
+    STALE = "stale"
+    SURFACE_CHANGED = "surface_changed"
+    APPROVAL_REJECTED = "approval_rejected"
+    APPROVAL_EXPIRED = "approval_expired"
+    OPERATION_RESERVED = "operation_reserved"
+    CONNECTION_BUSY = "connection_busy"
+    EFFECT_UNKNOWN = "effect_unknown"
+    PROVIDER_ERROR = "provider_error"
+    BUDGET_EXHAUSTED = "budget_exhausted"
+    INTERRUPTED = "interrupted"
+    CANCELLED = "cancelled"
+
+
 TERMINAL_RUN_STATES = frozenset({RunState.SUCCEEDED, RunState.FAILED, RunState.CANCELLED})
 
 # Allowed run transitions (ADR 0018). Self-transitions carry a new reason or repair;
@@ -95,3 +117,4 @@ class RunRecord(Record):
     logical_operation_id: str
     created_at: UtcDatetime
     reason: str | None = None
+    reason_code: ReasonCode | None = None

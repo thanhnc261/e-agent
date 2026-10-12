@@ -28,6 +28,7 @@ from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
 from e_agent.contracts.run import (
     ALLOWED_RUN_TRANSITIONS,
     TERMINAL_RUN_STATES,
+    ReasonCode,
     RunRecord,
     RunState,
 )
@@ -249,20 +250,36 @@ class RunCoordinator:
             raise KernelError(ErrorCode.CONFLICT, f"illegal run transition {run.state}->{to}")
 
     async def _set_run_state(
-        self, run: RunRecord, state: RunState, reason: str | None = None
+        self,
+        run: RunRecord,
+        state: RunState,
+        reason: str | None = None,
+        *,
+        code: ReasonCode | None = None,
     ) -> RunRecord:
         self._check_run_transition(run, state)
         events: list[EventSpec] = [
             (
                 RunEventType.RUN_STATE_CHANGED,
-                {"from": run.state, "to": state, "reason": reason},
+                {"from": run.state, "to": state, "reason": reason, "reason_code": code},
                 None,
             )
         ]
         if state in TERMINAL_RUN_STATES:
-            events.append((RunEventType.RUN_TERMINAL, {"state": state, "reason": reason}, None))
+            events.append(
+                (
+                    RunEventType.RUN_TERMINAL,
+                    {"state": state, "reason": reason, "reason_code": code},
+                    None,
+                )
+            )
         updated = run.model_copy(
-            update={"state": state, "revision": run.revision + 1, "reason": reason}
+            update={
+                "state": state,
+                "revision": run.revision + 1,
+                "reason": reason,
+                "reason_code": code,
+            }
         )
         return await self._store.update_run(
             updated,
@@ -403,7 +420,10 @@ class RunCoordinator:
                 ):
                     if cont.repairs >= ctx.budgets.max_validation_repairs:
                         return await self._set_run_state(
-                            run, RunState.FAILED, "no independently verified outcome"
+                            run,
+                            RunState.FAILED,
+                            "no independently verified outcome",
+                            code=ReasonCode.VERIFICATION_FAILED,
                         )
                     cont.repairs += 1
                     await self._persist(run.run_id)
@@ -431,7 +451,9 @@ class RunCoordinator:
                     [(RunEventType.MESSAGE_FINAL, {"text": step.text}, None)],
                 )
                 if cont.pending_action_id is None:
-                    return await self._set_run_state(run, RunState.SUCCEEDED, "answered")
+                    return await self._set_run_state(
+                        run, RunState.SUCCEEDED, "answered", code=ReasonCode.ANSWERED
+                    )
                 return run
             raise KernelError(ErrorCode.INVALID_REQUEST, "driver returned an unknown step")
 
@@ -507,7 +529,9 @@ class RunCoordinator:
             run.revision,
             [(RunEventType.BUDGET_EXHAUSTED, {"budget": what}, None)],
         )
-        return await self._set_run_state(run, RunState.FAILED, f"budget exhausted: {what}")
+        return await self._set_run_state(
+            run, RunState.FAILED, f"budget exhausted: {what}", code=ReasonCode.BUDGET_EXHAUSTED
+        )
 
     # ---------------------------------------------------------------- reads
     async def _gateway_read(
@@ -677,10 +701,14 @@ class RunCoordinator:
             cont.pending_action_id = None
             if not decision.permitted:
                 run = await self._store.get_run(run.tenant_id, run.run_id)
-                return await self._set_run_state(run, RunState.FAILED, "policy denied")
+                return await self._set_run_state(
+                    run, RunState.FAILED, "policy denied", code=ReasonCode.POLICY_DENIED
+                )
             if cont.repairs >= ctx.budgets.max_validation_repairs:
                 run = await self._store.get_run(run.tenant_id, run.run_id)
-                return await self._set_run_state(run, RunState.FAILED, "validation blocked")
+                return await self._set_run_state(
+                    run, RunState.FAILED, "validation blocked", code=ReasonCode.VALIDATION_FAILED
+                )
             cont.repairs += 1
             cont.findings = validation.findings
             return DriverInput(
@@ -830,7 +858,9 @@ class RunCoordinator:
             )
         run = await self._store.get_run(run.tenant_id, run.run_id)
         if cont.repairs >= ctx.budgets.max_validation_repairs:
-            return await self._set_run_state(run, RunState.FAILED, "answer not verified")
+            return await self._set_run_state(
+                run, RunState.FAILED, "answer not verified", code=ReasonCode.VERIFICATION_FAILED
+            )
         cont.repairs += 1
         findings = tuple(
             Finding(
@@ -1001,7 +1031,9 @@ class RunCoordinator:
             )
             cont.pending_action_id = None
             run = await self._store.get_run(actor.tenant_id, run_id)
-            await self._set_run_state(run, RunState.FAILED, "capability surface changed")
+            await self._set_run_state(
+                run, RunState.FAILED, "capability surface changed", code=ReasonCode.SURFACE_CHANGED
+            )
             raise KernelError(ErrorCode.APPROVAL_STALE, "capabilities changed; start a new run")
         now = self._clock()
         assert cont.approval_requested_at is not None
@@ -1013,7 +1045,9 @@ class RunCoordinator:
             )
             cont.pending_action_id = None
             run = await self._store.get_run(actor.tenant_id, run_id)
-            await self._set_run_state(run, RunState.FAILED, "approval expired")
+            await self._set_run_state(
+                run, RunState.FAILED, "approval expired", code=ReasonCode.APPROVAL_EXPIRED
+            )
             raise KernelError(ErrorCode.APPROVAL_STALE, "approval window expired")
 
         record = ApprovalRecord(
@@ -1051,7 +1085,9 @@ class RunCoordinator:
         if decision is ApprovalDecision.REJECTED:
             cont.pending_action_id = None
             run = await self._store.get_run(actor.tenant_id, run_id)
-            return await self._set_run_state(run, RunState.FAILED, "rejected by approver")
+            return await self._set_run_state(
+                run, RunState.FAILED, "rejected by approver", code=ReasonCode.APPROVAL_REJECTED
+            )
         return await self._dispatch(cont, approved_action, record)
 
     # -------------------------------------------------------------- dispatch
@@ -1077,9 +1113,13 @@ class RunCoordinator:
             )
             cont.pending_action_id = None
             if cont.repairs >= ctx.budgets.max_validation_repairs:
-                return await self._set_run_state(run, RunState.FAILED, stale_reason)
+                return await self._set_run_state(
+                    run, RunState.FAILED, stale_reason, code=ReasonCode.STALE
+                )
             cont.repairs += 1
-            run = await self._set_run_state(run, RunState.RUNNING, stale_reason)
+            run = await self._set_run_state(
+                run, RunState.RUNNING, stale_reason, code=ReasonCode.STALE
+            )
             stale = Finding(
                 rule_id="KERNEL-STALE",
                 rule_version="1",
@@ -1110,7 +1150,12 @@ class RunCoordinator:
             )
         except DuplicateOperation:
             await self._transition(action, ActionState.BLOCKED)
-            return await self._set_run_state(run, RunState.FAILED, "operation already reserved")
+            return await self._set_run_state(
+                run,
+                RunState.FAILED,
+                "operation already reserved",
+                code=ReasonCode.OPERATION_RESERVED,
+            )
         cont.writes += 1
         action = await self._transition(
             action, ActionState.DISPATCHING, (RunEventType.ACTION_DISPATCHING, {"attempt": 1})
@@ -1237,10 +1282,13 @@ class RunCoordinator:
                 run,
                 RunState.NEEDS_RECONCILIATION,
                 "write outcome unknown; reconcile before any retry",
+                code=ReasonCode.EFFECT_UNKNOWN,
             )
         if target is ActionState.FAILED:
             cont.pending_action_id = None
-            return await self._set_run_state(run, RunState.FAILED, "provider rejected the write")
+            return await self._set_run_state(
+                run, RunState.FAILED, "provider rejected the write", code=ReasonCode.PROVIDER_ERROR
+            )
         run = await self._set_run_state(run, RunState.VERIFYING)
         return await self._verify(cont, action, receipt)
 
@@ -1251,7 +1299,12 @@ class RunCoordinator:
         verifier = self._registry.verifier_for(action.contract_id)
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
         if verifier is None:
-            return await self._set_run_state(run, RunState.VERIFYING, "no verifier registered")
+            return await self._set_run_state(
+                run,
+                RunState.VERIFYING,
+                "no verifier registered",
+                code=ReasonCode.VERIFICATION_PENDING,
+            )
         reader = _GatewayReader(self, cont, action.connection_id)
         try:
             report = await verifier.verify(ctx, action, receipt, reader)
@@ -1279,7 +1332,12 @@ class RunCoordinator:
                 ],
             )
             run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
-            return await self._set_run_state(run, RunState.VERIFYING, "verification unavailable")
+            return await self._set_run_state(
+                run,
+                RunState.VERIFYING,
+                "verification unavailable",
+                code=ReasonCode.VERIFICATION_PENDING,
+            )
         target = (
             ActionState.VERIFIED
             if report.status is OutcomeStatus.VERIFIED
@@ -1294,7 +1352,12 @@ class RunCoordinator:
                 [(RunEventType.OUTCOME_REPORTED, report.model_dump(mode="json"), action.action_id)],
             )
             run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
-            return await self._set_run_state(run, RunState.VERIFYING, "verification inconclusive")
+            return await self._set_run_state(
+                run,
+                RunState.VERIFYING,
+                "verification inconclusive",
+                code=ReasonCode.VERIFICATION_PENDING,
+            )
         current = await self._store.get_action(ctx.tenant_id, action.action_id)
         await self._store.record_outcome(
             ctx.tenant_id,
@@ -1306,7 +1369,12 @@ class RunCoordinator:
         cont.pending_action_id = None
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
         if target is ActionState.VERIFICATION_FAILED:
-            return await self._set_run_state(run, RunState.FAILED, "outcome verification failed")
+            return await self._set_run_state(
+                run,
+                RunState.FAILED,
+                "outcome verification failed",
+                code=ReasonCode.VERIFICATION_FAILED,
+            )
         return await self._finish_verified(
             cont, receipt.external_refs, "The approved action was independently verified."
         )
@@ -1364,7 +1432,9 @@ class RunCoordinator:
                 run.revision,
                 [(RunEventType.MESSAGE_FINAL, {"text": final.text}, None)],
             )
-        return await self._set_run_state(run, RunState.SUCCEEDED, "outcome verified")
+        return await self._set_run_state(
+            run, RunState.SUCCEEDED, "outcome verified", code=ReasonCode.VERIFIED
+        )
 
     # --------------------------------------------------------- reconciliation
     async def reconcile(self, operator: Principal, run_id: str) -> RunRecord:
@@ -1414,7 +1484,10 @@ class RunCoordinator:
         )
         if unresolved:
             return await self._set_run_state(
-                run, RunState.NEEDS_RECONCILIATION, "cancel requested; effect must be reconciled"
+                run,
+                RunState.NEEDS_RECONCILIATION,
+                "cancel requested; effect must be reconciled",
+                code=ReasonCode.EFFECT_UNKNOWN,
             )
         try:
             cont: _Continuation | None = await self._load_cont(actor.tenant_id, run_id)
@@ -1425,7 +1498,9 @@ class RunCoordinator:
             if ActionState.BLOCKED in ALLOWED_ACTION_TRANSITIONS[pending.state]:
                 await self._transition(pending, ActionState.BLOCKED)
             cont.pending_action_id = None
-        cancelled = await self._set_run_state(run, RunState.CANCELLED, "cancelled before dispatch")
+        cancelled = await self._set_run_state(
+            run, RunState.CANCELLED, "cancelled before dispatch", code=ReasonCode.CANCELLED
+        )
         active = self._active_calls.get(run_id)
         if active is not None:
             active.cancel()
@@ -1497,14 +1572,20 @@ class RunCoordinator:
                 cont.pending_action_id = None
             run = await self._store.get_run(run.tenant_id, run.run_id)
             return await self._set_run_state(
-                run, RunState.FAILED, "interrupted before dispatch; approve a new run"
+                run,
+                RunState.FAILED,
+                "interrupted before dispatch; approve a new run",
+                code=ReasonCode.INTERRUPTED,
             )
         elif committed and cont is not None:
             receipts = await self._store.list_receipts(run.tenant_id, committed[0].action_id)
             return await self._verify(cont, committed[0], receipts[-1])
         elif any(a.state is ActionState.UNKNOWN for a in actions):
             return await self._set_run_state(
-                run, RunState.NEEDS_RECONCILIATION, "persisted write outcome unknown"
+                run,
+                RunState.NEEDS_RECONCILIATION,
+                "persisted write outcome unknown",
+                code=ReasonCode.EFFECT_UNKNOWN,
             )
         elif (
             latest is not None
@@ -1517,9 +1598,18 @@ class RunCoordinator:
         ):
             if cont is not None:
                 cont.pending_action_id = None
-            return await self._set_run_state(run, RunState.SUCCEEDED, "outcome verified")
+            return await self._set_run_state(
+                run, RunState.SUCCEEDED, "outcome verified", code=ReasonCode.VERIFIED
+            )
         elif latest is not None and latest.state is ActionState.VERIFICATION_FAILED:
-            return await self._set_run_state(run, RunState.FAILED, "outcome verification failed")
+            return await self._set_run_state(
+                run,
+                RunState.FAILED,
+                "outcome verification failed",
+                code=ReasonCode.VERIFICATION_FAILED,
+            )
         elif run.state in {RunState.RUNNING, RunState.CREATED}:
-            return await self._set_run_state(run, RunState.FAILED, "interrupted during driver turn")
+            return await self._set_run_state(
+                run, RunState.FAILED, "interrupted during driver turn", code=ReasonCode.INTERRUPTED
+            )
         return None

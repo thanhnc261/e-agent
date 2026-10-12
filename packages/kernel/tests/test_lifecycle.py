@@ -8,7 +8,7 @@ from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.connection import ConnectionDescriptor, ConnectionOwnership
 from e_agent.contracts.context import Budgets
 from e_agent.contracts.events import RunEventType
-from e_agent.contracts.run import RunState
+from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.kernel.errors import ErrorCode, KernelError
 
 from .conftest import CONN, TENANT, Kernel, principal
@@ -488,3 +488,17 @@ async def test_profile_may_allow_self_approval_for_local_demo(make_kernel: MakeK
         decision=ApprovalDecision.APPROVED,
     )
     assert run.state is RunState.SUCCEEDED
+
+
+async def test_rejected_approval_records_a_reason_code(make_kernel: MakeKernel) -> None:
+    k = make_kernel()
+    run = await _approve(k, (await _start(k)).run_id, ApprovalDecision.REJECTED)
+    assert run.state is RunState.FAILED
+    assert run.reason_code is ReasonCode.APPROVAL_REJECTED
+    assert run.reason == "rejected by approver"
+    changed = [
+        e
+        for e in await k.store.list_events(TENANT, run.run_id)
+        if e.type is RunEventType.RUN_STATE_CHANGED
+    ]
+    assert changed[-1].payload["reason_code"] == "approval_rejected"
