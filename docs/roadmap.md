@@ -91,7 +91,7 @@ Other design documents: HLD and MVP design are the baseline every phase keeps. T
 | Approval model for multi-write plans (ADR 0024): approve the plan once, or auto-approve in a benchmark-only profile | 2/5 | Approve the plan once |
 | ERP-Bench evaluation substrate: patterns ported to `odoo19-learning`, or owned bench containers | 5 | Ported patterns |
 | ERP-Bench canonical URL (D7) | 5 | Needed before importing any concept |
-| Harness: build a lean e-agent harness, or reuse concepts from the `onto-erp-agents` harness | H | Lean, concept reuse with provenance |
+| Harness: lean, built on Claude Code primitives (manifest, contracts, hooks, subagents); see the [harness plan](superpowers/plans/2026-10-12-dev-harness.md) | H | Lean; decided 2026-10-12 |
 
 ## Done before this roadmap
 
