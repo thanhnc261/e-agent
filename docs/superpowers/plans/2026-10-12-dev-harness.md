@@ -128,12 +128,14 @@ This is the local dev loop every task follows, attended or not. The `eng-session
   - `handoff`: what changed, evidence refs, open items, rulings, changes outside the repository and how to undo them;
   - `review`: verdicts per finding, severity, evidence.
 - **The digest rule:** a task stores the hash of every authoritative file. If any of them changes, the task is invalid and must be re-materialised.
-- **Instruction-file fix.** Finding: `CLAUDE.md` links to `AGENTS.md` with a Markdown link, not an `@AGENTS.md` import, and Claude Code reads `AGENTS.md` directly only when no `CLAUDE.md` exists. In the current checkout a Claude session therefore loads the seven-line `CLAUDE.md` and not the shared rules unless it reads them by hand. Deliverable: the import (per H0), verified with `/context`. `AGENTS.md` is 64 lines, inside the documented 200-line guidance; keep it there by moving procedures into `eng-*` skills and keeping only invariants, commands and boundaries in the root files, so they survive compaction. Add a `# Compact instructions` section. Add `.claude/rules/` with unscoped files for the invariants that must survive compaction and path-scoped files only for hints (`ui/**` → `ag-*` skills; `packages/**` → import rules).
+- **Instruction-file fix.** Finding: `CLAUDE.md` links to `AGENTS.md` with a Markdown link, not an `@AGENTS.md` import, and Claude Code reads `AGENTS.md` directly only when no `CLAUDE.md` exists. In the current checkout a Claude session therefore loads the seven-line `CLAUDE.md` and not the shared rules unless it reads them by hand. Deliverable: the import (per H0), verified with `/context`. `AGENTS.md` is 64 lines, inside the documented 200-line guidance; keep it there by moving procedures into `eng-*` skills and keeping only invariants, commands and boundaries in the root files, so they survive compaction. Add a `# Compact instructions` section. No `.claude/rules/` directory (decided in H1): the imported `AGENTS.md` is project context and is re-injected after compaction already, and path-scoped rules would be summarised away.
 - **Status contract text:** what was done, what completed, why it stopped, whether that stop was expected, the gate impact, and exactly one next action.
 
+**Done 2026-10-12** (branch `harness/h1-durable-state`, [handoff](../../handoffs/2026-10-12-harness-h1.md)): [`harness/context.toml`](../../../harness/context.toml), schemas under `tools/harness/src/e_agent_harness/schemas/`, samples under `harness/samples/`, modules `manifest`, `digest`, `contracts`, `progress` in the `e-agent-harness` distribution, and `tests/conformance/test_harness_context.py`. The `validate-context` command itself is H2; H1 ships the function it wraps.
+
 **Exit:**
-- `validate-context` passes on the repository, and the schemas validate the sample documents.
-- `/context` in a fresh session lists `AGENTS.md` as loaded; `/doctor prompt-audit` reports no contradictions between the root files, rules and skills.
+- `validate_manifest` returns no problems on the repository, and the schemas validate the sample documents (conformance test).
+- A fresh `claude -p` session answers from the imported `AGENTS.md` (checked 2026-10-12); `/doctor prompt-audit` is run by the owner in an interactive session.
 
 ## Phase H2: harness CLI
 
