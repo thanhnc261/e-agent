@@ -81,7 +81,7 @@ Validation is authoritative (SHACL); the ledger is PostgreSQL; the Odoo adapter 
 
 ### Commands (verified in the development container)
 
-For manual end-to-end testing, run `make dev` from the repository root. It builds the UI assets, starts the backend at `http://127.0.0.1:8787` and starts the Vite frontend at `http://127.0.0.1:5173`. Open the frontend for hot reload, `/host.html` for the overlay, or `/reference/` for the reference UI. API/SSE and built embedded assets are proxied through the frontend origin. Ctrl+C stops both owned processes; either process exiting also stops its sibling. The default backend uses the deterministic fixture profile and an in-memory ledger.
+For manual end-to-end testing, run `make dev` from the repository root. It builds the UI assets, starts the backend at `http://127.0.0.1:8787` and starts the Vite frontend at `http://127.0.0.1:5173`. Open the frontend for hot reload, `/host.html` for the overlay, or `/reference/` for the reference UI. API/SSE and built embedded assets are proxied through the frontend origin. Ctrl+C stops both owned processes; either process exiting also stops its sibling. The default backend is the real agent: `profiles/dev-ollama.json` runs the Pydantic AI driver on local Ollama (model `e-agent-mvp-qwen3-coder-20261007`, see below) against the fixture ERP data and an in-memory ledger, so the model interprets what you type. `make dev PROFILE=` uses the packaged fixture profile with the deterministic scripted driver, which ignores the text and always proposes the same draft PO.
 
 ```bash
 make setup                    # first use: locked Python and frontend dependencies
@@ -92,6 +92,7 @@ make frontend                 # Vite frontend, independently; requires the backe
 make e2e                      # build + Playwright using its own isolated fixture server
 make dev BACKEND_PORT=8887 FRONTEND_PORT=5174
 make dev PROFILE=profiles/my.local.json  # explicitly use your configured backend profile
+make dev PROFILE=                        # scripted fixture driver (deterministic demo, ignores the typed task)
 make help
 ```
 
