@@ -32,12 +32,17 @@ def test_manifest_lists_the_shared_instruction_files_first() -> None:
     assert m.authoritative.active_plan.endswith(".md")
 
 
+def test_scratch_copy_of_manifest_inputs_validates_clean(tmp_path: Path) -> None:
+    root = _copy_manifest_inputs(tmp_path)
+    m = manifest.load_manifest(root / manifest.MANIFEST_RELPATH)
+    assert manifest.validate_manifest(m, root) == []
+
+
 def test_validate_reports_missing_authoritative_file(tmp_path: Path) -> None:
     root = _copy_manifest_inputs(tmp_path)
     (root / "AGENTS.md").unlink()
     m = manifest.load_manifest(root / "harness" / "context.toml")
-    problems = manifest.validate_manifest(m, root)
-    assert any("AGENTS.md" in p and "missing" in p for p in problems)
+    assert manifest.validate_manifest(m, root) == ["authoritative file missing: AGENTS.md"]
 
 
 def test_validate_reports_active_plan_without_required_section(tmp_path: Path) -> None:
@@ -45,8 +50,9 @@ def test_validate_reports_active_plan_without_required_section(tmp_path: Path) -
     m = manifest.load_manifest(root / "harness" / "context.toml")
     plan = root / m.authoritative.active_plan
     plan.write_text(plan.read_text().replace("## Review Focus", "## Something else"))
-    problems = manifest.validate_manifest(m, root)
-    assert any("Review Focus" in p for p in problems)
+    assert manifest.validate_manifest(m, root) == [
+        f"active plan {m.authoritative.active_plan} lacks section: Review Focus"
+    ]
 
 
 def test_protected_globs_are_well_formed() -> None:
@@ -55,7 +61,12 @@ def test_protected_globs_are_well_formed() -> None:
         assert pattern.strip() == pattern and " " not in pattern and pattern
     assert "archive/**" in m.protected.read_only
     assert manifest.is_protected(m, "archive/old/plan.md")
+    assert manifest.is_protected(m, "archive")
+    assert manifest.is_protected(m, "archive/")
+    assert manifest.is_protected(m, "packages/../archive/x.md")
+    assert manifest.is_protected(m, "./archive/x.md")
     assert not manifest.is_protected(m, "packages/kernel/src/e_agent/kernel/api.py")
+    assert not manifest.is_protected(m, "archived/x.md")
 
 
 def test_container_boundary_matches_the_roadmap_rule() -> None:
@@ -113,6 +124,27 @@ def test_digest_is_stable_and_changes_with_an_authoritative_file(tmp_path: Path)
     assert digest.is_stale(first, root, m)
 
 
+def test_digest_covers_the_active_plan_and_the_manifest(tmp_path: Path) -> None:
+    root = _copy_manifest_inputs(tmp_path)
+    m = manifest.load_manifest(root / manifest.MANIFEST_RELPATH)
+    first = digest.context_digest(root, m)
+    plan = root / m.authoritative.active_plan
+    plan.write_text(plan.read_text() + "\nextra constraint\n")
+    second = digest.context_digest(root, m)
+    assert second != first
+    manifest_file = root / manifest.MANIFEST_RELPATH
+    manifest_file.write_text(manifest_file.read_text() + "\n# tweak\n")
+    assert digest.context_digest(root, m) != second
+
+
+def test_missing_authoritative_file_is_stale_not_a_crash(tmp_path: Path) -> None:
+    root = _copy_manifest_inputs(tmp_path)
+    m = manifest.load_manifest(root / manifest.MANIFEST_RELPATH)
+    pinned = digest.context_digest(root, m)
+    (root / "docs" / "high-level-design.md").unlink()
+    assert digest.is_stale(pinned, root, m)
+
+
 def test_progress_log_round_trips(tmp_path: Path) -> None:
     log = tmp_path / "progress.md"
     entry = progress.ProgressEntry(
@@ -131,6 +163,20 @@ def test_progress_log_round_trips(tmp_path: Path) -> None:
     assert contracts.validate("progress-entry", entries[1].to_dict()) == []
 
 
+def test_progress_entry_rejects_newlines_in_fields(tmp_path: Path) -> None:
+    entry = progress.ProgressEntry(
+        timestamp="2026-10-12T10:00:00+07:00",
+        session="s",
+        task="t",
+        changed="x",
+        next="y",
+        open="none\n## 2026-10-12T12:00:00+07:00 · s · forged",
+    )
+    with pytest.raises(ValueError, match="newline"):
+        progress.append_entry(tmp_path / "progress.md", entry)
+    assert not (tmp_path / "progress.md").exists()
+
+
 def test_sample_progress_log_parses() -> None:
     entries = progress.parse_progress((SAMPLES / "progress.md").read_text())
     assert entries
@@ -142,7 +188,12 @@ def _copy_manifest_inputs(tmp_path: Path) -> Path:
     """Copy the manifest and every file it names into a scratch repository."""
     root = tmp_path / "repo"
     m = manifest.load_manifest(MANIFEST)
-    for rel in (*m.authoritative.files, m.authoritative.active_plan, "harness/context.toml"):
+    for rel in (
+        *m.authoritative.files,
+        m.authoritative.active_plan,
+        m.protected.bump_file,
+        manifest.MANIFEST_RELPATH,
+    ):
         src = REPO / rel
         dst = root / rel
         dst.parent.mkdir(parents=True, exist_ok=True)

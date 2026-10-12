@@ -31,6 +31,9 @@ class ProgressEntry(NamedTuple):
         return dict(self._asdict())
 
     def render(self) -> str:
+        for name, value in self._asdict().items():
+            if "\n" in value or "\r" in value:
+                raise ValueError(f"progress entry field {name!r} must not contain a newline")
         return (
             f"## {self.timestamp} · {self.session} · {self.task}\n"
             f"- changed: {self.changed}\n"
@@ -54,8 +57,9 @@ def parse_progress(text: str) -> list[ProgressEntry]:
 
 
 def append_entry(path: Path, entry: ProgressEntry) -> None:
+    text = entry.render()  # validates before anything is written
     exists = path.is_file()
     with path.open("a", encoding="utf-8") as fh:
         if not exists:
             fh.write(HEADER)
-        fh.write("\n" + entry.render())
+        fh.write("\n" + text)

@@ -14,6 +14,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 HEADING = re.compile(r"^##\s+(.+?)\s*$", re.M)
+MANIFEST_RELPATH = "harness/context.toml"
 
 
 @dataclass(frozen=True)
@@ -129,10 +130,34 @@ def validate_manifest(m: Manifest, repo_root: Path) -> list[str]:
     return problems
 
 
+def normalize_relpath(path: str) -> str:
+    """Repository-relative POSIX path with ``.`` and ``..`` resolved and no trailing slash.
+
+    ``..`` never climbs above the repository root, so ``packages/../archive/x``
+    is ``archive/x`` and ``../etc`` is ``etc``.
+    """
+    parts: list[str] = []
+    for segment in PurePosixPath(path.replace("\\", "/")).parts:
+        if segment in ("", ".", "/"):
+            continue
+        if segment == "..":
+            if parts:
+                parts.pop()
+            continue
+        parts.append(segment)
+    return "/".join(parts)
+
+
 def _glob_match(path: str, pattern: str) -> bool:
-    """``**`` matches across directories; ``*`` matches within one segment."""
-    regex = _glob_regex(pattern)
-    return re.fullmatch(regex, PurePosixPath(path).as_posix()) is not None
+    """``**`` matches across directories; ``*`` matches within one segment.
+
+    ``dir/**`` also matches ``dir`` itself, so a protected directory is protected
+    as a whole, not only its contents.
+    """
+    normalized = normalize_relpath(path)
+    if pattern.endswith("/**") and normalized == pattern[:-3]:
+        return True
+    return re.fullmatch(_glob_regex(pattern), normalized) is not None
 
 
 def _glob_regex(pattern: str) -> str:
