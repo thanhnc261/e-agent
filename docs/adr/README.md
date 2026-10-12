@@ -24,6 +24,10 @@ One decision per ADR. Statuses: **Proposed** (recommended, not yet accepted by t
 
 | [0016](0016-selectable-agent-surfaces.md) | Selectable enterprise agent surfaces | Accepted (requested overlay design) | UI surfaces / I08–I09 |
 | [0017](0017-member-discovery-read-models.md) | Member-readable task catalog and connection projections | Accepted (requested overlay adoption, API-01) | Enterprise overlay / API-01, FE-06 |
+| [0018](0018-run-transitions-reason-codes-event-attribution.md) | Run transition table, reason codes, event actor, paged events | Proposed | WP1 Tasks 2, 4, 5, 7 |
+| [0019](0019-approval-reachability-and-self-approval.md) | Approval expiry sweeper; self-approval forbidden unless profile allows | Proposed | WP1 Tasks 3, 6 |
+| [0020](0020-connection-level-write-admission.md) | Reservation refused while the connection has an unresolved write | Proposed | WP1 Task 8 |
+| [0021](0021-litellm-model-provider.md) | LiteLLM as an explicit, opt-in second model provider; Ollama stays default | Proposed | WP1 Task 10 |
 
 The [2026-10-06 architecture review](../reviews/2026-10-06-architecture-review.md) explains the findings behind 0002–0010. ADR 0012 comes from [integration management](../integration-management.md), ADR 0013 from [integration auth SDK](../integration-auth-sdk.md). ADR 0011 comes from the follow-up UI research in [UI architecture](../ui-architecture.md).
 
