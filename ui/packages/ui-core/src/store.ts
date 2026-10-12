@@ -156,6 +156,7 @@ export function selectTimeline(view: RunView): TimelineItem[] {
     else if (supported && (type === "validation.completed" || type === "outcome.reported")) detail = String(p["status"] ?? "");
     else if (supported && type === "approval.decided") detail = String(p["decision"] ?? "");
     else if (supported && (type === "proposal.created" || type === "read.recorded")) detail = String(p["contract_id"] ?? "");
+    else if (supported && type === "read.rejected") detail = typeof p["code"] === "string" ? p["code"] : null;
     return {
       sequence: e.sequence,
       type,

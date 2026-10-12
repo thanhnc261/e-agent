@@ -658,6 +658,7 @@ async def test_rejected_read_is_fed_back_and_the_run_continues(make_kernel: Make
     run = await _start(k)
     assert run.state is RunState.WAITING_APPROVAL
     assert {"r1": "E_AGENT_INVALID_REF: Odoo rejected the request"} in seen
+    assert "r1" not in seen[-1], "an observation supersedes the earlier error"
     rejected = [
         e
         for e in await k.store.list_events(TENANT, run.run_id)
@@ -674,3 +675,16 @@ async def test_repeated_rejected_reads_exhaust_the_read_budget(make_kernel: Make
     assert run.state is RunState.FAILED
     assert run.reason_code is ReasonCode.BUDGET_EXHAUSTED
     assert run.reason == "budget exhausted: read calls"
+
+
+async def test_read_auth_failure_fails_the_run_without_model_feedback(
+    make_kernel: MakeKernel,
+) -> None:
+    k = make_kernel()
+    k.backend.fail_mode = "read-auth"
+    run = await _start(k)
+    assert run.state is RunState.FAILED
+    assert run.reason_code is ReasonCode.PROVIDER_ERROR
+    assert run.reason == "provider authentication required"
+    assert RunEventType.READ_REJECTED not in await _types(k, run.run_id)
+    assert k.driver.calls == 1, "the model is not asked to fix credentials"

@@ -398,10 +398,20 @@ class RunCoordinator:
                     except TimeoutError:
                         return await self._exhausted(run, "active time or provider deadline")
                     except KnownNoEffectError as exc:
+                        if exc.code == "AUTH_REQUIRED":
+                            # Credentials are not something the model can fix: fail, no feedback.
+                            run = await self._store.get_run(run.tenant_id, run.run_id)
+                            return await self._set_run_state(
+                                run,
+                                RunState.FAILED,
+                                "provider authentication required",
+                                code=ReasonCode.PROVIDER_ERROR,
+                            )
                         await self._record_rejected_read(cont, request, exc)
                         continue
                     cont.reads[request.request_id] = request
                     cont.observations[request.request_id] = obs
+                    cont.read_errors.pop(request.request_id, None)
                 await self._persist(run.run_id)
                 step_input = DriverInput(
                     task=run.task,

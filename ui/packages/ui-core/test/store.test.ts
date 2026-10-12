@@ -32,7 +32,7 @@ describe("run view reducer", () => {
     });
     expect(v.needsSnapshot).toBe(false);
     expect(v.unsupportedEvents).toBe(0);
-    expect(selectTimeline(v)[0]).toMatchObject({ supported: true, labelKey: "event.read.rejected" });
+    expect(selectTimeline(v)[0]).toMatchObject({ supported: true, labelKey: "event.read.rejected", detail: "E_AGENT_INVALID_REF" });
   });
 
   it("records the final message as data", () => {

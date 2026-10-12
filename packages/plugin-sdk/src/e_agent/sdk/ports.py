@@ -47,7 +47,8 @@ class DriverInput:
     observations: tuple[Observation, ...] = ()
     findings: tuple[Finding, ...] = ()
     action_result: Mapping[str, Any] | None = None
-    # request_id -> "<code>: <safe_message>" for reads the provider rejected (ADR 0022)
+    # request_id -> "<code>: <safe_message>" for reads the provider rejected (ADR 0022).
+    # An observation for the same request id supersedes an error.
     read_errors: Mapping[str, str] = field(default_factory=dict)
 
 

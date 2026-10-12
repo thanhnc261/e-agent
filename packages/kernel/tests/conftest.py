@@ -70,7 +70,8 @@ class NotesBackend:
     notes: dict[str, dict[str, str]] = field(default_factory=dict)
     create_calls: int = 0
     read_calls: int = 0
-    # None | "timeout" | "reject" | "timeout-no-commit" | "read-reject" | "read-reject-once"
+    # None | "timeout" | "reject" | "timeout-no-commit"
+    # | "read-reject" | "read-reject-once" | "read-auth"
     fail_mode: str | None = None
 
     def supports(self, binding: CapabilityBinding) -> bool:
@@ -80,6 +81,10 @@ class NotesBackend:
         self, ctx: TaskContext, binding: CapabilityBinding, request: ReadRequest
     ) -> Observation:
         self.read_calls += 1
+        if self.fail_mode == "read-auth":
+            raise KnownNoEffectError(
+                "AUTH_REQUIRED", "credentials unavailable before provider call"
+            )
         if self.fail_mode == "read-reject" or (
             self.fail_mode == "read-reject-once" and self.read_calls == 1
         ):
