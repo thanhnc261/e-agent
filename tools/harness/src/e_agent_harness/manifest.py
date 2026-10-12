@@ -148,7 +148,7 @@ def normalize_relpath(path: str) -> str:
     return "/".join(parts)
 
 
-def _glob_match(path: str, pattern: str) -> bool:
+def path_matches(path: str, pattern: str) -> bool:
     """``**`` matches across directories; ``*`` matches within one segment.
 
     ``dir/**`` also matches ``dir`` itself, so a protected directory is protected
@@ -158,6 +158,9 @@ def _glob_match(path: str, pattern: str) -> bool:
     if pattern.endswith("/**") and normalized == pattern[:-3]:
         return True
     return re.fullmatch(_glob_regex(pattern), normalized) is not None
+
+
+_glob_match = path_matches
 
 
 def _glob_regex(pattern: str) -> str:

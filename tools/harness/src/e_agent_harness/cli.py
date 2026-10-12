@@ -7,13 +7,14 @@ the hook JSON on stdin and exit 2 to deny.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 from e_agent_harness import manifest as mf
-from e_agent_harness import state, tasks
+from e_agent_harness import scope, state, tasks
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -31,10 +32,14 @@ def _parser() -> argparse.ArgumentParser:
         "--paths", action="append", default=[], required=True, help="allowed path glob"
     )
     new_task.add_argument("--acceptance", action="append", default=[])
-    new_task.add_argument(
-        "--gate", default="quick", choices=["quick", "full", "pg", "e2e", "live"]
-    )
+    new_task.add_argument("--gate", default="quick", choices=["quick", "full", "pg", "e2e", "live"])
     new_task.add_argument("--replace", action="store_true", help="replace the active task")
+    scope_p = sub.add_parser(
+        "check-scope", help="changed paths must be inside the active task's scope"
+    )
+    scope_p.add_argument(
+        "--hook", action="store_true", help="PreToolUse mode: hook JSON on stdin, exit 2 denies"
+    )
     return parser
 
 
@@ -86,7 +91,32 @@ def cmd_new_task(args: argparse.Namespace) -> int:
     return 0
 
 
-COMMANDS = {"validate-context": cmd_validate_context, "new-task": cmd_new_task}
+def _resolve_for_hook(repo_root: Path) -> tuple[mf.Manifest, dict[str, Any] | None]:
+    paths = state.Paths(repo_root)
+    loaded = state.load_task(paths)
+    return mf.load_manifest(paths.manifest), (loaded[0] if loaded else None)
+
+
+def cmd_check_scope(args: argparse.Namespace) -> int:
+    if args.hook:
+        payload = json.load(args.stdin)
+        code, reason = scope.hook_decision(payload, _resolve_for_hook)
+        if code:
+            print(reason, file=sys.stderr)
+        return code
+    root, paths, m = _context(args)
+    loaded = state.load_task(paths)
+    problems = scope.check_tree(loaded[0] if loaded else None, m, root)
+    for problem in problems:
+        print(problem)
+    return 1 if problems else 0
+
+
+COMMANDS = {
+    "validate-context": cmd_validate_context,
+    "new-task": cmd_new_task,
+    "check-scope": cmd_check_scope,
+}
 
 
 def main(argv: list[str] | None = None, stdin: TextIO | None = None) -> int:

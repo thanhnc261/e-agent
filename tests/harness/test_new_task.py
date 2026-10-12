@@ -39,8 +39,17 @@ def test_new_task_refuses_second_active_task_without_replace(repo) -> None:
 
 def test_new_task_uses_explicit_acceptance_when_given(repo) -> None:
     result = repo.invoke(
-        "new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**",
-        "--acceptance", "pytest -q src passes", "--acceptance", "openapi unchanged",
+        "new-task",
+        "1",
+        "1c.1",
+        "--feature",
+        "F-1",
+        "--paths",
+        "src/**",
+        "--acceptance",
+        "pytest -q src passes",
+        "--acceptance",
+        "openapi unchanged",
     )
     assert result.code == 0
     contract = json.loads((repo.root / "harness/state/1/tasks/1c.1.json").read_text())
