@@ -1,7 +1,7 @@
 /** Task entry and clarifying answers. Enter sends text; it can never approve. */
 import { type FormEvent } from "react";
-import { canCompose } from "@e-agent/ui-core";
-import { useComposer, useI18n, useRun } from "@e-agent/ui-react";
+import { canCompose, selectPendingReply } from "@e-agent/ui-core";
+import { useComposer, useI18n, useRun, useRunState } from "@e-agent/ui-react";
 import { ActionButton } from "../../primitives/ActionButton.tsx";
 import { TextAreaField } from "../../primitives/TextAreaField.tsx";
 import { ContextPreview } from "./ContextPreview.tsx";
@@ -12,7 +12,9 @@ export function Composer() {
   const { busy, submit, draft: task, setDraft: setTask } = useComposer();
   const { run } = useRun();
   const canSend = canCompose(run?.state);
-  const answer = run?.state === "WAITING_INPUT";
+  const { view } = useRunState();
+  const reply = selectPendingReply(view);
+  const answer = run?.state === "WAITING_INPUT" && !reply;
   const onSubmit = (e?: FormEvent) => {
     e?.preventDefault();
     if (!task.trim() || busy || !canSend) return;
@@ -29,7 +31,13 @@ export function Composer() {
         onChange={setTask}
         isDisabled={busy || !canSend}
         placeholder={t(
-          answer ? "composer.answerPlaceholder" : canSend ? "composer.placeholder" : "composer.locked",
+          answer
+            ? "composer.answerPlaceholder"
+            : reply
+              ? "composer.replyPlaceholder"
+              : canSend
+                ? "composer.placeholder"
+                : "composer.locked",
         )}
         testId="composer-input"
         onKeyDown={e => {
@@ -51,7 +59,7 @@ export function Composer() {
           isPending={busy}
           data-testid="composer-submit"
         >
-          {t(answer ? "composer.answer" : "composer.submit")}
+          {t(answer ? "composer.answer" : reply ? "composer.reply" : "composer.submit")}
           <span aria-hidden="true"> ↑</span>
         </ActionButton>
       </div>

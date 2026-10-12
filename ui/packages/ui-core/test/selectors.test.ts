@@ -173,3 +173,35 @@ describe("conversation item kind (ADR 0022)", () => {
     expect(selectPendingReply(old)).toBe(false);
   });
 });
+
+describe("a recorded question replaces its streamed text (plan Task 5)", () => {
+  for (const kind of ["reply", "clarification", undefined]) {
+    it(`clears streaming text on input.requested (${kind ?? "old row"})`, () => {
+      let view = viewWith("RUNNING");
+      view = reduceRunView(view, {
+        type: "text",
+        frame: { stream_id: "s", message_id: "m", offset: 1, text: "Hello! What next?", reset: true },
+      });
+      expect(view.streamingText).toBe("Hello! What next?");
+      view = reduceRunView(view, {
+        type: "events",
+        events: [event(1, "input.requested", { question: "Hello! What next?", ...(kind ? { kind } : {}) })],
+      });
+      expect(view.streamingText).toBe("");
+      expect(selectConversation(view).filter(m => m.role === "agent")).toHaveLength(1);
+    });
+  }
+
+  it("does not restore stream text from a snapshot of a waiting run", () => {
+    let view = viewWith("RUNNING");
+    view = reduceRunView(view, {
+      type: "text",
+      frame: { stream_id: "s", message_id: "m", offset: 1, text: "stale", reset: true },
+    });
+    view = reduceRunView(view, {
+      type: "snapshot",
+      snapshot: { run: run("WAITING_INPUT"), latest_sequence: 0, actions: [], pending_approval: null },
+    });
+    expect(view.streamingText).toBe("");
+  });
+});

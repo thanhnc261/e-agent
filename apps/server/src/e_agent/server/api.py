@@ -148,6 +148,19 @@ class PublicTextBus:
         self.frames: dict[tuple[str, str], list[TextFrame]] = {}
         self.prefixes: dict[tuple[str, str], str] = {}
         self.messages: dict[tuple[str, str], str] = {}
+        self.last_offsets: dict[tuple[str, str], int] = {}
+
+    def discard(self, tenant_id: str, run_id: str) -> None:
+        """Drop buffered text once the kernel has recorded it as a question or reply.
+
+        Offsets keep counting so a connected client never sees a rewind."""
+        key = (tenant_id, run_id)
+        frames = self.frames.get(key)
+        if frames:
+            self.last_offsets[key] = frames[-1].offset
+        self.frames[key] = []
+        self.prefixes.pop(key, None)
+        self.messages.pop(key, None)
 
     async def emit(self, ctx: TaskContext, text: str, *, new_message: bool = False) -> None:
         key = (ctx.tenant_id, ctx.run_id)
@@ -156,6 +169,7 @@ class PublicTextBus:
             self.frames.pop(oldest)
             self.prefixes.pop(oldest, None)
             self.messages.pop(oldest, None)
+            self.last_offsets.pop(oldest, None)
         frames = self.frames.setdefault(key, [])
         if new_message or key not in self.messages:
             self.messages[key] = new_id("message")
@@ -163,7 +177,7 @@ class PublicTextBus:
         text = text[: max(0, 32000 - len(prefix))]
         if not text:
             return
-        offset = frames[-1].offset + 1 if frames else 1
+        offset = frames[-1].offset + 1 if frames else self.last_offsets.get(key, 0) + 1
         frames.append(
             TextFrame(
                 message_id=self.messages[key],
@@ -334,6 +348,14 @@ class ApiState:
             await rt.coordinator.recover_run(rt.operator.tenant_id, run_id)
         except NotFound:
             return
+
+
+def _streaming_text(api_state: ApiState, run: RunRecord) -> TextFrame | None:
+    """A waiting run's text is already a recorded question or reply (input.requested)."""
+    if run.state is RunState.WAITING_INPUT:
+        api_state.text.discard(run.tenant_id, run.run_id)
+        return None
+    return api_state.text.snapshot(run.tenant_id, run.run_id)
 
 
 class MemberConnection(BaseModel):
@@ -537,7 +559,7 @@ def create_app(
                 for a in actions
             ],
             pending_approval=pending,
-            streaming_text=state().text.snapshot(s.principal.tenant_id, run_id),
+            streaming_text=_streaming_text(state(), run),
         )
 
     @app.get("/v1/runs/{run_id}/events")
@@ -590,10 +612,12 @@ def create_app(
                 delivered += len(page)
                 if len(page) < EVENT_PAGE:
                     break
+            run = await rt.store.get_run(s.principal.tenant_id, run_id)
+            if run.state is RunState.WAITING_INPUT:
+                state().text.discard(s.principal.tenant_id, run_id)
             for frame in state().text.after(s.principal.tenant_id, run_id, text_cursor):
                 text_cursor = frame.offset
                 yield ServerSentEvent(data=frame.model_dump(mode="json"), event="text_delta")
-            run = await rt.store.get_run(s.principal.tenant_id, run_id)
             if run.state in TERMINAL_RUN_STATES and not delivered:
                 yield ServerSentEvent(data={"state": run.state}, event="end")
                 return

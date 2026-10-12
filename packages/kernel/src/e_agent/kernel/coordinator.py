@@ -457,6 +457,17 @@ class RunCoordinator:
                     and cont.pending_action_id is None
                 )
                 if conversational:
+                    # Crash-replay guard: counters live in the continuation, the ledger is durable.
+                    worked = {
+                        RunEventType.READ_RECORDED,
+                        RunEventType.READ_REJECTED,
+                        RunEventType.PROPOSAL_CREATED,
+                    }
+                    conversational = not any(
+                        e.type in worked
+                        for e in await self._store.list_events(run.tenant_id, run.run_id)
+                    )
+                if conversational:
                     await self._store.update_run(
                         run.model_copy(update={"revision": run.revision + 1}),
                         run.revision,

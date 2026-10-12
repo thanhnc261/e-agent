@@ -57,7 +57,12 @@ export function Messages() {
                   {t("conversation.reply")}
                 </p>
               )}
-              <div className="ea-message-body" data-testid={m.pending ? "clarification-question" : undefined}>
+              <div
+                className="ea-message-body"
+                data-testid={
+                  m.pending ? (m.kind === "reply" ? "pending-reply" : "clarification-question") : undefined
+                }
+              >
                 <MessageText text={m.text} />
               </div>
             </div>

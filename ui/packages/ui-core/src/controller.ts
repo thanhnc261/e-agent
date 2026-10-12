@@ -321,7 +321,7 @@ export class RunController {
       }
       this.dispatchView({ type: "snapshot", snapshot });
       this.remember();
-      if (snapshot.streaming_text && !TERMINAL_STATES.has(snapshot.run.state)) {
+      if (snapshot.streaming_text && !TERMINAL_STATES.has(snapshot.run.state) && snapshot.run.state !== "WAITING_INPUT") {
         this.dispatchView({ type: "text", frame: snapshot.streaming_text });
       }
       await this.present(snapshot.pending_approval ?? null);

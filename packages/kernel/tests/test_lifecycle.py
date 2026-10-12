@@ -464,6 +464,49 @@ async def test_plain_reply_without_any_work_waits_for_the_user(make_kernel: Make
         "question": "Hello! What would you like me to do?",
         "kind": "reply",
     }
+    assert k.backend.create_calls == 0
+    assert not any(e.type == "message.final" for e in events)
+
+
+async def test_blocked_proposal_then_plain_answer_is_not_a_reply(make_kernel: MakeKernel) -> None:
+    from e_agent.sdk.ports import FinalAnswer
+
+    k = make_kernel()
+    k.driver.texts[:] = [""]  # an empty note is blocked by validation
+    real = k.driver.advance
+
+    async def blocked_then_plain(ctx, step_input):  # type: ignore[no-untyped-def]
+        if step_input.findings:
+            return FinalAnswer(text="Done, I created it.")
+        return await real(ctx, step_input)
+
+    k.driver.advance = blocked_then_plain  # type: ignore[method-assign]
+    run = await k.coordinator.start_run(k.requester, "x", k.scope)
+    assert run.state is RunState.FAILED
+    assert run.reason_code is ReasonCode.VERIFICATION_FAILED
+    assert k.backend.create_calls == 0
+
+
+async def test_ledger_rows_veto_a_reply_when_continuation_counters_were_reset(
+    make_kernel: MakeKernel,
+) -> None:
+    k = make_kernel()
+    inner = _ReadThenReplyDriver("Widget-a is short by 7.")
+
+    async def forgetful(ctx, step_input):  # type: ignore[no-untyped-def]
+        # Crash replay: the continuation forgot its reads; the ledger did not.
+        for cont in k.coordinator._runs.values():
+            cont.read_calls = 0
+            cont.reads.clear()
+            cont.read_errors.clear()
+        return await inner.advance(ctx, step_input)
+
+    inner_driver = _ReplyDriver("")
+    inner_driver.advance = forgetful  # type: ignore[method-assign]
+    k.coordinator._driver = inner_driver  # type: ignore[assignment]
+    run = await k.coordinator.start_run(k.requester, "x", k.scope)
+    assert run.state is RunState.FAILED
+    assert run.reason_code is ReasonCode.VERIFICATION_FAILED
 
 
 async def test_plain_answer_after_reads_still_requires_verification(

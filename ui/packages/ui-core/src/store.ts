@@ -95,7 +95,10 @@ function applyEvent(view: RunView, event: RunEvent): RunView {
     next.finalMessage = payload["text"];
     next.streamingText = "";
   }
-  if (type === "input.requested" && typeof payload["question"] === "string") next.question = payload["question"];
+  if (type === "input.requested" && typeof payload["question"] === "string") {
+    next.question = payload["question"];
+    next.streamingText = ""; // the recorded question is the message; never show it twice
+  }
   if (type === "input.received") next.question = null;
   if (SNAPSHOT_TRIGGERS.has(type)) next.needsSnapshot = true;
   return next;
@@ -106,7 +109,7 @@ export function reduceRunView(view: RunView, action: RunViewAction): RunView {
     case "reset":
       return emptyRunView;
     case "text": {
-      if (TERMINAL_STATES.has(view.run?.state ?? "")) return view;
+      if (TERMINAL_STATES.has(view.run?.state ?? "") || view.run?.state === "WAITING_INPUT") return view;
       const frame = action.frame;
       const sameStream = frame.stream_id === view.textStreamId;
       if (sameStream && frame.offset <= view.textOffset) return view;
@@ -120,7 +123,7 @@ export function reduceRunView(view: RunView, action: RunViewAction): RunView {
       return {
         ...view,
         run: action.snapshot.run,
-        streamingText: TERMINAL_STATES.has(action.snapshot.run.state) ? "" : view.streamingText,
+        streamingText: TERMINAL_STATES.has(action.snapshot.run.state) || action.snapshot.run.state === "WAITING_INPUT" ? "" : view.streamingText,
         actions: action.snapshot.actions,
         needsSnapshot: false,
       };

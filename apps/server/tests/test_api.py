@@ -688,3 +688,23 @@ def test_unexpected_worker_failure_is_logged_with_traceback(
     assert records and records[0].levelname == "ERROR"
     assert records[0].exc_info is not None and records[0].exc_info[0] is RuntimeError
     assert r.json()["run_id"] in records[0].getMessage()
+
+
+async def test_waiting_input_run_has_no_buffered_text_to_restore() -> None:
+    """The reply text is recorded as input.requested; reload must not bring it back as a stream."""
+    from e_agent.server.api import PublicTextBus
+
+    bus = PublicTextBus()
+
+    class Ctx:
+        tenant_id = "t"
+        run_id = "r"
+
+    await bus.emit(Ctx(), "Hello! What would you like me to do?")  # type: ignore[arg-type]
+    assert bus.snapshot("t", "r") is not None
+    bus.discard("t", "r")
+    assert bus.snapshot("t", "r") is None
+    assert bus.after("t", "r", 0) == []
+    await bus.emit(Ctx(), "next", new_message=True)  # type: ignore[arg-type]
+    frame = bus.snapshot("t", "r")
+    assert frame is not None and frame.text == "next" and frame.offset == 2
