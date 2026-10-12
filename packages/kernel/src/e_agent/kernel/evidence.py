@@ -20,6 +20,8 @@ EVIDENCE_SCHEMA = "e-agent-evidence-v1"
 EVIDENCE_PAGE = 1000  # events read per store call while exporting (ADR 0018)
 
 
+# A kernel guard refused before any effect. VERIFICATION_FAILED is deliberately absent: it
+# follows a COMMITTED receipt (a write happened and the read-back disagreed), so it is `failed`.
 BLOCKED_BY_DESIGN = frozenset(
     {
         ReasonCode.VALIDATION_FAILED,
@@ -28,7 +30,6 @@ BLOCKED_BY_DESIGN = frozenset(
         ReasonCode.SURFACE_CHANGED,
         ReasonCode.APPROVAL_REJECTED,
         ReasonCode.OPERATION_RESERVED,
-        ReasonCode.VERIFICATION_FAILED,
     }
 )
 INFRASTRUCTURE_OR_BUDGET = frozenset(

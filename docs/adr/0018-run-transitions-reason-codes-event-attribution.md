@@ -19,7 +19,8 @@ limit, so snapshots, SSE and evidence export load whole runs.
 - `RunEvent.actor` names who caused the event: `principal:<id>` for a request or a decision,
   `system:kernel` for kernel-internal changes, `system:worker:<owner>` for recovery and sweeps.
   The value comes from a context variable set by the API session and by the worker per claim;
-  `EventSpec` stays a 3-tuple.
+  `EventSpec` stays a 3-tuple. Startup recovery, which runs outside any work claim, uses
+  `system:worker:startup`.
 - `RunRecord.reason_code: ReasonCode | None` accompanies the human `reason`. The evidence
   classifier reads the code first and falls back to text only for rows written before this ADR.
 - `RunStore.list_events` accepts `limit`; API readers page (`EVENT_PAGE = 500`, ceiling 1000);
@@ -31,6 +32,17 @@ Old rows read with `actor = None` and `reason_code = None`. OpenAPI and the gene
 types change (`RunEvent.actor`, `RunRecord.reason_code`, `events?limit=`). A correlation id is
 deliberately **not** added here: `run_work` compares the full payload for idempotency
 (`store.py:535-541`), so it needs its own column (WP2).
+
+Failure classification (`evidence.classify`) maps a terminal run's `reason_code` as follows:
+
+- blocked-by-design = {`VALIDATION_FAILED`, `POLICY_DENIED`, `STALE`, `SURFACE_CHANGED`,
+  `APPROVAL_REJECTED`, `OPERATION_RESERVED`}: a kernel guard refused before any effect.
+- infrastructure-or-budget = {`BUDGET_EXHAUSTED`, `INTERRUPTED`, `PROVIDER_ERROR`,
+  `CONNECTION_BUSY`}.
+- every other terminal code is `failed`. `VERIFICATION_FAILED` is deliberately in this group:
+  it follows a COMMITTED receipt, so a write happened and the read-back disagreed.
+- Rows without a code keep the historical text rules, so an old row and a new row with the same
+  text may classify differently. This is intentional.
 
 ## Verification
 
