@@ -171,7 +171,8 @@
         "full gate passes",
         "coordinator.py ends at about 200 lines"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1c.8/2026-10-13T06-36-47+00-00.json"
     },
     {
       "id": "F-1c-9",

@@ -1,0 +1,12 @@
+{
+  "task": "1c.8",
+  "changed": "src/e_agent/kernel/dispatch.py (DispatchMixin: _dispatch, _staleness, _apply_receipt), verification.py (VerificationMixin: _verify, _finish_verified), recovery.py (RecoveryMixin: reconcile, cancel, recover, recover_run, _recover_run). coordinator.py is 190 lines (was 1827) and keeps __init__, _prepare_run, start_run, admit_run, start_admitted_run, set_text_sink, release_continuation, get_run and DEFAULT_APPROVAL_TTL. Verify: 43/43 methods byte-identical, each defined once.",
+  "evidence_refs": [
+    "evidence/gates/1c.8/2026-10-13T06-36-47+00-00.json",
+    "evidence/1c/verify-1c.8.txt",
+    "evidence/1c/kernel_split.py"
+  ],
+  "open_items": [],
+  "rulings": [],
+  "outside_repo": []
+}
