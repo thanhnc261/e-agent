@@ -540,7 +540,7 @@ async def test_expired_approval_is_failed_by_the_worker_under_a_system_actor(tak
 async def test_sweeper_survives_a_failed_sweep_and_stops_on_cancel(monkeypatch) -> None:
     import asyncio
 
-    from e_agent.server import api
+    from e_agent.server import worker
     from e_agent.server.api import ApiState
 
     runtime = await build_runtime(load_profile())
@@ -553,7 +553,7 @@ async def test_sweeper_survives_a_failed_sweep_and_stops_on_cancel(monkeypatch) 
             raise RuntimeError("transient store error")
         return 0
 
-    monkeypatch.setattr(api, "APPROVAL_SWEEP_SECONDS", 0.01)
+    monkeypatch.setattr(worker, "APPROVAL_SWEEP_SECONDS", 0.01)
     monkeypatch.setattr(runtime.coordinator, "sweep_expired_approvals", sweep)
     task = asyncio.create_task(state.sweeper())
     for _ in range(100):

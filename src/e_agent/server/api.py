@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import secrets
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -21,13 +20,11 @@ from pathlib import Path
 from typing import Any, Literal
 
 from e_agent.contracts.action import ActionState
-from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.context import HostContext, Principal, TaskContext
 from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEvent
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord, RunState
-from e_agent.contracts.work import WorkClaim
 from e_agent.kernel.approval import ApprovalPresentation
 from e_agent.kernel.discovery import (
     SCHEMA_VERSION as DISCOVERY_SCHEMA_VERSION,
@@ -46,12 +43,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from .bootstrap import Runtime
+from .streaming import PublicTextBus as PublicTextBus
+from .streaming import TextFrame as TextFrame
+from .worker import WorkerMixin
 
 SESSION_COOKIE = "e_agent_session"
 LOOPBACK = {"127.0.0.1", "::1", "localhost", "testclient"}
-APPROVAL_SWEEP_SECONDS = 30
 EVENT_PAGE = 500  # events read per store call (ADR 0018)
-LOG = logging.getLogger(__name__)
 STATUS = {
     ErrorCode.INVALID_REQUEST: 400,
     ErrorCode.FORBIDDEN: 404,  # never reveal existence across scope
@@ -103,14 +101,6 @@ class ActionSummary(BaseModel):
     arguments: dict[str, Any]
 
 
-class TextFrame(BaseModel):
-    message_id: str
-    stream_id: str
-    offset: int
-    text: str
-    reset: bool
-
-
 class RunSnapshot(BaseModel):
     run: RunRecord
     latest_sequence: int
@@ -140,80 +130,7 @@ class Session:
     csrf: str
 
 
-class PublicTextBus:
-    """Bounded process memory; never writes public token fragments to the ledger."""
-
-    def __init__(self) -> None:
-        self.stream_id = new_id("text_stream")
-        self.frames: dict[tuple[str, str], list[TextFrame]] = {}
-        self.prefixes: dict[tuple[str, str], str] = {}
-        self.messages: dict[tuple[str, str], str] = {}
-        self.last_offsets: dict[tuple[str, str], int] = {}
-
-    def discard(self, tenant_id: str, run_id: str) -> None:
-        """Drop buffered text once the kernel has recorded it as a question or reply.
-
-        Offsets keep counting so a connected client never sees a rewind."""
-        key = (tenant_id, run_id)
-        if key not in self.frames:
-            return
-        frames = self.frames[key]
-        if frames:
-            self.last_offsets[key] = frames[-1].offset
-        self.frames[key] = []
-        self.prefixes.pop(key, None)
-        self.messages.pop(key, None)
-
-    async def emit(self, ctx: TaskContext, text: str, *, new_message: bool = False) -> None:
-        key = (ctx.tenant_id, ctx.run_id)
-        if key not in self.frames and len(self.frames) >= 128:
-            oldest = next(iter(self.frames))
-            self.frames.pop(oldest)
-            self.prefixes.pop(oldest, None)
-            self.messages.pop(oldest, None)
-            self.last_offsets.pop(oldest, None)
-        frames = self.frames.setdefault(key, [])
-        if new_message or key not in self.messages:
-            self.messages[key] = new_id("message")
-        prefix = "" if new_message else self.prefixes.get(key, "")
-        text = text[: max(0, 32000 - len(prefix))]
-        if not text:
-            return
-        offset = frames[-1].offset + 1 if frames else self.last_offsets.get(key, 0) + 1
-        frames.append(
-            TextFrame(
-                message_id=self.messages[key],
-                stream_id=self.stream_id,
-                offset=offset,
-                text=text,
-                reset=new_message,
-            )
-        )
-        self.frames[key] = frames[-128:]
-        self.prefixes[key] = prefix + text
-
-    def snapshot(self, tenant_id: str, run_id: str) -> TextFrame | None:
-        key = (tenant_id, run_id)
-        frames = self.frames.get(key, [])
-        if not frames:
-            return None
-        return TextFrame(
-            message_id=self.messages[key],
-            stream_id=self.stream_id,
-            offset=frames[-1].offset,
-            text=self.prefixes[key],
-            reset=True,
-        )
-
-    def after(self, tenant_id: str, run_id: str, offset: int) -> list[TextFrame]:
-        frames = self.frames.get((tenant_id, run_id), [])
-        if frames and offset < frames[0].offset - 1:
-            snapshot = self.snapshot(tenant_id, run_id)
-            return [snapshot] if snapshot else []
-        return [frame for frame in frames if frame.offset > offset]
-
-
-class ApiState:
+class ApiState(WorkerMixin):
     def __init__(self, runtime: Runtime) -> None:
         self.runtime = runtime
         self.sessions: dict[str, Session] = {}
@@ -221,135 +138,6 @@ class ApiState:
         runtime.coordinator.set_text_sink(self.text)
         self.tasks: set[asyncio.Task[Any]] = set()
         self.stopping = False
-
-    async def worker(self) -> None:
-        owner = new_id("worker")
-        while True:
-            try:
-                claim = await self.runtime.store.claim_work(owner)
-            except Exception:
-                await asyncio.sleep(0.2)
-                continue
-            if claim is None:
-                await asyncio.sleep(0.05)
-                continue
-            await self._run_work(claim)
-
-    async def sweeper(self) -> None:
-        while True:
-            await asyncio.sleep(APPROVAL_SWEEP_SECONDS)
-            try:
-                await self.runtime.coordinator.sweep_expired_approvals()
-            except Exception as exc:  # the next tick retries; sweeping never fails the server
-                LOG.warning("approval sweep failed (%s); retrying next tick", type(exc).__name__)
-
-    async def _run_work(self, claim: WorkClaim) -> None:
-        rt = self.runtime
-        current = asyncio.current_task()
-        assert current is not None
-
-        lease_lost = False
-
-        async def heartbeat() -> None:
-            nonlocal lease_lost
-            while True:
-                await asyncio.sleep(5)
-                try:
-                    renewed = await rt.store.renew_work(claim)
-                except Exception:
-                    renewed = False
-                if not renewed:
-                    lease_lost = True
-                    current.cancel()
-                    return
-
-        pulse = asyncio.create_task(heartbeat())
-        try:
-            async with rt.store.work_scope(claim):
-                rt.coordinator.release_continuation(claim.run_id)
-                run = await rt.store.get_run(claim.tenant_id, claim.run_id)
-                untouched = claim.kind == "start" and run.state is RunState.CREATED
-                if claim.kind == "decide" and run.state is RunState.WAITING_APPROVAL:
-                    action = await rt.store.get_action(claim.tenant_id, claim.payload["action_id"])
-                    untouched = (
-                        action.state is ActionState.AWAITING_APPROVAL
-                        and run.revision == claim.payload["expected_revision"]
-                    )
-                if claim.kind == "input" and run.state is RunState.RUNNING:
-                    actions = await rt.store.list_actions(claim.tenant_id, claim.run_id)
-                    checkpoint = await rt.store.load_continuation(claim.tenant_id, claim.run_id)
-                    untouched = bool(checkpoint and checkpoint[1] is not None) and all(
-                        action.state
-                        in {
-                            ActionState.BLOCKED,
-                            ActionState.FAILED,
-                            ActionState.VERIFIED,
-                            ActionState.VERIFICATION_FAILED,
-                        }
-                        for action in actions
-                    )
-                if claim.kind == "decide":
-                    actor_label = f"principal:{claim.payload['actor']['principal_id']}"
-                elif claim.kind in {"start", "input"}:
-                    actor_label = f"principal:{run.requester_id}"
-                else:
-                    actor_label = f"system:worker:{claim.owner}"
-                if claim.kind == "expire":
-                    # expire_approval re-checks state, pending action and TTL, so replay is safe.
-                    untouched = True
-                if claim.fence > 1 and not untouched:
-                    with actor_scope(f"system:worker:{claim.owner}"):
-                        await rt.coordinator.recover_run(claim.tenant_id, claim.run_id)
-                else:
-                    with actor_scope(actor_label):
-                        if claim.kind == "start":
-                            await rt.coordinator.start_admitted_run(claim.tenant_id, claim.run_id)
-                        elif claim.kind == "input":
-                            await rt.coordinator.continue_input(claim.tenant_id, claim.run_id)
-                        elif claim.kind == "expire":
-                            await rt.coordinator.expire_approval(
-                                claim.tenant_id, claim.run_id, claim.payload["action_id"]
-                            )
-                        else:
-                            payload = claim.payload
-                            await rt.coordinator.decide(
-                                actor=Principal.model_validate(payload["actor"]),
-                                run_id=claim.run_id,
-                                action_id=payload["action_id"],
-                                action_digest=payload["digest"],
-                                expected_run_revision=payload["expected_revision"],
-                                decision=ApprovalDecision(payload["decision"]),
-                            )
-                await rt.store.finish_work(claim)
-        except asyncio.CancelledError:
-            if not lease_lost or self.stopping:
-                raise
-            # A lost lease stops this claim, not the server worker loop.
-            current.uncancel()
-        except ConcurrencyConflict:
-            # Another owner or a cancellation won. This worker has no recovery authority.
-            return
-        except Exception:
-            LOG.exception("run work failed (run=%s kind=%s)", claim.run_id, claim.kind)
-            try:
-                async with rt.store.work_scope(claim):
-                    with actor_scope(f"system:worker:{claim.owner}"):
-                        await self._mark_failed(claim.run_id)
-                    await rt.store.finish_work(claim)
-            except Exception:
-                # Leave the claim for lease expiry and another owner to reconcile.
-                return
-        finally:
-            pulse.cancel()
-            await asyncio.gather(pulse, return_exceptions=True)
-
-    async def _mark_failed(self, run_id: str) -> None:
-        """Unexpected host error: apply the crash rules, never guess an outcome."""
-        rt = self.runtime
-        try:
-            await rt.coordinator.recover_run(rt.operator.tenant_id, run_id)
-        except NotFound:
-            return
 
 
 def _streaming_text(api_state: ApiState, run: RunRecord) -> TextFrame | None:
