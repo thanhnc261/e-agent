@@ -1,0 +1,44 @@
+{
+  "task": "1c.11",
+  "changed": "Live check on odoo19-learning (bridge 19.0.0.4.0, Postgres ledger, Ollama): wheels rebuilt, check_wheels ok, domain-erp and odoo19 manifest/artifact sha256 identical to 1a.1 and to the live profile pins (no re-pin). Flows 1, 4 and UI match the 2026-10-12 baseline; flow 3 is model variance with an A/B control on main (branch 1/3 SUCCEEDED, main 2/3, identical failure shape, PR-002 blocked every PO, verification caught wrong answers, no approval). Postgres suite 218 passed on a separate e_agent_test database. target-architecture sections 15/16 mark the kernel and server modules [I]; coordinator line citations replaced; stub guard fitness test; continuation docstring; roadmap Phase 1 Done; plan checkboxes ticked; Phase 1 handoff docs/handoffs/2026-10-13-phase1-structure.md.",
+  "evidence_refs": [
+    "evidence/gates/1c.11/2026-10-13T06-55-22+00-00.json",
+    "evidence/1c/pg-run.txt",
+    "evidence/1c/check_wheels-1c.11.txt",
+    "evidence/1c/inventory-domain_erp-1c.11.json",
+    "evidence/1c/inventory-adapter_odoo-1c.11.json",
+    "evidence/1c/live-flows.txt",
+    "evidence/1c/live/flow1.json",
+    "evidence/1c/live/flow3.json",
+    "evidence/1c/live/flow3-events.json",
+    "evidence/1c/live/flow3-rerun2.json",
+    "evidence/1c/live/flow3-rerun3.json",
+    "evidence/1c/live/flow4.json",
+    "evidence/1c/live/main-flow3-run1.json",
+    "evidence/1c/live/main-flow3-run2.json",
+    "evidence/1c/live/main-flow3-run3.json",
+    "evidence/1c/live/ui-flow-verified.png",
+    "evidence/1c/live_flows.py",
+    "evidence/1c/mutations-1c.11.txt"
+  ],
+  "open_items": [
+    "Owner: merge refactor/phase1-structure; research/ link-only rewrite (4 links); review AGENTS.md/CLAUDE.md wording",
+    "Harness pilot log HP-1..HP-13 (HP-13 before anyone runs gate pg)",
+    "target-architecture api.py:<line> citations predate Phase 1 and were partly wrong already; replace with function references at the next design revision"
+  ],
+  "rulings": [
+    {
+      "ruling": "Flow 3 'results must match' is judged as outcome distribution plus safety invariants, with a 3-run A/B on pre-refactor main, because the live model is stochastic",
+      "cost_if_wrong": "a real regression hidden by variance; the kernel code is byte-identical (verify scripts) and the failure traces have the same event shape on both"
+    },
+    {
+      "ruling": "The deferred Postgres gate ran against a new e_agent_test database instead of $E_AGENT_PG_DSN, because the suite truncates its database (HP-13)",
+      "cost_if_wrong": "none for the result; an extra empty database in the e-agent container (undo in the phase handoff)"
+    },
+    {
+      "ruling": "A run that reached WAITING_APPROVAL would have been cancelled, never approved; none did",
+      "cost_if_wrong": "none; no sandbox write happened"
+    }
+  ],
+  "outside_repo": []
+}

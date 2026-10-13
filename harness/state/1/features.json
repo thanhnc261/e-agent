@@ -209,7 +209,8 @@
         "target-architecture sections 15 and 16 mark the kernel and server modules [I]",
         "roadmap Phase 1 is marked Done"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1c.11/2026-10-13T06-55-22+00-00.json"
     }
   ]
 }
