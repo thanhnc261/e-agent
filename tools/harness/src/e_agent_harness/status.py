@@ -32,6 +32,9 @@ class StatusData:
     has_evidence: bool = False
     bookkeeping_dirty: bool = False
     gate_ran: bool = False
+    pending_feature: str | None = None
+    handoff_ok: bool = False
+    progress_ok: bool = False
     entries: list[progress.ProgressEntry] = field(default_factory=list)
     read_only: list[str] = field(default_factory=list)
     allowed_containers: list[str] = field(default_factory=list)
@@ -65,16 +68,29 @@ def collect(paths: state.Paths, m: Manifest, repo_root: Path) -> StatusData:
         data.acceptance_drift = tasks.acceptance_drift(paths, contract)
         data.gate_ran = any(paths.evidence(data.task_id or "").glob("*.json"))
         data.has_evidence = any(
-            closecheck.evidence_ties_to_head(repo_root, state.read_json(f), data.task_id) is None
+            closecheck.evidence_ties_to_head(
+                repo_root, state.read_json(f), data.task_id, data.gate_set
+            )
+            is None
             for f in paths.evidence(data.task_id or "").glob("*.json")
         )
     phase = data.phase
     if phase and paths.features(phase).is_file():
         entries = state.read_json(paths.features(phase)).get("entries", [])
         data.next_feature = next((str(e["id"]) for e in entries if not e.get("passes")), None)
+        if loaded:
+            passing = {str(e["id"]) for e in entries if e.get("passes")}
+            data.pending_feature = next(
+                (str(f) for f in loaded[0]["feature_ids"] if str(f) not in passing), None
+            )
+    if loaded and phase:
+        data.handoff_ok = not closecheck.handoff_problems(
+            paths, repo_root, phase, data.task_id or ""
+        )
     if paths.progress.is_file():
         entries = progress.parse_progress(paths.progress.read_text(encoding="utf-8"))
         data.entries = entries[-ENTRIES_SHOWN:]
+        data.progress_ok = bool(entries) and entries[-1].task == data.task_id
     return data
 
 
@@ -107,7 +123,19 @@ def next_action(d: StatusData) -> str:
             step = d.acceptance[0] if d.acceptance else "the first acceptance step"
             return f"commit the harness bookkeeping (harness/state), then work on: {step}"
         return f"run e-agent-harness gate {d.gate_set}"
-    return "run e-agent-harness checkpoint, write the handoff, then close-check; then /clear"
+    # The close ritual in eng-session order; each step names what is still missing.
+    if d.pending_feature:
+        return (
+            f"set {d.pending_feature} passes with the evidence path in "
+            f"harness/state/{d.phase}/features.json"
+        )
+    if not d.handoff_ok:
+        return f"write the handoff (eng-handoff), then run e-agent-harness handoff {d.task_id}"
+    if not d.progress_ok:
+        return "run e-agent-harness checkpoint --session <session id> --next <next step>"
+    if d.bookkeeping_dirty:
+        return "commit the bookkeeping (harness/state, docs/handoffs), then run close-check"
+    return "run e-agent-harness close-check --session <session id>; then clear the context"
 
 
 def _vi(d: StatusData, action: str) -> list[str]:

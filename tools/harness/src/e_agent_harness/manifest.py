@@ -163,7 +163,7 @@ def normalize_relpath(path: str) -> str:
     is ``archive/x`` and ``../etc`` is ``etc``.
     """
     parts: list[str] = []
-    for segment in PurePosixPath(path.replace("\\", "/")).parts:
+    for segment in PurePosixPath(path).parts:
         if segment in ("", ".", "/"):
             continue
         if segment == "..":

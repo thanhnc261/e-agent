@@ -113,3 +113,11 @@ def test_check_scope_prints_ok_with_count(repo) -> None:
     result = repo.invoke("check-scope")
     assert result.code == 0
     assert "ok: 3 changed paths inside scope" in result.out  # contract, active.json, new.py
+
+
+def test_hook_denies_backslash_paths(repo) -> None:
+    _activate(repo)
+    payload = _payload(repo, "Write", "archive/..\\src\\pkg\\owned.py")
+    result = repo.invoke("check-scope", "--hook", stdin=payload)
+    assert result.code == 2
+    assert "backslash" in result.err

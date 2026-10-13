@@ -12,7 +12,7 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from e_agent_harness import contracts, gitinfo
 from e_agent_harness.manifest import Manifest, path_matches
@@ -22,8 +22,14 @@ TAIL_LINES = 40
 TIMEOUT_EXIT = 124
 COUNT_RE = re.compile(r"(\d+) (passed|failed|skipped|errors?|xfailed|xpassed|warnings?)\b")
 _KEY = r"(?:password|passwd|secret|token|api[_-]?key|authorization|dsn)"
+# A quoted value with backslash escapes, or a bare word.
+_VALUE = r"(?:\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|\S+)"
 # key=value, key: value, "key": "value", --key=value (quotes optional on both sides)
-SECRET_RE = re.compile(rf"(?i)([\"']?(?:--)?{_KEY}[\"']?\s*[=:]\s*)(\"[^\"]*\"|'[^']*'|\S+)")
+SECRET_RE = re.compile(rf"(?i)([\"']?(?:--)?{_KEY}[\"']?\s*[=:]\s*){_VALUE}")
+# Authorization: <scheme> <credential>; the scheme and the credential both go.
+AUTH_RE = re.compile(
+    rf"(?i)(authorization[\"']?\s*[=:]\s*)(?:(?:basic|bearer|digest|token|negotiate)\s+)?{_VALUE}"
+)
 # --key value (CLI flag with a separate argument)
 FLAG_RE = re.compile(rf"(?i)(--{_KEY}\s+)(\S+)")
 # Bearer <token>
@@ -35,6 +41,7 @@ Runner = Callable[[str, Path, int], tuple[int, str]]
 
 def redact(text: str) -> str:
     text = URL_PASSWORD_RE.sub(r"\1[REDACTED]@", text)
+    text = AUTH_RE.sub(r"\1[REDACTED]", text)
     text = BEARER_RE.sub(r"\1[REDACTED]", text)
     text = FLAG_RE.sub(r"\1[REDACTED]", text)
     return SECRET_RE.sub(r"\1[REDACTED]", text)
@@ -91,31 +98,59 @@ def code_is_clean(repo_root: Path) -> bool:
     ]
 
 
-def database_identity(dsn: str) -> tuple[str, int, str]:
-    """(host, port, database) of a PostgreSQL DSN in URL or keyword form."""
+_CONNINFO_RE = re.compile(r"\s*(\w+)\s*=\s*('(?:\\.|[^'\\])*'|\S+)")
+
+
+def _conninfo(dsn: str) -> dict[str, str] | None:
+    """libpq keyword/value form: ``key = value`` pairs, values optionally single-quoted."""
+    params: dict[str, str] = {}
+    pos = 0
+    while pos < len(dsn):
+        if not dsn[pos:].strip():
+            break
+        match = _CONNINFO_RE.match(dsn, pos)
+        if match is None:
+            return None
+        value = match.group(2)
+        if value.startswith("'"):
+            value = re.sub(r"\\(.)", r"\1", value[1:-1])
+        params[match.group(1).lower()] = value
+        pos = match.end()
+    return params or None
+
+
+def database_name(dsn: str) -> str | None:
+    """The database a PostgreSQL DSN names, or None when it cannot be told."""
     dsn = dsn.strip()
-    if "://" in dsn:
+    if dsn.startswith(("postgresql://", "postgres://")):
         parts = urlsplit(dsn)
-        return (parts.hostname or "localhost", parts.port or 5432, parts.path.lstrip("/"))
-    fields = dict(item.split("=", 1) for item in dsn.split() if "=" in item)
-    return (
-        fields.get("host") or "localhost",
-        int(fields.get("port") or 5432),
-        fields.get("dbname") or fields.get("database") or "",
-    )
+        query = parse_qs(parts.query)
+        name = query["dbname"][-1] if "dbname" in query else unquote(parts.path.lstrip("/"))
+        return name or None
+    params = _conninfo(dsn)
+    return (params or {}).get("dbname") or None
 
 
 def check_guards(m: Manifest, set_name: str, env: Mapping[str, str]) -> list[str]:
-    """Problems that forbid running the gate set; never echoes a DSN (it may hold a secret)."""
-    guard = m.gate_guards.get(set_name)
-    if guard is None:
-        return []
-    problems = [f"{name} is not set" for name in guard.require_env if not env.get(name)]
-    for left, right in guard.distinct_databases:
-        both = env.get(left) and env.get(right)
-        if both and database_identity(env[left]) == database_identity(env[right]):
-            problems.append(f"{left} and {right} name the same database")
-    return problems
+    """Problems that forbid running the gate set; never echoes a DSN (it may hold a secret).
+
+    Guards under ``"*"`` apply to every set. Databases are compared by name only, on any
+    host: a test database must have its own name (pilot log HP-13).
+    """
+    guards = [g for g in (m.gate_guards.get("*"), m.gate_guards.get(set_name)) if g]
+    problems: list[str] = []
+    for guard in guards:
+        problems += [f"{name} is not set" for name in guard.require_env if not env.get(name)]
+        for left, right in guard.distinct_databases:
+            if not (env.get(left) and env.get(right)):
+                continue
+            names = {key: database_name(env[key]) for key in (left, right)}
+            unknown = [key for key, name in names.items() if name is None]
+            if unknown:
+                problems.append(f"cannot tell which database {' and '.join(unknown)} names")
+            elif names[left] == names[right]:
+                problems.append(f"{left} and {right} name the same database")
+    return list(dict.fromkeys(problems))
 
 
 def run_gate(

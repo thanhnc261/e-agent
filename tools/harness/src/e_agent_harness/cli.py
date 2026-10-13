@@ -260,6 +260,11 @@ def _phase_of_task(paths: state.Paths, task_id: str) -> str | None:
 
 def cmd_handoff(args: argparse.Namespace) -> int:
     root, paths, _m = _context(args)
+    try:
+        paths.task("x", args.task_id)
+    except ValueError as exc:
+        print(str(exc))
+        return 1
     active = state.load_active(paths) or {}
     if active.get("task") == args.task_id:
         phase = str(active.get("phase") or "")
@@ -324,7 +329,11 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
 def cmd_add_feature(args: argparse.Namespace) -> int:
     _root, paths, _m = _context(args)
-    path = paths.features(args.phase)
+    try:
+        path = paths.features(args.phase)
+    except ValueError as exc:
+        print(str(exc))
+        return 1
     doc = state.read_json(path) if path.is_file() else {"phase": args.phase, "entries": []}
     if any(e.get("id") == args.feature_id for e in doc["entries"]):
         print(f"feature {args.feature_id} already exists in {path.name}")

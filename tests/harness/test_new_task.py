@@ -195,3 +195,11 @@ def test_old_contract_without_new_fields_loads(repo) -> None:
     assert contracts.validate("task", doc) == []
     assert "refresh-task" not in repo.invoke("status").out
     assert repo.invoke("check-scope").code == 0
+
+
+def test_plain_refresh_keeps_feature_drift(repo) -> None:
+    assert repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**").code == 0
+    _edit_feature_steps(repo, ["run the suite", "check the new invariant"])
+    assert repo.invoke("refresh-task").code == 0
+    assert "refresh-task --from-features" in repo.invoke("status").out
+    assert _contract(repo)["acceptance"] == ["run the suite"]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,6 +12,16 @@ from typing import Any
 from e_agent_harness.manifest import MANIFEST_RELPATH
 
 STATE_DIR = "harness/state"
+# Phase and task identifiers become path components: no separators, no "..".
+_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+
+def _component(value: str, what: str) -> str:
+    if not _ID_RE.match(value) or ".." in value:
+        raise ValueError(f"invalid {what}: {value!r} (letters, digits, '.', '_', '-')")
+    return value
+
+
 # Paths a task may change besides its own scope: harness bookkeeping and handoffs.
 BOOKKEEPING_COMMITTED: tuple[str, ...] = ("harness/state/**", "docs/handoffs/**")
 # Also bookkeeping for the evidence-to-HEAD rule: the legacy local evidence folder.
@@ -54,17 +65,27 @@ class Paths:
         return self.state / "progress.md"
 
     def features(self, phase: str) -> Path:
-        return self.state / phase / "features.json"
+        return self.state / _component(phase, "phase") / "features.json"
 
     def task(self, phase: str, task_id: str) -> Path:
-        return self.state / phase / "tasks" / f"{task_id}.json"
+        return (
+            self.state
+            / _component(phase, "phase")
+            / "tasks"
+            / f"{_component(task_id, 'task id')}.json"
+        )
 
     def handoff(self, phase: str, task_id: str) -> Path:
-        return self.state / phase / "handoffs" / f"{task_id}.json"
+        return (
+            self.state
+            / _component(phase, "phase")
+            / "handoffs"
+            / f"{_component(task_id, 'task id')}.json"
+        )
 
     def evidence(self, task_id: str) -> Path:
         # Committed with the bookkeeping, so a fresh clone can close the task (HP-4).
-        return self.state / "evidence" / "gates" / task_id
+        return self.state / "evidence" / "gates" / _component(task_id, "task id")
 
     @property
     def live_evidence(self) -> Path:

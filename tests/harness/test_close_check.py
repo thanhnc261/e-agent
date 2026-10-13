@@ -236,3 +236,51 @@ def test_new_task_still_refuses_an_open_task(repo) -> None:
     result = repo.invoke("new-task", "1", "1c.2", "--feature", "F-2", "--paths", "src/**")
     assert result.code == 1
     assert "1c.1 is active" in result.out
+
+
+def test_close_check_requires_every_contracted_feature_to_pass(repo) -> None:
+    _start(repo)
+    repo.write("harness/state/1/handoffs/1c.1.json", json.dumps(HANDOFF) + "\n")
+    assert repo.invoke("checkpoint", "--session", "s1").code == 0
+    repo.commit("bookkeeping without a gate")
+    result = repo.invoke("close-check", "--session", "s1")
+    assert result.code == 1
+    assert "feature F-1 does not pass yet" in result.out
+    assert "is closed" not in repo.invoke("status").out
+    second = repo.invoke("new-task", "1", "1c.2", "--feature", "F-2", "--paths", "src/**")
+    assert second.code == 1
+
+
+def test_close_check_rejects_evidence_from_another_gate_set(repo) -> None:
+    assert (
+        repo.invoke(
+            "new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**", "--gate", "full"
+        ).code
+        == 0
+    )
+    repo.commit("task contract")
+    evidence = _evidence_path(repo)  # runs gate quick, the smoke set
+    _bookkeeping(repo, evidence)
+    result = repo.invoke("close-check", "--session", "s1")
+    assert result.code == 1
+    assert "gate set quick" in result.out and "full" in result.out
+
+
+def test_status_walks_the_close_sequence(repo) -> None:
+    _start(repo)
+    repo.write("src/pkg/new.py", "Y = 2\n")
+    repo.commit("feature code")
+    evidence = _evidence_path(repo)
+    assert "set F-1 passes" in repo.invoke("status").out
+    _mark_passing(repo, evidence)
+    assert "write the handoff" in repo.invoke("status").out
+    repo.write(
+        "harness/state/1/handoffs/1c.1.json",
+        json.dumps(dict(HANDOFF, evidence_refs=[evidence])) + "\n",
+    )
+    assert "checkpoint" in repo.invoke("status").out
+    assert repo.invoke("checkpoint", "--session", "s1", "--next", "close").code == 0
+    assert "commit the bookkeeping" in repo.invoke("status").out
+    repo.commit("bookkeeping")
+    assert repo.invoke("close-check", "--session", "s1").code == 0
+    assert "is closed" in repo.invoke("status").out

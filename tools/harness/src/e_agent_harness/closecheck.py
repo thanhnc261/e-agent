@@ -16,8 +16,19 @@ def _is_bookkeeping(path: str) -> bool:
 
 
 def evidence_ties_to_head(
-    repo_root: Path, evidence: dict[str, Any], task_id: str | None = None
+    repo_root: Path,
+    evidence: dict[str, Any],
+    task_id: str | None = None,
+    gate_set: str | None = None,
 ) -> str | None:
+    invalid = contracts.validate("gate-evidence", evidence)
+    if invalid:
+        return "evidence file is not valid gate evidence: " + invalid[0]
+    if gate_set is not None and evidence.get("gate_set") != gate_set:
+        return (
+            f"evidence is from gate set {evidence.get('gate_set')}; "
+            f"the contract needs gate set {gate_set}"
+        )
     if task_id is not None and evidence.get("task") != task_id:
         return f"evidence recorded for task {evidence.get('task')}, not {task_id}"
     if not evidence.get("ok"):
@@ -85,7 +96,11 @@ def problems(
     )
     for fid in contract["feature_ids"]:
         feature = entries_by_id.get(fid)
-        if not feature or not feature.get("passes"):
+        if not feature:
+            found.append(f"feature {fid} is not in the feature list")
+            continue
+        if not feature.get("passes"):
+            found.append(f"feature {fid} does not pass yet; set passes with the gate evidence")
             continue
         ref = feature.get("evidence")
         if not ref:
@@ -95,7 +110,9 @@ def problems(
         if not evidence_file.is_file():
             found.append(f"feature {fid}: evidence missing: {ref}")
             continue
-        reason = evidence_ties_to_head(repo_root, state.read_json(evidence_file), task_id)
+        reason = evidence_ties_to_head(
+            repo_root, state.read_json(evidence_file), task_id, str(contract["gate_set"])
+        )
         if reason:
             found.append(f"feature {fid}: {reason}")
     found.extend(handoff_problems(paths, repo_root, phase, task_id))

@@ -20,7 +20,7 @@ Verification is the highest-leverage step: a check the session can run beats a c
 | Level | Command | Proves | Needs |
 |---|---|---|---|
 | 1. Full gate | `uv run e-agent-harness gate full` | static checks, import contracts, the deterministic suite, OpenAPI and UI generation unchanged, UI type check, unit tests, layer and neutrality rules and build | the checkout with UI dependencies installed (`pnpm --dir ui install`) |
-| 2. Postgres run | `uv run e-agent-harness gate pg` | store conformance on the durable store (ENG-STORE-1) | `E_AGENT_TEST_PG_DSN` naming a separate test database; the tests truncate it, and the gate refuses when it names the same database as the live ledger in `E_AGENT_PG_DSN` |
+| 2. Postgres run | `uv run e-agent-harness gate pg` | store conformance on the durable store (ENG-STORE-1) | `E_AGENT_TEST_PG_DSN` naming a test database with its own name; the tests truncate it. Every gate set refuses to run when it has the live ledger's database name (`E_AGENT_PG_DSN`) on any host, or when its name cannot be read |
 | 3. End to end | `make e2e` | the UI against its own fixture backend through a browser | Node, pnpm and the Playwright browser installed |
 | 4. Live check | `uv run e-agent-harness live-check`, then the phase plan's live flows | identity of the sandbox, environment readiness, the configured flows with run ids, states and reason codes | the owner's machine; the [live-sandbox](../live-sandbox/SKILL.md) skill for any mutation |
 

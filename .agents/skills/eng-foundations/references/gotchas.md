@@ -14,5 +14,5 @@ Mistakes already made once in this repository. Each row names where it was seen 
 | G-8 | Phase 1 pilot HP-12 | `gate full` had no UI checks, and a provider identifier in a UI test stayed red on `main` unnoticed; since harness H2.1 the full gate runs `pnpm --dir ui check`. | ENG-EVID-2 |
 | G-9 | Harness H2 task 3 | A gate chain piped into `tail` hides the exit code; use `set -o pipefail` or run the command last. | ENG-EVID-2 |
 | G-10 | Harness H1 | A Markdown link in `CLAUDE.md` does not load `AGENTS.md` into a session; only the `@AGENTS.md` import does. | ENG-DOC-1 |
-| G-11 | Phase 1 pilot HP-13 | The Postgres tests truncate their database; a test DSN that points at the live ledger wipes it. The `pg` gate now requires `E_AGENT_TEST_PG_DSN` and refuses when it names the live ledger's database. | ENG-BOUND-1 |
+| G-11 | Phase 1 pilot HP-13 | The Postgres tests truncate their database; a test DSN that points at the live ledger wipes it. Every gate set now refuses a test DSN with the live ledger's database name on any host, and the `pg` gate requires one. | ENG-BOUND-1 |
 | G-12 | Harness H2.1 | Two gate runs within one second wrote the same evidence file name; evidence names now carry the gate set and a counter. | ENG-EVID-1 |

@@ -135,7 +135,7 @@ uv run pytest -q tests/conformance/test_harness_context.py  # dev-harness manife
 uv run e-agent-harness status                 # dev-harness brief: state, boundaries, one next action
 uv run e-agent-harness validate-context       # manifest vs checkout
 uv run e-agent-harness gate quick --package tests/unit/kernel   # evidence under harness/state/evidence/ (committed)
-uv run e-agent-harness gate pg               # needs E_AGENT_TEST_PG_DSN naming a separate test database; refuses the live ledger
+uv run e-agent-harness gate pg               # needs E_AGENT_TEST_PG_DSN with its own database name; every gate refuses the live ledger's name
 uv run e-agent-harness new-task <phase> <id> --feature <F-id> --paths <glob>   # task contract
 uv run e-agent-harness check-scope            # changed paths inside the task contract
 uv run e-agent-harness close-check --session <id>   # close ritual: clean tree, progress, evidence, handoff

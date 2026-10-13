@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from e_agent_harness import gate
 
 
@@ -167,9 +168,68 @@ def test_pg_guard_compares_parsed_databases(repo, monkeypatch) -> None:
     monkeypatch.setenv("E_AGENT_PG_DSN", "postgresql://u@localhost/e_agent")
     monkeypatch.setenv("E_AGENT_TEST_PG_DSN", "host=localhost port=5432 dbname=e_agent user=t")
     assert repo.invoke("gate", "pg").code == 1
-    assert gate.database_identity("postgresql://u@h:5433/db") == ("h", 5433, "db")
-    assert gate.database_identity("dbname=db host=h") == ("h", 5432, "db")
-    assert gate.database_identity("postgresql:///db") == ("localhost", 5432, "db")
+    assert gate.database_name("postgresql://u@h:5433/db") == "db"
+    assert gate.database_name("dbname=db host=h") == "db"
+    assert gate.database_name("postgresql:///db") == "db"
+
+
+@pytest.mark.parametrize(
+    "test_dsn",
+    [
+        "host=localhost dbname='e_agent' user=u",  # quoted keyword value
+        "host = localhost dbname = e_agent",  # spaces around '='
+        "postgresql://u@localhost/e%5Fagent",  # percent-encoded name
+        "postgresql://u@localhost/other?dbname=e_agent",  # query override
+        "postgresql://u@other-host:6543/e_agent",  # same name on another host: refused anyway
+    ],
+)
+def test_pg_guard_refuses_every_spelling_of_the_live_database(repo, monkeypatch, test_dsn) -> None:
+    _guard_pg(repo)
+    monkeypatch.setenv("E_AGENT_PG_DSN", "postgresql://u@localhost/e_agent")
+    monkeypatch.setenv("E_AGENT_TEST_PG_DSN", test_dsn)
+    result = repo.invoke("gate", "pg")
+    assert result.code == 1, test_dsn
+    assert "refused" in result.out
+
+
+@pytest.mark.parametrize(
+    "test_dsn", ["postgresql://u@localhost", "host=localhost user=u", "not a dsn"]
+)
+def test_pg_guard_refuses_a_test_dsn_without_a_database_name(repo, monkeypatch, test_dsn) -> None:
+    _guard_pg(repo)
+    monkeypatch.setenv("E_AGENT_PG_DSN", "postgresql://u@localhost/e_agent")
+    monkeypatch.setenv("E_AGENT_TEST_PG_DSN", test_dsn)
+    result = repo.invoke("gate", "pg")
+    assert result.code == 1
+    assert "cannot tell" in result.out
+
+
+def test_wildcard_guard_protects_every_gate_set(repo, monkeypatch) -> None:
+    manifest = repo.root / "harness/context.toml"
+    manifest.write_text(
+        manifest.read_text()
+        + '\n[gate_guards."*"]\ndistinct_databases = [["E_AGENT_TEST_PG_DSN", "E_AGENT_PG_DSN"]]\n'
+    )
+    monkeypatch.setenv("E_AGENT_PG_DSN", "postgresql://u@localhost/e_agent")
+    monkeypatch.setenv("E_AGENT_TEST_PG_DSN", "postgresql://u@localhost/e_agent")
+    for set_name in ("full", "quick"):
+        result = repo.invoke("gate", set_name)
+        assert result.code == 1, set_name
+        assert "same database" in result.out
+    monkeypatch.delenv("E_AGENT_TEST_PG_DSN")
+    assert repo.invoke("gate", "full").code == 0  # no test DSN: Postgres tests skip
+
+
+def test_redact_authorization_schemes_and_escaped_json() -> None:
+    samples = {
+        "Authorization: Basic c3ludGhldGljLUJBU0lD": "c3ludGhldGljLUJBU0lD",
+        "authorization=Digest username-DIGEST-SECRET": "DIGEST-SECRET",
+        '{"password": "ab\\"cd-JSON-SECRET"}': "cd-JSON-SECRET",
+        "PASSWORD='quote\\'d-SINGLE-SECRET'": "SINGLE-SECRET",
+    }
+    for text, secret in samples.items():
+        redacted = gate.redact(text)
+        assert secret not in redacted, (text, redacted)
 
 
 def test_pg_guard_allows_distinct_databases(repo, monkeypatch) -> None:

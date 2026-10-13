@@ -77,3 +77,15 @@ def test_date_time_format_is_enforced() -> None:
     for bad in ("yesterday", "2026-10-13", "2026-10-13T06:00:00"):
         problems = contracts.validate("progress-entry", dict(entry, timestamp=bad))
         assert any(p.startswith("timestamp:") for p in problems), bad
+
+
+def test_path_like_identifiers_are_refused(repo, tmp_path) -> None:
+    common = ("--category", "x", "--description", "d", "--step", "s")
+    for phase in ("../../research", "/tmp/outside", "a/b", ".."):
+        result = repo.invoke("add-feature", phase, "F-x", *common)
+        assert result.code == 1, phase
+        assert "invalid" in result.out
+    assert not (repo.root / "research").exists()
+    result = repo.invoke("new-task", "1", "../escape", "--feature", "F-1", "--paths", "src/**")
+    assert result.code == 1
+    assert "invalid" in result.out

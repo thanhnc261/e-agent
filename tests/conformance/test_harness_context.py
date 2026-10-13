@@ -205,9 +205,8 @@ def test_real_manifest_pg_gate_is_guarded() -> None:
     m = manifest.load_manifest(MANIFEST)
     assert m.gates["pg"], "pg gate set missing"
     assert not any("E_AGENT_PG_DSN" in command for command in m.gates["pg"])
-    guard = m.gate_guards["pg"]
-    assert "E_AGENT_TEST_PG_DSN" in guard.require_env
-    assert ("E_AGENT_TEST_PG_DSN", "E_AGENT_PG_DSN") in guard.distinct_databases
+    assert "E_AGENT_TEST_PG_DSN" in m.gate_guards["pg"].require_env
+    # the database separation itself is a "*" guard: test_real_manifest_guards_every_gate_set
 
 
 def test_old_and_new_evidence_paths_validate() -> None:
@@ -226,3 +225,8 @@ def test_full_gate_covers_ui() -> None:
     m = manifest.load_manifest(MANIFEST)
     assert "pnpm --dir ui check" in m.gates["full"]
     assert m.gates["ui"] == ("pnpm --dir ui check",)
+
+
+def test_real_manifest_guards_every_gate_set() -> None:
+    m = manifest.load_manifest(MANIFEST)
+    assert ("E_AGENT_TEST_PG_DSN", "E_AGENT_PG_DSN") in m.gate_guards["*"].distinct_databases

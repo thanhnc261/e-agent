@@ -62,8 +62,9 @@ def refresh(
     contract = _active(paths)
     entries = _entries(paths, str(contract["phase"]))
     contract["context_digest"] = context_digest(repo_root, m)
-    contract["features_digest"] = features_digest(entries, contract["feature_ids"])
     if from_features:
+        # Only re-deriving the acceptance may clear feature drift (HP-8).
+        contract["features_digest"] = features_digest(entries, contract["feature_ids"])
         contract["acceptance"] = [
             step for f in contract["feature_ids"] for step in entries.get(f, {}).get("steps", [])
         ]

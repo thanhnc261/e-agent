@@ -13,6 +13,8 @@ EDIT_TOOLS = ("Edit", "Write", "NotebookEdit")
 
 
 def deny_reason(contract: dict[str, Any] | None, m: Manifest, relpath: str) -> str | None:
+    if "\\" in relpath:
+        return f"{relpath}: path contains a backslash; refusing an ambiguous path"
     norm = normalize_relpath(relpath)
     if is_protected(m, norm):
         return f"{norm}: protected path (read-only)"
