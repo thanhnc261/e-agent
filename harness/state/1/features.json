@@ -11,7 +11,8 @@
         "record scripts/plugin_inventory.py hashes for domain-erp and odoo19 built from fresh wheels",
         "list the files of all 10 built wheels with unzip -l as the must-be-identical reference"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1a.1/2026-10-13T01-13-47+00-00.json"
     },
     {
       "id": "F-1a-2",

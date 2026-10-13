@@ -1,0 +1,62 @@
+{
+  "task": "1a.1",
+  "changed": "Baseline evidence for the Phase 1 layout move; no product code changed. Phase 1 feature list and the 1a.1 contract committed; F-1a-1 passes. Full gate 572 passed/30 skipped, make e2e 150 passed/4 skipped, check_wheels.py all 13 ok; domain-erp manifest 2203e547\u2026/artifact 0f1c8f61\u2026, odoo19 manifest 4c2c34b5\u2026/artifact 8df983a7\u2026; unzip -l and sorted name lists of all 10 wheels. Summary: docs/handoffs/2026-10-13-phase1-1a1-baseline.md.",
+  "evidence_refs": [
+    "evidence/gates/1a.1/2026-10-13T01-13-47+00-00.json",
+    "evidence/baseline/gate-full.txt",
+    "evidence/baseline/pytest-skips.txt",
+    "evidence/baseline/make-e2e.txt",
+    "evidence/baseline/check_wheels.txt",
+    "evidence/baseline/check_wheels.meta",
+    "evidence/baseline/inventory-domain-erp.json",
+    "evidence/baseline/inventory-odoo19.json",
+    "evidence/baseline/wheels.sha256",
+    "evidence/baseline/unzip-l/e_agent_adapter_agent_pydantic-0.1.0-py3-none-any.txt",
+    "evidence/baseline/unzip-l/e_agent_adapter_odoo-0.1.0-py3-none-any.txt",
+    "evidence/baseline/unzip-l/e_agent_adapter_postgres-0.1.0-py3-none-any.txt",
+    "evidence/baseline/unzip-l/e_agent_adapter_secretstore_local-0.1.0-py3-none-any.txt",
+    "evidence/baseline/unzip-l/e_agent_adapter_shacl-0.1.0-py3-none-any.txt",
+    "evidence/baseline/unzip-l/e_agent_contracts-0.1.0-py3-none-any.txt",
+    "evidence/baseline/unzip-l/e_agent_domain_erp-0.1.0-py3-none-any.txt",
+    "evidence/baseline/unzip-l/e_agent_kernel-0.1.0-py3-none-any.txt",
+    "evidence/baseline/unzip-l/e_agent_plugin_sdk-0.1.0-py3-none-any.txt",
+    "evidence/baseline/unzip-l/e_agent_server-0.1.0-py3-none-any.txt",
+    "evidence/baseline/names/e_agent_adapter_agent_pydantic-0.1.0-py3-none-any.txt",
+    "evidence/baseline/names/e_agent_adapter_odoo-0.1.0-py3-none-any.txt",
+    "evidence/baseline/names/e_agent_adapter_postgres-0.1.0-py3-none-any.txt",
+    "evidence/baseline/names/e_agent_adapter_secretstore_local-0.1.0-py3-none-any.txt",
+    "evidence/baseline/names/e_agent_adapter_shacl-0.1.0-py3-none-any.txt",
+    "evidence/baseline/names/e_agent_contracts-0.1.0-py3-none-any.txt",
+    "evidence/baseline/names/e_agent_domain_erp-0.1.0-py3-none-any.txt",
+    "evidence/baseline/names/e_agent_kernel-0.1.0-py3-none-any.txt",
+    "evidence/baseline/names/e_agent_plugin_sdk-0.1.0-py3-none-any.txt",
+    "evidence/baseline/names/e_agent_server-0.1.0-py3-none-any.txt"
+  ],
+  "open_items": [
+    "new-task lists docs/handoffs/** twice in allowed_paths when passed explicitly (harness nit, out of scope)",
+    "Postgres gate baseline not recorded; containers are allowed only in 1c.11"
+  ],
+  "rulings": [
+    {
+      "ruling": "The full-gate counts on 08eb020 are the baseline; product tree equals main ebfcf70 (branch commits touch only harness/state and docs/handoffs)",
+      "cost_if_wrong": "1a.3 compares against wrong counts; re-run the gate on ebfcf70 (about one minute)"
+    },
+    {
+      "ruling": "1a.3 compares sorted wheel name lists, manifest_sha256 and artifact_sha256, not wheel_sha256 (RECORD and zip metadata may change with source location)",
+      "cost_if_wrong": "a missed byte-level difference; a direct unzip -p diff of the wheels settles it"
+    },
+    {
+      "ruling": "Inventory and listings use the wheels check_wheels.py built (copied to evidence/baseline/wheels), not a second build",
+      "cost_if_wrong": "none for content; a rebuild from 08eb020 reproduces them"
+    },
+    {
+      "ruling": "make e2e run as an extra pre-move baseline because it touches no container",
+      "cost_if_wrong": "about two minutes of runtime"
+    },
+    {
+      "ruling": "Postgres gate not run (needs the ledger container; plan allows containers only in 1c.11)",
+      "cost_if_wrong": "a Postgres-only regression in 1a.3 has no pre-move reference; run it then on 08eb020"
+    }
+  ],
+  "outside_repo": []
+}
