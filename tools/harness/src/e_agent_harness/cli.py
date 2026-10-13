@@ -34,7 +34,7 @@ def _parser() -> argparse.ArgumentParser:
         "--paths", action="append", default=[], required=True, help="allowed path glob"
     )
     new_task.add_argument("--acceptance", action="append", default=[])
-    new_task.add_argument("--gate", default="quick", choices=["quick", "full", "pg", "e2e", "live"])
+    new_task.add_argument("--gate", default="quick", help="a gate set from the manifest")
     new_task.add_argument("--replace", action="store_true", help="replace the active task")
     scope_p = sub.add_parser(
         "check-scope", help="changed paths must be inside the active task's scope"

@@ -220,3 +220,9 @@ def test_old_and_new_evidence_paths_validate() -> None:
     handoff = json.loads((SAMPLES / "handoff.valid.json").read_text())
     handoff["evidence_refs"] = ["harness/state/evidence/live/x.json", "evidence/live/y.json"]
     assert contracts.validate("handoff", handoff) == []
+
+
+def test_full_gate_covers_ui() -> None:
+    m = manifest.load_manifest(MANIFEST)
+    assert "pnpm --dir ui check" in m.gates["full"]
+    assert m.gates["ui"] == ("pnpm --dir ui check",)

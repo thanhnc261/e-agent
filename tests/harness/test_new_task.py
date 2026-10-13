@@ -71,3 +71,24 @@ def test_replace_keeps_base_commit_and_created_at_for_the_same_task(repo) -> Non
     assert again["base_commit"] == first["base_commit"] == repo.base
     assert again["created_at"] == first["created_at"]
     assert repo.invoke("check-scope").code == 1  # the drift is still visible
+
+
+def test_new_task_accepts_manifest_gate_sets(repo) -> None:
+    manifest = repo.root / "harness/context.toml"
+    manifest.write_text(
+        manifest.read_text().replace("[roles]", 'ui = ["echo ui ok"]\n\n[roles]', 1)
+    )
+    result = repo.invoke(
+        "new-task", "1", "1c.1", "--feature", "F-1", "--paths", "ui/**", "--gate", "ui"
+    )
+    assert result.code == 0, result
+    contract = json.loads((repo.root / "harness/state/1/tasks/1c.1.json").read_text())
+    assert contract["gate_set"] == "ui"
+
+
+def test_new_task_rejects_unknown_gate_set(repo) -> None:
+    result = repo.invoke(
+        "new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**", "--gate", "nope"
+    )
+    assert result.code == 1
+    assert "unknown gate set: nope" in result.out

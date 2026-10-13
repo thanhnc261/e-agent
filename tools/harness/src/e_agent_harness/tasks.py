@@ -27,6 +27,8 @@ def materialise(
     gate_set: str,
     now: datetime,
 ) -> dict[str, Any]:
+    if gate_set not in m.gates:
+        raise ValueError(f"unknown gate set: {gate_set} (have {', '.join(sorted(m.gates))})")
     features_path = paths.features(phase)
     if not features_path.is_file():
         raise ValueError(f"feature list missing: {features_path.relative_to(repo_root)}")
