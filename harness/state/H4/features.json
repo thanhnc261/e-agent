@@ -19,7 +19,8 @@
       "steps": [
         "tests/conformance/test_claude_settings.py passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/H4.2/2026-10-13T14-10-24.996896+00-00-full.json"
     },
     {
       "id": "F-H4-3",

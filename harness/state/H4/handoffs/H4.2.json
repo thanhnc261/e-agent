@@ -1,0 +1,23 @@
+{
+  "task": "H4.2",
+  "changed": "Committed .claude/settings.json: deny rules for odoo-bench, archive edits, the experiment folder and ERP-Bench solutions/tests; ask rules for git push, merge, rebase, reset --hard; allow rules for the odoo19-learning sandbox and the harness CLI; hooks for SessionStart, PreCompact, PreToolUse (fails closed), PostToolUse format, Stop; autoCompactWindow 400000; worktree.baseRef head. check-scope --hook ignores a closed task's scope; an attended Stop spawns nothing.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.2/2026-10-13T14-10-24.996896+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "Scope amended three times (tools/harness, tests/harness, .claude/hooks) because committing the hook required the closed-task rule and the Stop fast path",
+      "cost_if_wrong": "none"
+    },
+    {
+      "ruling": "git push, merge, rebase and reset --hard are ask rules, not deny rules, so an owner-instructed merge still works",
+      "cost_if_wrong": "an approval prompt can be accepted by mistake"
+    },
+    {
+      "ruling": "User-specific allow rules (paths under the home directory) stay in .claude/settings.local.json",
+      "cost_if_wrong": "none"
+    }
+  ],
+  "outside_repo": []
+}
