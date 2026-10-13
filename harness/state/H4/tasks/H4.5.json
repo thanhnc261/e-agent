@@ -1,0 +1,27 @@
+{
+  "id": "H4.5",
+  "phase": "H4",
+  "plan_ref": "docs/plans/2026-10-13-harness-h4-adapters.md",
+  "feature_ids": [
+    "F-H4-5"
+  ],
+  "context_digest": "9f9112e2678d49db539b3cbf61d5587c9c375c729c2b76233e200479f54efbb5",
+  "allowed_paths": [
+    "tools/harness/**",
+    "tests/harness/**",
+    "tests/conformance/test_harness_context.py",
+    "harness/context.toml",
+    ".agents/skills/eng-foundations/**",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-13-harness-h4-adapters.md"
+  ],
+  "acceptance": [
+    "tests for create-only paths pass in tests/harness/test_check_scope.py",
+    "full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "dfb93f9ee91f4e55b085cb3f4d305da3ee5ac0b2",
+  "created_at": "2026-10-13T14:20:08+00:00",
+  "features_digest": "cf8a8b25b133d7f03683bee41e7ee11ebbb3f13fab91e75deec17e5dd12971ec"
+}
