@@ -99,7 +99,8 @@
         "section 16 Location today paths use the new layout",
         "uv run python scripts/repo_move.py check --docs reports 0 old paths in current docs (mvp-detailed-design layout table included)"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1b.4/2026-10-13T06-27-54+00-00.json"
     },
     {
       "id": "F-1c-1",

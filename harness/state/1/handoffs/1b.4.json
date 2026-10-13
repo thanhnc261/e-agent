@@ -1,0 +1,18 @@
+{
+  "task": "1b.4",
+  "changed": "target-architecture section 15 replaced by the Phase 1 layout (src/e_agent, dists, tests/unit) marked [I] with a rationale and plan link; section 16 locations relative to src/e_agent; entry points and R3/R6/G2/HTTP rows use new paths; header notes the re-check. MVP design section 3 layout and distribution paragraph describe dists/ and the wheel hook, with the real test folders. Part 1b review fixes: AGENTS.md rule 3 safety clause, CLAUDE.md wording, README harness commands, roadmap statuses (Phase 1 in progress, harness pilot).",
+  "evidence_refs": [
+    "evidence/gates/1b.4/2026-10-13T06-27-54+00-00.json",
+    "evidence/1b.4-check-docs.txt"
+  ],
+  "open_items": [
+    "Kernel split modules in section 15 stay [P] until 1c.11 marks them [I]"
+  ],
+  "rulings": [
+    {
+      "ruling": "Part 1b got one combined docs review (subagent, verdict approve, 7 low findings all fixed) instead of one review per docs task",
+      "cost_if_wrong": "a 1b.1-1b.3 defect found later; the review covered the whole 4d5e670..HEAD docs diff"
+    }
+  ],
+  "outside_repo": []
+}
