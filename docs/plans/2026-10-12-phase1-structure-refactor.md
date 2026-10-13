@@ -254,6 +254,14 @@ Each task does the following:
 
 The mixins must type-check against the attributes `__init__` sets. Declare those attributes once as class-level annotations in a shared base (`continuation.py`), so mypy sees `self._store` and the rest everywhere with no `type: ignore`.
 
+**Execution notes (2026-10-13, task 1c.1):**
+- **`ContinuationMixin` is the base.** It holds the attribute annotations and the continuation methods. Every later mixin subclasses it, so `_persist`, `_snapshot` and `_load_cont` are visible everywhere.
+- **Cross-mixin calls.** The mixins call each other in cycles (`_drive` and `_handle_proposal`; `_dispatch` and `_drive`), so no linear inheritance chain type-checks. The base declares a stub for each method that one mixin calls on another, under `if TYPE_CHECKING:`. The stub copies the signature, and its body is `raise NotImplementedError`. At runtime the stubs do not exist, so the "defined exactly once" fitness test still holds. mypy decides which stubs exist: only the methods it reports as missing get one.
+- **Constants move with their users.** `CONTINUATION_SCHEMA` and `LOG` move to `continuation.py`; `LOG` keeps the logger name `e_agent.kernel.coordinator`. `coordinator.py` re-exports them with `DEFAULT_APPROVAL_TTL`, `_Continuation` and `_GatewayReader`, and `test_structure.py` pins all of them.
+- **One annotation changes.** `_GatewayReader.__init__` annotated its argument as `RunCoordinator`. It now names the base class: importing `coordinator` from `continuation.py`, even under `TYPE_CHECKING`, would break the 1c.9 import contract.
+- **Two annotations are dropped.** If mypy reports the `__init__` annotations of `_runs` and `_active_calls` as redefinitions, they are removed there, because the base declares those attributes.
+- **Verbatim evidence.** Each move slices method text by `ast` line ranges. A comparison script checks every moved method byte for byte against the parent commit and prints the result.
+
 ### Task 1c.9: Fitness tests and import contracts
 
 - [ ] `test_each_method_defined_once` checks across the `RunCoordinator` MRO.
