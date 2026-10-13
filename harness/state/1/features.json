@@ -211,6 +211,18 @@
       ],
       "passes": true,
       "evidence": "evidence/gates/1c.11/2026-10-13T06-55-22+00-00.json"
+    },
+    {
+      "id": "F-1-R1",
+      "category": "review",
+      "description": "Phase 1 whole-branch review fixes (stale caches, api.py citations, hook copy test, dead prefix)",
+      "steps": [
+        "repo_move.py layout removes __pycache__ from moved trees (test)",
+        "test pins repo_move.HOOK equal to dists/_hooks/src_tree.py",
+        "target-architecture api.py citations name functions, not line numbers",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
