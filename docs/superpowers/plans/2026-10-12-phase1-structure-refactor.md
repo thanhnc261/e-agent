@@ -140,8 +140,16 @@ dev-mode-dirs = ["../../src"]
 ```
 
 Steps:
-- [ ] **Step 1:** Write the conformance test. It fails, because `packages/` still exists.
-- [ ] **Step 2:** Implement `repo_move.py layout` and run it.
+- [x] **Step 1:** Write the conformance test. It fails, because `packages/` still exists.
+- [x] **Step 2:** Implement `repo_move.py layout`. It runs in Task 1a.3.
+
+**Execution notes (2026-10-13, task 1a.2 review):**
+- **The move runs in 1a.3.** A tree that is moved but has old tooling cannot pass the per-task gate. 1a.2 commits the mover and its tests; `test_repo_layout.py` is `xfail(strict=True)` until the move.
+- **No static `force-include`.** hatchling also copies a static `force-include` into the editable install. The copy in site-packages then shadows `src/`, and edits become invisible. Instead, each `dists/<name>/pyproject.toml` names its package in a shared build hook, `dists/_hooks/src_tree.py`. The hook adds the sub-tree to standard wheels only. `test_repo_layout.py` asserts that every package imports from `src/`. The root workspace excludes `dists/_hooks`.
+- **`uv_build` cannot be kept.** It refuses a `module-root` outside the project directory.
+- **ruff isort classification.** `[tool.ruff] src = ["."]` keeps `e_agent` classified as before the move, so moved files stay byte-identical. Otherwise ruff re-sorts the imports in 48 files.
+- **`research/` is read-only.** `links` never rewrites it; `check` reports its broken links separately and does not fail on them.
+- **`check` categories.** `check` fails on broken links and on old paths in code and config. `check --docs` also fails on old paths named in current Markdown; dated records (`docs/adr`, `handoffs`, `plans`, `reviews`, `specs`, `superpowers`) are exempt.
 
 ### Task 1a.3: Tooling and path references
 
