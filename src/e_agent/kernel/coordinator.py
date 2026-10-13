@@ -25,7 +25,6 @@ from e_agent.contracts.outcome import OutcomeReport, OutcomeStatus
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
 from e_agent.contracts.run import (
-    ALLOWED_RUN_TRANSITIONS,
     TERMINAL_RUN_STATES,
     ReasonCode,
     RunRecord,
@@ -59,17 +58,17 @@ from .approval import (
 from .connections import ConnectionCatalog
 from .continuation import CONTINUATION_SCHEMA as CONTINUATION_SCHEMA
 from .continuation import LOG as LOG
-from .continuation import ContinuationMixin
 from .continuation import _Continuation as _Continuation
 from .continuation import _GatewayReader as _GatewayReader
 from .errors import ErrorCode, KernelError
 from .policy import APPROVER_ROLE
 from .registry import PluginRegistry
+from .transitions import TransitionsMixin
 
 DEFAULT_APPROVAL_TTL = timedelta(minutes=15)
 
 
-class RunCoordinator(ContinuationMixin):
+class RunCoordinator(TransitionsMixin):
     def __init__(
         self,
         *,
@@ -201,49 +200,6 @@ class RunCoordinator(ContinuationMixin):
 
     async def get_run(self, tenant_id: str, run_id: str) -> RunRecord:
         return await self._store.get_run(tenant_id, run_id)
-
-    def _check_run_transition(self, run: RunRecord, to: RunState) -> None:
-        if to not in ALLOWED_RUN_TRANSITIONS[run.state]:
-            raise KernelError(ErrorCode.CONFLICT, f"illegal run transition {run.state}->{to}")
-
-    async def _set_run_state(
-        self,
-        run: RunRecord,
-        state: RunState,
-        reason: str | None = None,
-        *,
-        code: ReasonCode | None = None,
-    ) -> RunRecord:
-        self._check_run_transition(run, state)
-        events: list[EventSpec] = [
-            (
-                RunEventType.RUN_STATE_CHANGED,
-                {"from": run.state, "to": state, "reason": reason, "reason_code": code},
-                None,
-            )
-        ]
-        if state in TERMINAL_RUN_STATES:
-            events.append(
-                (
-                    RunEventType.RUN_TERMINAL,
-                    {"state": state, "reason": reason, "reason_code": code},
-                    None,
-                )
-            )
-        updated = run.model_copy(
-            update={
-                "state": state,
-                "revision": run.revision + 1,
-                "reason": reason,
-                "reason_code": code,
-            }
-        )
-        return await self._store.update_run(
-            updated,
-            run.revision,
-            events,
-            continuation=self._snapshot(run.run_id),
-        )
 
     # ---------------------------------------------------------------- driving
     async def _drive(self, run: RunRecord, step_input: DriverInput) -> RunRecord:
@@ -967,20 +923,6 @@ class RunCoordinator(ContinuationMixin):
             rule_bundle_version="+".join(sorted(r.rule_bundle_version for r in results)),
             validator_id="+".join(sorted(r.validator_id for r in results)),
         )
-
-    async def _transition(
-        self,
-        action: ActionRecord,
-        to: ActionState,
-        event: tuple[RunEventType, dict[str, Any]] | None = None,
-    ) -> ActionRecord:
-        if to not in ALLOWED_ACTION_TRANSITIONS[action.state]:
-            raise KernelError(ErrorCode.CONFLICT, f"illegal transition {action.state}->{to}")
-        updated = action.model_copy(update={"state": to, "revision": action.revision + 1})
-        events: list[EventSpec] = []
-        if event is not None:
-            events.append((event[0], event[1], action.action_id))
-        return await self._store.put_action(updated, action.revision, events)
 
     # ------------------------------------------------------------- approvals
     async def pending_approval(self, tenant_id: str, run_id: str) -> ApprovalPresentation:
