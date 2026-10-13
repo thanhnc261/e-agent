@@ -1,0 +1,122 @@
+"""The Claude Code hook entry script (.claude/hooks/harness_hook.py), run as Claude Code runs it."""
+
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+SCRIPT = Path(__file__).resolve().parents[2] / ".claude" / "hooks" / "harness_hook.py"
+
+
+def hook(args: list[str], payload: dict, env: dict | None = None) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), *args],
+        input=json.dumps(payload),
+        capture_output=True,
+        text=True,
+        env={**os.environ, **(env or {})},
+        timeout=120,
+    )
+
+
+def _activate(repo) -> None:
+    assert (
+        repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/pkg/**").code == 0
+    )
+
+
+def _write(repo, path: str, cwd: Path | None = None) -> dict:
+    return {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "tool_input": {"file_path": path},
+        "cwd": str(cwd or repo.root),
+    }
+
+
+def test_wrapper_denies_out_of_scope_write(repo) -> None:
+    _activate(repo)
+    result = hook(["check-scope", "--hook"], _write(repo, str(repo.root / "docs/other.md")))
+    assert result.returncode == 2, result
+    assert "outside the task's allowed paths" in result.stderr
+
+
+def test_wrapper_allows_in_scope_write(repo) -> None:
+    _activate(repo)
+    result = hook(["check-scope", "--hook"], _write(repo, "src/pkg/mod.py"))
+    assert result.returncode == 0, result
+
+
+def test_wrapper_uses_the_payload_cwd_repository(repo, tmp_path) -> None:
+    _activate(repo)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    # The hook process starts somewhere else; the payload cwd is a subdirectory of the repo.
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "check-scope", "--hook"],
+        input=json.dumps(_write(repo, str(repo.root / "archive/old.md"), cwd=repo.root / "src")),
+        capture_output=True,
+        text=True,
+        cwd=elsewhere,
+        timeout=120,
+    )
+    assert result.returncode == 2
+    assert "protected path" in result.stderr
+
+
+def test_wrapper_status_prints_sessionstart_json(repo) -> None:
+    payload = {"hook_event_name": "SessionStart", "source": "startup", "cwd": str(repo.root)}
+    result = hook(["status", "--format", "hook"], payload)
+    assert result.returncode == 0, result
+    out = json.loads(result.stdout)["hookSpecificOutput"]
+    assert out["hookEventName"] == "SessionStart"
+    assert "new-task" in out["additionalContext"]
+
+
+def test_wrapper_checkpoint_appends_an_entry(repo) -> None:
+    payload = {"hook_event_name": "PreCompact", "session_id": "s-hook", "cwd": str(repo.root)}
+    result = hook(["checkpoint", "--hook"], payload)
+    assert result.returncode == 0, result
+    assert "s-hook" in (repo.root / "harness/state/progress.md").read_text()
+
+
+def test_wrapper_failure_modes(repo, tmp_path) -> None:
+    outside = tmp_path / "no-repo"
+    outside.mkdir()
+    payload = _write(repo, "x.py", cwd=outside)
+    denied = hook(["check-scope", "--hook"], payload)
+    assert denied.returncode == 2
+    assert "no repository" in denied.stderr
+    for args in (
+        ["status", "--format", "hook"],
+        ["checkpoint", "--hook"],
+        ["close-check", "--hook"],
+    ):
+        assert hook(args, payload).returncode == 0, args
+    # uv missing in a uv project: check-scope still fails closed, the others stay silent.
+    (repo.root / "pyproject.toml").write_text("[project]\nname = 'x'\nversion = '0'\n")
+    no_uv = {"PATH": "/nonexistent"}
+    assert hook(["check-scope", "--hook"], _write(repo, "src/pkg/mod.py"), no_uv).returncode == 2
+    status_payload = {"hook_event_name": "SessionStart", "cwd": str(repo.root)}
+    assert hook(["status", "--format", "hook"], status_payload, no_uv).returncode == 0
+    unattended = {**no_uv, "E_AGENT_HARNESS_UNATTENDED": "1"}
+    stop = {"hook_event_name": "Stop", "stop_hook_active": False, "cwd": str(repo.root)}
+    assert hook(["close-check", "--hook"], stop, unattended).returncode == 2
+
+
+def test_wrapper_format_formats_python_and_never_blocks(repo) -> None:
+    target = repo.write("src/pkg/ugly.py", "x=1\ny = [1,2,3]\n")
+    payload = {
+        "hook_event_name": "PostToolUse",
+        "tool_name": "Write",
+        "tool_input": {"file_path": str(target)},
+        "cwd": str(repo.root),
+    }
+    result = hook(["format"], payload)
+    assert result.returncode == 0, result
+    assert target.read_text() == "x = 1\ny = [1, 2, 3]\n"
+    other = {**payload, "tool_input": {"file_path": str(repo.root / "docs/roadmap.md")}}
+    assert hook(["format"], other).returncode == 0
+    missing = {**payload, "tool_input": {"file_path": str(repo.root / "src/pkg/gone.py")}}
+    assert hook(["format"], missing).returncode == 0
