@@ -54,3 +54,8 @@
 - changed: 1c.1 surface pinned; F-1c-1 passes
 - next: 1c.2 continuation.py
 - open: none
+
+## 2026-10-13T06:32:56+00:00 · 5b4b8e8f-e459-44f9-bc30-502cdbbe2794 · 1c.2
+- changed: 1c.2 closed; F-1c-2 passes
+- next: 1c.3 transitions.py
+- open: none
