@@ -1,6 +1,6 @@
 ---
 name: eng-foundations
-description: Engineering standard for e-agent (ENG-* rules by ID). Read before any engineering task or review.
+description: Engineering standard for e-agent (ENG-* rules by ID); read before engineering work.
 ---
 
 # Engineering foundations
