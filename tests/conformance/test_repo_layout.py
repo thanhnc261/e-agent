@@ -1,6 +1,7 @@
 """Repository layout after the Phase 1 move (roadmap Phase 1a, plan Task 1a.2)."""
 
 import importlib
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -8,26 +9,25 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 
-pytestmark = pytest.mark.xfail(
-    (REPO / "packages").exists(),
-    reason="the layout move runs in Task 1a.3",
-    strict=True,
-)
 
-
-def test_no_old_layout_directories_remain() -> None:
-    assert not (REPO / "packages").exists()
-    assert not (REPO / "apps").exists()
+def test_no_old_layout_files_remain_tracked() -> None:
+    # Ignored caches may survive in older checkouts; only tracked files matter.
+    tracked = subprocess.run(
+        ["git", "ls-files", "--", "packages", "apps"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert tracked == ""
 
 
 def test_every_dist_builds_an_existing_src_package() -> None:
     configs = sorted((REPO / "dists").glob("*/pyproject.toml"))
     assert len(configs) == 10
     for config in configs:
-        wheel = tomllib.loads(config.read_text(encoding="utf-8"))["tool"]["hatch"]["build"][
-            "targets"
-        ]["wheel"]
-        hook = wheel["hooks"]["custom"]
+        build = tomllib.loads(config.read_text(encoding="utf-8"))["tool"]["hatch"]["build"]
+        hook = build["hooks"]["custom"]
         assert (config.parent / hook["path"]).is_file(), config
         assert (REPO / "src" / hook["package"]).is_dir(), config
 

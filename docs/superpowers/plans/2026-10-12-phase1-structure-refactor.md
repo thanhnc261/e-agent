@@ -146,6 +146,7 @@ Steps:
 **Execution notes (2026-10-13, task 1a.2 review):**
 - **The move runs in 1a.3.** A tree that is moved but has old tooling cannot pass the per-task gate. 1a.2 commits the mover and its tests; `test_repo_layout.py` is `xfail(strict=True)` until the move.
 - **No static `force-include`.** hatchling also copies a static `force-include` into the editable install. The copy in site-packages then shadows `src/`, and edits become invisible. Instead, each `dists/<name>/pyproject.toml` names its package in a shared build hook, `dists/_hooks/src_tree.py`. The hook adds the sub-tree to standard wheels only. `test_repo_layout.py` asserts that every package imports from `src/`. The root workspace excludes `dists/_hooks`.
+- **Wheels only (task 1a.3 review).** The hook runs for every target. It refuses an sdist with a clear message, because an sdist cannot carry the shared `src/` tree; otherwise it would build an archive with no code. Build with `uv build --package <name> --wheel`, as `check_wheels.py` and CI already do.
 - **`uv_build` cannot be kept.** It refuses a `module-root` outside the project directory.
 - **ruff isort classification.** `[tool.ruff] src = ["."]` keeps `e_agent` classified as before the move, so moved files stay byte-identical. Otherwise ruff re-sorts the imports in 48 files.
 - **`research/` is read-only.** `links` never rewrites it; `check` reports its broken links separately and does not fail on them.

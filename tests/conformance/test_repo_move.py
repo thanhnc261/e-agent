@@ -136,18 +136,17 @@ def test_layout_generates_hatchling_configs_from_the_old_project_table(repo: Pat
     # A static force-include would also be copied into the editable install and
     # shadow src/; the hook adds the sub-tree to standard wheels only.
     assert "force-include" not in wheel
-    assert wheel["hooks"]["custom"] == {
-        "path": "../_hooks/src_tree.py",
-        "package": "e_agent/kernel",
-    }
+    assert "hooks" not in wheel
+    # One hook for every target: wheels get src/, sdists fail clearly (wheel-only dists).
+    hook_config = config["tool"]["hatch"]["build"]["hooks"]["custom"]
+    assert hook_config == {"path": "../_hooks/src_tree.py", "package": "e_agent/kernel"}
     odoo = tomllib.loads((repo / "dists/adapter-odoo/pyproject.toml").read_text())
-    assert odoo["tool"]["hatch"]["build"]["targets"]["wheel"]["hooks"]["custom"]["package"] == (
-        "e_agent/adapters/odoo"
-    )
+    assert odoo["tool"]["hatch"]["build"]["hooks"]["custom"]["package"] == "e_agent/adapters/odoo"
     server = tomllib.loads((repo / "dists/server/pyproject.toml").read_text())
     assert server["project"]["scripts"] == {"e-agent": "e_agent.server.cli:main"}
     hook = (repo / "dists/_hooks/src_tree.py").read_text(encoding="utf-8")
-    assert 'version != "standard"' in hook
+    assert 'self.target_name == "sdist"' in hook
+    assert "--wheel" in hook
     assert "dists/_hooks/src_tree.py" in git(repo, "status", "--porcelain")
 
 
