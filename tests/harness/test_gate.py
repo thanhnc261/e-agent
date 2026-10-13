@@ -128,3 +128,59 @@ def test_gate_timeout_kills_the_whole_process_group(repo) -> None:
     assert repo.invoke("gate", "pg", "--timeout", "1").code == 1
     leftover = subprocess.run(["pgrep", "-f", "sleep 31.7"], capture_output=True, text=True)
     assert leftover.returncode != 0, f"orphaned: {leftover.stdout}"
+
+
+PG_GUARD = """
+[gate_guards.pg]
+require_env = ["E_AGENT_TEST_PG_DSN"]
+distinct_databases = [["E_AGENT_TEST_PG_DSN", "E_AGENT_PG_DSN"]]
+"""
+
+
+def _guard_pg(repo) -> None:
+    manifest = repo.root / "harness/context.toml"
+    manifest.write_text(manifest.read_text() + PG_GUARD)
+
+
+def test_pg_guard_refuses_missing_test_dsn(repo, monkeypatch) -> None:
+    _guard_pg(repo)
+    monkeypatch.delenv("E_AGENT_TEST_PG_DSN", raising=False)
+    result = repo.invoke("gate", "pg")
+    assert result.code == 1
+    assert "E_AGENT_TEST_PG_DSN" in result.out and "refused" in result.out
+    assert not (repo.root / "harness/state/evidence").exists()
+    assert not (repo.root / "evidence").exists()
+
+
+def test_pg_guard_refuses_same_database(repo, monkeypatch) -> None:
+    _guard_pg(repo)
+    monkeypatch.setenv("E_AGENT_PG_DSN", "postgresql://u:secret@db.local:5433/e_agent")
+    monkeypatch.setenv("E_AGENT_TEST_PG_DSN", "postgresql://u:secret@db.local:5433/e_agent")
+    result = repo.invoke("gate", "pg")
+    assert result.code == 1
+    assert "same database" in result.out
+    assert "secret" not in result.out
+
+
+def test_pg_guard_compares_parsed_databases(repo, monkeypatch) -> None:
+    _guard_pg(repo)
+    monkeypatch.setenv("E_AGENT_PG_DSN", "postgresql://u@localhost/e_agent")
+    monkeypatch.setenv("E_AGENT_TEST_PG_DSN", "host=localhost port=5432 dbname=e_agent user=t")
+    assert repo.invoke("gate", "pg").code == 1
+    assert gate.database_identity("postgresql://u@h:5433/db") == ("h", 5433, "db")
+    assert gate.database_identity("dbname=db host=h") == ("h", 5432, "db")
+    assert gate.database_identity("postgresql:///db") == ("localhost", 5432, "db")
+
+
+def test_pg_guard_allows_distinct_databases(repo, monkeypatch) -> None:
+    _guard_pg(repo)
+    monkeypatch.setenv("E_AGENT_PG_DSN", "postgresql://u@localhost:5432/e_agent")
+    monkeypatch.setenv("E_AGENT_TEST_PG_DSN", "postgresql://u@localhost:5432/e_agent_test")
+    result = repo.invoke("gate", "pg")
+    assert result.code == 0, result
+
+
+def test_gates_without_guards_are_unaffected(repo, monkeypatch) -> None:
+    _guard_pg(repo)
+    monkeypatch.delenv("E_AGENT_TEST_PG_DSN", raising=False)
+    assert repo.invoke("gate", "quick").code == 0

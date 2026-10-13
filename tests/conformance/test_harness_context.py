@@ -199,3 +199,12 @@ def _copy_manifest_inputs(tmp_path: Path) -> Path:
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(src, dst)
     return root
+
+
+def test_real_manifest_pg_gate_is_guarded() -> None:
+    m = manifest.load_manifest(MANIFEST)
+    assert m.gates["pg"], "pg gate set missing"
+    assert not any("E_AGENT_PG_DSN" in command for command in m.gates["pg"])
+    guard = m.gate_guards["pg"]
+    assert "E_AGENT_TEST_PG_DSN" in guard.require_env
+    assert ("E_AGENT_TEST_PG_DSN", "E_AGENT_PG_DSN") in guard.distinct_databases

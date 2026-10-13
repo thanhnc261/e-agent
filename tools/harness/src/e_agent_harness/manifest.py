@@ -46,6 +46,14 @@ class Status:
 
 
 @dataclass(frozen=True)
+class GateGuard:
+    """Preconditions checked before a gate set runs any command."""
+
+    require_env: tuple[str, ...] = ()
+    distinct_databases: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True)
 class Manifest:
     authoritative: Authoritative
     protected: Protected
@@ -53,6 +61,7 @@ class Manifest:
     gates: dict[str, tuple[str, ...]] = field(default_factory=dict)
     roles: dict[str, str] = field(default_factory=dict)
     status: Status = Status(token_budget=1500, language_order=("en",))
+    gate_guards: dict[str, GateGuard] = field(default_factory=dict)
 
 
 def _strs(raw: Any, key: str) -> tuple[str, ...]:
@@ -60,6 +69,22 @@ def _strs(raw: Any, key: str) -> tuple[str, ...]:
     if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
         raise ValueError(f"manifest: {key} must be a list of strings")
     return tuple(value)
+
+
+def _guards(raw: Any) -> dict[str, GateGuard]:
+    guards: dict[str, GateGuard] = {}
+    for name, table in raw.get("gate_guards", {}).items():
+        pairs = table.get("distinct_databases", [])
+        if not all(
+            isinstance(p, list) and len(p) == 2 and all(isinstance(v, str) for v in p)
+            for p in pairs
+        ):
+            raise ValueError(f"manifest: gate_guards.{name}.distinct_databases must be pairs")
+        guards[name] = GateGuard(
+            require_env=_strs(table, "require_env"),
+            distinct_databases=tuple((a, b) for a, b in pairs),
+        )
+    return guards
 
 
 def load_manifest(path: Path) -> Manifest:
@@ -92,6 +117,7 @@ def load_manifest(path: Path) -> Manifest:
             token_budget=int(status.get("token_budget", 1500)),
             language_order=tuple(status.get("language_order", ["en"])),
         ),
+        gate_guards=_guards(raw),
     )
 
 

@@ -46,9 +46,15 @@ full = [
   "uv run pytest -q",
   "pnpm --dir ui gen:check",
 ]
-pg = ["E_AGENT_TEST_PG_DSN=$E_AGENT_PG_DSN E_AGENT_TEST_STORE=postgres uv run pytest -q tests/unit/kernel"]
+pg = ["E_AGENT_TEST_STORE=postgres uv run pytest -q tests/unit/kernel"]
 e2e = ["make e2e"]
 live = ["uv run python scripts/env_check.py", "uv run python scripts/odoo_sandbox.py info"]
+
+# The Postgres tests truncate their database. The test DSN must be set on its own and
+# must never name the live ledger (pilot log HP-13).
+[gate_guards.pg]
+require_env = ["E_AGENT_TEST_PG_DSN"]
+distinct_databases = [["E_AGENT_TEST_PG_DSN", "E_AGENT_PG_DSN"]]
 
 [roles]
 # Skills land in harness phase H3; names are checked for shape only until then.

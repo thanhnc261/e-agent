@@ -8,10 +8,11 @@ import re
 import signal
 import subprocess
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from e_agent_harness import contracts, gitinfo
 from e_agent_harness.manifest import Manifest
@@ -81,6 +82,33 @@ def run_shell(command: str, cwd: Path, timeout: int) -> tuple[int, str]:
     return proc.returncode, _text(output)
 
 
+def database_identity(dsn: str) -> tuple[str, int, str]:
+    """(host, port, database) of a PostgreSQL DSN in URL or keyword form."""
+    dsn = dsn.strip()
+    if "://" in dsn:
+        parts = urlsplit(dsn)
+        return (parts.hostname or "localhost", parts.port or 5432, parts.path.lstrip("/"))
+    fields = dict(item.split("=", 1) for item in dsn.split() if "=" in item)
+    return (
+        fields.get("host") or "localhost",
+        int(fields.get("port") or 5432),
+        fields.get("dbname") or fields.get("database") or "",
+    )
+
+
+def check_guards(m: Manifest, set_name: str, env: Mapping[str, str]) -> list[str]:
+    """Problems that forbid running the gate set; never echoes a DSN (it may hold a secret)."""
+    guard = m.gate_guards.get(set_name)
+    if guard is None:
+        return []
+    problems = [f"{name} is not set" for name in guard.require_env if not env.get(name)]
+    for left, right in guard.distinct_databases:
+        both = env.get(left) and env.get(right)
+        if both and database_identity(env[left]) == database_identity(env[right]):
+            problems.append(f"{left} and {right} name the same database")
+    return problems
+
+
 def run_gate(
     m: Manifest,
     set_name: str,
@@ -92,9 +120,13 @@ def run_gate(
     keep_going: bool = False,
     now: datetime,
     runner: Runner = run_shell,
+    env: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     if set_name not in m.gates:
         raise ValueError(f"unknown gate set: {set_name} (have {', '.join(sorted(m.gates))})")
+    refused = check_guards(m, set_name, os.environ if env is None else env)
+    if refused:
+        raise ValueError(f"gate {set_name} refused: " + "; ".join(refused))
     evidence: dict[str, Any] = {
         "gate_set": set_name,
         "task": task_id,
