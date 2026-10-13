@@ -15,7 +15,17 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TextIO
 
-from e_agent_harness import closecheck, gate, gitinfo, progress, scope, state, status, tasks
+from e_agent_harness import (
+    closecheck,
+    contracts,
+    gate,
+    gitinfo,
+    progress,
+    scope,
+    state,
+    status,
+    tasks,
+)
 from e_agent_harness import manifest as mf
 
 
@@ -68,6 +78,15 @@ def _parser() -> argparse.ArgumentParser:
     cc.add_argument(
         "--hook", action="store_true", help="Stop mode: inert unless E_AGENT_HARNESS_UNATTENDED=1"
     )
+    va = sub.add_parser("validate", help="validate a JSON file against a contract schema")
+    va.add_argument("schema")
+    va.add_argument("file", type=Path)
+    af = sub.add_parser("add-feature", help="append one feature entry to a phase feature list")
+    af.add_argument("phase")
+    af.add_argument("feature_id")
+    af.add_argument("--category", required=True)
+    af.add_argument("--description", required=True)
+    af.add_argument("--step", action="append", default=[], required=True)
     rf = sub.add_parser("refresh-task", help="new digests for the active task; base kept")
     rf.add_argument("--from-features", action="store_true", help="re-derive acceptance")
     am = sub.add_parser("amend-scope", help="add one allowed path to the active task")
@@ -289,6 +308,46 @@ def cmd_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_validate(args: argparse.Namespace) -> int:
+    try:
+        found = contracts.validate(args.schema, json.loads(args.file.read_text(encoding="utf-8")))
+    except (KeyError, OSError, ValueError) as exc:
+        print(str(exc).strip("'"))
+        return 1
+    for problem in found:
+        print(problem)
+    if found:
+        return 1
+    print(f"ok: {args.file} is a valid {args.schema}")
+    return 0
+
+
+def cmd_add_feature(args: argparse.Namespace) -> int:
+    _root, paths, _m = _context(args)
+    path = paths.features(args.phase)
+    doc = state.read_json(path) if path.is_file() else {"phase": args.phase, "entries": []}
+    if any(e.get("id") == args.feature_id for e in doc["entries"]):
+        print(f"feature {args.feature_id} already exists in {path.name}")
+        return 1
+    doc["entries"].append(
+        {
+            "id": args.feature_id,
+            "category": args.category,
+            "description": args.description,
+            "steps": list(args.step),
+            "passes": False,
+        }
+    )
+    found = contracts.validate("features", doc)
+    if found:
+        for problem in found:
+            print(problem)
+        return 1
+    state.write_json(path, doc)
+    print(f"feature {args.feature_id} added to phase {args.phase}")
+    return 0
+
+
 def cmd_refresh_task(args: argparse.Namespace) -> int:
     root, paths, m = _context(args)
     try:
@@ -321,6 +380,8 @@ COMMANDS = {
     "handoff": cmd_handoff,
     "close-check": cmd_close_check,
     "status": cmd_status,
+    "validate": cmd_validate,
+    "add-feature": cmd_add_feature,
     "refresh-task": cmd_refresh_task,
     "amend-scope": cmd_amend_scope,
 }
