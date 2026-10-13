@@ -1,0 +1,17 @@
+{
+  "task": "1.R1",
+  "changed": "Whole-branch review fixes: repo_move.py layout drops __pycache__ carried by git mv (test); a test pins repo_move.HOOK equal to dists/_hooks/src_tree.py; dead docs/superpowers/ prefix removed; target-architecture api.py line citations replaced by function references after checking each claim in the code; local stale caches cleared. Phase handoff updated.",
+  "evidence_refs": [
+    "evidence/gates/1.R1/2026-10-13T07-03-51+00-00.json"
+  ],
+  "open_items": [
+    "Kept as rulings from the review: dev-mode-dirs exposes the whole src/ tree to a lone editable install; mixins plus TYPE_CHECKING stubs (collaborators later, SR-06); ruff src ['.'] (style-only import regroup later); preserved logger names; research/ links (owner)"
+  ],
+  "rulings": [
+    {
+      "ruling": "Only findings that affect correctness or contradict the repo's own claims were fixed; design preferences that the plan already decided were recorded, not changed",
+      "cost_if_wrong": "a later phase revisits the mixin design or import grouping; both are style or structure, not behaviour"
+    }
+  ],
+  "outside_repo": []
+}

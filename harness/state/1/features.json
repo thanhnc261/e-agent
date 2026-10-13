@@ -222,7 +222,8 @@
         "target-architecture api.py citations name functions, not line numbers",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1.R1/2026-10-13T07-03-51+00-00.json"
     }
   ]
 }
