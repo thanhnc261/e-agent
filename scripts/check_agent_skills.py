@@ -1,4 +1,4 @@
-"""Validate the ag-* agent skills: structure, discovery links and citation integrity.
+"""Validate the ag-*, eng-* and live-* agent skills: structure, links and citation integrity.
 
 Structural checks only. They cannot judge whether a criterion is a good standard
 or whether a cited source supports it; owner review and spot checks do that.
@@ -14,7 +14,15 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-NAME_RE = re.compile(r"^ag-[a-z0-9]+(?:-[a-z0-9]+)*$")
+SKILL_PREFIXES = ("ag-", "eng-", "live-")
+NAME_RE = re.compile(r"^(?:ag|eng|live)-[a-z0-9]+(?:-[a-z0-9]+)*$")
+OPTIONAL_FRONTMATTER = {"disable-model-invocation"}
+ENG_RULE = r"ENG-[A-Z]+-\d+"
+ENG_DEF_RE = re.compile(rf"^### ({ENG_RULE}) — \S", re.M)
+ENG_REF_RE = re.compile(rf"\b({ENG_RULE})\b")
+ENG_RULE_FIELDS = ("Statement", "Source", "Enforcement", "Evidence")
+ENG_ENFORCEMENT = {"gate", "test", "review", "hook", "permission", "command"}
+ENG_RULES_FILE = Path(".agents/skills/eng-foundations/references/rules.md")
 MAX_DESCRIPTION = 400
 YAML_INDICATORS = ">|'\"[{*&!%@`"
 MAX_TOTAL_DESCRIPTION = 2000
@@ -93,14 +101,20 @@ def _check_skill(root: Path, skill: Path, problems: list[Problem]) -> int:
     if meta is None:
         problems.append(Problem(where, "missing frontmatter"))
         return 0
-    extra = sorted(set(meta) - {"name", "description"})
+    extra = sorted(set(meta) - {"name", "description"} - OPTIONAL_FRONTMATTER)
     if extra:
         problems.append(Problem(where, f"unexpected frontmatter keys: {', '.join(extra)}"))
+    flag = meta.get("disable-model-invocation")
+    if flag is not None and flag not in {"true", "false"}:
+        problems.append(Problem(where, "disable-model-invocation must be true or false"))
     name = meta.get("name", "")
     if name != skill.name:
         problems.append(Problem(where, f"name '{name}' does not match directory '{skill.name}'"))
     if not NAME_RE.match(skill.name):
-        problems.append(Problem(where, f"directory '{skill.name}' does not match ag-* naming"))
+        expected = "/".join(SKILL_PREFIXES)
+        problems.append(
+            Problem(where, f"directory '{skill.name}' does not match {expected}* naming")
+        )
     description = meta.get("description", "")
     if not description:
         problems.append(Problem(where, "empty description"))
@@ -255,6 +269,23 @@ def _check_criteria(
             problems.append(Problem(where, f"{cid} is Blocker without a readable T1/T2 source"))
 
 
+def _check_eng_rules(root: Path, path: Path, defined: set[str], problems: list[Problem]) -> None:
+    where = _rel(root, path)
+    for rid, body in _blocks(path.read_text(), ENG_DEF_RE):
+        if rid in defined:
+            problems.append(Problem(where, f"duplicate rule {rid}"))
+        defined.add(rid)
+        fields = _fields(body, rid, where, problems)
+        for name in ENG_RULE_FIELDS:
+            if not fields.get(name, "").strip():
+                problems.append(Problem(where, f"{rid} missing field '{name}'"))
+        for kind in (k.strip() for k in fields.get("Enforcement", "").split(",") if k.strip()):
+            if kind not in ENG_ENFORCEMENT:
+                problems.append(
+                    Problem(where, f"{rid} enforcement '{kind}' not in {sorted(ENG_ENFORCEMENT)}")
+                )
+
+
 def _check_states(root: Path, path: Path, problems: list[Problem]) -> None:
     where = _rel(root, path)
     blocks: dict[str, str] = {}
@@ -280,13 +311,15 @@ def check(root: Path) -> list[Problem]:
     skills_dir = root / ".agents" / "skills"
     if not skills_dir.is_dir():
         return [Problem(".", "no .agents/skills directory")]
-    skills = sorted(p for p in skills_dir.iterdir() if p.is_dir() and p.name.startswith("ag-"))
+    skills = sorted(
+        p for p in skills_dir.iterdir() if p.is_dir() and p.name.startswith(SKILL_PREFIXES)
+    )
     total = sum(_check_skill(root, s, problems) for s in skills)
     claude_dir = root / ".claude" / "skills"
     if claude_dir.is_dir():
         names = {s.name for s in skills}
         for entry in sorted(claude_dir.iterdir()):
-            if entry.name.startswith("ag-") and entry.name not in names:
+            if entry.name.startswith(SKILL_PREFIXES) and entry.name not in names:
                 where = _rel(root, entry)
                 problems.append(Problem(where, f"orphan link {where} has no source skill"))
     if total > MAX_TOTAL_DESCRIPTION:
@@ -307,12 +340,18 @@ def check(root: Path) -> list[Problem]:
             _check_criteria(root, refs / name, sources, defined, problems)
     if (refs / "state-model.md").is_file():
         _check_states(root, refs / "state-model.md", problems)
+    rules_defined: set[str] = set()
+    rules_file = root / ENG_RULES_FILE
+    if rules_file.is_file():
+        _check_eng_rules(root, rules_file, rules_defined, problems)
     for path in files:
         text = path.read_text()
         where = _rel(root, path)
         _check_links(root, path, text, problems)
         for cid in sorted(set(REF_RE.findall(text)) - defined):
             problems.append(Problem(where, f"unknown criterion {cid}"))
+        for rid in sorted(set(ENG_REF_RE.findall(text)) - rules_defined):
+            problems.append(Problem(where, f"unknown rule {rid}"))
         for term in AGENT_TERMS:
             if term in text:
                 problems.append(Problem(where, f"agent-specific term '{term}'"))

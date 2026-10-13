@@ -440,3 +440,108 @@ def test_duplicate_field_in_state(tmp_path):
     )
     root = make_repo(tmp_path, extra={"state-model.md": text})
     assert any("state 'Working' duplicate field 'Criteria'" in m for m in messages(root))
+
+
+ENG_RULES = """# Engineering rules
+
+## Trust anchor
+
+### ENG-TRUST-1 — Model output is a proposal
+
+- **Statement:** Model output never grants approval, changes policy or marks its own task verified.
+- **Source:** AGENTS.md "Execution and data integrity"; roadmap rule 4.
+- **Enforcement:** review, test
+- **Evidence:** a test that a model proposal cannot transition a run to verified.
+"""
+
+
+def make_eng_repo(tmp_path: Path, *, rules: str = ENG_RULES, session: str | None = None) -> Path:
+    root = make_repo(tmp_path)
+    skills = root / ".agents" / "skills"
+    claude = root / ".claude" / "skills"
+    found = skills / "eng-foundations"
+    (found / "references").mkdir(parents=True)
+    (found / "SKILL.md").write_text(
+        "---\nname: eng-foundations\ndescription: Engineering standard, cited by ENG ID.\n---\n\n"
+        "# Foundations\n\nSee [rules](references/rules.md).\n"
+    )
+    (found / "references" / "rules.md").write_text(rules)
+    os.symlink("../../.agents/skills/eng-foundations", claude / "eng-foundations")
+    sess = skills / "eng-session"
+    sess.mkdir()
+    (sess / "SKILL.md").write_text(
+        session
+        or (
+            "---\nname: eng-session\ndescription: The session loop.\n---\n\n"
+            "# Session\n\nApply ENG-TRUST-1.\n"
+        )
+    )
+    os.symlink("../../.agents/skills/eng-session", claude / "eng-session")
+    return root
+
+
+def test_eng_fixture_is_clean(tmp_path):
+    assert messages(make_eng_repo(tmp_path)) == []
+
+
+def test_prefixes_cover_eng_and_live(tmp_path):
+    root = make_eng_repo(tmp_path)
+    live = root / ".agents/skills/live-sandbox"
+    live.mkdir()
+    (live / "SKILL.md").write_text(
+        "---\nname: live-sandbox\ndescription: Sandbox ops.\n"
+        "disable-model-invocation: true\n---\n\n# Live\n"
+    )
+    assert any("live-sandbox is not a symlink" in m for m in messages(root))
+    os.symlink("../../.agents/skills/live-sandbox", root / ".claude/skills/live-sandbox")
+    assert messages(root) == []
+    os.symlink("../../.agents/skills/eng-gone", root / ".claude/skills/eng-gone")
+    assert any("orphan link .claude/skills/eng-gone" in m for m in messages(root))
+
+
+def test_disable_model_invocation_is_the_only_extra_key(tmp_path):
+    root = make_eng_repo(tmp_path)
+    skill_md = root / ".agents/skills/eng-session/SKILL.md"
+    skill_md.write_text(
+        skill_md.read_text().replace("---\n\n#", "disable-model-invocation: maybe\n---\n\n#")
+    )
+    assert any("disable-model-invocation must be true or false" in m for m in messages(root))
+    skill_md.write_text(
+        skill_md.read_text().replace("disable-model-invocation: maybe", "model: opus")
+    )
+    assert any("unexpected frontmatter keys: model" in m for m in messages(root))
+
+
+def test_unknown_eng_rule_reference(tmp_path):
+    root = make_eng_repo(
+        tmp_path,
+        session=(
+            "---\nname: eng-session\ndescription: Loop.\n---\n\n# Session\n\nApply ENG-NOPE-9.\n"
+        ),
+    )
+    assert any("unknown rule ENG-NOPE-9" in m for m in messages(root))
+
+
+def test_eng_rule_requires_all_fields(tmp_path):
+    rules = ENG_RULES.replace("- **Enforcement:** review, test\n", "")
+    root = make_eng_repo(tmp_path, rules=rules)
+    assert any("ENG-TRUST-1 missing field 'Enforcement'" in m for m in messages(root))
+
+
+def test_eng_rule_enforcement_values(tmp_path):
+    rules = ENG_RULES.replace("review, test", "vibes")
+    root = make_eng_repo(tmp_path, rules=rules)
+    assert any("ENG-TRUST-1 enforcement 'vibes'" in m for m in messages(root))
+
+
+def test_duplicate_eng_rule(tmp_path):
+    rules = ENG_RULES + "\n" + ENG_RULES.split("## Trust anchor\n")[1]
+    root = make_eng_repo(tmp_path, rules=rules)
+    assert any("duplicate rule ENG-TRUST-1" in m for m in messages(root))
+
+
+def test_ag_skills_may_not_cite_eng_rules_silently(tmp_path):
+    root = make_eng_repo(tmp_path)
+    brief = root / ".agents/skills/ag-ux-foundations/SKILL.md"
+    brief.write_text(brief.read_text() + "\nAlso ENG-NOPE-1.\n")
+    assert any("unknown rule ENG-NOPE-1" in m for m in messages(root))
