@@ -43,6 +43,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.4/2026-10-13T14-14-23.963187+00-00-full.json"
+    },
+    {
+      "id": "F-H4-5",
+      "category": "harness",
+      "description": "research/** accepts new files only: existing studies stay read-only, new studies may be created (owner decision 2026-10-13)",
+      "steps": [
+        "tests for create-only paths pass in tests/harness/test_check_scope.py",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
