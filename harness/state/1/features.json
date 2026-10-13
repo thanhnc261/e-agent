@@ -41,7 +41,8 @@
         "the wheel reference regenerated from the new wheels (command in docs/handoffs/2026-10-13-phase1-1a1-baseline.md) diffs clean against docs/handoffs/2026-10-13-phase1-1a1-wheel-reference.txt, except explained .dist-info backend noise",
         "plugin_inventory.py manifest_sha256 and artifact_sha256 for domain-erp and odoo19 equal the 1a.1 baseline"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1a.3/2026-10-13T06-12-06+00-00.json"
     },
     {
       "id": "F-1a-4",
