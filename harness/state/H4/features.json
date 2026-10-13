@@ -54,6 +54,17 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.5/2026-10-13T14-21-08.681299+00-00-full.json"
+    },
+    {
+      "id": "F-H4-6",
+      "category": "harness",
+      "description": "tidy formats and lints the whole change once before commit; the per-edit PostToolUse format hook is removed (owner decision 2026-10-13)",
+      "steps": [
+        "tests/harness/test_tidy.py passes",
+        "settings have four hooks and no PostToolUse",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
