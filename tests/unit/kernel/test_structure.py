@@ -8,6 +8,8 @@ importable from there, and every method they call reachable on `RunCoordinator`.
 import importlib
 import inspect
 import logging
+import tomllib
+from pathlib import Path
 
 import pytest
 
@@ -61,3 +63,34 @@ def test_run_coordinator_keeps_its_methods(name: str) -> None:
 
 def test_coordinator_log_keeps_its_logger_name() -> None:
     assert coordinator.LOG is logging.getLogger("e_agent.kernel.coordinator")
+
+
+KERNEL = Path(coordinator.__file__).resolve().parent
+MAX_KERNEL_MODULE_LINES = 500
+FACADE_CONTRACT = "Only the facade module imports e_agent.kernel.coordinator"
+
+
+def test_each_method_defined_once() -> None:
+    homes: dict[str, list[str]] = {}
+    for cls in coordinator.RunCoordinator.__mro__[:-1]:  # without object
+        for name, value in vars(cls).items():
+            if inspect.isfunction(value):
+                homes.setdefault(name, []).append(cls.__name__)
+    shadowed = {name: owners for name, owners in homes.items() if len(owners) > 1}
+    assert shadowed == {}
+
+
+@pytest.mark.parametrize("module", sorted(p.name for p in KERNEL.glob("*.py")))
+def test_kernel_module_size(module: str) -> None:
+    lines = (KERNEL / module).read_text(encoding="utf-8").count("\n")
+    assert lines <= MAX_KERNEL_MODULE_LINES, f"{module}: {lines} lines"
+
+
+def test_facade_import_contract_covers_every_other_kernel_module() -> None:
+    config = tomllib.loads((KERNEL.parents[2] / "pyproject.toml").read_text(encoding="utf-8"))
+    [contract] = [
+        c for c in config["tool"]["importlinter"]["contracts"] if c["name"] == FACADE_CONTRACT
+    ]
+    assert contract["forbidden_modules"] == ["e_agent.kernel.coordinator"]
+    modules = {f"e_agent.kernel.{p.stem}" for p in KERNEL.glob("*.py") if p.stem != "__init__"}
+    assert set(contract["source_modules"]) == modules - {"e_agent.kernel.coordinator"}
