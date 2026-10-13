@@ -62,7 +62,8 @@
         "repo_move.py links --move of the nine design docs to docs/design",
         "repo_move.py check reports 0 broken links"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1b.1/2026-10-13T06-17-06+00-00.json"
     },
     {
       "id": "F-1b-2",

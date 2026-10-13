@@ -1,0 +1,19 @@
+{
+  "task": "1b.1",
+  "changed": "Nine design documents moved by git mv into docs/design/ (high-level-design, mvp-detailed-design, target-architecture, ui-architecture, frontend-development-guide, integration-management, integration-auth-sdk, threat-model, implementation-plan). repo_move.py links rewrote relative links in 35 files; prose path mentions fixed in CLAUDE.md and two ag-* skill files; harness/context.toml authoritative paths, the plan sample and test_harness_context.py follow. check: 0 broken links, 0 old paths in code and config.",
+  "evidence_refs": [
+    "evidence/gates/1b.1/2026-10-13T06-17-06+00-00.json",
+    "evidence/1b.1-check.txt"
+  ],
+  "open_items": [
+    "research/14-enterprise-wide-agent-experience.md (3 links) and research/mockups/agentic-chat-v4/design-system/README.md (1 link) point at the old design paths; research/ is read-only, so they stay broken until the owner allows a link-only rewrite",
+    "repo_move.py check cannot see paths built with Path joins (root / \"docs\" / \"x.md\"); test_harness_context.py:144 was found by the gate, not by check"
+  ],
+  "rulings": [
+    {
+      "ruling": "Dated records (ADRs, handoffs, reviews, plans) got their relative links rewritten but keep prose mentions of old paths",
+      "cost_if_wrong": "a reader follows a prose path in an old record; the links in the same record work"
+    }
+  ],
+  "outside_repo": []
+}

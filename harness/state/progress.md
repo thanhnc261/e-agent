@@ -29,3 +29,8 @@
 - changed: 1a.4 editor excludes; F-1a-4 passes; Part 1a done
 - next: 1b.1 designs into docs/design
 - open: none
+
+## 2026-10-13T06:17:42+00:00 · 5b4b8e8f-e459-44f9-bc30-502cdbbe2794 · 1b.1
+- changed: 1b.1 designs moved; F-1b-1 passes
+- next: 1b.2 plans and specs out of docs/superpowers
+- open: none
