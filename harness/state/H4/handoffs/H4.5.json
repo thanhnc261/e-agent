@@ -1,0 +1,19 @@
+{
+  "task": "H4.5",
+  "changed": "research/** accepts new files only: manifest create_only, check-scope (hook and tree) allows a path not tracked at the task base (or HEAD) while existing files stay read-only; ENG-BOUND-2 updated; owner decision 2026-10-13.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.5/2026-10-13T14-21-08.681299+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "A new research file still needs the open task scope; with no open task only the protected-path rule applies",
+      "cost_if_wrong": "a UI brief task must list research/** in its --paths"
+    },
+    {
+      "ruling": "Order matters: new-task refuses while the tree is dirty, so the contract is materialised before tests are written",
+      "cost_if_wrong": "none"
+    }
+  ],
+  "outside_repo": []
+}

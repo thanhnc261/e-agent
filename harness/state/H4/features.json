@@ -52,7 +52,8 @@
         "tests for create-only paths pass in tests/harness/test_check_scope.py",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/H4.5/2026-10-13T14-21-08.681299+00-00-full.json"
     }
   ]
 }
