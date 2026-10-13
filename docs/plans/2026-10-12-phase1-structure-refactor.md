@@ -1,6 +1,6 @@
 # Phase 1: Structure Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** give the repository a clear structure before the execution-IR work. Phase 1 has three parts:
 - **1a (code layout):** all Python code moves into one layer-grouped tree, `src/e_agent/...`, with no repeated folder names. Packages remain independently releasable.
@@ -82,13 +82,13 @@ e-agent/
 
 ### Task 1a.1: Baseline evidence
 
-- [ ] **Step 1:** Record the baseline:
+- [x] **Step 1:** Record the baseline:
   - the gate counts;
   - `uv run python scripts/check_wheels.py` output;
   - `scripts/plugin_inventory.py` hashes for `domain-erp` and `odoo19`, built from fresh wheels.
 
   Save all of it to the task report.
-- [ ] **Step 2:** For every wheel, list its files with `unzip -l` on all 10 built wheels. This list is the "must be identical after the move" reference.
+- [x] **Step 2:** For every wheel, list its files with `unzip -l` on all 10 built wheels. This list is the "must be identical after the move" reference.
 
 ### Task 1a.2: Mover script
 
@@ -154,27 +154,27 @@ Steps:
 
 ### Task 1a.3: Tooling and path references
 
-- [ ] Update the root `pyproject.toml`:
+- [x] Update the root `pyproject.toml`:
   - `[tool.uv.workspace] members = ["dists/*"]`;
   - the mypy `mypy_path` / `files` point to `src` and `tests`;
   - `[tool.pytest.ini_options] testpaths = ["tests"]`;
   - the import-linter `root_packages` are unchanged (`e_agent`), and the existing contracts are kept;
   - ruff `src` paths.
-- [ ] Update the remaining path references:
+- [x] Update the remaining path references:
   - `.github/workflows/ci.yml` (`pytest -q packages/kernel` becomes `tests/unit/kernel`);
   - `.github/workflows/odoo-live.yml` (wheel builds use `--package`, so they are unchanged; verify);
   - `scripts/qualify_model.py:75` (package roots);
   - `scripts/check_wheels.py`;
   - `scripts/plugin_inventory.py`;
   - the `Makefile`.
-- [ ] Run `uv lock` (the lock file changes only in source paths).
-- [ ] Run the full gate and `make e2e`, then `check_wheels.py`. **Wheel file lists are identical** to Task 1a.1; the plugin inventory `manifest_sha256` values are identical.
-- [ ] Commit: `refactor(repo): one layer-grouped src/e_agent tree; per-distribution configs in dists/ (no behaviour change)`.
+- [x] Run `uv lock` (the lock file changes only in source paths).
+- [x] Run the full gate and `make e2e`, then `check_wheels.py`. **Wheel file lists are identical** to Task 1a.1; the plugin inventory `manifest_sha256` values are identical.
+- [x] Commit: `refactor(repo): one layer-grouped src/e_agent tree; per-distribution configs in dists/ (no behaviour change)`.
 
 ### Task 1a.4: Editor hygiene
 
-- [ ] Add `.vscode/settings.json` with `files.exclude` and `search.exclude` for `**/__pycache__`, `.mypy_cache`, `.ruff_cache`, `.pytest_cache`, `.import_linter_cache`, `ui/**/node_modules` and `ui/**/dist`. It is committed as a project setting.
-- [ ] Commit: `chore(editor): hide caches in the workspace`.
+- [x] Add `.vscode/settings.json` with `files.exclude` and `search.exclude` for `**/__pycache__`, `.mypy_cache`, `.ruff_cache`, `.pytest_cache`, `.import_linter_cache`, `ui/**/node_modules` and `ui/**/dist`. It is committed as a project setting.
+- [x] Commit: `chore(editor): hide caches in the workspace`.
 
 ---
 
@@ -182,43 +182,43 @@ Steps:
 
 ### Task 1b.1: Designs into `docs/design/`
 
-- [ ] Run `scripts/repo_move.py links --move docs/high-level-design.md docs/mvp-detailed-design.md docs/target-architecture.md docs/ui-architecture.md docs/frontend-development-guide.md docs/integration-management.md docs/integration-auth-sdk.md docs/threat-model.md docs/implementation-plan.md --to docs/design`.
-- [ ] `check` must report 0 broken links. Commit.
+- [x] Run `scripts/repo_move.py links --move docs/high-level-design.md docs/mvp-detailed-design.md docs/target-architecture.md docs/ui-architecture.md docs/frontend-development-guide.md docs/integration-management.md docs/integration-auth-sdk.md docs/threat-model.md docs/implementation-plan.md --to docs/design`.
+- [x] `check` must report 0 broken links. Commit.
 
 ### Task 1b.2: Plans and specs out of `docs/superpowers/`
 
-- [ ] Move the active plans (core, odoo-tools, dev-harness, phase1) into `docs/plans/`, and `docs/superpowers/specs/*` into `docs/specs/`.
-- [ ] Remove `docs/superpowers/`.
-- [ ] Update the plan-location sentence in the `docs/roadmap.md` Rules.
-- [ ] `check` must report 0 broken links. Commit.
+- [x] Move the active plans (core, odoo-tools, dev-harness, phase1) into `docs/plans/`, and `docs/superpowers/specs/*` into `docs/specs/`.
+- [x] Remove `docs/superpowers/`.
+- [x] Update the plan-location sentence in the `docs/roadmap.md` Rules.
+- [x] `check` must report 0 broken links. Commit.
 
 ### Task 1b.3: AGENTS.md, CLAUDE.md and README
 
-- [ ] **AGENTS.md**:
+- [x] **AGENTS.md**:
   - **Current state**: say that work is ordered by `docs/roadmap.md` and that `archive/` is history.
   - **Read before changing**: list `docs/roadmap.md`, `docs/design/*`, the ADR index, and the current phase plan.
   - **New section "How work is done"**: the roadmap's five rules (detailed plan first, design first, toggles with fallback, trust anchor unchanged, environment boundaries), plus per-task review and end-to-end verification.
   - **New section "Repository map"**: one line per top-level folder of the new tree.
   - **Development rule for the new layout**: `src/e_agent/<part>/`, `dists/<dist>/`, and no `src/e_agent/__init__.py`.
   - **Environment boundaries**: only `odoo19-learning` and e-agent's own containers; never `odoo-bench` or the lab experiments.
-- [ ] **CLAUDE.md** stays short and Claude-specific:
+- [x] **CLAUDE.md** stays short and Claude-specific:
   - Plans go to `docs/plans/`, overriding the superpowers default.
   - Use subagent-driven execution with the git-ignored ledger `.superpowers/sdd/`.
   - Use the `ag-*` skills for UI.
   - Use the advisor for decisions.
   - Follow the commit trailer policy.
   - Point to AGENTS.md for everything shared.
-- [ ] **README**:
+- [x] **README**:
   - The status points to `docs/roadmap.md`.
   - The commands use the new paths.
   - The "Live agent" section is unchanged except for the paths.
   - Do not claim live qualification.
-- [ ] Run `check` (0 broken links) and `scripts/check_agent_skills.py`, then the gate. Commit.
+- [x] Run `check` (0 broken links) and `scripts/check_agent_skills.py`, then the gate. Commit.
 
 ### Task 1b.4: Design §15 update
 
-- [ ] Replace the `packages/...`/`apps/...` tree in `docs/design/target-architecture.md` §15 with the new layout. Mark it `[I]` and add a one-line rationale with this plan's link. Update the §16 "Location today" paths.
-- [ ] Commit.
+- [x] Replace the `packages/...`/`apps/...` tree in `docs/design/target-architecture.md` §15 with the new layout. Mark it `[I]` and add a one-line rationale with this plan's link. Update the §16 "Location today" paths.
+- [x] Commit.
 
 ---
 
@@ -228,9 +228,9 @@ Steps:
 
 **Files:** create `tests/unit/kernel/test_structure.py`.
 
-- [ ] Inventory every name imported from `e_agent.kernel.coordinator` by tests, scripts and the server (`git grep -n "from e_agent.kernel.coordinator import\|coordinator\._"`). Assert that each name is still importable.
-- [ ] Assert that these public methods exist: `start_run`, `admit_run`, `start_admitted_run`, `set_text_sink`, `release_continuation`, `get_run`, `accept_input`, `continue_input`, `resume_input`, `pending_approval`, `sweep_expired_approvals`, `expire_approval`, `decide`, `reconcile`, `cancel`, `recover`, `recover_run`.
-- [ ] The test passes on the unsplit code. Commit.
+- [x] Inventory every name imported from `e_agent.kernel.coordinator` by tests, scripts and the server (`git grep -n "from e_agent.kernel.coordinator import\|coordinator\._"`). Assert that each name is still importable.
+- [x] Assert that these public methods exist: `start_run`, `admit_run`, `start_admitted_run`, `set_text_sink`, `release_continuation`, `get_run`, `accept_input`, `continue_input`, `resume_input`, `pending_approval`, `sweep_expired_approvals`, `expire_approval`, `decide`, `reconcile`, `cancel`, `recover`, `recover_run`.
+- [x] The test passes on the unsplit code. Commit.
 
 ### Tasks 1c.2–1c.8: one module per task, moved verbatim into `src/e_agent/kernel/`
 
@@ -264,21 +264,21 @@ The mixins must type-check against the attributes `__init__` sets. Declare those
 
 ### Task 1c.9: Fitness tests and import contracts
 
-- [ ] `test_each_method_defined_once` checks across the `RunCoordinator` MRO.
-- [ ] `test_kernel_module_size` checks that every file in `src/e_agent/kernel/*.py` has at most 500 lines.
-- [ ] Add an import-linter contract: no kernel module except `coordinator` imports `e_agent.kernel.coordinator`. The existing layer contracts stay.
-- [ ] Run the gate, then commit.
+- [x] `test_each_method_defined_once` checks across the `RunCoordinator` MRO.
+- [x] `test_kernel_module_size` checks that every file in `src/e_agent/kernel/*.py` has at most 500 lines.
+- [x] Add an import-linter contract: no kernel module except `coordinator` imports `e_agent.kernel.coordinator`. The existing layer contracts stay.
+- [x] Run the gate, then commit.
 
 ### Task 1c.10: Server `worker.py` and `streaming.py`
 
-- [ ] Move `ApiState.worker`, `_run_work`, `sweeper` and `_mark_failed` into `src/e_agent/server/worker.py`. Move `PublicTextBus` and the SSE helpers into `src/e_agent/server/streaming.py`. Keep the code unchanged, and re-export from `api.py` any name the tests import.
-- [ ] Run the gate, `make e2e`, and `export_openapi.py --check` (it must report no change). Then commit.
+- [x] Move `ApiState.worker`, `_run_work`, `sweeper` and `_mark_failed` into `src/e_agent/server/worker.py`. Move `PublicTextBus` and the SSE helpers into `src/e_agent/server/streaming.py`. Keep the code unchanged, and re-export from `api.py` any name the tests import.
+- [x] Run the gate, `make e2e`, and `export_openapi.py --check` (it must report no change). Then commit.
 
 ### Task 1c.11: Live check, design and roadmap
 
-- [ ] Restart the live stack. Rebuild the wheels and confirm the plugin pins match Task 1a.1; if any wheel content changed, re-pin and explain why. Run the four live flows from the real-agent handoff; the results must match.
-- [ ] In target-architecture §15 and §16, mark the kernel and server modules `[I]` ("mixins behind the facade (Phase 1); collaborators later if needed").
-- [ ] Mark roadmap Phase 1 as Done. Commit.
+- [x] Restart the live stack. Rebuild the wheels and confirm the plugin pins match Task 1a.1; if any wheel content changed, re-pin and explain why. Run the four live flows from the real-agent handoff; the results must match.
+- [x] In target-architecture §15 and §16, mark the kernel and server modules `[I]` ("mixins behind the facade (Phase 1); collaborators later if needed").
+- [x] Mark roadmap Phase 1 as Done. Commit.
 
 ## Self-review
 
