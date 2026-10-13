@@ -1,0 +1,24 @@
+{
+  "id": "H4.1",
+  "phase": "H4",
+  "plan_ref": "docs/plans/2026-10-13-harness-h4-adapters.md",
+  "feature_ids": [
+    "F-H4-1"
+  ],
+  "context_digest": "a290bd94e0f2bd8f15cc1a9ebe6146b485f2ffad4c6523a8200d73da2c68cf7f",
+  "allowed_paths": [
+    ".claude/hooks/**",
+    "tests/harness/**",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-13-harness-h4-adapters.md"
+  ],
+  "acceptance": [
+    "tests/harness/test_hook_wrapper.py passes",
+    "check-scope fails closed; status and checkpoint never block"
+  ],
+  "gate_set": "full",
+  "base_commit": "dd112955b5607a9cbca971280fcc22fb8b37c0c8",
+  "created_at": "2026-10-13T14:00:51+00:00",
+  "features_digest": "e3160637db911d56b489b175bf2c4bd20633d988be6b23fed92b73aa512032e9"
+}
