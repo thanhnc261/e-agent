@@ -4,10 +4,13 @@ A plugin-driven enterprise agent application designed for governed business acti
 
 **Status: MVP remediation candidate; local live release is NOT_READY.** Kernel, adapters, PostgreSQL storage, eight ERP tasks and replaceable UI are implemented. The approved review fixes have passed local source, persistent-ledger and UI checks; frozen Ollama qualification is recorded separately. The owner's exact Odoo sandbox, upgraded bridge and integrated model/API/UI runs with human approval still need qualification. The requested UI redesign is documented in the [2026-10-08 handoff](docs/handoffs/2026-10-08-ui-redesign.md), and the enterprise overlay adoption in the [2026-10-09 implementation results](docs/handoffs/2026-10-08-enterprise-overlay-implementation-results.md); both were verified against deterministic fixtures only and do not change this readiness claim. See the [remediation retest](docs/reviews/2026-10-07-mvp-remediation-retest.md); earlier implementation reports are historical evidence for their stated environments.
 
+Work is ordered by the [roadmap](docs/roadmap.md). Its status column shows the current phase, and each phase has a detailed plan in [docs/plans](docs/plans/).
+
 ## Start here
 
 | Document | What it provides |
 |---|---|
+| [Roadmap](docs/roadmap.md) | Phase order, rules for every phase, current status and the plan for each phase |
 | [Current remediation retest](docs/reviews/2026-10-07-mvp-remediation-retest.md) | Implemented corrections, observed checks, retained failures and owner release gates |
 | [Approved MVP fix plan](docs/reviews/2026-10-07-mvp-fix-plan.md) | Corrections, design boundaries, bridge explanation and remaining release gates |
 | [Independent MVP review (2026-10-07)](docs/reviews/2026-10-07-mvp-review-report.md) | NOT_READY verdict, reproduced findings, requirement matrix and newly observed local test results |
@@ -48,7 +51,7 @@ CLI / API
         -> storage adapter: durable run/action records
 ```
 
-- **Monorepo, modular monolith:** simple initial deployment with independently packaged adapters.
+- **Monorepo, modular monolith:** simple initial deployment with independently packaged adapters. All Python code is one layer-grouped tree, `src/e_agent/{contracts,sdk,kernel,erp,adapters/*,server}`; each of the 10 distributions has its build config in `dists/<name>/` and is released as a wheel.
 - **Domain-neutral kernel:** ERP and future CRM/document domains register capabilities through public contracts.
 - **Provider and connection separation:** Google Workspace/Odoo adapters are distinct from business domains and tenant accounts.
 - **Host-controlled execution:** frameworks propose actions; the application owns permission, approval and verification.
