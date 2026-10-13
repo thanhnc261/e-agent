@@ -1,0 +1,11 @@
+{
+  "task": "1c.5",
+  "changed": "src/e_agent/kernel/gateway.py: GatewayMixin(ContinuationMixin) with _gateway_read and _record_rejected_read. Verify: 43/43 methods byte-identical, each defined once.",
+  "evidence_refs": [
+    "evidence/gates/1c.5/2026-10-13T06-34-40+00-00.json",
+    "evidence/1c/verify-1c.5.txt"
+  ],
+  "open_items": [],
+  "rulings": [],
+  "outside_repo": []
+}
