@@ -24,11 +24,11 @@ The roadmap's rules apply to every phase:
 
 1. **Detailed plan first.** A phase starts only after its bite-sized plan is written in `docs/plans/`, linked from the roadmap and reviewed.
 2. **Design first.** A phase implements design sections and ADRs. A contract or boundary change needs an ADR the owner accepts before the phase merges. When code and design disagree, fix one of them explicitly.
-3. **Toggles with fallback.** Every new runtime feature has a profile toggle `off | shadow | on`. `shadow` records the new path but acts on the existing one. `on` falls back to the existing path only before a write is reserved, and records `feature.fallback`. After a reservation there is no fallback: the run fails closed or goes to reconciliation.
+3. **Toggles with fallback.** Every new runtime feature has a profile toggle `off | shadow | on`. `shadow` records the new path but acts on the existing one. `on` falls back to the existing path only before a write is reserved, and records `feature.fallback`. After a reservation there is no fallback: the run fails closed or goes to reconciliation. Fallback never bypasses approval, admission, verification or the transition table; `/health/ready` and the evidence bundle report the toggles.
 4. **Trust anchor unchanged.** The run and action state machines, gateway, approval digests, admission and verification stay in the kernel. Model output is a proposal.
 5. **Environment boundaries** (see below).
 
-Each task gets a review of its diff and evidence. Each phase ends with end-to-end verification: the full gate, the Postgres run, `make e2e` and a live check on the `odoo19-learning` sandbox. The development harness (`uv run e-agent-harness status`) holds the task contract, scope check, gate evidence and handoff for this loop; README lists its commands.
+Each task gets a review of its diff and evidence. Each phase ends with end-to-end verification: the full gate, the Postgres run, `make e2e` and a live check on the `odoo19-learning` sandbox. The development harness (`uv run e-agent-harness status`) holds the task contract, scope check, gate evidence and handoff for this loop; README lists the main commands.
 
 ## Repository map
 

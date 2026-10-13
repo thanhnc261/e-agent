@@ -135,6 +135,9 @@ uv run pytest -q tests/conformance/test_harness_context.py  # dev-harness manife
 uv run e-agent-harness status                 # dev-harness brief: state, boundaries, one next action
 uv run e-agent-harness validate-context       # manifest vs checkout
 uv run e-agent-harness gate quick --package tests/unit/kernel   # evidence under evidence/gates/
+uv run e-agent-harness new-task <phase> <id> --feature <F-id> --paths <glob>   # task contract
+uv run e-agent-harness check-scope            # changed paths inside the task contract
+uv run e-agent-harness close-check --session <id>   # close ritual: clean tree, progress, evidence, handoff
 
 # HTTP API + web UI (loopback only; Node 22.12+/24 and pnpm 10 for ui/)
 (cd ui && pnpm install && pnpm build)

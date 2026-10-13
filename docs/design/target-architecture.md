@@ -1,6 +1,6 @@
 # e-agent: target architecture (v2)
 
-**Status:** Proposed. **Date:** 2026-10-11, revised 2026-10-12 after three review rounds. **Verified against:** commit `af50c62` plus the uncommitted working-tree changes present on 2026-10-12; every `[I]` tag and `file:line` reference refers to that tree and must be re-checked after the next commit. WP1 Tasks 2–8 and 10 re-verified against commit `591f3c6`. Unchanged `file:line` references were taken at `af50c62` and may have drifted after WP1. **Baseline:** the [high-level design](high-level-design.md), the [MVP detailed design](mvp-detailed-design.md) and the accepted ADRs remain authoritative until the ADR candidates in §17 are accepted. This document does not change contracts or code. When an ADR candidate is accepted, its content moves into the HLD or MVP design and the matching section here is marked "merged", so this document does not become a second architecture specification.
+**Status:** Proposed. **Date:** 2026-10-11, revised 2026-10-12 after three review rounds. **Verified against:** commit `af50c62` plus the uncommitted working-tree changes present on 2026-10-12; every `[I]` tag and `file:line` reference refers to that tree and must be re-checked after the next commit. §15 and §16 were re-checked against the Phase 1 layout (2026-10-13); their paths are the moved ones. WP1 Tasks 2–8 and 10 re-verified against commit `591f3c6`. Unchanged `file:line` references were taken at `af50c62` and may have drifted after WP1. **Baseline:** the [high-level design](high-level-design.md), the [MVP detailed design](mvp-detailed-design.md) and the accepted ADRs remain authoritative until the ADR candidates in §17 are accepted. This document does not change contracts or code. When an ADR candidate is accepted, its content moves into the HLD or MVP design and the matching section here is marked "merged", so this document does not become a second architecture specification.
 
 **Implementation:** [WP1 correctness plan](../../archive/docs/superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) (verified defects D1–D7, ADR candidates 0018–0021) and the WP2–WP5 map in its Part A.
 
@@ -1027,7 +1027,7 @@ Paths are relative to `src/e_agent/`.
 | Run/action state, transitions | `contracts/{run,action}.py`; `kernel/coordinator.py` (`_set_run_state`, `_transition`) | `kernel/transitions.py` |
 | Driver loop and budgets | `kernel/coordinator.py` (`_drive`) | `kernel/run_loop.py` |
 | Approval | `kernel/approval.py`, `contracts/digest.py` | unchanged |
-| Dispatch and writer serialization | `kernel/coordinator.py:1041-1140`; `adapters/postgres/store.py: writer_lock` | `kernel/dispatch.py` + lease rows |
+| Dispatch and writer serialization | `kernel/coordinator.py: _dispatch`; `adapters/postgres/store.py: writer_lock` | `kernel/dispatch.py` + lease rows |
 | Work queue / substrate | `sdk/store.py` (work API), `adapters/postgres/store.py: claim_work` | unchanged seam |
 | Worker loop | `server/api.py: ApiState.worker` | `server/worker.py` |
 | SSE | `server/api.py: stream` | `server/streaming.py` |

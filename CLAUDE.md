@@ -9,7 +9,7 @@ AGENTS.md above is the shared instruction source for conventions, architecture b
 - **Harness.** Start from `uv run e-agent-harness status` and follow its single next action. Run `check-scope` before each commit and `close-check` before a task closes.
 - **UI.** Use the `ag-*` skills for any UI/UX work (AGENTS.md, "UI/UX skills").
 - **Decisions.** Consult the advisor before committing to an approach and before declaring a task done.
-- **Commits.** Stage explicit paths. End every commit message with the `Co-Authored-By` trailer from the session's attribution instructions. Never merge, push or rebase shared branches without the owner.
+- **Commits.** Stage explicit paths. End every commit message with the `Co-Authored-By` trailer from the session's attribution instructions. Merge, push or rebase shared branches only when the owner asks.
 
 # Compact instructions
 

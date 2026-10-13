@@ -68,9 +68,10 @@ ui/                                   # TS workspace: client, ui-core, tokens, u
 ui/apps/web/                          # default standalone web UI (I08)
 profiles/                             # non-secret local-demo and test profiles
 tests/unit/<part>/                    # unit tests, mirroring src/e_agent/
-tests/architecture/                   # imports, independent artifacts
-tests/conformance/                    # reusable port/plugin behavior
-tests/end_to_end/                     # isolated live integration tests
+tests/conformance/                    # reusable port/plugin behavior, repo layout, harness context
+tests/integration/                    # rules, recovery, isolated live integration tests
+tests/harness/                        # development harness
+tests/replays/                        # recorded model replays
 evals/                                # scenarios, evaluators and complete reports
 docs/                                 # roadmap, designs, plans, ADRs, runbooks
 research/                             # source research
