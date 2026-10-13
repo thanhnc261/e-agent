@@ -2,15 +2,20 @@
   "task": "1.R1",
   "changed": "Whole-branch review fixes: repo_move.py layout drops __pycache__ carried by git mv (test); a test pins repo_move.HOOK equal to dists/_hooks/src_tree.py; dead docs/superpowers/ prefix removed; target-architecture api.py line citations replaced by function references after checking each claim in the code; local stale caches cleared. Phase handoff updated.",
   "evidence_refs": [
-    "evidence/gates/1.R1/2026-10-13T07-03-51+00-00.json"
+    "harness/state/evidence/gates/1.R1/2026-10-13T13-58-27.990591+00-00-full.json"
   ],
   "open_items": [
-    "Kept as rulings from the review: dev-mode-dirs exposes the whole src/ tree to a lone editable install; mixins plus TYPE_CHECKING stubs (collaborators later, SR-06); ruff src ['.'] (style-only import regroup later); preserved logger names; research/ links (owner)"
+    "Kept as rulings from the review: dev-mode-dirs exposes the whole src/ tree to a lone editable install; mixins plus TYPE_CHECKING stubs (collaborators later, SR-06); ruff src ['.'] (style-only import regroup later); preserved logger names; research/ links (owner)",
+    "Re-closed 2026-10-13 on harness/h4-adapters after harness H2.1 made the contract stale and moved evidence under harness/state/evidence/; the original gate evidence lived in the git-ignored evidence/ folder of the main checkout"
   ],
   "rulings": [
     {
       "ruling": "Only findings that affect correctness or contradict the repo's own claims were fixed; design preferences that the plan already decided were recorded, not changed",
       "cost_if_wrong": "a later phase revisits the mixin design or import grouping; both are style or structure, not behaviour"
+    },
+    {
+      "ruling": "Re-closed with refresh-task and a new full gate instead of reopening the work: the H2.1 changes after the original close touch only harness, skills and docs",
+      "cost_if_wrong": "a Phase 1 regression introduced by H2.1 would be attributed to 1.R1's evidence; the full gate on this commit is the guard"
     }
   ],
   "outside_repo": []

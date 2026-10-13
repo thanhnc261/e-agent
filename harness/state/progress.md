@@ -114,3 +114,8 @@
 - changed: 1c.11 handoff outside_repo and phase handoff corrected
 - next: owner review and merge of refactor/phase1-structure
 - open: none
+
+## 2026-10-13T13:59:14.324477+00:00 · 7ae53108-c378-473b-8d82-0a980741f45f · 1.R1
+- changed: harness/state/1/features.json, harness/state/1/handoffs/1.R1.json, harness/state/evidence/gates/1.R1/2026-10-13T13-58-27.990591+00-00-full.json
+- next: harness H4: settings, hooks and agents
+- open: none
