@@ -1,0 +1,18 @@
+{
+  "task": "1b.2",
+  "changed": "All five plans (core, odoo-tools, dev-harness, phase1, harness-h2-cli) moved to docs/plans/ and the three specs (incl. the HTML scenario fixture) to docs/specs/; docs/superpowers/ removed. Links rewritten in 10 files; harness/context.toml active_plan, plan and task samples, two docstrings follow; roadmap Rules sentence now names docs/plans/ and docs/specs/.",
+  "evidence_refs": [
+    "evidence/gates/1b.2/2026-10-13T06-18-40+00-00.json",
+    "evidence/1b.2-check.txt"
+  ],
+  "open_items": [
+    "Closed task contracts 1a.1-1b.1 keep plan_ref docs/superpowers/plans/...; they are history and are not re-validated"
+  ],
+  "rulings": [
+    {
+      "ruling": "The completed H2 harness plan moved too, so docs/superpowers/ could be removed as the plan requires",
+      "cost_if_wrong": "none; it is a plan document"
+    }
+  ],
+  "outside_repo": []
+}
