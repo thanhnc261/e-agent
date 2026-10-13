@@ -1,0 +1,44 @@
+{
+  "phase": "H4",
+  "entries": [
+    {
+      "id": "F-H4-1",
+      "category": "harness",
+      "description": "Hook entry script runs e-agent-harness from the payload's repository",
+      "steps": [
+        "tests/harness/test_hook_wrapper.py passes",
+        "check-scope fails closed; status and checkpoint never block"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-H4-2",
+      "category": "harness",
+      "description": "Committed .claude/settings.json with permissions, hooks, compaction window and worktree base",
+      "steps": [
+        "tests/conformance/test_claude_settings.py passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-H4-3",
+      "category": "harness",
+      "description": "explorer, verifier, reviewer and sandbox-operator subagents",
+      "steps": [
+        "tests/conformance/test_claude_agents.py passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-H4-4",
+      "category": "harness",
+      "description": "Live check of hooks in a scratch clone; skills, README and handoff updated",
+      "steps": [
+        "claude -p reports the SessionStart next action",
+        "an out-of-scope Write is denied by the hook",
+        "full gate passes"
+      ],
+      "passes": false
+    }
+  ]
+}
