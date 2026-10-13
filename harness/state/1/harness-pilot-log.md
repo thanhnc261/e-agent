@@ -1,0 +1,15 @@
+# Harness pilot log: roadmap Phase 1
+
+Harness plan H5 pilots the session loop on a real phase. This log records every place where the harness got in the way, misled, or failed to catch something during Phase 1, so that the harness can be improved. One row per issue; the task column names where it was first seen.
+
+Severity: **high** = can let a wrong result pass or block a correct one; **medium** = costs a rework round or a manual workaround; **low** = friction or noise.
+
+| Id | Task | Severity | Issue | Workaround used | Proposed fix |
+|---|---|---|---|---|---|
+| HP-1 | 1a.1 | low | `new-task` writes duplicate globs into `allowed_paths` when an explicit `--paths` value is also implicit (`docs/handoffs/**` appeared twice). | none needed | dedupe in `tasks.materialise`: `list(dict.fromkeys([...]))`. |
+| HP-2 | 1a.1 | medium | Right after `new-task`, `status` says "commit the work, then run gate full", because the only dirty files are the new contract and `active.json`. No work exists yet. | ignored the next action until the work was done | the next action should take into account that only harness bookkeeping is dirty, for example "commit the contract, then do the work". |
+| HP-3 | 1a.1 | medium | After `close-check` prints "ok: task may close", `status` still says "run checkpoint, write the handoff, then close-check". There is no closed state and no command that deactivates the task. | ignored | add `close` (or let `close-check` mark the contract closed), and make `status` say "pick the next feature" for a closed task. |
+| HP-4 | 1a.1 | high | `evidence/` is git-ignored, but feature `evidence` and handoff `evidence_refs` must point under it, and `close-check` tests that the files exist. In a fresh clone or another worktree (the context strategy's parallel tasks), every closed task fails `close-check`. The plan's "must be identical" reference would also exist on one machine only. | committed the key numbers and a diffable reference under `docs/handoffs/` | either commit gate evidence JSON (small, already redacted) or let `close-check` accept a committed digest of the evidence file in place of the file itself. |
+| HP-5 | 1a.1 | low | No CLI command validates `features.json`. `handoff <id>` exists, but the feature list needs `python -c "...contracts.validate('features', ...)"`. | the python one-liner | add `validate <schema> <file>` or `features check <phase>`. |
+| HP-6 | 1a.1 | medium | A contract has one `gate_set`, but the phase plan requires several per task (full, plus the Postgres run and `make e2e`). The plan's Postgres-after-every-task rule conflicts with its container boundary, and nothing flagged it. | ran `make e2e` by hand; ruled that the Postgres run is deferred to 1c.11 | let `gate_set` be a list, and let `validate-context` or `new-task` warn when a plan's required gate needs an environment the boundaries forbid. |
+| HP-7 | 1a.1 | low | `check-scope` prints nothing on success, so a transcript cannot show it ran (the unattended `/goal` evaluator judges only the transcript). | none | print "ok: N changed paths inside scope". |

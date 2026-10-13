@@ -19,18 +19,20 @@
       "category": "layout",
       "description": "Task 1a.2: mover script and the code move into src/e_agent with dists/<name>/pyproject.toml",
       "steps": [
-        "tests/conformance/test_repo_layout.py fails before the move (packages/ still exists)",
-        "after repo_move.py layout: no packages/ or apps/ directory remains",
-        "every dists/*/pyproject.toml has force-include entries that exist",
-        "src/e_agent/__init__.py does not exist"
+        "tests/conformance/test_repo_layout.py asserts: no packages/ or apps/ directory, every dists/*/pyproject.toml force-include source exists, no src/e_agent/__init__.py",
+        "test_repo_layout.py is marked xfail(strict=True) and xfails on the pre-move tree (the move itself runs in 1a.3)",
+        "tests/conformance/test_repo_move.py proves layout, links and check on a scratch git repository",
+        "full gate passes"
       ],
       "passes": false
     },
     {
       "id": "F-1a-3",
       "category": "layout",
-      "description": "Task 1a.3: tooling and path references updated for the new layout",
+      "description": "Task 1a.3: run the layout move, update tooling and path references (one commit)",
       "steps": [
+        "repo_move.py layout run; test_repo_layout.py passes without xfail",
+        "repo_move.py check reports no broken links and no stale old-path references in code or config",
         "uv lock changes only source paths",
         "full gate passes",
         "make e2e passes",
