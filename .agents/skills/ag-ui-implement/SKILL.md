@@ -12,14 +12,14 @@ This skill turns a selected mockup, or an in-scope design, into production UI co
 - Requires an owner-selected mockup (from [ag-ux-mockup](../ag-ux-mockup/SKILL.md)) or a change inside an already approved design.
 - A change to an API contract, approval presentation, run-event stream or layer boundary needs an accepted decision record (ADR) first. Stop and propose one.
 - Read [ag-ux-foundations](../ag-ux-foundations/SKILL.md) first. Build to the AG criteria and every binding requirement in `e-agent.md`. On conflict, binding requirements win, and [frontend.md](../ag-ux-foundations/references/frontend.md) (AG-FE) wins over any other guide.
-- The repository's frontend guide (`docs/frontend-development-guide.md`) describes the intended layering. Its folder tree is illustrative: inspect the actual tree, and never assume example names. Treat its section on the default visual foundation as paused, not as a spec to implement.
+- The repository's frontend guide (`docs/design/frontend-development-guide.md`) describes the intended layering. Its folder tree is illustrative: inspect the actual tree, and never assume example names. Treat its section on the default visual foundation as paused, not as a spec to implement.
 - The server is authoritative (EA-1, AG-FE-1, AG-FE-12). Every name, explanation, progress milestone and outcome comes from server data through `ui-core` selectors. When data is missing, show the limitation (AG-UNC-4, EA-8); never invent it.
 - Never copy mockup prototype code, fixture state or scenario logic into production packages.
 
 ## Workflow
 
 1. **Locate the work.**
-   - Read [ui-architecture.md](../../../docs/ui-architecture.md) and the actual `ui/packages/*/src` tree.
+   - Read [ui-architecture.md](../../../docs/design/ui-architecture.md) and the actual `ui/packages/*/src` tree.
    - Name the layer that owns each change: tokens, primitive, feature view or container, slot, layout or host.
    - Each piece of state has one owner (AG-FE-2).
 2. **Map criteria to tests.**
@@ -46,7 +46,7 @@ This skill turns a selected mockup, or an in-scope design, into production UI co
    - As the implementer, you then fix the findings and answer each one in `REVIEW-RESOLUTION.md` (the review skill's resolution template), re-running the checks.
 6. **Close the loop.**
    - Append dated entries to the "Resolution log" of the relevant gap audit, naming the finding, the commit and the evidence. Never edit its scores.
-   - If layer ownership or a public contract changed, update `docs/ui-architecture.md` in the same change.
+   - If layer ownership or a public contract changed, update `docs/design/ui-architecture.md` in the same change.
 
 ## Before handing off
 

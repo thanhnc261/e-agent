@@ -7,7 +7,7 @@
 - plan buy, make or mix supply under policy;
 - execute the plan as linked, approved, verified documents (SO → MO → PO → invoice).
 
-**Design anchor:** [target architecture](../../target-architecture.md):
+**Design anchor:** [target architecture](../../design/target-architecture.md):
 - §10 integration (domain → capability → binding → connection)
 - §2.3 domain packs and task definitions
 - §6 external-feedback correction

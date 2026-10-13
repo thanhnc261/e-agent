@@ -141,7 +141,7 @@ def test_missing_authoritative_file_is_stale_not_a_crash(tmp_path: Path) -> None
     root = _copy_manifest_inputs(tmp_path)
     m = manifest.load_manifest(root / manifest.MANIFEST_RELPATH)
     pinned = digest.context_digest(root, m)
-    (root / "docs" / "high-level-design.md").unlink()
+    (root / "docs" / "design" / "high-level-design.md").unlink()
     assert digest.is_stale(pinned, root, m)
 
 

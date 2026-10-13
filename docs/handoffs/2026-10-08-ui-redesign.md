@@ -12,7 +12,7 @@ Date: 2026-10-08. Scope: the owner's requested UI change following the architect
 - Result values correlate verified actions and host reports; verified object references come from the corresponding committed receipt. Source records/time/completeness are inspectable during review, with refresh and authorized audit download. Raw JSON remains an optional inspector/export.
 - Shared light/dark/high-contrast tokens and EN/VI controls; named navigation slot and primary-slot ordering. Provider neutrality and Shadow DOM isolation retained. The vanilla reference consumes the same safety/retry core; it remains a minimal conformance reference rather than the production visual design.
 
-Architecture decision: [ADR 0015](../adr/0015-task-workspace-presentation.md). [UI architecture](../ui-architecture.md), HLD/MVP clarifications, implementation plan and README updated. The kernel only projects generic admitted schema annotations and host-retained facts; the domain declares the concrete amendment reference. UI code contains no domain rule inventory or provider field lists. Canonical approval terms and server revalidation remain authoritative.
+Architecture decision: [ADR 0015](../adr/0015-task-workspace-presentation.md). [UI architecture](../design/ui-architecture.md), HLD/MVP clarifications, implementation plan and README updated. The kernel only projects generic admitted schema annotations and host-retained facts; the domain declares the concrete amendment reference. UI code contains no domain rule inventory or provider field lists. Canonical approval terms and server revalidation remain authoritative.
 
 ## Observed verification
 

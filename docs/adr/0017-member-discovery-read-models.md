@@ -6,7 +6,7 @@ Date: 2026-10-09. Status: **Accepted** (implementation decision for the enterpri
 
 The [enterprise overlay adoption plan](../../archive/docs/plans/2026-10-08-enterprise-overlay-adoption.md) §3 needs two things the API does not have: a requester-visible list of the task types this workspace can actually run, and a member-safe view of the connections those tasks would use. Without them a UI can only hard-code a workflow menu or render fixture connections, which claims capabilities the product does not have.
 
-The existing API is run-scoped. `PluginRegistry` already holds admitted capabilities, their bindings and their input schemas; `ConnectionCatalog` already answers "is this connection usable by this requester in this tenant" for execution (ADR 0012, ADR 0013). The [Phase 2 auth API design](../integration-auth-sdk.md) anticipates a member-readable `GET /v1/me/connections` separate from administrative endpoints.
+The existing API is run-scoped. `PluginRegistry` already holds admitted capabilities, their bindings and their input schemas; `ConnectionCatalog` already answers "is this connection usable by this requester in this tenant" for execution (ADR 0012, ADR 0013). The [Phase 2 auth API design](../design/integration-auth-sdk.md) anticipates a member-readable `GET /v1/me/connections` separate from administrative endpoints.
 
 Administrative connection management, delegated OAuth, provider health probing and a durable cross-session work inbox are out of scope here and remain unimplemented.
 

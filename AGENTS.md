@@ -8,10 +8,10 @@ The kernel, adapters, PostgreSQL store, eight ERP tasks and UI are implemented. 
 
 ## Read before changing code or architecture
 
-1. [High-level design](docs/high-level-design.md).
-2. [MVP detailed design](docs/mvp-detailed-design.md).
-3. [Implementation plan](docs/implementation-plan.md) (§0 decisions/toolchain, §3 work packages) and the [ADR index](docs/adr/README.md). Check an ADR's status before relying on it; proposed ADRs are not baseline.
-4. Topic designs when touching them: [UI architecture](docs/ui-architecture.md), [integration management](docs/integration-management.md), [integration auth SDK](docs/integration-auth-sdk.md), [threat model](docs/threat-model.md).
+1. [High-level design](docs/design/high-level-design.md).
+2. [MVP detailed design](docs/design/mvp-detailed-design.md).
+3. [Implementation plan](docs/design/implementation-plan.md) (§0 decisions/toolchain, §3 work packages) and the [ADR index](docs/adr/README.md). Check an ADR's status before relying on it; proposed ADRs are not baseline.
+4. Topic designs when touching them: [UI architecture](docs/design/ui-architecture.md), [integration management](docs/design/integration-management.md), [integration auth SDK](docs/design/integration-auth-sdk.md), [threat model](docs/design/threat-model.md).
 5. Relevant research only as needed; [research 10](research/10-extensibility-architecture-review.md) is the latest extensibility review.
 
 Current user instructions take precedence. The MVP design specializes the high-level design; older research may describe alternatives that are no longer the baseline. Resolve material design changes with an ADR and update affected designs rather than silently introducing contradictions. These instructions do not add approval requirements to otherwise authorized work.

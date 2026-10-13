@@ -103,7 +103,7 @@ Still absent, and deliberately not simulated anywhere in the product:
 - A durable cross-session or tenant-wide work and review inbox, and any pending-review count for other people's work. Session work is this browser session only.
 - Proposal editing and any host re-proposal contract. The browser cannot patch canonical arguments.
 - Administrative integration management: enabling, connecting, testing, re-authorizing, disabling and revoking have no API and no UI.
-- Delegated OAuth and app registrations ([integration auth design](../integration-auth-sdk.md) §9 Phase 2).
+- Delegated OAuth and app registrations ([integration auth design](../design/integration-auth-sdk.md) §9 Phase 2).
 - Icon and manifest asset delivery; the discovery responses carry identifiers and text only, because arbitrary manifest URLs would make the browser fetch unknown hosts.
 - Cross-origin embedding. The session cookie is `SameSite=Strict`, so `<e-agent-overlay server=…>` remains same-origin.
 - Additional provider integrations and cross-domain adapters. Procurement plus the existing sales, CRM and receivables answers remain the installed scope.

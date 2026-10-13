@@ -1,6 +1,6 @@
 # Frontend development guide
 
-**Date:** 2026-10-08, status updated 2026-10-09. **Status:** in force for `ui/`. The folder structure, reuse boundaries, state ownership and extension recipes below were adopted by work packages FE-00 to FE-07 and API-01; see [UI architecture §11](ui-architecture.md#11-enterprise-overlay-adoption-2026-10-09) for what was actually built and the [implementation results](handoffs/2026-10-08-enterprise-overlay-implementation-results.md) for the checks. Folders are created when a real implementation needs them, so the tree below is still the target shape rather than a file listing. Accepted dependency and trust boundaries remain in the [UI architecture](ui-architecture.md).
+**Date:** 2026-10-08, status updated 2026-10-09. **Status:** in force for `ui/`. The folder structure, reuse boundaries, state ownership and extension recipes below were adopted by work packages FE-00 to FE-07 and API-01; see [UI architecture §11](ui-architecture.md#11-enterprise-overlay-adoption-2026-10-09) for what was actually built and the [implementation results](../handoffs/2026-10-08-enterprise-overlay-implementation-results.md) for the checks. Folders are created when a real implementation needs them, so the tree below is still the target shape rather than a file listing. Accepted dependency and trust boundaries remain in the [UI architecture](ui-architecture.md).
 
 ## 1. Organize by layer, then by feature
 
@@ -154,11 +154,11 @@ Before merging a feature, verify that its data has an authoritative owner, exten
 
 ## 8. Default overlay visual foundation candidate (2026-10-10)
 
-The owner requested careful treatment of the warm styling as the default overlay foundation. The current [foundation contract](../research/mockups/agentic-chat-v4/design-system/FOUNDATION.md), [identity study](../research/mockups/agentic-chat-v4/identity.html), [embedded specimen](../research/mockups/agentic-chat-v4/overlay.html) and [review evidence](../research/mockups/agentic-chat-v4/design-system/FOUNDATION-REVIEW.md) define the candidate values and behavior. The specimen reuses the authored token/control sources and verifies container sizing and Shadow DOM isolation. It is not the production custom element.
+The owner requested careful treatment of the warm styling as the default overlay foundation. The current [foundation contract](../../research/mockups/agentic-chat-v4/design-system/FOUNDATION.md), [identity study](../../research/mockups/agentic-chat-v4/identity.html), [embedded specimen](../../research/mockups/agentic-chat-v4/overlay.html) and [review evidence](../../research/mockups/agentic-chat-v4/design-system/FOUNDATION-REVIEW.md) define the candidate values and behavior. The specimen reuses the authored token/control sources and verifies container sizing and Shadow DOM isolation. It is not the production custom element.
 
 Adoption must use the existing layer/primitive/layout boundaries above, preserve appearance/density/theme preference precedence and controller lifetime, and reconcile the candidate sRGB-object inputs with the production token compiler. The candidate’s browser evidence must not be reported as live qualification.
 
 **Status 2026-10-12: adopted in production.**
 - **What is in production:** the owner-approved Sage Lagoon multicolour logo (`BrandMark`), the warm Sage Lagoon light, dark and high-contrast tokens, theme-safe motion, and the conversation-first overview (EA-10).
-- **Where to look:** the adoption record, rulings and remaining blocked items are in [the results handoff](handoffs/2026-10-12-ui-foundation-adoption-results.md).
+- **Where to look:** the adoption record, rulings and remaining blocked items are in [the results handoff](../handoffs/2026-10-12-ui-foundation-adoption-results.md).
 - **What changed for implementers:** this section no longer describes paused work. New UI follows the production tokens.

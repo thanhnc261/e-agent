@@ -1,16 +1,16 @@
 # e-agent MVP: detailed design
 
-Selectable overlay follow-up (2026-10-08): [ADR 0016](adr/0016-selectable-agent-surfaces.md) adds a responsive Workbench and an in-app View selector over the same controller and approval authority. See [research/design](../research/11-enterprise-agent-overlay-design.md).
+Selectable overlay follow-up (2026-10-08): [ADR 0016](../adr/0016-selectable-agent-surfaces.md) adds a responsive Workbench and an in-app View selector over the same controller and approval authority. See [research/design](../../research/11-enterprise-agent-overlay-design.md).
 
 
-UI implementation clarification (2026-10-08): [ADR 0015](adr/0015-task-workspace-presentation.md) specializes the shared layered UI into a task workspace with exact readable approval, bounded session navigation, truthful outcome states and authorized evidence inspection. Presentation annotations do not change domain rules, provider routing or approval digests. See [UI architecture](ui-architecture.md) for the implemented scope and limits.
+UI implementation clarification (2026-10-08): [ADR 0015](../adr/0015-task-workspace-presentation.md) specializes the shared layered UI into a task workspace with exact readable approval, bounded session navigation, truthful outcome states and authorized evidence inspection. Presentation annotations do not change domain rules, provider routing or approval digests. See [UI architecture](ui-architecture.md) for the implemented scope and limits.
 
-Implementation clarification (2026-10-07): [ADR 0014](adr/0014-mvp-remediation-boundaries.md) defines short transactions with work fencing, conservative external uncertainty, approved fact/credential binding and transient public text offsets. These implementation seams require the remediation and live qualification gates; source availability does not establish readiness.
+Implementation clarification (2026-10-07): [ADR 0014](../adr/0014-mvp-remediation-boundaries.md) defines short transactions with work fencing, conservative external uncertainty, approved fact/credential binding and transient public text offsets. These implementation seams require the remediation and live qualification gates; source availability does not establish readiness.
 **Status:** implementation specification, not implemented. **Date:** 2026-10-06.
 
-This document specializes the [high-level design](high-level-design.md). It selects a bounded procurement demo and independent adapter distributions, superseding the broader first-demo alternatives in [research 06](../research/06-erp-mvp-delivery-plan.md). Numbers below are initial demo defaults and acceptance targets, not measured results or production SLAs.
+This document specializes the [high-level design](high-level-design.md). It selects a bounded procurement demo and independent adapter distributions, superseding the broader first-demo alternatives in [research 06](../../research/06-erp-mvp-delivery-plan.md). Numbers below are initial demo defaults and acceptance targets, not measured results or production SLAs.
 
-> **Scope update.** This document specifies the **first procurement slice** (plan tasks ERP-01..03, work package I07) and the kernel mechanisms every later task reuses. [ADR 0001](adr/0001-local-mvp-scope.md) (accepted) extends the MVP with more Odoo tasks, a streaming overlay UI and BigQuery; the [implementation plan](implementation-plan.md) covers those. Refinements are referenced inline as ADRs 0002–0013 ([index](adr/README.md)); all are accepted.
+> **Scope update.** This document specifies the **first procurement slice** (plan tasks ERP-01..03, work package I07) and the kernel mechanisms every later task reuses. [ADR 0001](../adr/0001-local-mvp-scope.md) (accepted) extends the MVP with more Odoo tasks, a streaming overlay UI and BigQuery; the [implementation plan](implementation-plan.md) covers those. Refinements are referenced inline as ADRs 0002–0013 ([index](../adr/README.md)); all are accepted.
 
 ## 1. Deliverable and scope
 
@@ -22,7 +22,7 @@ Three required demonstrations:
 2. A deliberately invalid proposal is blocked with rule IDs/evidence; a live agent may repair it, but a scripted injection is labeled as such.
 3. Changed/expired approval or an uncertain write result prevents unsafe replay and produces an inspectable blocked/unresolved outcome.
 
-The product does not confirm orders, receive stock, post invoices, send email or trigger payment. Live order acceptance, CRM and Google integrations are out of scope. Non-ERP fixture plugins prove boundaries only. For this first slice, a CLI plus the application API is sufficient; the streaming overlay (ADR 0001, plan I08/I09) is built on the same API and event contract ([ADR 0007](adr/0007-run-event-stream-contract.md)).
+The product does not confirm orders, receive stock, post invoices, send email or trigger payment. Live order acceptance, CRM and Google integrations are out of scope. Non-ERP fixture plugins prove boundaries only. For this first slice, a CLI plus the application API is sufficient; the streaming overlay (ADR 0001, plan I08/I09) is built on the same API and event contract ([ADR 0007](../adr/0007-run-event-stream-contract.md)).
 
 Use one synthetic tenant, company, warehouse, currency and unit of measure in the live demo; explicitly reject requests outside that profile. All records still carry tenant and connection scope. One actor can have request and approve roles locally, but model output can never serve as approval.
 
@@ -41,7 +41,7 @@ Initial rules:
 | PR-005 | Offer delivery date meets the requested bound | Offer and requested dates |
 | PR-006 | Observed resources and connection belong to the authorized tenant/company scope | Host context and provider mappings |
 
-Each rule's enforcement engine (SHACL Core, SHACL-SPARQL, normalizer-derived fact, policy or verifier) is declared in the rule inventory ([ADR 0009](adr/0009-rule-inventory-and-enforcement-engines.md)); PR-002, PR-004 and PR-005 need more than SHACL Core. PR-006 includes an authorization check outside SHACL; passing a shape never grants access. Missing/ambiguous facts produce `UNKNOWN` validation or a clarification request, never invented defaults. Zero shortage completes with a verified no-op and creates no PO. Reject taxes, unit conversion, discounts and multi-line/multi-currency cases until explicitly designed; fixture totals use a declared tax-free subtotal basis.
+Each rule's enforcement engine (SHACL Core, SHACL-SPARQL, normalizer-derived fact, policy or verifier) is declared in the rule inventory ([ADR 0009](../adr/0009-rule-inventory-and-enforcement-engines.md)); PR-002, PR-004 and PR-005 need more than SHACL Core. PR-006 includes an authorization check outside SHACL; passing a shape never grants access. Missing/ambiguous facts produce `UNKNOWN` validation or a clarification request, never invented defaults. Zero shortage completes with a verified no-op and creates no PO. Reject taxes, unit conversion, discounts and multi-line/multi-currency cases until explicitly designed; fixture totals use a declared tax-free subtotal basis.
 
 Approved-offer status may come from a reviewed synthetic fixture if absent from the chosen ERP schema. Record that source explicitly; do not imply it is an Odoo-native field. At setup, verify the chosen Odoo version/API can create/read the required draft object and has no confirmation automation enabled for this sandbox.
 
@@ -101,15 +101,15 @@ Wire records use explicit schema versions, UTC timestamps, UUID-like opaque inte
 
 The generic action envelope contains a capability-specific payload validated by its registered schema. Domain fields such as supplier and quantity belong to `domain-erp.api`, not generic contracts. Kernel routes envelopes without understanding those fields.
 
-Capability contract IDs are named by business bounded context, e.g. `procurement.purchase-order.create-draft.v1`; binding IDs carry the provider ([ADR 0002](adr/0002-capability-naming-and-domain-packs.md)).
+Capability contract IDs are named by business bounded context, e.g. `procurement.purchase-order.create-draft.v1`; binding IDs carry the provider ([ADR 0002](../adr/0002-capability-naming-and-domain-packs.md)).
 
 ### 4.1 Initial `RunEvent` catalog
 
-Durable event types (payloads are versioned DTOs; unknown types are quarantined by readers and trigger a snapshot refresh in UIs): `run.created`, `run.state_changed`, `read.recorded`, `read.rejected`, `proposal.created`, `validation.completed`, `approval.requested`, `approval.decided`, `connect.required`, `input.requested`, `input.received`, `action.reserved`, `action.dispatching`, `action.receipt_recorded`, `action.unknown`, `reconciliation.completed`, `outcome.reported`, `message.final`, `budget.exhausted`, `run.cancel_requested`, `run.terminal`. `read.rejected`: the provider rejected a read with no effect; the payload carries the code and a safe message ([ADR 0022](adr/0022-conversational-turns-read-feedback-discovery.md)). `input.requested` carries `kind` (`reply` or `clarification`; absent on old rows). Transient (not persisted): `text.delta`. Adding a type is a contract change with a schema snapshot update.
+Durable event types (payloads are versioned DTOs; unknown types are quarantined by readers and trigger a snapshot refresh in UIs): `run.created`, `run.state_changed`, `read.recorded`, `read.rejected`, `proposal.created`, `validation.completed`, `approval.requested`, `approval.decided`, `connect.required`, `input.requested`, `input.received`, `action.reserved`, `action.dispatching`, `action.receipt_recorded`, `action.unknown`, `reconciliation.completed`, `outcome.reported`, `message.final`, `budget.exhausted`, `run.cancel_requested`, `run.terminal`. `read.rejected`: the provider rejected a read with no effect; the payload carries the code and a safe message ([ADR 0022](../adr/0022-conversational-turns-read-feedback-discovery.md)). `input.requested` carries `kind` (`reply` or `clarification`; absent on old rows). Transient (not persisted): `text.delta`. Adding a type is a contract change with a schema snapshot update.
 
 ### Approval digest
 
-Implementation: an RFC 8785 (JCS) profile with no JSON numbers and a `jcs-sha256-v1:` prefix, plus shared Python/TypeScript golden vectors ([ADR 0006](adr/0006-approval-digest-canonicalization.md)). Requirements: one versioned canonical serialization: explicit allowed types, sorted object keys, canonical decimal strings, UTC timestamp representation, no NaN/Infinity, no ambiguous numeric coercion, and retained array order. Hash UTF-8 bytes with SHA-256. Include a digest-format version.
+Implementation: an RFC 8785 (JCS) profile with no JSON numbers and a `jcs-sha256-v1:` prefix, plus shared Python/TypeScript golden vectors ([ADR 0006](../adr/0006-approval-digest-canonicalization.md)). Requirements: one versioned canonical serialization: explicit allowed types, sorted object keys, canonical decimal strings, UTC timestamp representation, no NaN/Infinity, no ambiguous numeric coercion, and retained array order. Hash UTF-8 bytes with SHA-256. Include a digest-format version.
 
 The digest covers tenant/requester, capability contract, binding and connection (including connection version and credential subject, ADRs 0012/0013), normalized arguments, expected effects, material source snapshot refs, ontology/rule versions and policy version. Approval actor/expiry are recorded alongside the digest. Display the same normalized proposal used for hashing. Material resource changes, changed arguments or changed policy invalidate eligibility and require revalidation/reapproval. A refreshed observation timestamp alone is not a material change: preserve the observation record separately and compare the provider revision or canonical relevant-fact digest. Do not hash arbitrary framework messages or raw provider responses as the plan identity.
 
@@ -133,7 +133,7 @@ Bootstrap wires dependencies and gives each plugin only its required services. D
 
 ## 6. Plugin registration and configuration
 
-Initial discovery uses installed distribution metadata and a versioned entry-point group such as `e_agent.plugins.v1`. A packaged static manifest describes plugin ID, artifact version, supported SDK API range, factory, provided/required capabilities and settings schema. Integration adapters also declare a provider-neutral `connection` section (connection JSON Schema with write-only secret fields, auth methods, resource-scope schema, `test_connection`, i18n display assets) so connections can be managed generically ([ADR 0012](adr/0012-schema-driven-integration-management.md)). Factory registration must agree with the admitted manifest.
+Initial discovery uses installed distribution metadata and a versioned entry-point group such as `e_agent.plugins.v1`. A packaged static manifest describes plugin ID, artifact version, supported SDK API range, factory, provided/required capabilities and settings schema. Integration adapters also declare a provider-neutral `connection` section (connection JSON Schema with write-only secret fields, auth methods, resource-scope schema, `test_connection`, i18n display assets) so connections can be managed generically ([ADR 0012](../adr/0012-schema-driven-integration-management.md)). Factory registration must agree with the admitted manifest.
 
 Startup sequence:
 
@@ -191,7 +191,7 @@ Cancellation prevents undispatched actions. Once dispatch may have occurred, can
 10. Verifier independently reads the resulting PO through the gateway. Compare supplier, product, quantity, unit, currency, subtotal, draft state and operation correlation; check for duplicates in the scoped synthetic run namespace.
 11. Emit OutcomeReport and terminal run result only when justified; export structured evidence.
 
-With Pydantic AI, read tools call the gateway through injected dependencies; every effectful tool raises `CallDeferred`, so the kernel performs steps 5–11 and returns a sanitized receipt via `DeferredToolResults.calls`. Framework-side approval (`requires_approval`) is not used for business actions ([ADR 0004](adr/0004-agent-driver-integration.md)). A sequence diagram of this flow is in the [architecture review](reviews/2026-10-06-architecture-review.md#4-target-runtime-view-after-the-proposed-adrs).
+With Pydantic AI, read tools call the gateway through injected dependencies; every effectful tool raises `CallDeferred`, so the kernel performs steps 5–11 and returns a sanitized receipt via `DeferredToolResults.calls`. Framework-side approval (`requires_approval`) is not used for business actions ([ADR 0004](../adr/0004-agent-driver-integration.md)). A sequence diagram of this flow is in the [architecture review](../reviews/2026-10-06-architecture-review.md#4-target-runtime-view-after-the-proposed-adrs).
 
 Immediately before dispatch, refresh material stock/offer facts and re-evaluate policy. Matching snapshots permit the approved action to proceed; changed material facts require a new proposal. The design explicitly retains the external race limitation described in section 2.
 
@@ -216,7 +216,7 @@ Composite scope constraints prevent cross-tenant references. A unique `(tenant_i
 
 Use short local transactions for compare-and-swap state transitions, approval eligibility/reservation and event insertion. Never hold a DB transaction open across a model or ERP call. Each action attempt has a worker lease/fencing token; stale workers cannot commit newer local state. This fencing does not cancel a network call already accepted by Odoo.
 
-PostgreSQL mechanisms ([ADR 0003](adr/0003-durability-ownership.md)): workers claim runnable work with `SELECT … FOR UPDATE SKIP LOCKED` plus lease/fencing token; a transaction-scoped advisory lock keyed by tenant/connection serializes dispatch per sandbox connection; `LISTEN/NOTIFY` carrying only a run ID wakes stream handlers, which always re-read `run_events`. The RunStore uses its own database and role, never Odoo's database or credentials. The kernel ledger is the only owner of write retry/resume; framework durability capabilities are not used in the MVP.
+PostgreSQL mechanisms ([ADR 0003](../adr/0003-durability-ownership.md)): workers claim runnable work with `SELECT … FOR UPDATE SKIP LOCKED` plus lease/fencing token; a transaction-scoped advisory lock keyed by tenant/connection serializes dispatch per sandbox connection; `LISTEN/NOTIFY` carrying only a run ID wakes stream handlers, which always re-read `run_events`. The RunStore uses its own database and role, never Odoo's database or credentials. The kernel ledger is the only owner of write retry/resume; framework durability capabilities are not used in the MVP.
 
 `run_events` is the transactional source for later observers. No broker/outbox dispatcher is required initially. If external event delivery is added, insert outbox records in the same transaction and implement idempotent delivery/consumption; do not add a non-atomic second event write.
 
@@ -236,7 +236,7 @@ Prefer provider-side idempotency when the selected Odoo deployment can enforce i
 
 ## 10. Agent behavior and budgets
 
-ADR 0001 selected Pydantic AI; target the 2.x line (stable since 2026-06-23) pinned exactly ([ADR 0004](adr/0004-agent-driver-integration.md)). The driver remains behind the AgentDriver port. Qualification (plan I04) must demonstrate external/deferred tool requests, correlation-preserving resume, cancellation/error mapping, structured proposals and no route to raw ERP execution. If qualification fails, change the driver or its configuration and record the decision without changing kernel semantics.
+ADR 0001 selected Pydantic AI; target the 2.x line (stable since 2026-06-23) pinned exactly ([ADR 0004](../adr/0004-agent-driver-integration.md)). The driver remains behind the AgentDriver port. Qualification (plan I04) must demonstrate external/deferred tool requests, correlation-preserving resume, cancellation/error mapping, structured proposals and no route to raw ERP execution. If qualification fails, change the driver or its configuration and record the decision without changing kernel semantics.
 
 Initial per-run defaults: 12 driver turns, 20 read calls, 2 validation repairs, 1 admitted business write, 120 seconds of cumulative active execution time excluding human wait, and 32,000 cumulative model input/output tokens for the measured remediation candidate. Approval expires after 15 minutes. Separate configurable deadlines apply to model and provider calls. Budget exhaustion stops new work; a possibly dispatched write still requires reconciliation.
 
@@ -267,7 +267,7 @@ These are planned API contracts, not available endpoints yet. CLI calls the same
 | `POST /v1/runs` | Accept task/scenario and permitted connection hint; trusted identity comes from host; idempotency key required |
 | `GET /v1/runs/{id}` | Scoped run state, pending action, outcome and latest sequence |
 | `GET /v1/runs/{id}/events?after_sequence=N` | Authorized cursor-based event polling |
-| `GET /v1/runs/{id}/stream` | Authenticated SSE: durable events (`id:` = sequence, `Last-Event-ID` resume) plus transient text deltas ([ADR 0007](adr/0007-run-event-stream-contract.md)) |
+| `GET /v1/runs/{id}/stream` | Authenticated SSE: durable events (`id:` = sequence, `Last-Event-ID` resume) plus transient text deltas ([ADR 0007](../adr/0007-run-event-stream-contract.md)) |
 | `POST /v1/runs/{id}/inputs` | Supply requested clarification with expected run revision |
 | `GET /v1/runs/{id}/approvals/pending` | Server-built `ApprovalPresentation` (canonical proposal, material fields, findings, digest, credential subject) for any UI ([UI architecture](ui-architecture.md) §4.2) |
 | `POST /v1/runs/{id}/approvals` | Approve/reject exact action ID/digest and expected revision; actor derived from authenticated context |
@@ -296,7 +296,7 @@ Local demo mode binds to loopback and explicitly maps an operator identity/roles
 | Live demo | A real model creates the correct draft in the designated sandbox after approval and independent read-back |
 | Evidence | All attempts classified fixture/live/infrastructure failure; versions and rule provenance present; secrets absent |
 
-Metrics and trial protocol are defined in [ADR 0010](adr/0010-evaluation-protocol.md): pass@1 over N ≥ 10 in development, and an unbroken pass^3 sequence on the frozen release candidate at release; any unsafe outcome blocks release. Initial development evaluation: at least five deterministic scenarios (valid shortage, zero shortage, unapproved offer, over-budget proposal, missing/stale facts) and three live trials of the valid scenario. Record all results and failures. Release gate requires all deterministic safety/architecture checks passing and three verifier-passing live valid trials; if unmet, report incomplete instead of selecting only a successful showcase. This small set does not establish broad ERP reliability or statistical superiority.
+Metrics and trial protocol are defined in [ADR 0010](../adr/0010-evaluation-protocol.md): pass@1 over N ≥ 10 in development, and an unbroken pass^3 sequence on the frozen release candidate at release; any unsafe outcome blocks release. Initial development evaluation: at least five deterministic scenarios (valid shortage, zero shortage, unapproved offer, over-budget proposal, missing/stale facts) and three live trials of the valid scenario. Record all results and failures. Release gate requires all deterministic safety/architecture checks passing and three verifier-passing live valid trials; if unmet, report incomplete instead of selecting only a successful showcase. This small set does not establish broad ERP reliability or statistical superiority.
 
 Inject negative proposals when the model does not naturally produce them; label them mechanism tests. Ontology/procedural parity is expected for equivalent rules. Comparative superiority requires a separately controlled experiment; do not change the experiment's conditions or evidence to improve this product demo.
 

@@ -2,7 +2,7 @@
 
 Date: 2026-10-07. Status: **approved 2026-10-07; source and fixture retests complete; owner live qualification blocked**. Reviewed source: `3ae9aafb13b112a207ea6474c006e74a3dc157d2`.
 
-Authority: the user's request to review and plan fixes while retaining the design principles. Inputs: [independent findings](2026-10-07-mvp-review-report.md), [requirement matrix](2026-10-07-mvp-requirement-matrix.md), [test results](2026-10-07-local-test-report.md), [HLD](../high-level-design.md), [MVP design](../mvp-detailed-design.md), [implementation plan](../implementation-plan.md) and accepted [ADRs](../adr/README.md).
+Authority: the user's request to review and plan fixes while retaining the design principles. Inputs: [independent findings](2026-10-07-mvp-review-report.md), [requirement matrix](2026-10-07-mvp-requirement-matrix.md), [test results](2026-10-07-local-test-report.md), [HLD](../design/high-level-design.md), [MVP design](../design/mvp-detailed-design.md), [implementation plan](../design/implementation-plan.md) and accepted [ADRs](../adr/README.md).
 
 The target is a qualified local Odoo MVP covering ERP-01..08 with Ollama, durable PostgreSQL and replaceable web/overlay presentation. Desktop implementation, production authentication, full knowledge governance and live BigQuery remain outside this readiness gate. A generic extension seam does not count as BigQuery-specific evidence. Writing the plan itself performed no implementation or ERP installation. Approved source changes and observed retests are now recorded in the [remediation retest](2026-10-07-mvp-remediation-retest.md); owner installation remains unqualified.
 

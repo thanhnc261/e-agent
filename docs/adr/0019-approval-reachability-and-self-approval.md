@@ -1,7 +1,7 @@
 # ADR 0019: Approval reachability and the self-approval rule
 
 Date: 2026-10-12. Status: Proposed. Refines ADR 0014; MVP design §10; HLD §3.
-Source: [target architecture](../target-architecture.md) §11.2 rule 6, §13.2 rule 2 (C13, C16).
+Source: [target architecture](../design/target-architecture.md) §11.2 rule 6, §13.2 rule 2 (C13, C16).
 
 ## Context
 

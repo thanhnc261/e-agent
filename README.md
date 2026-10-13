@@ -12,16 +12,16 @@ A plugin-driven enterprise agent application designed for governed business acti
 | [Approved MVP fix plan](docs/reviews/2026-10-07-mvp-fix-plan.md) | Corrections, design boundaries, bridge explanation and remaining release gates |
 | [Independent MVP review (2026-10-07)](docs/reviews/2026-10-07-mvp-review-report.md) | NOT_READY verdict, reproduced findings, requirement matrix and newly observed local test results |
 | [Review and local test handoff for Sol 6.1](docs/handoffs/2026-10-07-sol-6.1-mvp-review.md) | Independent review plan, staged owner-machine tests, evidence and readiness criteria |
-| [High-level design](docs/high-level-design.md) | Architecture, package boundaries, multi-domain support, knowledge evolution and deployment |
-| [MVP detailed design](docs/mvp-detailed-design.md) | Procurement workflow, contracts, state machines, persistence, approvals, recovery and acceptance tests |
-| [Implementation plan](docs/implementation-plan.md) and [ADRs](docs/adr/README.md) | Accepted scope and decisions (ADRs 0001–0017) and work packages |
+| [High-level design](docs/design/high-level-design.md) | Architecture, package boundaries, multi-domain support, knowledge evolution and deployment |
+| [MVP detailed design](docs/design/mvp-detailed-design.md) | Procurement workflow, contracts, state machines, persistence, approvals, recovery and acceptance tests |
+| [Implementation plan](docs/design/implementation-plan.md) and [ADRs](docs/adr/README.md) | Accepted scope and decisions (ADRs 0001–0017) and work packages |
 | [Documentation index](docs/README.md) | Design reading order and decision conventions |
 | [Research](research/README.md) | Industry sources, ontology research, enterprise controls and architecture reviews |
 | [AGENTS.md](AGENTS.md) / [CLAUDE.md](CLAUDE.md) | Instructions for coding agents working on this project |
 
 ## Agentic overlay design prototype
 
-The [adoption plan](archive/docs/plans/2026-10-08-enterprise-overlay-adoption.md) maps this design into the existing application in staged, testable changes, and the [frontend development guide](docs/frontend-development-guide.md) covers reusable components, folder structure, state ownership, tokens and accessibility.
+The [adoption plan](archive/docs/plans/2026-10-08-enterprise-overlay-adoption.md) maps this design into the existing application in staged, testable changes, and the [frontend development guide](docs/design/frontend-development-guide.md) covers reusable components, folder structure, state ownership, tokens and accessibility.
 
 Work packages FE-00 to FE-07 and API-01 are implemented (2026-10-09): module extraction with pinned public exports, Calm semantic tokens with independent theme/appearance/density dimensions, a shared task surface across the four placements, standalone Overview / Session work / Connections routes, and the member-readable `GET /v1/me/task-catalog` and `GET /v1/me/connections` read models ([ADR 0017](docs/adr/0017-member-discovery-read-models.md)). Verified against deterministic fixtures: `pnpm --dir ui check` (146 unit tests) and 135 browser conformance cases, after correcting five defects found by an [independent check](docs/reviews/2026-10-09-overlay-implementation-check.md). No cross-session work inbox, proposal editing, administrative connection management, delegated OAuth or cross-origin embedding exists, and no human usability or screen-reader study has been run. See the [implementation results](docs/handoffs/2026-10-08-enterprise-overlay-implementation-results.md).
 
@@ -175,7 +175,7 @@ A real model with all ERP tools uses far more tokens per run than the fixture: t
 
 Python packages share the `e_agent` namespace: `e_agent.contracts`, `e_agent.sdk`, `e_agent.kernel`, `e_agent.erp`, `e_agent.server`.
 
-See the [implementation plan](docs/implementation-plan.md) for owner decisions, milestones and work packages.
+See the [implementation plan](docs/design/implementation-plan.md) for owner decisions, milestones and work packages.
 
 ## Contribution expectations
 

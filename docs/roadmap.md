@@ -9,7 +9,7 @@
 
 Every new runtime feature ships **behind a toggle with a fallback** (see Rules).
 
-This roadmap orders the work. Designs say *what* to build: [target architecture](target-architecture.md), [HLD](high-level-design.md), [MVP design](mvp-detailed-design.md) and the [ADRs](adr/README.md). Each phase has its own plan file. A phase starts only after its **detailed plan** has been written, linked here and reviewed.
+This roadmap orders the work. Designs say *what* to build: [target architecture](design/target-architecture.md), [HLD](design/high-level-design.md), [MVP design](design/mvp-detailed-design.md) and the [ADRs](adr/README.md). Each phase has its own plan file. A phase starts only after its **detailed plan** has been written, linked here and reviewed.
 
 ## Rules for every phase
 

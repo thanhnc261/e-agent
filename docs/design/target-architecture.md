@@ -2,11 +2,11 @@
 
 **Status:** Proposed. **Date:** 2026-10-11, revised 2026-10-12 after three review rounds. **Verified against:** commit `af50c62` plus the uncommitted working-tree changes present on 2026-10-12; every `[I]` tag and `file:line` reference refers to that tree and must be re-checked after the next commit. WP1 Tasks 2–8 and 10 re-verified against commit `591f3c6`. Unchanged `file:line` references were taken at `af50c62` and may have drifted after WP1. **Baseline:** the [high-level design](high-level-design.md), the [MVP detailed design](mvp-detailed-design.md) and the accepted ADRs remain authoritative until the ADR candidates in §17 are accepted. This document does not change contracts or code. When an ADR candidate is accepted, its content moves into the HLD or MVP design and the matching section here is marked "merged", so this document does not become a second architecture specification.
 
-**Implementation:** [WP1 correctness plan](../archive/docs/superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) (verified defects D1–D7, ADR candidates 0018–0021) and the WP2–WP5 map in its Part A.
+**Implementation:** [WP1 correctness plan](../../archive/docs/superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) (verified defects D1–D7, ADR candidates 0018–0021) and the WP2–WP5 map in its Part A.
 
 **Inputs:**
-- Reviews: the [scalability review](reviews/2026-10-11-scalability-architecture-review.md) and the [architecture alignment review](reviews/2026-10-07-architecture-alignment-review.md).
-- Research: [research 03](../research/03-knowledge-and-cognitive-ontology.md) and [research 10](../research/10-extensibility-architecture-review.md); the market studies on [agent frameworks](../research/18-agent-frameworks-market-2026-09.md) and on [knowledge graphs and retrieval](../research/19-knowledge-graphs-retrieval-stack-2026.md).
+- Reviews: the [scalability review](../reviews/2026-10-11-scalability-architecture-review.md) and the [architecture alignment review](../reviews/2026-10-07-architecture-alignment-review.md).
+- Research: [research 03](../../research/03-knowledge-and-cognitive-ontology.md) and [research 10](../../research/10-extensibility-architecture-review.md); the market studies on [agent frameworks](../../research/18-agent-frameworks-market-2026-09.md) and on [knowledge graphs and retrieval](../../research/19-knowledge-graphs-retrieval-stack-2026.md).
 - New web research (§20).
 
 Every element carries a status:
@@ -1096,9 +1096,9 @@ e-agent/
 ## 20. References
 
 **Repository**
-- [High-level design](high-level-design.md), [MVP detailed design](mvp-detailed-design.md), [ADR index](adr/README.md) (accepted ADRs 0001–0017)
-- [Scalability review 2026-10-11](reviews/2026-10-11-scalability-architecture-review.md), [architecture alignment review 2026-10-07](reviews/2026-10-07-architecture-alignment-review.md)
-- [Research 03: knowledge and cognitive ontology](../research/03-knowledge-and-cognitive-ontology.md), [research 10: extensibility review](../research/10-extensibility-architecture-review.md)
+- [High-level design](high-level-design.md), [MVP detailed design](mvp-detailed-design.md), [ADR index](../adr/README.md) (accepted ADRs 0001–0017)
+- [Scalability review 2026-10-11](../reviews/2026-10-11-scalability-architecture-review.md), [architecture alignment review 2026-10-07](../reviews/2026-10-07-architecture-alignment-review.md)
+- [Research 03: knowledge and cognitive ontology](../../research/03-knowledge-and-cognitive-ontology.md), [research 10: extensibility review](../../research/10-extensibility-architecture-review.md)
 - Agent frameworks market study (September 2026) and knowledge graph / retrieval study (September 2026) in `research/`
 
 **Web (accessed 2026-10-11)**

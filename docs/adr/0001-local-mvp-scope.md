@@ -29,4 +29,4 @@ The [2026-10-06 architecture review](../reviews/2026-10-06-architecture-review.m
 
 ## Verification
 
-Use the [implementation plan](../implementation-plan.md), including per-task outcome checks, durable versus transient stream behavior, duplicate-command handling, connection isolation and independent artifact tests. Complete the outstanding overlay/BigQuery/benchmark decisions before their dependent integrations; work on contracts, safety and local driver qualification can proceed independently.
+Use the [implementation plan](../design/implementation-plan.md), including per-task outcome checks, durable versus transient stream behavior, duplicate-command handling, connection isolation and independent artifact tests. Complete the outstanding overlay/BigQuery/benchmark decisions before their dependent integrations; work on contracts, safety and local driver qualification can proceed independently.

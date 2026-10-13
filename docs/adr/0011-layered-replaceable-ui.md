@@ -6,7 +6,7 @@ Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06
 
 The user wants the MVP to ship a default overlay/web UI, and wants deployers to change its theme or layout, or build a different UI entirely, while reusing the layers underneath. The current plan describes one React/Vite overlay with no internal layering, which would make every customization a fork.
 
-Research (details in [UI architecture](../ui-architecture.md) §2):
+Research (details in [UI architecture](../design/ui-architecture.md) §2):
 
 - Headless UI practice separates behaviour from presentation: Zag.js/Ark UI state machines, React Aria behaviour hooks.
 - The W3C DTCG Design Tokens format reached a stable 2025.10 version with theme and multi-brand support.

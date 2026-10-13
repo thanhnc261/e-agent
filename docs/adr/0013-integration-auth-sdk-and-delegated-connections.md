@@ -11,7 +11,7 @@ ADR 0012 made integration management schema-driven but assumed connections owned
 
 Every provider needs the same mechanics: storage, refresh, revocation, scope checks and audit. Reimplementing them per adapter would be slow and unsafe. Agent-auth products (Auth0 Token Vault, Arcade just-in-time auth, Nango) converge on the same pattern: the host vaults tokens, the agent receives only short-lived access, and connection happens at the moment it is needed. Odoo 19 JSON-2 accepts only API keys, not passwords. Google issues partial grants under granular consent and 7-day refresh tokens for apps in "Testing" status.
 
-Details are in [integration auth SDK](../integration-auth-sdk.md).
+Details are in [integration auth SDK](../design/integration-auth-sdk.md).
 
 ## Decision
 

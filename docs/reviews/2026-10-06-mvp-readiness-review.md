@@ -4,7 +4,7 @@
 
 ## 1. Verdict
 
-**Ready to start, conditional on owner decisions D1–D5 in [plan §0](../implementation-plan.md#0-readiness-decisions-and-day-1-checklist).** Every work package on the critical path (I00 → I09) now has defined inputs, deliverables, a definition of done, and a gating ADR or decision. No unresolved input blocks I00–I11. BigQuery (D6) blocks only I12/I13, and the ERP Bench source (D7) is optional for I03.
+**Ready to start, conditional on owner decisions D1–D5 in [plan §0](../design/implementation-plan.md#0-readiness-decisions-and-day-1-checklist).** Every work package on the critical path (I00 → I09) now has defined inputs, deliverables, a definition of done, and a gating ADR or decision. No unresolved input blocks I00–I11. BigQuery (D6) blocks only I12/I13, and the ERP Bench source (D7) is optional for I03.
 
 The documents are design, not evidence. Nothing has been built or run, and the proposed toolchain versions must be confirmed in I01.
 

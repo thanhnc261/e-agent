@@ -1,11 +1,11 @@
 # UI architecture: layered, themeable and replaceable
 
-Implementation clarification (2026-10-07): [ADR 0014](adr/0014-mvp-remediation-boundaries.md) defines short transactions with work fencing, conservative external uncertainty, approved fact/credential binding and transient public text offsets. These implementation seams require the remediation and live qualification gates; source availability does not establish readiness.
-**Date:** 2026-10-08. **Status:** accepted design ([ADR 0011](adr/0011-layered-replaceable-ui.md), [ADR 0015](adr/0015-task-workspace-presentation.md), [ADR 0016](adr/0016-selectable-agent-surfaces.md)); implemented in I08/I09 under `ui/` (see §9 for deviations). It refines the overlay UI that [ADR 0001](adr/0001-local-mvp-scope.md) puts in the MVP and builds on the stream contract in [ADR 0007](adr/0007-run-event-stream-contract.md).
+Implementation clarification (2026-10-07): [ADR 0014](../adr/0014-mvp-remediation-boundaries.md) defines short transactions with work fencing, conservative external uncertainty, approved fact/credential binding and transient public text offsets. These implementation seams require the remediation and live qualification gates; source availability does not establish readiness.
+**Date:** 2026-10-08. **Status:** accepted design ([ADR 0011](../adr/0011-layered-replaceable-ui.md), [ADR 0015](../adr/0015-task-workspace-presentation.md), [ADR 0016](../adr/0016-selectable-agent-surfaces.md)); implemented in I08/I09 under `ui/` (see §9 for deviations). It refines the overlay UI that [ADR 0001](../adr/0001-local-mvp-scope.md) puts in the MVP and builds on the stream contract in [ADR 0007](../adr/0007-run-event-stream-contract.md).
 
 ## 1. Goal
 
-Planned follow-up (2026-10-08): the [enterprise overlay adoption plan](../archive/docs/plans/2026-10-08-enterprise-overlay-adoption.md) applies the enterprise-wide mockup within these layers. The [frontend development guide](frontend-development-guide.md) proposes internal feature folders and reuse conventions. These are implementation proposals, not completed changes; new discovery APIs require a focused ADR and affected design updates before implementation.
+Planned follow-up (2026-10-08): the [enterprise overlay adoption plan](../../archive/docs/plans/2026-10-08-enterprise-overlay-adoption.md) applies the enterprise-wide mockup within these layers. The [frontend development guide](frontend-development-guide.md) proposes internal feature folders and reuse conventions. These are implementation proposals, not completed changes; new discovery APIs require a focused ADR and affected design updates before implementation.
 
 e-agent ships a **default UI** in two forms: a standalone web app and an embeddable overlay. A deployer must be able to:
 
@@ -216,17 +216,17 @@ The default app starts with a focused task input and hides empty audit/approval 
 
 Clarifications and prior answers remain in the conversation; public text streams without announcing the entire paragraph per token. Status copy distinguishes approval recorded, checking a result, verified, failed and unresolved. Outcome fields correlate VERIFIED actions with authoritative reports and COMMITTED receipt references; model prose supplies no verified fields. Evidence has source/time/completeness records with inspectable data and a separate complete authorized audit export, available during review.
 
-Mobile, sidebar and overlay use bounded review-body scrolling with an action footer and disclosures for details. Current implementation uses native disclosures rather than separate sheets/tabs. Light/dark/high-contrast tokens and EN/VI controls are shared. Domain schema labels are currently English; unavailable resource names remain exact references. Human usability/a11y certification, admitted task examples and richer typed/localized source/result projections remain future work. See the [handoff](handoffs/2026-10-08-ui-redesign.md) for exact checks and screenshots.
+Mobile, sidebar and overlay use bounded review-body scrolling with an action footer and disclosures for details. Current implementation uses native disclosures rather than separate sheets/tabs. Light/dark/high-contrast tokens and EN/VI controls are shared. Domain schema labels are currently English; unavailable resource names remain exact references. Human usability/a11y certification, admitted task examples and richer typed/localized source/result projections remain future work. See the [handoff](../handoffs/2026-10-08-ui-redesign.md) for exact checks and screenshots.
 
 ### Selectable presentation surfaces
 
 The header View selector offers Compact, Workbench, Docked and (standalone only) Workspace. One controller remains above layout changes, retaining active task, history, exact approval state, locale/theme and the in-memory composer draft. Switching resets an open confirmation to review, restores focus to View and never issues a decision. Overlay Escape backs out of confirmation before minimizing; minimization returns focus to the launcher and keeps a pending-review badge. Validated session-local layout preferences are overridden by explicit URL/element configuration. Embedded preferences are scoped by element ID; distinct IDs isolate multiple instances. Draft text is not persisted across reload.
 
-L3 owns draft state; L5 supplies a narrow presentation context; L6 renders controls/overview; L7 owns layout selection/preferences/focus; L8 constrains embedded modes. Workbench shows only authoritative run state and supported recorded milestones, without generated plans or progress estimates. See [research and visual design](../research/11-enterprise-agent-overlay-design.md) and [verification/screenshots](handoffs/2026-10-08-enterprise-overlay.md).
+L3 owns draft state; L5 supplies a narrow presentation context; L6 renders controls/overview; L7 owns layout selection/preferences/focus; L8 constrains embedded modes. Workbench shows only authoritative run state and supported recorded milestones, without generated plans or progress estimates. See [research and visual design](../../research/11-enterprise-agent-overlay-design.md) and [verification/screenshots](../handoffs/2026-10-08-enterprise-overlay.md).
 
 ## 11. Enterprise overlay adoption (2026-10-09)
 
-Implemented under the [adoption plan](../archive/docs/plans/2026-10-08-enterprise-overlay-adoption.md) work packages FE-00 to FE-07 and API-01, with [ADR 0017](adr/0017-member-discovery-read-models.md) for the new contracts. The layer boundaries, slot names, public exports and approval authority of §3–§5 are unchanged; the §9/§10 notes above still hold.
+Implemented under the [adoption plan](../../archive/docs/plans/2026-10-08-enterprise-overlay-adoption.md) work packages FE-00 to FE-07 and API-01, with [ADR 0017](../adr/0017-member-discovery-read-models.md) for the new contracts. The layer boundaries, slot names, public exports and approval authority of §3–§5 are unchanged; the §9/§10 notes above still hold.
 
 ### Module organization
 
@@ -258,7 +258,7 @@ A durable cross-session or tenant-wide work/review inbox, a pending-review count
 
 ### Visual foundation adoption (2026-10-12)
 
-Results: [handoff](handoffs/2026-10-12-ui-foundation-adoption-results.md). Review: [UX review](reviews/2026-10-12-ui-adoption-ux-review.md). These changes add public exports; the layer boundaries are unchanged.
+Results: [handoff](../handoffs/2026-10-12-ui-foundation-adoption-results.md). Review: [UX review](../reviews/2026-10-12-ui-adoption-ux-review.md). These changes add public exports; the layer boundaries are unchanged.
 
 - `@e-agent/components` exports `BrandMark`, the owner-approved product mark as one pinned SVG. It is decorative (`aria-hidden`) and never recoloured per theme.
 - `@e-agent/ui-core` exports `runStatusKey(state, actions)` and `actionStatusKey(state)`. While a run is in flight, the run-status label names a change the server reports as sending, recorded or unconfirmed. These helpers are pure label mappings over server states; the browser never infers or promotes a phase.
@@ -266,7 +266,7 @@ Results: [handoff](handoffs/2026-10-12-ui-foundation-adoption-results.md). Revie
 
 ### Owner review rework, slice 1 (2026-10-12)
 
-Plan: [UI rework 2](../archive/docs/superpowers/plans/2026-10-12-ui-rework-2.md).
+Plan: [UI rework 2](../../archive/docs/superpowers/plans/2026-10-12-ui-rework-2.md).
 
 - **Task status.** The status (`RunStatus`: `run-state`, the polite live region, and Stop) sits above the composer. The header carries only product identity, stream state and preferences.
 - **Composer.** A Context panel (`ContextPreview`) shows exactly what `RunController.hostContextPreview()` returns. This is the same source `start()` sends, and the panel says so when it is nothing.

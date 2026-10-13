@@ -6,7 +6,7 @@
 
 **Why now:** on 2026-10-12 the owner tested the live agent and reported three things: "a simple chat still does not work well", "duplicated", and "there is no context at all". The previous real-agent work (ADR 0022) patched symptoms inside the kernel instead of building the cognition layer the target design specifies. This plan returns to the design's order.
 
-**Design anchor:** [target architecture](../../target-architecture.md) roadmap **P1 (C11)** and **P2 (C8, C9, driver conformance)**: §5.4 step record, §6 multi-step reasoning and the progress ledger, §7 context management and the §7.4 rendering rules, §17 ADR candidates C8, C9, C11. The design does **not** specify a conversation that spans runs, so Phase 1 adds it through a new ADR.
+**Design anchor:** [target architecture](../../design/target-architecture.md) roadmap **P1 (C11)** and **P2 (C8, C9, driver conformance)**: §5.4 step record, §6 multi-step reasoning and the progress ledger, §7 context management and the §7.4 rendering rules, §17 ADR candidates C8, C9, C11. The design does **not** specify a conversation that spans runs, so Phase 1 adds it through a new ADR.
 
 
 > **Phase order is governed by the [roadmap](../../roadmap.md)** (owner decision 2026-10-12): this plan's Phase 2 (task definitions) moves into roadmap Phase 2 (execution IR); Phases 3–4 are roadmap Phase 3; Phases 0–1 are roadmap Phase 4. Every new runtime feature here ships behind a profile toggle (`off/shadow/on`) with a fallback to the existing path before any write is reserved.

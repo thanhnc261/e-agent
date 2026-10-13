@@ -6,7 +6,7 @@ Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06
 
 e-agent must integrate many enterprise systems quickly (Odoo, CRMs, Google Workspace, BigQuery, MCP servers) and absorb technology changes without rewriting the UI or kernel. Administrators will need pages to manage connections, credentials, auth and scopes. If those pages or the kernel contain provider-specific code, every new integration becomes a UI and kernel release, and secrets risk leaking into places the model or UI can reach. The current design has connections with secret references set by operator profiles, but no admin model.
 
-Established platforms solve this with schemas: Airbyte connection specs in JSON Schema with secret annotations and declarative OAuth, n8n credential types, JSON Forms renderers. RFC 9700 and the MCP authorization spec define current OAuth practice. Details are in [integration management](../integration-management.md) §2.
+Established platforms solve this with schemas: Airbyte connection specs in JSON Schema with secret annotations and declarative OAuth, n8n credential types, JSON Forms renderers. RFC 9700 and the MCP authorization spec define current OAuth practice. Details are in [integration management](../design/integration-management.md) §2.
 
 ## Decision
 
