@@ -151,7 +151,8 @@
       "category": "kernel",
       "description": "Task 1c.6: proposals.py mixin moved verbatim",
       "steps": ["pytest -q tests/unit/kernel passes", "full gate passes"],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1c.6/2026-10-13T06-35-21+00-00.json"
     },
     {
       "id": "F-1c-7",

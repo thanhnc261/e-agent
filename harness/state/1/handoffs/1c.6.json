@@ -1,0 +1,11 @@
+{
+  "task": "1c.6",
+  "changed": "src/e_agent/kernel/proposals.py: ProposalsMixin(ContinuationMixin) with _handle_proposal, _handle_answer and _validate. Verify: 43/43 methods byte-identical, each defined once.",
+  "evidence_refs": [
+    "evidence/gates/1c.6/2026-10-13T06-35-21+00-00.json",
+    "evidence/1c/verify-1c.6.txt"
+  ],
+  "open_items": [],
+  "rulings": [],
+  "outside_repo": []
+}
