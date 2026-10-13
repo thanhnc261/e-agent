@@ -105,3 +105,11 @@ def test_hook_fails_closed_on_corrupt_state(repo) -> None:
     result = repo.invoke("check-scope", "--hook", stdin=_payload(repo, "Edit", "src/pkg/mod.py"))
     assert result.code == 2
     assert "check-scope error" in result.err
+
+
+def test_check_scope_prints_ok_with_count(repo) -> None:
+    _activate(repo)
+    repo.write("src/pkg/new.py", "Y = 2\n")
+    result = repo.invoke("check-scope")
+    assert result.code == 0
+    assert "ok: 3 changed paths inside scope" in result.out  # contract, active.json, new.py

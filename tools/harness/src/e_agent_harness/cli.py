@@ -97,8 +97,11 @@ def cmd_validate_context(args: argparse.Namespace) -> int:
 def cmd_new_task(args: argparse.Namespace) -> int:
     root, paths, m = _context(args)
     active = state.load_active(paths)
-    if active and active.get("task") and active["task"] != args.task_id and not args.replace:
-        print(f"task {active['task']} is active; finish it with close-check or pass --replace")
+    current = (active or {}).get("task")
+    # A task whose close-check passes is closed and may be followed without --replace.
+    switching = bool(current) and current != args.task_id and not args.replace
+    if switching and closecheck.problems(paths, m, root):
+        print(f"task {current} is active; finish it with close-check or pass --replace")
         return 1
     try:
         contract = tasks.materialise(
@@ -139,10 +142,14 @@ def cmd_check_scope(args: argparse.Namespace) -> int:
         return code
     root, paths, m = _context(args)
     loaded = state.load_task(paths)
-    problems = scope.check_tree(loaded[0] if loaded else None, m, root)
+    contract = loaded[0] if loaded else None
+    problems = scope.check_tree(contract, m, root)
     for problem in problems:
         print(problem)
-    return 1 if problems else 0
+    if problems:
+        return 1
+    print(f"ok: {len(scope.changed_paths(contract, root))} changed paths inside scope")
+    return 0
 
 
 def _run_gate(

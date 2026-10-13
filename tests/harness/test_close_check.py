@@ -208,3 +208,31 @@ def test_close_check_passes_in_a_fresh_clone(repo, tmp_path) -> None:
     git(tmp_path, "clone", "-q", str(repo.root), str(clone))
     result = repo.invoke_at(clone, "close-check", "--session", "s1")
     assert result.code == 0, result
+
+
+def _closed(repo) -> None:
+    _start(repo)
+    repo.write("src/pkg/new.py", "Y = 2\n")
+    repo.commit("feature code")
+    _bookkeeping(repo, _evidence_path(repo))
+    assert repo.invoke("close-check", "--session", "s1").code == 0
+
+
+def test_status_reports_closed_task_and_names_the_next_feature(repo) -> None:
+    _closed(repo)
+    result = repo.invoke("status")
+    assert "task 1c.1 is closed" in result.out
+    assert "F-2" in result.out  # the next unfinished feature
+
+
+def test_new_task_after_close_needs_no_replace(repo) -> None:
+    _closed(repo)
+    result = repo.invoke("new-task", "1", "1c.2", "--feature", "F-2", "--paths", "src/**")
+    assert result.code == 0, result
+
+
+def test_new_task_still_refuses_an_open_task(repo) -> None:
+    _start(repo)
+    result = repo.invoke("new-task", "1", "1c.2", "--feature", "F-2", "--paths", "src/**")
+    assert result.code == 1
+    assert "1c.1 is active" in result.out

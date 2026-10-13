@@ -26,6 +26,8 @@ class StatusData:
     gate_set: str | None = None
     acceptance: list[str] = field(default_factory=list)
     stale: bool = False
+    closed: bool = False
+    next_feature: str | None = None
     has_evidence: bool = False
     bookkeeping_dirty: bool = False
     gate_ran: bool = False
@@ -58,11 +60,16 @@ def collect(paths: state.Paths, m: Manifest, repo_root: Path) -> StatusData:
         data.gate_set = str(contract["gate_set"])
         data.acceptance = list(contract["acceptance"])
         data.stale = is_stale(str(contract["context_digest"]), repo_root, m)
+        data.closed = not closecheck.problems(paths, m, repo_root)
         data.gate_ran = any(paths.evidence(data.task_id or "").glob("*.json"))
         data.has_evidence = any(
             closecheck.evidence_ties_to_head(repo_root, state.read_json(f), data.task_id) is None
             for f in paths.evidence(data.task_id or "").glob("*.json")
         )
+    phase = data.phase
+    if phase and paths.features(phase).is_file():
+        entries = state.read_json(paths.features(phase)).get("entries", [])
+        data.next_feature = next((str(e["id"]) for e in entries if not e.get("passes")), None)
     if paths.progress.is_file():
         entries = progress.parse_progress(paths.progress.read_text(encoding="utf-8"))
         data.entries = entries[-ENTRIES_SHOWN:]
@@ -77,6 +84,13 @@ def next_action(d: StatusData) -> str:
             "new-task <phase> <task-id> --feature <id> --paths <glob> "
             "(pick the next unfinished feature)"
         )
+    if d.closed:
+        follow = (
+            f"new-task {d.phase} <task-id> --feature {d.next_feature} --paths <glob>"
+            if d.next_feature
+            else "the phase review: every feature passes"
+        )
+        return f"task {d.task_id} is closed: clear the context, then {follow}"
     if d.stale:
         return (
             "digest stale: authoritative files changed; re-materialise with "

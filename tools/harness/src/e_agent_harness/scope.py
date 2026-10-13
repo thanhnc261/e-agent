@@ -23,10 +23,16 @@ def deny_reason(contract: dict[str, Any] | None, m: Manifest, relpath: str) -> s
     return None
 
 
-def check_tree(contract: dict[str, Any] | None, m: Manifest, repo_root: Path) -> list[str]:
+def changed_paths(contract: dict[str, Any] | None, repo_root: Path) -> set[str]:
+    """Working-tree changes, plus everything committed since the task's base commit."""
     changed = set(gitinfo.status_files(repo_root))
     if contract is not None:
         changed.update(gitinfo.diff_names(repo_root, contract["base_commit"]))
+    return changed
+
+
+def check_tree(contract: dict[str, Any] | None, m: Manifest, repo_root: Path) -> list[str]:
+    changed = changed_paths(contract, repo_root)
     problems = [r for r in (deny_reason(contract, m, p) for p in sorted(changed)) if r]
     normalized = {normalize_relpath(p) for p in changed}
     needs_bump = any(path_matches(p, pat) for p in normalized for pat in m.protected.bump_required)
