@@ -153,6 +153,8 @@ This is the local dev loop every task follows, attended or not. The `eng-session
 | `handoff <task>` | Validates the handoff document against its schema and checks that every evidence ref it cites exists. |
 | `status [--format text\|hook]` | Prints the human status contract (Vietnamese ELI5 first if chosen in H0). `--format hook` emits the SessionStart `additionalContext` JSON with a `sessionTitle`, within the manifest's token budget, written as facts rather than imperatives. |
 
+**H4 2026-10-13** ([plan](2026-10-13-harness-h4-adapters.md), [handoff](../handoffs/2026-10-13-harness-h4.md)): `.claude/settings.json` (permissions, hooks, `autoCompactWindow` 400000, `worktree.baseRef` `head`), the hook entry script `.claude/hooks/harness_hook.py`, and the `explorer`, `verifier`, `reviewer` and `sandbox-operator` subagents. Built as harness phase `H4` through the harness's own loop; hooks verified live in a scratch clone. The test-output filter hook and reviewer `SubagentStop` validation are deferred.
+
 **H2.1 2026-10-13** ([plan](2026-10-13-harness-h21-cli-fixes.md), [handoff](../handoffs/2026-10-13-harness-h21.md)): the Phase 1 pilot fixes. The `pg` gate is guarded against the live ledger, gate evidence is committed under `harness/state/evidence/`, the full gate runs the UI checks, a task closes, and `refresh-task`, `amend-scope`, `add-feature` and `validate` replace the `--replace` and hand-edit workarounds. Several gate sets per contract (HP-6) stays open.
 
 **Done 2026-10-13** (branch `harness/h2-cli`, [plan](2026-10-13-harness-h2-cli.md), [handoff](../handoffs/2026-10-13-harness-h2.md)). Rulings recorded there:

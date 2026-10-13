@@ -28,6 +28,9 @@ Run levels 1 to 3 after every phase task where the plan asks for them, and all f
 
 ## Workflow
 
+In Claude Code the `verifier` subagent runs these steps in its own context and returns a JSON report; delegate to it when the output would crowd the main context.
+
+
 1. Confirm a clean tree: `git status --short` prints nothing. Otherwise commit first.
 2. Run the levels in order. Stop at the first failure; fix through [eng-implement](../eng-implement/SKILL.md), commit, and start again at level 1.
 3. Note each evidence path the harness prints (`harness/state/evidence/gates/<task>/…`, `harness/state/evidence/live/…`) and the counts; the files are committed with the bookkeeping.

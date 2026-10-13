@@ -16,6 +16,10 @@ One task per context window, every step checkable by the harness. The commands a
 - Only the sandbox and e-agent's own containers are touched; `archive/` and `research/` are read-only (ENG-BOUND-1, ENG-BOUND-2).
 - Never flip a feature to passing without the evidence path from a successful gate.
 
+## What runs on its own
+
+In Claude Code, `.claude/settings.json` wires the harness in: the session starts with the `status` brief; a checkpoint is written before compaction; every `Edit`, `Write` and `NotebookEdit` is checked against the open task's scope (a closed task no longer limits unrelated edits; protected paths are always guarded); an edited Python file is formatted; with `E_AGENT_HARNESS_UNATTENDED=1` the session cannot stop until `close-check` passes. Edits made through shell commands are not hooked, so `check-scope` before each commit stays mandatory. Codex has no hooks: run the same commands by hand.
+
 ## Start ritual
 
 1. `uv run e-agent-harness status`: read the brief, the active task, the boundaries and the next action.
@@ -27,7 +31,7 @@ One task per context window, every step checkable by the harness. The commands a
 
 ## Work
 
-- Research in a fresh context (a delegated agent or a separate session), not in the main one; the main context holds the contract, the plan section and the files being changed.
+- Research in a fresh context (the `explorer` subagent or a separate session), not in the main one; the main context holds the contract, the plan section and the files being changed.
 - Follow [eng-implement](../eng-implement/SKILL.md): a failing test first, then the minimal change (ENG-WORK-2).
 - `uv run e-agent-harness check-scope` before every commit; it prints `ok: N changed paths inside scope`. An out-of-scope path is a stop, not a note; when the scope itself was wrong, `uv run e-agent-harness amend-scope --add "<glob>" --reason "<why>"` records the change in the contract.
 - A feature that the plan did not list (a review fix, a split task) is added with `uv run e-agent-harness add-feature <phase> <F-id> --category <part> --description "<one sentence>" --step "<check>"`; any contract file is checked with `uv run e-agent-harness validate <schema> <file>`.
@@ -45,7 +49,7 @@ The order is fixed by `close-check`; evidence from a dirty tree is rejected.
 5. `uv run e-agent-harness checkpoint --session <session id> --next "<next task or close>"`.
 6. Commit the bookkeeping (`harness/state/**` including the evidence file, `docs/handoffs/**` only).
 7. `uv run e-agent-harness close-check --session <session id>` must print `ok: task may close`.
-8. Review with [eng-review](../eng-review/SKILL.md) in a fresh context; fix findings that affect correctness or the contract; re-run steps 1 to 7 for the fix.
+8. Review with [eng-review](../eng-review/SKILL.md) in a fresh context: the `reviewer` subagent, or Codex for trust-anchor and kernel tasks; fix findings that affect correctness or the contract; re-run steps 1 to 7 for the fix.
 9. Retro line: if a correction was needed twice, add the gotcha, rule, skill line or hook in the same commit (ENG-WORK-3).
 10. Clear the context. The next session's brief is `status`.
 

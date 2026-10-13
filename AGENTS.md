@@ -28,7 +28,7 @@ The roadmap's rules apply to every phase:
 4. **Trust anchor unchanged.** The run and action state machines, gateway, approval digests, admission and verification stay in the kernel. Model output is a proposal.
 5. **Environment boundaries** (see below).
 
-Each task gets a review of its diff and evidence. Each phase ends with end-to-end verification: the full gate, the Postgres run, `make e2e` and a live check on the `odoo19-learning` sandbox. The development harness (`uv run e-agent-harness status`) holds the task contract, scope check, gate evidence and handoff for this loop; README lists the main commands.
+Each task gets a review of its diff and evidence. Each phase ends with end-to-end verification: the full gate, the Postgres run, `make e2e` and a live check on the `odoo19-learning` sandbox. The development harness (`uv run e-agent-harness status`) holds the task contract, scope check, gate evidence and handoff for this loop; README lists the main commands. Claude Code sessions also load `.claude/settings.json`, whose hooks run the status brief, the pre-compaction checkpoint and the scope check, and whose permission rules deny `odoo-bench` and ask before `git push`, `merge`, `rebase` and `reset --hard`; Codex runs the same commands by hand.
 
 ## Repository map
 
