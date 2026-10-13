@@ -244,7 +244,7 @@ flowchart LR
 ```
 
 Status:
-- **[I]** All of these responsibilities except ContextAssembler and ProgressLedger exist today inside `coordinator.py` (1509 lines).
+- **[I]** All of these responsibilities except ContextAssembler and ProgressLedger exist today; since Phase 1 they are mixin modules behind the `RunCoordinator` facade in `coordinator.py` (§15).
 - **[P]** Splitting them into these services, behind an unchanged facade. The ContextAssembler and ProgressLedger are new responsibilities. The run and action transition tables both exist.
 
 ---
@@ -533,7 +533,7 @@ sequenceDiagram
     K->>K: acceptance spec → SUCCEEDED or repair/stop
 ```
 
-Repair limits come from the task definition and the profile (MVP §10 defaults). **Repeat detection [P]:** a proposal whose digest equals an already blocked revision in the same run gets a `KERNEL-REPEAT` finding without re-validation, and it counts against the repair budget. Today the kernel only short-circuits a repeated *verified* answer (`coordinator.py:744-753`). An exhausted budget stops new work. A possibly dispatched write still goes to reconciliation.
+Repair limits come from the task definition and the profile (MVP §10 defaults). **Repeat detection [P]:** a proposal whose digest equals an already blocked revision in the same run gets a `KERNEL-REPEAT` finding without re-validation, and it counts against the repair budget. Today the kernel only short-circuits a repeated *verified* answer (`proposals.py: _handle_proposal`). An exhausted budget stops new work. A possibly dispatched write still goes to reconciliation.
 
 ---
 
@@ -771,7 +771,7 @@ A trigger is a business event that asks e-agent to start a task. Triggers must n
 3. **Untrusted payload.** The event body is task input and evidence, handled like user text. It cannot carry approvals, budgets or policy.
 4. **Same approval.** Writes still need policy evaluation and, where required, human approval by an authorized approver. The service principal cannot approve its own run's writes.
 5. **Rate and budget limits** per trigger and tenant, enforced at admission.
-6. **Approval reachability.** Approval expires (MVP §10 default 15 minutes), and `approval_ttl` is a single coordinator setting today (`coordinator.py:119`). Before WP1, expiry was checked only when a decision arrived and no sweeper existed, so a run started by a webhook at night stayed in `WAITING_APPROVAL` indefinitely. An **expiry sweeper [I]** (fenced `expire` work, ADR 0019) now runs every `APPROVAL_SWEEP_SECONDS = 30`: it enqueues `expire` work, and the worker re-checks the TTL under the claim, moves the pending action to `BLOCKED` and fails the run with `APPROVAL_EXPIRED`. Repairing the run per the task definition instead of failing it stays [P]. Triggered tasks that need approval therefore also need two things: an approver notification and inbox path [P], which is out of scope in ADR 0017 today, and an approval TTL set per task definition [P]. **Until both exist, triggers are limited to read/answer tasks and to writes that policy permits without approval.**
+6. **Approval reachability.** Approval expires (MVP §10 default 15 minutes), and `approval_ttl` is a single coordinator setting today (`coordinator.py: RunCoordinator.__init__`). Before WP1, expiry was checked only when a decision arrived and no sweeper existed, so a run started by a webhook at night stayed in `WAITING_APPROVAL` indefinitely. An **expiry sweeper [I]** (fenced `expire` work, ADR 0019) now runs every `APPROVAL_SWEEP_SECONDS = 30`: it enqueues `expire` work, and the worker re-checks the TTL under the claim, moves the pending action to `BLOCKED` and fails the run with `APPROVAL_EXPIRED`. Repairing the run per the task definition instead of failing it stays [P]. Triggered tasks that need approval therefore also need two things: an approver notification and inbox path [P], which is out of scope in ADR 0017 today, and an approval TTL set per task definition [P]. **Until both exist, triggers are limited to read/answer tasks and to writes that policy permits without approval.**
 
 ```python
 class TriggerSpec(BaseModel):          # profile-declared (proposed)
@@ -810,7 +810,7 @@ flowchart TB
 | Mechanism | Purpose | Status |
 |---|---|---|
 | Bounded run slots per worker (`asyncio` semaphore / task group), per-tenant cap in the claim query | Concurrency with fairness; slot count is bounded by model concurrency and pool size, not CPU (for local Ollama, by its parallel-request setting) | [P] (1 slot today) |
-| Waits release slots | A claim ends when the run reaches `WAITING_APPROVAL`/`WAITING_INPUT` (`store.wait_for_approval` is an atomic state + continuation write, `store.py:262`). An approval decision enqueues new work (`api.py:574`); an input is accepted together with its work item atomically (`coordinator.py:456`, `accept_input(enqueue=True)`). Human waits therefore do not hold slots | [I] |
+| Waits release slots | A claim ends when the run reaches `WAITING_APPROVAL`/`WAITING_INPUT` (`store.wait_for_approval` is an atomic state + continuation write, `store.py:262`). An approval decision enqueues new work (`api.py:574`); an input is accepted together with its work item atomically (`run_loop.py: accept_input(enqueue=True)`). Human waits therefore do not hold slots | [I] |
 | Admission control at enqueue | Per-tenant queue-depth limit with an explicit queued or rejected response, checked in the same transaction as the enqueue so concurrent submissions cannot race past it; per-tenant token quotas in the profile | [P] |
 | Model-call retry policy | Retries on model 429/5xx are allowed because they have no side effect, but they consume the active-time and token budget. They are a different category from write retries, which are never automatic | [P] (policy to be written down) |
 | Shared-singleton audit before slots > 1 | The driver keys `_RunState` by `run_id`; work claim is a `ContextVar`; still check the executor client, text bus and caches | [P] |
@@ -844,8 +844,8 @@ Results are labelled fixture/infrastructure evidence, never live qualification.
 |---|---|---|
 | Two creates by the same actor with the same `Idempotency-Key` and payload | One run; the second call returns the existing run. The key is scoped per actor (`PRIMARY KEY (tenant_id, actor_id, idem_key)`), so two actors sharing a key make two runs | [I] (`migrations/0002_api_idempotency.sql`; header required, `api.py:455`) |
 | Same actor and key, different payload | 409 CONFLICT | [I] (`0002` header comment) |
-| Two approvers decide the same action | Compare-and-swap on `expected_run_revision`: the first wins, the second gets 409 (`coordinator.py:971`) | [I] |
-| Decision for an action no longer pending, or with a stale digest | 409 CONFLICT / APPROVAL_STALE (`coordinator.py:974-979`) | [I] |
+| Two approvers decide the same action | Compare-and-swap on `expected_run_revision`: the first wins, the second gets 409 (`approval_flow.py: decide`) | [I] |
+| Decision for an action no longer pending, or with a stale digest | 409 CONFLICT / APPROVAL_STALE (`approval_flow.py: decide`) | [I] |
 | Input while the run is not `WAITING_INPUT` or the revision moved | 409 (`api.py:589`) | [I] |
 | Request on another tenant's run | 404 with a FORBIDDEN body; absent and foreign look the same (`api.py:510`) | [I] |
 | Many requests from one principal | No per-principal request limit; only budget exhaustion returns 429 (`api.py:58`) | [P] token-bucket limits per principal and per tenant at the API, separate from run budgets |
@@ -881,7 +881,7 @@ Adding a domain means creating a pack distribution with ontology, contracts, rul
 
 ### 13.2 Authorization model
 
-**Today [I].** Self-approval is refused unless `operator.allow_self_approval` is set (ADR 0019) [I]; the fixture profile sets it, `profiles/live.example.json` keeps the forbidden default, and `/health/ready` reports `self_approval_allowed`. Two static roles, `requester` and `approver` (`kernel/policy.py:9-10`). `DefaultPolicy` permits when the principal has the requester role and the connection is in `resource_scope`, and requires approval exactly when the effect is a write (`policy.py:13-31`). `decide` requires the approver role (`coordinator.py:969`); input requires the principal to be the requester (`api.py:587`); run reads, the stream and the evidence export are tenant-scoped only (`api.py:472`, `api.py:510`, `api.py:615`). Roles come from the profile's operator in local mode (`bootstrap.py:161-166`). Reads are the odd one out: any tenant member can read any run and export its evidence, while HLD §9 requires export authorization.
+**Today [I].** Self-approval is refused unless `operator.allow_self_approval` is set (ADR 0019) [I]; the fixture profile sets it, `profiles/live.example.json` keeps the forbidden default, and `/health/ready` reports `self_approval_allowed`. Two static roles, `requester` and `approver` (`kernel/policy.py:9-10`). `DefaultPolicy` permits when the principal has the requester role and the connection is in `resource_scope`, and requires approval exactly when the effect is a write (`policy.py:13-31`). `decide` requires the approver role (`approval_flow.py: decide`); input requires the principal to be the requester (`api.py:587`); run reads, the stream and the evidence export are tenant-scoped only (`api.py:472`, `api.py:510`, `api.py:615`). Roles come from the profile's operator in local mode (`bootstrap.py:161-166`). Reads are the odd one out: any tenant member can read any run and export its evidence, while HLD §9 requires export authorization.
 
 **Target [P].** Extend this model; do not replace it with an external policy engine.
 
@@ -936,7 +936,7 @@ Rejected or deferred: an external policy decision point (OPA, Cedar) [C]. Trigge
 
 Legend: `[I]` exists, `[P]` proposed (created when implemented), `[C]` created only when its trigger fires. Per AGENTS.md, no empty future packages are created.
 
-The layout is `[I]` since roadmap Phase 1 (2026-10-13). All Python code is one layer-grouped tree under `src/e_agent/` with no repeated folder names, and each distribution keeps its own build config in `dists/<name>/`, so the 10 distributions are still released independently; see the [Phase 1 plan](../plans/2026-10-12-phase1-structure-refactor.md). A new distribution adds `src/e_agent/<part>/`, `dists/<name>/pyproject.toml` and `tests/unit/<part>/`.
+The layout is `[I]` since roadmap Phase 1 (2026-10-13). All Python code is one layer-grouped tree under `src/e_agent/` with no repeated folder names, and each distribution keeps its own build config in `dists/<name>/`, so the 10 distributions are still released independently; see the [Phase 1 plan](../plans/2026-10-12-phase1-structure-refactor.md). A new distribution adds `src/e_agent/<part>/`, `dists/<name>/pyproject.toml` and `tests/unit/<part>/`. The kernel and server modules are mixins behind the `RunCoordinator` and `ApiState` facades (Phase 1); collaborators later if needed. `tests/unit/kernel/test_structure.py` keeps each method defined once, every kernel module at most 500 lines and only the facade importing `coordinator`.
 
 ```text
 e-agent/
@@ -954,15 +954,18 @@ e-agent/
 │   │   ├── store.py                RunStore (+ work API = substrate seam)     [I]
 │   │   └── memory.py               MemoryStore port                           [P]
 │   ├── kernel/                     e_agent.kernel — trust anchor             [I]
-│   │   ├── coordinator.py          facade (today: everything)                 [I]
-│   │   ├── transitions.py          run + action transition enforcement        [P]
-│   │   ├── run_loop.py             driver stepping, budgets                   [P]
+│   │   ├── coordinator.py          RunCoordinator facade: run start/admit     [I]
+│   │   ├── continuation.py         base mixin: state, persist, stubs          [I]
+│   │   ├── transitions.py          run + action transition enforcement        [I]
+│   │   ├── run_loop.py             driver stepping, input, budgets            [I]
+│   │   ├── gateway.py              authorized, recorded reads                 [I]
+│   │   ├── proposals.py            proposals, answers, validation             [I]
+│   │   ├── approval_flow.py        approval request, expiry, decide           [I]
+│   │   ├── dispatch.py             staleness, reserve, writer rule, receipt   [I]
+│   │   ├── verification.py         verifiers, verified finish                 [I]
+│   │   ├── recovery.py             reconcile, cancel, recover                 [I]
 │   │   ├── context.py              ContextAssembler                           [P]
 │   │   ├── ledger.py               ProgressLedger projection                  [P]
-│   │   ├── gateway.py              read/write admission                       [P]
-│   │   ├── dispatch.py             reserve, writer rule, lease, receipt       [P]
-│   │   ├── verification.py         acceptance spec, verifiers                 [P]
-│   │   ├── recovery.py             leases, reconcile                          [P]
 │   │   └── approval.py policy.py registry.py discovery.py ...                [I]
 │   ├── erp/                        e_agent.erp — bounded contexts            [I]
 │   │   ├── procurement/            api, normalizer, rules, shapes, ontology,  [I]
@@ -990,8 +993,10 @@ e-agent/
 │       ├── bootstrap.py            wiring, profile → plugins → registry       [I]
 │       ├── api.py                  FastAPI routes, SSE                        [I]
 │       ├── cli.py                  demo, migrate, recover, serve              [I]
-│       ├── worker.py               `e-agent worker` role, run slots           [P]
-│       ├── streaming.py            LISTEN dispatcher + SSE fan-out            [P]
+│       ├── worker.py               in-process work loop, approval sweeper     [I]
+│       │                           `e-agent worker` role, run slots           [P]
+│       ├── streaming.py            public text bus                            [I]
+│       │                           LISTEN dispatcher + SSE fan-out            [P]
 │       ├── triggers.py             webhook/schedule → run admission           [P]
 │       └── profiles/               non-secret profiles                        [I]
 ├── dists/                          one build config per distribution          [I]
@@ -1024,13 +1029,13 @@ Paths are relative to `src/e_agent/`.
 
 | Architecture element | Location today | After split |
 |---|---|---|
-| Run/action state, transitions | `contracts/{run,action}.py`; `kernel/coordinator.py` (`_set_run_state`, `_transition`) | `kernel/transitions.py` |
-| Driver loop and budgets | `kernel/coordinator.py` (`_drive`) | `kernel/run_loop.py` |
+| Run/action state, transitions | `contracts/{run,action}.py`; `kernel/transitions.py` (`_set_run_state`, `_transition`) | done (Phase 1) |
+| Driver loop and budgets | `kernel/run_loop.py` (`_drive`) | done (Phase 1) |
 | Approval | `kernel/approval.py`, `contracts/digest.py` | unchanged |
-| Dispatch and writer serialization | `kernel/coordinator.py: _dispatch`; `adapters/postgres/store.py: writer_lock` | `kernel/dispatch.py` + lease rows |
+| Dispatch and writer serialization | `kernel/dispatch.py: _dispatch`; `adapters/postgres/store.py: writer_lock` | + lease rows |
 | Work queue / substrate | `sdk/store.py` (work API), `adapters/postgres/store.py: claim_work` | unchanged seam |
-| Worker loop | `server/api.py: ApiState.worker` | `server/worker.py` |
-| SSE | `server/api.py: stream` | `server/streaming.py` |
+| Worker loop | `server/worker.py: WorkerMixin.worker` (part of `ApiState`) | + `e-agent worker` process role (C4) |
+| SSE | `server/api.py: stream` (route closure); `server/streaming.py: PublicTextBus` | LISTEN dispatcher in `server/streaming.py` |
 | Plugin discovery/admission | `sdk/discovery.py`, `kernel/discovery.py`, `kernel/registry.py` | unchanged |
 | Driver adapter | `adapters/pydantic_ai/driver.py` | + context rendering from `ContextPack` |
 | Domain rules and verifiers | `erp/procurement/{rules,shapes,validation.py,verifier.py}` | + `tasks/`, `skills/` |

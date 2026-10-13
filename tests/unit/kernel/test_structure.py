@@ -5,9 +5,11 @@ name that tests, scripts and the server import from `e_agent.kernel.coordinator`
 importable from there, and every method they call reachable on `RunCoordinator`.
 """
 
+import ast
 import importlib
 import inspect
 import logging
+import textwrap
 import tomllib
 from pathlib import Path
 
@@ -94,3 +96,28 @@ def test_facade_import_contract_covers_every_other_kernel_module() -> None:
     assert contract["forbidden_modules"] == ["e_agent.kernel.coordinator"]
     modules = {f"e_agent.kernel.{p.stem}" for p in KERNEL.glob("*.py") if p.stem != "__init__"}
     assert set(contract["source_modules"]) == modules - {"e_agent.kernel.coordinator"}
+
+
+def _type_checking_stubs() -> dict[str, ast.AsyncFunctionDef | ast.FunctionDef]:
+    tree = ast.parse((KERNEL / "continuation.py").read_text(encoding="utf-8"))
+    [base] = [n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "ContinuationMixin"]
+    stubs: dict[str, ast.AsyncFunctionDef | ast.FunctionDef] = {}
+    for block in base.body:
+        if isinstance(block, ast.If) and ast.unparse(block.test) == "TYPE_CHECKING":
+            for node in block.body:
+                if isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef):
+                    stubs[node.name] = node
+    return stubs
+
+
+def test_every_type_checking_stub_has_one_real_method_with_its_signature() -> None:
+    stubs = _type_checking_stubs()
+    assert stubs
+    for name, stub in stubs.items():
+        real = getattr(coordinator.RunCoordinator, name)
+        assert inspect.isfunction(real), name
+        real_node = ast.parse(textwrap.dedent(inspect.getsource(real))).body[0]
+        assert isinstance(real_node, ast.AsyncFunctionDef | ast.FunctionDef)
+        assert ast.unparse(stub.args) == ast.unparse(real_node.args), name
+        assert ast.dump(stub.returns) == ast.dump(real_node.returns), name
+        assert isinstance(stub, ast.AsyncFunctionDef) == isinstance(real_node, ast.AsyncFunctionDef)

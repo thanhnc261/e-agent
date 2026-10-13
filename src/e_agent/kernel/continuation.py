@@ -1,8 +1,10 @@
 """Run continuation state shared by the coordinator mixins (Phase 1 split of coordinator.py).
 
-ContinuationMixin is the base of every coordinator mixin: it declares the
+ContinuationMixin is the base of every coordinator mixin. It declares the
 attributes RunCoordinator.__init__ sets and, for type checking only, the
-methods one mixin calls on another.
+methods one mixin calls on another (tests/unit/kernel/test_structure.py keeps
+each stub matched to its one real method). It implements continuation load,
+persist and snapshot, and the budgeted `_timed` call wrapper.
 """
 
 from __future__ import annotations
