@@ -9,7 +9,8 @@
         "tests/harness/test_hook_wrapper.py passes",
         "check-scope fails closed; status and checkpoint never block"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/H4.1/2026-10-13T14-02-03.312495+00-00-full.json"
     },
     {
       "id": "F-H4-2",

@@ -119,3 +119,8 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1.R1.json, harness/state/evidence/gates/1.R1/2026-10-13T13-58-27.990591+00-00-full.json
 - next: harness H4: settings, hooks and agents
 - open: none
+
+## 2026-10-13T14:08:17.122185+00:00 · 7ae53108-c378-473b-8d82-0a980741f45f · H4.1
+- changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.1.json, harness/state/evidence/gates/H4.1/2026-10-13T14-02-03.312495+00-00-full.json
+- next: H4.2 settings.json
+- open: none

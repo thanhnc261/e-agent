@@ -1,0 +1,19 @@
+{
+  "task": "H4.1",
+  "changed": "Hook entry script .claude/hooks/harness_hook.py: finds the repository from the payload cwd, runs e-agent-harness there; check-scope fails closed, status/checkpoint/format never block, close-check blocks only when unattended; 7 tests.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.1/2026-10-13T14-02-03.312495+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "pyproject.toml added to the scope with amend-scope for the ruff per-file ignores of the hook script",
+      "cost_if_wrong": "none"
+    },
+    {
+      "ruling": "Outside a uv project the script runs the current interpreter module, which is how the scratch-repo tests run it",
+      "cost_if_wrong": "a non-uv checkout needs e_agent_harness on the interpreter path"
+    }
+  ],
+  "outside_repo": []
+}
