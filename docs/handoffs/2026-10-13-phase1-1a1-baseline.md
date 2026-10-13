@@ -59,36 +59,61 @@ The 10 wheels `check_wheels.py` built into `dist/` were copied to `evidence/base
 
 Wheel `wheel_sha256` values (`evidence/baseline/wheels.sha256`) are recorded too, but they are not a comparator for 1a.3 (see rulings).
 
-## Wheel file lists
+## Wheel reference (the "must be identical after the move" list)
 
-`unzip -l` of every wheel is in `evidence/baseline/unzip-l/`; the sorted `unzip -Z1` name lists are in `evidence/baseline/names/`. The fingerprint is the first 16 hex digits of the sha256 of the sorted name list, so 1a.3 can compare without the local evidence:
+`unzip -l` of every wheel is in `evidence/baseline/unzip-l/` (local). The committed, backend-neutral reference is [2026-10-13-phase1-1a1-wheel-reference.txt](2026-10-13-phase1-1a1-wheel-reference.txt), 244 lines. For each of the 10 wheels it lists:
+- the file entries, sorted;
+- the distribution-identity fields of `METADATA` (`Name`, `Version`, `Requires-Python`, `Requires-Dist`, `Provides-Extra`), sorted;
+- `entry_points.txt` without blank lines.
 
-| Wheel (`-0.1.0-py3-none-any`) | Entries | Outside `.dist-info/` | Name-list sha256 (16) |
+It is backend-neutral on purpose:
+- Today's wheels are built by `uv_build` (`WHEEL` says `Generator: uv 0.11.25`, and every `pyproject.toml` has `build-backend = "uv_build"`).
+- `uv_build` also writes zero-length directory entries such as `e_agent/` and `e_agent/kernel/`.
+- The plan's `dists/<name>/pyproject.toml` uses hatchling, which writes file entries only and orders `METADATA` fields differently.
+- So directory entries are dropped, the identity fields are sorted, and everything is sorted under `LC_ALL=C`. The output is the same under `C` and `en_US.UTF-8`.
+
+Regenerate it after the move and diff (`<dir>` holds the 10 new wheels):
+
+```sh
+export LC_ALL=C
+for w in $(ls <dir>/*.whl | sort); do
+  di=$(unzip -Z1 "$w" | grep -m1 '\.dist-info/' | cut -d/ -f1)
+  echo "## $(basename "$w")"
+  echo "# files";        unzip -Z1 "$w" | grep -v '/$' | sort
+  echo "# metadata";     unzip -p "$w" "$di/METADATA" | grep -E '^(Name|Version|Requires-Python|Requires-Dist|Provides-Extra):' | sort
+  echo "# entry_points"; unzip -p "$w" "$di/entry_points.txt" 2>/dev/null | grep -v '^[[:space:]]*$'
+done > new-reference.txt
+diff docs/handoffs/2026-10-13-phase1-1a1-wheel-reference.txt new-reference.txt
+```
+
+Any line in the diff needs an explanation. A hatchling-only `.dist-info/` file (for example `licenses/`) is backend noise. Any change outside `.dist-info/` is a defect.
+
+| Wheel (`-0.1.0-py3-none-any`) | Files | Outside `.dist-info/` | Entry points |
 |---|---|---|---|
-| `e_agent_adapter_agent_pydantic` | 9 | 5 | `4e9c2e6b0fbf9885` |
-| `e_agent_adapter_odoo` | 13 | 8 | `d407ea35bf740ec6` |
-| `e_agent_adapter_postgres` | 15 | 11 | `0a92423d277b1179` |
-| `e_agent_adapter_secretstore_local` | 9 | 5 | `27fc0067a62a3d6a` |
-| `e_agent_adapter_shacl` | 9 | 5 | `9dee8e58bedfc15d` |
-| `e_agent_contracts` | 24 | 20 | `a44a444213e3d305` |
-| `e_agent_domain_erp` | 60 | 55 | `234cc76b34e2b929` |
-| `e_agent_kernel` | 17 | 13 | `428faa10e4b07487` |
-| `e_agent_plugin_sdk` | 14 | 10 | `db75fc8ec9d495a0` |
-| `e_agent_server` | 14 | 9 | `a7a265717262e7bc` |
+| `e_agent_adapter_agent_pydantic` | 5 | 2 | none |
+| `e_agent_adapter_odoo` | 9 | 5 | `e_agent.plugins.v1: odoo19` |
+| `e_agent_adapter_postgres` | 10 | 7 | none |
+| `e_agent_adapter_secretstore_local` | 5 | 2 | none |
+| `e_agent_adapter_shacl` | 5 | 2 | none |
+| `e_agent_contracts` | 20 | 17 | none |
+| `e_agent_domain_erp` | 43 | 39 | `e_agent.plugins.v1: domain-erp` |
+| `e_agent_kernel` | 14 | 11 | none |
+| `e_agent_plugin_sdk` | 11 | 8 | none |
+| `e_agent_server` | 10 | 6 | `console_scripts: e-agent` |
 
-No wheel contains `__pycache__` or `.pyc` entries.
-
-Reproduce a list after the move: `unzip -Z1 dist/<wheel>.whl | sort | shasum -a 256`.
+No wheel contains `__pycache__` or `.pyc` entries. The domain-erp and odoo19 counts outside `.dist-info/` (39, 5) equal the plugin inventory's artifact file counts.
 
 ## Rulings
 
 - The gate counts on `08eb020` are the baseline. Cost if wrong: 1a.3 compares against the wrong counts; re-run the gate on `ebfcf70` (about one minute).
-- 1a.3 compares sorted wheel name lists, `manifest_sha256` and `artifact_sha256`, not `wheel_sha256`. Wheel bytes include `RECORD` and zip metadata that can change when only the source location changes. Cost if wrong: a missed byte-level difference; a direct `unzip -p` diff of the wheels settles it.
+- 1a.3 compares the wheel reference above plus `manifest_sha256` and `artifact_sha256`, not `wheel_sha256`. The build backend changes from `uv_build` to hatchling, so `WHEEL`, `RECORD` and the zip bytes change even when the payload is identical. Cost if wrong: a missed byte-level payload difference; `unzip -p` diffs of the payload files settle it.
+- The reference drops directory entries and sorts the identity fields, so the backend switch does not cause false mismatches. Cost if wrong: a real difference hidden by the normalisation; the raw `unzip -l` lists in `evidence/baseline/unzip-l/` still show it.
 - The inventory and listings use the wheels `check_wheels.py` built, not a second build. Cost if wrong: none for content; a rebuild from `08eb020` reproduces them.
 - `make e2e` was run as an extra baseline although 1a.1 does not require it, because it touches no container. Cost if wrong: about two minutes.
-- The Postgres gate was not run. Cost if wrong: a Postgres-only regression in 1a.3 has no pre-move reference; check out `08eb020` and run it then.
+- The Postgres gate was not run. This session's owner rule is "never touch any container", and the plan's Boundaries line allows containers only in 1c.11. Cost if wrong: a Postgres-only regression in 1a.3 (migration resources) has no pre-move reference; run it later on `08eb020`.
 
 ## Open items
 
-- `new-task` lists `docs/handoffs/**` twice in `allowed_paths` when it is passed explicitly, because it is also implicit. This is a harness nit, out of scope for this task.
-- Postgres baseline not recorded (see rulings).
+- **Plan conflict for the owner.** The Global Constraints list "the Postgres run" in the gate after every task. The Boundaries line allows containers only in 1c.11. 1a.3 needs a ruling: either an `e-agent-test-*` Postgres container is allowed for the gate, or the Postgres run moves to 1c.11. In the second case the 10 skipped migration and recovery tests are not checked across the layout move until then.
+- `new-task` lists `docs/handoffs/**` twice in `allowed_paths` when it is passed explicitly, because it is also implicit. The one-line dedupe belongs in `tools/harness/src/e_agent_harness/tasks.py`, which is outside this contract's allowed paths.
+- `evidence/` is git-ignored, so the F-1a-1 evidence and the handoff refs validate only on this machine. In a fresh clone or worktree, `close-check` for 1a.1 reports them missing. The committed wheel reference and this summary carry the numbers 1a.3 needs.

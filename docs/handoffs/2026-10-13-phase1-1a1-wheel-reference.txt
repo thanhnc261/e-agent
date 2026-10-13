@@ -1,0 +1,244 @@
+## e_agent_adapter_agent_pydantic-0.1.0-py3-none-any.whl
+# files
+e_agent/adapters/pydantic_ai/__init__.py
+e_agent/adapters/pydantic_ai/driver.py
+e_agent_adapter_agent_pydantic-0.1.0.dist-info/METADATA
+e_agent_adapter_agent_pydantic-0.1.0.dist-info/RECORD
+e_agent_adapter_agent_pydantic-0.1.0.dist-info/WHEEL
+# metadata
+Name: e-agent-adapter-agent-pydantic
+Requires-Dist: e-agent-contracts>=0.1,<0.2
+Requires-Dist: e-agent-plugin-sdk>=0.1,<0.2
+Requires-Dist: pydantic-ai-slim[openai]>=2.54,<3
+Requires-Python: >=3.12
+Version: 0.1.0
+# entry_points
+## e_agent_adapter_odoo-0.1.0-py3-none-any.whl
+# files
+e_agent/adapters/odoo/__init__.py
+e_agent/adapters/odoo/client.py
+e_agent/adapters/odoo/e_agent_plugin.json
+e_agent/adapters/odoo/executor.py
+e_agent/adapters/odoo/plugin.py
+e_agent_adapter_odoo-0.1.0.dist-info/METADATA
+e_agent_adapter_odoo-0.1.0.dist-info/RECORD
+e_agent_adapter_odoo-0.1.0.dist-info/WHEEL
+e_agent_adapter_odoo-0.1.0.dist-info/entry_points.txt
+# metadata
+Name: e-agent-adapter-odoo
+Requires-Dist: e-agent-contracts>=0.1,<0.2
+Requires-Dist: e-agent-domain-erp>=0.1,<0.2
+Requires-Dist: e-agent-plugin-sdk>=0.1,<0.2
+Requires-Dist: httpx>=0.28,<1
+Requires-Python: >=3.12
+Version: 0.1.0
+# entry_points
+[e_agent.plugins.v1]
+odoo19 = e_agent.adapters.odoo.plugin:create_plugin
+## e_agent_adapter_postgres-0.1.0-py3-none-any.whl
+# files
+e_agent/adapters/postgres/__init__.py
+e_agent/adapters/postgres/migrate.py
+e_agent/adapters/postgres/migrations/0001_initial.sql
+e_agent/adapters/postgres/migrations/0002_api_idempotency.sql
+e_agent/adapters/postgres/migrations/0003_run_work.sql
+e_agent/adapters/postgres/migrations/0004_run_work_expire.sql
+e_agent/adapters/postgres/store.py
+e_agent_adapter_postgres-0.1.0.dist-info/METADATA
+e_agent_adapter_postgres-0.1.0.dist-info/RECORD
+e_agent_adapter_postgres-0.1.0.dist-info/WHEEL
+# metadata
+Name: e-agent-adapter-postgres
+Requires-Dist: e-agent-contracts>=0.1,<0.2
+Requires-Dist: e-agent-plugin-sdk>=0.1,<0.2
+Requires-Dist: psycopg-pool>=3.2,<4
+Requires-Dist: psycopg[binary]>=3.3,<4
+Requires-Python: >=3.12
+Version: 0.1.0
+# entry_points
+## e_agent_adapter_secretstore_local-0.1.0-py3-none-any.whl
+# files
+e_agent/adapters/secretstore_local/__init__.py
+e_agent/adapters/secretstore_local/store.py
+e_agent_adapter_secretstore_local-0.1.0.dist-info/METADATA
+e_agent_adapter_secretstore_local-0.1.0.dist-info/RECORD
+e_agent_adapter_secretstore_local-0.1.0.dist-info/WHEEL
+# metadata
+Name: e-agent-adapter-secretstore-local
+Requires-Dist: cryptography>=45
+Requires-Dist: e-agent-plugin-sdk>=0.1,<0.2
+Requires-Python: >=3.12
+Version: 0.1.0
+# entry_points
+## e_agent_adapter_shacl-0.1.0-py3-none-any.whl
+# files
+e_agent/adapters/shacl/__init__.py
+e_agent/adapters/shacl/engine.py
+e_agent_adapter_shacl-0.1.0.dist-info/METADATA
+e_agent_adapter_shacl-0.1.0.dist-info/RECORD
+e_agent_adapter_shacl-0.1.0.dist-info/WHEEL
+# metadata
+Name: e-agent-adapter-shacl
+Requires-Dist: e-agent-contracts>=0.1,<0.2
+Requires-Dist: e-agent-plugin-sdk>=0.1,<0.2
+Requires-Dist: pyshacl>=0.40,<0.41
+Requires-Dist: rdflib>=7.6,<8
+Requires-Python: >=3.12
+Version: 0.1.0
+# entry_points
+## e_agent_contracts-0.1.0-py3-none-any.whl
+# files
+e_agent/contracts/__init__.py
+e_agent/contracts/action.py
+e_agent/contracts/approval.py
+e_agent/contracts/capability.py
+e_agent/contracts/common.py
+e_agent/contracts/connection.py
+e_agent/contracts/context.py
+e_agent/contracts/digest.py
+e_agent/contracts/events.py
+e_agent/contracts/evidence.py
+e_agent/contracts/golden/digest_vectors.json
+e_agent/contracts/outcome.py
+e_agent/contracts/plan.py
+e_agent/contracts/receipt.py
+e_agent/contracts/run.py
+e_agent/contracts/validation.py
+e_agent/contracts/work.py
+e_agent_contracts-0.1.0.dist-info/METADATA
+e_agent_contracts-0.1.0.dist-info/RECORD
+e_agent_contracts-0.1.0.dist-info/WHEEL
+# metadata
+Name: e-agent-contracts
+Requires-Dist: pydantic>=2.13,<3
+Requires-Python: >=3.12
+Version: 0.1.0
+# entry_points
+## e_agent_domain_erp-0.1.0-py3-none-any.whl
+# files
+e_agent/erp/__init__.py
+e_agent/erp/common.py
+e_agent/erp/crm/__init__.py
+e_agent/erp/crm/api.py
+e_agent/erp/crm/lead.py
+e_agent/erp/crm/rules/inventory.json
+e_agent/erp/crm/shapes/lead-shapes.ttl
+e_agent/erp/e_agent_plugin.json
+e_agent/erp/inventory/__init__.py
+e_agent/erp/inventory/api.py
+e_agent/erp/plugin.py
+e_agent/erp/procurement/__init__.py
+e_agent/erp/procurement/amend.py
+e_agent/erp/procurement/answers.py
+e_agent/erp/procurement/api.py
+e_agent/erp/procurement/normalizer.py
+e_agent/erp/procurement/ontology/procurement.ttl
+e_agent/erp/procurement/rules/amend-inventory.json
+e_agent/erp/procurement/rules/inventory.json
+e_agent/erp/procurement/shapes/amend-shapes.ttl
+e_agent/erp/procurement/shapes/procurement-shapes.ttl
+e_agent/erp/procurement/validation.py
+e_agent/erp/procurement/verifier.py
+e_agent/erp/receivables/__init__.py
+e_agent/erp/receivables/api.py
+e_agent/erp/receivables/overdue.py
+e_agent/erp/receivables/rules/inventory.json
+e_agent/erp/sales/__init__.py
+e_agent/erp/sales/api.py
+e_agent/erp/sales/late_orders.py
+e_agent/erp/sales/quotation.py
+e_agent/erp/sales/rules/inventory.json
+e_agent/erp/sales/shapes/quotation-shapes.ttl
+e_agent/erp/testing/__init__.py
+e_agent/erp/testing/fake_erp.py
+e_agent/erp/testing/fixture_validator.py
+e_agent/erp/testing/scenarios.py
+e_agent/erp/testing/scripted_driver.py
+e_agent/erp/testing/scripted_tasks.py
+e_agent_domain_erp-0.1.0.dist-info/METADATA
+e_agent_domain_erp-0.1.0.dist-info/RECORD
+e_agent_domain_erp-0.1.0.dist-info/WHEEL
+e_agent_domain_erp-0.1.0.dist-info/entry_points.txt
+# metadata
+Name: e-agent-domain-erp
+Requires-Dist: e-agent-contracts>=0.1,<0.2
+Requires-Dist: e-agent-plugin-sdk>=0.1,<0.2
+Requires-Dist: pydantic>=2.13,<3
+Requires-Python: >=3.12
+Version: 0.1.0
+# entry_points
+[e_agent.plugins.v1]
+domain-erp = e_agent.erp.plugin:create_plugin
+## e_agent_kernel-0.1.0-py3-none-any.whl
+# files
+e_agent/kernel/__init__.py
+e_agent/kernel/approval.py
+e_agent/kernel/connections.py
+e_agent/kernel/coordinator.py
+e_agent/kernel/credentials.py
+e_agent/kernel/discovery.py
+e_agent/kernel/errors.py
+e_agent/kernel/evidence.py
+e_agent/kernel/memory_store.py
+e_agent/kernel/policy.py
+e_agent/kernel/registry.py
+e_agent_kernel-0.1.0.dist-info/METADATA
+e_agent_kernel-0.1.0.dist-info/RECORD
+e_agent_kernel-0.1.0.dist-info/WHEEL
+# metadata
+Name: e-agent-kernel
+Requires-Dist: e-agent-contracts>=0.1,<0.2
+Requires-Dist: e-agent-plugin-sdk>=0.1,<0.2
+Requires-Python: >=3.12
+Version: 0.1.0
+# entry_points
+## e_agent_plugin_sdk-0.1.0-py3-none-any.whl
+# files
+e_agent/sdk/__init__.py
+e_agent/sdk/auth.py
+e_agent/sdk/discovery.py
+e_agent/sdk/errors.py
+e_agent/sdk/manifest.py
+e_agent/sdk/ports.py
+e_agent/sdk/store.py
+e_agent/sdk/validation.py
+e_agent_plugin_sdk-0.1.0.dist-info/METADATA
+e_agent_plugin_sdk-0.1.0.dist-info/RECORD
+e_agent_plugin_sdk-0.1.0.dist-info/WHEEL
+# metadata
+Name: e-agent-plugin-sdk
+Requires-Dist: e-agent-contracts>=0.1,<0.2
+Requires-Dist: pydantic>=2.13,<3
+Requires-Python: >=3.12
+Version: 0.1.0
+# entry_points
+## e_agent_server-0.1.0-py3-none-any.whl
+# files
+e_agent/server/__init__.py
+e_agent/server/api.py
+e_agent/server/bootstrap.py
+e_agent/server/cli.py
+e_agent/server/profile.py
+e_agent/server/profiles/fixture.json
+e_agent_server-0.1.0.dist-info/METADATA
+e_agent_server-0.1.0.dist-info/RECORD
+e_agent_server-0.1.0.dist-info/WHEEL
+e_agent_server-0.1.0.dist-info/entry_points.txt
+# metadata
+Name: e-agent-server
+Requires-Dist: e-agent-adapter-agent-pydantic>=0.1,<0.2
+Requires-Dist: e-agent-adapter-odoo>=0.1,<0.2
+Requires-Dist: e-agent-adapter-postgres>=0.1,<0.2
+Requires-Dist: e-agent-adapter-secretstore-local>=0.1,<0.2
+Requires-Dist: e-agent-adapter-shacl>=0.1,<0.2
+Requires-Dist: e-agent-contracts>=0.1,<0.2
+Requires-Dist: e-agent-domain-erp>=0.1,<0.2
+Requires-Dist: e-agent-kernel>=0.1,<0.2
+Requires-Dist: e-agent-plugin-sdk>=0.1,<0.2
+Requires-Dist: fastapi>=0.142,<1
+Requires-Dist: uvicorn>=0.37,<1
+Requires-Python: >=3.12
+Version: 0.1.0
+# entry_points
+[console_scripts]
+e-agent = e_agent.server.cli:main

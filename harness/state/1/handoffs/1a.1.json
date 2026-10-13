@@ -1,6 +1,6 @@
 {
   "task": "1a.1",
-  "changed": "Baseline evidence for the Phase 1 layout move; no product code changed. Phase 1 feature list and the 1a.1 contract committed; F-1a-1 passes. Full gate 572 passed/30 skipped, make e2e 150 passed/4 skipped, check_wheels.py all 13 ok; domain-erp manifest 2203e547\u2026/artifact 0f1c8f61\u2026, odoo19 manifest 4c2c34b5\u2026/artifact 8df983a7\u2026; unzip -l and sorted name lists of all 10 wheels. Summary: docs/handoffs/2026-10-13-phase1-1a1-baseline.md.",
+  "changed": "Baseline evidence for the Phase 1 layout move; no product code changed. Phase 1 feature list and the 1a.1 contract committed; F-1a-1 passes. Full gate 572 passed/30 skipped, make e2e 150 passed/4 skipped, check_wheels.py all 13 ok; domain-erp manifest 2203e547\u2026/artifact 0f1c8f61\u2026, odoo19 manifest 4c2c34b5\u2026/artifact 8df983a7\u2026; unzip -l of all 10 wheels plus a committed backend-neutral, locale-stable wheel reference (files, METADATA identity fields, entry points): docs/handoffs/2026-10-13-phase1-1a1-wheel-reference.txt. Summary: docs/handoffs/2026-10-13-phase1-1a1-baseline.md. Review fixes: reference drops uv_build directory entries and sorts under LC_ALL=C; identity fields added; F-1a-3 steps name the comparison.",
   "evidence_refs": [
     "evidence/gates/1a.1/2026-10-13T01-13-47+00-00.json",
     "evidence/baseline/gate-full.txt",
@@ -11,6 +11,7 @@
     "evidence/baseline/inventory-domain-erp.json",
     "evidence/baseline/inventory-odoo19.json",
     "evidence/baseline/wheels.sha256",
+    "evidence/baseline/wheel-reference.txt",
     "evidence/baseline/unzip-l/e_agent_adapter_agent_pydantic-0.1.0-py3-none-any.txt",
     "evidence/baseline/unzip-l/e_agent_adapter_odoo-0.1.0-py3-none-any.txt",
     "evidence/baseline/unzip-l/e_agent_adapter_postgres-0.1.0-py3-none-any.txt",
@@ -30,11 +31,32 @@
     "evidence/baseline/names/e_agent_domain_erp-0.1.0-py3-none-any.txt",
     "evidence/baseline/names/e_agent_kernel-0.1.0-py3-none-any.txt",
     "evidence/baseline/names/e_agent_plugin_sdk-0.1.0-py3-none-any.txt",
-    "evidence/baseline/names/e_agent_server-0.1.0-py3-none-any.txt"
+    "evidence/baseline/names/e_agent_server-0.1.0-py3-none-any.txt",
+    "evidence/baseline/files/e_agent_adapter_agent_pydantic.txt",
+    "evidence/baseline/files/e_agent_adapter_odoo.txt",
+    "evidence/baseline/files/e_agent_adapter_postgres.txt",
+    "evidence/baseline/files/e_agent_adapter_secretstore_local.txt",
+    "evidence/baseline/files/e_agent_adapter_shacl.txt",
+    "evidence/baseline/files/e_agent_contracts.txt",
+    "evidence/baseline/files/e_agent_domain_erp.txt",
+    "evidence/baseline/files/e_agent_kernel.txt",
+    "evidence/baseline/files/e_agent_plugin_sdk.txt",
+    "evidence/baseline/files/e_agent_server.txt",
+    "evidence/baseline/identity/e_agent_adapter_agent_pydantic.txt",
+    "evidence/baseline/identity/e_agent_adapter_odoo.txt",
+    "evidence/baseline/identity/e_agent_adapter_postgres.txt",
+    "evidence/baseline/identity/e_agent_adapter_secretstore_local.txt",
+    "evidence/baseline/identity/e_agent_adapter_shacl.txt",
+    "evidence/baseline/identity/e_agent_contracts.txt",
+    "evidence/baseline/identity/e_agent_domain_erp.txt",
+    "evidence/baseline/identity/e_agent_kernel.txt",
+    "evidence/baseline/identity/e_agent_plugin_sdk.txt",
+    "evidence/baseline/identity/e_agent_server.txt"
   ],
   "open_items": [
-    "new-task lists docs/handoffs/** twice in allowed_paths when passed explicitly (harness nit, out of scope)",
-    "Postgres gate baseline not recorded; containers are allowed only in 1c.11"
+    "Plan conflict for the owner: Global Constraints require the Postgres run after every task, Boundaries allow containers only in 1c.11; 1a.3 needs a ruling (allow an e-agent-test-* Postgres container, or defer the Postgres run to 1c.11)",
+    "new-task lists docs/handoffs/** twice in allowed_paths when passed explicitly; the dedupe belongs in tools/harness/src/e_agent_harness/tasks.py, outside this contract",
+    "evidence/ is git-ignored, so the F-1a-1 evidence and handoff refs validate only on this machine; the committed wheel reference and summary carry what 1a.3 needs"
   ],
   "rulings": [
     {
@@ -42,8 +64,12 @@
       "cost_if_wrong": "1a.3 compares against wrong counts; re-run the gate on ebfcf70 (about one minute)"
     },
     {
-      "ruling": "1a.3 compares sorted wheel name lists, manifest_sha256 and artifact_sha256, not wheel_sha256 (RECORD and zip metadata may change with source location)",
-      "cost_if_wrong": "a missed byte-level difference; a direct unzip -p diff of the wheels settles it"
+      "ruling": "1a.3 compares the wheel reference plus manifest_sha256 and artifact_sha256, not wheel_sha256: the backend changes from uv_build to hatchling, so WHEEL, RECORD and zip bytes change even with identical payload",
+      "cost_if_wrong": "a missed byte-level payload difference; unzip -p diffs of payload files settle it"
+    },
+    {
+      "ruling": "The wheel reference drops directory entries, sorts METADATA identity fields and sorts under LC_ALL=C so the backend switch and shell locale cause no false mismatches",
+      "cost_if_wrong": "a real difference hidden by normalisation; the raw unzip -l lists in evidence/baseline/unzip-l still show it"
     },
     {
       "ruling": "Inventory and listings use the wheels check_wheels.py built (copied to evidence/baseline/wheels), not a second build",
@@ -54,8 +80,8 @@
       "cost_if_wrong": "about two minutes of runtime"
     },
     {
-      "ruling": "Postgres gate not run (needs the ledger container; plan allows containers only in 1c.11)",
-      "cost_if_wrong": "a Postgres-only regression in 1a.3 has no pre-move reference; run it then on 08eb020"
+      "ruling": "Postgres gate not run: the owner's session rule forbids touching any container and the plan Boundaries allow containers only in 1c.11",
+      "cost_if_wrong": "a Postgres-only regression in 1a.3 (migration resources) has no pre-move reference; run it later on 08eb020"
     }
   ],
   "outside_repo": []
