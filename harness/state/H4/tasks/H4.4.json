@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-H4-4"
   ],
-  "context_digest": "a290bd94e0f2bd8f15cc1a9ebe6146b485f2ffad4c6523a8200d73da2c68cf7f",
+  "context_digest": "9f9112e2678d49db539b3cbf61d5587c9c375c729c2b76233e200479f54efbb5",
   "allowed_paths": [
     ".agents/skills/eng-session/**",
     ".agents/skills/eng-verify/**",

@@ -9,6 +9,10 @@
     {
       "ruling": "No planted odoo-bench docker command was run live, because another session holds that stack; the deny rules are tested statically against eight command shapes",
       "cost_if_wrong": "a rule that matches in the test but not in Claude Code would only show in use"
+    },
+    {
+      "ruling": "H4.4 edited AGENTS.md, an authoritative file inside its own scope, so its contract went stale; refresh-task renewed the digest before close-check",
+      "cost_if_wrong": "none; a follow-up could exclude files inside a task's own allowed paths from its staleness check"
     }
   ],
   "outside_repo": []
