@@ -18,9 +18,9 @@ A phase starts only after its plan exists, is linked from the roadmap and is rev
 
 1. **Read the sources.** The roadmap row for the phase and its dependencies; the design sections and ADRs the row cites; the previous phase's handoff in `docs/handoffs/`; `docs/plans/` for the sibling plans' form.
 2. **Write the plan** at `docs/plans/<YYYY-MM-DD>-<phase-slug>.md` with the sections in [plan-sections.md](templates/plan-sections.md), in that order. Tasks are bite-sized, each with checkbox steps that name the failing test, the command and its expected output, and the commit.
-3. **Write the feature list** at `harness/state/<phase>/features.json`: one entry per task, `id` `F-<phase>-<n>`, `category` the part it touches, `description` one sentence, `steps` the task's verification steps, `passes` false. Start from [features.json](templates/features.json). Validate it:
+3. **Write the feature list** at `harness/state/<phase>/features.json`: one entry per task, `id` `F-<phase>-<n>`, `category` the part it touches, `description` one sentence, `steps` the task's verification steps, `passes` false. Start from [features.json](templates/features.json), or build it entry by entry with `uv run e-agent-harness add-feature`. Validate it:
 
-   `uv run python -c "import json; from e_agent_harness import contracts; print(contracts.validate('features', json.load(open('harness/state/<phase>/features.json'))))"` must print `[]`.
+   `uv run e-agent-harness validate features harness/state/<phase>/features.json` must print ok.
 
 4. **Link the plan** from the roadmap's phase table and run `uv run e-agent-harness validate-context` (the manifest's active plan and required sections are checked).
 5. **Self-review** the plan against the spec: every requirement has a task, no placeholders, names consistent across tasks, a Review Focus line for each failure mode the tests do not cover.

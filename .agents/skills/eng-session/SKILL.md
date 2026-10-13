@@ -22,14 +22,15 @@ One task per context window, every step checkable by the harness. The commands a
 2. `uv run e-agent-harness validate-context`: must print `ok`. A problem here is fixed before anything else.
 3. Confirm where you are: `git branch --show-current`, `git status --short`, `git log --oneline -5`. Work on the phase branch named in the plan, never on `main`.
 4. Smoke check: `uv run e-agent-harness gate quick --package <package of the task>`.
-5. One task: continue the active contract, or materialise the next unfinished feature with `uv run e-agent-harness new-task <phase> <task-id> --feature <F-id> --paths "<glob>" [--paths ...] --gate <set>`. When `status` reports a stale digest, re-run `new-task` with the same arguments and `--replace` (the base commit and creation time are kept).
+5. One task: continue the active contract, or materialise the next unfinished feature with `uv run e-agent-harness new-task <phase> <task-id> --feature <F-id> --paths "<glob>" [--paths ...] --gate <set>`. When `status` reports a stale digest, run `uv run e-agent-harness refresh-task`; when it reports that the feature steps changed, run `refresh-task --from-features`. Both keep the base commit, creation time and scope. After a task closes, `new-task` for the next feature needs no `--replace`.
 6. Commit the contract (`harness/state/**`) before the work starts, so the task's first work commit is separate.
 
 ## Work
 
 - Research in a fresh context (a delegated agent or a separate session), not in the main one; the main context holds the contract, the plan section and the files being changed.
 - Follow [eng-implement](../eng-implement/SKILL.md): a failing test first, then the minimal change (ENG-WORK-2).
-- `uv run e-agent-harness check-scope` before every commit; an out-of-scope path is a stop, not a note.
+- `uv run e-agent-harness check-scope` before every commit; it prints `ok: N changed paths inside scope`. An out-of-scope path is a stop, not a note; when the scope itself was wrong, `uv run e-agent-harness amend-scope --add "<glob>" --reason "<why>"` records the change in the contract.
+- A feature that the plan did not list (a review fix, a split task) is added with `uv run e-agent-harness add-feature <phase> <F-id> --category <part> --description "<one sentence>" --step "<check>"`; any contract file is checked with `uv run e-agent-harness validate <schema> <file>`.
 - At natural breaks, and always before compacting: `uv run e-agent-harness checkpoint --session <session id> --next "<the one next step>"`.
 - When the plan is wrong, rule: record what you decided, why, and the cost if wrong, in the handoff; update the plan in the same commit (ENG-PLAN-3).
 
@@ -38,11 +39,11 @@ One task per context window, every step checkable by the harness. The commands a
 The order is fixed by `close-check`; evidence from a dirty tree is rejected.
 
 1. Commit the work. `check-scope` passes.
-2. `uv run e-agent-harness gate <set>` on the clean tree; note the evidence path it prints.
+2. `uv run e-agent-harness gate <set>` with the contract's gate set, never the smoke set, on the clean tree; note the evidence path it prints (under `harness/state/evidence/`).
 3. Set the task's feature entry in `harness/state/<phase>/features.json` to `"passes": true` with `"evidence": "<that path>"`.
 4. Write the handoff JSON with [eng-handoff](../eng-handoff/SKILL.md); `uv run e-agent-harness handoff <task-id>` prints ok.
 5. `uv run e-agent-harness checkpoint --session <session id> --next "<next task or close>"`.
-6. Commit the bookkeeping (`harness/state/**`, `docs/handoffs/**` only).
+6. Commit the bookkeeping (`harness/state/**` including the evidence file, `docs/handoffs/**` only).
 7. `uv run e-agent-harness close-check --session <session id>` must print `ok: task may close`.
 8. Review with [eng-review](../eng-review/SKILL.md) in a fresh context; fix findings that affect correctness or the contract; re-run steps 1 to 7 for the fix.
 9. Retro line: if a correction was needed twice, add the gotcha, rule, skill line or hook in the same commit (ENG-WORK-3).
@@ -61,14 +62,9 @@ The order is fixed by `close-check`; evidence from a dirty tree is rejected.
 
 ## Known harness limits
 
-Workarounds until the harness fixes land; the ids refer to the Phase 1 pilot log.
+The Phase 1 pilot log's other rows were fixed in harness H2.1; one remains.
 
-- After `close-check` passes, `status` still shows the close action and `new-task` for the next task needs `--replace` (HP-3, HP-9).
-- Editing the active plan or the manifest mid-task makes the contract stale; re-materialise with `--replace` (HP-10).
-- Widening scope needs `new-task --replace` with the full path list; record the reason in the handoff (HP-11).
-- `gate full` has no UI unit tests; a change under `ui/**` also runs `pnpm --dir ui test` by hand (HP-12).
-- Evidence under `evidence/` is local only; copy the key numbers into the handoff (HP-4).
-- Right after `new-task`, `status` asks for a commit although only bookkeeping is dirty; commit the contract and continue (HP-2).
+- A contract has one gate set (HP-6). When the plan asks for more levels per task (the Postgres run, `make e2e`), run them through [eng-verify](../eng-verify/SKILL.md) and name them in the handoff.
 
 ## Unattended variant
 

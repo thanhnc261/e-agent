@@ -20,3 +20,24 @@ Severity: **high** = can let a wrong result pass or block a correct one; **mediu
 | HP-12 | 1a.3 | high | The `full` gate set has no UI unit tests (`pnpm --dir ui test`, vitest) and no UI type check. During the move, `ui/packages/ui-core/test/digest.test.ts` reads the Python golden vectors by relative path. It would have broken while `gate full` stayed green; it was caught only by `repo_move.py check` and a manual vitest run. | ran `pnpm test` by hand | add `pnpm --dir ui test` (and the UI typecheck) to `[gates].full`, or add a `ui` gate set that contracts touching `ui/**` must include. |
 | HP-13 | 1c.11 | high | The `pg` gate in `harness/context.toml` sets `E_AGENT_TEST_PG_DSN=$E_AGENT_PG_DSN`. The Postgres tests call `truncate_for_tests()`, which truncates runs, events, actions, reservations and approvals. With `~/.config/e-agent/live.env` sourced, as the README's live section instructs, `gate pg` would wipe the live ledger. | ran the Postgres suite against a separate `e_agent_test` database in the `e-agent-ledger` container | give the `pg` gate its own variable (`E_AGENT_TEST_PG_DSN`), and have the gate, or `truncate_for_tests`, refuse when the test DSN names the same database as `E_AGENT_PG_DSN`. |
 | HP-14 | 1c.11 | low | The whole-branch review at the end of a phase has no place in the loop. Its fixes need a feature id, but the feature list holds only plan tasks, so a review-fix entry had to be added by hand (`F-1-R1`). | added the entry and a task `1.R1` | add a standard per-phase `review` feature, or a `new-task --review` mode that creates one. |
+
+## Resolution (harness H2.1, 2026-10-13)
+
+Fixed on branch `harness/h21-cli-fixes` ([plan](../../../docs/plans/2026-10-13-harness-h21-cli-fixes.md), [handoff](../../../docs/handoffs/2026-10-13-harness-h21.md)).
+
+| Id | Resolution | Commit |
+|---|---|---|
+| HP-1 | `new-task` de-duplicates `allowed_paths`. | `02c4d96` |
+| HP-2 | `status` asks to commit the harness bookkeeping when only the new contract is dirty, and names the first acceptance step. | `7ccc43c` |
+| HP-3 | A task whose `close-check` passes is closed; `status` says so and names the next unfinished feature. | `a7665ef` |
+| HP-4 | Gate and live evidence are written under `harness/state/evidence/` and committed with the bookkeeping; `close-check` passes in a fresh clone. Old `evidence/…` references still validate. | `7ccc43c` |
+| HP-5 | `validate <schema> <file>`. | `b84fe8c` |
+| HP-6 | Open: a contract keeps one gate set; `eng-verify` orders the other levels. | — |
+| HP-7 | `check-scope` prints `ok: N changed paths inside scope`. | `a7665ef` |
+| HP-8 | A contract pins a digest of its feature entries; `status` and `close-check` report drift; `refresh-task --from-features` re-derives acceptance. | `02c4d96` |
+| HP-9 | `new-task` follows a closed task without `--replace`. | `a7665ef` |
+| HP-10 | `refresh-task` renews the digests without moving the base commit, creation time or scope; it is the remedy `status` names for a stale digest. | `02c4d96` |
+| HP-11 | `amend-scope --add <glob> --reason <why>` records the change in the contract's `scope_changes`. | `02c4d96` |
+| HP-12 | `gate full` and a new `ui` set run `pnpm --dir ui check`. Running it found a provider identifier in a UI test that had been red on `main` since 89b2b1e; fixed in `8ae3413`. | `5145fb0` |
+| HP-13 | The `pg` gate no longer aliases the live DSN; `[gate_guards.pg]` requires `E_AGENT_TEST_PG_DSN` and refuses when it names the same host, port and database as `E_AGENT_PG_DSN`. | `38ef5fb` |
+| HP-14 | `add-feature` appends a validated entry, so a phase-review fix gets its feature id by command. | `b84fe8c` |

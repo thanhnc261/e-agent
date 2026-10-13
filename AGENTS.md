@@ -73,9 +73,12 @@ Each task gets a review of its diff and evidence. Each phase ends with end-to-en
 - Knowledge ingestion, curation, canonical claims and projections are separate responsibilities. A graph/vector backend swap does not eliminate semantic migration, ACL or deletion requirements.
 - Framework memory and extracted content are untrusted inputs, not curated truth or executable policy.
 
-## UI/UX skills
+## Skills
 
-Agentic UI/UX work uses the `ag-*` skills in `.agents/skills/` (linked for Claude under `.claude/skills/`). Start from `ag-ux-foundations`; it holds the standard (`AG-*` criteria) that the current UI is audited and built against, and the binding e-agent requirements. Each stage skill stops at an owner gate. Validate skill changes with `uv run python scripts/check_agent_skills.py`.
+Skills live in `.agents/skills/` (linked for Claude under `.claude/skills/`). Validate skill changes with `uv run python scripts/check_agent_skills.py`.
+
+- **Engineering work** uses the `eng-*` skills. Start from `eng-session` (the session loop and close ritual); `eng-foundations` holds the engineering rules (`ENG-*`) that work is built and reviewed against. `live-sandbox` operates the `odoo19-learning` sandbox and is invoked by the owner only.
+- **Agentic UI/UX work** uses the `ag-*` skills. Start from `ag-ux-foundations`; it holds the standard (`AG-*` criteria) that the current UI is audited and built against, and the binding e-agent requirements. Each stage skill stops at an owner gate.
 
 ## Development and verification
 

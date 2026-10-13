@@ -153,6 +153,8 @@ This is the local dev loop every task follows, attended or not. The `eng-session
 | `handoff <task>` | Validates the handoff document against its schema and checks that every evidence ref it cites exists. |
 | `status [--format text\|hook]` | Prints the human status contract (Vietnamese ELI5 first if chosen in H0). `--format hook` emits the SessionStart `additionalContext` JSON with a `sessionTitle`, within the manifest's token budget, written as facts rather than imperatives. |
 
+**H2.1 2026-10-13** ([plan](2026-10-13-harness-h21-cli-fixes.md), [handoff](../handoffs/2026-10-13-harness-h21.md)): the Phase 1 pilot fixes. The `pg` gate is guarded against the live ledger, gate evidence is committed under `harness/state/evidence/`, the full gate runs the UI checks, a task closes, and `refresh-task`, `amend-scope`, `add-feature` and `validate` replace the `--replace` and hand-edit workarounds. Several gate sets per contract (HP-6) stays open.
+
 **Done 2026-10-13** (branch `harness/h2-cli`, [plan](2026-10-13-harness-h2-cli.md), [handoff](../handoffs/2026-10-13-harness-h2.md)). Rulings recorded there:
 - `live-check` runs the manifest's `live` gate set (identity, environment) with redaction and writes under `evidence/live/`; the configured live flows wait for the H5 pilot, which has the live profile.
 - Close-ritual order: commit the code, run `gate` on the clean tree, then checkpoint, handoff and a bookkeeping commit. `close-check` accepts evidence from an ancestor commit only when every later change is bookkeeping (`harness/state/**`, `docs/handoffs/**`, `evidence/**`).

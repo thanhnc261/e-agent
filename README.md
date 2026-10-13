@@ -134,10 +134,15 @@ uv build --package e-agent-kernel --wheel   # one distribution (wheels only; dis
 uv run pytest -q tests/conformance/test_harness_context.py  # dev-harness manifest and contract samples
 uv run e-agent-harness status                 # dev-harness brief: state, boundaries, one next action
 uv run e-agent-harness validate-context       # manifest vs checkout
-uv run e-agent-harness gate quick --package tests/unit/kernel   # evidence under evidence/gates/
+uv run e-agent-harness gate quick --package tests/unit/kernel   # evidence under harness/state/evidence/ (committed)
+uv run e-agent-harness gate pg               # needs E_AGENT_TEST_PG_DSN naming a separate test database; refuses the live ledger
 uv run e-agent-harness new-task <phase> <id> --feature <F-id> --paths <glob>   # task contract
 uv run e-agent-harness check-scope            # changed paths inside the task contract
 uv run e-agent-harness close-check --session <id>   # close ritual: clean tree, progress, evidence, handoff
+uv run e-agent-harness refresh-task [--from-features]   # new digests for the active task; base and scope kept
+uv run e-agent-harness amend-scope --add <glob> --reason <why>   # widen the active task's scope, recorded
+uv run e-agent-harness add-feature <phase> <F-id> --category <c> --description <d> --step <s>
+uv run e-agent-harness validate <schema> <file>   # check a contract file (features, task, handoff, review, ...)
 uv run python scripts/check_agent_skills.py  # validates the ag-* (UI) and eng-* (engineering) skills; start engineering work from eng-session
 
 # HTTP API + web UI (loopback only; Node 22.12+/24 and pnpm 10 for ui/)

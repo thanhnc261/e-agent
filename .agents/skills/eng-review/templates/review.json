@@ -7,7 +7,7 @@
       "severity": "High",
       "affects": "contract",
       "summary": "F-1c-1 marked passing with evidence recorded on a dirty tree",
-      "evidence": "evidence/gates/1c.1/2026-10-13T10-00-00+00-00.json clean_tree=false; ENG-EVID-1"
+      "evidence": "harness/state/evidence/gates/1c.1/2026-10-13T10-00-00+00-00-quick.json clean_tree=false; ENG-EVID-1"
     }
   ],
   "reviewer": {"provider": "codex", "fresh_context": true}

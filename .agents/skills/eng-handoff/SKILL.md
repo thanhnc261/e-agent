@@ -22,14 +22,14 @@ A handoff says what changed, what was verified with its output, what was decided
 |---|---|
 | `task` | the contract id |
 | `changed` | one paragraph: what the task did, in product terms |
-| `evidence_refs` | the `evidence/…` paths the task relies on (gate evidence first) |
+| `evidence_refs` | the `harness/state/evidence/…` paths the task relies on (gate evidence first) |
 | `open_items` | what remains, each one sentence |
 | `rulings` | `{ "ruling": "...", "cost_if_wrong": "..." }` per deviation |
 | `outside_repo` | `{ "change": "...", "undo": "..." }` per change outside the repository (empty list when none) |
 
 Validate with `uv run e-agent-harness handoff <task>`; it checks the schema and that every evidence reference exists.
 
-**2. The phase handoff document** at `docs/handoffs/<YYYY-MM-DD>-<topic>.md` from [handoff.md](templates/handoff.md), written at the end of a phase and for any task the owner must read. Because `evidence/` is local only, the document carries the key numbers and the gate output verbatim.
+**2. The phase handoff document** at `docs/handoffs/<YYYY-MM-DD>-<topic>.md` from [handoff.md](templates/handoff.md), written at the end of a phase and for any task the owner must read. The document carries the key numbers and the gate output verbatim so the owner does not have to open evidence files.
 
 ## Workflow
 

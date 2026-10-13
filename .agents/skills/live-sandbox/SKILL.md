@@ -14,7 +14,7 @@ Everything here touches the owner's `odoo19-learning` sandbox. The owner starts 
 - Only `odoo19-learning-*`, `e-agent-ledger` and containers e-agent creates are touched (ENG-BOUND-1). Nothing here names any other stack, and the permission rules deny them regardless.
 - Keys live outside the repository: the local secret store and `~/.config/e-agent/live.env`; a profile with secrets is `profiles/*.local.json` and never committed (ENG-BOUND-3).
 - Identity before mutation: every seed or reset passes `--expected-marker`, `--expected-company-id` and `--expected-bridge-version`, and runs after `info` has confirmed them.
-- Record outcomes as redacted evidence under `evidence/live/` (ENG-EVID-3): run ids, states and reason codes, never payloads with key material.
+- Record outcomes as redacted evidence under `harness/state/evidence/live/` (ENG-EVID-3): run ids, states and reason codes, never payloads with key material.
 
 ## Operations
 
@@ -29,7 +29,7 @@ Everything here touches the owner's `odoo19-learning` sandbox. The owner starts 
 | Start the live stack | `set -a; . ~/.config/e-agent/live.env; set +a` then `make dev PROFILE=profiles/live-odoo19-learning.local.json` | loopback only |
 | Ledger migrate and recover | `uv run e-agent --profile <p> migrate`, `uv run e-agent --profile <p> recover` | migrations are forward-only and checksummed |
 | Rotate the integration key | rotate in the sandbox (7-day expiry in the dev setup), then `uv run e-agent secret set secretref:local/odoo-integration` | never paste the key anywhere else |
-| Harness live check | `uv run e-agent-harness live-check` | runs the manifest's `live` gate set, redacted, into `evidence/live/` |
+| Harness live check | `uv run e-agent-harness live-check` | runs the manifest's `live` gate set, redacted, into `harness/state/evidence/live/` |
 
 Detail and first-time setup: [runbook I06](../../../docs/runbooks/i06-odoo-bridge.md) and [recovery and reset](../../../docs/runbooks/recovery-and-reset.md).
 
@@ -37,7 +37,7 @@ Detail and first-time setup: [runbook I06](../../../docs/runbooks/i06-odoo-bridg
 
 - [ ] `info` ran before any mutation and its identity matched the expected flags.
 - [ ] Every mutation and its namespace are listed in the handoff's "Changes outside the repository" with the undo (a reset of the same namespace).
-- [ ] Evidence under `evidence/live/` is redacted.
+- [ ] Evidence under `harness/state/evidence/live/` is redacted.
 
 ## Stop gate
 

@@ -37,7 +37,7 @@ Apply [rubric.md](references/rubric.md) in order. For each area record findings;
 
 Write `harness/state/<phase>/reviews/<task>.json` from [review.json](templates/review.json) and validate it:
 
-`uv run python -c "import json; from e_agent_harness import contracts; print(contracts.validate('review', json.load(open('harness/state/<phase>/reviews/<task>.json'))))"` must print `[]`.
+`uv run e-agent-harness validate review harness/state/<phase>/reviews/<task>.json` must print ok.
 
 Verdict `rework` when any finding affects `correctness` or `contract`; otherwise `accept`.
 
