@@ -17,9 +17,9 @@
 
 ## What was verified
 
-- **Gate per task (`gate full`):** passed on a clean tree for all 18 tasks with a gate. Pytest went from 572 passed / 30 skipped at the baseline to 633 passed / 30 skipped at 1c.10. The difference:
-  - +61 new tests: 12 mover, 13 layout, and 36 structure and fitness.
-  - −13 from a fixed collision. Before the move, `packages/kernel/tests` and `packages/plugin-sdk/tests` both imported as `tests.test_discovery`. The full suite ran kernel's 16 discovery tests twice and never ran the sdk's 3.
+- **Gate per task (`gate full`):** passed on a clean tree for every task, including the review-fix task `1.R1`. Pytest went from 572 passed / 30 skipped at the baseline to 635 passed / 30 skipped at `1.R1`: 572 − 13 + 76 = 635.
+  - **+76 new tests:** 13 for the mover, 13 for the layout, and 50 structure and fitness tests (27 at 1c.1, 22 at 1c.9, 1 at 1c.11).
+  - **−13 from a fixed collision.** Before the move, `packages/kernel/tests` and `packages/plugin-sdk/tests` both imported as `tests.test_discovery`. The full suite ran kernel's 16 discovery tests twice and never ran the sdk's 3.
 - **`make e2e`:** 150 passed / 4 skipped at the baseline, after 1a.3, and after 1c.10.
 - **Wheels:**
   - `check_wheels.py` passes at the baseline, after 1a.3 and at 1c.11.
@@ -62,11 +62,10 @@ Each task handoff states its rulings with cost-if-wrong. The ones that change th
   - Merge `refactor/phase1-structure`.
   - Allow a link-only rewrite of `research/` (4 broken links to moved designs).
   - Review the reworded `AGENTS.md` and `CLAUDE.md`.
-- **Harness:** the [pilot log](../../harness/state/1/harness-pilot-log.md) has 13 findings, HP-1 to HP-13. Two are high:
+- **Harness:** the [pilot log](../../harness/state/1/harness-pilot-log.md) has 14 findings, HP-1 to HP-14. Three are high:
+  - **HP-13** needs action before anyone runs `gate pg`. The `pg` gate points the truncating test suite at the live ledger DSN. Make it read `$E_AGENT_TEST_PG_DSN`, and refuse when that names the same database as `E_AGENT_PG_DSN`.
   - **HP-4:** evidence is git-ignored, but `close-check` requires the files.
-  - **HP-12:** gate `full` lacks the UI unit tests.
-
-  **HP-13** needs action before anyone runs `gate pg`: the `pg` gate points the truncating test suite at the live ledger DSN. Most of the others are about task lifecycle: closed state, scope amendment, refreshing the digest when the plan changes, and multiple gate sets.
+  - **HP-12:** gate `full` lacks the UI unit tests. Most of the others are about task lifecycle: closed state, scope amendment, refreshing the digest when the plan changes, and multiple gate sets.
 - **Branch review (after 1c.11, task `1.R1`):** fixed four findings:
   - `layout` drops the caches that `git mv` carried along; their compiled paths named the old tree.
   - The `api.py` and `coordinator.py` line citations in target-architecture are function references now.

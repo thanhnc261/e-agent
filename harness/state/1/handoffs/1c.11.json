@@ -40,5 +40,18 @@
       "cost_if_wrong": "none; no sandbox write happened"
     }
   ],
-  "outside_repo": []
+  "outside_repo": [
+    {
+      "change": "Created database e_agent_test in the e-agent-ledger container for the Postgres test suite",
+      "undo": "docker exec e-agent-ledger psql -U <ledger user> -d postgres -c \"DROP DATABASE e_agent_test\""
+    },
+    {
+      "change": "Live check added 9 run records to the live ledger (6 on the branch incl. the UI run, 3 on main); the odoo19-learning sandbox was only read",
+      "undo": "none needed; normal run history"
+    },
+    {
+      "change": "Started e-agent-ledger (found stopped) and stopped it again after the check",
+      "undo": "none; left as found"
+    }
+  ]
 }
