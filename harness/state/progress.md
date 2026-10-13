@@ -24,3 +24,8 @@
 - changed: 1a.3 layout move, tooling and review fixes; F-1a-3 passes
 - next: 1a.4 editor hygiene
 - open: none
+
+## 2026-10-13T06:15:40+00:00 · 5b4b8e8f-e459-44f9-bc30-502cdbbe2794 · 1a.4
+- changed: 1a.4 editor excludes; F-1a-4 passes; Part 1a done
+- next: 1b.1 designs into docs/design
+- open: none

@@ -1,0 +1,15 @@
+{
+  "task": "1a.4",
+  "changed": ".vscode/settings.json committed as a project setting: files.exclude and search.exclude hide __pycache__, .mypy_cache, .ruff_cache, .pytest_cache, .import_linter_cache, ui/**/node_modules and ui/**/dist.",
+  "evidence_refs": [
+    "evidence/gates/1a.4/2026-10-13T06-15-06+00-00.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "Only the seven plan patterns are excluded; dist/ and evidence/ stay visible because they hold reviewable outputs",
+      "cost_if_wrong": "two more entries in the settings file"
+    }
+  ],
+  "outside_repo": []
+}

@@ -51,7 +51,8 @@
       "steps": [
         ".vscode/settings.json excludes __pycache__, .mypy_cache, .ruff_cache, .pytest_cache, .import_linter_cache, ui/**/node_modules and ui/**/dist in files.exclude and search.exclude"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1a.4/2026-10-13T06-15-06+00-00.json"
     },
     {
       "id": "F-1b-1",
