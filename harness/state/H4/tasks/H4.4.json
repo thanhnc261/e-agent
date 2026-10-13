@@ -1,0 +1,28 @@
+{
+  "id": "H4.4",
+  "phase": "H4",
+  "plan_ref": "docs/plans/2026-10-13-harness-h4-adapters.md",
+  "feature_ids": [
+    "F-H4-4"
+  ],
+  "context_digest": "a290bd94e0f2bd8f15cc1a9ebe6146b485f2ffad4c6523a8200d73da2c68cf7f",
+  "allowed_paths": [
+    ".agents/skills/eng-session/**",
+    ".agents/skills/eng-verify/**",
+    "README.md",
+    "AGENTS.md",
+    "docs/plans/2026-10-12-dev-harness.md",
+    "docs/handoffs/**",
+    "harness/state/**",
+    "docs/plans/2026-10-13-harness-h4-adapters.md"
+  ],
+  "acceptance": [
+    "claude -p reports the SessionStart next action",
+    "an out-of-scope Write is denied by the hook",
+    "full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "35c2173d5e27b85d22b039b05a0a5bbbd55fac05",
+  "created_at": "2026-10-13T14:12:32+00:00",
+  "features_digest": "a5df3ea1c29f64e2d8e81f2bc13f10bcf6013591e20fcf3d98a273e466a9fbff"
+}
