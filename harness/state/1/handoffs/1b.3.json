@@ -1,0 +1,23 @@
+{
+  "task": "1b.3",
+  "changed": "AGENTS.md: roadmap-ordered work and archive/ as history; read order roadmap, docs/design/*, ADR index, phase plan; new sections How work is done (five roadmap rules, per-task review, end-to-end verification, harness), Repository map (one line per top-level folder) and Environment boundaries (odoo19-learning and e-agent containers only; never odoo-bench or the lab experiment); development rule for src/e_agent/<part>/, dists/<dist>/, namespace packages and wheel-only builds. CLAUDE.md: Claude-specific only, keeps @AGENTS.md and the compact instructions. README: status points to the roadmap; Start here lists it; layout line. Live qualification claim unchanged (NOT_READY).",
+  "evidence_refs": [
+    "evidence/gates/1b.3/2026-10-13T06-20-49+00-00.json",
+    "evidence/1b.3-skills.txt",
+    "evidence/1b.3-check.txt"
+  ],
+  "open_items": [
+    "Owner review of the AGENTS.md and CLAUDE.md wording (authoritative instruction files)"
+  ],
+  "rulings": [
+    {
+      "ruling": "CLAUDE.md names the trailer source (session attribution instructions) instead of hard-coding a model name",
+      "cost_if_wrong": "one line if the owner wants the literal trailer"
+    },
+    {
+      "ruling": "The lab-experiment rule moved from Development and verification into the new Environment boundaries section, unchanged in wording",
+      "cost_if_wrong": "none; same rule"
+    }
+  ],
+  "outside_repo": []
+}

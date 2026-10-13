@@ -39,3 +39,8 @@
 - changed: 1b.2 plans/specs moved; F-1b-2 passes
 - next: 1b.3 AGENTS.md, CLAUDE.md, README
 - open: none
+
+## 2026-10-13T06:21:27+00:00 · 5b4b8e8f-e459-44f9-bc30-502cdbbe2794 · 1b.3
+- changed: 1b.3 AGENTS/CLAUDE/README rewritten; F-1b-3 passes
+- next: 1b.4 target-architecture section 15/16 and mvp layout table
+- open: none

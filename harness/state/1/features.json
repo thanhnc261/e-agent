@@ -87,7 +87,8 @@
         "uv run python scripts/check_agent_skills.py passes",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1b.3/2026-10-13T06-20-49+00-00.json"
     },
     {
       "id": "F-1b-4",
