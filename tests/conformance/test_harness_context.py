@@ -65,7 +65,7 @@ def test_protected_globs_are_well_formed() -> None:
     assert manifest.is_protected(m, "archive/")
     assert manifest.is_protected(m, "packages/../archive/x.md")
     assert manifest.is_protected(m, "./archive/x.md")
-    assert not manifest.is_protected(m, "packages/kernel/src/e_agent/kernel/api.py")
+    assert not manifest.is_protected(m, "src/e_agent/kernel/api.py")
     assert not manifest.is_protected(m, "archived/x.md")
 
 

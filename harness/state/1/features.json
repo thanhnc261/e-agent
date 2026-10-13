@@ -91,7 +91,8 @@
       "description": "Task 1b.4: target-architecture section 15 tree and section 16 locations updated",
       "steps": [
         "section 15 shows the new layout marked [I] with a rationale linking the Phase 1 plan",
-        "section 16 Location today paths use the new layout"
+        "section 16 Location today paths use the new layout",
+        "uv run python scripts/repo_move.py check --docs reports 0 old paths in current docs (mvp-detailed-design layout table included)"
       ],
       "passes": false
     },

@@ -1,6 +1,6 @@
 {
   "task": "1c.1",
   "verdict": "rework",
-  "findings": [{"id": "R-1", "severity": "High", "affects": "contract", "summary": "approval digest recomputed after split", "evidence": "packages/kernel/src/e_agent/kernel/approvals.py:42"}],
+  "findings": [{"id": "R-1", "severity": "High", "affects": "contract", "summary": "approval digest recomputed after split", "evidence": "src/e_agent/kernel/approvals.py:42"}],
   "reviewer": {"provider": "codex", "fresh_context": true}
 }

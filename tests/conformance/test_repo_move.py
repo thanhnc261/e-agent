@@ -263,7 +263,11 @@ def test_check_finds_bare_roots_and_globs_but_not_ui_trees_or_prose(repo: Path) 
         'testpaths = ["packages", "apps", "tests"]\n'
         "# Core packages never import agent frameworks\n",
     )
-    write(repo, "scripts/q.py", 'for base in (root / "packages", root / "src"):\n    pass\n')
+    write(
+        repo,
+        "scripts/q.py",
+        'for base in (root / "packages", root / "src"):\n    pass\nmeta = {"packages": {}}\n',
+    )
     write(repo, "ui/pnpm-workspace.yaml", 'packages:\n  - "packages/*"\n  - "apps/*"\n')
     git(repo, "add", "pyproject.toml", "scripts/q.py", "ui/pnpm-workspace.yaml")
 
@@ -272,6 +276,7 @@ def test_check_finds_bare_roots_and_globs_but_not_ui_trees_or_prose(repo: Path) 
     assert ("pyproject.toml", 2, "packages") in stale
     assert ("pyproject.toml", 2, "apps") in stale
     assert ("scripts/q.py", 1, "packages") in stale
+    assert ("scripts/q.py", 3, "packages") not in stale  # a key, not a path
     assert all(line != 3 for path, line, _ in stale if path == "pyproject.toml")
     assert all(not path.startswith("ui/") for path, _, _ in stale)
 

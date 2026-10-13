@@ -435,7 +435,7 @@ wheels = [
 [[package]]
 name = "e-agent-adapter-agent-pydantic"
 version = "0.1.0"
-source = { editable = "packages/adapter-agent-pydantic" }
+source = { editable = "dists/adapter-agent-pydantic" }
 dependencies = [
     { name = "e-agent-contracts" },
     { name = "e-agent-plugin-sdk" },
@@ -444,15 +444,15 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "e-agent-contracts", editable = "packages/contracts" },
-    { name = "e-agent-plugin-sdk", editable = "packages/plugin-sdk" },
+    { name = "e-agent-contracts", editable = "dists/contracts" },
+    { name = "e-agent-plugin-sdk", editable = "dists/plugin-sdk" },
     { name = "pydantic-ai-slim", extras = ["openai"], specifier = ">=2.54,<3" },
 ]
 
 [[package]]
 name = "e-agent-adapter-odoo"
 version = "0.1.0"
-source = { editable = "packages/adapter-odoo" }
+source = { editable = "dists/adapter-odoo" }
 dependencies = [
     { name = "e-agent-contracts" },
     { name = "e-agent-domain-erp" },
@@ -462,16 +462,16 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "e-agent-contracts", editable = "packages/contracts" },
-    { name = "e-agent-domain-erp", editable = "packages/domain-erp" },
-    { name = "e-agent-plugin-sdk", editable = "packages/plugin-sdk" },
+    { name = "e-agent-contracts", editable = "dists/contracts" },
+    { name = "e-agent-domain-erp", editable = "dists/domain-erp" },
+    { name = "e-agent-plugin-sdk", editable = "dists/plugin-sdk" },
     { name = "httpx", specifier = ">=0.28,<1" },
 ]
 
 [[package]]
 name = "e-agent-adapter-postgres"
 version = "0.1.0"
-source = { editable = "packages/adapter-postgres" }
+source = { editable = "dists/adapter-postgres" }
 dependencies = [
     { name = "e-agent-contracts" },
     { name = "e-agent-plugin-sdk" },
@@ -481,8 +481,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "e-agent-contracts", editable = "packages/contracts" },
-    { name = "e-agent-plugin-sdk", editable = "packages/plugin-sdk" },
+    { name = "e-agent-contracts", editable = "dists/contracts" },
+    { name = "e-agent-plugin-sdk", editable = "dists/plugin-sdk" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3,<4" },
     { name = "psycopg-pool", specifier = ">=3.2,<4" },
 ]
@@ -490,7 +490,7 @@ requires-dist = [
 [[package]]
 name = "e-agent-adapter-secretstore-local"
 version = "0.1.0"
-source = { editable = "packages/adapter-secretstore-local" }
+source = { editable = "dists/adapter-secretstore-local" }
 dependencies = [
     { name = "cryptography" },
     { name = "e-agent-plugin-sdk" },
@@ -499,13 +499,13 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "cryptography", specifier = ">=45" },
-    { name = "e-agent-plugin-sdk", editable = "packages/plugin-sdk" },
+    { name = "e-agent-plugin-sdk", editable = "dists/plugin-sdk" },
 ]
 
 [[package]]
 name = "e-agent-adapter-shacl"
 version = "0.1.0"
-source = { editable = "packages/adapter-shacl" }
+source = { editable = "dists/adapter-shacl" }
 dependencies = [
     { name = "e-agent-contracts" },
     { name = "e-agent-plugin-sdk" },
@@ -515,8 +515,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "e-agent-contracts", editable = "packages/contracts" },
-    { name = "e-agent-plugin-sdk", editable = "packages/plugin-sdk" },
+    { name = "e-agent-contracts", editable = "dists/contracts" },
+    { name = "e-agent-plugin-sdk", editable = "dists/plugin-sdk" },
     { name = "pyshacl", specifier = ">=0.40,<0.41" },
     { name = "rdflib", specifier = ">=7.6,<8" },
 ]
@@ -524,7 +524,7 @@ requires-dist = [
 [[package]]
 name = "e-agent-contracts"
 version = "0.1.0"
-source = { editable = "packages/contracts" }
+source = { editable = "dists/contracts" }
 dependencies = [
     { name = "pydantic" },
 ]
@@ -535,7 +535,7 @@ requires-dist = [{ name = "pydantic", specifier = ">=2.13,<3" }]
 [[package]]
 name = "e-agent-domain-erp"
 version = "0.1.0"
-source = { editable = "packages/domain-erp" }
+source = { editable = "dists/domain-erp" }
 dependencies = [
     { name = "e-agent-contracts" },
     { name = "e-agent-plugin-sdk" },
@@ -544,8 +544,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "e-agent-contracts", editable = "packages/contracts" },
-    { name = "e-agent-plugin-sdk", editable = "packages/plugin-sdk" },
+    { name = "e-agent-contracts", editable = "dists/contracts" },
+    { name = "e-agent-plugin-sdk", editable = "dists/plugin-sdk" },
     { name = "pydantic", specifier = ">=2.13,<3" },
 ]
 
@@ -563,7 +563,7 @@ requires-dist = [{ name = "jsonschema", specifier = ">=4.23,<5" }]
 [[package]]
 name = "e-agent-kernel"
 version = "0.1.0"
-source = { editable = "packages/kernel" }
+source = { editable = "dists/kernel" }
 dependencies = [
     { name = "e-agent-contracts" },
     { name = "e-agent-plugin-sdk" },
@@ -571,14 +571,14 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "e-agent-contracts", editable = "packages/contracts" },
-    { name = "e-agent-plugin-sdk", editable = "packages/plugin-sdk" },
+    { name = "e-agent-contracts", editable = "dists/contracts" },
+    { name = "e-agent-plugin-sdk", editable = "dists/plugin-sdk" },
 ]
 
 [[package]]
 name = "e-agent-plugin-sdk"
 version = "0.1.0"
-source = { editable = "packages/plugin-sdk" }
+source = { editable = "dists/plugin-sdk" }
 dependencies = [
     { name = "e-agent-contracts" },
     { name = "pydantic" },
@@ -586,14 +586,14 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "e-agent-contracts", editable = "packages/contracts" },
+    { name = "e-agent-contracts", editable = "dists/contracts" },
     { name = "pydantic", specifier = ">=2.13,<3" },
 ]
 
 [[package]]
 name = "e-agent-server"
 version = "0.1.0"
-source = { editable = "apps/server" }
+source = { editable = "dists/server" }
 dependencies = [
     { name = "e-agent-adapter-agent-pydantic" },
     { name = "e-agent-adapter-odoo" },
@@ -610,15 +610,15 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "e-agent-adapter-agent-pydantic", editable = "packages/adapter-agent-pydantic" },
-    { name = "e-agent-adapter-odoo", editable = "packages/adapter-odoo" },
-    { name = "e-agent-adapter-postgres", editable = "packages/adapter-postgres" },
-    { name = "e-agent-adapter-secretstore-local", editable = "packages/adapter-secretstore-local" },
-    { name = "e-agent-adapter-shacl", editable = "packages/adapter-shacl" },
-    { name = "e-agent-contracts", editable = "packages/contracts" },
-    { name = "e-agent-domain-erp", editable = "packages/domain-erp" },
-    { name = "e-agent-kernel", editable = "packages/kernel" },
-    { name = "e-agent-plugin-sdk", editable = "packages/plugin-sdk" },
+    { name = "e-agent-adapter-agent-pydantic", editable = "dists/adapter-agent-pydantic" },
+    { name = "e-agent-adapter-odoo", editable = "dists/adapter-odoo" },
+    { name = "e-agent-adapter-postgres", editable = "dists/adapter-postgres" },
+    { name = "e-agent-adapter-secretstore-local", editable = "dists/adapter-secretstore-local" },
+    { name = "e-agent-adapter-shacl", editable = "dists/adapter-shacl" },
+    { name = "e-agent-contracts", editable = "dists/contracts" },
+    { name = "e-agent-domain-erp", editable = "dists/domain-erp" },
+    { name = "e-agent-kernel", editable = "dists/kernel" },
+    { name = "e-agent-plugin-sdk", editable = "dists/plugin-sdk" },
     { name = "fastapi", specifier = ">=0.142,<1" },
     { name = "uvicorn", specifier = ">=0.37,<1" },
 ]
@@ -653,17 +653,17 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "e-agent-adapter-agent-pydantic", editable = "packages/adapter-agent-pydantic" },
-    { name = "e-agent-adapter-odoo", editable = "packages/adapter-odoo" },
-    { name = "e-agent-adapter-postgres", editable = "packages/adapter-postgres" },
-    { name = "e-agent-adapter-secretstore-local", editable = "packages/adapter-secretstore-local" },
-    { name = "e-agent-adapter-shacl", editable = "packages/adapter-shacl" },
-    { name = "e-agent-contracts", editable = "packages/contracts" },
-    { name = "e-agent-domain-erp", editable = "packages/domain-erp" },
+    { name = "e-agent-adapter-agent-pydantic", editable = "dists/adapter-agent-pydantic" },
+    { name = "e-agent-adapter-odoo", editable = "dists/adapter-odoo" },
+    { name = "e-agent-adapter-postgres", editable = "dists/adapter-postgres" },
+    { name = "e-agent-adapter-secretstore-local", editable = "dists/adapter-secretstore-local" },
+    { name = "e-agent-adapter-shacl", editable = "dists/adapter-shacl" },
+    { name = "e-agent-contracts", editable = "dists/contracts" },
+    { name = "e-agent-domain-erp", editable = "dists/domain-erp" },
     { name = "e-agent-harness", editable = "tools/harness" },
-    { name = "e-agent-kernel", editable = "packages/kernel" },
-    { name = "e-agent-plugin-sdk", editable = "packages/plugin-sdk" },
-    { name = "e-agent-server", editable = "apps/server" },
+    { name = "e-agent-kernel", editable = "dists/kernel" },
+    { name = "e-agent-plugin-sdk", editable = "dists/plugin-sdk" },
+    { name = "e-agent-server", editable = "dists/server" },
     { name = "import-linter", specifier = ">=2.15" },
     { name = "mypy", specifier = ">=2.4" },
     { name = "pytest", specifier = ">=9.1" },

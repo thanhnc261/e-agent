@@ -403,8 +403,9 @@ def check(root: Path, moves: Sequence[Move] = MOVES, extra_old: Sequence[str] = 
         r"(?:(?<![\w./-])|(?<=\./))(" + "|".join(re.escape(o) for o in old) + r")(?![\w-])"
     )
     tops = sorted({Path(m.old_root).parts[0] for m in moves})
-    # Quoted top-level roots and globs ("packages", 'apps', "packages/*") in tooling.
-    bare = re.compile(r"[\"'](" + "|".join(re.escape(t) for t in tops) + r"(?:/\*)?)[\"']")
+    # Quoted top-level roots and globs ("packages", 'apps', "packages/*") in tooling,
+    # but not a mapping key such as {"packages": ...}.
+    bare = re.compile(r"[\"'](" + "|".join(re.escape(t) for t in tops) + r"(?:/\*)?)[\"'](?!\s*:)")
     for name in _tracked(root):
         if name.startswith(STALE_EXEMPT):
             continue

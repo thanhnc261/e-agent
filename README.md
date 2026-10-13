@@ -130,7 +130,7 @@ uv run python scripts/check_wheels.py     # each wheel installs/runs outside the
 uv run pytest -q tests/conformance/test_harness_context.py  # dev-harness manifest and contract samples
 uv run e-agent-harness status                 # dev-harness brief: state, boundaries, one next action
 uv run e-agent-harness validate-context       # manifest vs checkout
-uv run e-agent-harness gate quick --package packages/kernel   # evidence under evidence/gates/
+uv run e-agent-harness gate quick --package tests/unit/kernel   # evidence under evidence/gates/
 
 # HTTP API + web UI (loopback only; Node 22.12+/24 and pnpm 10 for ui/)
 (cd ui && pnpm install && pnpm build)
@@ -142,7 +142,7 @@ uv run python scripts/export_openapi.py   # after API changes; then (cd ui && pn
 export E_AGENT_PG_DSN=postgresql://user@host:5432/e_agent   # e-agent's own database, never Odoo's
 uv run e-agent --profile my-profile.json migrate
 uv run e-agent --profile my-profile.json recover
-E_AGENT_TEST_PG_DSN=$E_AGENT_PG_DSN E_AGENT_TEST_STORE=postgres uv run pytest -q packages/kernel
+E_AGENT_TEST_PG_DSN=$E_AGENT_PG_DSN E_AGENT_TEST_STORE=postgres uv run pytest -q tests/unit/kernel
 ```
 
 ### Model provider: Ollama (default) or LiteLLM (optional)

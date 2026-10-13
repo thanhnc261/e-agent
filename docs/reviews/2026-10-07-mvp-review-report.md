@@ -18,7 +18,7 @@ Raw evidence: `evidence/review/20261007-075816-3ae9aaf/` (ignored, private). Rep
 
 ### F01 — P1, confirmed: policy version changes leave old approval usable
 
-Source: [coordinator.py](../../packages/kernel/src/e_agent/kernel/coordinator.py), `_staleness` line 810 and `decide` line 693. Requirement: MVP design §5 binds policy version into the digest and requires changed policy to invalidate eligibility.
+Source: [coordinator.py](../../src/e_agent/kernel/coordinator.py), `_staleness` line 810 and `decide` line 693. Requirement: MVP design §5 binds policy version into the digest and requires changed policy to invalidate eligibility.
 
 Trigger: prepare an approval under `policy-mvp-1`, change the trusted policy to `policy-mvp-2` while retaining permission, then approve the original digest. Expected: fresh proposal/approval, zero dispatch. Observed: one fixture create and successful completion. Reproduced with memory and PostgreSQL in `test_policy_version_change_requires_new_approval`.
 
@@ -26,7 +26,7 @@ Remedy: compare the current policy version with the canonical approved policy ve
 
 ### F02 — P1, confirmed: absent revisions are treated as proof of unchanged facts
 
-Source: [coordinator.py](../../packages/kernel/src/e_agent/kernel/coordinator.py), lines 813–819; [executor.py](../../packages/adapter-odoo/src/e_agent/adapters/odoo/executor.py), pricing/contact/team reads. Requirement: MVP design §5 compares provider revisions **or a canonical relevant-fact digest**; unknown facts must remain explicit.
+Source: [coordinator.py](../../src/e_agent/kernel/coordinator.py), lines 813–819; [executor.py](../../src/e_agent/adapters/odoo/executor.py), pricing/contact/team reads. Requirement: MVP design §5 compares provider revisions **or a canonical relevant-fact digest**; unknown facts must remain explicit.
 
 Trigger: initial and refreshed observations both have `revision=None`, but refreshed material content differs. Expected: detect the change or fail closed when identity cannot be established. Observed: equality of `None` values permits one write. `test_missing_source_revision_uses_material_fact_digest` reproduces this with both stores. Several live Odoo observations have no revision, so this is not only a fixture contract edge case; exact ERP impact awaits live tests.
 
@@ -36,7 +36,7 @@ Supplementary probe: making the current validator unavailable after proposal val
 
 ### F03 — P1, confirmed: receipt commit followed by process exit strands the run
 
-Source: [coordinator.py](../../packages/kernel/src/e_agent/kernel/coordinator.py), `_apply_receipt` line 839 and `_recover_run` line 1052. Requirement: durable committed effects must resume independent verification without resending.
+Source: [coordinator.py](../../src/e_agent/kernel/coordinator.py), `_apply_receipt` line 839 and `_recover_run` line 1052. Requirement: durable committed effects must resume independent verification without resending.
 
 Trigger: process exits immediately after `record_receipt` commits, before the separate run transition to `VERIFYING`. Expected: recover from the committed action/receipt and resume read-only verification. Observed: action and receipt are `COMMITTED`, run remains `WAITING_APPROVAL`, and `recover()` returns no recovered runs. The existing recovery branch requires the run already to be `VERIFYING`.
 
@@ -46,7 +46,7 @@ Remedy: recover from authoritative action/receipt states across every interrupte
 
 ### F04 — P1, confirmed: wrong approved PO date can be VERIFIED
 
-Source: [verifier.py](../../packages/domain-erp/src/e_agent/erp/procurement/verifier.py), `DraftPurchaseOrderVerifier.verify` line 29. Requirement: exact approved material arguments and independently verified business success.
+Source: [verifier.py](../../src/e_agent/erp/procurement/verifier.py), `DraftPurchaseOrderVerifier.verify` line 29. Requirement: exact approved material arguments and independently verified business success.
 
 Trigger: approve the fixture PO, alter its resulting `requested_date` to `2099-01-01`, and include that actual date in independent read-back. Expected: verification failure. Observed: `SUCCEEDED`, reason `outcome verified`. `test_po_wrong_requested_date_cannot_be_verified` and `R06-date-readback.log` isolate this from the fixture view's own omission of requested date. The verifier compares monetary fields and parties but omits requested date.
 
@@ -54,7 +54,7 @@ Remedy: require and compare requested date in PO read-back; review line count, c
 
 ### F05 — P1, confirmed: clarification pauses a run permanently through the public API
 
-Source: [coordinator.py](../../packages/kernel/src/e_agent/kernel/coordinator.py), `AskClarification` branch line 243; [api.py](../../apps/server/src/e_agent/server/api.py); generated OpenAPI. Requirement: MVP design §12 `POST /v1/runs/{id}/inputs` and conversational task completion.
+Source: [coordinator.py](../../src/e_agent/kernel/coordinator.py), `AskClarification` branch line 243; [api.py](../../src/e_agent/server/api.py); generated OpenAPI. Requirement: MVP design §12 `POST /v1/runs/{id}/inputs` and conversational task completion.
 
 Trigger: a deterministic driver asks which demand to use. Run reaches `WAITING_INPUT`; submit clarification with expected revision. Expected: accepted input and continuation of the same run. Observed: HTTP 404; neither an API input route nor a coordinator input/resume operation exists. Reproduction: `test_clarification_endpoint_resumes_same_run`.
 
@@ -62,7 +62,7 @@ Remedy: add authenticated, revision-checked input/resume and UI handling; carry 
 
 ### F06 — P1, source-observed: SSE streams run events, not incremental model text
 
-Source: [driver.py](../../packages/adapter-agent-pydantic/src/e_agent/adapters/pydantic_ai/driver.py), `advance` line 172; [api.py](../../apps/server/src/e_agent/server/api.py), `stream` line 306; UI Messages component. Requirement: ADR 0001/I04/I08 and MVP design §4.1 transient `text.delta`.
+Source: [driver.py](../../src/e_agent/adapters/pydantic_ai/driver.py), `advance` line 172; [api.py](../../src/e_agent/server/api.py), `stream` line 306; UI Messages component. Requirement: ADR 0001/I04/I08 and MVP design §4.1 transient `text.delta`.
 
 The driver awaits `Agent.run` to finish; SSE only emits stored `run_event` records and an end event. No model-text producer/transport/consumer exists. Passing SSE replay and UI conformance therefore does not qualify the requested text stream. This absence is also disclosed in the historical qualification report, contradicting its broader feature-complete wording.
 
@@ -70,7 +70,7 @@ Remedy: implement safe incremental text from driver to presentation without trea
 
 ### F07 — P1, confirmed at the admission boundary: pinned manifest does not authenticate plugin code
 
-Source: [registry.py](../../packages/kernel/src/e_agent/kernel/registry.py), `_check_admissible` line 118 and `_load` line 135. Requirement: MVP design §6 checks installed contents against trusted artifact inventory before import; threat model T4 requires tampered artifacts to be rejected.
+Source: [registry.py](../../src/e_agent/kernel/registry.py), `_check_admissible` line 118 and `_load` line 135. Requirement: MVP design §6 checks installed contents against trusted artifact inventory before import; threat model T4 requires tampered artifacts to be rejected.
 
 Trigger: a controlled fixture module is changed while its version, entry point and correctly pinned manifest remain unchanged. Expected: admission rejects code/content mismatch before import. Observed: altered module executes its synthetic marker side effect and is admitted. Reproduction: `test_tampered_plugin_code_is_rejected_before_import` in a temporary directory. This is a local artifact-tampering probe, not evidence that the model can modify installed packages or that a published wheel was compromised.
 
@@ -88,7 +88,7 @@ Remedy: explicit business-refusal outcomes, failure classification, complete met
 
 ### F09 — P1, source-observed: sandbox identity is checked at startup, not each write
 
-Source: [bootstrap.py](../../apps/server/src/e_agent/server/bootstrap.py), `_check_sandbox` line 251; [executor.py](../../packages/adapter-odoo/src/e_agent/adapters/odoo/executor.py), `execute`; bridge `_check` and `_require_sandbox`. Requirement: threat model T14 says exact sandbox identity/target is checked at startup and before each write.
+Source: [bootstrap.py](../../src/e_agent/server/bootstrap.py), `_check_sandbox` line 251; [executor.py](../../src/e_agent/adapters/odoo/executor.py), `execute`; bridge `_check` and `_require_sandbox`. Requirement: threat model T14 says exact sandbox identity/target is checked at startup and before each write.
 
 Startup compares an expected marker. Runtime dispatch does not repeat it; ordinary bridge commands only check integration-group membership. Admin seed/reset require merely a nonempty marker, and live test fixtures seed before runtime validation. URL/DB/company target allowlisting is not established by a port suffix guard or a configurable marker alone. No marker-removal, wrong-target or company-permission attack was run on the owner's ERP; this is a source-level gap, not a claimed live breach.
 
@@ -96,7 +96,7 @@ Remedy: enforce exact configured target/marker/company at the authorized write b
 
 ### F10 — P2, source-observed: runtime bounds and worker ownership differ from accepted design
 
-Source: [context.py](../../packages/contracts/src/e_agent/contracts/context.py), `Budgets`; coordinator `_drive`; driver `UsageLimits`; [store.py](../../packages/adapter-postgres/src/e_agent/adapters/postgres/store.py), `writer_lock` line 367; migration SQL. Requirements: MVP design §9–10 and ADR 0003.
+Source: [context.py](../../src/e_agent/contracts/context.py), `Budgets`; coordinator `_drive`; driver `UsageLimits`; [store.py](../../src/e_agent/adapters/postgres/store.py), `writer_lock` line 367; migration SQL. Requirements: MVP design §9–10 and ADR 0003.
 
 Turn/read/repair/write budgets exist, but there is no cumulative active-time/token budget, assigned model deadline or enforcement of `TaskContext.deadline`. The review's outer 600-second timeout is a measurement safeguard, not application enforcement. Request-count limits do not bound a single long model call.
 
@@ -106,7 +106,7 @@ Remedy: implement the required bounded calls/ownership checks, or use an ADR to 
 
 ### F11 — P2, source-observed: CLI task routing and the live example do not qualify eight model tasks
 
-Source: [cli.py](../../apps/server/src/e_agent/server/cli.py), `DEMO_TASK` line 22; [live.example.json](../../profiles/live.example.json); `tool_specs` in bootstrap.
+Source: [cli.py](../../src/e_agent/server/cli.py), `DEMO_TASK` line 22; [live.example.json](../../profiles/live.example.json); `tool_specs` in bootstrap.
 
 `--task` selects scripted runtime behavior while the natural-language task remains procurement. The live example lists only procurement bindings. Running non-procurement CLI labels with a model is not evidence that the model received the corresponding user request. Complete live profiles must be built from the admitted manifest; ambiguous multi-connection capabilities are omitted from the model surface, while kernel resolution tests establish only explicit scoped routing.
 

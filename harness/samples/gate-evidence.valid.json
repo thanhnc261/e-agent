@@ -7,7 +7,7 @@
   "ok": true,
   "commands": [
     {
-      "command": "uv run pytest -q packages/kernel",
+      "command": "uv run pytest -q tests/unit/kernel",
       "exit_code": 0,
       "seconds": 4.2,
       "output_tail": "120 passed in 4.1s",

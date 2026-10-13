@@ -76,10 +76,10 @@ def test_gate_substitutes_package(repo) -> None:
     _set_gate(
         repo, "quick = [\"echo '3 passed, 1 skipped'\"]", 'quick = ["echo testing {package}"]'
     )
-    assert repo.invoke("gate", "quick", "--package", "packages/kernel").code == 0
+    assert repo.invoke("gate", "quick", "--package", "tests/unit/kernel").code == 0
     doc = json.loads(_evidence_files(repo.root, "no-task")[0].read_text())
-    assert doc["commands"][0]["command"] == "echo testing packages/kernel"
-    assert "testing packages/kernel" in doc["commands"][0]["output_tail"]
+    assert doc["commands"][0]["command"] == "echo testing tests/unit/kernel"
+    assert "testing tests/unit/kernel" in doc["commands"][0]["output_tail"]
 
 
 def test_live_check_writes_under_evidence_live(repo) -> None:

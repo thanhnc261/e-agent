@@ -5,7 +5,7 @@ import { CanonicalizationError, canonicalize, digest, verifyDigest } from "../sr
 
 const golden = JSON.parse(
   readFileSync(
-    fileURLToPath(new URL("../../../../packages/contracts/src/e_agent/contracts/golden/digest_vectors.json", import.meta.url)),
+    fileURLToPath(new URL("../../../../src/e_agent/contracts/golden/digest_vectors.json", import.meta.url)),
     "utf8",
   ),
 ) as { vectors: { name: string; input: unknown; canonical: string; digest?: string }[] };

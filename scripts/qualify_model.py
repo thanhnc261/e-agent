@@ -72,7 +72,7 @@ def candidate_sources() -> dict[str, str]:
     """Hash executable candidate inputs, including new untracked source files."""
     root = Path(__file__).resolve().parents[1]
     paths = [Path(__file__).resolve()]
-    for base in (root / "packages", root / "apps/server"):
+    for base in (root / "src",):
         paths.extend(
             path
             for path in base.rglob("*")

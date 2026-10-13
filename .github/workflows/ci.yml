@@ -44,7 +44,7 @@ jobs:
       - name: release task matrix (fixture)
         run: uv run python scripts/release_report.py --out "$RUNNER_TEMP/release.json"
       - name: kernel suite against the PostgreSQL ledger
-        run: uv run pytest -q packages/kernel
+        run: uv run pytest -q tests/unit/kernel
         env:
           E_AGENT_TEST_STORE: postgres
 

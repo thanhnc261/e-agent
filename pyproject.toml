@@ -30,7 +30,8 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["packages/*", "apps/server", "tools/harness"]
+members = ["dists/*", "tools/harness"]
+exclude = ["dists/_hooks"]
 
 [tool.uv.sources]
 e-agent-contracts = { workspace = true }
@@ -46,6 +47,8 @@ e-agent-adapter-odoo = { workspace = true }
 e-agent-harness = { workspace = true }
 
 [tool.ruff]
+# Keep isort classifying e_agent as before the Phase 1 move, so moved code stays verbatim.
+src = ["."]
 line-length = 100
 target-version = "py312"
 extend-exclude = ["docs", "research"]
@@ -69,26 +72,14 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Header"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-mypy_path = [
-    "packages/contracts/src",
-    "packages/plugin-sdk/src",
-    "packages/kernel/src",
-    "packages/domain-erp/src",
-    "apps/server/src",
-    "packages/adapter-shacl/src",
-    "packages/adapter-postgres/src",
-    "packages/adapter-agent-pydantic/src",
-    "packages/adapter-secretstore-local/src",
-    "packages/adapter-odoo/src",
-    "tools/harness/src",
-]
+mypy_path = ["src", "tools/harness/src"]
 packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai", "e_agent.adapters.secretstore_local", "e_agent.adapters.odoo", "e_agent_harness"]
 explicit_package_bases = true
 namespace_packages = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["packages", "apps", "tests"]
+testpaths = ["tests"]
 addopts = "--import-mode=importlib"
 
 [tool.importlinter]

@@ -16,6 +16,7 @@
     "uv.lock",
     ".github/workflows/**",
     "scripts/qualify_model.py",
+    "scripts/repo_move.py",
     "harness/context.toml",
     "harness/samples/**",
     "ui/packages/ui-core/**",

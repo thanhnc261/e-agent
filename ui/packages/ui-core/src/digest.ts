@@ -1,7 +1,7 @@
 /**
  * Approval digest check (ADR 0006): RFC 8785 JCS over the number-free profile,
  * SHA-256 via WebCrypto. Must reproduce the Python implementation exactly; both
- * are tested against packages/contracts golden vectors.
+ * are tested against src/e_agent/contracts golden vectors.
  */
 export const DIGEST_PROFILE = "jcs-sha256-v1";
 

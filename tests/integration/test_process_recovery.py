@@ -19,7 +19,7 @@ from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.run import RunState
 root, folder, mode, boundary = sys.argv[1:]
 folder = pathlib.Path(folder)
-ns = runpy.run_path(str(pathlib.Path(root) / 'packages/kernel/tests/conftest.py'))
+ns = runpy.run_path(str(pathlib.Path(root) / 'tests/unit/kernel/conftest.py'))
 async def main():
     dsn = os.environ['E_AGENT_TEST_PG_DSN']
     await apply_migrations(dsn)
