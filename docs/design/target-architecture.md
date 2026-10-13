@@ -30,7 +30,7 @@ Every element carries a status:
 - **One database first.** PostgreSQL is the system of record for the ledger, queue and events [I], and later for knowledge claims and vectors (pgvector) [C]. A graph store, a dedicated vector store or a message bus are added only on measured triggers.
 - **It scales by roles.** Stateless API replicas, worker replicas with bounded concurrent run slots, LISTEN-driven streaming and a connection-level write admission rule. FastAPI stays.
 - **Authority, audit and explanation are kernel contracts.** Roles and approval scopes come from a versioned profile bundle (§13.2); every event names its actor and the append-only tables are enforced by database grants (§5.5); explanations are typed rationale and a deterministic projection over the event log, never chain-of-thought (§5.6).
-- **Start here.** Read §3 (diagrams), then §4 (swappable runtime), §5 (state) and §15 (repository map). Code entry points: `packages/kernel/src/e_agent/kernel/coordinator.py`, `packages/plugin-sdk/src/e_agent/sdk/ports.py`, `packages/plugin-sdk/src/e_agent/sdk/store.py`.
+- **Start here.** Read §3 (diagrams), then §4 (swappable runtime), §5 (state) and §15 (repository map). Code entry points: `src/e_agent/kernel/coordinator.py`, `src/e_agent/sdk/ports.py`, `src/e_agent/sdk/store.py`.
 - **Landmines** (§19):
   - Never let a framework checkpointer or durable engine retry a write.
   - Never route an event-triggered run around approval.
@@ -47,10 +47,10 @@ Rows R1–R6 are the first-round criteria, U1–U9 the second-round criteria and
 |---|---|---|---|---|
 | R1 | Scale / high load | Role split API vs worker; bounded run slots; per-tenant fairness (§12) | [P] | Load harness: N concurrent fixture runs complete; queue wait and p95 step latency recorded per release |
 | R2 | High concurrency | Concurrent claims per process; LISTEN-driven SSE; pool sizing per role (§12) | [Pa] (1 slot; polling SSE) | K runs progress simultaneously in one process; streaming DB queries do not grow with idle viewers |
-| R3 | Plugin-driven | Metadata discovery → admission → activation; entry points + manifests (§10) | [I] | Disabled plugin never imported (`packages/kernel/tests/test_registry.py::test_disabled_plugin_is_never_imported`); duplicate binding rejected before activation |
+| R3 | Plugin-driven | Metadata discovery → admission → activation; entry points + manifests (§10) | [I] | Disabled plugin never imported (`tests/unit/kernel/test_registry.py::test_disabled_plugin_is_never_imported`); duplicate binding rejected before activation |
 | R4 | Reusable packages | Independent wheels in a PEP 420 namespace; import-linter contracts (§15) | [I] | Each wheel installs and tests outside the workspace (`scripts/check_wheels.py`) |
 | R5 | Event-driven | `run_events` log; LISTEN wake-ups; outbox on demand; business-event triggers (§11) | [Pa] | Trigger replay with the same source event ID creates one run; triggered write still waits for human approval |
-| R6 | HTTP framework | FastAPI confined to `apps/server` (§14) | [I] | import-linter forbids `fastapi` in core packages (exists) |
+| R6 | HTTP framework | FastAPI confined to `e_agent.server` (§14) | [I] | import-linter forbids `fastapi` in core packages (exists) |
 | U1 | Explicit integration | Capability contract / binding / connection; adapter kinds native, bridge, MCP (§10) | [I] native, [P] MCP | New provider = new adapter + manifest only, with no kernel or domain edits |
 | U2 | Swappable runtime core | Seams: AgentDriver, RunStore work API, stores, knowledge, memory; trust anchor fixed (§4) | [Pa] | Two drivers pass the same driver-conformance suite; RunStore conformance passes on memory and PG stores (exists for stores) |
 | U3 | Traceable state | Typed run/action state machines with transition tables; append-only event log; step records (§5) | [Pa] (run table [I]; reconstructability [P]) | Illegal action transition raises [I]; illegal run transition raises [I] (run table, C6); run reconstructable from `run_events` [P target, §5.1] |
@@ -137,7 +137,7 @@ These criteria come from the 2026 platform references (control plane separated f
 | ID | Criterion | Fitness test | Status |
 |---|---|---|---|
 | G1 | The kernel contains no domain or provider types | import-linter: kernel ↛ domains/adapters/server | [I] |
-| G2 | A new domain is a new pack only | Non-ERP fixture domain runs without ERP installed and without kernel edits (`packages/kernel/tests/conftest.py`, "notes" domain) | [I] |
+| G2 | A new domain is a new pack only | Non-ERP fixture domain runs without ERP installed and without kernel edits (`tests/unit/kernel/conftest.py`, "notes" domain) | [I] |
 | G3 | A new provider is a new adapter + manifest only | Second binding of an existing capability selected by connection; ambiguity rejected (`test_registry.py::test_two_connections_resolve_and_ambiguity_is_refused`) | [I] for native; [P] for MCP |
 | G4 | A new task type is configuration + pack data | Adding a task definition (acceptance spec, capabilities) needs no kernel change | [P] (AR-01 acceptance spec) |
 | G5 | Business rules are executable artifacts with one inventory | Every rule ID has positive, negative and missing-data tests; prompts reference IDs only | [I] (ADR 0009; `tests/integration/test_procurement_rules.py`, per-rule completeness not re-audited here) |
@@ -912,7 +912,7 @@ Rejected or deferred: an external policy decision point (OPA, Cedar) [C]. Trigge
 | Layer | Choice | Why | Rejected / deferred (trigger) |
 |---|---|---|---|
 | Language / tooling | Python 3.12+, uv workspace, ruff, mypy strict, import-linter, pytest | Existing baseline; architecture gates in CI | — |
-| HTTP | FastAPI + uvicorn (Granian optional) | Already confined to `apps/server`; the bottleneck is model/ERP latency and the worker, not routing; FastAPI 0.143.0 released 2026-10-08 | Litestar: last release 2.24.0 on 2026-06-11, msgspec gain moot with Pydantic contracts. Revisit if profiling after the review's P0 fixes shows HTTP overhead is significant |
+| HTTP | FastAPI + uvicorn (Granian optional) | Already confined to `e_agent.server`; the bottleneck is model/ERP latency and the worker, not routing; FastAPI 0.143.0 released 2026-10-08 | Litestar: last release 2.24.0 on 2026-06-11, msgspec gain moot with Pydantic contracts. Revisit if profiling after the review's P0 fixes shows HTTP overhead is significant |
 | Contracts | Pydantic v2 models, JSON Schema snapshots, JCS digests | Shared Python/TS golden vectors (ADR 0006) | — |
 | Agent framework | Pydantic AI 2.x behind AgentDriver | Typed, deferred tools, thin topology | LangGraph as a driver adapter only (ADR candidate C6) |
 | Model serving | Ollama locally (default); hosted providers through Pydantic AI providers. LiteLLM is an explicit, opt-in provider behind a loopback proxy (ADR 0021, Proposed); no LiteLLM-routed model is qualified | ADR 0001, ADR 0021 | A model gateway (routing, quotas) when multiple tenants share providers [C] |
@@ -936,98 +936,105 @@ Rejected or deferred: an external policy decision point (OPA, Cedar) [C]. Trigge
 
 Legend: `[I]` exists, `[P]` proposed (created when implemented), `[C]` created only when its trigger fires. Per AGENTS.md, no empty future packages are created.
 
+The layout is `[I]` since roadmap Phase 1 (2026-10-13). All Python code is one layer-grouped tree under `src/e_agent/` with no repeated folder names, and each distribution keeps its own build config in `dists/<name>/`, so the 10 distributions are still released independently; see the [Phase 1 plan](../plans/2026-10-12-phase1-structure-refactor.md). A new distribution adds `src/e_agent/<part>/`, `dists/<name>/pyproject.toml` and `tests/unit/<part>/`.
+
 ```text
 e-agent/
 ├── AGENTS.md · CLAUDE.md · README.md · pyproject.toml (uv workspace)       [I]
-├── apps/
-│   └── server/                     e_agent.server — composition root          [I]
-│       └── src/e_agent/server/
-│           ├── bootstrap.py        wiring, profile → plugins → registry       [I]
-│           ├── api.py              FastAPI routes, SSE                        [I]
-│           ├── cli.py              demo, migrate, recover, serve              [I]
-│           ├── worker.py           `e-agent worker` role, run slots           [P]
-│           ├── streaming.py        LISTEN dispatcher + SSE fan-out            [P]
-│           ├── triggers.py         webhook/schedule → run admission           [P]
-│           └── profiles/           non-secret profiles                        [I]
-├── packages/
+├── src/e_agent/                    all Python product code (PEP 420)          [I]
 │   ├── contracts/                  e_agent.contracts — portable records      [I]
-│   │   └── src/e_agent/contracts/
-│   │       ├── action.py run.py events.py evidence.py ...                    [I]
-│   │       ├── step.py             StepRecord, Finding persistence            [P]
-│   │       ├── context.py          + ContextPolicy, ContextPack               [I]/[P]
-│   │       ├── task.py             TaskDefinition, AcceptanceSpec             [P]
-│   │       └── trigger.py          TriggerSpec                                [P]
-│   ├── plugin-sdk/                 e_agent.sdk — ports, manifests            [I]
-│   │   └── src/e_agent/sdk/
-│   │       ├── ports.py            AgentDriver, Executor, ScopedReader, ...   [I]
-│   │       ├── retriever.py        EvidenceRetriever port                     [P]
-│   │       ├── store.py            RunStore (+ work API = substrate seam)     [I]
-│   │       └── memory.py           MemoryStore port                           [P]
+│   │   ├── action.py run.py events.py evidence.py ...                        [I]
+│   │   ├── step.py                 StepRecord, Finding persistence            [P]
+│   │   ├── context.py              + ContextPolicy, ContextPack               [I]/[P]
+│   │   ├── task.py                 TaskDefinition, AcceptanceSpec             [P]
+│   │   └── trigger.py              TriggerSpec                                [P]
+│   ├── sdk/                        e_agent.sdk — ports, manifests            [I]
+│   │   ├── ports.py                AgentDriver, Executor, ScopedReader, ...   [I]
+│   │   ├── retriever.py            EvidenceRetriever port                     [P]
+│   │   ├── store.py                RunStore (+ work API = substrate seam)     [I]
+│   │   └── memory.py               MemoryStore port                           [P]
 │   ├── kernel/                     e_agent.kernel — trust anchor             [I]
-│   │   └── src/e_agent/kernel/
-│   │       ├── coordinator.py      facade (today: everything)                 [I]
-│   │       ├── transitions.py      run + action transition enforcement        [P]
-│   │       ├── run_loop.py         driver stepping, budgets                   [P]
-│   │       ├── context.py          ContextAssembler                           [P]
-│   │       ├── ledger.py           ProgressLedger projection                  [P]
-│   │       ├── gateway.py          read/write admission                       [P]
-│   │       ├── dispatch.py         reserve, writer rule, lease, receipt       [P]
-│   │       ├── verification.py     acceptance spec, verifiers                 [P]
-│   │       ├── recovery.py         leases, reconcile                          [P]
-│   │       └── approval.py policy.py registry.py discovery.py ...            [I]
-│   ├── domain-erp/                 e_agent.erp — bounded contexts            [I]
-│   │   └── src/e_agent/erp/
-│   │       ├── procurement/        api, normalizer, rules, shapes, ontology,  [I]
-│   │       │                       verifier, answers
-│   │       ├── procurement/tasks/  task definitions + acceptance specs        [P]
-│   │       ├── procurement/skills/ SKILL.md playbooks                         [P]
-│   │       ├── inventory/ sales/ crm/ receivables/                            [I]
-│   │       └── testing/            fake ERP, scripted driver, scenarios       [I]
-│   ├── domain-analytics/           e_agent.analytics                          [C]
+│   │   ├── coordinator.py          facade (today: everything)                 [I]
+│   │   ├── transitions.py          run + action transition enforcement        [P]
+│   │   ├── run_loop.py             driver stepping, budgets                   [P]
+│   │   ├── context.py              ContextAssembler                           [P]
+│   │   ├── ledger.py               ProgressLedger projection                  [P]
+│   │   ├── gateway.py              read/write admission                       [P]
+│   │   ├── dispatch.py             reserve, writer rule, lease, receipt       [P]
+│   │   ├── verification.py         acceptance spec, verifiers                 [P]
+│   │   ├── recovery.py             leases, reconcile                          [P]
+│   │   └── approval.py policy.py registry.py discovery.py ...                [I]
+│   ├── erp/                        e_agent.erp — bounded contexts            [I]
+│   │   ├── procurement/            api, normalizer, rules, shapes, ontology,  [I]
+│   │   │                           verifier, answers
+│   │   ├── procurement/tasks/      task definitions + acceptance specs        [P]
+│   │   ├── procurement/skills/     SKILL.md playbooks                         [P]
+│   │   ├── inventory/ sales/ crm/ receivables/                                [I]
+│   │   └── testing/                fake ERP, scripted driver, scenarios       [I]
+│   ├── analytics/                  e_agent.analytics                          [C]
 │   ├── knowledge/                  e_agent.knowledge — claims, router API     [C]
-│   ├── adapter-agent-pydantic/     AgentDriver: Pydantic AI 2.x               [I]
-│   ├── adapter-agent-langgraph/    AgentDriver alternative                    [C]
-│   ├── adapter-postgres/           RunStore, migrations                       [I]
-│   ├── adapter-shacl/              validation engine                          [I]
-│   ├── adapter-odoo/               ERP executor + reconciliation              [I]
-│   ├── adapter-secretstore-local/  SecretStore                                [I]
-│   ├── adapter-mcp/                MCP client binding                         [P]
-│   ├── adapter-knowledge-pg/       pgvector + full-text projection            [C]
-│   ├── adapter-graph-age/ | adapter-graph-neo4j/  graph projection            [C]
-│   ├── adapter-memory-<vendor>/    MemoryStore over Mem0 / Zep                [C]
-│   ├── adapter-durable-dbos/       substrate wrapper                          [C]
-│   └── adapter-bigquery/           analytics executor                         [C]
+│   ├── adapters/                   e_agent.adapters.* (namespace)             [I]
+│   │   ├── pydantic_ai/            AgentDriver: Pydantic AI 2.x               [I]
+│   │   ├── langgraph/              AgentDriver alternative                    [C]
+│   │   ├── postgres/               RunStore, migrations                       [I]
+│   │   ├── shacl/                  validation engine                          [I]
+│   │   ├── odoo/                   ERP executor + reconciliation              [I]
+│   │   ├── secretstore_local/      SecretStore                                [I]
+│   │   ├── mcp/                    MCP client binding                         [P]
+│   │   ├── knowledge_pg/           pgvector + full-text projection            [C]
+│   │   ├── graph_age/ | graph_neo4j/  graph projection                        [C]
+│   │   ├── memory_<vendor>/        MemoryStore over Mem0 / Zep                [C]
+│   │   ├── durable_dbos/           substrate wrapper                          [C]
+│   │   └── bigquery/               analytics executor                         [C]
+│   └── server/                     e_agent.server — composition root          [I]
+│       ├── bootstrap.py            wiring, profile → plugins → registry       [I]
+│       ├── api.py                  FastAPI routes, SSE                        [I]
+│       ├── cli.py                  demo, migrate, recover, serve              [I]
+│       ├── worker.py               `e-agent worker` role, run slots           [P]
+│       ├── streaming.py            LISTEN dispatcher + SSE fan-out            [P]
+│       ├── triggers.py             webhook/schedule → run admission           [P]
+│       └── profiles/               non-secret profiles                        [I]
+├── dists/                          one build config per distribution          [I]
+│   ├── <distribution>/pyproject.toml   name, version, deps, entry points      [I]
+│   └── _hooks/src_tree.py          wheel takes src/e_agent/<part>; editable   [I]
+│                                   installs import from src/; no sdists
 ├── addons/e_agent_bridge/          Odoo 19 addon                              [I]
 ├── ui/                             TS workspace (packages/*, apps/web ...)    [I]
 ├── tests/
-│   ├── conformance/                run store, agent skills                    [I]
+│   ├── unit/<part>/                mirrors src/e_agent/                       [I]
+│   ├── conformance/                run store, agent skills, repo layout       [I]
 │   │   ├── test_driver.py          driver conformance suite                   [P]
 │   │   └── test_memory_store.py    memory port conformance                    [P]
 │   ├── integration/                rules, recovery, Odoo live                 [I]
+│   ├── harness/                    development harness                        [I]
 │   ├── load/                       fixture load harness                       [P]
 │   └── replays/                    recorded model replays                     [I]
-├── scripts/                        wheels, inventory, qualification           [I]
-├── docs/  (designs, ADRs, reviews, runbooks)                                  [I]
-└── research/                       source research (preserved)                [I]
+├── scripts/                        wheels, inventory, qualification, mover   [I]
+├── tools/harness/ · harness/       development harness and its state          [I]
+├── docs/                           roadmap, design/, plans/, specs/, adr/,    [I]
+│                                   handoffs/, reviews/, runbooks/
+└── research/ · archive/            source research, history (read-only)       [I]
 ```
 
 ---
 
 ## 16. Module map (where to look)
 
+Paths are relative to `src/e_agent/`.
+
 | Architecture element | Location today | After split |
 |---|---|---|
-| Run/action state, transitions | `packages/contracts/src/e_agent/contracts/{run,action}.py`; `kernel/coordinator.py` (`_set_run_state`, `_transition`) | `kernel/transitions.py` |
+| Run/action state, transitions | `contracts/{run,action}.py`; `kernel/coordinator.py` (`_set_run_state`, `_transition`) | `kernel/transitions.py` |
 | Driver loop and budgets | `kernel/coordinator.py` (`_drive`) | `kernel/run_loop.py` |
 | Approval | `kernel/approval.py`, `contracts/digest.py` | unchanged |
-| Dispatch and writer serialization | `kernel/coordinator.py:1041-1140`; `adapter-postgres/.../store.py: writer_lock` | `kernel/dispatch.py` + lease rows |
-| Work queue / substrate | `sdk/store.py` (work API), `adapter-postgres/.../store.py: claim_work` | unchanged seam |
-| Worker loop | `apps/server/.../api.py: ApiState.worker` | `apps/server/.../worker.py` |
-| SSE | `apps/server/.../api.py: stream` | `apps/server/.../streaming.py` |
+| Dispatch and writer serialization | `kernel/coordinator.py:1041-1140`; `adapters/postgres/store.py: writer_lock` | `kernel/dispatch.py` + lease rows |
+| Work queue / substrate | `sdk/store.py` (work API), `adapters/postgres/store.py: claim_work` | unchanged seam |
+| Worker loop | `server/api.py: ApiState.worker` | `server/worker.py` |
+| SSE | `server/api.py: stream` | `server/streaming.py` |
 | Plugin discovery/admission | `sdk/discovery.py`, `kernel/discovery.py`, `kernel/registry.py` | unchanged |
-| Driver adapter | `packages/adapter-agent-pydantic/.../driver.py` | + context rendering from `ContextPack` |
-| Domain rules and verifiers | `packages/domain-erp/src/e_agent/erp/procurement/{rules,shapes,validation.py,verifier.py}` | + `tasks/`, `skills/` |
-| Task catalog | `apps/server/.../api.py: TaskTemplate` (ADR 0017) | backed by `contracts/task.py` definitions |
+| Driver adapter | `adapters/pydantic_ai/driver.py` | + context rendering from `ContextPack` |
+| Domain rules and verifiers | `erp/procurement/{rules,shapes,validation.py,verifier.py}` | + `tasks/`, `skills/` |
+| Task catalog | `server/api.py: TaskTemplate` (ADR 0017) | backed by `contracts/task.py` definitions |
 | Authorization | `kernel/policy.py: DefaultPolicy` (two roles); `server/api.py` requester and tenant checks | `contracts/authz.py: AuthorizationBundle`; checks in `kernel/policy.py` and `kernel/approval.py` (C16) |
 | Reason codes and rationale | `contracts/run.py: reason` (free text) and `ReasonCode` / `RunRecord.reason_code` [I]; no rationale field | `contracts/action.py: ProposalRationale` (C18) |
 | Explanation projection and evidence | `kernel/evidence.py: build_evidence, classify` | `kernel/explain.py` projection over `run_events`; `classify` derived from `ReasonCode` (C17/C18) |
