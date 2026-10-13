@@ -41,7 +41,8 @@
         "an out-of-scope Write is denied by the hook",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/H4.4/2026-10-13T14-14-23.963187+00-00-full.json"
     }
   ]
 }

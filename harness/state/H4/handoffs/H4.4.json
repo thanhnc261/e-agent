@@ -1,0 +1,15 @@
+{
+  "task": "H4.4",
+  "changed": "Live check in a scratch clone with claude -p: the SessionStart hook injected the status brief; an out-of-scope Write was denied by the check-scope hook and the file was not created; an in-scope Edit succeeded. eng-session, eng-verify, AGENTS.md, README and the harness plan describe the hooks and subagents; H4 handoff written.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.4/2026-10-13T14-14-23.963187+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "No planted odoo-bench docker command was run live, because another session holds that stack; the deny rules are tested statically against eight command shapes",
+      "cost_if_wrong": "a rule that matches in the test but not in Claude Code would only show in use"
+    }
+  ],
+  "outside_repo": []
+}
