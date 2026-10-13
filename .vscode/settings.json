@@ -1,0 +1,20 @@
+{
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.mypy_cache": true,
+    "**/.ruff_cache": true,
+    "**/.pytest_cache": true,
+    "**/.import_linter_cache": true,
+    "ui/**/node_modules": true,
+    "ui/**/dist": true
+  },
+  "search.exclude": {
+    "**/__pycache__": true,
+    "**/.mypy_cache": true,
+    "**/.ruff_cache": true,
+    "**/.pytest_cache": true,
+    "**/.import_linter_cache": true,
+    "ui/**/node_modules": true,
+    "ui/**/dist": true
+  }
+}
