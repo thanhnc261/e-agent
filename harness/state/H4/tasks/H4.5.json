@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-H4-5"
   ],
-  "context_digest": "9f9112e2678d49db539b3cbf61d5587c9c375c729c2b76233e200479f54efbb5",
+  "context_digest": "b4a2bbb54beef9ba6428d5cd3458ad024a890b7a630b963d5d9a856682b959d5",
   "allowed_paths": [
     "tools/harness/**",
     "tests/harness/**",
