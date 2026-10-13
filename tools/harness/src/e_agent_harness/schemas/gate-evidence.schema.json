@@ -4,29 +4,79 @@
   "title": "Gate evidence",
   "type": "object",
   "additionalProperties": false,
-  "required": ["gate_set", "task", "commit", "clean_tree", "started_at", "ok", "commands"],
+  "required": [
+    "gate_set",
+    "task",
+    "commit",
+    "clean_tree",
+    "started_at",
+    "ok",
+    "commands"
+  ],
   "properties": {
-    "gate_set": {"type": "string", "minLength": 1},
-    "task": {"type": "string", "minLength": 1},
-    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-    "clean_tree": {"type": "boolean"},
-    "started_at": {"type": "string", "format": "date-time"},
-    "ok": {"type": "boolean"},
+    "gate_set": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task": {
+      "type": "string",
+      "minLength": 1
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "clean_tree": {
+      "type": "boolean"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ok": {
+      "type": "boolean"
+    },
     "commands": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["command", "exit_code", "seconds", "output_tail", "counts"],
+        "required": [
+          "command",
+          "exit_code",
+          "seconds",
+          "output_tail",
+          "counts"
+        ],
         "properties": {
-          "command": {"type": "string", "minLength": 1},
-          "exit_code": {"type": "integer"},
-          "seconds": {"type": "number", "minimum": 0},
-          "output_tail": {"type": "string"},
-          "counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "exit_code": {
+            "type": "integer"
+          },
+          "seconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "output_tail": {
+            "type": "string"
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
         }
       }
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time"
     }
   }
 }

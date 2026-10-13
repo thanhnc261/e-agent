@@ -182,7 +182,6 @@ def test_pg_guard_compares_parsed_databases(repo, monkeypatch) -> None:
         "postgresql://u@localhost/other?dbname=e_agent",  # query override
         "postgresql://u@other-host:6543/e_agent",  # same name on another host: refused anyway
         "host=localhost dbname=e\\_agent user=u",  # libpq unescapes unquoted values too
-        "postgresql://u@localhost/e_agent?dbname=",  # empty override: cannot tell
     ],
 )
 def test_pg_guard_refuses_every_spelling_of_the_live_database(repo, monkeypatch, test_dsn) -> None:
@@ -195,7 +194,13 @@ def test_pg_guard_refuses_every_spelling_of_the_live_database(repo, monkeypatch,
 
 
 @pytest.mark.parametrize(
-    "test_dsn", ["postgresql://u@localhost", "host=localhost user=u", "not a dsn"]
+    "test_dsn",
+    [
+        "postgresql://u@localhost",
+        "host=localhost user=u",
+        "not a dsn",
+        "postgresql://e_agent@localhost/other?dbname=",  # empty override: libpq falls back
+    ],
 )
 def test_pg_guard_refuses_a_test_dsn_without_a_database_name(repo, monkeypatch, test_dsn) -> None:
     _guard_pg(repo)

@@ -126,8 +126,7 @@ def _newest_valid_evidence(
     if not d.task_id:
         return None
     docs = [_valid_evidence(repo_root, f, d) for f in paths.evidence(d.task_id).glob("*.json")]
-    valid = [doc for doc in docs if doc]
-    return max(valid, key=lambda doc: str(doc["started_at"])) if valid else None
+    return closecheck.newest([doc for doc in docs if doc])
 
 
 def _feature_done(repo_root: Path, entry: dict[str, Any] | None, d: StatusData) -> bool:

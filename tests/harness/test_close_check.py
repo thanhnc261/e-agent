@@ -342,3 +342,34 @@ def _latest_evidence(repo) -> str:
         key=lambda p: p.stat().st_mtime_ns,
     )
     return str(newest.relative_to(repo.root))
+
+
+def test_checkpoint_during_a_running_gate_does_not_count(repo) -> None:
+    _start(repo)
+    repo.write("src/pkg/new.py", "Y = 2\n")
+    repo.commit("feature code")
+    evidence = _evidence_path(repo)
+    path = repo.root / evidence
+    doc = json.loads(path.read_text())
+    assert "finished_at" in doc
+    doc["finished_at"] = "2999-01-01T00:00:00+00:00"  # the gate is still running
+    path.write_text(json.dumps(doc) + "\n")
+    _bookkeeping(repo, evidence)  # checkpoint now: during the gate
+    result = repo.invoke("close-check", "--session", "s1")
+    assert result.code == 1
+    assert "checkpoint after the gate" in result.out
+    assert "checkpoint" in repo.invoke("status", "--session", "s1").out
+
+
+def test_evidence_times_compare_as_instants() -> None:
+    from e_agent_harness import closecheck
+
+    older_text_later = {"started_at": "2026-10-13T12:00:00Z"}
+    newer = {"started_at": "2026-10-13T12:00:00.500000+00:00"}
+    other_offset = {"started_at": "2026-10-13T13:00:00+02:00"}  # 11:00Z
+    assert closecheck.newest([older_text_later, newer, other_offset]) is newer
+    finished = {
+        "started_at": "2026-10-13T12:00:00+00:00",
+        "finished_at": "2026-10-13T12:10:00+00:00",
+    }
+    assert closecheck.newest([newer, finished]) is finished

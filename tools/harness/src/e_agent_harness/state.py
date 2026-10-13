@@ -58,15 +58,19 @@ class Paths:
 
     @property
     def active(self) -> Path:
-        return self.state / "active.json"
+        return self._contained(self.state / "active.json")
 
     @property
     def progress(self) -> Path:
-        return self.state / "progress.md"
+        return self._contained(self.state / "progress.md")
 
     def _contained(self, path: Path) -> Path:
-        """Refuse a state path that a symlink sends outside harness/state."""
-        root = self.state.resolve()
+        """Refuse a state path that a symlink sends outside harness/state.
+
+        The anchor is the intended directory under the real repository root, so a
+        symlinked harness/state (or any symlinked ancestor) is refused as well.
+        """
+        root = self.repo_root.resolve() / STATE_DIR
         resolved = path.resolve()
         if resolved != root and root not in resolved.parents:
             raise ValueError(f"{path.relative_to(self.repo_root)} escapes {STATE_DIR}")
@@ -89,7 +93,7 @@ class Paths:
 
     @property
     def live_evidence(self) -> Path:
-        return self.state / "evidence" / "live"
+        return self._contained(self.state / "evidence" / "live")
 
 
 def read_json(path: Path) -> Any:

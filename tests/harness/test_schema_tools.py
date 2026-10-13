@@ -108,3 +108,33 @@ def test_state_symlinks_cannot_escape(repo) -> None:
     result = repo.invoke("add-feature", "2", "F-y", *common)
     assert result.code == 1
     assert target.read_text() == "{}"
+
+
+def test_state_directory_symlink_is_refused(repo) -> None:
+    import os
+    import shutil
+
+    (repo.root / "research").mkdir()
+    shutil.move(str(repo.root / "harness/state"), str(repo.root / "research/state"))
+    os.symlink("../research/state", repo.root / "harness/state")
+    common = ("--category", "x", "--description", "d", "--step", "s")
+    result = repo.invoke("add-feature", "1", "F-x", *common)
+    assert result.code == 1
+    assert "escapes" in result.out
+    assert repo.invoke("checkpoint").code == 1
+
+
+def test_live_evidence_and_progress_symlinks_are_refused(repo) -> None:
+    import os
+
+    (repo.root / "research").mkdir()
+    (repo.root / "harness/state/evidence").mkdir(parents=True)
+    os.symlink("../../../research", repo.root / "harness/state/evidence/live")
+    result = repo.invoke("live-check")
+    assert result.code == 1
+    assert "escapes" in result.out
+    assert not list((repo.root / "research").glob("*.json"))
+    os.symlink("../../research/progress.md", repo.root / "harness/state/progress.md")
+    result = repo.invoke("checkpoint")
+    assert result.code == 1
+    assert not (repo.root / "research/progress.md").exists()

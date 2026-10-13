@@ -400,7 +400,11 @@ COMMANDS = {
 def main(argv: list[str] | None = None, stdin: TextIO | None = None) -> int:
     args = _parser().parse_args(argv)
     args.stdin = stdin or sys.stdin
-    return COMMANDS[args.command](args)
+    try:
+        return COMMANDS[args.command](args)
+    except ValueError as exc:  # invalid ids, escaping state paths, unreadable manifests
+        print(str(exc))
+        return 1
 
 
 if __name__ == "__main__":  # pragma: no cover
