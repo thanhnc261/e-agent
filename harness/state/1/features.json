@@ -135,7 +135,8 @@
       "category": "kernel",
       "description": "Task 1c.4: run_loop.py mixin moved verbatim",
       "steps": ["pytest -q tests/unit/kernel passes", "full gate passes"],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1c.4/2026-10-13T06-34-00+00-00.json"
     },
     {
       "id": "F-1c-5",

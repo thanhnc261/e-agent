@@ -1,0 +1,11 @@
+{
+  "task": "1c.4",
+  "changed": "src/e_agent/kernel/run_loop.py: RunLoopMixin(ContinuationMixin) with _drive, accept_input, continue_input, resume_input, _exhausted; base TYPE_CHECKING stubs for cross-mixin calls generated from static self-call analysis. Verify: 43/43 methods byte-identical, each defined once.",
+  "evidence_refs": [
+    "evidence/gates/1c.4/2026-10-13T06-34-00+00-00.json",
+    "evidence/1c/verify-1c.4.txt"
+  ],
+  "open_items": [],
+  "rulings": [],
+  "outside_repo": []
+}
