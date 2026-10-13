@@ -17,10 +17,18 @@ from typing import TYPE_CHECKING, Any
 from e_agent.contracts.common import new_id
 from e_agent.contracts.context import Budgets, TaskContext
 from e_agent.contracts.evidence import Completeness
+from e_agent.contracts.plan import ActionProposal
+from e_agent.contracts.run import (
+    ReasonCode,
+    RunRecord,
+    RunState,
+)
 from e_agent.contracts.validation import Finding, ValidationResult
 from e_agent.sdk.auth import CredentialVersionProvider
+from e_agent.sdk.errors import KnownNoEffectError
 from e_agent.sdk.ports import (
     AgentDriver,
+    DriverInput,
     Observation,
     PolicyEvaluator,
     ReadRequest,
@@ -101,6 +109,29 @@ class ContinuationMixin:
         async def _gateway_read(
             self, cont: _Continuation, request: ReadRequest, *, count_budget: bool
         ) -> Observation:
+            raise NotImplementedError
+
+        async def _handle_proposal(
+            self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
+        ) -> RunRecord | DriverInput:
+            raise NotImplementedError
+
+        async def _record_rejected_read(
+            self, cont: _Continuation, request: ReadRequest, exc: KnownNoEffectError
+        ) -> None:
+            raise NotImplementedError
+
+        async def _set_run_state(
+            self,
+            run: RunRecord,
+            state: RunState,
+            reason: str | None = None,
+            *,
+            code: ReasonCode | None = None,
+        ) -> RunRecord:
+            raise NotImplementedError
+
+        def _check_run_transition(self, run: RunRecord, to: RunState) -> None:
             raise NotImplementedError
 
     async def _read_cont(
