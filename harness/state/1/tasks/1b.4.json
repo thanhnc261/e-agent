@@ -8,6 +8,10 @@
   "context_digest": "0224b6dd23489fdddd6ee2ae1b70668378e2a151357764c4f7f6628b5efa024d",
   "allowed_paths": [
     "docs/design/**",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "docs/roadmap.md",
     "evidence/**",
     "harness/state/**",
     "docs/handoffs/**",
