@@ -14,8 +14,10 @@ from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.common import new_id
 from e_agent.contracts.context import Budgets, TaskContext
+from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import Completeness
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.run import (
@@ -132,6 +134,27 @@ class ContinuationMixin:
             raise NotImplementedError
 
         def _check_run_transition(self, run: RunRecord, to: RunState) -> None:
+            raise NotImplementedError
+
+        async def _exhausted(self, run: RunRecord, what: str) -> RunRecord:
+            raise NotImplementedError
+
+        async def _transition(
+            self,
+            action: ActionRecord,
+            to: ActionState,
+            event: tuple[RunEventType, dict[str, Any]] | None = None,
+        ) -> ActionRecord:
+            raise NotImplementedError
+
+        async def _finish_verified(
+            self,
+            cont: _Continuation,
+            external_refs: tuple[str, ...],
+            fallback: str,
+            *,
+            acknowledge: bool = True,
+        ) -> RunRecord:
             raise NotImplementedError
 
     async def _read_cont(

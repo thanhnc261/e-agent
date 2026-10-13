@@ -10,17 +10,14 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from datetime import datetime, timedelta
-from functools import partial
 from typing import Any
 
 from e_agent.contracts.action import ALLOWED_ACTION_TRANSITIONS, ActionRecord, ActionState
 from e_agent.contracts.approval import ApprovalDecision, ApprovalRecord
-from e_agent.contracts.capability import CapabilityBinding, EffectKind
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.context import Budgets, HostContext, Principal, TaskContext
-from e_agent.contracts.digest import CanonicalizationError, digest
+from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEventType
-from e_agent.contracts.evidence import ApprovedFact, Completeness
 from e_agent.contracts.outcome import OutcomeReport, OutcomeStatus
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
@@ -30,7 +27,7 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
-from e_agent.contracts.validation import Finding, ValidationResult, ValidationStatus
+from e_agent.contracts.validation import Finding, ValidationStatus
 from e_agent.sdk.auth import CredentialVersionProvider
 from e_agent.sdk.errors import KnownNoEffectError
 from e_agent.sdk.ports import (
@@ -39,14 +36,11 @@ from e_agent.sdk.ports import (
     FinalAnswer,
     PolicyEvaluator,
     SafeTextSink,
-    ValidationInput,
 )
 from e_agent.sdk.store import ConnectionBusy, DuplicateOperation, EventSpec, RunStore
 
 from .approval import (
     ApprovalPresentation,
-    compute_digest,
-    digest_input,
     fact_digest,
     presentation_for,
 )
@@ -58,6 +52,7 @@ from .continuation import _GatewayReader as _GatewayReader
 from .errors import ErrorCode, KernelError
 from .gateway import GatewayMixin
 from .policy import APPROVER_ROLE
+from .proposals import ProposalsMixin
 from .registry import PluginRegistry
 from .run_loop import RunLoopMixin
 from .transitions import TransitionsMixin
@@ -65,7 +60,7 @@ from .transitions import TransitionsMixin
 DEFAULT_APPROVAL_TTL = timedelta(minutes=15)
 
 
-class RunCoordinator(TransitionsMixin, RunLoopMixin, GatewayMixin):
+class RunCoordinator(TransitionsMixin, RunLoopMixin, GatewayMixin, ProposalsMixin):
     def __init__(
         self,
         *,
@@ -197,390 +192,6 @@ class RunCoordinator(TransitionsMixin, RunLoopMixin, GatewayMixin):
 
     async def get_run(self, tenant_id: str, run_id: str) -> RunRecord:
         return await self._store.get_run(tenant_id, run_id)
-
-    # ------------------------------------------------------------- proposals
-    async def _handle_proposal(
-        self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
-    ) -> RunRecord | DriverInput:
-        ctx = cont.ctx
-        descriptor = self._registry.descriptor(proposal.contract_id)
-        if descriptor.effect is EffectKind.ANSWER:
-            return await self._handle_answer(run, cont, proposal)
-        if descriptor.effect is not EffectKind.WRITE:
-            raise KernelError(ErrorCode.INVALID_REQUEST, "proposals are for write capabilities")
-        if cont.writes >= ctx.budgets.max_admitted_writes:
-            return await self._exhausted(run, "admitted writes")
-        connection = self._connections.usable(ctx, proposal.connection_id)
-        binding = self._registry.resolve(proposal.contract_id, proposal.connection_id)
-        decision = self._policy.evaluate(ctx, descriptor, proposal.connection_id)
-        validation = await self._validate(ctx, cont, proposal, binding)
-
-        credential_version = (
-            await self._credentials.version(ctx, proposal.connection_id)
-            if self._credentials
-            else "none"
-        )
-        evidence = [cont.observations[r].evidence for r in sorted(cont.observations)]
-        canonical = digest_input(
-            tenant_id=ctx.tenant_id,
-            requester_id=ctx.principal.principal_id,
-            logical_operation_id=run.logical_operation_id,
-            contract_id=proposal.contract_id,
-            binding_id=binding.binding_id,
-            connection_id=connection.connection_id,
-            connection_version=connection.version,
-            credential_subject=connection.credential_subject(),
-            arguments=dict(proposal.arguments),
-            expected_effects=proposal.expected_effects,
-            evidence=evidence,
-            rule_bundle_version=validation.rule_bundle_version,
-            policy_version=decision.policy_version,
-            credential_version=credential_version,
-            fact_digests={
-                o.evidence.evidence_id: fact_digest(o.data)
-                for o in cont.observations.values()
-                if o.evidence.revision is None
-            },
-        )
-        try:
-            action_digest = compute_digest(canonical)
-        except CanonicalizationError as exc:
-            validation = ValidationResult(
-                status=ValidationStatus.FAIL,
-                findings=(
-                    Finding(
-                        rule_id="KERNEL-ARGS",
-                        rule_version="1",
-                        status=ValidationStatus.FAIL,
-                        message=f"arguments outside the digest profile: {exc}",
-                    ),
-                ),
-                rule_bundle_version=validation.rule_bundle_version,
-                validator_id="kernel",
-            )
-            action_digest = "invalid"
-
-        previous = cont.last_action_id
-        action = ActionRecord(
-            action_id=new_id("act"),
-            tenant_id=ctx.tenant_id,
-            run_id=run.run_id,
-            logical_operation_id=run.logical_operation_id,
-            contract_id=proposal.contract_id,
-            binding_id=binding.binding_id,
-            connection_id=connection.connection_id,
-            connection_version=connection.version,
-            credential_subject=connection.credential_subject(),
-            credential_version=credential_version,
-            approved_facts=tuple(
-                ApprovedFact(contract_id=o.contract_id, data=dict(o.data), evidence=o.evidence)
-                for o in cont.observations.values()
-            ),
-            arguments=dict(proposal.arguments),
-            digest=action_digest,
-            state=ActionState.PROPOSED,
-            revision=1,
-            supersedes_action_id=previous,
-        )
-        await self._store.put_action(
-            action,
-            None,
-            [
-                (
-                    RunEventType.PROPOSAL_CREATED,
-                    {
-                        "contract_id": action.contract_id,
-                        "arguments": action.arguments,
-                        "supersedes": previous,
-                    },
-                    action.action_id,
-                )
-            ],
-        )
-        cont.last_action_id = action.action_id
-        findings_payload = [f.model_dump(mode="json") for f in validation.findings]
-        blocked = validation.blocks_write or not decision.permitted
-        if blocked:
-            action = await self._transition(
-                action,
-                ActionState.BLOCKED,
-                (
-                    RunEventType.VALIDATION_COMPLETED,
-                    {
-                        "status": validation.status,
-                        "findings": findings_payload,
-                        "policy_reasons": list(decision.reasons),
-                    },
-                ),
-            )
-            cont.pending_action_id = None
-            if not decision.permitted:
-                run = await self._store.get_run(run.tenant_id, run.run_id)
-                return await self._set_run_state(
-                    run, RunState.FAILED, "policy denied", code=ReasonCode.POLICY_DENIED
-                )
-            if cont.repairs >= ctx.budgets.max_validation_repairs:
-                run = await self._store.get_run(run.tenant_id, run.run_id)
-                return await self._set_run_state(
-                    run, RunState.FAILED, "validation blocked", code=ReasonCode.VALIDATION_FAILED
-                )
-            cont.repairs += 1
-            cont.findings = validation.findings
-            return DriverInput(
-                task=run.task,
-                observations=tuple(cont.observations.values()),
-                findings=validation.findings,
-            )
-
-        action = await self._transition(
-            action,
-            ActionState.VALIDATED,
-            (
-                RunEventType.VALIDATION_COMPLETED,
-                {"status": validation.status, "findings": findings_payload},
-            ),
-        )
-        cont.pending_action_id = action.action_id
-        cont.canonical_proposal = canonical
-        cont.last_validation = validation
-        cont.approval_requested_at = self._clock()
-        run = await self._store.get_run(run.tenant_id, run.run_id)
-        self._check_run_transition(run, RunState.WAITING_APPROVAL)
-        waiting = run.model_copy(
-            update={
-                "state": RunState.WAITING_APPROVAL,
-                "revision": run.revision + 1,
-                "reason": None,
-                "reason_code": None,
-            }
-        )
-        checkpoint = self._snapshot(run.run_id)
-        assert checkpoint is not None
-        await self._store.wait_for_approval(
-            action.model_copy(
-                update={"state": ActionState.AWAITING_APPROVAL, "revision": action.revision + 1}
-            ),
-            action.revision,
-            waiting,
-            run.revision,
-            checkpoint,
-            [
-                (
-                    RunEventType.APPROVAL_REQUESTED,
-                    {
-                        "digest": action.digest,
-                        "expires_at": (cont.approval_requested_at + self._approval_ttl).isoformat(),
-                    },
-                    action.action_id,
-                ),
-                (
-                    RunEventType.RUN_STATE_CHANGED,
-                    {
-                        "from": run.state,
-                        "to": RunState.WAITING_APPROVAL,
-                        "reason": None,
-                        "reason_code": None,
-                    },
-                    None,
-                ),
-            ],
-        )
-        return waiting
-
-    async def _handle_answer(
-        self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
-    ) -> RunRecord | DriverInput:
-        """Structured answers: no approval or dispatch; the domain verifier recomputes
-        the answer from fresh, independent reads (MVP plan ERP-01/02/06/08)."""
-        ctx = cont.ctx
-        connection = self._connections.usable(ctx, proposal.connection_id)
-        verifier = self._registry.verifier_for(proposal.contract_id)
-        if verifier is None:
-            raise KernelError(ErrorCode.DEPENDENCY_UNAVAILABLE, "no verifier for answer")
-        try:
-            action_digest = compute_digest(
-                {"contract_id": proposal.contract_id, "arguments": dict(proposal.arguments)}
-            )
-        except CanonicalizationError:
-            action_digest = "invalid"
-        if cont.last_action_id is not None:
-            previous = await self._store.get_action(ctx.tenant_id, cont.last_action_id)
-            if (
-                previous.state is ActionState.VERIFIED
-                and previous.contract_id == proposal.contract_id
-                and previous.connection_id == connection.connection_id
-                and previous.digest == action_digest
-                and previous.arguments == dict(proposal.arguments)
-            ):
-                return await self._finish_verified(
-                    cont, (), "The structured answer was independently verified.", acknowledge=False
-                )
-        action = ActionRecord(
-            action_id=new_id("act"),
-            tenant_id=ctx.tenant_id,
-            run_id=run.run_id,
-            logical_operation_id=run.logical_operation_id,
-            contract_id=proposal.contract_id,
-            binding_id="answer",
-            connection_id=connection.connection_id,
-            connection_version=connection.version,
-            credential_subject=connection.credential_subject(),
-            arguments=dict(proposal.arguments),
-            digest=action_digest,
-            state=ActionState.PROPOSED,
-            revision=1,
-            supersedes_action_id=cont.last_action_id,
-        )
-        await self._store.put_action(
-            action,
-            None,
-            [
-                (
-                    RunEventType.PROPOSAL_CREATED,
-                    {
-                        "contract_id": action.contract_id,
-                        "arguments": action.arguments,
-                        "kind": "answer",
-                        "supersedes": cont.last_action_id,
-                    },
-                    action.action_id,
-                )
-            ],
-        )
-        cont.last_action_id = action.action_id
-        action = await self._transition(action, ActionState.VALIDATED)
-        reader = _GatewayReader(self, cont, connection.connection_id)
-        try:
-            report = await verifier.verify(ctx, action, None, reader)
-        except Exception as exc:  # verification unavailable: never claim the answer
-            report = OutcomeReport(
-                run_id=ctx.run_id,
-                action_id=action.action_id,
-                status=OutcomeStatus.UNKNOWN,
-                checks=(),
-                verifier_id=verifier.verifier_id,
-                verifier_version=type(exc).__name__,
-                reported_at=self._clock(),
-            )
-        verified = report.status is OutcomeStatus.VERIFIED
-        target = ActionState.VERIFIED if verified else ActionState.VERIFICATION_FAILED
-        await self._store.record_outcome(
-            ctx.tenant_id,
-            report,
-            action.model_copy(update={"state": target, "revision": action.revision + 1}),
-            action.revision,
-            [(RunEventType.OUTCOME_REPORTED, report.model_dump(mode="json"), action.action_id)],
-        )
-        if verified:
-            return DriverInput(
-                task=run.task,
-                observations=tuple(cont.observations.values()),
-                action_result={"status": "VERIFIED"},
-            )
-        run = await self._store.get_run(run.tenant_id, run.run_id)
-        if cont.repairs >= ctx.budgets.max_validation_repairs:
-            return await self._set_run_state(
-                run, RunState.FAILED, "answer not verified", code=ReasonCode.VERIFICATION_FAILED
-            )
-        cont.repairs += 1
-        findings = tuple(
-            Finding(
-                rule_id=f"VERIFY-{c.name}",
-                rule_version="1",
-                status=ValidationStatus.FAIL,
-                message=f"answer check {c.name} failed",
-                expected=c.expected,
-                observed=c.observed,
-            )
-            for c in report.checks
-            if not c.passed
-        ) or (
-            Finding(
-                rule_id="VERIFY",
-                rule_version="1",
-                status=ValidationStatus.UNKNOWN,
-                message="answer could not be verified",
-            ),
-        )
-        return DriverInput(
-            task=run.task, observations=tuple(cont.observations.values()), findings=findings
-        )
-
-    async def _validate(
-        self,
-        ctx: TaskContext,
-        cont: _Continuation,
-        proposal: ActionProposal,
-        binding: CapabilityBinding,
-    ) -> ValidationResult:
-        if any(
-            o.evidence.completeness is not Completeness.COMPLETE for o in cont.observations.values()
-        ):
-            return ValidationResult(
-                status=ValidationStatus.UNKNOWN,
-                findings=(
-                    Finding(
-                        rule_id="KERNEL-EVIDENCE",
-                        rule_version="1",
-                        status=ValidationStatus.UNKNOWN,
-                        message="proposal evidence is incomplete",
-                    ),
-                ),
-                rule_bundle_version="kernel-evidence-v1",
-                validator_id="kernel",
-            )
-        validators = self._registry.validators_for(proposal.contract_id)
-        if not validators:
-            return ValidationResult(
-                status=ValidationStatus.UNKNOWN,
-                findings=(
-                    Finding(
-                        rule_id="KERNEL-NO-VALIDATOR",
-                        rule_version="1",
-                        status=ValidationStatus.UNKNOWN,
-                        message="no validator registered for capability",
-                    ),
-                ),
-                rule_bundle_version="none",
-                validator_id="kernel",
-            )
-        item = ValidationInput(proposal=proposal, observations=tuple(cont.observations.values()))
-        results: list[ValidationResult] = []
-        for validator in validators:
-            try:
-                results.append(
-                    await self._timed(
-                        cont,
-                        partial(validator.validate, ctx, item),
-                        ctx.budgets.provider_timeout_seconds,
-                    )
-                )
-            except Exception as exc:  # engine failure blocks the write (MVP §11)
-                results.append(
-                    ValidationResult(
-                        status=ValidationStatus.ERROR,
-                        findings=(
-                            Finding(
-                                rule_id="KERNEL-VALIDATOR-ERROR",
-                                rule_version="1",
-                                status=ValidationStatus.ERROR,
-                                message=type(exc).__name__,
-                            ),
-                        ),
-                        rule_bundle_version="error",
-                        validator_id=validator.validator_id,
-                    )
-                )
-        order = [ValidationStatus.ERROR, ValidationStatus.FAIL, ValidationStatus.UNKNOWN]
-        status = next(
-            (s for s in order if any(r.status is s for r in results)), ValidationStatus.PASS
-        )
-        return ValidationResult(
-            status=status,
-            findings=tuple(f for r in results for f in r.findings),
-            rule_bundle_version="+".join(sorted(r.rule_bundle_version for r in results)),
-            validator_id="+".join(sorted(r.validator_id for r in results)),
-        )
 
     # ------------------------------------------------------------- approvals
     async def pending_approval(self, tenant_id: str, run_id: str) -> ApprovalPresentation:
