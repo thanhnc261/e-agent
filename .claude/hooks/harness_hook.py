@@ -67,6 +67,8 @@ def _format(root: Path, payload: dict) -> int:
 
 def main(argv: list[str]) -> int:
     command = argv[0] if argv else ""
+    if command == "close-check" and os.environ.get("E_AGENT_HARNESS_UNATTENDED") != "1":
+        return 0  # an attended Stop never runs the gate: return before spawning anything
     raw = sys.stdin.read()
     try:
         payload = json.loads(raw) if raw.strip() else {}

@@ -120,3 +120,26 @@ def test_wrapper_format_formats_python_and_never_blocks(repo) -> None:
     assert hook(["format"], other).returncode == 0
     missing = {**payload, "tool_input": {"file_path": str(repo.root / "src/pkg/gone.py")}}
     assert hook(["format"], missing).returncode == 0
+
+
+def test_stop_hook_spawns_nothing_when_attended(repo, tmp_path) -> None:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    marker = tmp_path / "uv-was-called"
+    fake_uv = bin_dir / "uv"
+    fake_uv.write_text(f"#!/bin/sh\ntouch {marker}\nexit 0\n")
+    fake_uv.chmod(0o755)
+    (repo.root / "pyproject.toml").write_text("[project]\nname = 'x'\nversion = '0'\n")
+    env = {k: v for k, v in os.environ.items() if k != "E_AGENT_HARNESS_UNATTENDED"}
+    env["PATH"] = f"{bin_dir}:/usr/bin:/bin"
+    stop = {"hook_event_name": "Stop", "stop_hook_active": False, "cwd": str(repo.root)}
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "close-check", "--hook"],
+        input=json.dumps(stop),
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=60,
+    )
+    assert result.returncode == 0
+    assert not marker.exists(), "an attended Stop must not start the harness"

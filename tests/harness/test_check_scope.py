@@ -121,3 +121,35 @@ def test_hook_denies_backslash_paths(repo) -> None:
     result = repo.invoke("check-scope", "--hook", stdin=payload)
     assert result.code == 2
     assert "backslash" in result.err
+
+
+def test_hook_after_close_guards_only_protected_paths(repo) -> None:
+    _activate(repo)
+    repo.commit("contract")
+    repo.write("src/pkg/new.py", "Y = 2\n")
+    repo.commit("work")
+    assert repo.invoke("gate", "quick").code == 0
+    (evidence,) = (repo.root / "harness/state/evidence/gates/1c.1").glob("*.json")
+    features = repo.root / "harness/state/1/features.json"
+    doc = json.loads(features.read_text())
+    doc["entries"][0].update(passes=True, evidence=str(evidence.relative_to(repo.root)))
+    features.write_text(json.dumps(doc) + "\n")
+    handoff = {
+        "task": "1c.1",
+        "changed": "x",
+        "evidence_refs": [str(evidence.relative_to(repo.root))],
+        "open_items": [],
+        "rulings": [],
+        "outside_repo": [],
+    }
+    repo.write("harness/state/1/handoffs/1c.1.json", json.dumps(handoff) + "\n")
+    assert repo.invoke("checkpoint", "--session", "s").code == 0
+    repo.commit("bookkeeping")
+    assert repo.invoke("close-check", "--session", "s").code == 0
+    # The task is closed: unrelated work is not held to its scope, protected paths still are.
+    assert (
+        repo.invoke("check-scope", "--hook", stdin=_payload(repo, "Write", "docs/notes.md")).code
+        == 0
+    )
+    denied = repo.invoke("check-scope", "--hook", stdin=_payload(repo, "Write", "archive/old.md"))
+    assert denied.code == 2

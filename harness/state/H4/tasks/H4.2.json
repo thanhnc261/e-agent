@@ -11,7 +11,10 @@
     "tests/conformance/test_claude_settings.py",
     "harness/state/**",
     "docs/handoffs/**",
-    "docs/plans/2026-10-13-harness-h4-adapters.md"
+    "docs/plans/2026-10-13-harness-h4-adapters.md",
+    "tools/harness/**",
+    "tests/harness/**",
+    ".claude/hooks/**"
   ],
   "acceptance": [
     "tests/conformance/test_claude_settings.py passes"
@@ -19,5 +22,22 @@
   "gate_set": "full",
   "base_commit": "2c982953fd8c25080cdeaf0bd3810d364571e261",
   "created_at": "2026-10-13T14:08:17+00:00",
-  "features_digest": "4856032b49d20bda8d6dd3849f21f4986f74a3827c59ada4287a1f5f0dc886ba"
+  "features_digest": "4856032b49d20bda8d6dd3849f21f4986f74a3827c59ada4287a1f5f0dc886ba",
+  "scope_changes": [
+    {
+      "glob": "tools/harness/**",
+      "reason": "check-scope hook must not apply a closed task's scope to unrelated edits once the hook is committed",
+      "at": "2026-10-13T14:09:18+00:00"
+    },
+    {
+      "glob": "tests/harness/**",
+      "reason": "tests for the closed-task hook rule and the Stop fast path",
+      "at": "2026-10-13T14:09:18+00:00"
+    },
+    {
+      "glob": ".claude/hooks/**",
+      "reason": "Stop hook exits before spawning uv when not unattended",
+      "at": "2026-10-13T14:09:18+00:00"
+    }
+  ]
 }

@@ -150,9 +150,17 @@ def cmd_new_task(args: argparse.Namespace) -> int:
 
 
 def _resolve_for_hook(repo_root: Path) -> tuple[mf.Manifest, dict[str, Any] | None]:
+    """The manifest and the contract whose scope applies to an edit.
+
+    A closed task (its close-check passes) no longer holds unrelated work to its scope;
+    protected paths are always guarded.
+    """
     paths = state.Paths(repo_root)
+    m = mf.load_manifest(paths.manifest)
     loaded = state.load_task(paths)
-    return mf.load_manifest(paths.manifest), (loaded[0] if loaded else None)
+    if loaded is None or not closecheck.problems(paths, m, repo_root):
+        return m, None
+    return m, loaded[0]
 
 
 def cmd_check_scope(args: argparse.Namespace) -> int:

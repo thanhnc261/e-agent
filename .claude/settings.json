@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "autoCompactWindow": 400000,
+  "worktree": {
+    "baseRef": "head"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(docker compose -p odoo19-learning *)",
+      "Bash(docker exec odoo19-learning-odoo-1 *)",
+      "Bash(docker exec odoo19-learning-db-1 *)",
+      "Bash(docker logs odoo19-learning-odoo-1 *)",
+      "Bash(uv run e-agent-harness *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git merge *)",
+      "Bash(git rebase *)",
+      "Bash(git reset --hard *)"
+    ],
+    "deny": [
+      "Bash(docker *odoo-bench*)",
+      "Bash(docker compose -p odoo-bench *)",
+      "Bash(docker exec odoo-bench*)",
+      "Bash(docker exec * odoo-bench*)",
+      "Bash(docker stop odoo-bench*)",
+      "Bash(docker restart odoo-bench*)",
+      "Bash(docker rm *odoo-bench*)",
+      "Bash(docker kill odoo-bench*)",
+      "Edit(archive/**)",
+      "Edit(~/dev/lab/enterprise-agent/experiment/**)",
+      "Read(//**/ERP-Bench/**/solution/**)",
+      "Read(//**/ERP-Bench/**/tests/**)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness_hook.py status --format hook",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness_hook.py checkpoint --hook",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness_hook.py check-scope --hook",
+            "timeout": 60,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness_hook.py format",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness_hook.py close-check --hook",
+            "timeout": 180
+          }
+        ]
+      }
+    ]
+  }
+}
