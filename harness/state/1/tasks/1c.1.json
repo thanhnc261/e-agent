@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1c-1"
   ],
-  "context_digest": "6a24bbebcbfe35c776ffc2fb1b4b3e58d0fde3599399f5d11d79eaa08d2e457c",
+  "context_digest": "a2b4ec3a4bdb3b53466866f585df5180d73ca1bacddd809954b70f40284769a9",
   "allowed_paths": [
     "tests/unit/kernel/test_structure.py",
     "evidence/**",
