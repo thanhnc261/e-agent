@@ -38,7 +38,7 @@ Source conventions:
 ### EA-5 — No hidden reasoning, simulated progress or uncalibrated confidence
 
 - **Requirement:** No hidden model reasoning is displayed, streamed or persisted, and no simulated progress, invented plan or progress estimate is shown; activity reflects real recorded events only. No uncalibrated numeric confidence or score is displayed; calibrated numeric confidence is allowed only through an ADR with calibration evidence.
-- **Binding source:** [ADR 0007](../../../../docs/adr/0007-run-event-stream-contract.md) decision 5 ("Model thinking is never streamed"); [AGENTS.md](../../../../AGENTS.md) ("do not persist hidden chain-of-thought"); `docs/adr/0014-mvp-remediation-boundaries.md` (uncommitted on main as of 2026-10-11), only public text parts are emitted and reasoning is excluded; `docs/adr/0015-task-workspace-presentation.md` (uncommitted on main as of 2026-10-11), "The UI does not invent subtotals, resource names or progress percentages"; `docs/design/ui-architecture.md` §10 (uncommitted on main as of 2026-10-11), the Workbench shows only authoritative run state "without generated plans or progress estimates"; [AG UX skills design §2](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (owner approval 2026-10-11: no uncalibrated numeric scores; calibrated numeric confidence only through an ADR with calibration evidence); `research/15-agentic-ux-patterns-mockup.md` (uncommitted on main as of 2026-10-11) line 32, "not hidden reasoning, confidence percentages or simulated progress estimates".
+- **Binding source:** [ADR 0007](../../../../docs/adr/0007-run-event-stream-contract.md) decision 5 ("Model thinking is never streamed"); [AGENTS.md](../../../../AGENTS.md) ("do not persist hidden chain-of-thought"); `docs/adr/0014-mvp-remediation-boundaries.md` (uncommitted on main as of 2026-10-11), only public text parts are emitted and reasoning is excluded; `docs/adr/0015-task-workspace-presentation.md` (uncommitted on main as of 2026-10-11), "The UI does not invent subtotals, resource names or progress percentages"; `docs/design/ui-architecture.md` §10 (uncommitted on main as of 2026-10-11), the Workbench shows only authoritative run state "without generated plans or progress estimates"; [AG UX skills design §2](../../../../docs/specs/2026-10-11-ag-ux-skills-design.md) (owner approval 2026-10-11: no uncalibrated numeric scores; calibrated numeric confidence only through an ADR with calibration evidence); `research/15-agentic-ux-patterns-mockup.md` (uncommitted on main as of 2026-10-11) line 32, "not hidden reasoning, confidence percentages or simulated progress estimates".
 - **Standard cross-reference:** AG-EXPL-1, AG-STAT-2, AG-EXPL-4
 - **Kind:** ADR / Owner decision
 
@@ -87,35 +87,35 @@ Source conventions:
 ### EA-12 — Three verified themes
 
 - **Requirement:** The UI ships light, dark and high-contrast themes, and each passes text, non-text and focus contrast.
-- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
+- **Binding source:** [AG UX skills design §5](../../../../docs/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
 - **Standard cross-reference:** AG-DS-2
 - **Kind:** Owner decision
 
 ### EA-13 — Density scale
 
 - **Requirement:** The UI offers a density scale (at least comfortable and compact), and compact keeps targets at or above the WCAG minimum.
-- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
+- **Binding source:** [AG UX skills design §5](../../../../docs/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
 - **Standard cross-reference:** AG-DS-3
 - **Kind:** Owner decision
 
 ### EA-14 — Forced colours
 
 - **Requirement:** The UI remains operable and legible in forced-colours mode (for example Windows High Contrast).
-- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
+- **Binding source:** [AG UX skills design §5](../../../../docs/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
 - **Standard cross-reference:** none (AG-A11Y-3 Notes mention forced colours; no neutral criterion requires it)
 - **Kind:** Owner decision
 
 ### EA-15 — Icon and text pairing
 
 - **Requirement:** Status and severity indicators pair an icon with visible text; colour is never the only carrier.
-- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
+- **Binding source:** [AG UX skills design §5](../../../../docs/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
 - **Standard cross-reference:** AG-DS-5, AG-A11Y-4
 - **Kind:** Owner decision
 
 ### EA-16 — Polite status announcements
 
 - **Requirement:** Run-state changes are announced through a polite live region; streamed text is not announced token by token and focus is not moved.
-- **Binding source:** [AG UX skills design §5](../../../../docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
+- **Binding source:** [AG UX skills design §5](../../../../docs/specs/2026-10-11-ag-ux-skills-design.md) (§5 Errata (owner decision 2026-10-11)).
 - **Standard cross-reference:** AG-STAT-4
 - **Kind:** Owner decision
 

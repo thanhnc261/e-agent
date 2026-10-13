@@ -39,8 +39,8 @@ e-agent/
 **Tech stack:** uv workspace, hatchling (`force-include`, `dev-mode-dirs`), import-linter, mypy, ruff, pytest, plus a Python mover script that rewrites paths and links.
 
 **Spec:**
-- [Roadmap](../../roadmap.md) Phase 1
-- [Target architecture](../../design/target-architecture.md) §15 (repository structure; this plan supersedes its `packages/<dist>/src/...` shape, and §15 is updated in Task 1b.4), §16 (module map), §3.3 (kernel components after the SR-06 split)
+- [Roadmap](../roadmap.md) Phase 1
+- [Target architecture](../design/target-architecture.md) §15 (repository structure; this plan supersedes its `packages/<dist>/src/...` shape, and §15 is updated in Task 1b.4), §16 (module map), §3.3 (kernel components after the SR-06 split)
 - Roadmap P1 exit: "line-count and import contracts per kernel module"
 
 ## Global Constraints

@@ -4,7 +4,7 @@ These tests prove the harness data layer: the manifest describes the real
 repository, the contract samples validate, a changed authoritative file
 changes the digest, and the progress log round-trips. They do not judge
 whether the rules in the manifest are the right rules; the owner does that.
-Plan: docs/superpowers/plans/2026-10-12-dev-harness.md (H1).
+Plan: docs/plans/2026-10-12-dev-harness.md (H1).
 """
 
 import json

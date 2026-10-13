@@ -2,7 +2,7 @@
 
 Structural checks only. They cannot judge whether a criterion is a good standard
 or whether a cited source supports it; owner review and spot checks do that.
-Spec: docs/superpowers/specs/2026-10-11-ag-ux-skills-design.md.
+Spec: docs/specs/2026-10-11-ag-ux-skills-design.md.
 """
 
 from __future__ import annotations

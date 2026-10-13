@@ -7,7 +7,7 @@
 - plan buy, make or mix supply under policy;
 - execute the plan as linked, approved, verified documents (SO → MO → PO → invoice).
 
-**Design anchor:** [target architecture](../../design/target-architecture.md):
+**Design anchor:** [target architecture](../design/target-architecture.md):
 - §10 integration (domain → capability → binding → connection)
 - §2.3 domain packs and task definitions
 - §6 external-feedback correction
@@ -24,7 +24,7 @@
 Phases 0–2 can run in parallel with the core plan.
 
 
-> **Phase order is governed by the [roadmap](../../roadmap.md)** (owner decision 2026-10-12): action plans (Phase 0.3 here) are built in roadmap Phase 2 (execution IR); this plan is roadmap Phase 5. Every new runtime feature here ships behind a profile toggle (`off/shadow/on`) with a fallback to the existing path before any write is reserved.
+> **Phase order is governed by the [roadmap](../roadmap.md)** (owner decision 2026-10-12): action plans (Phase 0.3 here) are built in roadmap Phase 2 (execution IR); this plan is roadmap Phase 5. Every new runtime feature here ships behind a profile toggle (`off/shadow/on`) with a fallback to the existing path before any write is reserved.
 
 **Status:** Proposed. Nothing implemented.
 

@@ -2,7 +2,7 @@
 
 ## Summary
 
-- **Plan:** [Phase 1 plan](../superpowers/plans/2026-10-12-phase1-structure-refactor.md), Task 1a.1. Feature `F-1a-1` in `harness/state/1/features.json`.
+- **Plan:** [Phase 1 plan](../plans/2026-10-12-phase1-structure-refactor.md), Task 1a.1. Feature `F-1a-1` in `harness/state/1/features.json`.
 - **Branch:** `refactor/phase1-structure`, cut from `main` at `ebfcf70`. Not merged, not pushed.
 - **Purpose:** the "must be identical after the move" reference for Task 1a.3. No product code changed; every commit on the branch touches only `harness/state/**` or `docs/handoffs/**`, so the product tree measured here is `main` at `ebfcf70`.
 - **Raw outputs:** `evidence/baseline/` (git-ignored, local only). If it is lost, rebuild it from commit `08eb020` with the commands below.

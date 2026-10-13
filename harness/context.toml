@@ -13,7 +13,7 @@ files = [
   "docs/design/target-architecture.md",
   "docs/adr/README.md",
 ]
-active_plan = "docs/superpowers/plans/2026-10-12-phase1-structure-refactor.md"
+active_plan = "docs/plans/2026-10-12-phase1-structure-refactor.md"
 # Section names the sibling plans already use. From roadmap Phase 2 on, plans
 # also need "Toggles and fallback" and "Gate" sections (harness plan, eng-phase-plan).
 active_plan_required_sections = ["Global Constraints", "Review Focus"]

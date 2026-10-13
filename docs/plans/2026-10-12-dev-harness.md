@@ -30,7 +30,7 @@ A harness pins context, scopes each task, runs the gates, records the evidence a
 - **Local permissions:** `.claude/settings.local.json`, which allows `odoo19-learning` and denies `odoo-bench`.
 - **Gates:** `make e2e`, `scripts/env_check.py`, `scripts/odoo_sandbox.py`, the git-ignored `evidence/` folder.
 
-**Status:** Accepted 2026-10-12 (H0 decided); H1 in progress. It runs as track H of the [roadmap](../../roadmap.md), alongside Phase 1.
+**Status:** Accepted 2026-10-12 (H0 decided); H1 in progress. It runs as track H of the [roadmap](../roadmap.md), alongside Phase 1.
 
 ## Principles from the sources
 
@@ -131,7 +131,7 @@ This is the local dev loop every task follows, attended or not. The `eng-session
 - **Instruction-file fix.** Finding: `CLAUDE.md` links to `AGENTS.md` with a Markdown link, not an `@AGENTS.md` import, and Claude Code reads `AGENTS.md` directly only when no `CLAUDE.md` exists. In the current checkout a Claude session therefore loads the seven-line `CLAUDE.md` and not the shared rules unless it reads them by hand. Deliverable: the import (per H0), verified with `/context`. `AGENTS.md` is 64 lines, inside the documented 200-line guidance; keep it there by moving procedures into `eng-*` skills and keeping only invariants, commands and boundaries in the root files, so they survive compaction. Add a `# Compact instructions` section. No `.claude/rules/` directory (decided in H1): the imported `AGENTS.md` is project context and is re-injected after compaction already, and path-scoped rules would be summarised away.
 - **Status contract text:** what was done, what completed, why it stopped, whether that stop was expected, the gate impact, and exactly one next action.
 
-**Done 2026-10-12** (branch `harness/h1-durable-state`, [handoff](../../handoffs/2026-10-12-harness-h1.md)): [`harness/context.toml`](../../../harness/context.toml), schemas under `tools/harness/src/e_agent_harness/schemas/`, samples under `harness/samples/`, modules `manifest`, `digest`, `contracts`, `progress` in the `e-agent-harness` distribution, and `tests/conformance/test_harness_context.py`. The `validate-context` command itself is H2; H1 ships the function it wraps.
+**Done 2026-10-12** (branch `harness/h1-durable-state`, [handoff](../handoffs/2026-10-12-harness-h1.md)): [`harness/context.toml`](../../harness/context.toml), schemas under `tools/harness/src/e_agent_harness/schemas/`, samples under `harness/samples/`, modules `manifest`, `digest`, `contracts`, `progress` in the `e-agent-harness` distribution, and `tests/conformance/test_harness_context.py`. The `validate-context` command itself is H2; H1 ships the function it wraps.
 
 **Exit:**
 - `validate_manifest` returns no problems on the repository, and the schemas validate the sample documents (conformance test).
@@ -153,7 +153,7 @@ This is the local dev loop every task follows, attended or not. The `eng-session
 | `handoff <task>` | Validates the handoff document against its schema and checks that every evidence ref it cites exists. |
 | `status [--format text\|hook]` | Prints the human status contract (Vietnamese ELI5 first if chosen in H0). `--format hook` emits the SessionStart `additionalContext` JSON with a `sessionTitle`, within the manifest's token budget, written as facts rather than imperatives. |
 
-**Done 2026-10-13** (branch `harness/h2-cli`, [plan](2026-10-13-harness-h2-cli.md), [handoff](../../handoffs/2026-10-13-harness-h2.md)). Rulings recorded there:
+**Done 2026-10-13** (branch `harness/h2-cli`, [plan](2026-10-13-harness-h2-cli.md), [handoff](../handoffs/2026-10-13-harness-h2.md)). Rulings recorded there:
 - `live-check` runs the manifest's `live` gate set (identity, environment) with redaction and writes under `evidence/live/`; the configured live flows wait for the H5 pilot, which has the live profile.
 - Close-ritual order: commit the code, run `gate` on the clean tree, then checkpoint, handoff and a bookkeeping commit. `close-check` accepts evidence from an ancestor commit only when every later change is bookkeeping (`harness/state/**`, `docs/handoffs/**`, `evidence/**`).
 - A contract's `allowed_paths` always include `harness/state/**`, `docs/handoffs/**` and the active plan, written into the contract so nothing is implicit.
