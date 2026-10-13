@@ -1,0 +1,24 @@
+{
+  "id": "1c.8",
+  "phase": "1",
+  "plan_ref": "docs/plans/2026-10-12-phase1-structure-refactor.md",
+  "feature_ids": [
+    "F-1c-8"
+  ],
+  "context_digest": "a2b4ec3a4bdb3b53466866f585df5180d73ca1bacddd809954b70f40284769a9",
+  "allowed_paths": [
+    "src/e_agent/kernel/**",
+    "evidence/**",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-12-phase1-structure-refactor.md"
+  ],
+  "acceptance": [
+    "pytest -q tests/unit/kernel passes",
+    "full gate passes",
+    "coordinator.py ends at about 200 lines"
+  ],
+  "gate_set": "full",
+  "base_commit": "5b8907b52247bf861b6efe21268c25c2fe7d1750",
+  "created_at": "2026-10-13T06:36:33+00:00"
+}
