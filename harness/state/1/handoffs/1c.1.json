@@ -1,0 +1,19 @@
+{
+  "task": "1c.1",
+  "changed": "tests/unit/kernel/test_structure.py pins the coordinator surface on the unsplit code (27 checks): module names RunCoordinator, _Continuation, _GatewayReader, CONTINUATION_SCHEMA, DEFAULT_APPROVAL_TTL, LOG (logger name e_agent.kernel.coordinator); the 17 public methods; private methods tests use on instances (_peek_cont, _set_run_state, _gateway_read). Plan Part 1c execution notes: ContinuationMixin is the base, TYPE_CHECKING stubs for cross-mixin calls chosen by mypy, constants move with their users and are re-exported, one annotation change in _GatewayReader, ast-sliced moves with byte-for-byte evidence.",
+  "evidence_refs": [
+    "evidence/gates/1c.1/2026-10-13T06-29-09+00-00.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "Inventory of imported names came from git grep over tests, scripts, src and tools (subagent): RunCoordinator (server bootstrap, kernel conftest, test_recovery), _Continuation (test_lifecycle), the module itself (check_wheels.py); instance-level private access is pinned as methods on the class",
+      "cost_if_wrong": "a missed import fails loudly at import time in the gate"
+    },
+    {
+      "ruling": "Cross-mixin typing uses TYPE_CHECKING stubs in the base rather than self-type annotations, so moved method signatures stay byte-identical",
+      "cost_if_wrong": "stub signatures drift from the real ones; mypy checks overrides against them on every gate"
+    }
+  ],
+  "outside_repo": []
+}
