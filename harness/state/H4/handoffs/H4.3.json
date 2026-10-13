@@ -1,0 +1,19 @@
+{
+  "task": "H4.3",
+  "changed": "Four subagents in .claude/agents: explorer (read-only research, haiku), verifier (gate and verification levels, JSON report, preloads eng-verify), reviewer (fresh-context review JSON, opus, preloads eng-review), sandbox-operator (reads the manual-only live-sandbox skill, acts on owner instruction). The first three disallow Edit, Write and NotebookEdit; 14 conformance tests.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.3/2026-10-13T14-11-39.511069+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "The reviewer returns the review JSON and the caller writes and validates it, so the reviewer keeps no write tools",
+      "cost_if_wrong": "one extra step for the caller"
+    },
+    {
+      "ruling": "sandbox-operator reads live-sandbox instead of preloading it, because a disable-model-invocation skill cannot be preloaded",
+      "cost_if_wrong": "none"
+    }
+  ],
+  "outside_repo": []
+}
