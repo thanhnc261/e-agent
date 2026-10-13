@@ -5,7 +5,7 @@ from e_agent_harness import gate
 
 
 def _evidence_files(root: Path, task: str) -> list[Path]:
-    return sorted((root / "evidence" / "gates" / task).glob("*.json"))
+    return sorted((root / "harness" / "state" / "evidence" / "gates" / task).glob("*.json"))
 
 
 def _set_gate(repo, old: str, new: str) -> None:
@@ -85,7 +85,7 @@ def test_gate_substitutes_package(repo) -> None:
 def test_live_check_writes_under_evidence_live(repo) -> None:
     result = repo.invoke("live-check")
     assert result.code == 0, result
-    files = sorted((repo.root / "evidence" / "live").glob("*.json"))
+    files = sorted((repo.root / "harness" / "state" / "evidence" / "live").glob("*.json"))
     assert len(files) == 1
     assert json.loads(files[0].read_text())["gate_set"] == "live"
 
@@ -184,3 +184,40 @@ def test_gates_without_guards_are_unaffected(repo, monkeypatch) -> None:
     _guard_pg(repo)
     monkeypatch.delenv("E_AGENT_TEST_PG_DSN", raising=False)
     assert repo.invoke("gate", "quick").code == 0
+
+
+def test_gate_writes_committable_evidence(repo) -> None:
+    result = repo.invoke("gate", "quick")
+    assert result.code == 0, result
+    assert "harness/state/evidence/gates/no-task/" in result.out
+    assert not (repo.root / "evidence").exists()
+
+
+def test_second_gate_ignores_uncommitted_evidence(repo) -> None:
+    assert repo.invoke("gate", "quick").code == 0
+    assert repo.invoke("gate", "full").code == 0
+    docs = [json.loads(f.read_text()) for f in _evidence_files(repo.root, "no-task")]
+    assert len(docs) == 2
+    assert all(d["clean_tree"] for d in docs)
+    repo.write("src/pkg/mod.py", "X = 99\n")
+    assert repo.invoke("gate", "pg").code == 0
+    latest = [json.loads(f.read_text()) for f in _evidence_files(repo.root, "no-task")]
+    assert [d["clean_tree"] for d in latest if d["gate_set"] == "pg"] == [False]
+
+
+def test_two_runs_in_one_second_keep_both_files(repo) -> None:
+    from datetime import UTC, datetime
+
+    from e_agent_harness import manifest as mf
+    from e_agent_harness import state
+
+    paths = state.Paths(repo.root)
+    m = mf.load_manifest(paths.manifest)
+    now = datetime(2026, 10, 13, 12, 0, 0, tzinfo=UTC)
+    first = gate.write_evidence(
+        paths.evidence("t"), gate.run_gate(m, "quick", repo.root, task_id="t", now=now)
+    )
+    second = gate.write_evidence(
+        paths.evidence("t"), gate.run_gate(m, "quick", repo.root, task_id="t", now=now)
+    )
+    assert first != second and first.exists() and second.exists()

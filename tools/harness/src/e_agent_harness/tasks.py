@@ -11,7 +11,7 @@ from e_agent_harness import contracts, gitinfo, state
 from e_agent_harness.digest import context_digest
 from e_agent_harness.manifest import Manifest
 
-IMPLICIT_PATHS: tuple[str, ...] = ("harness/state/**", "docs/handoffs/**")
+IMPLICIT_PATHS: tuple[str, ...] = state.BOOKKEEPING_COMMITTED
 
 
 def materialise(

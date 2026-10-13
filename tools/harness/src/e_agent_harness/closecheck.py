@@ -8,7 +8,7 @@ from typing import Any
 from e_agent_harness import contracts, gitinfo, progress, state
 from e_agent_harness.manifest import Manifest, path_matches
 
-BOOKKEEPING: tuple[str, ...] = ("harness/state/**", "docs/handoffs/**", "evidence/**")
+BOOKKEEPING: tuple[str, ...] = state.BOOKKEEPING
 
 
 def _is_bookkeeping(path: str) -> bool:

@@ -208,3 +208,15 @@ def test_real_manifest_pg_gate_is_guarded() -> None:
     guard = m.gate_guards["pg"]
     assert "E_AGENT_TEST_PG_DSN" in guard.require_env
     assert ("E_AGENT_TEST_PG_DSN", "E_AGENT_PG_DSN") in guard.distinct_databases
+
+
+def test_old_and_new_evidence_paths_validate() -> None:
+    doc = json.loads((SAMPLES / "features.valid.json").read_text())
+    for ref in ("evidence/gates/1c.2/x.json", "harness/state/evidence/gates/1c.2/x.json"):
+        doc["entries"][1]["evidence"] = ref
+        assert contracts.validate("features", doc) == [], ref
+    doc["entries"][1]["evidence"] = "notes/x.json"
+    assert contracts.validate("features", doc)
+    handoff = json.loads((SAMPLES / "handoff.valid.json").read_text())
+    handoff["evidence_refs"] = ["harness/state/evidence/live/x.json", "evidence/live/y.json"]
+    assert contracts.validate("handoff", handoff) == []

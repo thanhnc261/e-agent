@@ -17,7 +17,7 @@ def _start(repo) -> None:
 
 def _evidence_path(repo) -> str:
     assert repo.invoke("gate", "quick").code == 0
-    (path,) = (repo.root / "evidence/gates/1c.1").glob("*.json")
+    (path,) = (repo.root / "harness/state/evidence/gates/1c.1").glob("*.json")
     return str(path.relative_to(repo.root))
 
 
@@ -111,7 +111,7 @@ def test_close_check_without_active_task(repo) -> None:
 
 def test_handoff_command_validates_schema_and_evidence_refs(repo) -> None:
     _start(repo)
-    bad = dict(HANDOFF, evidence_refs=["evidence/gates/1c.1/nope.json"])
+    bad = dict(HANDOFF, evidence_refs=["harness/state/evidence/gates/1c.1/nope.json"])
     repo.write("harness/state/1/handoffs/1c.1.json", json.dumps(bad) + "\n")
     result = repo.invoke("handoff", "1c.1")
     assert result.code == 1
@@ -144,7 +144,7 @@ def test_close_check_rejects_failed_gate_evidence(repo) -> None:
     )
     repo.commit("failing gate")
     assert repo.invoke("gate", "quick").code == 1
-    (path,) = (repo.root / "evidence/gates/1c.1").glob("*.json")
+    (path,) = (repo.root / "harness/state/evidence/gates/1c.1").glob("*.json")
     evidence = str(path.relative_to(repo.root))
     _bookkeeping(repo, evidence)
     result = repo.invoke("close-check")
@@ -194,3 +194,17 @@ def test_close_check_hook_finds_repository_from_subdirectory(repo, monkeypatch) 
     result = repo.invoke_raw("close-check", "--hook", stdin=payload)
     assert result.code == 2
     assert "working tree is not clean" in result.err
+
+
+def test_close_check_passes_in_a_fresh_clone(repo, tmp_path) -> None:
+    from tests.harness.conftest import git
+
+    _start(repo)
+    repo.write("src/pkg/new.py", "Y = 2\n")
+    repo.commit("feature code")
+    evidence = _evidence_path(repo)
+    _bookkeeping(repo, evidence)  # commits the evidence file with the bookkeeping
+    clone = tmp_path / "clone"
+    git(tmp_path, "clone", "-q", str(repo.root), str(clone))
+    result = repo.invoke_at(clone, "close-check", "--session", "s1")
+    assert result.code == 0, result

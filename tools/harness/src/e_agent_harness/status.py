@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from e_agent_harness import closecheck, gitinfo, progress, state
+from e_agent_harness import closecheck, gate, gitinfo, progress, state
 from e_agent_harness.digest import is_stale
 from e_agent_harness.manifest import Manifest, validate_manifest
 
@@ -27,6 +27,8 @@ class StatusData:
     acceptance: list[str] = field(default_factory=list)
     stale: bool = False
     has_evidence: bool = False
+    bookkeeping_dirty: bool = False
+    gate_ran: bool = False
     entries: list[progress.ProgressEntry] = field(default_factory=list)
     read_only: list[str] = field(default_factory=list)
     allowed_containers: list[str] = field(default_factory=list)
@@ -40,7 +42,8 @@ def collect(paths: state.Paths, m: Manifest, repo_root: Path) -> StatusData:
     data = StatusData(
         branch=gitinfo.branch(repo_root),
         head=gitinfo.head_sha(repo_root)[:7],
-        clean=gitinfo.is_clean(repo_root),
+        clean=gate.code_is_clean(repo_root),
+        bookkeeping_dirty=not gitinfo.is_clean(repo_root),
         phase=str(active["phase"]) if active.get("phase") else None,
         plan=m.authoritative.active_plan,
         task_id=str(loaded[0]["id"]) if loaded else None,
@@ -55,6 +58,7 @@ def collect(paths: state.Paths, m: Manifest, repo_root: Path) -> StatusData:
         data.gate_set = str(contract["gate_set"])
         data.acceptance = list(contract["acceptance"])
         data.stale = is_stale(str(contract["context_digest"]), repo_root, m)
+        data.gate_ran = any(paths.evidence(data.task_id or "").glob("*.json"))
         data.has_evidence = any(
             closecheck.evidence_ties_to_head(repo_root, state.read_json(f), data.task_id) is None
             for f in paths.evidence(data.task_id or "").glob("*.json")
@@ -81,6 +85,9 @@ def next_action(d: StatusData) -> str:
     if not d.clean:
         return f"commit the work, then run e-agent-harness gate {d.gate_set} on the clean tree"
     if not d.has_evidence:
+        if d.bookkeeping_dirty and not d.gate_ran:
+            step = d.acceptance[0] if d.acceptance else "the first acceptance step"
+            return f"commit the harness bookkeeping (harness/state), then work on: {step}"
         return f"run e-agent-harness gate {d.gate_set}"
     return "run e-agent-harness checkpoint, write the handoff, then close-check; then /clear"
 

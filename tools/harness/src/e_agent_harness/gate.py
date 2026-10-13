@@ -15,8 +15,8 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from e_agent_harness import contracts, gitinfo
-from e_agent_harness.manifest import Manifest
-from e_agent_harness.state import write_json
+from e_agent_harness.manifest import Manifest, path_matches
+from e_agent_harness.state import BOOKKEEPING, write_json
 
 TAIL_LINES = 40
 TIMEOUT_EXIT = 124
@@ -82,6 +82,15 @@ def run_shell(command: str, cwd: Path, timeout: int) -> tuple[int, str]:
     return proc.returncode, _text(output)
 
 
+def code_is_clean(repo_root: Path) -> bool:
+    """No change outside harness bookkeeping: earlier uncommitted evidence does not count."""
+    return not [
+        p
+        for p in gitinfo.status_files(repo_root)
+        if not any(path_matches(p, pattern) for pattern in BOOKKEEPING)
+    ]
+
+
 def database_identity(dsn: str) -> tuple[str, int, str]:
     """(host, port, database) of a PostgreSQL DSN in URL or keyword form."""
     dsn = dsn.strip()
@@ -131,7 +140,7 @@ def run_gate(
         "gate_set": set_name,
         "task": task_id,
         "commit": gitinfo.head_sha(repo_root),
-        "clean_tree": gitinfo.is_clean(repo_root),
+        "clean_tree": code_is_clean(repo_root),
         "started_at": now.isoformat(timespec="seconds"),
         "ok": True,
         "commands": [],
@@ -162,6 +171,11 @@ def run_gate(
 def write_evidence(directory: Path, evidence: dict[str, Any]) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
     stamp = str(evidence["started_at"]).replace(":", "-")
-    path = directory / f"{stamp}.json"
+    base = f"{stamp}-{evidence['gate_set']}"
+    path = directory / f"{base}.json"
+    n = 2
+    while path.exists():  # two runs of one set within a second must not overwrite
+        path = directory / f"{base}-{n}.json"
+        n += 1
     write_json(path, evidence)
     return path

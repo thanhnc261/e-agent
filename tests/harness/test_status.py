@@ -60,6 +60,15 @@ def test_next_action_order(repo) -> None:
     m = mf.load_manifest(paths.manifest)
     assert status.next_action(status.collect(paths, m, repo.root)).startswith("new-task")
     assert repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**").code == 0
+    # Only the new contract is dirty: no work exists yet (pilot HP-2).
+    action = status.next_action(status.collect(paths, m, repo.root))
+    assert action.startswith("commit the harness bookkeeping"), action
+    assert "run the suite" in action
+    repo.commit("contract")
+    assert status.next_action(status.collect(paths, m, repo.root)).startswith(
+        "run e-agent-harness gate"
+    )
+    repo.write("src/pkg/new.py", "Y = 2\n")
     assert status.next_action(status.collect(paths, m, repo.root)).startswith("commit the work")
 
 

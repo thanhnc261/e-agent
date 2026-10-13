@@ -8,7 +8,7 @@
   "properties": {
     "task": {"type": "string", "minLength": 1},
     "changed": {"type": "string", "minLength": 1},
-    "evidence_refs": {"type": "array", "items": {"type": "string", "pattern": "^evidence/"}},
+    "evidence_refs": {"type": "array", "items": {"type": "string", "pattern": "^(evidence/|harness/state/evidence/)"}},
     "open_items": {"type": "array", "items": {"type": "string", "minLength": 1}},
     "rulings": {
       "type": "array",

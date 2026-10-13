@@ -11,6 +11,10 @@ from typing import Any
 from e_agent_harness.manifest import MANIFEST_RELPATH
 
 STATE_DIR = "harness/state"
+# Paths a task may change besides its own scope: harness bookkeeping and handoffs.
+BOOKKEEPING_COMMITTED: tuple[str, ...] = ("harness/state/**", "docs/handoffs/**")
+# Also bookkeeping for the evidence-to-HEAD rule: the legacy local evidence folder.
+BOOKKEEPING: tuple[str, ...] = (*BOOKKEEPING_COMMITTED, "evidence/**")
 
 
 def find_repo_root(start: Path) -> Path:
@@ -59,11 +63,12 @@ class Paths:
         return self.state / phase / "handoffs" / f"{task_id}.json"
 
     def evidence(self, task_id: str) -> Path:
-        return self.repo_root / "evidence" / "gates" / task_id
+        # Committed with the bookkeeping, so a fresh clone can close the task (HP-4).
+        return self.state / "evidence" / "gates" / task_id
 
     @property
     def live_evidence(self) -> Path:
-        return self.repo_root / "evidence" / "live"
+        return self.state / "evidence" / "live"
 
 
 def read_json(path: Path) -> Any:
