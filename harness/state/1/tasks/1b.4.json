@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1b-4"
   ],
-  "context_digest": "62903fd3bd7a0735f133547f739bddf479f62fbbc1764296d98c9fe488f9577a",
+  "context_digest": "0224b6dd23489fdddd6ee2ae1b70668378e2a151357764c4f7f6628b5efa024d",
   "allowed_paths": [
     "docs/design/**",
     "evidence/**",
