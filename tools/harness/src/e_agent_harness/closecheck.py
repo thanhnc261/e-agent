@@ -53,7 +53,7 @@ def evidence_ties_to_head(
 
 def evidence_time(evidence: dict[str, Any]) -> datetime:
     """When the gate ended; legacy evidence without ``finished_at`` uses its start."""
-    return datetime.fromisoformat(str(evidence.get("finished_at") or evidence["started_at"]))
+    return contracts.parse_timestamp(str(evidence.get("finished_at") or evidence["started_at"]))
 
 
 def newest(docs: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -64,7 +64,7 @@ def newest(docs: list[dict[str, Any]]) -> dict[str, Any] | None:
 def _before(timestamp: str, evidence: dict[str, Any]) -> bool:
     """True when a progress entry was written before the gate finished."""
     try:
-        return datetime.fromisoformat(timestamp) < evidence_time(evidence)
+        return contracts.parse_timestamp(timestamp) < evidence_time(evidence)
     except (KeyError, ValueError):
         return True
 

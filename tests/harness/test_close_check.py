@@ -373,3 +373,41 @@ def test_evidence_times_compare_as_instants() -> None:
         "finished_at": "2026-10-13T12:10:00+00:00",
     }
     assert closecheck.newest([newer, finished]) is finished
+
+
+def test_enabled_stop_hook_blocks_on_invalid_state(repo, monkeypatch) -> None:
+    import os
+
+    _start(repo)
+    monkeypatch.setenv("E_AGENT_HARNESS_UNATTENDED", "1")
+    payload = json.dumps({"session_id": "s1", "stop_hook_active": False, "cwd": str(repo.root)})
+    (repo.root / "research").mkdir()
+    os.symlink("../../research/progress.md", repo.root / "harness/state/progress.md")
+    result = repo.invoke_raw("close-check", "--hook", stdin=payload)
+    assert result.code == 2, result
+    assert "escapes" in result.err
+    (repo.root / "harness/state/progress.md").unlink()
+    (repo.root / "harness/state/active.json").write_text("{not json")
+    result = repo.invoke_raw("close-check", "--hook", stdin=payload)
+    assert result.code == 2, result
+    assert "close-check error" in result.err
+    result = repo.invoke_raw("close-check", "--hook", stdin="{not json")
+    assert result.code == 2
+
+
+def test_disabled_and_recursive_stop_hook_never_block(repo, monkeypatch) -> None:
+    monkeypatch.delenv("E_AGENT_HARNESS_UNATTENDED", raising=False)
+    assert repo.invoke_raw("close-check", "--hook", stdin="{not json").code == 0
+    monkeypatch.setenv("E_AGENT_HARNESS_UNATTENDED", "1")
+    looping = json.dumps({"stop_hook_active": True, "cwd": str(repo.root)})
+    (repo.root / "harness/state/active.json").write_text("{not json")
+    assert repo.invoke_raw("close-check", "--hook", stdin=looping).code == 0
+
+
+def test_lowercase_z_timestamps_parse_everywhere() -> None:
+    from e_agent_harness import closecheck, contracts
+
+    doc = {"started_at": "2026-10-13T12:01:00z"}
+    assert contracts.parse_timestamp("2026-10-13T12:01:00z").utcoffset().total_seconds() == 0
+    assert closecheck.evidence_time(doc) == contracts.parse_timestamp("2026-10-13T12:01:00+00:00")
+    assert closecheck.newest([doc, {"started_at": "2026-10-13T12:00:00Z"}]) is doc

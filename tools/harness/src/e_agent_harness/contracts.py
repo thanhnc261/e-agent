@@ -13,16 +13,20 @@ from jsonschema import Draft202012Validator, FormatChecker
 FORMAT_CHECKER = FormatChecker()
 
 
-@FORMAT_CHECKER.checks("date-time", raises=ValueError)
-def _date_time(value: object) -> bool:
-    """RFC 3339 date-time: a date, a time and an explicit offset (no extra dependency)."""
-    if not isinstance(value, str):
-        return True
+def parse_timestamp(value: str) -> datetime:
+    """RFC 3339 date-time with an explicit offset; the one parser every check shares."""
     if "T" not in value.upper():
         raise ValueError("date-time needs a time part")
     parsed = datetime.fromisoformat(value.replace("z", "Z").replace("Z", "+00:00"))
     if parsed.tzinfo is None:
         raise ValueError("date-time needs an offset")
+    return parsed
+
+
+@FORMAT_CHECKER.checks("date-time", raises=ValueError)
+def _date_time(value: object) -> bool:
+    if isinstance(value, str):
+        parse_timestamp(value)
     return True
 
 

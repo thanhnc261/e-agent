@@ -282,14 +282,20 @@ def cmd_handoff(args: argparse.Namespace) -> int:
 
 def cmd_close_check(args: argparse.Namespace) -> int:
     if args.hook:
-        payload = json.load(args.stdin)
-        unattended = os.environ.get("E_AGENT_HARNESS_UNATTENDED") == "1"
-        if not unattended or payload.get("stop_hook_active"):
-            return 0
-        if not args.repo and payload.get("cwd"):
-            args.repo = state.find_repo_root(Path(payload["cwd"]))
-        root, paths, m = _context(args)
-        found = closecheck.problems(paths, m, root, session=str(payload.get("session_id") or ""))
+        if os.environ.get("E_AGENT_HARNESS_UNATTENDED") != "1":
+            return 0  # attended sessions are never trapped
+        try:
+            payload = json.load(args.stdin)
+            if payload.get("stop_hook_active"):
+                return 0  # the stop was already blocked once: let the session end
+            if not args.repo and payload.get("cwd"):
+                args.repo = state.find_repo_root(Path(payload["cwd"]))
+            root, paths, m = _context(args)
+            session = str(payload.get("session_id") or "")
+            found = closecheck.problems(paths, m, root, session=session)
+        except Exception as exc:  # an enabled gate fails closed: invalid state blocks the stop
+            print(f"close-check error: {exc}", file=sys.stderr)
+            return 2
         if found:
             print("close-check: " + "; ".join(found), file=sys.stderr)
             return 2

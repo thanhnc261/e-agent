@@ -307,3 +307,28 @@ def test_redact_full_digest_headers_and_quoted_flags() -> None:
     }
     for text, secret in samples.items():
         assert secret not in gate.redact(text), (text, gate.redact(text))
+
+
+def test_finished_at_is_read_when_the_gate_ends(repo) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from e_agent_harness import manifest as mf
+    from e_agent_harness import state
+
+    m = mf.load_manifest(state.Paths(repo.root).manifest)
+    start = datetime(2026, 10, 13, 12, 0, 0, tzinfo=UTC)
+    ticks = iter(start + timedelta(minutes=n) for n in range(1, 100))
+    seen: list[datetime] = []
+
+    def clock() -> datetime:
+        return next(ticks)
+
+    def runner(command: str, cwd, timeout: int) -> tuple[int, str]:
+        seen.append(clock())  # e.g. a checkpoint written while the command runs
+        return 0, "1 passed"
+
+    evidence = gate.run_gate(
+        m, "quick", repo.root, task_id="t", now=start, runner=runner, clock=clock
+    )
+    finished = datetime.fromisoformat(evidence["finished_at"])
+    assert finished > max(seen)

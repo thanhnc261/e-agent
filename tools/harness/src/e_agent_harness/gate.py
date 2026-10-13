@@ -9,7 +9,7 @@ import signal
 import subprocess
 import time
 from collections.abc import Callable, Mapping
-from datetime import datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlsplit
@@ -171,6 +171,7 @@ def run_gate(
     now: datetime,
     runner: Runner = run_shell,
     env: Mapping[str, str] | None = None,
+    clock: Callable[[], datetime] | None = None,
 ) -> dict[str, Any]:
     if set_name not in m.gates:
         raise ValueError(f"unknown gate set: {set_name} (have {', '.join(sorted(m.gates))})")
@@ -203,9 +204,9 @@ def run_gate(
             evidence["ok"] = False
             if not keep_going:
                 break
-    elapsed = sum(entry["seconds"] for entry in evidence["commands"])
-    # When the last command ended: a closing checkpoint must come after this.
-    evidence["finished_at"] = (now + timedelta(seconds=elapsed)).isoformat(timespec="microseconds")
+    # Read when the last command has ended: a closing checkpoint must come after this.
+    finished = (clock or (lambda: datetime.now(UTC)))()
+    evidence["finished_at"] = max(finished, now).isoformat(timespec="microseconds")
     problems = contracts.validate("gate-evidence", evidence)
     if problems:
         raise ValueError("evidence invalid: " + "; ".join(problems))
