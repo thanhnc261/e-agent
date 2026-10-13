@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
 from collections.abc import Callable, Sequence
@@ -78,7 +79,6 @@ DOC_HISTORY = (
     "docs/plans/",
     "docs/reviews/",
     "docs/specs/",
-    "docs/superpowers/",
 )
 CACHE_PARTS = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
 DROPPED_SECTIONS = {"build-system", "tool.uv.build-backend"}
@@ -190,6 +190,12 @@ def _leftovers(root: Path, move: Move) -> list[str]:
     return found
 
 
+def _drop_caches(path: Path) -> None:
+    """git mv carries ignored caches along; their compiled paths name the old tree."""
+    for cache in sorted(path.rglob("__pycache__"), reverse=True):
+        shutil.rmtree(cache)
+
+
 def _remove_cache_tree(path: Path) -> None:
     """Remove a directory that holds only caches; anything else is an error."""
     if not path.exists():
@@ -241,8 +247,10 @@ def layout(root: Path, moves: Sequence[Move] = MOVES) -> None:
 
     for move in moves:
         _git_mv(root, move.old_code, move.new_code)
+        _drop_caches(root / move.new_code)
         if (root / move.old_tests).is_dir():
             _git_mv(root, move.old_tests, move.new_tests)
+            _drop_caches(root / move.new_tests)
         _git_mv(root, move.old_config, move.new_config)
         config = root / move.new_config
         config.write_text(

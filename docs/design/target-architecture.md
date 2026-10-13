@@ -810,7 +810,7 @@ flowchart TB
 | Mechanism | Purpose | Status |
 |---|---|---|
 | Bounded run slots per worker (`asyncio` semaphore / task group), per-tenant cap in the claim query | Concurrency with fairness; slot count is bounded by model concurrency and pool size, not CPU (for local Ollama, by its parallel-request setting) | [P] (1 slot today) |
-| Waits release slots | A claim ends when the run reaches `WAITING_APPROVAL`/`WAITING_INPUT` (`store.wait_for_approval` is an atomic state + continuation write, `store.py:262`). An approval decision enqueues new work (`api.py:574`); an input is accepted together with its work item atomically (`run_loop.py: accept_input(enqueue=True)`). Human waits therefore do not hold slots | [I] |
+| Waits release slots | A claim ends when the run reaches `WAITING_APPROVAL`/`WAITING_INPUT` (`store.wait_for_approval` is an atomic state + continuation write, `store.py:262`). An approval decision enqueues new work (`api.py: decide`); an input is accepted together with its work item atomically (`run_loop.py: accept_input(enqueue=True)`). Human waits therefore do not hold slots | [I] |
 | Admission control at enqueue | Per-tenant queue-depth limit with an explicit queued or rejected response, checked in the same transaction as the enqueue so concurrent submissions cannot race past it; per-tenant token quotas in the profile | [P] |
 | Model-call retry policy | Retries on model 429/5xx are allowed because they have no side effect, but they consume the active-time and token budget. They are a different category from write retries, which are never automatic | [P] (policy to be written down) |
 | Shared-singleton audit before slots > 1 | The driver keys `_RunState` by `run_id`; work claim is a `ContextVar`; still check the executor client, text bus and caches | [P] |
@@ -842,13 +842,13 @@ Results are labelled fixture/infrastructure evidence, never live qualification.
 
 | Situation | Behavior | Status |
 |---|---|---|
-| Two creates by the same actor with the same `Idempotency-Key` and payload | One run; the second call returns the existing run. The key is scoped per actor (`PRIMARY KEY (tenant_id, actor_id, idem_key)`), so two actors sharing a key make two runs | [I] (`migrations/0002_api_idempotency.sql`; header required, `api.py:455`) |
+| Two creates by the same actor with the same `Idempotency-Key` and payload | One run; the second call returns the existing run. The key is scoped per actor (`PRIMARY KEY (tenant_id, actor_id, idem_key)`), so two actors sharing a key make two runs | [I] (`migrations/0002_api_idempotency.sql`; header required, `api.py: create_run`) |
 | Same actor and key, different payload | 409 CONFLICT | [I] (`0002` header comment) |
 | Two approvers decide the same action | Compare-and-swap on `expected_run_revision`: the first wins, the second gets 409 (`approval_flow.py: decide`) | [I] |
 | Decision for an action no longer pending, or with a stale digest | 409 CONFLICT / APPROVAL_STALE (`approval_flow.py: decide`) | [I] |
-| Input while the run is not `WAITING_INPUT` or the revision moved | 409 (`api.py:589`) | [I] |
-| Request on another tenant's run | 404 with a FORBIDDEN body; absent and foreign look the same (`api.py:510`) | [I] |
-| Many requests from one principal | No per-principal request limit; only budget exhaustion returns 429 (`api.py:58`) | [P] token-bucket limits per principal and per tenant at the API, separate from run budgets |
+| Input while the run is not `WAITING_INPUT` or the revision moved | 409 (`api.py: submit_input`) | [I] |
+| Request on another tenant's run | 404 with a FORBIDDEN body; absent and foreign look the same (`api.py: visible_run`, `STATUS`) | [I] |
+| Many requests from one principal | No per-principal request limit; only budget exhaustion returns 429 (`api.py: STATUS`) | [P] token-bucket limits per principal and per tenant at the API, separate from run budgets |
 | Snapshot or export of a long run | `list_events(after_sequence, limit)` pages events; the API reads `EVENT_PAGE = 500` per call (the events endpoint `limit` ceiling is 1000) and evidence export reads `EVIDENCE_PAGE = 1000`; `build_evidence` still holds all events, actions, approvals and receipts in memory | [I] paged (EVENT_PAGE 500, ceiling 1000); [P] streamed evidence export; per-run event cap enforced by budgets |
 | Many SSE viewers of one run | One database poll per viewer (SR-02) | [P] LISTEN dispatcher (C2) plus a per-principal connection cap |
 | Decide racing cancel | Not analyzed in this review | [I] the run transition table exists (`ALLOWED_RUN_TRANSITIONS`, ADR 0018); [P] the decide/cancel race analysis |
@@ -881,7 +881,7 @@ Adding a domain means creating a pack distribution with ontology, contracts, rul
 
 ### 13.2 Authorization model
 
-**Today [I].** Self-approval is refused unless `operator.allow_self_approval` is set (ADR 0019) [I]; the fixture profile sets it, `profiles/live.example.json` keeps the forbidden default, and `/health/ready` reports `self_approval_allowed`. Two static roles, `requester` and `approver` (`kernel/policy.py:9-10`). `DefaultPolicy` permits when the principal has the requester role and the connection is in `resource_scope`, and requires approval exactly when the effect is a write (`policy.py:13-31`). `decide` requires the approver role (`approval_flow.py: decide`); input requires the principal to be the requester (`api.py:587`); run reads, the stream and the evidence export are tenant-scoped only (`api.py:472`, `api.py:510`, `api.py:615`). Roles come from the profile's operator in local mode (`bootstrap.py:161-166`). Reads are the odd one out: any tenant member can read any run and export its evidence, while HLD §9 requires export authorization.
+**Today [I].** Self-approval is refused unless `operator.allow_self_approval` is set (ADR 0019) [I]; the fixture profile sets it, `profiles/live.example.json` keeps the forbidden default, and `/health/ready` reports `self_approval_allowed`. Two static roles, `requester` and `approver` (`kernel/policy.py:9-10`). `DefaultPolicy` permits when the principal has the requester role and the connection is in `resource_scope`, and requires approval exactly when the effect is a write (`policy.py:13-31`). `decide` requires the approver role (`approval_flow.py: decide`); input requires the principal to be the requester (`api.py: submit_input`); run reads, the stream and the evidence export are tenant-scoped only (`api.py: get_run`, `stream`, `evidence`). Roles come from the profile's operator in local mode (`bootstrap.py:161-166`). Reads are the odd one out: any tenant member can read any run and export its evidence, while HLD §9 requires export authorization.
 
 **Target [P].** Extend this model; do not replace it with an external policy engine.
 

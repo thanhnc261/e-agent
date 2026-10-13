@@ -67,7 +67,17 @@ Each task handoff states its rulings with cost-if-wrong. The ones that change th
   - **HP-12:** gate `full` lacks the UI unit tests.
 
   **HP-13** needs action before anyone runs `gate pg`: the `pg` gate points the truncating test suite at the live ledger DSN. Most of the others are about task lifecycle: closed state, scope amendment, refreshing the digest when the plan changes, and multiple gate sets.
-- **Target architecture:** the `api.py:<line>` citations predate Phase 1 (they refer to `af50c62`, as the header says) and some were already wrong. Replace them with function references when that design is next revised.
+- **Branch review (after 1c.11, task `1.R1`):** fixed four findings:
+  - `layout` drops the caches that `git mv` carried along; their compiled paths named the old tree.
+  - The `api.py` and `coordinator.py` line citations in target-architecture are function references now.
+  - A test keeps the mover's hook copy equal to `dists/_hooks/src_tree.py`.
+  - A dead `docs/superpowers/` prefix is gone.
+
+  Kept as rulings:
+  - `dev-mode-dirs` exposes the whole `src/` tree in a lone editable install. Wheels and import contracts still enforce dependency closure.
+  - The mixins-plus-stubs design; collaborators can replace it later (SR-06).
+  - `[tool.ruff] src = ["."]`. Re-sorting imports into first-party groups is a style-only follow-up of about 48 files.
+  - The preserved logger names.
 - **Unchanged from before:** live release qualification is still NOT_READY. Phase 1 changed structure, not readiness.
 
 ## Changes outside the repository

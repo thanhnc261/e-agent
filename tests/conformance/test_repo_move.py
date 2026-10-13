@@ -106,6 +106,8 @@ def test_layout_moves_code_tests_and_configs_with_git_history(repo: Path) -> Non
     rm.layout(repo, MOVES)
 
     assert (repo / "src/e_agent/kernel/coordinator.py").read_text() == "X = 1\n"
+    # git mv carries ignored caches along; their compiled paths would name the old tree.
+    assert not (repo / "src/e_agent/kernel/__pycache__").exists()
     assert (repo / "src/e_agent/adapters/odoo/e_agent_plugin.json").is_file()
     assert (repo / "src/e_agent/server/__init__.py").is_file()
     assert (repo / "tests/unit/kernel/test_k.py").is_file()
@@ -293,3 +295,8 @@ def test_check_reports_doc_mentions_separately_and_skips_history(repo: Path) -> 
     assert report.read_only_broken_links == [("research/r.md", "../docs/missing.md")]
     assert report.ok
     assert not report.ok_with_docs
+
+
+def test_layout_writes_the_committed_build_hook() -> None:
+    hook = (REPO / "dists/_hooks/src_tree.py").read_text(encoding="utf-8")
+    assert hook == rm.HOOK
