@@ -28,7 +28,7 @@ describe("run view reducer", () => {
   it("accepts read.rejected as a known event without a snapshot refresh", () => {
     const v = reduceRunView(base, {
       type: "events",
-      events: [ev(1, "read.rejected", { request_id: "r1", contract_id: "c", connection_id: "k", code: "E_AGENT_INVALID_REF", message: "Odoo rejected the request" })],
+      events: [ev(1, "read.rejected", { request_id: "r1", contract_id: "c", connection_id: "k", code: "E_AGENT_INVALID_REF", message: "The provider rejected the request" })],
     });
     expect(v.needsSnapshot).toBe(false);
     expect(v.unsupportedEvents).toBe(0);
