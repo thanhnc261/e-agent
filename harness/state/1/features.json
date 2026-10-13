@@ -184,7 +184,8 @@
         "import-linter contract: no kernel module except coordinator imports e_agent.kernel.coordinator",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1c.9/2026-10-13T06-38-05+00-00.json"
     },
     {
       "id": "F-1c-10",

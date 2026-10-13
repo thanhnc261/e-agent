@@ -1,0 +1,16 @@
+{
+  "task": "1c.9",
+  "changed": "tests/unit/kernel/test_structure.py: test_each_method_defined_once (RunCoordinator MRO), test_kernel_module_size (<= 500 lines per src/e_agent/kernel/*.py), test that the facade contract covers every other kernel module. pyproject.toml: forbidden contract 'Only the facade module imports e_agent.kernel.coordinator' (9 contracts kept). Mutation checks: an injected facade import breaks the contract; a duplicated _drive fails the MRO test.",
+  "evidence_refs": [
+    "evidence/gates/1c.9/2026-10-13T06-38-05+00-00.json",
+    "evidence/1c/mutations-1c.9.txt"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "The facade contract lists its source modules explicitly, and a test keeps that list equal to the kernel's modules, so a new module cannot slip past it",
+      "cost_if_wrong": "a new kernel module fails the test until it is added to the contract"
+    }
+  ],
+  "outside_repo": []
+}
