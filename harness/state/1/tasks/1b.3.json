@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1b-3"
   ],
-  "context_digest": "9eaaf9089f433ad155516a9f00473530baf8c6dd6e83d21800a02be2790b2575",
+  "context_digest": "62903fd3bd7a0735f133547f739bddf479f62fbbc1764296d98c9fe488f9577a",
   "allowed_paths": [
     "AGENTS.md",
     "CLAUDE.md",
