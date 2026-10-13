@@ -181,6 +181,8 @@ This is the local dev loop every task follows, attended or not. The `eng-session
 | `eng-handoff` | Handoff document: changes, evidence, changes outside the repository with how to undo them, rulings with their cost if wrong, open owner decisions. |
 | `live-sandbox` | `odoo19-learning` operations: bridge upgrade with `-u`, seed and reset with identity flags, wheel re-pin, live stack start. Hard deny on `odoo-bench` stays in permissions; the skill only documents the allowed commands. Manual invocation only. |
 
+**Done 2026-10-13** (branch `harness/h3-skills`, [plan](2026-10-13-harness-h3-eng-skills.md), [handoff](../handoffs/2026-10-13-harness-h3.md)): nine skills under `.agents/skills/` linked from `.claude/skills/`; the validator accepts `eng-*` and `live-*`, the optional `disable-model-invocation` key, and checks `ENG-*` rule definitions and references; 28 rules in `eng-foundations/references/rules.md`; one baseline-versus-skill scenario run (eng-session), the rest listed in `docs/specs/2026-10-13-eng-skills-scenarios.md`. `AGENTS.md` keeps its UI-skills section until `refactor/phase1-structure` merges; the one-line engineering pointer is a follow-up.
+
 **Exit:**
 - `check_agent_skills.py` validates all `eng-*` skills.
 - A scenario fixture per skill, as the `ag-*` skills have, demonstrates the stop gates.

@@ -138,6 +138,7 @@ uv run e-agent-harness gate quick --package tests/unit/kernel   # evidence under
 uv run e-agent-harness new-task <phase> <id> --feature <F-id> --paths <glob>   # task contract
 uv run e-agent-harness check-scope            # changed paths inside the task contract
 uv run e-agent-harness close-check --session <id>   # close ritual: clean tree, progress, evidence, handoff
+uv run python scripts/check_agent_skills.py  # validates the ag-* (UI) and eng-* (engineering) skills; start engineering work from eng-session
 
 # HTTP API + web UI (loopback only; Node 22.12+/24 and pnpm 10 for ui/)
 (cd ui && pnpm install && pnpm build)

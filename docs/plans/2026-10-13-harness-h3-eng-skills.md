@@ -8,7 +8,7 @@
 
 **Tech Stack:** Markdown skills, Python 3.12 validator (`scripts/check_agent_skills.py`), pytest (`tests/conformance/test_agent_skills.py`), `claude -p` for the baseline-versus-skill scenarios.
 
-**Spec:** [harness plan](../superpowers/plans/2026-10-12-dev-harness.md) (at `docs/plans/` after roadmap Phase 1b) sections "Principles from the sources", "Standard session loop", "Context strategy" and "Phase H3"; the [ag-* skills design](../superpowers/specs/2026-10-11-ag-ux-skills-design.md) §4 (layout and discovery) and §9 (verification) for the skill form; `AGENTS.md` and `docs/roadmap.md` (Rules) as the source of the engineering rules; the Phase 1 [pilot log](../../../harness/state/1/harness-pilot-log.md) on the `refactor/phase1-structure` branch (read-only input; the known harness limits go into `eng-session`).
+**Spec:** [harness plan](2026-10-12-dev-harness.md) sections "Principles from the sources", "Standard session loop", "Context strategy" and "Phase H3"; the [ag-* skills design](../specs/2026-10-11-ag-ux-skills-design.md) §4 (layout and discovery) and §9 (verification) for the skill form; `AGENTS.md` and `docs/roadmap.md` (Rules) as the source of the engineering rules; the Phase 1 [pilot log](../../../harness/state/1/harness-pilot-log.md) on the `refactor/phase1-structure` branch (read-only input; the known harness limits go into `eng-session`).
 
 ## Global Constraints
 
