@@ -1,0 +1,22 @@
+{
+  "phase": "2",
+  "entries": [
+    {
+      "id": "F-2-1",
+      "category": "kernel",
+      "description": "Execution IR compiled from the current proposal shape behind features.execution_ir",
+      "steps": [
+        "uv run pytest -q tests/unit/kernel passes with the toggle off, shadow and on",
+        "shadow mode records ir.compiled without acting on it"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2-2",
+      "category": "server",
+      "description": "/health/ready reports the execution_ir toggle",
+      "steps": ["readiness test includes the toggle", "export_openapi.py --check reports no change"],
+      "passes": false
+    }
+  ]
+}
