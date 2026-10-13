@@ -16,11 +16,13 @@ from typing import TYPE_CHECKING, Any
 
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.approval import ApprovalRecord
+from e_agent.contracts.capability import CapabilityBinding
 from e_agent.contracts.common import new_id
 from e_agent.contracts.context import Budgets, TaskContext
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import Completeness
 from e_agent.contracts.plan import ActionProposal
+from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import (
     ReasonCode,
     RunRecord,
@@ -160,6 +162,28 @@ class ContinuationMixin:
 
         async def _dispatch(
             self, cont: _Continuation, action: ActionRecord, approval: ApprovalRecord
+        ) -> RunRecord:
+            raise NotImplementedError
+
+        async def _drive(self, run: RunRecord, step_input: DriverInput) -> RunRecord:
+            raise NotImplementedError
+
+        async def _validate(
+            self,
+            ctx: TaskContext,
+            cont: _Continuation,
+            proposal: ActionProposal,
+            binding: CapabilityBinding,
+        ) -> ValidationResult:
+            raise NotImplementedError
+
+        async def _verify(
+            self, cont: _Continuation, action: ActionRecord, receipt: ExecutionReceipt
+        ) -> RunRecord:
+            raise NotImplementedError
+
+        async def _apply_receipt(
+            self, cont: _Continuation, action: ActionRecord, receipt: ExecutionReceipt
         ) -> RunRecord:
             raise NotImplementedError
 
