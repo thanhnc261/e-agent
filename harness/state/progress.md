@@ -14,3 +14,8 @@
 - changed: review fixes: backend-neutral locale-stable wheel reference committed; identity fields; F-1a-3 steps name the comparison; handoff rulings and open items updated
 - next: owner opens a new session for 1a.2
 - open: owner ruling on Postgres run vs container boundary before 1a.3
+
+## 2026-10-13T05:55:54+00:00 · 5b4b8e8f-e459-44f9-bc30-502cdbbe2794 · 1a.2
+- changed: 1a.2 mover and layout tests, review fixes, F-1a-2 passes
+- next: materialise 1a.3 and run the layout move
+- open: none

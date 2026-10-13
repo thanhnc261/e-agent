@@ -24,7 +24,8 @@
         "tests/conformance/test_repo_move.py proves layout, links and check on a scratch git repository",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1a.2/2026-10-13T05-55-06+00-00.json"
     },
     {
       "id": "F-1a-3",

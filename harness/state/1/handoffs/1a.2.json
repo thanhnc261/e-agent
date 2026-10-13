@@ -1,0 +1,36 @@
+{
+  "task": "1a.2",
+  "changed": "scripts/repo_move.py (layout, links, check) with tests/conformance/test_repo_move.py (12 tests on a scratch git repository) and tests/conformance/test_repo_layout.py (13 tests, strict xfail until the move runs in 1a.3). Review fixes: shared hatch build hook dists/_hooks/src_tree.py so editable installs import from src/ instead of a shadowing copy; check reports bare quoted roots/globs, current-doc mentions (--docs) and read-only research links separately; hardened link parser; layout refuses untracked files git mv would carry. Plan Task 1a.2 records the deviations. Harness pilot log HP-1..HP-10.",
+  "evidence_refs": [
+    "evidence/gates/1a.2/2026-10-13T05-55-06+00-00.json"
+  ],
+  "open_items": [
+    "1a.3 runs the move; rehearsal in a scratch clone: ruff, mypy, import contracts, openapi clean; pytest 584 passed/30 skipped; editable imports resolve to src/",
+    "Pre-existing defect fixed by the move: packages/kernel/tests and packages/plugin-sdk/tests both import as tests.test_discovery, so the full suite ran kernel's 16 discovery tests twice and never the sdk's 3; the post-move old-suite count is 559, not 572",
+    "uv.lock: uv lock cannot re-resolve with the stale editable paths; 1a.3 rewrites the 44 path strings and verifies with uv lock --check (a fresh lock would upgrade third-party versions)",
+    "hatchling writes Requires-Dist specifiers in canonical order; 1a.3 compares METADATA requirements semantically against the 1a.1 reference"
+  ],
+  "rulings": [
+    {
+      "ruling": "The move runs in 1a.3 with the tooling update; 1a.2 commits the mover and strict-xfail layout tests",
+      "cost_if_wrong": "none for the result; one task boundary differs from the plan text, which now records it"
+    },
+    {
+      "ruling": "hatchling with a shared build hook instead of the plan's static force-include, because the static form shadows src/ in editable installs; uv_build cannot build outside its project dir",
+      "cost_if_wrong": "a different hook shape later; the layout test pins the behaviour (imports from src/, wheels from the hook)"
+    },
+    {
+      "ruling": "[tool.ruff] src = [\".\"] keeps e_agent's isort classification, so moved code stays byte-identical",
+      "cost_if_wrong": "a later style-only commit re-sorts imports in 48 files"
+    },
+    {
+      "ruling": "research/ stays read-only: links never rewrite it and check reports its broken links without failing (AGENTS.md: preserve research reports)",
+      "cost_if_wrong": "research reports keep broken links to moved designs; a link-only rewrite of research/ can be done later with owner approval"
+    },
+    {
+      "ruling": "Dated records (docs/adr, handoffs, plans, reviews, specs, superpowers) may keep old paths; check --docs fails only on current docs",
+      "cost_if_wrong": "a stale path in an ADR misleads a reader; ADR text is history by design"
+    }
+  ],
+  "outside_repo": []
+}
