@@ -1,0 +1,19 @@
+{
+  "task": "H4.6",
+  "changed": "e-agent-harness tidy formats and lints the whole change once (ruff check --fix, ruff format; the UI scoped formatter when ui/ changed) and exits 1 with what it cannot fix; the PostToolUse format hook and the hook script's format mode are removed (four hooks remain); eng-session runs tidy before the commit. Owner decision 2026-10-13.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.6/2026-10-13T16-02-17.789212+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "tidy runs ruff through the harness interpreter (python -m ruff) with --force-exclude, so configured exclusions such as docs/ and research/ hold for named files",
+      "cost_if_wrong": "a checkout whose harness environment lacks ruff reports nothing to fix"
+    },
+    {
+      "ruling": "A ui/ change runs the UI formatter on its migrated scope, not on the changed files, so modules not yet migrated to Prettier are not reformatted",
+      "cost_if_wrong": "a changed ui file outside the migrated scope stays unformatted, which format:check does not require"
+    }
+  ],
+  "outside_repo": []
+}
