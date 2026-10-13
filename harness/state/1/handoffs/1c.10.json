@@ -1,0 +1,26 @@
+{
+  "task": "1c.10",
+  "changed": "src/e_agent/server/worker.py: WorkerMixin (worker, sweeper, _run_work, _mark_failed; runtime and stopping declared) with APPROVAL_SWEEP_SECONDS and LOG (logger name e_agent.server.api); ApiState(WorkerMixin) keeps __init__. src/e_agent/server/streaming.py: TextFrame and PublicTextBus, re-exported from api.py. api.py 764 -> 545 lines. Verify: 26/26 definitions byte-identical. test_api: the sweeper test imports and patches the worker module (2 lines). make e2e 150 passed; export_openapi --check unchanged.",
+  "evidence_refs": [
+    "evidence/gates/1c.10/2026-10-13T06-41-18+00-00.json",
+    "evidence/1c/verify-1c.10.txt",
+    "evidence/1c/server_split.py",
+    "evidence/1c/make-e2e-1c.10.txt"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "The SSE route `stream` stays in create_app: it is a route closure over state() and visible_run and cannot move verbatim; streaming.py holds the text bus it reads",
+      "cost_if_wrong": "a later refactor turns create_app's routes into an APIRouter; out of scope for a verbatim move"
+    },
+    {
+      "ruling": "_streaming_text stays in api.py: its ApiState annotation would make streaming.py import api.py",
+      "cost_if_wrong": "none; it is a get_run snapshot helper"
+    },
+    {
+      "ruling": "APPROVAL_SWEEP_SECONDS moves to worker.py without a re-export, because patching a re-exported copy on api would silently not reach the sweeper; the one test that patched api now patches worker",
+      "cost_if_wrong": "a caller patching api.APPROVAL_SWEEP_SECONDS gets an AttributeError instead of a silent no-op"
+    }
+  ],
+  "outside_repo": []
+}

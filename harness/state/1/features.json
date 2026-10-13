@@ -196,7 +196,8 @@
         "make e2e passes",
         "export_openapi.py --check reports no change"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "evidence/gates/1c.10/2026-10-13T06-41-18+00-00.json"
     },
     {
       "id": "F-1c-11",
