@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1c-11"
   ],
-  "context_digest": "a2b4ec3a4bdb3b53466866f585df5180d73ca1bacddd809954b70f40284769a9",
+  "context_digest": "2fec9f85b804f23696c894102bfc3312ca73ee2990012361b4d35f3b59b24a8c",
   "allowed_paths": [
     "tests/unit/kernel/test_structure.py",
     "src/e_agent/kernel/continuation.py",
