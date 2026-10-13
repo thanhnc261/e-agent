@@ -4,17 +4,99 @@
   "title": "Task contract",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "phase", "plan_ref", "feature_ids", "context_digest", "allowed_paths", "acceptance", "gate_set", "base_commit", "created_at"],
+  "required": [
+    "id",
+    "phase",
+    "plan_ref",
+    "feature_ids",
+    "context_digest",
+    "allowed_paths",
+    "acceptance",
+    "gate_set",
+    "base_commit",
+    "created_at"
+  ],
   "properties": {
-    "id": {"type": "string", "minLength": 1},
-    "phase": {"type": "string", "minLength": 1},
-    "plan_ref": {"type": "string", "pattern": "\\.md$"},
-    "feature_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
-    "context_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "allowed_paths": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-    "acceptance": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-    "gate_set": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
-    "base_commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
-    "created_at": {"type": "string", "format": "date-time"}
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "phase": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plan_ref": {
+      "type": "string",
+      "pattern": "\\.md$"
+    },
+    "feature_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "context_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "allowed_paths": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "acceptance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "gate_set": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "base_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "features_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "scope_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "glob",
+          "reason",
+          "at"
+        ],
+        "properties": {
+          "glob": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
   }
 }

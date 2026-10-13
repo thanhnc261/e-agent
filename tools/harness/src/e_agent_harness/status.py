@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from e_agent_harness import closecheck, gate, gitinfo, progress, state
+from e_agent_harness import closecheck, gate, gitinfo, progress, state, tasks
 from e_agent_harness.digest import is_stale
 from e_agent_harness.manifest import Manifest, validate_manifest
 
@@ -27,6 +27,7 @@ class StatusData:
     acceptance: list[str] = field(default_factory=list)
     stale: bool = False
     closed: bool = False
+    acceptance_drift: bool = False
     next_feature: str | None = None
     has_evidence: bool = False
     bookkeeping_dirty: bool = False
@@ -61,6 +62,7 @@ def collect(paths: state.Paths, m: Manifest, repo_root: Path) -> StatusData:
         data.acceptance = list(contract["acceptance"])
         data.stale = is_stale(str(contract["context_digest"]), repo_root, m)
         data.closed = not closecheck.problems(paths, m, repo_root)
+        data.acceptance_drift = tasks.acceptance_drift(paths, contract)
         data.gate_ran = any(paths.evidence(data.task_id or "").glob("*.json"))
         data.has_evidence = any(
             closecheck.evidence_ties_to_head(repo_root, state.read_json(f), data.task_id) is None
@@ -92,9 +94,11 @@ def next_action(d: StatusData) -> str:
         )
         return f"task {d.task_id} is closed: clear the context, then {follow}"
     if d.stale:
+        return "digest stale: authoritative files changed; run e-agent-harness refresh-task"
+    if d.acceptance_drift:
         return (
-            "digest stale: authoritative files changed; re-materialise with "
-            f"new-task {d.phase} {d.task_id} ... --replace"
+            "feature steps changed since the task was materialised; "
+            "run e-agent-harness refresh-task --from-features"
         )
     if not d.clean:
         return f"commit the work, then run e-agent-harness gate {d.gate_set} on the clean tree"

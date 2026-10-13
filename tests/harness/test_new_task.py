@@ -92,3 +92,106 @@ def test_new_task_rejects_unknown_gate_set(repo) -> None:
     )
     assert result.code == 1
     assert "unknown gate set: nope" in result.out
+
+
+def _contract(repo) -> dict:
+    return json.loads((repo.root / "harness/state/1/tasks/1c.1.json").read_text())
+
+
+def _edit_feature_steps(repo, steps: list[str]) -> None:
+    path = repo.root / "harness/state/1/features.json"
+    doc = json.loads(path.read_text())
+    doc["entries"][0]["steps"] = steps
+    path.write_text(json.dumps(doc, indent=2) + "\n")
+
+
+def test_contract_pins_features_digest(repo) -> None:
+    assert repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**").code == 0
+    assert len(_contract(repo)["features_digest"]) == 64
+
+
+def test_status_and_close_check_flag_changed_acceptance(repo) -> None:
+    assert repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**").code == 0
+    _edit_feature_steps(repo, ["run the suite", "check the new invariant"])
+    assert "refresh-task --from-features" in repo.invoke("status").out
+    out = repo.invoke("close-check").out
+    assert "acceptance changed since the task was materialised" in out
+
+
+def test_refresh_task_keeps_base_and_paths(repo) -> None:
+    assert repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**").code == 0
+    before = _contract(repo)
+    repo.write(
+        "docs/plans/phase1.md", (repo.root / "docs/plans/phase1.md").read_text() + "\nnote\n"
+    )
+    repo.commit("plan note mid-task")
+    assert "stale" in repo.invoke("status").out
+    result = repo.invoke("refresh-task")
+    assert result.code == 0, result
+    after = _contract(repo)
+    assert after["context_digest"] != before["context_digest"]
+    for key in ("base_commit", "created_at", "allowed_paths", "acceptance"):
+        assert after[key] == before[key], key
+    assert "stale" not in repo.invoke("status").out
+
+
+def test_refresh_task_from_features_rederives_acceptance(repo) -> None:
+    assert repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**").code == 0
+    _edit_feature_steps(repo, ["run the suite", "check the new invariant"])
+    assert repo.invoke("refresh-task", "--from-features").code == 0
+    assert _contract(repo)["acceptance"] == ["run the suite", "check the new invariant"]
+    assert "refresh-task" not in repo.invoke("status").out
+
+
+def test_amend_scope_adds_glob_with_reason(repo) -> None:
+    assert repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**").code == 0
+    repo.write("scripts/tool.py", "pass\n")
+    assert repo.invoke("check-scope").code == 1
+    result = repo.invoke(
+        "amend-scope", "--add", "scripts/tool.py", "--reason", "false positive in tool"
+    )
+    assert result.code == 0, result
+    contract = _contract(repo)
+    assert "scripts/tool.py" in contract["allowed_paths"]
+    (change,) = contract["scope_changes"]
+    assert change["glob"] == "scripts/tool.py" and change["reason"] == "false positive in tool"
+    assert contract["base_commit"] == repo.base
+    assert repo.invoke("check-scope").code == 0
+
+
+def test_amend_scope_requires_an_active_task(repo) -> None:
+    result = repo.invoke("amend-scope", "--add", "x/**", "--reason", "r")
+    assert result.code == 1
+    assert "no active task" in result.out
+
+
+def test_new_task_dedupes_paths(repo) -> None:
+    result = repo.invoke(
+        "new-task",
+        "1",
+        "1c.1",
+        "--feature",
+        "F-1",
+        "--paths",
+        "src/**",
+        "--paths",
+        "docs/handoffs/**",
+        "--paths",
+        "src/**",
+    )
+    assert result.code == 0
+    paths = _contract(repo)["allowed_paths"]
+    assert len(paths) == len(set(paths))
+
+
+def test_old_contract_without_new_fields_loads(repo) -> None:
+    assert repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**").code == 0
+    path = repo.root / "harness/state/1/tasks/1c.1.json"
+    doc = json.loads(path.read_text())
+    doc.pop("features_digest")
+    path.write_text(json.dumps(doc) + "\n")
+    from e_agent_harness import contracts
+
+    assert contracts.validate("task", doc) == []
+    assert "refresh-task" not in repo.invoke("status").out
+    assert repo.invoke("check-scope").code == 0

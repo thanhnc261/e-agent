@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from e_agent_harness import contracts, gitinfo, progress, state
+from e_agent_harness import contracts, gitinfo, progress, state, tasks
 from e_agent_harness.manifest import Manifest, path_matches
 
 BOOKKEEPING: tuple[str, ...] = state.BOOKKEEPING
@@ -62,6 +62,11 @@ def problems(
     found: list[str] = []
     if not gitinfo.is_clean(repo_root):
         found.append("working tree is not clean")
+    if tasks.acceptance_drift(paths, contract):
+        found.append(
+            "acceptance changed since the task was materialised; "
+            "run e-agent-harness refresh-task --from-features"
+        )
     entries = (
         progress.parse_progress(paths.progress.read_text(encoding="utf-8"))
         if paths.progress.is_file()

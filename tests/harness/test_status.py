@@ -30,7 +30,7 @@ def test_status_flags_stale_digest(repo) -> None:
     repo.write("AGENTS.md", "# rules changed\n")
     result = repo.invoke("status")
     assert "stale" in result.out
-    assert "--replace" in result.out
+    assert "refresh-task" in result.out  # keeps base and paths (pilot HP-10)
 
 
 def test_status_hook_format_is_sessionstart_json_within_budget(repo) -> None:

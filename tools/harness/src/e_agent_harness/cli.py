@@ -68,6 +68,11 @@ def _parser() -> argparse.ArgumentParser:
     cc.add_argument(
         "--hook", action="store_true", help="Stop mode: inert unless E_AGENT_HARNESS_UNATTENDED=1"
     )
+    rf = sub.add_parser("refresh-task", help="new digests for the active task; base kept")
+    rf.add_argument("--from-features", action="store_true", help="re-derive acceptance")
+    am = sub.add_parser("amend-scope", help="add one allowed path to the active task")
+    am.add_argument("--add", required=True, dest="glob")
+    am.add_argument("--reason", required=True)
     st = sub.add_parser("status", help="the session brief: state, boundaries, one next action")
     st.add_argument("--format", dest="fmt", choices=["text", "hook"], default="text")
     return parser
@@ -284,6 +289,28 @@ def cmd_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_refresh_task(args: argparse.Namespace) -> int:
+    root, paths, m = _context(args)
+    try:
+        contract = tasks.refresh(paths, m, root, from_features=args.from_features)
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+    print(f"task {contract['id']} refreshed (base {str(contract['base_commit'])[:7]} kept)")
+    return 0
+
+
+def cmd_amend_scope(args: argparse.Namespace) -> int:
+    _root, paths, _m = _context(args)
+    try:
+        contract = tasks.amend_scope(paths, args.glob, args.reason, datetime.now(UTC))
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+    print(f"task {contract['id']} scope += {args.glob}")
+    return 0
+
+
 COMMANDS = {
     "validate-context": cmd_validate_context,
     "new-task": cmd_new_task,
@@ -294,6 +321,8 @@ COMMANDS = {
     "handoff": cmd_handoff,
     "close-check": cmd_close_check,
     "status": cmd_status,
+    "refresh-task": cmd_refresh_task,
+    "amend-scope": cmd_amend_scope,
 }
 
 
