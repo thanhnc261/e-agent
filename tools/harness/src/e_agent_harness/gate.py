@@ -12,7 +12,7 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, unquote, urlsplit
+from urllib.parse import unquote, urlsplit
 
 from e_agent_harness import contracts, gitinfo
 from e_agent_harness.manifest import Manifest, path_matches
@@ -26,12 +26,11 @@ _KEY = r"(?:password|passwd|secret|token|api[_-]?key|authorization|dsn)"
 _VALUE = r"(?:\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|\S+)"
 # key=value, key: value, "key": "value", --key=value (quotes optional on both sides)
 SECRET_RE = re.compile(rf"(?i)([\"']?(?:--)?{_KEY}[\"']?\s*[=:]\s*){_VALUE}")
-# Authorization: <scheme> <credential>; the scheme and the credential both go.
-AUTH_RE = re.compile(
-    rf"(?i)(authorization[\"']?\s*[=:]\s*)(?:(?:basic|bearer|digest|token|negotiate)\s+)?{_VALUE}"
-)
+# Authorization: a quoted value, or everything to the end of the line (Digest headers
+# carry several parameters).
+AUTH_RE = re.compile(r"(?i)(authorization[\"']?\s*[=:]\s*)(?:\"(?:\\.|[^\"\\])*\"|[^\r\n]*)")
 # --key value (CLI flag with a separate argument)
-FLAG_RE = re.compile(rf"(?i)(--{_KEY}\s+)(\S+)")
+FLAG_RE = re.compile(rf"(?i)(--{_KEY}\s+){_VALUE}")
 # Bearer <token>
 BEARER_RE = re.compile(r"(?i)(\bbearer\s+)(\S+)")
 URL_PASSWORD_RE = re.compile(r"(://[^:/\s@]+:)[^@\s]+@")
@@ -113,8 +112,9 @@ def _conninfo(dsn: str) -> dict[str, str] | None:
             return None
         value = match.group(2)
         if value.startswith("'"):
-            value = re.sub(r"\\(.)", r"\1", value[1:-1])
-        params[match.group(1).lower()] = value
+            value = value[1:-1]
+        # libpq unescapes backslashes in quoted and unquoted values alike.
+        params[match.group(1).lower()] = re.sub(r"\\(.)", r"\1", value)
         pos = match.end()
     return params or None
 
@@ -124,9 +124,15 @@ def database_name(dsn: str) -> str | None:
     dsn = dsn.strip()
     if dsn.startswith(("postgresql://", "postgres://")):
         parts = urlsplit(dsn)
-        query = parse_qs(parts.query)
-        name = query["dbname"][-1] if "dbname" in query else unquote(parts.path.lstrip("/"))
-        return name or None
+        query: dict[str, str] = {}
+        for pair in parts.query.split("&"):
+            key, _, value = pair.partition("=")
+            if key:
+                # percent-decoding only: libpq keeps a literal "+".
+                query[unquote(key)] = unquote(value)
+        if "dbname" in query:
+            return query["dbname"] or None  # an empty override: cannot tell
+        return unquote(parts.path.lstrip("/")) or None
     params = _conninfo(dsn)
     return (params or {}).get("dbname") or None
 
@@ -176,7 +182,7 @@ def run_gate(
         "task": task_id,
         "commit": gitinfo.head_sha(repo_root),
         "clean_tree": code_is_clean(repo_root),
-        "started_at": now.isoformat(timespec="seconds"),
+        "started_at": now.isoformat(timespec="microseconds"),
         "ok": True,
         "commands": [],
     }

@@ -94,6 +94,7 @@ def _parser() -> argparse.ArgumentParser:
     am.add_argument("--reason", required=True)
     st = sub.add_parser("status", help="the session brief: state, boundaries, one next action")
     st.add_argument("--format", dest="fmt", choices=["text", "hook"], default="text")
+    st.add_argument("--session", default=None, help="judge the close ritual for this session")
     return parser
 
 
@@ -228,7 +229,7 @@ def _append_checkpoint(args: argparse.Namespace, session: str) -> None:
     changed = args.changed or ", ".join(gitinfo.status_files(root)) or "no working-tree changes"
     next_action = args.next_action or (str(loaded[0]["acceptance"][0]) if loaded else "new-task")
     entry = progress.ProgressEntry(
-        timestamp=datetime.now(UTC).isoformat(timespec="seconds"),
+        timestamp=datetime.now(UTC).isoformat(timespec="microseconds"),
         session=_one_line(session),
         task=str(loaded[0]["id"]) if loaded else "none",
         changed=_one_line(changed),
@@ -305,7 +306,7 @@ def cmd_close_check(args: argparse.Namespace) -> int:
 
 def cmd_status(args: argparse.Namespace) -> int:
     root, paths, m = _context(args)
-    data = status.collect(paths, m, root)
+    data = status.collect(paths, m, root, session=args.session)
     if args.fmt == "hook":
         print(status.render_hook(data, m.status.token_budget))
     else:

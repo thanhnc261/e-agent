@@ -89,3 +89,22 @@ def test_path_like_identifiers_are_refused(repo, tmp_path) -> None:
     result = repo.invoke("new-task", "1", "../escape", "--feature", "F-1", "--paths", "src/**")
     assert result.code == 1
     assert "invalid" in result.out
+
+
+def test_state_symlinks_cannot_escape(repo) -> None:
+    import os
+
+    (repo.root / "research").mkdir()
+    os.symlink("../../research", repo.root / "harness/state/review")
+    common = ("--category", "x", "--description", "d", "--step", "s")
+    result = repo.invoke("add-feature", "review", "F-x", *common)
+    assert result.code == 1
+    assert "escapes" in result.out
+    assert not (repo.root / "research/features.json").exists()
+    target = repo.root / "research/elsewhere.json"
+    target.write_text("{}")
+    (repo.root / "harness/state/2").mkdir()
+    os.symlink(target, repo.root / "harness/state/2/features.json")
+    result = repo.invoke("add-feature", "2", "F-y", *common)
+    assert result.code == 1
+    assert target.read_text() == "{}"

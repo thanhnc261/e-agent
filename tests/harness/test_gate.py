@@ -181,6 +181,8 @@ def test_pg_guard_compares_parsed_databases(repo, monkeypatch) -> None:
         "postgresql://u@localhost/e%5Fagent",  # percent-encoded name
         "postgresql://u@localhost/other?dbname=e_agent",  # query override
         "postgresql://u@other-host:6543/e_agent",  # same name on another host: refused anyway
+        "host=localhost dbname=e\\_agent user=u",  # libpq unescapes unquoted values too
+        "postgresql://u@localhost/e_agent?dbname=",  # empty override: cannot tell
     ],
 )
 def test_pg_guard_refuses_every_spelling_of_the_live_database(repo, monkeypatch, test_dsn) -> None:
@@ -281,3 +283,22 @@ def test_two_runs_in_one_second_keep_both_files(repo) -> None:
         paths.evidence("t"), gate.run_gate(m, "quick", repo.root, task_id="t", now=now)
     )
     assert first != second and first.exists() and second.exists()
+
+
+def test_pg_guard_keeps_a_literal_plus_in_url_queries(repo, monkeypatch) -> None:
+    _guard_pg(repo)
+    monkeypatch.setenv("E_AGENT_PG_DSN", "postgresql://u@localhost/a+b")
+    monkeypatch.setenv("E_AGENT_TEST_PG_DSN", "postgresql://u@localhost/x?dbname=a+b")
+    assert repo.invoke("gate", "pg").code == 1
+
+
+def test_redact_full_digest_headers_and_quoted_flags() -> None:
+    samples = {
+        (
+            'Authorization: Digest username="demo", realm="r", response="DIGESTRESPONSE"'
+        ): "DIGESTRESPONSE",
+        '--password "prefix FLAGSECRET"': "FLAGSECRET",
+        "--api-key 'two WORDSECRET'": "WORDSECRET",
+    }
+    for text, secret in samples.items():
+        assert secret not in gate.redact(text), (text, gate.redact(text))

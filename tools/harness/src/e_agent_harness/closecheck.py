@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from e_agent_harness import contracts, gitinfo, progress, state, tasks
+from e_agent_harness.digest import is_stale
 from e_agent_harness.manifest import Manifest, path_matches
 
 BOOKKEEPING: tuple[str, ...] = state.BOOKKEEPING
@@ -49,6 +51,20 @@ def evidence_ties_to_head(
     return None
 
 
+def _before(timestamp: str, evidence: dict[str, Any]) -> bool:
+    """True when a progress entry was written before the gate evidence started."""
+    try:
+        return datetime.fromisoformat(timestamp) < datetime.fromisoformat(
+            str(evidence["started_at"])
+        )
+    except (KeyError, ValueError):
+        return True
+
+
+def checkpoint_after(entry: progress.ProgressEntry | None, evidence: dict[str, Any]) -> bool:
+    return entry is not None and not _before(entry.timestamp, evidence)
+
+
 def handoff_problems(paths: state.Paths, repo_root: Path, phase: str, task_id: str) -> list[str]:
     path = paths.handoff(phase, task_id)
     if not path.is_file():
@@ -73,6 +89,10 @@ def problems(
     found: list[str] = []
     if not gitinfo.is_clean(repo_root):
         found.append("working tree is not clean")
+    if is_stale(str(contract["context_digest"]), repo_root, m):
+        found.append(
+            "contract is stale: authoritative files changed; run e-agent-harness refresh-task"
+        )
     if tasks.acceptance_drift(paths, contract):
         found.append(
             "acceptance changed since the task was materialised; "
@@ -110,10 +130,11 @@ def problems(
         if not evidence_file.is_file():
             found.append(f"feature {fid}: evidence missing: {ref}")
             continue
-        reason = evidence_ties_to_head(
-            repo_root, state.read_json(evidence_file), task_id, str(contract["gate_set"])
-        )
+        evidence = state.read_json(evidence_file)
+        reason = evidence_ties_to_head(repo_root, evidence, task_id, str(contract["gate_set"]))
         if reason:
             found.append(f"feature {fid}: {reason}")
+        elif last is not None and last.task == task_id and _before(last.timestamp, evidence):
+            found.append("progress log has no checkpoint after the gate evidence")
     found.extend(handoff_problems(paths, repo_root, phase, task_id))
     return found

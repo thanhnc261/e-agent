@@ -6,6 +6,7 @@ import dataclasses
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from e_agent_harness import closecheck, gate, gitinfo, progress, state, tasks
 from e_agent_harness.digest import is_stale
@@ -42,7 +43,9 @@ class StatusData:
     manifest_problems: list[str] = field(default_factory=list)
 
 
-def collect(paths: state.Paths, m: Manifest, repo_root: Path) -> StatusData:
+def collect(
+    paths: state.Paths, m: Manifest, repo_root: Path, session: str | None = None
+) -> StatusData:
     active = state.load_active(paths) or {}
     loaded = state.load_task(paths)
     data = StatusData(
@@ -64,7 +67,7 @@ def collect(paths: state.Paths, m: Manifest, repo_root: Path) -> StatusData:
         data.gate_set = str(contract["gate_set"])
         data.acceptance = list(contract["acceptance"])
         data.stale = is_stale(str(contract["context_digest"]), repo_root, m)
-        data.closed = not closecheck.problems(paths, m, repo_root)
+        data.closed = not closecheck.problems(paths, m, repo_root, session=session)
         data.acceptance_drift = tasks.acceptance_drift(paths, contract)
         data.gate_ran = any(paths.evidence(data.task_id or "").glob("*.json"))
         data.has_evidence = any(
@@ -79,9 +82,14 @@ def collect(paths: state.Paths, m: Manifest, repo_root: Path) -> StatusData:
         entries = state.read_json(paths.features(phase)).get("entries", [])
         data.next_feature = next((str(e["id"]) for e in entries if not e.get("passes")), None)
         if loaded:
-            passing = {str(e["id"]) for e in entries if e.get("passes")}
+            by_id = {str(e["id"]): e for e in entries}
             data.pending_feature = next(
-                (str(f) for f in loaded[0]["feature_ids"] if str(f) not in passing), None
+                (
+                    str(f)
+                    for f in loaded[0]["feature_ids"]
+                    if not _feature_done(repo_root, by_id.get(str(f)), data)
+                ),
+                None,
             )
     if loaded and phase:
         data.handoff_ok = not closecheck.handoff_problems(
@@ -90,8 +98,43 @@ def collect(paths: state.Paths, m: Manifest, repo_root: Path) -> StatusData:
     if paths.progress.is_file():
         entries = progress.parse_progress(paths.progress.read_text(encoding="utf-8"))
         data.entries = entries[-ENTRIES_SHOWN:]
-        data.progress_ok = bool(entries) and entries[-1].task == data.task_id
+        last = entries[-1] if entries else None
+        newest = _newest_valid_evidence(paths, repo_root, data)
+        data.progress_ok = (
+            last is not None
+            and last.task == data.task_id
+            and (session is None or last.session == session)
+            and (newest is None or closecheck.checkpoint_after(last, newest))
+        )
     return data
+
+
+def _valid_evidence(repo_root: Path, path: Path, d: StatusData) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    doc = state.read_json(path)
+    if not isinstance(doc, dict):
+        return None
+    if closecheck.evidence_ties_to_head(repo_root, doc, d.task_id, d.gate_set) is not None:
+        return None
+    return doc
+
+
+def _newest_valid_evidence(
+    paths: state.Paths, repo_root: Path, d: StatusData
+) -> dict[str, Any] | None:
+    if not d.task_id:
+        return None
+    docs = [_valid_evidence(repo_root, f, d) for f in paths.evidence(d.task_id).glob("*.json")]
+    valid = [doc for doc in docs if doc]
+    return max(valid, key=lambda doc: str(doc["started_at"])) if valid else None
+
+
+def _feature_done(repo_root: Path, entry: dict[str, Any] | None, d: StatusData) -> bool:
+    """Passing, and its evidence still ties to HEAD for this task and gate set."""
+    if not entry or not entry.get("passes") or not entry.get("evidence"):
+        return False
+    return _valid_evidence(repo_root, repo_root / str(entry["evidence"]), d) is not None
 
 
 def next_action(d: StatusData) -> str:

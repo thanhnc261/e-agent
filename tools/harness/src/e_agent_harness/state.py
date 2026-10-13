@@ -64,28 +64,28 @@ class Paths:
     def progress(self) -> Path:
         return self.state / "progress.md"
 
+    def _contained(self, path: Path) -> Path:
+        """Refuse a state path that a symlink sends outside harness/state."""
+        root = self.state.resolve()
+        resolved = path.resolve()
+        if resolved != root and root not in resolved.parents:
+            raise ValueError(f"{path.relative_to(self.repo_root)} escapes {STATE_DIR}")
+        return path
+
     def features(self, phase: str) -> Path:
-        return self.state / _component(phase, "phase") / "features.json"
+        return self._contained(self.state / _component(phase, "phase") / "features.json")
 
     def task(self, phase: str, task_id: str) -> Path:
-        return (
-            self.state
-            / _component(phase, "phase")
-            / "tasks"
-            / f"{_component(task_id, 'task id')}.json"
-        )
+        name = f"{_component(task_id, 'task id')}.json"
+        return self._contained(self.state / _component(phase, "phase") / "tasks" / name)
 
     def handoff(self, phase: str, task_id: str) -> Path:
-        return (
-            self.state
-            / _component(phase, "phase")
-            / "handoffs"
-            / f"{_component(task_id, 'task id')}.json"
-        )
+        name = f"{_component(task_id, 'task id')}.json"
+        return self._contained(self.state / _component(phase, "phase") / "handoffs" / name)
 
     def evidence(self, task_id: str) -> Path:
         # Committed with the bookkeeping, so a fresh clone can close the task (HP-4).
-        return self.state / "evidence" / "gates" / _component(task_id, "task id")
+        return self._contained(self.state / "evidence" / "gates" / _component(task_id, "task id"))
 
     @property
     def live_evidence(self) -> Path:

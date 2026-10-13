@@ -284,3 +284,61 @@ def test_status_walks_the_close_sequence(repo) -> None:
     repo.commit("bookkeeping")
     assert repo.invoke("close-check", "--session", "s1").code == 0
     assert "is closed" in repo.invoke("status").out
+
+
+def test_status_after_reopening_a_closed_task(repo) -> None:
+    _closed(repo)
+    repo.write("src/pkg/new.py", "Y = 3\n")  # a review fix
+    repo.commit("review fix")
+    assert "run e-agent-harness gate" in repo.invoke("status").out
+    new_evidence = _latest_evidence(repo)
+    out = repo.invoke("status").out
+    assert "set F-1 passes" in out, out  # the old evidence reference is stale
+    _mark_passing(repo, new_evidence)
+    out = repo.invoke("status").out
+    assert "checkpoint" in out, out  # the earlier checkpoint predates the new gate
+
+
+def test_status_asks_for_a_checkpoint_from_the_current_session(repo) -> None:
+    _closed(repo)  # checkpointed by s1
+    out = repo.invoke("status", "--session", "s2").out
+    assert "is closed" not in out
+    assert "checkpoint" in out
+
+
+def test_close_check_rejects_a_stale_contract(repo) -> None:
+    _start(repo)
+    repo.write("AGENTS.md", "# rules changed mid-task\n")
+    repo.write("src/pkg/new.py", "Y = 2\n")
+    repo.commit("code and a rule change")
+    _bookkeeping(repo, _evidence_path(repo))
+    result = repo.invoke("close-check", "--session", "s1")
+    assert result.code == 1
+    assert "refresh-task" in result.out
+
+
+def test_close_check_requires_a_checkpoint_after_the_gate(repo) -> None:
+    _start(repo)
+    repo.write("src/pkg/new.py", "Y = 2\n")
+    repo.commit("feature code")
+    assert repo.invoke("checkpoint", "--session", "s1", "--next", "gate").code == 0
+    repo.commit("early checkpoint")
+    evidence = _evidence_path(repo)
+    _mark_passing(repo, evidence)
+    repo.write(
+        "harness/state/1/handoffs/1c.1.json",
+        json.dumps(dict(HANDOFF, evidence_refs=[evidence])) + "\n",
+    )
+    repo.commit("bookkeeping without a closing checkpoint")
+    result = repo.invoke("close-check", "--session", "s1")
+    assert result.code == 1
+    assert "checkpoint after the gate" in result.out
+
+
+def _latest_evidence(repo) -> str:
+    assert repo.invoke("gate", "quick").code == 0
+    newest = max(
+        (repo.root / "harness/state/evidence/gates/1c.1").glob("*.json"),
+        key=lambda p: p.stat().st_mtime_ns,
+    )
+    return str(newest.relative_to(repo.root))
