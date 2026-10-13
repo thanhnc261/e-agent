@@ -1,0 +1,11 @@
+{
+  "task": "1c.7",
+  "changed": "src/e_agent/kernel/approval_flow.py: ApprovalFlowMixin(ContinuationMixin) with pending_approval, _expire_pending, _enqueue_expiry, sweep_expired_approvals, expire_approval, decide; approval.py (digests) unchanged. Verify: 43/43 methods byte-identical, each defined once.",
+  "evidence_refs": [
+    "evidence/gates/1c.7/2026-10-13T06-36-02+00-00.json",
+    "evidence/1c/verify-1c.7.txt"
+  ],
+  "open_items": [],
+  "rulings": [],
+  "outside_repo": []
+}

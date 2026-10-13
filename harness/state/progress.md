@@ -79,3 +79,8 @@
 - changed: 1c.6 closed; F-1c-6 passes
 - next: 1c.7 approval_flow.py
 - open: none
+
+## 2026-10-13T06:36:26+00:00 · 5b4b8e8f-e459-44f9-bc30-502cdbbe2794 · 1c.7
+- changed: 1c.7 closed; F-1c-7 passes
+- next: 1c.8 dispatch.py, verification.py, recovery.py
+- open: none
