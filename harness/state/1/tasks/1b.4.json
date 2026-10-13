@@ -1,0 +1,24 @@
+{
+  "id": "1b.4",
+  "phase": "1",
+  "plan_ref": "docs/plans/2026-10-12-phase1-structure-refactor.md",
+  "feature_ids": [
+    "F-1b-4"
+  ],
+  "context_digest": "62903fd3bd7a0735f133547f739bddf479f62fbbc1764296d98c9fe488f9577a",
+  "allowed_paths": [
+    "docs/design/**",
+    "evidence/**",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-12-phase1-structure-refactor.md"
+  ],
+  "acceptance": [
+    "section 15 shows the new layout marked [I] with a rationale linking the Phase 1 plan",
+    "section 16 Location today paths use the new layout",
+    "uv run python scripts/repo_move.py check --docs reports 0 old paths in current docs (mvp-detailed-design layout table included)"
+  ],
+  "gate_set": "full",
+  "base_commit": "ade55f9ae81c720b6a5482db1045a8c4c1438483",
+  "created_at": "2026-10-13T06:22:11+00:00"
+}
