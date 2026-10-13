@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from e_agent.contracts.action import ActionRecord, ActionState
+from e_agent.contracts.approval import ApprovalRecord
 from e_agent.contracts.common import new_id
 from e_agent.contracts.context import Budgets, TaskContext
 from e_agent.contracts.events import RunEventType
@@ -154,6 +155,11 @@ class ContinuationMixin:
             fallback: str,
             *,
             acknowledge: bool = True,
+        ) -> RunRecord:
+            raise NotImplementedError
+
+        async def _dispatch(
+            self, cont: _Continuation, action: ActionRecord, approval: ApprovalRecord
         ) -> RunRecord:
             raise NotImplementedError
 
