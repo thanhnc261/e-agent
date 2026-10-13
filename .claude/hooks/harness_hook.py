@@ -12,12 +12,11 @@ repository), and the harness runs from there:
 
 Failure policy: ``check-scope`` fails closed (exit 2), because an unchecked edit is
 worse than a refused one; ``close-check`` fails closed only when
-E_AGENT_HARNESS_UNATTENDED=1; ``status``, ``checkpoint`` and ``format`` never block.
+E_AGENT_HARNESS_UNATTENDED=1; ``status`` and ``checkpoint`` never block.
 """
 
 from __future__ import annotations
 
-import contextlib
 import json
 import os
 import subprocess
@@ -41,28 +40,10 @@ def _repo_root(start: Path) -> Path | None:
     return None
 
 
-def _runner(root: Path, tool: str) -> list[str]:
+def _runner(root: Path) -> list[str]:
     if (root / "pyproject.toml").is_file():
-        return ["uv", "run", "--quiet", "--directory", str(root), tool]
-    module = "e_agent_harness.cli" if tool == "e-agent-harness" else tool
-    return [sys.executable, "-m", module]
-
-
-def _format(root: Path, payload: dict) -> int:
-    path = (payload.get("tool_input") or {}).get("file_path") or ""
-    target = Path(path) if Path(path).is_absolute() else root / path
-    if target.suffix != ".py" or not target.is_file():
-        return 0
-    # Formatting is a convenience; the gate catches what it misses.
-    with contextlib.suppress(OSError, subprocess.SubprocessError):
-        subprocess.run(
-            [*_runner(root, "ruff"), "format", "--quiet", str(target)],
-            cwd=root,
-            capture_output=True,
-            timeout=TIMEOUT,
-            check=False,
-        )
-    return 0
+        return ["uv", "run", "--quiet", "--directory", str(root), "e-agent-harness"]
+    return [sys.executable, "-m", "e_agent_harness.cli"]
 
 
 def main(argv: list[str]) -> int:
@@ -81,11 +62,9 @@ def main(argv: list[str]) -> int:
             print(f"harness hook: no repository with {MANIFEST} above {cwd}", file=sys.stderr)
             return 2
         return 0
-    if command == "format":
-        return _format(root, payload)
     try:
         proc = subprocess.run(
-            [*_runner(root, "e-agent-harness"), *argv],
+            [*_runner(root), *argv],
             input=raw,
             cwd=root,
             capture_output=True,

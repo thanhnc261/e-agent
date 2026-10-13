@@ -18,7 +18,7 @@ One task per context window, every step checkable by the harness. The commands a
 
 ## What runs on its own
 
-In Claude Code, `.claude/settings.json` wires the harness in: the session starts with the `status` brief; a checkpoint is written before compaction; every `Edit`, `Write` and `NotebookEdit` is checked against the open task's scope (a closed task no longer limits unrelated edits; protected paths are always guarded); an edited Python file is formatted; with `E_AGENT_HARNESS_UNATTENDED=1` the session cannot stop until `close-check` passes. Edits made through shell commands are not hooked, so `check-scope` before each commit stays mandatory. Codex has no hooks: run the same commands by hand.
+In Claude Code, `.claude/settings.json` wires the harness in: the session starts with the `status` brief; a checkpoint is written before compaction; every `Edit`, `Write` and `NotebookEdit` is checked against the open task's scope (a closed task no longer limits unrelated edits; protected paths are always guarded); with `E_AGENT_HARNESS_UNATTENDED=1` the session cannot stop until `close-check` passes. Edits made through shell commands are not hooked, so `check-scope` before each commit stays mandatory. Codex has no hooks: run the same commands by hand.
 
 ## Start ritual
 
@@ -42,7 +42,7 @@ In Claude Code, `.claude/settings.json` wires the harness in: the session starts
 
 The order is fixed by `close-check`; evidence from a dirty tree is rejected.
 
-1. Commit the work. `check-scope` passes.
+1. `uv run e-agent-harness tidy` formats and lints the whole change once (Python with ruff, the UI's scoped formatter when `ui/` changed) and lists what it cannot fix; fix those, then commit the work. `check-scope` passes.
 2. `uv run e-agent-harness gate <set>` with the contract's gate set, never the smoke set, on the clean tree; note the evidence path it prints (under `harness/state/evidence/`).
 3. Set the task's feature entry in `harness/state/<phase>/features.json` to `"passes": true` with `"evidence": "<that path>"`.
 4. Write the handoff JSON with [eng-handoff](../eng-handoff/SKILL.md); `uv run e-agent-harness handoff <task-id>` prints ok.

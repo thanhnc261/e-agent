@@ -62,6 +62,10 @@
 
 - [x] Manifest `[protected] create_only = ["research/**"]`: a path that is read-only and create-only may be written when it is not tracked at the task's base commit (or at HEAD without a task). Existing studies stay as written; a new file still needs the open task's scope.
 
+### Task H4.6: tidy replaces the per-edit format hook (owner decision 2026-10-13)
+
+- [x] `e-agent-harness tidy` runs `ruff check --fix` and `ruff format` once over the change (working tree plus commits since the task base), runs the UI's scoped formatter when `ui/` changed, and reports what it cannot fix (exit 1). The `PostToolUse` format hook and the script's format mode are removed: formatting after each edit made Claude's view of the file stale and never linted; the gate stays the check. `eng-session` runs `tidy` before the commit.
+
 ## Deferred
 
 - The test-output filter hook and the reviewer `SubagentStop` validation: the `validate` command covers the review JSON; add the hooks when a phase needs them.

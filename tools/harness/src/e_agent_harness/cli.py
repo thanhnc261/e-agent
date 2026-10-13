@@ -25,6 +25,7 @@ from e_agent_harness import (
     state,
     status,
     tasks,
+    tidy,
 )
 from e_agent_harness import manifest as mf
 
@@ -87,6 +88,7 @@ def _parser() -> argparse.ArgumentParser:
     af.add_argument("--category", required=True)
     af.add_argument("--description", required=True)
     af.add_argument("--step", action="append", default=[], required=True)
+    sub.add_parser("tidy", help="format and lint the whole change once, before the commit")
     rf = sub.add_parser("refresh-task", help="new digests for the active task; base kept")
     rf.add_argument("--from-features", action="store_true", help="re-derive acceptance")
     am = sub.add_parser("amend-scope", help="add one allowed path to the active task")
@@ -376,6 +378,15 @@ def cmd_add_feature(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_tidy(args: argparse.Namespace) -> int:
+    root, paths, _m = _context(args)
+    loaded = state.load_task(paths)
+    code, report = tidy.tidy(loaded[0] if loaded else None, root)
+    for line in report:
+        print(line)
+    return code
+
+
 def cmd_refresh_task(args: argparse.Namespace) -> int:
     root, paths, m = _context(args)
     try:
@@ -410,6 +421,7 @@ COMMANDS = {
     "status": cmd_status,
     "validate": cmd_validate,
     "add-feature": cmd_add_feature,
+    "tidy": cmd_tidy,
     "refresh-task": cmd_refresh_task,
     "amend-scope": cmd_amend_scope,
 }

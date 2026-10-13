@@ -105,21 +105,9 @@ def test_wrapper_failure_modes(repo, tmp_path) -> None:
     assert hook(["close-check", "--hook"], stop, unattended).returncode == 2
 
 
-def test_wrapper_format_formats_python_and_never_blocks(repo) -> None:
-    target = repo.write("src/pkg/ugly.py", "x=1\ny = [1,2,3]\n")
-    payload = {
-        "hook_event_name": "PostToolUse",
-        "tool_name": "Write",
-        "tool_input": {"file_path": str(target)},
-        "cwd": str(repo.root),
-    }
-    result = hook(["format"], payload)
-    assert result.returncode == 0, result
-    assert target.read_text() == "x = 1\ny = [1, 2, 3]\n"
-    other = {**payload, "tool_input": {"file_path": str(repo.root / "docs/roadmap.md")}}
-    assert hook(["format"], other).returncode == 0
-    missing = {**payload, "tool_input": {"file_path": str(repo.root / "src/pkg/gone.py")}}
-    assert hook(["format"], missing).returncode == 0
+def test_wrapper_has_no_format_mode(repo) -> None:
+    script = SCRIPT.read_text()
+    assert '"format"' not in script and "ruff" not in script
 
 
 def test_stop_hook_spawns_nothing_when_attended(repo, tmp_path) -> None:

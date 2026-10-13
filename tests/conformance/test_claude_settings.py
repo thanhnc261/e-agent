@@ -93,7 +93,6 @@ def test_hooks_call_the_entry_script() -> None:
         ("SessionStart", "startup|resume|clear|compact"): "status --format hook",
         ("PreCompact", None): "checkpoint --hook",
         ("PreToolUse", "Edit|Write|NotebookEdit"): "check-scope --hook",
-        ("PostToolUse", "Edit|Write"): "format",
         ("Stop", None): "close-check --hook",
     }
     for (event, matcher), args in expected.items():
@@ -106,3 +105,9 @@ def test_hooks_call_the_entry_script() -> None:
 def test_scope_hook_fails_closed_on_timeout() -> None:
     (hook,) = _commands("PreToolUse", "Edit|Write|NotebookEdit")
     assert hook["onFailure"] == "block"
+
+
+def test_no_per_edit_formatting_hook() -> None:
+    # Formatting and lint run once over the whole change with `e-agent-harness tidy`.
+    assert "PostToolUse" not in SETTINGS["hooks"]
+    assert sorted(SETTINGS["hooks"]) == ["PreCompact", "PreToolUse", "SessionStart", "Stop"]

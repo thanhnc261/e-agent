@@ -144,6 +144,7 @@ uv run e-agent-harness amend-scope --add <glob> --reason <why>   # widen the act
 uv run e-agent-harness add-feature <phase> <F-id> --category <c> --description <d> --step <s>
 uv run e-agent-harness validate <schema> <file>   # check a contract file (features, task, handoff, review, ...)
 uv run python scripts/check_agent_skills.py  # validates the ag-* (UI) and eng-* (engineering) skills; start engineering work from eng-session
+uv run e-agent-harness tidy                  # format and lint the whole change once, before the commit
 # Claude Code: .claude/settings.json runs the harness hooks; .claude/agents/ holds explorer, verifier, reviewer, sandbox-operator
 
 # HTTP API + web UI (loopback only; Node 22.12+/24 and pnpm 10 for ui/)
