@@ -332,3 +332,20 @@ def test_finished_at_is_read_when_the_gate_ends(repo) -> None:
     )
     finished = datetime.fromisoformat(evidence["finished_at"])
     assert finished > max(seen)
+
+
+def test_clock_rollback_during_a_gate_fails_the_evidence(repo) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from e_agent_harness import closecheck, state
+    from e_agent_harness import manifest as mf
+
+    m = mf.load_manifest(state.Paths(repo.root).manifest)
+    start = datetime(2026, 10, 13, 12, 0, 0, tzinfo=UTC)
+    evidence = gate.run_gate(
+        m, "quick", repo.root, task_id="t", now=start, clock=lambda: start - timedelta(minutes=1)
+    )
+    assert evidence["ok"] is False
+    assert datetime.fromisoformat(evidence["finished_at"]) < start  # recorded as read, not clamped
+    reason = closecheck.evidence_ties_to_head(repo.root, evidence, "t", "quick")
+    assert reason is not None and "clock" in reason

@@ -206,7 +206,10 @@ def run_gate(
                 break
     # Read when the last command has ended: a closing checkpoint must come after this.
     finished = (clock or (lambda: datetime.now(UTC)))()
-    evidence["finished_at"] = max(finished, now).isoformat(timespec="microseconds")
+    evidence["finished_at"] = finished.isoformat(timespec="microseconds")
+    if finished < now:
+        # The clock went backwards: the run's timing cannot order a checkpoint after it.
+        evidence["ok"] = False
     problems = contracts.validate("gate-evidence", evidence)
     if problems:
         raise ValueError("evidence invalid: " + "; ".join(problems))

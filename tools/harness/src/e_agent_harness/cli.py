@@ -204,6 +204,10 @@ def _run_gate(
     path = gate.write_evidence(directory_for(paths, task_id), evidence)
     for entry in evidence["commands"]:
         print(f"[{entry['exit_code']}] {entry['command']}")
+    if contracts.parse_timestamp(evidence["finished_at"]) < contracts.parse_timestamp(
+        evidence["started_at"]
+    ):
+        print("the clock went backwards during the gate; this evidence cannot close a task")
     print(
         f"evidence: {path.relative_to(root)} "
         f"(commit {evidence['commit'][:7]}, clean_tree={evidence['clean_tree']})"

@@ -26,6 +26,10 @@ def evidence_ties_to_head(
     invalid = contracts.validate("gate-evidence", evidence)
     if invalid:
         return "evidence file is not valid gate evidence: " + invalid[0]
+    if "finished_at" in evidence and evidence_time(evidence) < contracts.parse_timestamp(
+        str(evidence["started_at"])
+    ):
+        return "the clock went backwards during the gate; run the gate again"
     if gate_set is not None and evidence.get("gate_set") != gate_set:
         return (
             f"evidence is from gate set {evidence.get('gate_set')}; "
