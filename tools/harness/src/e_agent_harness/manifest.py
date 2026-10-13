@@ -30,6 +30,8 @@ class Protected:
     bump_required: tuple[str, ...]
     bump_file: str
     secrets: tuple[str, ...]
+    # Read-only paths where a new file may still be created (existing files stay as written).
+    create_only: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -105,6 +107,7 @@ def load_manifest(path: Path) -> Manifest:
             bump_required=_strs(prot, "bump_required"),
             bump_file=str(prot.get("bump_file", "")),
             secrets=_strs(prot, "secrets"),
+            create_only=_strs(prot, "create_only"),
         ),
         environment=Environment(
             allowed_containers=_strs(env, "allowed_containers"),
@@ -141,6 +144,7 @@ def validate_manifest(m: Manifest, repo_root: Path) -> list[str]:
         ("protected.read_only", m.protected.read_only),
         ("protected.bump_required", m.protected.bump_required),
         ("protected.secrets", m.protected.secrets),
+        ("protected.create_only", m.protected.create_only),
         ("environment.denied_paths", m.environment.denied_paths),
         ("environment.allowed_containers", m.environment.allowed_containers),
         ("environment.denied_containers", m.environment.denied_containers),
@@ -215,6 +219,11 @@ def _glob_regex(pattern: str) -> str:
 def is_protected(m: Manifest, path: str) -> bool:
     """True when the repository-relative path is read-only under the manifest."""
     return any(_glob_match(path, p) for p in m.protected.read_only)
+
+
+def is_create_only(m: Manifest, path: str) -> bool:
+    """True when a new file may be created at this read-only path."""
+    return any(path_matches(path, p) for p in m.protected.create_only)
 
 
 def container_allowed(m: Manifest, name: str) -> bool:

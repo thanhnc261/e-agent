@@ -56,6 +56,12 @@
 - [ ] Docs: `eng-session` (hooks now run the start brief, checkpoint before compaction and scope checks; edits through Bash are not hooked), README, AGENTS.md one line, harness plan H4 done line, handoff `docs/handoffs/2026-10-13-harness-h4.md`.
 - [ ] Commit `docs(harness): H4 live verification, skills and handoff`.
 
+### Task H4.5: research accepts new files (owner decision 2026-10-13)
+
+**Files:** `tools/harness/…/manifest.py`, `scope.py`, `gitinfo.py`, `harness/context.toml`, `eng-foundations` ENG-BOUND-2, tests.
+
+- [x] Manifest `[protected] create_only = ["research/**"]`: a path that is read-only and create-only may be written when it is not tracked at the task's base commit (or at HEAD without a task). Existing studies stay as written; a new file still needs the open task's scope.
+
 ## Deferred
 
 - The test-output filter hook and the reviewer `SubagentStop` validation: the `validate` command covers the review JSON; add the hooks when a phase needs them.

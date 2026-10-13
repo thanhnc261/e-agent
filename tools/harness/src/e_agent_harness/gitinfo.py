@@ -47,6 +47,17 @@ def diff_names(root: Path, base: str, head: str = "HEAD") -> list[str]:
     return sorted(line for line in out.splitlines() if line)
 
 
+def exists_at(root: Path, rev: str, path: str) -> bool:
+    """True when ``path`` is tracked in commit ``rev``."""
+    proc = subprocess.run(
+        ["git", "-C", str(root), "cat-file", "-e", f"{rev}:{path}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return proc.returncode == 0
+
+
 def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     proc = subprocess.run(
         ["git", "-C", str(root), "merge-base", "--is-ancestor", ancestor, descendant],

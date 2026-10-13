@@ -230,3 +230,9 @@ def test_full_gate_covers_ui() -> None:
 def test_real_manifest_guards_every_gate_set() -> None:
     m = manifest.load_manifest(MANIFEST)
     assert ("E_AGENT_TEST_PG_DSN", "E_AGENT_PG_DSN") in m.gate_guards["*"].distinct_databases
+
+
+def test_research_accepts_new_files_only() -> None:
+    m = manifest.load_manifest(MANIFEST)
+    assert "research/**" in m.protected.read_only
+    assert "research/**" in m.protected.create_only

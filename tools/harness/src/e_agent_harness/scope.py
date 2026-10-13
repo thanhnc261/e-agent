@@ -7,16 +7,24 @@ from pathlib import Path
 from typing import Any
 
 from e_agent_harness import gitinfo, state
-from e_agent_harness.manifest import Manifest, is_protected, normalize_relpath, path_matches
+from e_agent_harness.manifest import (
+    Manifest,
+    is_create_only,
+    is_protected,
+    normalize_relpath,
+    path_matches,
+)
 
 EDIT_TOOLS = ("Edit", "Write", "NotebookEdit")
 
 
-def deny_reason(contract: dict[str, Any] | None, m: Manifest, relpath: str) -> str | None:
+def deny_reason(
+    contract: dict[str, Any] | None, m: Manifest, relpath: str, *, new_file: bool = False
+) -> str | None:
     if "\\" in relpath:
         return f"{relpath}: path contains a backslash; refusing an ambiguous path"
     norm = normalize_relpath(relpath)
-    if is_protected(m, norm):
+    if is_protected(m, norm) and not (new_file and is_create_only(m, norm)):
         return f"{norm}: protected path (read-only)"
     if contract is None:
         return None
@@ -35,7 +43,15 @@ def changed_paths(contract: dict[str, Any] | None, repo_root: Path) -> set[str]:
 
 def check_tree(contract: dict[str, Any] | None, m: Manifest, repo_root: Path) -> list[str]:
     changed = changed_paths(contract, repo_root)
-    problems = [r for r in (deny_reason(contract, m, p) for p in sorted(changed)) if r]
+    base = str(contract["base_commit"]) if contract else "HEAD"
+    problems = [
+        r
+        for r in (
+            deny_reason(contract, m, p, new_file=_is_new(repo_root, base, p))
+            for p in sorted(changed)
+        )
+        if r
+    ]
     normalized = {normalize_relpath(p) for p in changed}
     needs_bump = any(path_matches(p, pat) for p in normalized for pat in m.protected.bump_required)
     if needs_bump and normalize_relpath(m.protected.bump_file) not in normalized:
@@ -44,6 +60,11 @@ def check_tree(contract: dict[str, Any] | None, m: Manifest, repo_root: Path) ->
             f"{', '.join(m.protected.bump_required)} change"
         )
     return problems
+
+
+def _is_new(repo_root: Path, base: str, relpath: str) -> bool:
+    """Not tracked at the task's base (or at HEAD without a task): created by this work."""
+    return not gitinfo.exists_at(repo_root, base, normalize_relpath(relpath))
 
 
 Resolver = Callable[[Path], tuple[Manifest, dict[str, Any] | None]]
@@ -68,5 +89,6 @@ def hook_decision(payload: dict[str, Any], resolve: Resolver) -> tuple[int, str]
     except ValueError:
         return 2, f"{target}: outside the repository {repo_root}"
     m, contract = resolve(repo_root)
-    reason = deny_reason(contract, m, rel)
+    base = str(contract["base_commit"]) if contract else "HEAD"
+    reason = deny_reason(contract, m, rel, new_file=_is_new(repo_root, base, rel))
     return (2, reason) if reason else (0, "")

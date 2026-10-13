@@ -142,8 +142,8 @@ Each rule has one ID, a one-sentence statement, its source, how it is enforced (
 
 ### ENG-BOUND-2 — Protected paths
 
-- **Statement:** `archive/**` and `research/**` are read-only, and a change under `addons/**` bumps the bridge version in the same change.
-- **Source:** harness manifest `[protected]`; AGENTS.md "Documentation and completion" (preserve research reports).
+- **Statement:** `archive/**` is read-only, `research/**` accepts new files only (existing reports stay as written; owner decision 2026-10-13), and a change under `addons/**` bumps the bridge version in the same change.
+- **Source:** harness manifest `[protected]` (`read_only`, `create_only`); AGENTS.md "Documentation and completion" (preserve research reports).
 - **Enforcement:** hook, command
 - **Evidence:** `uv run e-agent-harness check-scope` passes on the change.
 

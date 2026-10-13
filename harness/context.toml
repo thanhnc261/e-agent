@@ -20,6 +20,8 @@ active_plan_required_sections = ["Global Constraints", "Review Focus"]
 
 [protected]
 read_only = ["archive/**", "research/**"]
+# Owner decision 2026-10-13: new studies may be created under research/; existing reports stay as written.
+create_only = ["research/**"]
 bump_required = ["addons/**"]
 bump_file = "addons/e_agent_bridge/__manifest__.py"
 secrets = ["profiles/*.local.json", ".env", "~/.config/e-agent/**"]

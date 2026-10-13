@@ -153,3 +153,46 @@ def test_hook_after_close_guards_only_protected_paths(repo) -> None:
     )
     denied = repo.invoke("check-scope", "--hook", stdin=_payload(repo, "Write", "archive/old.md"))
     assert denied.code == 2
+
+
+def _create_only_research(repo) -> None:
+    manifest = repo.root / "harness/context.toml"
+    text = manifest.read_text().replace(
+        'read_only = ["archive/**"]',
+        'read_only = ["archive/**", "research/**"]\ncreate_only = ["research/**"]',
+    )
+    manifest.write_text(text)
+    repo.write("research/01-old-study.md", "kept as written\n")
+    repo.commit("research baseline")
+
+
+def test_hook_allows_a_new_file_under_create_only(repo) -> None:
+    _create_only_research(repo)
+    new = repo.invoke("check-scope", "--hook", stdin=_payload(repo, "Write", "research/02-new.md"))
+    assert new.code == 0, new
+    old = repo.invoke(
+        "check-scope", "--hook", stdin=_payload(repo, "Edit", "research/01-old-study.md")
+    )
+    assert old.code == 2
+    assert "protected path" in old.err
+
+
+def test_create_only_new_files_still_need_the_task_scope(repo) -> None:
+    _create_only_research(repo)
+    _activate(repo)  # scope src/pkg/** only
+    result = repo.invoke(
+        "check-scope", "--hook", stdin=_payload(repo, "Write", "research/02-new.md")
+    )
+    assert result.code == 2
+    assert "outside the task's allowed paths" in result.err
+
+
+def test_tree_check_allows_new_and_refuses_changed_create_only_files(repo) -> None:
+    _create_only_research(repo)
+    repo.write("research/02-new.md", "a new study\n")
+    assert repo.invoke("check-scope").code == 0
+    repo.commit("new study")
+    repo.write("research/01-old-study.md", "rewritten\n")
+    result = repo.invoke("check-scope")
+    assert result.code == 1
+    assert "research/01-old-study.md: protected path" in result.out
