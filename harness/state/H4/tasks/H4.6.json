@@ -1,0 +1,30 @@
+{
+  "id": "H4.6",
+  "phase": "H4",
+  "plan_ref": "docs/plans/2026-10-13-harness-h4-adapters.md",
+  "feature_ids": [
+    "F-H4-6"
+  ],
+  "context_digest": "b4a2bbb54beef9ba6428d5cd3458ad024a890b7a630b963d5d9a856682b959d5",
+  "allowed_paths": [
+    "tools/harness/**",
+    "tests/harness/**",
+    "tests/conformance/test_claude_settings.py",
+    ".claude/settings.json",
+    ".claude/hooks/**",
+    ".agents/skills/eng-session/**",
+    "README.md",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-13-harness-h4-adapters.md"
+  ],
+  "acceptance": [
+    "tests/harness/test_tidy.py passes",
+    "settings have four hooks and no PostToolUse",
+    "full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "3b53f6bc0e4e43126becac753053f7e2872081bb",
+  "created_at": "2026-10-13T16:00:38+00:00",
+  "features_digest": "57276fcb99851132e7e38b0437c1bbf07810922f7355289719cd7c40a8b79e9a"
+}
