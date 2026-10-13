@@ -1,0 +1,24 @@
+{
+  "id": "1c.1",
+  "phase": "1",
+  "plan_ref": "docs/plans/2026-10-12-phase1-structure-refactor.md",
+  "feature_ids": [
+    "F-1c-1"
+  ],
+  "context_digest": "6a24bbebcbfe35c776ffc2fb1b4b3e58d0fde3599399f5d11d79eaa08d2e457c",
+  "allowed_paths": [
+    "tests/unit/kernel/test_structure.py",
+    "evidence/**",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-12-phase1-structure-refactor.md"
+  ],
+  "acceptance": [
+    "every name imported from e_agent.kernel.coordinator by tests, scripts and the server is importable",
+    "the listed public RunCoordinator methods exist",
+    "the test passes on the unsplit code"
+  ],
+  "gate_set": "full",
+  "base_commit": "0a45184967afac1d8c850983941bc83fd3068c6e",
+  "created_at": "2026-10-13T06:28:40+00:00"
+}
