@@ -1,0 +1,193 @@
+{
+  "phase": "1",
+  "entries": [
+    {
+      "id": "F-1a-1",
+      "category": "layout",
+      "description": "Task 1a.1: baseline evidence before the layout move",
+      "steps": [
+        "record the full gate counts",
+        "record uv run python scripts/check_wheels.py output",
+        "record scripts/plugin_inventory.py hashes for domain-erp and odoo19 built from fresh wheels",
+        "list the files of all 10 built wheels with unzip -l as the must-be-identical reference"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1a-2",
+      "category": "layout",
+      "description": "Task 1a.2: mover script and the code move into src/e_agent with dists/<name>/pyproject.toml",
+      "steps": [
+        "tests/conformance/test_repo_layout.py fails before the move (packages/ still exists)",
+        "after repo_move.py layout: no packages/ or apps/ directory remains",
+        "every dists/*/pyproject.toml has force-include entries that exist",
+        "src/e_agent/__init__.py does not exist"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1a-3",
+      "category": "layout",
+      "description": "Task 1a.3: tooling and path references updated for the new layout",
+      "steps": [
+        "uv lock changes only source paths",
+        "full gate passes",
+        "make e2e passes",
+        "check_wheels.py wheel file lists are identical to the 1a.1 baseline",
+        "plugin inventory manifest_sha256 values are identical to the 1a.1 baseline"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1a-4",
+      "category": "layout",
+      "description": "Task 1a.4: editor hygiene (.vscode/settings.json hides caches)",
+      "steps": [
+        ".vscode/settings.json excludes __pycache__, .mypy_cache, .ruff_cache, .pytest_cache, .import_linter_cache, ui/**/node_modules and ui/**/dist in files.exclude and search.exclude"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1b-1",
+      "category": "docs",
+      "description": "Task 1b.1: designs moved into docs/design/",
+      "steps": [
+        "repo_move.py links --move of the nine design docs to docs/design",
+        "repo_move.py check reports 0 broken links"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1b-2",
+      "category": "docs",
+      "description": "Task 1b.2: plans and specs moved out of docs/superpowers/",
+      "steps": [
+        "active plans are in docs/plans/ and specs in docs/specs/",
+        "docs/superpowers/ no longer exists",
+        "the roadmap Rules plan-location sentence is updated",
+        "repo_move.py check reports 0 broken links"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1b-3",
+      "category": "docs",
+      "description": "Task 1b.3: AGENTS.md, CLAUDE.md and README rewritten for the new layout and roadmap rules",
+      "steps": [
+        "repo_move.py check reports 0 broken links",
+        "uv run python scripts/check_agent_skills.py passes",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1b-4",
+      "category": "docs",
+      "description": "Task 1b.4: target-architecture section 15 tree and section 16 locations updated",
+      "steps": [
+        "section 15 shows the new layout marked [I] with a rationale linking the Phase 1 plan",
+        "section 16 Location today paths use the new layout"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1c-1",
+      "category": "kernel",
+      "description": "Task 1c.1: pin the coordinator public surface in tests/unit/kernel/test_structure.py",
+      "steps": [
+        "every name imported from e_agent.kernel.coordinator by tests, scripts and the server is importable",
+        "the listed public RunCoordinator methods exist",
+        "the test passes on the unsplit code"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1c-2",
+      "category": "kernel",
+      "description": "Task 1c.2: continuation.py mixin moved verbatim",
+      "steps": ["pytest -q tests/unit/kernel passes", "full gate passes"],
+      "passes": false
+    },
+    {
+      "id": "F-1c-3",
+      "category": "kernel",
+      "description": "Task 1c.3: transitions.py mixin moved verbatim",
+      "steps": ["pytest -q tests/unit/kernel passes", "full gate passes"],
+      "passes": false
+    },
+    {
+      "id": "F-1c-4",
+      "category": "kernel",
+      "description": "Task 1c.4: run_loop.py mixin moved verbatim",
+      "steps": ["pytest -q tests/unit/kernel passes", "full gate passes"],
+      "passes": false
+    },
+    {
+      "id": "F-1c-5",
+      "category": "kernel",
+      "description": "Task 1c.5: gateway.py mixin moved verbatim",
+      "steps": ["pytest -q tests/unit/kernel passes", "full gate passes"],
+      "passes": false
+    },
+    {
+      "id": "F-1c-6",
+      "category": "kernel",
+      "description": "Task 1c.6: proposals.py mixin moved verbatim",
+      "steps": ["pytest -q tests/unit/kernel passes", "full gate passes"],
+      "passes": false
+    },
+    {
+      "id": "F-1c-7",
+      "category": "kernel",
+      "description": "Task 1c.7: approval_flow.py mixin moved verbatim (approval.py keeps digests)",
+      "steps": ["pytest -q tests/unit/kernel passes", "full gate passes"],
+      "passes": false
+    },
+    {
+      "id": "F-1c-8",
+      "category": "kernel",
+      "description": "Task 1c.8: dispatch.py, verification.py and recovery.py mixins moved verbatim",
+      "steps": [
+        "pytest -q tests/unit/kernel passes",
+        "full gate passes",
+        "coordinator.py ends at about 200 lines"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1c-9",
+      "category": "kernel",
+      "description": "Task 1c.9: fitness tests and import contracts for the kernel split",
+      "steps": [
+        "test_each_method_defined_once passes across the RunCoordinator MRO",
+        "test_kernel_module_size: every src/e_agent/kernel/*.py has at most 500 lines",
+        "import-linter contract: no kernel module except coordinator imports e_agent.kernel.coordinator",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1c-10",
+      "category": "server",
+      "description": "Task 1c.10: server worker.py and streaming.py split from api.py",
+      "steps": [
+        "full gate passes",
+        "make e2e passes",
+        "export_openapi.py --check reports no change"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1c-11",
+      "category": "live",
+      "description": "Task 1c.11: live check, design and roadmap updated",
+      "steps": [
+        "rebuilt wheels' plugin pins match the 1a.1 baseline, or re-pinned with an explanation",
+        "the four live flows from the real-agent handoff match on odoo19-learning",
+        "target-architecture sections 15 and 16 mark the kernel and server modules [I]",
+        "roadmap Phase 1 is marked Done"
+      ],
+      "passes": false
+    }
+  ]
+}
