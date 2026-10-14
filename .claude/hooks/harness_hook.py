@@ -355,9 +355,7 @@ _COMPOSE_SUBCOMMANDS = {
 }
 
 
-def _compose_reason(
-    command: str, rest: list[str], allowed: list[str], cwd: Path | None
-) -> str | None:
+def _compose_reason(command: str, rest: list[str], allowed: list[str]) -> str | None:
     # The whole command: an earlier "export COMPOSE_FILE=..." applies to this segment too.
     if re.search(r"(?<![\w-])COMPOSE_[A-Z_]+=", command) or any(
         os.environ.get(name) for name in _COMPOSE_VARIABLES
@@ -382,28 +380,22 @@ def _compose_reason(
     if sub not in _COMPOSE_SUBCOMMANDS:
         return f"docker compose {sub or '(no subcommand)'} can create or remove containers"
     if sub in _COMPOSE_CHANGES:
-        if cwd is None:
-            return (
-                f"docker compose {sub} after a directory change (which files it loads is unknown)"
-            )
-        return _compose_files_reason(cwd, allowed)
+        return _compose_targets_reason(project, allowed)
     return None
 
 
-def _docker_reason(
-    segment: str, words: list[str], allowed: list[str], command: str, cwd: Path | None
-) -> str | None:
+def _docker_reason(segment: str, words: list[str], allowed: list[str], command: str) -> str | None:
     if re.search(r"(?<![\w-])DOCKER_[A-Z_]+=", segment):
         return "a docker environment override (daemon, context or config)"
     if Path(words[0]).name == "docker-compose":
-        return _compose_reason(command, words[1:], allowed, cwd)
+        return _compose_reason(command, words[1:], allowed)
     if len(words) < 2:
         return None
     if words[1].startswith("-"):
         return "docker global options (daemon, context or config)"
     sub, rest = words[1], words[2:]
     if sub == "compose":
-        return _compose_reason(command, rest, allowed, cwd)
+        return _compose_reason(command, rest, allowed)
     if sub == "container":
         if not rest:
             return None
@@ -445,16 +437,6 @@ def _docker_reason(
     return None
 
 
-_COMPOSE_NAMES = (
-    "compose.yaml",
-    "compose.yml",
-    "docker-compose.yaml",
-    "docker-compose.yml",
-    "compose.override.yaml",
-    "compose.override.yml",
-    "docker-compose.override.yaml",
-    "docker-compose.override.yml",
-)
 _COMPOSE_CHANGES = {"stop", "start", "restart", "pause", "unpause"}
 
 
@@ -484,31 +466,40 @@ def _docker_context_reason() -> str | None:
     return f"docker context {current} points at {host}, not a local daemon"
 
 
-def _compose_files_reason(cwd: Path, allowed: list[str]) -> str | None:
-    """Compose loads files and a .env from the working directory; check what they select."""
-    folder, files = cwd, []
-    for candidate in (cwd, *cwd.parents):
-        files = [candidate / n for n in _COMPOSE_NAMES if (candidate / n).is_file()]
-        if files:
-            folder = candidate
-            break
-    for env_dir in dict.fromkeys((cwd, folder)):
-        env = env_dir / ".env"
-        if env.is_file() and re.search(
-            r"^\s*(?:export\s+)?COMPOSE_", env.read_text(errors="replace"), re.M
-        ):
-            return f"{env} sets COMPOSE_ variables"
-    for path in files:
-        text = path.read_text(errors="replace")
-        if re.search(r"^\s*(?:include|extends)\s*:", text, re.M):
-            return f"{path} includes other compose files"
-        for name in re.findall(r"^\s*container_name\s*:\s*[\"']?([^\"'\s#]+)", text, re.M):
-            if "$" in name or not _allowed(name, allowed):
-                return f"{path} names container {name}, outside the allowed list"
+def _compose_targets_reason(project: str, allowed: list[str]) -> str | None:
+    """The containers a compose stop, start, restart, pause or unpause acts on.
+
+    Compose selects them by the project label on existing containers, whatever files it
+    loads, so the daemon's own list is the target set. A read-only query; if it fails,
+    the targets are unknown and the owner decides.
+    """
+    try:
+        proc = subprocess.run(
+            [
+                "docker",
+                "ps",
+                "--all",
+                "--filter",
+                f"label=com.docker.compose.project={project}",
+                "--format",
+                "{{.Names}}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return f"the containers of compose project {project} could not be listed"
+    if proc.returncode != 0:
+        return f"the containers of compose project {project} could not be listed"
+    for name in proc.stdout.split():
+        if not _allowed(name, allowed):
+            return f"compose project {project} contains {name}, outside the allowed list"
     return None
 
 
-def bash_guard(root: Path, command: str, cwd: Path | None = None) -> tuple[int, str]:
+def bash_guard(root: Path, command: str) -> tuple[int, str]:
     """(exit code, stdout). Exit 2 denies; stdout may carry an "ask" decision."""
     denied, allowed = _policy(root)
     joined = command.replace("\\\n", "")  # the shell removes a backslash-newline
@@ -520,8 +511,6 @@ def bash_guard(root: Path, command: str, cwd: Path | None = None) -> tuple[int, 
                 print(f"bash-guard: {token} is a denied container ({MANIFEST})", file=sys.stderr)
                 return 2, ""
     segments, expansion = _scan(joined)
-    moved = any(_command_word(_words(seg)) in {"cd", "pushd", "popd"} for seg in segments)
-    workdir = None if moved else (cwd or root)
     sensitive = tool or bool(_GIT_WORD.search(flat))
     reasons: list[str] = []
     if _dynamic(segments) and (sensitive or expansion):
@@ -533,6 +522,10 @@ def bash_guard(root: Path, command: str, cwd: Path | None = None) -> tuple[int, 
         or any(os.environ.get(name) for name in _ENDPOINT_VARIABLES)
     ):
         reasons.append("a docker endpoint, context or config other than the default")
+    elif tool and re.search(r"(?<![\w-])HOME=", joined):
+        reasons.append("docker with another home directory (its configuration and context)")
+    elif tool and re.search(r"(?<![\w-])(?:sudo|doas|su|runuser|pkexec)(?![\w-])", flat):
+        reasons.append("docker as another user (its configuration and context)")
     elif tool:
         context = _docker_context_reason()
         if context:
@@ -560,7 +553,7 @@ def bash_guard(root: Path, command: str, cwd: Path | None = None) -> tuple[int, 
             if name == "git":
                 reason = _git_reason(words[index:])
             elif name in _CONTAINER_TOOLS:
-                reason = _docker_reason(segment, words[index:], allowed, joined, workdir)
+                reason = _docker_reason(segment, words[index:], allowed, joined)
             else:
                 continue
             if reason:
@@ -597,11 +590,7 @@ def main(argv: list[str]) -> int:
             return 2
         root = anchor
         try:
-            code, out = bash_guard(
-                root,
-                str((payload.get("tool_input") or {}).get("command", "")),
-                cwd if cwd.is_dir() else None,
-            )
+            code, out = bash_guard(root, str((payload.get("tool_input") or {}).get("command", "")))
         except Exception as exc:  # a broken guard must not let a denied command through
             print(f"bash-guard error: {exc}", file=sys.stderr)
             return 2
