@@ -1,0 +1,10 @@
+{
+  "task": "H4.16",
+  "changed": "Roadmap, harness plan and H4 plan record H4 as done before the merge to main; Phase 1 recorded as merged.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.16/2026-10-14T13-53-16.745027+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [],
+  "outside_repo": []
+}

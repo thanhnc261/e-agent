@@ -240,7 +240,8 @@
         "validate-context prints ok",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/H4.16/2026-10-14T13-53-16.745027+00-00-full.json"
     }
   ]
 }
