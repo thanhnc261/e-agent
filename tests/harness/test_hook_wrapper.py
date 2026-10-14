@@ -333,3 +333,57 @@ def test_r4_literal_punctuation_passes(repo) -> None:
         "docker exec odoo19-learning-odoo-1 odoo --version",
     ):
         assert _decision_of(_bash(repo, command)) == "none", command
+
+
+def test_r5_ordinary_variants_ask(repo) -> None:
+    for command in (
+        'sudo -n "$DOCKER_BIN" stop production-db-1',
+        "sudo -nE docker stop production-db-1",  # combined flags: arity unknown
+        "env -S 'git push origin HEAD'",
+        "git submodule --quiet foreach 'git push origin HEAD'",
+        "git bisect start && git bisect --no-checkout run ./probe.sh",
+        "COMPOSE_FILE=/tmp/other.yml docker compose -p odoo19-learning restart",
+        "timeout 5 eval git push",
+    ):
+        assert _decision_of(_bash(repo, command)) == "ask", command
+
+
+def test_r5_inherited_compose_file_asks(repo) -> None:
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": "docker compose -p odoo19-learning restart"},
+        "cwd": str(repo.root),
+    }
+    result = hook(["bash-guard"], payload, env={"COMPOSE_FILE": "/tmp/other.yml"})
+    assert _decision_of(result) == "ask"
+
+
+def test_r5_literal_words_pass(repo) -> None:
+    for command in (
+        "git log --grep 'source'",
+        "git commit -m 'fix source path'",
+        "git log --grep source -1",
+        "sudo -n -u root docker ps",
+        "nice -n 10 git status",
+        "nice -10 git status",
+    ):
+        assert _decision_of(_bash(repo, command)) == "none", command
+
+
+def test_r5_wrapper_times_out_before_the_host(repo, tmp_path) -> None:
+    """A stalled harness ends inside the wrapper, which then denies check-scope itself."""
+    import importlib.util
+    import io
+
+    spec = importlib.util.spec_from_file_location("harness_hook_r5", SCRIPT)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.TIMEOUT = 0.5
+    module._runner = lambda root: [sys.executable, "-c", "import time; time.sleep(5)"]
+    stdin, sys.stdin = sys.stdin, io.StringIO(json.dumps(_write(repo, "src/pkg/mod.py")))
+    try:
+        assert module.main(["check-scope", "--hook"]) == 2
+    finally:
+        sys.stdin = stdin

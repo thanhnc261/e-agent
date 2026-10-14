@@ -72,7 +72,7 @@ The Phase 1 pilot log's other rows were fixed in harness H2.1; one remains.
 
 ## What bash-guard is not
 
-`bash-guard` stops the commands an agent writes by habit: a docker command against a denied or unlisted container, git push, pull, merge, rebase or a hard reset, and the forms it cannot read (shell `-c`, `eval`, variables in command position). It is not a sandbox. It cannot see inside a script (`./deploy.sh`) and cannot decode deliberate obfuscation. Treat it as one layer: the permission rules are another, and an unattended run needs a real boundary too: Claude Code's sandbox (filesystem and network isolation) or a container without the Docker socket and without push credentials, with branch protection on the remote as the last line for pushes.
+`bash-guard` stops the commands an agent writes by habit: a docker command against a denied or unlisted container, git push, pull, merge, rebase or a hard reset, and the forms it cannot read (shell `-c`, `eval`, variables in command position). It is not a sandbox. It cannot see inside a script (`./deploy.sh`) and cannot decode deliberate obfuscation. The scope hook's fail-closed behaviour comes from the wrapper (it denies after its own 45 s timeout), not from `onFailure`, which older Claude Code releases ignore. Treat it as one layer: the permission rules are another, and an unattended run needs a real boundary too: Claude Code's sandbox (filesystem and network isolation) or a container without the Docker socket and without push credentials, with branch protection on the remote as the last line for pushes.
 
 ## Unattended variant
 

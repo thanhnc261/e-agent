@@ -73,6 +73,23 @@ def exists_at(root: Path, rev: str, path: str) -> bool:
     return bool(proc.stdout.strip("\0"))
 
 
+def tracked_casefold(root: Path, rev: str) -> frozenset[str]:
+    """Every path tracked in ``rev``, case-folded; GitLookupError when git cannot tell.
+
+    A case-insensitive file system (macOS, Windows) opens ``Research/A.md`` as the tracked
+    ``research/a.md``; callers compare folded names to see that alias.
+    """
+    proc = subprocess.run(
+        ["git", "-C", str(root), "ls-tree", "-r", "-z", "--name-only", rev],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise GitLookupError(proc.stderr.strip() or f"git ls-tree {rev} failed")
+    return frozenset(name.casefold() for name in proc.stdout.split("\0") if name)
+
+
 def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     proc = subprocess.run(
         ["git", "-C", str(root), "merge-base", "--is-ancestor", ancestor, descendant],

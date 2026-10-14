@@ -28,7 +28,10 @@ import tomllib
 from pathlib import Path
 
 MANIFEST = Path("harness") / "context.toml"
-TIMEOUT = 110
+# Below every host timeout in .claude/settings.json (check-scope: 60 s): a stalled harness
+# then ends here, with exit 2 for a guarding command, instead of at the host's timeout,
+# whose outcome depends on the Claude Code version (onFailure needs a newer release).
+TIMEOUT = 45
 
 
 def _fails_closed(command: str) -> bool:
@@ -161,8 +164,29 @@ _DOCKER_TARGETS: dict[str, tuple[set[str], set[str], str]] = {
 }
 
 
-_WRAPPERS = {"sudo", "env", "command", "exec", "nohup", "time", "nice", "builtin"}
+# Wrapper -> (flags, options that take a value). Any other option is one bash-guard cannot
+# read: the command word after it is uncertain.
+_WRAPPERS: dict[str, tuple[set[str], set[str]]] = {
+    "sudo": (
+        {"-A", "-B", "-b", "-E", "-H", "-K", "-k", "-n", "-P", "-S", "--"},
+        {"-C", "-D", "-g", "-h", "-p", "-R", "-r", "-T", "-t", "-U", "-u"},
+    ),
+    "env": ({"-i", "-0", "-v", "--ignore-environment", "--null", "--"}, {"-u", "--unset"}),
+    "command": ({"-p", "--"}, set()),
+    "exec": ({"-c", "-l", "--"}, {"-a"}),
+    "nohup": ({"--"}, set()),
+    "time": ({"-p", "--"}, set()),
+    "nice": ({"--"}, {"-n", "--adjustment"}),
+    "builtin": ({"--"}, set()),
+}
+UNCERTAIN = "\0uncertain"
 _ENDPOINT_VARIABLES = ("DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_CONFIG")
+_COMPOSE_VARIABLES = (
+    "COMPOSE_FILE",
+    "COMPOSE_PROJECT_NAME",
+    "COMPOSE_PROFILES",
+    "COMPOSE_ENV_FILES",
+)
 
 
 def _scan(text: str) -> tuple[list[str], bool]:
@@ -217,16 +241,30 @@ def _scan(text: str) -> tuple[list[str], bool]:
 
 
 def _command_word(words: list[str]) -> str | None:
-    """The word in command position, after assignments, wrappers and their options."""
+    """The word in command position, after assignments, wrappers and their options.
+
+    Returns UNCERTAIN when a wrapper option is not one bash-guard knows, because the
+    command word then depends on that option's arity.
+    """
     i = 0
     while i < len(words):
         word = words[i]
         if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", word):
             i += 1
         elif Path(word).name in _WRAPPERS:
+            flags, with_value = _WRAPPERS[Path(word).name]
             i += 1
-            while i < len(words) and words[i].startswith("-"):
-                i += 2 if words[i] in {"-u", "-g", "-n", "-C"} else 1
+            while i < len(words) and words[i].startswith("-") and words[i] != "-":
+                option = words[i]
+                if option == "--":
+                    i += 1
+                    break
+                if option.split("=", 1)[0] in with_value:
+                    i += 1 if "=" in option else 2
+                elif option in flags or (Path(word).name == "nice" and option[1:].isdigit()):
+                    i += 1
+                else:
+                    return UNCERTAIN
         else:
             return word
     return None
@@ -241,14 +279,28 @@ def _policy(root: Path) -> tuple[list[str], list[str]]:
     )
 
 
+def _words(segment: str) -> list[str]:
+    try:
+        return shlex.split(segment)
+    except ValueError:
+        return segment.split()
+
+
 def _dynamic(segments: list[str]) -> bool:
+    """A segment that runs another command bash-guard cannot see.
+
+    ``source`` and ``.`` count only in command position (``git log --grep source`` is a
+    literal word); ``eval`` and ``xargs`` count wherever they stand as a word of their own,
+    because other runners (``timeout``, ``watch``) put them later in the line.
+    """
     for segment in segments:
-        words = segment.split()
+        words = _words(segment)
+        head = _command_word(words)
+        if head is not None and Path(head).name in {"eval", "source", ".", "xargs"}:
+            return True
         for i, word in enumerate(words):
-            name = Path(word.strip("\"'")).name
-            if name in {"eval", "source", "xargs"} or word in {"-exec", "-execdir"}:
-                return True
-            if i == 0 and word == ".":
+            name = Path(word).name
+            if name in {"eval", "xargs"} or word in {"-exec", "-execdir", "-ok", "-okdir"}:
                 return True
             if name in _SHELLS and any(
                 re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", w) or w == "--command" for w in words[i + 1 :]
@@ -275,8 +327,9 @@ def _git_reason(words: list[str]) -> str | None:
         return f"git {sub} changes shared history"
     if sub == "reset" and any(w.startswith("-") and w not in _RESET_SAFE for w in rest):
         return "git reset with an option that can discard work"
-    if (sub, tuple(rest[:1])) in {("submodule", ("foreach",)), ("bisect", ("run",))}:
-        return f"git {sub} {rest[0]} runs arbitrary commands"
+    # Options may come first (git submodule --quiet foreach ...): look at every word.
+    if (sub == "submodule" and "foreach" in rest) or (sub == "bisect" and "run" in rest):
+        return f"git {sub} {'foreach' if sub == 'submodule' else 'run'} runs arbitrary commands"
     if sub not in _GIT_BUILTINS and sub != "reset":
         return f"git {sub} is not a built-in bash-guard knows (an alias?)"
     return None
@@ -298,7 +351,11 @@ _COMPOSE_SUBCOMMANDS = {
 }
 
 
-def _compose_reason(rest: list[str], allowed: list[str]) -> str | None:
+def _compose_reason(segment: str, rest: list[str], allowed: list[str]) -> str | None:
+    if re.search(r"(?<![\w-])COMPOSE_[A-Z_]+=", segment) or any(
+        os.environ.get(name) for name in _COMPOSE_VARIABLES
+    ):
+        return "a compose file, project or profile chosen by the environment"
     project = None
     j = 0
     while j < len(rest) and rest[j].startswith("-"):
@@ -324,14 +381,14 @@ def _docker_reason(segment: str, words: list[str], allowed: list[str]) -> str | 
     if re.search(r"(?<![\w-])DOCKER_[A-Z_]+=", segment):
         return "a docker environment override (daemon, context or config)"
     if Path(words[0]).name == "docker-compose":
-        return _compose_reason(words[1:], allowed)
+        return _compose_reason(segment, words[1:], allowed)
     if len(words) < 2:
         return None
     if words[1].startswith("-"):
         return "docker global options (daemon, context or config)"
     sub, rest = words[1], words[2:]
     if sub == "compose":
-        return _compose_reason(rest, allowed)
+        return _compose_reason(segment, rest, allowed)
     if sub == "container":
         if not rest:
             return None
@@ -406,7 +463,12 @@ def bash_guard(root: Path, command: str) -> tuple[int, str]:
                 reasons.append("a command bash-guard could not parse")
             continue
         head = _command_word(words)
-        if head is not None and re.search(r"[$`]", head):
+        if head == UNCERTAIN and (
+            expansion or _GIT_WORD.search(segment) or _CONTAINER_TOOL.search(segment)
+        ):
+            reasons.append("a wrapper option bash-guard cannot read")
+            continue
+        if head is not None and head != UNCERTAIN and re.search(r"[$`]", head):
             reasons.append("an executable chosen by a variable")
             continue
         for index, word in enumerate(words):

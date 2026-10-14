@@ -260,3 +260,18 @@ def test_arrow_in_a_file_name_is_not_a_rename(repo) -> None:
     result = repo.invoke("check-scope")
     assert result.code == 1
     assert "research/old -> new.md: protected path" in result.out
+
+
+def test_r5_case_variant_of_a_protected_file_is_refused(repo) -> None:
+    # On a case-insensitive file system these names open the tracked files.
+    _create_only_research(repo)
+    for path, tool in (
+        ("research/01-OLD-STUDY.md", "Edit"),
+        ("Research/01-old-study.md", "Write"),
+        ("ARCHIVE/old.md", "Write"),
+    ):
+        result = repo.invoke("check-scope", "--hook", stdin=_payload(repo, tool, path))
+        assert result.code == 2, path
+        assert "protected path" in result.err, path
+    new = repo.invoke("check-scope", "--hook", stdin=_payload(repo, "Write", "research/02-NEW.md"))
+    assert new.code == 0, new

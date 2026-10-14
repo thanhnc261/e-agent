@@ -123,3 +123,14 @@ def test_no_per_edit_formatting_hook() -> None:
 def test_bash_guard_fails_closed_on_timeout() -> None:
     (hook,) = _commands("PreToolUse", "Bash")
     assert hook["onFailure"] == "block"
+
+
+def test_wrapper_timeout_is_below_every_host_timeout() -> None:
+    """The wrapper, not the host, must end a stalled check: onFailure needs a newer Claude Code."""
+    script = (ROOT / ".claude" / "hooks" / "harness_hook.py").read_text()
+    wrapper = int(re.search(r"^TIMEOUT = (\d+)$", script, re.M).group(1))
+    for groups in SETTINGS["hooks"].values():
+        for group in groups:
+            for entry in group["hooks"]:
+                if "harness_hook.py" in entry["command"] and "bash-guard" not in entry["command"]:
+                    assert entry["timeout"] > wrapper + 10, entry["command"]

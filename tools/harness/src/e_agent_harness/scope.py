@@ -24,13 +24,26 @@ def deny_reason(
     if "\\" in relpath:
         return f"{relpath}: path contains a backslash; refusing an ambiguous path"
     norm = normalize_relpath(relpath)
-    if is_protected(m, norm) and not (new_file and is_create_only(m, norm)):
+    if _protected(m, norm) and not (new_file and _create_only(m, norm)):
         return f"{norm}: protected path (read-only)"
     if contract is None:
         return None
     if not any(path_matches(norm, p) for p in contract["allowed_paths"]):
         return f"{norm}: outside the task's allowed paths"
     return None
+
+
+def _protected(m: Manifest, norm: str) -> bool:
+    # Case-folded as well: on a case-insensitive file system Archive/x is archive/x.
+    return is_protected(m, norm) or any(
+        path_matches(norm.casefold(), p.casefold()) for p in m.protected.read_only
+    )
+
+
+def _create_only(m: Manifest, norm: str) -> bool:
+    return is_create_only(m, norm) or any(
+        path_matches(norm.casefold(), p.casefold()) for p in m.protected.create_only
+    )
 
 
 def changed_paths(contract: dict[str, Any] | None, repo_root: Path) -> set[str]:
@@ -70,8 +83,12 @@ def _is_new(repo_root: Path, base: str, relpath: str) -> bool:
     """
     if not gitinfo.commit_exists(repo_root, base):
         return False
+    norm = normalize_relpath(relpath)
     try:
-        return not gitinfo.exists_at(repo_root, base, normalize_relpath(relpath))
+        if gitinfo.exists_at(repo_root, base, norm):
+            return False
+        # A case variant of a tracked file is that file on a case-insensitive file system.
+        return norm.casefold() not in gitinfo.tracked_casefold(repo_root, base)
     except gitinfo.GitLookupError:
         return False
 
