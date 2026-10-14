@@ -470,7 +470,8 @@ def _docker_context_reason() -> str | None:
 
 
 # One budget for every daemon query in a command, well inside the Bash hook's 30 s host
-# timeout; each project is queried once.
+# timeout; each project is queried once. Module state is fine: one hook process judges
+# one command, and bash_guard resets it first.
 QUERY_BUDGET = 12.0
 _queries: dict[str, str | None] = {}
 _deadline = [0.0]

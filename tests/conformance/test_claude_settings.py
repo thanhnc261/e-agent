@@ -175,3 +175,11 @@ def test_guarding_hooks_block_when_python_fails_to_start(tmp_path) -> None:
     assert _run_hook_command(stop, tmp_path, {**path, "E_AGENT_HARNESS_UNATTENDED": "1"}) == 2
     assert _run_hook_command(stop, tmp_path, {**path, "E_AGENT_HARNESS_UNATTENDED": ""}) == 0
     assert _run_hook_command(status, tmp_path, path) == 1  # never blocks: not exit 2
+
+
+def test_bash_guard_query_budget_is_below_the_bash_hook_timeout() -> None:
+    """Round 8: compose target queries must finish before the host cancels the Bash hook."""
+    script = (ROOT / ".claude" / "hooks" / "harness_hook.py").read_text()
+    budget = float(re.search(r"^QUERY_BUDGET = ([0-9.]+)$", script, re.M).group(1))
+    (hook,) = _commands("PreToolUse", "Bash")
+    assert hook["timeout"] >= budget + 10

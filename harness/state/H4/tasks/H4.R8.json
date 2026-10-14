@@ -12,7 +12,8 @@
     ".agents/skills/eng-session/**",
     "harness/state/**",
     "docs/handoffs/**",
-    "docs/plans/2026-10-13-harness-h4-adapters.md"
+    "docs/plans/2026-10-13-harness-h4-adapters.md",
+    "tests/conformance/test_claude_settings.py"
   ],
   "acceptance": [
     "regression tests for each finding pass",
@@ -21,5 +22,12 @@
   "gate_set": "full",
   "base_commit": "9c9dfae74ad45ef3dc1e20516dbc94466e9870e4",
   "created_at": "2026-10-14T06:32:33+00:00",
-  "features_digest": "7c919597c5efafb3995a82c0aa72348d3754220572fabf338d9a2918673e54c1"
+  "features_digest": "7c919597c5efafb3995a82c0aa72348d3754220572fabf338d9a2918673e54c1",
+  "scope_changes": [
+    {
+      "glob": "tests/conformance/test_claude_settings.py",
+      "reason": "pin the bash-guard query budget below the Bash hook's host timeout (advisor, after Codex round 8)",
+      "at": "2026-10-14T06:36:37+00:00"
+    }
+  ]
 }
