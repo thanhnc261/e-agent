@@ -1,0 +1,23 @@
+{
+  "task": "H4.R1",
+  "changed": "Codex review round 1 on H4, ten findings fixed with regression tests: bash-guard hook for docker on denied containers (any executable path, wrappers, compound forms) and git push/merge/rebase/reset --hard behind global options (ask); renames report both ends; an unknown base never counts as new; the unattended Stop rechecks every stop; a local closed marker keeps a closed task closed for the scope hook until refresh-task or new-task; tidy formats only changed UI files in the Prettier scope and reports formatter failures; the settings test models compound commands; eng-session research wording. Live in a scratch clone (claude -p, dontAsk): /fakebin/docker stop odoo-bench-db-1 was denied by bash-guard and the fake docker did not run; git -C . push origin HEAD was refused with the ask reason.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R1/2026-10-14T00-01-30.633643+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "bash-guard runs in the stdlib hook script, not the harness CLI, so each Bash call costs no uv start-up",
+      "cost_if_wrong": "the guard logic is tested through the script, not as a package function"
+    },
+    {
+      "ruling": "The closed marker is local and git-ignored: scope relaxation is a per-checkout concern, and committing it would dirty the tree after close-check",
+      "cost_if_wrong": "a fresh clone recomputes closure from close-check, which needs a clean tree"
+    },
+    {
+      "ruling": "The unattended Stop gate no longer exempts a continued stop; Claude Code caps consecutive Stop blocks itself",
+      "cost_if_wrong": "an unattended run that cannot close keeps trying until that cap"
+    }
+  ],
+  "outside_repo": []
+}
