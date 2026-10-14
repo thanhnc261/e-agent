@@ -52,56 +52,114 @@ def _runner(root: Path) -> list[str]:
 
 # --- bash-guard: command shapes that permission rules cannot see -----------------------
 #
-# Policy, strictest first:
-#   deny: the command names a denied container anywhere next to a container tool,
-#         whatever the executable path, wrappers, quoting or dynamic form;
-#   ask:  the guard cannot see the real command (shell -c, eval, xargs, find -exec,
-#         git aliases, another docker daemon or context, a container or compose
-#         project outside the allowed list), or it is git push/merge/rebase/reset --hard;
+# A command passes silently only when bash-guard has fully parsed it into a known, allowed
+# form. Strictest first:
+#   deny: a denied container is named next to a container tool, after quotes and backslashes
+#         are removed, whatever the executable path or dynamic form;
+#   ask:  anything bash-guard cannot parse completely: shell -c (any option form), eval,
+#         source, xargs, -exec, variables, substitutions or ANSI-C quoting next to git or a
+#         container tool; git subcommands that are not built in (aliases), inline aliases,
+#         git push, pull, merge, rebase and reset --hard; docker global options (daemon,
+#         context, config), unknown docker subcommands or options, and any target that is
+#         not an allowed container or compose project;
 #   none: everything else, left to the permission rules.
 
 _SEPARATORS = re.compile(r"&&|\|\||;|\||&|\n|\$\(|`|\(|\)")
 _CONTAINER_TOOL = re.compile(r"(?<![\w-])(?:docker|docker-compose|podman)(?![\w-])")
-_DYNAMIC = re.compile(
-    r"(?<![\w-])(?:bash|sh|zsh|dash|ksh)\s+-\w*c\b|(?<![\w-])(?:eval|xargs|source)(?![\w-])"
-    r"|\s-exec(?:dir)?(?![\w-])"
-)
 _GIT_WORD = re.compile(r"(?<![\w-])git(?![\w-])")
+_SHELLS = {"bash", "sh", "zsh", "dash", "ksh", "fish"}
 _CONTAINER_TOOLS = {"docker", "docker-compose", "podman"}
 _GIT_OPTIONS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
-_DOCKER_OPTIONS_WITH_VALUE = {"--context", "-c", "--host", "-H", "--config", "--log-level", "-l"}
-_DOCKER_DAEMON_OPTIONS = {"--context", "-c", "--host", "-H"}
-_TARGETING = {
-    "exec",
-    "stop",
-    "start",
-    "restart",
-    "rm",
-    "kill",
-    "logs",
-    "inspect",
-    "cp",
-    "attach",
-    "pause",
-    "unpause",
-    "update",
-    "rename",
-    "top",
-    "port",
-    "stats",
-    "wait",
+_GIT_ASK = {"push", "pull", "merge", "rebase"}
+_GIT_BUILTINS = {
+    "add",
+    "am",
+    "annotate",
+    "apply",
+    "archive",
+    "bisect",
+    "blame",
+    "branch",
+    "bundle",
+    "cat-file",
+    "check-ignore",
+    "checkout",
+    "cherry",
+    "cherry-pick",
+    "clean",
+    "clone",
     "commit",
-    "export",
+    "config",
+    "count-objects",
+    "describe",
     "diff",
+    "diff-index",
+    "diff-tree",
+    "difftool",
+    "fetch",
+    "for-each-ref",
+    "format-patch",
+    "fsck",
+    "gc",
+    "grep",
+    "hash-object",
+    "help",
+    "init",
+    "log",
+    "ls-files",
+    "ls-remote",
+    "ls-tree",
+    "maintenance",
+    "merge-base",
+    "mv",
+    "name-rev",
+    "notes",
+    "range-diff",
+    "reflog",
+    "remote",
+    "restore",
+    "rev-list",
+    "rev-parse",
+    "revert",
+    "rm",
+    "shortlog",
+    "show",
+    "show-ref",
+    "stash",
+    "status",
+    "submodule",
+    "switch",
+    "symbolic-ref",
+    "tag",
+    "version",
+    "worktree",
 }
-_ASK = {"push", "merge", "rebase"}
-
-
-def _words(segment: str) -> list[str]:
-    try:
-        return shlex.split(segment)
-    except ValueError:
-        return segment.split()
+_DOCKER_READ_ONLY = {"ps", "ls", "list", "images", "version", "info"}
+# subcommand: (flags, options taking a value, "all" operands are containers | "first" only)
+_DOCKER_TARGETS: dict[str, tuple[set[str], set[str], str]] = {
+    "exec": (
+        {"-i", "-t", "-it", "-ti", "-d", "--interactive", "--tty", "--detach"},
+        set(),
+        "first",
+    ),
+    "logs": (
+        {"-f", "--follow", "-t", "--timestamps", "--details"},
+        {"--tail", "-n", "--since", "--until"},
+        "all",
+    ),
+    "stop": (set(), {"-t", "--time", "-s", "--signal"}, "all"),
+    "restart": (set(), {"-t", "--time", "-s", "--signal"}, "all"),
+    "start": ({"-a", "--attach", "-i", "--interactive"}, set(), "all"),
+    "kill": (set(), {"-s", "--signal"}, "all"),
+    "rm": ({"-f", "--force", "-v", "--volumes"}, set(), "all"),
+    "inspect": ({"-s", "--size"}, {"-f", "--format", "--type"}, "all"),
+    "top": (set(), set(), "first"),
+    "pause": (set(), set(), "all"),
+    "unpause": (set(), set(), "all"),
+    "wait": (set(), set(), "all"),
+    "port": (set(), set(), "first"),
+}
+_COMPOSE_OPTIONS_WITH_VALUE = {"-f", "--file", "--env-file", "--profile"}
 
 
 def _policy(root: Path) -> tuple[list[str], list[str]]:
@@ -113,81 +171,140 @@ def _policy(root: Path) -> tuple[list[str], list[str]]:
     )
 
 
-def _git_reason(words: list[str], root: Path) -> str | None:
+def _dynamic(text: str) -> bool:
+    for segment in _SEPARATORS.split(text):
+        words = segment.split()
+        if words and Path(words[0]).name in {"eval", "source", "."}:
+            return True
+        for i, word in enumerate(words):
+            name = Path(word).name
+            if name in {"xargs"} or word in {"-exec", "-execdir"}:
+                return True
+            if name in _SHELLS and any(
+                re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", w) or w == "--command" for w in words[i + 1 :]
+            ):
+                return True
+    return False
+
+
+def _allowed(name: str, allowed: list[str]) -> bool:
+    return any(fnmatch.fnmatchcase(name, p) for p in allowed)
+
+
+def _git_reason(words: list[str]) -> str | None:
     i = 1
     while i < len(words) and words[i].startswith("-"):
-        if words[i] == "-c" and i + 1 < len(words) and words[i + 1].startswith("alias."):
+        key = words[i + 1].split("=", 1)[0].lower() if i + 1 < len(words) else ""
+        if words[i] == "-c" and key.startswith("alias."):
             return "an inline git alias"
         i += 2 if words[i] in _GIT_OPTIONS_WITH_VALUE else 1
     if i >= len(words):
         return None
     sub, rest = words[i], words[i + 1 :]
-    if sub in _ASK or (sub == "reset" and "--hard" in rest):
+    if sub in _GIT_ASK or (sub == "reset" and "--hard" in rest):
         return f"git {sub} changes shared history"
-    alias = subprocess.run(
-        ["git", "-C", str(root), "config", "--get", f"alias.{sub}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    ).stdout.strip()
-    if alias:
-        expanded = _words(alias)
-        if alias.startswith("!") or not expanded:
-            return f"git alias {sub} runs a shell command"
-        if expanded[0] in _ASK or (expanded[0] == "reset" and "--hard" in expanded):
-            return f"git alias {sub} runs git {expanded[0]}"
+    if sub not in _GIT_BUILTINS and sub != "reset":
+        return f"git {sub} is not a built-in bash-guard knows (an alias?)"
     return None
 
 
-def _project_allowed(project: str, allowed: list[str]) -> bool:
-    return any(fnmatch.fnmatchcase(f"{project}-x", p) or project == p for p in allowed)
+def _compose_reason(rest: list[str], allowed: list[str]) -> str | None:
+    project = None
+    j = 0
+    while j < len(rest) and rest[j].startswith("-"):
+        word = rest[j]
+        name = word.split("=", 1)[0]
+        if name in {"-p", "--project-name"}:
+            project = (
+                word.split("=", 1)[1]
+                if "=" in word
+                else (rest[j + 1] if j + 1 < len(rest) else None)
+            )
+            j += 1 if "=" in word else 2
+        elif name in _COMPOSE_OPTIONS_WITH_VALUE:
+            j += 1 if "=" in word else 2
+        else:
+            return f"docker compose option {word} is not one bash-guard can check"
+    if project is None:
+        return "docker compose without an allowed project (-p)"
+    if not any(fnmatch.fnmatchcase(f"{project}-x", p) or project == p for p in allowed):
+        return f"compose project {project} is outside the allowed list"
+    return None
 
 
 def _docker_reason(segment: str, words: list[str], allowed: list[str]) -> str | None:
-    if re.search(r"(?<![\w-])DOCKER_(?:HOST|CONTEXT)=", segment):
-        return "another docker daemon or context"
-    i = 1
-    while i < len(words) and words[i].startswith("-"):
-        option = words[i].split("=", 1)[0]
-        if option in _DOCKER_DAEMON_OPTIONS:
-            return "another docker daemon or context"
-        i += 2 if words[i] in _DOCKER_OPTIONS_WITH_VALUE else 1
-    compose = Path(words[0]).name == "docker-compose" or (i < len(words) and words[i] == "compose")
-    if compose:
-        project = None
-        for j, word in enumerate(words):
-            if word in {"-p", "--project-name"} and j + 1 < len(words):
-                project = words[j + 1]
-            elif word.startswith("--project-name="):
-                project = word.split("=", 1)[1]
-        if project is None or not _project_allowed(project, allowed):
-            return "a compose project outside the allowed list"
+    if re.search(r"(?<![\w-])DOCKER_[A-Z_]+=", segment):
+        return "a docker environment override (daemon, context or config)"
+    if Path(words[0]).name == "docker-compose":
+        return _compose_reason(words[1:], allowed)
+    if len(words) < 2:
         return None
-    if i < len(words) and words[i] in _TARGETING:
-        targets = [w for w in words[i + 1 :] if not w.startswith("-")]
-        if not any(fnmatch.fnmatchcase(t, p) for t in targets for p in allowed):
-            return "a container outside the allowed list"
+    if words[1].startswith("-"):
+        return "docker global options (daemon, context or config)"
+    sub, rest = words[1], words[2:]
+    if sub == "compose":
+        return _compose_reason(rest, allowed)
+    if sub == "container":
+        if not rest:
+            return None
+        sub, rest = rest[0], rest[1:]
+    if sub in _DOCKER_READ_ONLY:
+        return None
+    if sub not in _DOCKER_TARGETS:
+        return f"docker {sub} is outside the commands bash-guard can check"
+    flags, with_value, mode = _DOCKER_TARGETS[sub]
+    targets: list[str] = []
+    j = 0
+    while j < len(rest):
+        word = rest[j]
+        if mode == "first" and targets:
+            break
+        if word.startswith("-") and word != "-":
+            name = word.split("=", 1)[0]
+            if word in flags:
+                j += 1
+                continue
+            if name in with_value:
+                j += 1 if "=" in word else 2
+                continue
+            return f"docker {sub} option {word} is not one bash-guard can check"
+        targets.append(word)
+        j += 1
+    if not targets:
+        return f"docker {sub} without a container"
+    for target in targets:
+        if not _allowed(target, allowed):
+            return f"{target} is not an allowed container"
     return None
 
 
 def bash_guard(root: Path, command: str) -> tuple[int, str]:
     """(exit code, stdout). Exit 2 denies; stdout may carry an "ask" decision."""
     denied, allowed = _policy(root)
-    text = command.replace("\\\n", " ")
-    if _CONTAINER_TOOL.search(text):
-        for token in re.findall(r"[A-Za-z0-9_.-]+", text):
+    joined = command.replace("\\\n", " ")
+    flat = re.sub(r"[\"'\\]", "", joined)
+    if _CONTAINER_TOOL.search(flat):
+        for token in re.findall(r"[A-Za-z0-9_.-]+", flat):
             if any(fnmatch.fnmatchcase(token, pattern) for pattern in denied):
                 print(f"bash-guard: {token} is a denied container ({MANIFEST})", file=sys.stderr)
                 return 2, ""
+    sensitive = bool(_GIT_WORD.search(flat) or _CONTAINER_TOOL.search(flat))
     reasons: list[str] = []
-    if _DYNAMIC.search(text) and (_GIT_WORD.search(text) or _CONTAINER_TOOL.search(text)):
-        reasons.append("the real command runs through a shell, eval, xargs or -exec")
-    for segment in _SEPARATORS.split(text):
-        words = _words(segment)
+    if _dynamic(flat) and (sensitive or "$" in joined):
+        reasons.append("the real command runs through a shell, eval, source, xargs or -exec")
+    if sensitive and re.search(r"\$|`", joined):
+        reasons.append("variables, substitutions or ANSI-C quoting next to git or docker")
+    for segment in _SEPARATORS.split(joined):
+        try:
+            words = shlex.split(segment)
+        except ValueError:
+            if _GIT_WORD.search(segment) or _CONTAINER_TOOL.search(re.sub(r"[\"'\\]", "", segment)):
+                reasons.append("a command bash-guard could not parse")
+            continue
         for index, word in enumerate(words):
             name = Path(word).name
             if name == "git":
-                reason = _git_reason(words[index:], root)
+                reason = _git_reason(words[index:])
             elif name in _CONTAINER_TOOLS:
                 reason = _docker_reason(segment, words[index:], allowed)
             else:

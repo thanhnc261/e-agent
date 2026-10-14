@@ -148,7 +148,7 @@ def cmd_new_task(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(str(exc))
         return 1
-    _clear_closed(paths)
+    _mark(paths, root, "open")  # closes only through close-check, not by inference
     written = paths.task(args.phase, args.task_id).relative_to(root)
     print(f"task {contract['id']} materialised at {written}")
     return 0
@@ -179,7 +179,7 @@ def _mark(paths: state.Paths, root: Path, status_value: str) -> None:
 
 
 def _marker(paths: state.Paths, root: Path) -> str | None:
-    """ "closed", "reopened", or None when there is no record that still applies."""
+    """The local lifecycle: "open", "closed", "reopened", or None when none applies."""
     active = state.load_active(paths)
     if not active or not paths.closed_marker.is_file():
         return None
@@ -194,17 +194,12 @@ def _marker(paths: state.Paths, root: Path) -> str | None:
     still_reachable = bool(commit) and gitinfo.is_ancestor(root, commit, "HEAD")
     if same_task and same_contract and still_reachable:
         value = marker.get("status")
-        return value if value in {"closed", "reopened"} else None
+        return value if value in {"open", "closed", "reopened"} else None
     return None
 
 
 def _mark_closed(paths: state.Paths) -> None:
     _mark(paths, paths.repo_root, "closed")
-
-
-def _clear_closed(paths: state.Paths) -> None:
-    if paths.closed_marker.is_file():
-        paths.closed_marker.unlink()
 
 
 def _resolve_for_hook(repo_root: Path) -> tuple[mf.Manifest, dict[str, Any] | None]:
@@ -221,7 +216,7 @@ def _resolve_for_hook(repo_root: Path) -> tuple[mf.Manifest, dict[str, Any] | No
     if loaded is None:
         return m, None
     lifecycle = _marker(paths, repo_root)
-    if lifecycle == "reopened":
+    if lifecycle in {"open", "reopened"}:
         return m, loaded[0]
     if lifecycle == "closed":
         return m, None

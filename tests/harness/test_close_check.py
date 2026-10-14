@@ -469,3 +469,11 @@ def test_refresh_reopens_even_on_a_clean_tree(repo) -> None:
     assert repo.invoke("close-check", "--session", "s1").code == 0  # would infer closure
     assert repo.invoke("refresh-task").code == 0
     assert _write_code(repo, "docs/c.md") == 2
+
+
+def test_rematerialising_a_reopened_task_keeps_it_open(repo) -> None:
+    _closed(repo)
+    assert repo.invoke("refresh-task").code == 0
+    again = repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**")
+    assert again.code == 0, again
+    assert _write_code(repo, "docs/c.md") == 2

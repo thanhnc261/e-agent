@@ -245,3 +245,50 @@ def test_bash_guard_keeps_its_policy_outside_the_repository(repo, tmp_path) -> N
     outside.mkdir()
     result = _bash(repo, "/usr/local/bin/docker stop odoo-bench-db-1", cwd=outside)
     assert _decision_of(result) == "deny"
+
+
+def test_r3_quoting_cannot_hide_a_denied_container(repo) -> None:
+    for command in (
+        '/usr/local/bin/docker stop odoo19-learning-db-1 odoo-"bench"-db-1',
+        '/usr/local/bin/do"cker" stop odoo-bench-db-1',
+        "docker stop odoo-\\bench-db-1",
+    ):
+        assert _decision_of(_bash(repo, command)) == "deny", command
+
+
+def test_r3_uncertain_commands_ask(repo) -> None:
+    from tests.harness.conftest import git
+
+    git(repo.root, "config", "alias.ship2", "-c core.pager=cat push")
+    for command in (
+        "bash --noprofile -c 'git -C . push origin HEAD'",
+        "bash -e -c 'git push'",
+        'bash -c "$SCRIPT"',
+        "git -c Alias.reviewprobe=push reviewprobe origin HEAD",
+        "git ship2 origin HEAD",
+        "git -C /tmp/other anyalias",
+        "git pull",
+        "docker stop odoo19-learning-db-1 production-db-1",
+        "docker exec --env odoo19-learning-db-1 production-db-1 true",
+        "docker container stop production-db-1",
+        "docker -Htcp://remote:2375 stop odoo19-learning-db-1",
+        "docker --config /other/config stop odoo19-learning-db-1",
+        "docker run --rm alpine true",
+        "docker logs $(docker ps -q)",
+    ):
+        assert _decision_of(_bash(repo, command)) == "ask", command
+
+
+def test_r3_fully_parsed_commands_pass(repo) -> None:
+    for command in (
+        "docker ps",
+        "docker container ls",
+        "docker exec -it odoo19-learning-odoo-1 bash",
+        "docker container stop odoo19-learning-db-1",
+        "docker stop -t 5 odoo19-learning-db-1 e-agent-ledger",
+        "docker compose -p odoo19-learning ps",
+        "docker logs --tail 20 odoo19-learning-odoo-1",
+        "git -c core.pager=cat log --oneline",
+        r"find . -name '*.py' -exec grep -l TODO {} \;",
+    ):
+        assert _decision_of(_bash(repo, command)) == "none", command
