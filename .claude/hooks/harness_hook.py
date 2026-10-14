@@ -193,7 +193,7 @@ _DOCKER_READ_ONLY = {"ps", "ls", "list", "images", "version", "info"}
 _DOCKER_TARGETS: dict[str, tuple[set[str], set[str], str]] = {
     "exec": (
         {"-i", "-t", "-it", "-ti", "-d", "--interactive", "--tty", "--detach"},
-        set(),
+        {"-w", "--workdir"},
         "first",
     ),
     "logs": (
@@ -279,6 +279,10 @@ def _scan(text: str) -> tuple[list[str], bool]:
             quote = None if c == '"' else quote
             i += 1
             continue
+        if c in "<>" or text.startswith("&>", i):
+            # A redirection is not a separator and not an argument: drop it with its target.
+            i = _skip_redirect(text, i, current)
+            continue
         if c in "'\"":
             quote = c
         elif c in ";&|\n()":
@@ -289,6 +293,51 @@ def _scan(text: str) -> tuple[list[str], bool]:
         i += 1
     cut()
     return [seg for seg in segments if seg.strip()], expansion
+
+
+_REDIRECT_OPERATOR = re.compile(r"&>>?|<<<|<<-|<<|<>|<&|>>|>&|>\||<|>")
+
+
+def _skip_redirect(text: str, i: int, current: list[str]) -> int:
+    """Consume a redirection at ``text[i]`` (outside quotes); return the index after it.
+
+    A file-descriptor number written right before the operator (``2>&1``) is part of the
+    redirection. Process substitution (``<(``, ``>(``) keeps its parenthesis, which the
+    caller treats as a separator. A target that starts an expansion stops at the ``$`` or
+    backtick so the caller still sees the expansion.
+    """
+    word = "".join(current)
+    fd = re.search(r"(?:^|\s)(\d+)$", word)
+    if fd:
+        current[:] = [word[: len(word) - len(fd.group(1))]]
+    if text.startswith(("<(", ">("), i):
+        current.append(" ")
+        return i + 1
+    match = _REDIRECT_OPERATOR.match(text, i)
+    j = match.end() if match else i + 1
+    while j < len(text) and text[j] in " \t":
+        j += 1
+    quote: str | None = None
+    while j < len(text):
+        ch = text[j]
+        if quote:
+            if ch == "\\" and quote == '"' and j + 1 < len(text):
+                j += 2
+                continue
+            quote = None if ch == quote else quote
+            j += 1
+            continue
+        if ch in "$`":
+            break
+        if ch in "'\"":
+            quote = ch
+        elif ch == "\\" and j + 1 < len(text):
+            j += 1
+        elif ch in " \t;&|\n()<>":
+            break
+        j += 1
+    current.append(" ")
+    return j
 
 
 def _command_word(words: list[str]) -> str | None:

@@ -42,9 +42,14 @@ def _tail(result: subprocess.CompletedProcess[str]) -> str:
 
 
 def _regular(repo_root: Path, path: str) -> bool:
-    """A regular file reached without any symlink: formatters write through links."""
+    """A regular file reached without any link: formatters write through links."""
     full = repo_root / path
-    return full.is_file() and not full.is_symlink() and full.resolve() == repo_root.resolve() / path
+    return (
+        full.is_file()
+        and not full.is_symlink()
+        and full.resolve() == repo_root.resolve() / path
+        and full.stat().st_nlink == 1  # a hardlink shares its content with another path
+    )
 
 
 def tidy(contract: dict[str, Any] | None, repo_root: Path) -> tuple[int, list[str]]:
@@ -63,7 +68,7 @@ def tidy(contract: dict[str, Any] | None, repo_root: Path) -> tuple[int, list[st
             and (repo_root / p).is_file()
             and _in_scope(p.removeprefix("ui/"), entries)
         )
-    skipped = [f"skipped {p}: reached through a symlink" for p in linked]
+    skipped = [f"skipped {p}: reached through a link" for p in linked]
     if not python and not ui_files:
         return 0, [*skipped, "nothing to tidy"]
     report: list[str] = list(skipped)

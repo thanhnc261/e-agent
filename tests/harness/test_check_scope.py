@@ -70,12 +70,29 @@ def test_hook_denies_out_of_scope_edit_with_reason_on_stderr(repo) -> None:
     assert "outside the task's allowed paths" in result.err
 
 
-def test_hook_denies_path_outside_repository(repo) -> None:
+def test_r14_writes_outside_every_checkout_follow_only_denied_paths(repo, tmp_path) -> None:
+    """Scratchpad and memory writes are not the harness's business; denied paths are."""
     _activate(repo)
-    outside = repo.root.parent / "elsewhere.py"
-    result = repo.invoke("check-scope", "--hook", stdin=_payload(repo, "Edit", str(outside)))
+    outside = tmp_path / "scratch" / "notes.md"
+    result = repo.invoke("check-scope", "--hook", stdin=_payload(repo, "Write", str(outside)))
+    assert result.code == 0, result
+    denied = tmp_path / "ERP-Bench" / "t1" / "solution" / "answer.py"
+    result = repo.invoke("check-scope", "--hook", stdin=_payload(repo, "Write", str(denied)))
     assert result.code == 2
-    assert "outside the repository" in result.err
+    assert "denied path" in result.err
+
+
+def test_r14_the_checkout_that_holds_the_target_decides(repo) -> None:
+    # A worktree nested in the session's checkout is its own repository with its own policy.
+    nested = repo.root / ".claude" / "worktrees" / "x"
+    (nested / "harness").mkdir(parents=True)
+    (nested / "harness" / "context.toml").write_text(
+        (repo.root / "harness" / "context.toml").read_text()
+    )
+    target = nested / "archive" / "README.md"
+    result = repo.invoke("check-scope", "--hook", stdin=_payload(repo, "Write", str(target)))
+    assert result.code == 2
+    assert "archive/README.md: protected path" in result.err
 
 
 def test_hook_ignores_other_tools(repo) -> None:

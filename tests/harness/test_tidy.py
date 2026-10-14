@@ -142,5 +142,19 @@ def test_r13_tidy_never_writes_through_a_symlink(repo, tmp_path) -> None:
     assert outside.read_text() == ugly
     assert inside.read_text() == ugly
     assert (outside_dir / "mod.py").read_text() == ugly
-    assert "skipped src/pkg/linked.py: reached through a symlink" in result.out
-    assert "skipped src/pkg/alias.py: reached through a symlink" in result.out
+    assert "skipped src/pkg/linked.py: reached through a link" in result.out
+    assert "skipped src/pkg/alias.py: reached through a link" in result.out
+
+
+def test_r14_tidy_never_writes_through_a_hardlink(repo, tmp_path) -> None:
+    import os
+
+    ugly = "x=1\n"
+    outside = tmp_path / "hard.py"
+    outside.write_text(ugly)
+    target = repo.root / "src" / "pkg" / "hard.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    os.link(outside, target)
+    result = repo.invoke("tidy")
+    assert outside.read_text() == ugly
+    assert "skipped src/pkg/hard.py: reached through a link" in result.out

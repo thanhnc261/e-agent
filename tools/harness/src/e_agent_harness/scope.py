@@ -8,6 +8,7 @@ from typing import Any
 
 from e_agent_harness import gitinfo, state
 from e_agent_harness.manifest import (
+    MANIFEST_RELPATH,
     Manifest,
     is_create_only,
     is_protected,
@@ -98,6 +99,14 @@ def _is_new(repo_root: Path, base: str, relpath: str) -> bool:
         return False
 
 
+def _harness_root(target: Path) -> Path | None:
+    """The nearest ancestor of ``target`` that holds a harness manifest."""
+    for candidate in target.parents:
+        if (candidate / MANIFEST_RELPATH).is_file():
+            return candidate.resolve()
+    return None
+
+
 Resolver = Callable[[Path], tuple[Manifest, dict[str, Any] | None]]
 
 
@@ -111,14 +120,21 @@ def hook_decision(payload: dict[str, Any], resolve: Resolver) -> tuple[int, str]
         return 0, ""
     cwd = Path(payload.get("cwd") or Path.cwd())
     try:
-        repo_root = state.find_repo_root(cwd).resolve()
+        session_root = state.find_repo_root(cwd).resolve()
     except ValueError as exc:
         return 2, str(exc)
     target = (Path(raw) if Path(raw).is_absolute() else cwd / raw).resolve()
-    try:
-        rel = target.relative_to(repo_root).as_posix()
-    except ValueError:
-        return 2, f"{target}: outside the repository {repo_root}"
+    # The checkout that holds the target decides (a worktree nested in the main checkout
+    # is its own repository); outside every harness checkout only the denied paths apply.
+    repo_root = _harness_root(target)
+    if repo_root is None:
+        m, _ = resolve(session_root)
+        absolute = target.as_posix().lstrip("/")
+        for pattern in m.environment.denied_paths:
+            if path_matches(absolute, pattern):
+                return 2, f"{target}: denied path ({pattern})"
+        return 0, ""
+    rel = target.relative_to(repo_root).as_posix()
     m, contract = resolve(repo_root)
     base = str(contract["base_commit"]) if contract else "HEAD"
     new_file = _protected(m, normalize_relpath(rel)) and _is_new(repo_root, base, rel)

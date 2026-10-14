@@ -581,3 +581,32 @@ def test_r12_bisect_runs_and_nested_git_ask(repo) -> None:
         "git log -5 --grep git",
     ):
         assert _decision_of(_bash(repo, command)) == "none", command
+
+
+def test_r14_redirections_are_not_separators(repo) -> None:
+    for command in (
+        "git &>/dev/null push origin HEAD:main --force",
+        "git &>> /tmp/log push origin HEAD",
+        "git &> /dev/null rebase -i main",
+        "git reset &>/dev/null --hard HEAD~3",
+        "git &>/dev/null -c alias.st='!true' st",
+        "docker &>/dev/null -H tcp://10.0.0.5:2375 rm -f odoo19-learning-odoo-1",
+        "docker rm odoo19-learning-odoo-1 &>/dev/null some-prod-db",
+        "git 2>/dev/null push origin HEAD",
+        "git log > $(git push) -1",
+    ):
+        assert _decision_of(_bash(repo, command)) == "ask", command
+
+
+def test_r14_ordinary_redirections_pass(repo) -> None:
+    for command in (
+        "docker logs odoo19-learning-odoo-1 --tail 100 2>&1 | grep error",
+        "docker logs odoo19-learning-odoo-1 > /tmp/odoo.log",
+        "git status --short 2>/dev/null",
+        "git log --oneline -5 >> /tmp/log.txt 2>&1",
+        "git diff &>/dev/null",
+        "docker exec -w /tmp odoo19-learning-odoo-1 ls",
+        "cat <(git status --short)",
+        "git commit -F - <<'EOT'\nfix: a subject\n\nCo-Authored-By: A <a@example.com>\nEOT",
+    ):
+        assert _decision_of(_bash(repo, command)) == "none", command
