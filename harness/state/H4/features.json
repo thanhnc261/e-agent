@@ -209,6 +209,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.R13/2026-10-14T10-51-55.385403+00-00-full.json"
+    },
+    {
+      "id": "F-H4-R14",
+      "category": "review",
+      "description": "Fix the findings of the Claude review (round 14) on harness H4: redirects in bash-guard splitting, check-scope root from the target, writes outside any harness checkout, tidy hardlinks, and day-to-day friction",
+      "steps": [
+        "regression tests for each finding pass",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
