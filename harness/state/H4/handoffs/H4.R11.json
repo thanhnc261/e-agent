@@ -1,0 +1,15 @@
+{
+  "task": "H4.R11",
+  "changed": "Codex review round 10 on H4 (one IN-PASS-SET finding) fixed: the scan for git options that run programs covers every word, also after an option operand --. Regression tests for grep -e -- with -O, --open-files-in-pager and an abbreviation, and log -S -- --ext-diff.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R11/2026-10-14T10-34-40.230654+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "Words after -- are scanned too",
+      "cost_if_wrong": "a pathspec spelled like a program-running option asks the owner once"
+    }
+  ],
+  "outside_repo": []
+}
