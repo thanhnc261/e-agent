@@ -159,3 +159,8 @@
 - changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.R2.json, harness/state/evidence/gates/H4.R2/2026-10-14T00-13-42.986020+00-00-full.json
 - next: Codex review round 3
 - open: none
+
+## 2026-10-14T00:29:11.958424+00:00 · 7ae53108-c378-473b-8d82-0a980741f45f · H4.R3
+- changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.R3.json, harness/state/evidence/gates/H4.R3/2026-10-14T00-28-21.814884+00-00-full.json
+- next: Codex review round 4
+- open: none

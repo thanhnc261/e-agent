@@ -1,0 +1,23 @@
+{
+  "task": "H4.R3",
+  "changed": "Codex review round 3 on H4, seven findings fixed with regression tests. bash-guard is now parse-or-ask: the deny scan runs on text without quotes and backslashes; shell -c in any option form, eval, source, xargs and -exec ask next to git, a container tool or a variable; variables, substitutions and ANSI-C quoting next to git or docker ask; non-built-in git subcommands (aliases), inline aliases in any case and git pull ask; docker global options ask; docker container <sub> is normalised; every target must be an allowed container; unknown docker subcommands or options ask; compose needs an allowed project. new-task records open, so only close-check closes a task.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R3/2026-10-14T00-28-21.814884+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "Any git subcommand outside a built-in list asks, instead of resolving aliases in some git context",
+      "cost_if_wrong": "a rarely used built-in that is missing from the list needs one approval"
+    },
+    {
+      "ruling": "docker passes silently only for a table of subcommands and options; everything else asks, including docker run",
+      "cost_if_wrong": "ordinary sandbox work outside the table needs approvals until the table grows"
+    },
+    {
+      "ruling": "The H4.R2 ruling that an allowed container named as an option value is an acceptable risk is withdrawn: every target must be allowed and unknown options ask",
+      "cost_if_wrong": "none"
+    }
+  ],
+  "outside_repo": []
+}
