@@ -1,0 +1,19 @@
+{
+  "task": "H4.R7",
+  "changed": "Codex review round 7 on H4, three findings fixed with regression tests: compose stop/start/restart/pause/unpause targets come from a read-only daemon query by project label (names outside the allowed list or a failed query ask), replacing the line-based compose file scan; docker with another HOME or under sudo/doas/su/runuser/pkexec asks.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R7/2026-10-14T06-27-24.088583+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "The hook runs a read-only docker ps query with the project label filter before a compose lifecycle change",
+      "cost_if_wrong": "up to 10 s added to such a command; a failed query asks the owner"
+    },
+    {
+      "ruling": "Docker under sudo asks even for read-only commands",
+      "cost_if_wrong": "one owner prompt for sudo docker ps, which is rare on macOS"
+    }
+  ],
+  "outside_repo": []
+}
