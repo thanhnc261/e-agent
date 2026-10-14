@@ -176,6 +176,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.R10/2026-10-14T10-30-07.379785+00-00-full.json"
+    },
+    {
+      "id": "F-H4-R11",
+      "category": "review",
+      "description": "Fix the finding of Codex review round 10 on harness H4 (an option operand -- hid a git option that runs a program)",
+      "steps": [
+        "regression tests for the finding pass",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
