@@ -41,9 +41,17 @@ def _tail(result: subprocess.CompletedProcess[str]) -> str:
     return " | ".join(text[-3:])
 
 
+def _regular(repo_root: Path, path: str) -> bool:
+    """A regular file reached without any symlink: formatters write through links."""
+    full = repo_root / path
+    return full.is_file() and not full.is_symlink() and full.resolve() == repo_root.resolve() / path
+
+
 def tidy(contract: dict[str, Any] | None, repo_root: Path) -> tuple[int, list[str]]:
     """(exit code, report lines). Exit 1 when a tool failed or lint errors remain."""
     changed = scope.changed_paths(contract, repo_root)
+    linked = sorted(p for p in changed if (repo_root / p).exists() and not _regular(repo_root, p))
+    changed = changed - set(linked)
     python = sorted(p for p in changed if p.endswith(".py") and (repo_root / p).is_file())
     ui_files: list[str] = []
     if (repo_root / "ui" / "package.json").is_file():
@@ -55,9 +63,10 @@ def tidy(contract: dict[str, Any] | None, repo_root: Path) -> tuple[int, list[st
             and (repo_root / p).is_file()
             and _in_scope(p.removeprefix("ui/"), entries)
         )
+    skipped = [f"skipped {p}: reached through a symlink" for p in linked]
     if not python and not ui_files:
-        return 0, ["nothing to tidy"]
-    report: list[str] = []
+        return 0, [*skipped, "nothing to tidy"]
+    report: list[str] = list(skipped)
     code = 0
     if python:
         # --force-exclude keeps the configured exclusions for explicitly named files.

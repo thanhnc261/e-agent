@@ -122,3 +122,25 @@ def test_tidy_matches_real_prettier_scope_globs(repo, monkeypatch) -> None:
         "apps/web/src/pages/Overview.tsx",
         "packages/ui-core/src/selectors/a.ts",
     ]
+
+
+def test_r13_tidy_never_writes_through_a_symlink(repo, tmp_path) -> None:
+    ugly = "x=1\n"
+    outside = tmp_path / "shared.py"
+    outside.write_text(ugly)
+    inside = repo.root / "src" / "pkg" / "kept.py"
+    inside.parent.mkdir(parents=True, exist_ok=True)
+    inside.write_text(ugly)
+    repo.commit("an unchanged file")
+    (repo.root / "src" / "pkg" / "linked.py").symlink_to(outside)
+    (repo.root / "src" / "pkg" / "alias.py").symlink_to(inside)
+    outside_dir = tmp_path / "pkgdir"
+    outside_dir.mkdir()
+    (outside_dir / "mod.py").write_text(ugly)
+    (repo.root / "src" / "linkdir").symlink_to(outside_dir)
+    result = repo.invoke("tidy")
+    assert outside.read_text() == ugly
+    assert inside.read_text() == ugly
+    assert (outside_dir / "mod.py").read_text() == ugly
+    assert "skipped src/pkg/linked.py: reached through a symlink" in result.out
+    assert "skipped src/pkg/alias.py: reached through a symlink" in result.out
