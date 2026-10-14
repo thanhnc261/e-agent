@@ -1,0 +1,23 @@
+{
+  "task": "H4.R2",
+  "changed": "Codex review round 2 on H4, twelve findings fixed with regression tests. bash-guard policy: deny a command naming a denied container next to a container tool in any form; ask when the real command is hidden (shell -c, eval, xargs, -exec, git aliases, wrappers), for another docker daemon or context, a container or compose project outside the allowed list, and git push/merge/rebase/reset --hard; deny wins; outside the repo the script's own checkout supplies the policy; a missing policy fails closed. Lifecycle record bound to contract content and commit; inferred closure recorded; refresh-task records reopened. NUL-separated git status/diff without renames; failed path lookups never read as absence. tidy matches .prettierscope globs. Settings test limited to rule text; eng-session documents bash-guard and the Stop gate as feedback needing turn and spend caps. Live (claude -p, dontAsk, fake docker): docker stop production-db-1 was refused by bash-guard; bash -c with odoo-bench was declined by the model before the hook could be observed; the fake docker ran in neither case.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R2/2026-10-14T00-13-42.986020+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "bash-guard is a conservative text policy: it denies on a denied container name and asks where it cannot see the real command, instead of trying to parse every shell form; an inert example that names odoo-bench next to docker is denied too",
+      "cost_if_wrong": "a harmless command is refused or needs approval"
+    },
+    {
+      "ruling": "The H4.R1 ruling that Claude Code caps an unattended run is corrected: Stop is feedback; eng-session now requires --max-turns and --max-budget-usd",
+      "cost_if_wrong": "none"
+    },
+    {
+      "ruling": "A container-targeting docker command is allowed only when one of its positional words matches an allowed container; option values are not parsed",
+      "cost_if_wrong": "an allowed container named as an option value could let another target through; the denied list still applies"
+    }
+  ],
+  "outside_repo": []
+}
