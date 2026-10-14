@@ -25,6 +25,7 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 MANIFEST = Path("harness") / "context.toml"
@@ -395,6 +396,8 @@ def _docker_reason(segment: str, words: list[str], allowed: list[str], command: 
         return "docker global options (daemon, context or config)"
     sub, rest = words[1], words[2:]
     if sub == "compose":
+        if Path(words[0]).name != "docker":
+            return f"{Path(words[0]).name} compose: bash-guard checks only docker's containers"
         return _compose_reason(command, rest, allowed)
     if sub == "container":
         if not rest:
@@ -466,7 +469,23 @@ def _docker_context_reason() -> str | None:
     return f"docker context {current} points at {host}, not a local daemon"
 
 
+# One budget for every daemon query in a command, well inside the Bash hook's 30 s host
+# timeout; each project is queried once.
+QUERY_BUDGET = 12.0
+_queries: dict[str, str | None] = {}
+_deadline = [0.0]
+
+
 def _compose_targets_reason(project: str, allowed: list[str]) -> str | None:
+    if project not in _queries:
+        remaining = _deadline[0] - time.monotonic()
+        if remaining < 1:
+            return "no time left to list the containers of compose projects"
+        _queries[project] = _query_targets(project, allowed, min(5.0, remaining))
+    return _queries[project]
+
+
+def _query_targets(project: str, allowed: list[str], timeout: float) -> str | None:
     """The containers a compose stop, start, restart, pause or unpause acts on.
 
     Compose selects them by the project label on existing containers, whatever files it
@@ -486,7 +505,7 @@ def _compose_targets_reason(project: str, allowed: list[str]) -> str | None:
             ],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=timeout,
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -502,6 +521,8 @@ def _compose_targets_reason(project: str, allowed: list[str]) -> str | None:
 def bash_guard(root: Path, command: str) -> tuple[int, str]:
     """(exit code, stdout). Exit 2 denies; stdout may carry an "ask" decision."""
     denied, allowed = _policy(root)
+    _queries.clear()
+    _deadline[0] = time.monotonic() + QUERY_BUDGET
     joined = command.replace("\\\n", "")  # the shell removes a backslash-newline
     flat = re.sub(r"[\"'\\]", "", joined)
     tool = bool(_CONTAINER_TOOL.search(flat))
@@ -531,6 +552,8 @@ def bash_guard(root: Path, command: str) -> tuple[int, str]:
         if context:
             reasons.append(context)
     for segment in segments:
+        if reasons:
+            _deadline[0] = 0.0  # the owner is asked anyway: no further daemon queries
         try:
             words = shlex.split(segment)
         except ValueError:

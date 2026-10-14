@@ -502,3 +502,39 @@ def test_r6_persisted_remote_docker_context_asks(repo, tmp_path) -> None:
     assert _guard_in(repo, command, repo.root, {"HOME": str(home)}) == "ask"
     config.write_text("{}")
     assert _guard_in(repo, command, repo.root, {"HOME": str(home)}) == "none"
+
+
+def test_r8_compose_queries_share_one_deadline(repo, tmp_path) -> None:
+    import time
+
+    folder = tmp_path / "slow"
+    folder.mkdir()
+    slow = folder / "docker"
+    slow.write_text(f'#!/bin/sh\necho "$@" >> "{folder}/calls"\nsleep 20\n')
+    slow.chmod(0o755)
+    env = {"PATH": f"{folder}:{os.environ['PATH']}"}
+    command = (
+        "docker compose -p odoo19-learning stop odoo && "
+        "docker compose -p e-agent-test-a restart && "
+        "docker compose -p e-agent-test-b start"
+    )
+    started = time.monotonic()
+    assert _decision_of(_bash(repo, command, env=env)) == "ask"
+    assert time.monotonic() - started < 15  # inside the Bash hook's 30 s host timeout
+    assert len((folder / "calls").read_text().splitlines()) == 1
+
+
+def test_r8_each_project_is_queried_once(repo, tmp_path) -> None:
+    env = _fake_docker(tmp_path / "bin", SANDBOX_NAMES)
+    command = (
+        "docker compose -p odoo19-learning stop odoo && docker compose -p odoo19-learning start"
+    )
+    assert _decision_of(_bash(repo, command, env=env)) == "none"
+    assert len((tmp_path / "bin" / "calls").read_text().splitlines()) == 1
+
+
+def test_r8_podman_compose_asks(repo, tmp_path) -> None:
+    env = _fake_docker(tmp_path / "bin", SANDBOX_NAMES)
+    command = "podman compose -p odoo19-learning restart"
+    assert _decision_of(_bash(repo, command, env=env)) == "ask"
+    assert not (tmp_path / "bin" / "calls").exists()
