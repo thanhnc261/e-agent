@@ -103,3 +103,22 @@ def test_tidy_reports_a_failed_formatter(repo, monkeypatch) -> None:
     result = repo.invoke("tidy")
     assert result.code == 1
     assert "ruff format failed" in result.out and "boom" in result.out
+
+
+def test_tidy_matches_real_prettier_scope_globs(repo, monkeypatch) -> None:
+    _ruff_config(repo)
+    repo.write("ui/package.json", "{}")
+    repo.write("ui/.prettierscope", "apps/web/src/**/*.tsx\npackages/ui-core/src/selectors/*.ts\n")
+    repo.commit("ui")
+    repo.write("ui/apps/web/src/pages/Overview.tsx", "x\n")
+    repo.write("ui/apps/web/src/App.tsx", "x\n")
+    repo.write("ui/packages/ui-core/src/selectors/a.ts", "x\n")
+    repo.write("ui/packages/ui-core/src/selectors/deep/b.ts", "x\n")  # outside: * is one level
+    calls = _fake_runs(monkeypatch)
+    assert repo.invoke("tidy").code == 0
+    (pnpm,) = [c for c in calls if c[0] == "pnpm"]
+    assert pnpm[4:] == [
+        "apps/web/src/App.tsx",
+        "apps/web/src/pages/Overview.tsx",
+        "packages/ui-core/src/selectors/a.ts",
+    ]

@@ -428,3 +428,44 @@ def test_lowercase_z_timestamps_parse_everywhere() -> None:
     assert contracts.parse_timestamp("2026-10-13T12:01:00z").utcoffset().total_seconds() == 0
     assert closecheck.evidence_time(doc) == contracts.parse_timestamp("2026-10-13T12:01:00+00:00")
     assert closecheck.newest([doc, {"started_at": "2026-10-13T12:00:00Z"}]) is doc
+
+
+def _write_code(repo, path: str) -> int:
+    payload = json.dumps(
+        {"tool_name": "Write", "tool_input": {"file_path": path}, "cwd": str(repo.root)}
+    )
+    return repo.invoke("check-scope", "--hook", stdin=payload).code
+
+
+def test_closed_marker_does_not_survive_a_rollback(repo) -> None:
+    from tests.harness.conftest import git
+
+    _start(repo)
+    repo.write("src/pkg/new.py", "Y = 2\n")
+    before_close = repo.commit("feature code")
+    _bookkeeping(repo, _evidence_path(repo))
+    assert repo.invoke("close-check", "--session", "s1").code == 0
+    assert _write_code(repo, "docs/a.md") == 0
+    git(repo.root, "checkout", "-q", before_close)  # back to the unfinished task
+    assert _write_code(repo, "docs/a.md") == 2
+    assert repo.invoke("new-task", "1", "1c.2", "--feature", "F-2", "--paths", "src/**").code == 1
+
+
+def test_inferred_closure_is_durable_in_a_fresh_clone(repo, tmp_path) -> None:
+    from tests.harness.conftest import Repo, git
+
+    _closed(repo)
+    clone_root = tmp_path / "clone"
+    git(tmp_path, "clone", "-q", str(repo.root), str(clone_root))
+    clone = Repo(clone_root)
+    assert _write_code(clone, "docs/a.md") == 0  # closure inferred, and recorded
+    clone.write("docs/a.md", "unrelated\n")
+    assert _write_code(clone, "docs/b.md") == 0
+
+
+def test_refresh_reopens_even_on_a_clean_tree(repo) -> None:
+    _closed(repo)
+    assert repo.invoke("refresh-task").code == 0  # nothing changed: the tree stays clean
+    assert repo.invoke("close-check", "--session", "s1").code == 0  # would infer closure
+    assert repo.invoke("refresh-task").code == 0
+    assert _write_code(repo, "docs/c.md") == 2

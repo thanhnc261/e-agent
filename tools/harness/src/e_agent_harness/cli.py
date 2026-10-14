@@ -7,6 +7,7 @@ the hook JSON on stdin and exit 2 to deny.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -127,7 +128,8 @@ def cmd_new_task(args: argparse.Namespace) -> int:
     current = (active or {}).get("task")
     # A task whose close-check passes is closed and may be followed without --replace.
     switching = bool(current) and current != args.task_id and not args.replace
-    if switching and not _closed_by_marker(paths) and closecheck.problems(paths, m, root):
+    closed = _marker(paths, root) == "closed" or not closecheck.problems(paths, m, root)
+    if switching and not closed:
         print(f"task {current} is active; finish it with close-check or pass --replace")
         return 1
     try:
@@ -152,23 +154,52 @@ def cmd_new_task(args: argparse.Namespace) -> int:
     return 0
 
 
-def _mark_closed(paths: state.Paths) -> None:
+def _contract_hash(paths: state.Paths) -> str | None:
+    loaded = state.load_task(paths)
+    return hashlib.sha256(loaded[1].read_bytes()).hexdigest() if loaded else None
+
+
+def _mark(paths: state.Paths, root: Path, status_value: str) -> None:
+    """Record the active task's lifecycle locally: "closed" or "reopened".
+
+    The record is bound to the contract's content and to the commit it was made at, so a
+    changed contract or a checkout of an earlier commit invalidates it.
+    """
     active = state.load_active(paths) or {}
     state.write_json(
-        paths.closed_marker, {"phase": active.get("phase"), "task": active.get("task")}
+        paths.closed_marker,
+        {
+            "status": status_value,
+            "phase": active.get("phase"),
+            "task": active.get("task"),
+            "contract_sha256": _contract_hash(paths),
+            "commit": gitinfo.head_sha(root),
+        },
     )
 
 
-def _closed_by_marker(paths: state.Paths) -> bool:
+def _marker(paths: state.Paths, root: Path) -> str | None:
+    """ "closed", "reopened", or None when there is no record that still applies."""
     active = state.load_active(paths)
     if not active or not paths.closed_marker.is_file():
-        return False
+        return None
     marker = state.read_json(paths.closed_marker)
-    return bool(
-        isinstance(marker, dict)
-        and marker.get("task") == active.get("task")
-        and marker.get("phase") == active.get("phase")
+    if not isinstance(marker, dict):
+        return None
+    same_task = marker.get("task") == active.get("task") and marker.get("phase") == active.get(
+        "phase"
     )
+    same_contract = marker.get("contract_sha256") == _contract_hash(paths)
+    commit = str(marker.get("commit") or "")
+    still_reachable = bool(commit) and gitinfo.is_ancestor(root, commit, "HEAD")
+    if same_task and same_contract and still_reachable:
+        value = marker.get("status")
+        return value if value in {"closed", "reopened"} else None
+    return None
+
+
+def _mark_closed(paths: state.Paths) -> None:
+    _mark(paths, paths.repo_root, "closed")
 
 
 def _clear_closed(paths: state.Paths) -> None:
@@ -179,14 +210,23 @@ def _clear_closed(paths: state.Paths) -> None:
 def _resolve_for_hook(repo_root: Path) -> tuple[mf.Manifest, dict[str, Any] | None]:
     """The manifest and the contract whose scope applies to an edit.
 
-    A closed task (its close-check passes) no longer holds unrelated work to its scope;
-    protected paths are always guarded.
+    A closed task no longer holds unrelated work to its scope; protected paths are always
+    guarded. Closure is recorded locally the first time it is seen (explicitly by
+    close-check, or inferred here) so later edits that dirty the tree keep it closed;
+    refresh-task records the task as reopened.
     """
     paths = state.Paths(repo_root)
     m = mf.load_manifest(paths.manifest)
     loaded = state.load_task(paths)
-    # Closed once is closed for the scope hook, even after unrelated edits dirty the tree.
-    if loaded is None or _closed_by_marker(paths) or not closecheck.problems(paths, m, repo_root):
+    if loaded is None:
+        return m, None
+    lifecycle = _marker(paths, repo_root)
+    if lifecycle == "reopened":
+        return m, loaded[0]
+    if lifecycle == "closed":
+        return m, None
+    if not closecheck.problems(paths, m, repo_root):
+        _mark(paths, repo_root, "closed")
         return m, None
     return m, loaded[0]
 
@@ -420,7 +460,7 @@ def cmd_refresh_task(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(str(exc))
         return 1
-    _clear_closed(paths)  # refreshing reopens the task: its scope applies again
+    _mark(paths, root, "reopened")  # refreshing reopens the task: its scope applies again
     print(f"task {contract['id']} refreshed (base {str(contract['base_commit'])[:7]} kept)")
     return 0
 

@@ -236,3 +236,27 @@ def test_unknown_base_commit_never_counts_as_new(repo) -> None:
         "check-scope", "--hook", stdin=_payload(repo, "Write", "research/01-old-study.md")
     )
     assert old.code == 2
+
+
+def test_unreadable_tree_never_counts_as_new(repo) -> None:
+    from tests.harness.conftest import git
+
+    _create_only_research(repo)
+    tree = git(repo.root, "rev-parse", "HEAD^{tree}")
+    obj = repo.root / ".git" / "objects" / tree[:2] / tree[2:]
+    obj.chmod(0o644)
+    obj.unlink()  # the commit exists, its tree cannot be read
+    result = repo.invoke(
+        "check-scope", "--hook", stdin=_payload(repo, "Edit", "research/01-old-study.md")
+    )
+    assert result.code == 2
+
+
+def test_arrow_in_a_file_name_is_not_a_rename(repo) -> None:
+    _create_only_research(repo)
+    repo.write("research/old -> new.md", "a report\n")
+    repo.commit("odd name")
+    repo.write("research/old -> new.md", "changed\n")
+    result = repo.invoke("check-scope")
+    assert result.code == 1
+    assert "research/old -> new.md: protected path" in result.out

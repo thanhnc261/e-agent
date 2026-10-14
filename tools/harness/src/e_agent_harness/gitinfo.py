@@ -22,20 +22,17 @@ def branch(root: Path) -> str:
 
 
 def status_files(root: Path) -> list[str]:
-    """Changed, staged and untracked paths; a rename reports both its ends."""
-    files: list[str] = []
-    # Not stripped: a modified file's line starts with a space (" M path").
-    porcelain = git(
-        root, "status", "--porcelain", "--untracked-files=all", "--no-renames", strip=False
+    """Changed, staged and untracked paths, exactly as named (NUL-separated, no renames)."""
+    out = git(
+        root,
+        "status",
+        "--porcelain=v1",
+        "-z",
+        "--untracked-files=all",
+        "--no-renames",
+        strip=False,
     )
-    for line in porcelain.splitlines():
-        if len(line) < 4:
-            continue
-        path = line[3:]
-        if " -> " in path:
-            path = path.split(" -> ", 1)[1]
-        files.append(path.strip('"'))
-    return sorted(set(files))
+    return sorted({entry[3:] for entry in out.split("\0") if len(entry) > 3})
 
 
 def is_clean(root: Path) -> bool:
@@ -45,8 +42,8 @@ def is_clean(root: Path) -> bool:
 def diff_names(root: Path, base: str, head: str = "HEAD") -> list[str]:
     """Paths changed on ``head`` since its merge base with ``base`` (three-dot diff),
     so upstream commits merged into a task branch are not attributed to the task."""
-    out = git(root, "diff", "--name-only", "--no-renames", f"{base}...{head}")
-    return sorted(line for line in out.splitlines() if line)
+    out = git(root, "diff", "--name-only", "-z", "--no-renames", f"{base}...{head}", strip=False)
+    return sorted(name for name in out.split("\0") if name)
 
 
 def commit_exists(root: Path, rev: str) -> bool:
@@ -59,15 +56,21 @@ def commit_exists(root: Path, rev: str) -> bool:
     return proc.returncode == 0
 
 
+class GitLookupError(RuntimeError):
+    """git could not answer: missing objects, a bad revision, a broken repository."""
+
+
 def exists_at(root: Path, rev: str, path: str) -> bool:
-    """True when ``path`` is tracked in commit ``rev``."""
+    """True when ``path`` is tracked in commit ``rev``; GitLookupError when git cannot tell."""
     proc = subprocess.run(
-        ["git", "-C", str(root), "cat-file", "-e", f"{rev}:{path}"],
+        ["git", "-C", str(root), "ls-tree", "-z", "--name-only", rev, "--", path],
         capture_output=True,
         text=True,
         check=False,
     )
-    return proc.returncode == 0
+    if proc.returncode != 0:
+        raise GitLookupError(proc.stderr.strip() or f"git ls-tree {rev} failed")
+    return bool(proc.stdout.strip("\0"))
 
 
 def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:

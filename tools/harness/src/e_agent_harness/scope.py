@@ -70,7 +70,10 @@ def _is_new(repo_root: Path, base: str, relpath: str) -> bool:
     """
     if not gitinfo.commit_exists(repo_root, base):
         return False
-    return not gitinfo.exists_at(repo_root, base, normalize_relpath(relpath))
+    try:
+        return not gitinfo.exists_at(repo_root, base, normalize_relpath(relpath))
+    except gitinfo.GitLookupError:
+        return False
 
 
 Resolver = Callable[[Path], tuple[Manifest, dict[str, Any] | None]]

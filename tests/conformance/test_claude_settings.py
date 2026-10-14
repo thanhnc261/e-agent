@@ -21,24 +21,18 @@ def _bash_rule_matches(rule: str, command: str) -> bool:
     return re.fullmatch(regex, command) is not None
 
 
-def _segment_decision(command: str) -> str:
+def _decision(command: str) -> str:
+    """Which literal rule a single, plain command matches (deny, then ask, then allow).
+
+    This checks the rule text only. It is not Claude Code's command evaluator: compound
+    commands, wrappers and dynamic execution are bash-guard's job, tested in
+    tests/harness/test_hook_wrapper.py and live in the H4 handoffs.
+    """
     perms = SETTINGS["permissions"]
     for kind in ("deny", "ask", "allow"):
         if any(_bash_rule_matches(r, command) for r in perms.get(kind, [])):
             return kind
     return "default"
-
-
-def _decision(command: str) -> str:
-    """Claude Code checks each subcommand of a compound command; the strictest wins.
-
-    This models the rule syntax only. Command shapes the rules cannot see (an absolute
-    docker path, git global options) are handled by the bash-guard hook, tested in
-    tests/harness/test_hook_wrapper.py.
-    """
-    order = ("deny", "ask", "default", "allow")
-    segments = [s.strip() for s in re.split(r"&&|\|\||;|\|", command) if s.strip()]
-    return min((_segment_decision(s) for s in segments), key=order.index)
 
 
 def test_context_settings() -> None:
@@ -124,11 +118,6 @@ def test_no_per_edit_formatting_hook() -> None:
     # Formatting and lint run once over the whole change with `e-agent-harness tidy`.
     assert "PostToolUse" not in SETTINGS["hooks"]
     assert sorted(SETTINGS["hooks"]) == ["PreCompact", "PreToolUse", "SessionStart", "Stop"]
-
-
-def test_compound_commands_take_the_strictest_rule() -> None:
-    assert _decision("docker compose -p odoo19-learning ps && git push origin main") == "ask"
-    assert _decision("uv run e-agent-harness status; docker kill odoo-bench-db-1") == "deny"
 
 
 def test_bash_guard_fails_closed_on_timeout() -> None:

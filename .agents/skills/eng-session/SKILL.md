@@ -18,7 +18,7 @@ One task per context window, every step checkable by the harness. The commands a
 
 ## What runs on its own
 
-In Claude Code, `.claude/settings.json` wires the harness in: the session starts with the `status` brief; a checkpoint is written before compaction; every `Edit`, `Write` and `NotebookEdit` is checked against the open task's scope (a closed task no longer limits unrelated edits; protected paths are always guarded); with `E_AGENT_HARNESS_UNATTENDED=1` the session cannot stop until `close-check` passes. Edits made through shell commands are not hooked, so `check-scope` before each commit stays mandatory. Codex has no hooks: run the same commands by hand.
+In Claude Code, `.claude/settings.json` wires the harness in: the session starts with the `status` brief; a checkpoint is written before compaction; every `Edit`, `Write` and `NotebookEdit` is checked against the open task's scope (a closed task no longer limits unrelated edits; protected paths are always guarded); every shell command passes `bash-guard`, which denies a command that names a denied container and asks the owner when it cannot see the real command (shell `-c`, `eval`, `xargs`, `-exec`, git aliases, another docker daemon or container) or when it is `git push`, `merge`, `rebase` or `reset --hard`; with `E_AGENT_HARNESS_UNATTENDED=1` a stop is answered with `close-check`'s problems. Edits made through shell commands are not hooked, so `check-scope` before each commit stays mandatory. Codex has no hooks: run the same commands by hand.
 
 ## Start ritual
 
@@ -72,7 +72,7 @@ The Phase 1 pilot log's other rows were fixed in harness H2.1; one remains.
 
 ## Unattended variant
 
-Allowed from roadmap Phase 2 for mechanical tasks. One worktree per task; the goal condition is the acceptance as shown by the gate command's output, with a turn cap; a spend budget; `E_AGENT_HARNESS_UNATTENDED=1` so `close-check` gates the stop. Results arrive as a handoff, never as a merge or a push.
+Allowed from roadmap Phase 2 for mechanical tasks. One worktree per task; the goal condition is the acceptance as shown by the gate command's output; `E_AGENT_HARNESS_UNATTENDED=1` so each stop is answered with `close-check`'s problems. The Stop gate is feedback, not a bound: every tool call resets Claude Code's count of consecutive Stop blocks, so set a turn cap (`--max-turns`) and a spend cap (`--max-budget-usd`), and run `close-check` yourself after the run. Results arrive as a handoff, never as a merge or a push.
 
 ## Before handing off
 

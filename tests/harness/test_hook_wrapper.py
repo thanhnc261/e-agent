@@ -186,3 +186,62 @@ def test_bash_guard_asks_before_integration_commands(repo) -> None:
         decision = json.loads(result.stdout)["hookSpecificOutput"]
         assert decision["hookEventName"] == "PreToolUse"
         assert decision["permissionDecision"] == "ask", command
+
+
+def _decision_of(result: subprocess.CompletedProcess) -> str:
+    if result.returncode == 2:
+        return "deny"
+    if result.stdout.strip():
+        return json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"]
+    return "none"
+
+
+def test_bash_guard_denies_dynamic_forms_that_name_a_denied_container(repo) -> None:
+    for command in (
+        "bash -c 'docker stop odoo-bench-db-1'",
+        "eval docker kill odoo-bench-db-1",
+        "/usr/local/bin/docker stop \\\nodoo-bench-db-1",
+        "git -C . push origin HEAD; /usr/local/bin/docker stop odoo-bench-db-1",  # deny wins
+    ):
+        assert _decision_of(_bash(repo, command)) == "deny", command
+
+
+def test_bash_guard_asks_where_it_cannot_see_the_real_command(repo) -> None:
+    from tests.harness.conftest import git
+
+    git(repo.root, "config", "alias.shipit", "push")
+    for command in (
+        "git -c alias.x=push x origin HEAD",
+        "git -c alias.x='!git push' x",
+        "git shipit origin HEAD",  # an alias from the repository config
+        "sudo -u me git push",
+        r"find . -name x -exec git push \;",
+        "echo main | xargs -I{} git push origin {}",
+        "bash -c 'git push origin main'",
+        "docker stop production-db-1",  # not an allowed container
+        "docker --context production stop odoo19-learning-db-1",
+        "DOCKER_HOST=tcp://remote:2375 docker ps",
+        "docker compose -p other up -d",
+    ):
+        assert _decision_of(_bash(repo, command)) == "ask", command
+
+
+def test_bash_guard_allows_ordinary_commands(repo) -> None:
+    for command in (
+        "docker ps",
+        "docker exec -it odoo19-learning-odoo-1 bash",
+        "docker compose -p odoo19-learning ps",
+        "docker logs --tail 20 odoo19-learning-odoo-1",
+        "grep -rn odoo-bench docs",
+        "git status",
+        "git log --grep push",
+        "git commit -m 'push the button'",
+    ):
+        assert _decision_of(_bash(repo, command)) == "none", command
+
+
+def test_bash_guard_keeps_its_policy_outside_the_repository(repo, tmp_path) -> None:
+    outside = tmp_path / "elsewhere"
+    outside.mkdir()
+    result = _bash(repo, "/usr/local/bin/docker stop odoo-bench-db-1", cwd=outside)
+    assert _decision_of(result) == "deny"

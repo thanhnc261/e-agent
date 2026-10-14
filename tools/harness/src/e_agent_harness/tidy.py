@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from e_agent_harness import scope
+from e_agent_harness.manifest import path_matches
 
 RUFF = (sys.executable, "-m", "ruff")
 
@@ -31,7 +32,8 @@ def _ui_scope(repo_root: Path) -> list[str]:
 
 
 def _in_scope(path: str, entries: list[str]) -> bool:
-    return any(path == e or path.startswith(e + "/") for e in entries)
+    """.prettierscope lines are globs (``**`` any depth, ``*`` one level) or plain paths."""
+    return any(path == e or path.startswith(e + "/") or path_matches(path, e) for e in entries)
 
 
 def _tail(result: subprocess.CompletedProcess[str]) -> str:
