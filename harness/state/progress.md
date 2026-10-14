@@ -229,3 +229,8 @@
 - changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.R14.json, harness/state/evidence/gates/H4.R14/2026-10-14T11-13-00.143936+00-00-full.json
 - next: Confirmation review round 15
 - open: none
+
+## 2026-10-14T11:20:11.837874+00:00 · 7ae53108-c378-473b-8d82-0a980741f45f · H4.R15
+- changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.R15.json, harness/state/evidence/gates/H4.R15/2026-10-14T11-19-20.177552+00-00-full.json
+- next: Owner: merge decision; optional second confirmation round (Codex after 22:20)
+- open: none

@@ -1,0 +1,15 @@
+{
+  "task": "H4.R15",
+  "changed": "Claude Code's own configuration outside the repository (~/.claude.json, ~/.claude/settings.json, settings.local.json) added to denied_paths with a conformance test; live hook probe denies both and allows the memory directory. H4 handoff updated after round 15.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R15/2026-10-14T11-19-20.177552+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "Only Claude Code configuration joins denied_paths; other files outside every checkout stay writable",
+      "cost_if_wrong": "an edit elsewhere in the home directory is not refused by the hook; the permission rules still apply"
+    }
+  ],
+  "outside_repo": []
+}
