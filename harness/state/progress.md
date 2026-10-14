@@ -194,3 +194,8 @@
 - changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.R8.json, harness/state/evidence/gates/H4.R8/2026-10-14T06-33-50.898317+00-00-full.json
 - next: Owner: merge decision and threat-model framing
 - open: none
+
+## 2026-10-14T06:37:56.458660+00:00 · 7ae53108-c378-473b-8d82-0a980741f45f · H4.R8
+- changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.R8.json, harness/state/evidence/gates/H4.R8/2026-10-14T06-37-00.089206+00-00-full.json
+- next: Owner: merge decision and threat-model framing
+- open: none
