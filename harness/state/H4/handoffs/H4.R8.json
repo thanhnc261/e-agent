@@ -1,0 +1,15 @@
+{
+  "task": "H4.R8",
+  "changed": "Codex review round 8 on H4, two findings fixed with regression tests: compose target queries share one 12 s budget (5 s per query, one per project, none after an ask), and podman compose asks.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R8/2026-10-14T06-33-50.898317+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "podman compose asks rather than querying podman",
+      "cost_if_wrong": "one owner prompt per podman compose command; podman is not installed on this machine"
+    }
+  ],
+  "outside_repo": []
+}
