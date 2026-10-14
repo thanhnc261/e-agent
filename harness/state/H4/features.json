@@ -88,6 +88,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.R2/2026-10-14T00-13-42.986020+00-00-full.json"
+    },
+    {
+      "id": "F-H4-R3",
+      "category": "review",
+      "description": "Fix the seven findings of Codex review round 3 on harness H4 (bash-guard asks whenever it cannot fully parse)",
+      "steps": [
+        "regression tests for each finding pass",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
