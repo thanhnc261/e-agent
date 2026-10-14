@@ -60,12 +60,14 @@ def _runner(root: Path) -> list[str]:
 # next to a container tool is denied. Silent pass, when the whole command parses:
 #   git:    a subcommand on _GIT_BUILTINS other than push, pull, merge, rebase, reset with
 #           an option outside --soft/--mixed/--quiet/--patch, submodule foreach and bisect
-#           run; global options only from _GIT_GLOBAL_FLAGS, -C, --git-dir, --work-tree and
-#           --namespace (no -c); no option that runs another program (_GIT_EXEC_OPTIONS);
-#           config only to read;
-#   docker: (not podman) ps, ls, images, version, info; exec, logs, inspect, top, port, stop, start,
-#           restart, kill, rm, pause, unpause, wait on allowed container names, with known
-#           options only, and exec running neither git, a container tool nor shell -c;
+#           other than _BISECT_SAFE; every git word in a command is checked; global
+#           options only from _GIT_GLOBAL_FLAGS, -C, --git-dir, --work-tree and --namespace
+#           (no -c); no option that runs another program (_GIT_EXEC_OPTIONS); config only
+#           to read;
+#   docker: (not podman) ps, ls, images, version, info; exec, logs, inspect, top, port,
+#           stop, start, restart, kill, rm, pause, unpause, wait on allowed container
+#           names, with known options only, and exec running neither git, a container tool
+#           nor shell -c;
 #           compose -p <allowed project> ps, logs, top, images, ls, version, config;
 #   only with no environment assignment or export in the command, no docker endpoint,
 #   context, config or HOME override inherited,
@@ -122,6 +124,8 @@ _GIT_CONFIG_WRITES = {
     "edit",
 }
 _GIT_ASK = {"push", "pull", "merge", "rebase"}
+# bisect run, visualize/view and replay run commands or replay a file; these do not.
+_BISECT_SAFE = {"start", "good", "bad", "new", "old", "skip", "reset", "log", "terms", "help"}
 _RESET_SAFE = {"--soft", "--mixed", "-q", "--quiet", "--", "-p", "--patch"}
 _GIT_BUILTINS = {
     "add",
@@ -413,8 +417,12 @@ def _git_reason(words: list[str]) -> str | None:
     if sub == "reset" and any(w.startswith("-") and w not in _RESET_SAFE for w in rest):
         return "git reset with an option that can discard work"
     # Options may come first (git submodule --quiet foreach ...): look at every word.
-    if (sub == "submodule" and "foreach" in rest) or (sub == "bisect" and "run" in rest):
-        return f"git {sub} {'foreach' if sub == 'submodule' else 'run'} runs arbitrary commands"
+    if sub == "submodule" and "foreach" in rest:
+        return "git submodule foreach runs arbitrary commands"
+    if sub == "bisect":
+        action = next((w for w in rest if not w.startswith("-")), "")
+        if action not in _BISECT_SAFE:
+            return f"git bisect {action or '(no action)'} may run a command"
     if sub not in _GIT_BUILTINS and sub != "reset":
         return f"git {sub} is not on bash-guard's silent-pass list"
     option = _runs_program(sub, rest)
@@ -611,6 +619,8 @@ def bash_guard(root: Path, command: str) -> tuple[int, str]:
         if head is not None and head != UNCERTAIN and re.search(r"[$`]", head):
             reasons.append("an executable chosen by a variable")
             continue
+        # Every git or container-tool word, not only the first: a subcommand can hand the
+        # rest of the line to a nested git (git bisect visualize git -c alias...).
         for index, word in enumerate(words):
             name = Path(word).name
             if name == "git":
@@ -621,7 +631,6 @@ def bash_guard(root: Path, command: str) -> tuple[int, str]:
                 continue
             if reason:
                 reasons.append(reason)
-            break
     if not reasons:
         return 0, ""
     decision = {

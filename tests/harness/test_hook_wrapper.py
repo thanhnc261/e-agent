@@ -559,3 +559,25 @@ def test_r11_option_operand_does_not_end_the_scan(repo) -> None:
     ):
         assert _decision_of(_bash(repo, command)) == "ask", command
     assert _decision_of(_bash(repo, "git grep -n TODO -- src")) == "none"
+
+
+def test_r12_bisect_runs_and_nested_git_ask(repo) -> None:
+    for command in (
+        "git bisect visualize git -c 'alias.review=!git push origin HEAD; true' review",
+        "git bisect view git push origin HEAD",
+        "git bisect vis",
+        "git bisect run ./probe.sh",
+        "git bisect replay bisect.log",
+        "git log -1 git push",  # a nested git word is checked on its own
+    ):
+        assert _decision_of(_bash(repo, command)) == "ask", command
+    for command in (
+        "git bisect start HEAD HEAD~5",
+        "git bisect good",
+        "git bisect bad abc123",
+        "git bisect skip",
+        "git bisect log",
+        "git bisect reset",
+        "git log -5 --grep git",
+    ):
+        assert _decision_of(_bash(repo, command)) == "none", command
