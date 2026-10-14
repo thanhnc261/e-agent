@@ -1,0 +1,15 @@
+{
+  "task": "H4.R12",
+  "changed": "Codex review round 11 on H4 (systematic pass, one IN-PASS-SET finding) fixed: bisect passes only for actions that run nothing, and every git or container-tool word in a command is checked. Regression tests for visualize, view, abbreviations, run, replay and a nested git push; ordinary bisect actions still pass.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R12/2026-10-14T10-43-03.057440+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "Every git word in a command is checked on its own",
+      "cost_if_wrong": "a literal word git followed by an option (git log --grep git -5) asks the owner once"
+    }
+  ],
+  "outside_repo": []
+}
