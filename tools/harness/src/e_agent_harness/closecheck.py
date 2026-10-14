@@ -150,3 +150,47 @@ def problems(
             found.append("progress log has no checkpoint after the gate evidence")
     found.extend(handoff_problems(paths, repo_root, phase, task_id))
     return found
+
+
+def recorded_closed(paths: state.Paths, repo_root: Path) -> bool:
+    """True when the committed records show the active task was closed.
+
+    Used where no local lifecycle record exists (a fresh checkout or clone). It reads
+    only what the close ritual commits: every contracted feature passes with valid,
+    successful, clean-tree gate evidence recorded for this task, the handoff validates,
+    and the progress log has an entry for the task. The working tree, the active plan
+    and later commits do not matter: an unrelated untracked file, a new phase plan or
+    someone else's commit never reopens a closed task.
+    """
+    loaded = state.load_task(paths)
+    if loaded is None:
+        return False
+    contract, _ = loaded
+    task_id, phase = str(contract["id"]), str(contract["phase"])
+    features_path = paths.features(phase)
+    if not features_path.is_file():
+        return False
+    entries = {e["id"]: e for e in state.read_json(features_path)["entries"]}
+    for fid in contract["feature_ids"]:
+        feature = entries.get(fid)
+        if not feature or not feature.get("passes") or not feature.get("evidence"):
+            return False
+        evidence_file = repo_root / str(feature["evidence"])
+        if not evidence_file.is_file():
+            return False
+        evidence = state.read_json(evidence_file)
+        if contracts.validate("gate-evidence", evidence):
+            return False
+        if not (
+            evidence.get("ok")
+            and evidence.get("clean_tree")
+            and evidence.get("task") == task_id
+            and evidence.get("gate_set") == contract["gate_set"]
+        ):
+            return False
+    if handoff_problems(paths, repo_root, phase, task_id):
+        return False
+    if not paths.progress.is_file():
+        return False
+    logged = progress.parse_progress(paths.progress.read_text(encoding="utf-8"))
+    return any(entry.task == task_id for entry in logged)

@@ -485,3 +485,49 @@ def test_switching_from_an_open_task_needs_close_check(repo) -> None:
     result = repo.invoke("new-task", "1", "1c.2", "--feature", "F-2", "--paths", "src/**")
     assert result.code == 1
     assert "1c.1 is active" in result.out
+
+
+def _fresh_clone(repo, tmp_path):
+    from tests.harness.conftest import Repo, git
+
+    clone_root = tmp_path / "clone"
+    git(tmp_path, "clone", "-q", str(repo.root), str(clone_root))
+    return Repo(clone_root)
+
+
+def test_h4_17_unrelated_untracked_file_does_not_reopen_a_closed_task(repo, tmp_path) -> None:
+    """A checkout without a local record, holding someone else's untracked file."""
+    _closed(repo)
+    clone = _fresh_clone(repo, tmp_path)
+    clone.write("docs/reviews/someone-elses-review.md", "draft\n")
+    assert _write_code(clone, "docs/plans/phase2.md") == 0  # a new phase plan may be written
+    assert "is closed" in clone.invoke("status").out
+    second = clone.invoke("new-task", "1", "1c.2", "--feature", "F-2", "--paths", "src/**")
+    assert second.code == 0, second
+
+
+def test_h4_17_later_commits_and_a_new_plan_do_not_reopen_a_closed_task(repo, tmp_path) -> None:
+    _closed(repo)
+    clone = _fresh_clone(repo, tmp_path)
+    clone.write("docs/reviews/review.md", "committed by another session\n")
+    clone.write("docs/roadmap.md", "# Roadmap\n\nPhase 2 is next.\n")  # authoritative: stale
+    clone.commit("unrelated work on main")
+    assert _write_code(clone, "docs/plans/phase2.md") == 0
+    assert "is closed" in clone.invoke("status").out
+
+
+def test_h4_17_an_unfinished_task_stays_open_in_a_fresh_clone(repo, tmp_path) -> None:
+    _start(repo)
+    clone = _fresh_clone(repo, tmp_path)
+    clone.write("docs/reviews/review.md", "draft\n")
+    assert _write_code(clone, "docs/plans/phase2.md") == 2  # its scope still applies
+    second = clone.invoke("new-task", "1", "1c.2", "--feature", "F-2", "--paths", "src/**")
+    assert second.code == 1
+
+
+def test_h4_17_amending_scope_keeps_a_reopened_task_open(repo) -> None:
+    _closed(repo)
+    assert repo.invoke("refresh-task").code == 0
+    assert repo.invoke("amend-scope", "--add", "docs/extra/**", "--reason", "needed").code == 0
+    assert _write_code(repo, "docs/extra/a.md") == 0
+    assert _write_code(repo, "docs/other.md") == 2  # the contract's scope still applies

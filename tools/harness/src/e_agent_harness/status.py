@@ -44,7 +44,11 @@ class StatusData:
 
 
 def collect(
-    paths: state.Paths, m: Manifest, repo_root: Path, session: str | None = None
+    paths: state.Paths,
+    m: Manifest,
+    repo_root: Path,
+    session: str | None = None,
+    lifecycle: str | None = None,
 ) -> StatusData:
     active = state.load_active(paths) or {}
     loaded = state.load_task(paths)
@@ -67,7 +71,13 @@ def collect(
         data.gate_set = str(contract["gate_set"])
         data.acceptance = list(contract["acceptance"])
         data.stale = is_stale(str(contract["context_digest"]), repo_root, m)
-        data.closed = not closecheck.problems(paths, m, repo_root, session=session)
+        # A full close-check pass; in a checkout without a local record (a fresh clone,
+        # another checkout), the committed close records: an unrelated file or a new plan
+        # there does not reopen a closed task. With a record, status keeps walking the
+        # close ritual after a review fix.
+        data.closed = not closecheck.problems(paths, m, repo_root, session=session) or (
+            lifecycle in {None, "inferred"} and closecheck.recorded_closed(paths, repo_root)
+        )
         data.acceptance_drift = tasks.acceptance_drift(paths, contract)
         data.gate_ran = any(paths.evidence(data.task_id or "").glob("*.json"))
         data.has_evidence = any(

@@ -128,11 +128,7 @@ def cmd_new_task(args: argparse.Namespace) -> int:
     current = (active or {}).get("task")
     # A task whose close-check passes is closed and may be followed without --replace.
     switching = bool(current) and current != args.task_id and not args.replace
-    lifecycle = _marker(paths, root)
-    # Only close-check closes a task that has a record; inference is for checkouts without one.
-    closed = lifecycle == "closed" or (
-        lifecycle is None and not closecheck.problems(paths, m, root)
-    )
+    closed = _is_closed(paths, root)
     if switching and not closed:
         print(f"task {current} is active; finish it with close-check or pass --replace")
         return 1
@@ -183,7 +179,8 @@ def _mark(paths: state.Paths, root: Path, status_value: str) -> None:
 
 
 def _marker(paths: state.Paths, root: Path) -> str | None:
-    """The local lifecycle: "open", "closed", "reopened", or None when none applies."""
+    """The local lifecycle: "open", "closed", "inferred" (closed by the committed records),
+    "reopened", or None when none applies."""
     active = state.load_active(paths)
     if not active or not paths.closed_marker.is_file():
         return None
@@ -198,8 +195,16 @@ def _marker(paths: state.Paths, root: Path) -> str | None:
     still_reachable = bool(commit) and gitinfo.is_ancestor(root, commit, "HEAD")
     if same_task and same_contract and still_reachable:
         value = marker.get("status")
-        return value if value in {"open", "closed", "reopened"} else None
+        return value if value in {"open", "closed", "inferred", "reopened"} else None
     return None
+
+
+def _is_closed(paths: state.Paths, root: Path) -> bool:
+    """The local record decides; without one, the committed close records do."""
+    lifecycle = _marker(paths, root)
+    if lifecycle is not None:
+        return lifecycle in {"closed", "inferred"}
+    return closecheck.recorded_closed(paths, root)
 
 
 def _mark_closed(paths: state.Paths) -> None:
@@ -222,10 +227,10 @@ def _resolve_for_hook(repo_root: Path) -> tuple[mf.Manifest, dict[str, Any] | No
     lifecycle = _marker(paths, repo_root)
     if lifecycle in {"open", "reopened"}:
         return m, loaded[0]
-    if lifecycle == "closed":
+    if lifecycle in {"closed", "inferred"}:
         return m, None
-    if not closecheck.problems(paths, m, repo_root):
-        _mark(paths, repo_root, "closed")
+    if closecheck.recorded_closed(paths, repo_root):
+        _mark(paths, repo_root, "inferred")
         return m, None
     return m, loaded[0]
 
@@ -391,7 +396,7 @@ def cmd_close_check(args: argparse.Namespace) -> int:
 
 def cmd_status(args: argparse.Namespace) -> int:
     root, paths, m = _context(args)
-    data = status.collect(paths, m, root, session=args.session)
+    data = status.collect(paths, m, root, session=args.session, lifecycle=_marker(paths, root))
     if args.fmt == "hook":
         print(status.render_hook(data, m.status.token_budget))
     else:
@@ -465,12 +470,15 @@ def cmd_refresh_task(args: argparse.Namespace) -> int:
 
 
 def cmd_amend_scope(args: argparse.Namespace) -> int:
-    _root, paths, _m = _context(args)
+    root, paths, _m = _context(args)
+    lifecycle = _marker(paths, root)
     try:
         contract = tasks.amend_scope(paths, args.glob, args.reason, datetime.now(UTC))
     except ValueError as exc:
         print(str(exc))
         return 1
+    # The amended contract has a new hash: keep the task open (amending scope means work).
+    _mark(paths, root, "open" if lifecycle in (None, "open") else "reopened")
     print(f"task {contract['id']} scope += {args.glob}")
     return 0
 
