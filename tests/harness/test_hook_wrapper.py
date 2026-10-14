@@ -304,7 +304,7 @@ def test_r3_fully_parsed_commands_pass(repo) -> None:
         "docker stop -t 5 odoo19-learning-db-1 e-agent-ledger",
         "docker compose -p odoo19-learning ps",
         "docker logs --tail 20 odoo19-learning-odoo-1",
-        "git -c core.pager=cat log --oneline",
+        "git --no-pager log --oneline",
         r"find . -name '*.py' -exec grep -l TODO {} \;",
     ):
         assert _decision_of(_bash(repo, command)) == "none", command
@@ -500,3 +500,51 @@ def test_r8_podman_compose_asks(repo, tmp_path) -> None:
     command = "podman compose -p odoo19-learning ps"
     assert _decision_of(_bash(repo, command, env=env)) == "ask"
     assert not (tmp_path / "bin" / "calls").exists()
+
+
+def test_r10_silent_pass_list_is_narrowed(repo) -> None:
+    for command in (
+        "git difftool --no-index --no-prompt --extcmd 'git push origin HEAD; true' a b",
+        "git difftool -x 'git push' a b",
+        "git -c core.pager='git push' log",
+        "git --exec-path=/tmp/evil status",
+        "git --config-env=core.pager=X log",
+        "git clone --upload-pack='git push' ../repo out",
+        "git clone -u 'git push' ../repo out",
+        "git clone -c core.sshCommand=x ../repo out",
+        "git fetch --upload='git push' origin",
+        "git ls-remote --upload-pack=x origin",
+        "git archive --remote=origin --exec=x HEAD",
+        "git grep -O'git push' TODO",
+        "git grep --open-files-in-pager=x TODO",
+        "git diff --ext-diff",
+        "git config core.pager 'git push'",
+        "git config --global alias.x '!git push'",
+        "git config set core.pager x",
+        "git maintenance start",
+        "CONTAINER_HOST=ssh://production/run/podman/podman.sock podman stop odoo19-learning-db-1",
+        "podman exec odoo19-learning-db-1 true",
+        "GIT_EXTERNAL_DIFF='git push' git diff",
+        "EDITOR='git push' git commit",
+        "export GIT_PAGER='git push'; git log",
+        "PATH=/tmp/evil:$PATH docker ps",
+        "GIT_SSH_COMMAND=x; git fetch",
+    ):
+        assert _decision_of(_bash(repo, command)) == "ask", command
+
+
+def test_r10_ordinary_commands_still_pass(repo) -> None:
+    for command in (
+        "git config --get user.email",
+        "git config --list --show-origin",
+        "git config get user.name",
+        "git clone --depth 1 ../repo out",
+        "git fetch origin",
+        "git grep -n TODO",
+        "git diff --no-ext-diff HEAD~1",
+        "git log --oneline -5",
+        "git cherry-pick -x abc123",
+        "set -o pipefail; git status --short",
+        "docker ps --format '{{.Names}}'",
+    ):
+        assert _decision_of(_bash(repo, command)) == "none", command

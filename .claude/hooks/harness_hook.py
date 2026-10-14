@@ -58,14 +58,17 @@ def _runner(root: Path) -> list[str]:
 # Contract (H4.R9): a finite set of git and docker commands passes silently; every other
 # command that runs git or a container tool asks the owner, and a denied container named
 # next to a container tool is denied. Silent pass, when the whole command parses:
-#   git:    a built-in subcommand other than push, pull, merge, rebase, reset with an option
-#           outside --soft/--mixed/--quiet/--patch, submodule foreach and bisect run; no
-#           alias, no inline alias;
-#   docker: ps, ls, images, version, info; exec, logs, inspect, top, port, stop, start,
+#   git:    a subcommand on _GIT_BUILTINS other than push, pull, merge, rebase, reset with
+#           an option outside --soft/--mixed/--quiet/--patch, submodule foreach and bisect
+#           run; global options only from _GIT_GLOBAL_FLAGS, -C, --git-dir, --work-tree and
+#           --namespace (no -c); no option that runs another program (_GIT_EXEC_OPTIONS);
+#           config only to read;
+#   docker: (not podman) ps, ls, images, version, info; exec, logs, inspect, top, port, stop, start,
 #           restart, kill, rm, pause, unpause, wait on allowed container names, with known
 #           options only, and exec running neither git, a container tool nor shell -c;
 #           compose -p <allowed project> ps, logs, top, images, ls, version, config;
-#   only with no endpoint, context, config or HOME override in the command or inherited,
+#   only with no environment assignment or export in the command, no docker endpoint,
+#   context, config or HOME override inherited,
 #   not under sudo or another user, and with a persisted docker context on a local socket.
 # Not inspected: scripts and programs the command runs (./deploy.sh, python -c), files and
 # configuration they read, and deliberate obfuscation. The sandbox is the boundary there.
@@ -74,7 +77,50 @@ _CONTAINER_TOOL = re.compile(r"(?<![\w-])(?:docker|docker-compose|podman)(?![\w-
 _GIT_WORD = re.compile(r"(?<![\w-])git(?![\w-])")
 _SHELLS = {"bash", "sh", "zsh", "dash", "ksh", "fish"}
 _CONTAINER_TOOLS = {"docker", "docker-compose", "podman"}
-_GIT_OPTIONS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
+_GIT_OPTIONS_WITH_VALUE = {"-C", "--git-dir", "--work-tree", "--namespace"}
+_GIT_GLOBAL_FLAGS = {
+    "--no-pager",
+    "-P",
+    "-p",
+    "--paginate",
+    "--bare",
+    "--no-replace-objects",
+    "--literal-pathspecs",
+    "--glob-pathspecs",
+    "--noglob-pathspecs",
+    "--icase-pathspecs",
+    "--no-optional-locks",
+    "--version",
+    "--help",
+    "-h",
+}
+# Options that make a silent-pass subcommand run another program:
+# subcommand -> (long options, abbreviations included; short option letters).
+_DIFF_LIKE = ("diff", "log", "show", "format-patch", "range-diff", "diff-tree", "diff-index")
+_GIT_EXEC_OPTIONS: dict[str, tuple[set[str], str]] = {
+    "clone": ({"--upload-pack", "--config", "--template"}, "uc"),
+    "fetch": ({"--upload-pack"}, ""),
+    "ls-remote": ({"--upload-pack"}, ""),
+    "archive": ({"--exec", "--remote"}, ""),
+    "grep": ({"--open-files-in-pager"}, "O"),
+    **{name: ({"--ext-diff"}, "") for name in _DIFF_LIKE},
+}
+_GIT_CONFIG_READS = {"--get", "--get-all", "--get-regexp", "--list", "-l", "get", "list"}
+_GIT_CONFIG_WRITES = {
+    "--add",
+    "--unset",
+    "--unset-all",
+    "--replace-all",
+    "--rename-section",
+    "--remove-section",
+    "-e",
+    "--edit",
+    "set",
+    "unset",
+    "rename-section",
+    "remove-section",
+    "edit",
+}
 _GIT_ASK = {"push", "pull", "merge", "rebase"}
 _RESET_SAFE = {"--soft", "--mixed", "-q", "--quiet", "--", "-p", "--patch"}
 _GIT_BUILTINS = {
@@ -101,7 +147,6 @@ _GIT_BUILTINS = {
     "diff",
     "diff-index",
     "diff-tree",
-    "difftool",
     "fetch",
     "for-each-ref",
     "format-patch",
@@ -115,7 +160,6 @@ _GIT_BUILTINS = {
     "ls-files",
     "ls-remote",
     "ls-tree",
-    "maintenance",
     "merge-base",
     "mv",
     "name-rev",
@@ -273,6 +317,24 @@ def _command_word(words: list[str]) -> str | None:
     return None
 
 
+def _sets_environment(words: list[str], head: str | None) -> bool:
+    """An assignment before the command word, or a command that changes the environment."""
+    if head is not None and Path(head).name in {
+        "export",
+        "declare",
+        "typeset",
+        "readonly",
+        "local",
+    }:
+        return True
+    for word in words:
+        if head is not None and word == head:
+            return False
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*\+?=", word):
+            return True
+    return head is None and bool(words)
+
+
 def _policy(root: Path) -> tuple[list[str], list[str]]:
     try:
         import tomllib
@@ -320,13 +382,29 @@ def _allowed(name: str, allowed: list[str]) -> bool:
     return any(fnmatch.fnmatchcase(name, p) for p in allowed)
 
 
+def _runs_program(sub: str, rest: list[str]) -> str | None:
+    longs, letters = _GIT_EXEC_OPTIONS.get(sub, (set(), ""))
+    for word in rest:
+        if word == "--":
+            break
+        name = word.split("=", 1)[0]
+        if name.startswith("--") and len(name) > 2 and any(o.startswith(name) for o in longs):
+            return word  # git accepts unambiguous abbreviations of long options
+        if letters and re.match(r"-[^-]", word) and any(c in word[1:] for c in letters):
+            return word
+    return None
+
+
 def _git_reason(words: list[str]) -> str | None:
     i = 1
     while i < len(words) and words[i].startswith("-"):
-        key = words[i + 1].split("=", 1)[0].lower() if i + 1 < len(words) else ""
-        if words[i] == "-c" and key.startswith("alias."):
-            return "an inline git alias"
-        i += 2 if words[i] in _GIT_OPTIONS_WITH_VALUE else 1
+        option = words[i].split("=", 1)[0]
+        if option in _GIT_OPTIONS_WITH_VALUE:
+            i += 1 if "=" in words[i] else 2
+        elif words[i] in _GIT_GLOBAL_FLAGS:
+            i += 1
+        else:
+            return f"git global option {words[i]} (configuration, aliases or exec path)"
     if i >= len(words):
         return None
     sub, rest = words[i], words[i + 1 :]
@@ -338,7 +416,14 @@ def _git_reason(words: list[str]) -> str | None:
     if (sub == "submodule" and "foreach" in rest) or (sub == "bisect" and "run" in rest):
         return f"git {sub} {'foreach' if sub == 'submodule' else 'run'} runs arbitrary commands"
     if sub not in _GIT_BUILTINS and sub != "reset":
-        return f"git {sub} is not a built-in bash-guard knows (an alias?)"
+        return f"git {sub} is not on bash-guard's silent-pass list"
+    option = _runs_program(sub, rest)
+    if option:
+        return f"git {sub} {option} runs another program"
+    if sub == "config" and (
+        not any(w in _GIT_CONFIG_READS for w in rest) or any(w in _GIT_CONFIG_WRITES for w in rest)
+    ):
+        return "git config that may write configuration"
     return None
 
 
@@ -392,6 +477,8 @@ def _compose_reason(command: str, rest: list[str], allowed: list[str]) -> str | 
 def _docker_reason(segment: str, words: list[str], allowed: list[str], command: str) -> str | None:
     if re.search(r"(?<![\w-])DOCKER_[A-Z_]+=", segment):
         return "a docker environment override (daemon, context or config)"
+    if Path(words[0]).name == "podman":
+        return "podman: bash-guard's silent-pass list covers docker only"
     if Path(words[0]).name == "docker-compose":
         return _compose_reason(command, words[1:], allowed)
     if len(words) < 2:
@@ -514,6 +601,8 @@ def bash_guard(root: Path, command: str) -> tuple[int, str]:
                 reasons.append("a command bash-guard could not parse")
             continue
         head = _command_word(words)
+        if sensitive and _sets_environment(words, head):
+            reasons.append("an environment assignment or export next to git or docker")
         if head == UNCERTAIN and (
             expansion or _GIT_WORD.search(segment) or _CONTAINER_TOOL.search(segment)
         ):
