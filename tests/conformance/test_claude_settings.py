@@ -102,10 +102,17 @@ def test_hooks_call_the_entry_script() -> None:
         ("PreToolUse", "Bash"): "bash-guard",
         ("Stop", None): "close-check --hook",
     }
+    # A guarding hook maps any startup failure (an old python3, a missing script) to exit 2.
+    suffix = {
+        "check-scope --hook": " || exit 2",
+        "bash-guard": " || exit 2",
+        "close-check --hook": ' || { test "$E_AGENT_HARNESS_UNATTENDED" = 1 && exit 2; exit 0; }',
+    }
     for (event, matcher), args in expected.items():
         (hook,) = _commands(event, matcher)
         assert hook["type"] == "command"
-        assert hook["command"] == f"python3 {HOOK} {args}", (event, hook["command"])
+        expected_command = f"python3 {HOOK} {args}{suffix.get(args, '')}"
+        assert hook["command"] == expected_command, (event, hook["command"])
         assert 5 <= hook["timeout"] <= 180
 
 
@@ -134,3 +141,37 @@ def test_wrapper_timeout_is_below_every_host_timeout() -> None:
             for entry in group["hooks"]:
                 if "harness_hook.py" in entry["command"] and "bash-guard" not in entry["command"]:
                     assert entry["timeout"] > wrapper + 10, entry["command"]
+
+
+def _run_hook_command(command: str, tmp_path: Path, env: dict[str, str]) -> int:
+    import os
+    import subprocess
+
+    return subprocess.run(
+        ["sh", "-c", command],
+        input="{}",
+        capture_output=True,
+        text=True,
+        env={**os.environ, "CLAUDE_PROJECT_DIR": str(tmp_path), **env},
+        timeout=30,
+        check=False,
+    ).returncode
+
+
+def test_guarding_hooks_block_when_python_fails_to_start(tmp_path) -> None:
+    """R6-1: the installed Claude Code ignores onFailure, so the command line maps failures."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    broken = bin_dir / "python3"
+    broken.write_text("#!/bin/sh\necho 'ModuleNotFoundError: tomllib' >&2\nexit 1\n")
+    broken.chmod(0o755)
+    path = {"PATH": f"{bin_dir}:/usr/bin:/bin"}
+    scope = _commands("PreToolUse", "Edit|Write|NotebookEdit")[0]["command"]
+    guard = _commands("PreToolUse", "Bash")[0]["command"]
+    stop = _commands("Stop", None)[0]["command"]
+    status = _commands("SessionStart", "startup|resume|clear|compact")[0]["command"]
+    assert _run_hook_command(scope, tmp_path, path) == 2
+    assert _run_hook_command(guard, tmp_path, path) == 2
+    assert _run_hook_command(stop, tmp_path, {**path, "E_AGENT_HARNESS_UNATTENDED": "1"}) == 2
+    assert _run_hook_command(stop, tmp_path, {**path, "E_AGENT_HARNESS_UNATTENDED": ""}) == 0
+    assert _run_hook_command(status, tmp_path, path) == 1  # never blocks: not exit 2

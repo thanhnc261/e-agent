@@ -388,3 +388,90 @@ def test_r5_wrapper_times_out_before_the_host(repo, tmp_path) -> None:
         assert module.main(["check-scope", "--hook"]) == 2
     finally:
         sys.stdin = stdin
+
+
+def _guard_in(repo, command: str, cwd: Path, env: dict | None = None) -> str:
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": command},
+        "cwd": str(cwd),
+    }
+    return _decision_of(hook(["bash-guard"], payload, env=env))
+
+
+def test_r6_bash_guard_on_an_old_python_denies(repo) -> None:
+    import shutil
+
+    old = shutil.which("python3.9") or "/usr/bin/python3"
+    version = subprocess.run(
+        [old, "-c", "import sys; print(sys.version_info[:2] < (3, 11))"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if version.stdout.strip() != "True":
+        import pytest
+
+        pytest.skip("no Python older than 3.11 on this machine")
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": "git status"},
+        "cwd": str(repo.root),
+    }
+    result = subprocess.run(
+        [old, str(SCRIPT), "bash-guard"],
+        input=json.dumps(payload),
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert result.returncode == 2, result
+    assert "Python 3.11" in result.stderr
+
+
+def test_r6_compose_files_select_the_containers(repo) -> None:
+    restart = "docker compose -p odoo19-learning restart"
+    sandbox = repo.root / "sandbox"
+    sandbox.mkdir()
+    (sandbox / "compose.yaml").write_text(
+        "services:\n  db:\n    container_name: odoo19-learning-db-1\n"
+    )
+    assert _guard_in(repo, restart, sandbox) == "none"
+    assert _guard_in(repo, "docker compose -p odoo19-learning ps", sandbox) == "none"
+    (sandbox / ".env").write_text("COMPOSE_FILE=/tmp/other.yml\n")
+    assert _guard_in(repo, restart, sandbox) == "ask"
+    (sandbox / ".env").unlink()
+    (sandbox / "compose.override.yaml").write_text(
+        "services:\n  db:\n    container_name: production-db-1\n"
+    )
+    assert _guard_in(repo, restart, sandbox) == "ask"
+    (sandbox / "compose.override.yaml").write_text("include:\n  - other.yml\n")
+    assert _guard_in(repo, restart, sandbox) == "ask"
+    (sandbox / "compose.override.yaml").unlink()
+    assert _guard_in(repo, f"cd /tmp && {restart}", sandbox) == "ask"
+
+
+def test_r6_persisted_remote_docker_context_asks(repo, tmp_path) -> None:
+    import hashlib
+
+    home = tmp_path / "home"
+    meta = home / ".docker" / "contexts" / "meta"
+    for name, host in (("remote", "tcp://build-server:2376"), ("desktop-linux", "unix:///x.sock")):
+        folder = meta / hashlib.sha256(name.encode()).hexdigest()
+        folder.mkdir(parents=True)
+        (folder / "meta.json").write_text(
+            json.dumps({"Name": name, "Endpoints": {"docker": {"Host": host}}})
+        )
+    config = home / ".docker" / "config.json"
+    command = "docker exec odoo19-learning-odoo-1 odoo --version"
+    config.write_text(json.dumps({"currentContext": "remote"}))
+    assert _guard_in(repo, command, repo.root, {"HOME": str(home)}) == "ask"
+    config.write_text(json.dumps({"currentContext": "desktop-linux"}))
+    assert _guard_in(repo, command, repo.root, {"HOME": str(home)}) == "none"
+    config.write_text(json.dumps({"currentContext": "missing"}))
+    assert _guard_in(repo, command, repo.root, {"HOME": str(home)}) == "ask"
+    config.write_text("{}")
+    assert _guard_in(repo, command, repo.root, {"HOME": str(home)}) == "none"

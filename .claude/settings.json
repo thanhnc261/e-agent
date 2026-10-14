@@ -63,7 +63,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness_hook.py check-scope --hook",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness_hook.py check-scope --hook || exit 2",
             "timeout": 60,
             "onFailure": "block"
           }
@@ -74,7 +74,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness_hook.py bash-guard",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness_hook.py bash-guard || exit 2",
             "timeout": 30,
             "onFailure": "block"
           }
@@ -86,7 +86,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness_hook.py close-check --hook",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness_hook.py close-check --hook || { test \"$E_AGENT_HARNESS_UNATTENDED\" = 1 && exit 2; exit 0; }",
             "timeout": 180
           }
         ]
