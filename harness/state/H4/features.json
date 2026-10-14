@@ -143,6 +143,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.R7/2026-10-14T06-27-24.088583+00-00-full.json"
+    },
+    {
+      "id": "F-H4-R8",
+      "category": "review",
+      "description": "Fix the findings of Codex review round 8 on harness H4 (one deadline for compose target queries, podman compose)",
+      "steps": [
+        "regression tests for each finding pass",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
