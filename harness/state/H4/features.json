@@ -121,6 +121,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.R5/2026-10-14T05-08-59.965324+00-00-full.json"
+    },
+    {
+      "id": "F-H4-R6",
+      "category": "review",
+      "description": "Fix the findings of Codex review round 6 on harness H4 (hook startup failures, compose configuration loaded from files, persisted docker context)",
+      "steps": [
+        "regression tests for each finding pass",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
