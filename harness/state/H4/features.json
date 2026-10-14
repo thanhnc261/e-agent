@@ -165,6 +165,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.R9/2026-10-14T10-19-11.421392+00-00-full.json"
+    },
+    {
+      "id": "F-H4-R10",
+      "category": "review",
+      "description": "Fix the findings of Codex review round 9 on harness H4 by narrowing the silent-pass list (git options that run commands, podman, environment assignments)",
+      "steps": [
+        "regression tests for each finding pass",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
