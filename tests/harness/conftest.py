@@ -144,6 +144,6 @@ def repo(tmp_path: Path) -> Repo:
     r.write("src/pkg/mod.py", "X = 1\n")
     r.write("harness/context.toml", MANIFEST)
     r.write("harness/state/1/features.json", json.dumps(FEATURES, indent=2) + "\n")
-    r.write(".gitignore", "/evidence/\n")
+    r.write(".gitignore", "/evidence/\n/harness/state/local/\n")
     r.base = r.commit("base")
     return r

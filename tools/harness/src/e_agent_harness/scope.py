@@ -63,7 +63,13 @@ def check_tree(contract: dict[str, Any] | None, m: Manifest, repo_root: Path) ->
 
 
 def _is_new(repo_root: Path, base: str, relpath: str) -> bool:
-    """Not tracked at the task's base (or at HEAD without a task): created by this work."""
+    """Not tracked at the task's base (or at HEAD without a task): created by this work.
+
+    Only a confirmed absence counts: an unknown base (a shallow clone, a rewritten
+    history) never makes a protected path writable.
+    """
+    if not gitinfo.commit_exists(repo_root, base):
+        return False
     return not gitinfo.exists_at(repo_root, base, normalize_relpath(relpath))
 
 

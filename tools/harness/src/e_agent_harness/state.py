@@ -61,6 +61,11 @@ class Paths:
         return self._contained(self.state / "active.json")
 
     @property
+    def closed_marker(self) -> Path:
+        """Local, git-ignored record that the active task passed close-check."""
+        return self._contained(self.state / "local" / "closed.json")
+
+    @property
     def progress(self) -> Path:
         return self._contained(self.state / "progress.md")
 

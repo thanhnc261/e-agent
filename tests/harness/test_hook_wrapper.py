@@ -131,3 +131,58 @@ def test_stop_hook_spawns_nothing_when_attended(repo, tmp_path) -> None:
     )
     assert result.returncode == 0
     assert not marker.exists(), "an attended Stop must not start the harness"
+
+
+def _bash(repo, command: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": command},
+        "cwd": str(cwd or repo.root),
+    }
+    return hook(["bash-guard"], payload)
+
+
+def test_bash_guard_denies_docker_on_a_denied_container(repo) -> None:
+    for command in (
+        "/usr/local/bin/docker stop odoo-bench-db-1",
+        "docker compose --project-name=odoo-bench down",
+        "docker compose -p odoo-bench down",
+        "sudo docker exec -it odoo-bench-odoo-1 bash",
+        "ls && docker kill odoo-bench-db-1",
+        "DOCKER_HOST=unix:///x docker rm odoo-bench-db-1",
+        "echo $(docker restart odoo-bench-odoo-1)",
+    ):
+        result = _bash(repo, command)
+        assert result.returncode == 2, command
+        assert "odoo-bench" in result.stderr
+
+
+def test_bash_guard_lets_other_commands_through(repo) -> None:
+    for command in (
+        "docker exec odoo19-learning-odoo-1 odoo --version",
+        "grep -rn odoo-bench docs",
+        "git status",
+        "git reset --soft HEAD~1",
+        "git log --grep push",
+    ):
+        result = _bash(repo, command)
+        assert result.returncode == 0, command
+        assert result.stdout == "", command
+
+
+def test_bash_guard_asks_before_integration_commands(repo) -> None:
+    for command in (
+        "git push",
+        "git -C . push origin main",
+        "git -c core.pager=cat push",
+        "git --no-pager merge feature",
+        "cd sub && git rebase main",
+        "git reset HEAD~1 --hard",
+        "git --git-dir=.git reset --hard",
+    ):
+        result = _bash(repo, command)
+        assert result.returncode == 0, command
+        decision = json.loads(result.stdout)["hookSpecificOutput"]
+        assert decision["hookEventName"] == "PreToolUse"
+        assert decision["permissionDecision"] == "ask", command

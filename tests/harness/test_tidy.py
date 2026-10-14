@@ -54,3 +54,52 @@ def test_tidy_ignores_deleted_and_non_python_files(repo) -> None:
     result = repo.invoke("tidy")
     assert result.code == 0, result
     assert "nothing to tidy" in result.out or "0 Python files" in result.out
+
+
+def _fake_runs(monkeypatch, fail_on: str | None = None) -> list[list[str]]:
+    import subprocess
+
+    from e_agent_harness import tidy
+
+    calls: list[list[str]] = []
+
+    def run(args, root):
+        calls.append(list(args))
+        failed = fail_on is not None and fail_on in args
+        return subprocess.CompletedProcess(args, 2 if failed else 0, "", "boom" if failed else "")
+
+    monkeypatch.setattr(tidy, "_run", run)
+    return calls
+
+
+def test_tidy_formats_only_changed_ui_files_inside_the_prettier_scope(repo, monkeypatch) -> None:
+    _ruff_config(repo)
+    repo.write("ui/package.json", "{}")
+    repo.write("ui/.prettierscope", "# migrated\npackages/a\n")
+    repo.commit("ui")
+    repo.write("ui/packages/a/x.ts", "const x=1\n")
+    repo.write("ui/packages/b/y.ts", "const y=1\n")
+    calls = _fake_runs(monkeypatch)
+    assert repo.invoke("tidy").code == 0
+    (pnpm,) = [c for c in calls if c[0] == "pnpm"]
+    assert pnpm == ["pnpm", "--dir", "ui", "format", "packages/a/x.ts"]
+
+
+def test_tidy_skips_ui_files_outside_the_prettier_scope(repo, monkeypatch) -> None:
+    _ruff_config(repo)
+    repo.write("ui/package.json", "{}")
+    repo.write("ui/.prettierscope", "packages/a\n")
+    repo.commit("ui")
+    repo.write("ui/packages/b/y.ts", "const y=1\n")
+    calls = _fake_runs(monkeypatch)
+    assert repo.invoke("tidy").code == 0
+    assert not [c for c in calls if c[0] == "pnpm"]
+
+
+def test_tidy_reports_a_failed_formatter(repo, monkeypatch) -> None:
+    _ruff_config(repo)
+    repo.write("src/pkg/new.py", "x = 1\n")
+    _fake_runs(monkeypatch, fail_on="format")
+    result = repo.invoke("tidy")
+    assert result.code == 1
+    assert "ruff format failed" in result.out and "boom" in result.out

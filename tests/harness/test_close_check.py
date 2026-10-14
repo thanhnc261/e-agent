@@ -131,7 +131,9 @@ def test_close_check_hook_is_inert_unless_unattended(repo, monkeypatch) -> None:
     assert result.code == 2
     assert "working tree is not clean" in result.err
     looping = json.dumps({"session_id": "s1", "stop_hook_active": True, "cwd": str(repo.root)})
-    assert repo.invoke("close-check", "--hook", stdin=looping).code == 0
+    # A continued stop is checked again: only a closed task may stop (Claude Code caps the
+    # number of consecutive blocks itself).
+    assert repo.invoke("close-check", "--hook", stdin=looping).code == 2
 
 
 def test_close_check_rejects_failed_gate_evidence(repo) -> None:
@@ -395,13 +397,28 @@ def test_enabled_stop_hook_blocks_on_invalid_state(repo, monkeypatch) -> None:
     assert result.code == 2
 
 
-def test_disabled_and_recursive_stop_hook_never_block(repo, monkeypatch) -> None:
+def test_disabled_stop_hook_never_blocks(repo, monkeypatch) -> None:
     monkeypatch.delenv("E_AGENT_HARNESS_UNATTENDED", raising=False)
     assert repo.invoke_raw("close-check", "--hook", stdin="{not json").code == 0
-    monkeypatch.setenv("E_AGENT_HARNESS_UNATTENDED", "1")
     looping = json.dumps({"stop_hook_active": True, "cwd": str(repo.root)})
-    (repo.root / "harness/state/active.json").write_text("{not json")
     assert repo.invoke_raw("close-check", "--hook", stdin=looping).code == 0
+
+
+def test_closed_task_stays_closed_for_the_scope_hook(repo) -> None:
+    _closed(repo)
+
+    def write(path: str) -> int:
+        payload = json.dumps(
+            {"tool_name": "Write", "tool_input": {"file_path": path}, "cwd": str(repo.root)}
+        )
+        return repo.invoke("check-scope", "--hook", stdin=payload).code
+
+    assert write("docs/a.md") == 0
+    repo.write("docs/a.md", "unrelated work\n")  # the tree is dirty now
+    assert write("docs/b.md") == 0
+    assert write("archive/old.md") == 2
+    assert repo.invoke("refresh-task").code == 0  # reopening the task brings its scope back
+    assert write("docs/c.md") == 2
 
 
 def test_lowercase_z_timestamps_parse_everywhere() -> None:

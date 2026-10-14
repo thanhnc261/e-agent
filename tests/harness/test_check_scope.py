@@ -196,3 +196,43 @@ def test_tree_check_allows_new_and_refuses_changed_create_only_files(repo) -> No
     result = repo.invoke("check-scope")
     assert result.code == 1
     assert "research/01-old-study.md: protected path" in result.out
+
+
+def test_renaming_an_existing_report_is_refused(repo) -> None:
+    from tests.harness.conftest import git
+
+    _create_only_research(repo)
+    git(repo.root, "mv", "research/01-old-study.md", "research/03-renamed.md")
+    result = repo.invoke("check-scope")
+    assert result.code == 1
+    assert "research/01-old-study.md: protected path" in result.out
+
+
+def test_committed_rename_since_the_base_is_refused(repo) -> None:
+    from tests.harness.conftest import git
+
+    _create_only_research(repo)
+    assert (
+        repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "research/**").code == 0
+    )
+    repo.commit("contract")
+    git(repo.root, "mv", "research/01-old-study.md", "research/03-renamed.md")
+    repo.commit("rename")
+    result = repo.invoke("check-scope")
+    assert result.code == 1
+    assert "research/01-old-study.md: protected path" in result.out
+
+
+def test_unknown_base_commit_never_counts_as_new(repo) -> None:
+    _create_only_research(repo)
+    assert (
+        repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "research/**").code == 0
+    )
+    contract_path = repo.root / "harness/state/1/tasks/1c.1.json"
+    contract = json.loads(contract_path.read_text())
+    contract["base_commit"] = "0123456789abcdef0123456789abcdef01234567"  # not in this clone
+    contract_path.write_text(json.dumps(contract) + "\n")
+    old = repo.invoke(
+        "check-scope", "--hook", stdin=_payload(repo, "Write", "research/01-old-study.md")
+    )
+    assert old.code == 2

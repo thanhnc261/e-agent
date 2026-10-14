@@ -127,7 +127,7 @@ def cmd_new_task(args: argparse.Namespace) -> int:
     current = (active or {}).get("task")
     # A task whose close-check passes is closed and may be followed without --replace.
     switching = bool(current) and current != args.task_id and not args.replace
-    if switching and closecheck.problems(paths, m, root):
+    if switching and not _closed_by_marker(paths) and closecheck.problems(paths, m, root):
         print(f"task {current} is active; finish it with close-check or pass --replace")
         return 1
     try:
@@ -146,9 +146,34 @@ def cmd_new_task(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(str(exc))
         return 1
+    _clear_closed(paths)
     written = paths.task(args.phase, args.task_id).relative_to(root)
     print(f"task {contract['id']} materialised at {written}")
     return 0
+
+
+def _mark_closed(paths: state.Paths) -> None:
+    active = state.load_active(paths) or {}
+    state.write_json(
+        paths.closed_marker, {"phase": active.get("phase"), "task": active.get("task")}
+    )
+
+
+def _closed_by_marker(paths: state.Paths) -> bool:
+    active = state.load_active(paths)
+    if not active or not paths.closed_marker.is_file():
+        return False
+    marker = state.read_json(paths.closed_marker)
+    return bool(
+        isinstance(marker, dict)
+        and marker.get("task") == active.get("task")
+        and marker.get("phase") == active.get("phase")
+    )
+
+
+def _clear_closed(paths: state.Paths) -> None:
+    if paths.closed_marker.is_file():
+        paths.closed_marker.unlink()
 
 
 def _resolve_for_hook(repo_root: Path) -> tuple[mf.Manifest, dict[str, Any] | None]:
@@ -160,7 +185,8 @@ def _resolve_for_hook(repo_root: Path) -> tuple[mf.Manifest, dict[str, Any] | No
     paths = state.Paths(repo_root)
     m = mf.load_manifest(paths.manifest)
     loaded = state.load_task(paths)
-    if loaded is None or not closecheck.problems(paths, m, repo_root):
+    # Closed once is closed for the scope hook, even after unrelated edits dirty the tree.
+    if loaded is None or _closed_by_marker(paths) or not closecheck.problems(paths, m, repo_root):
         return m, None
     return m, loaded[0]
 
@@ -300,8 +326,6 @@ def cmd_close_check(args: argparse.Namespace) -> int:
             return 0  # attended sessions are never trapped
         try:
             payload = json.load(args.stdin)
-            if payload.get("stop_hook_active"):
-                return 0  # the stop was already blocked once: let the session end
             if not args.repo and payload.get("cwd"):
                 args.repo = state.find_repo_root(Path(payload["cwd"]))
             root, paths, m = _context(args)
@@ -313,6 +337,7 @@ def cmd_close_check(args: argparse.Namespace) -> int:
         if found:
             print("close-check: " + "; ".join(found), file=sys.stderr)
             return 2
+        _mark_closed(paths)
         return 0
     root, paths, m = _context(args)
     found = closecheck.problems(paths, m, root, session=args.session)
@@ -320,6 +345,7 @@ def cmd_close_check(args: argparse.Namespace) -> int:
         print(problem)
     if found:
         return 1
+    _mark_closed(paths)
     print("ok: task may close")
     return 0
 
@@ -394,6 +420,7 @@ def cmd_refresh_task(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(str(exc))
         return 1
+    _clear_closed(paths)  # refreshing reopens the task: its scope applies again
     print(f"task {contract['id']} refreshed (base {str(contract['base_commit'])[:7]} kept)")
     return 0
 

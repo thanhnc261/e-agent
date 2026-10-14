@@ -13,7 +13,7 @@ One task per context window, every step checkable by the harness. The commands a
 - One task per context window inside its contract's allowed paths (ENG-WORK-1). The next task starts in a cleared context.
 - Nothing new starts on a failing smoke check. A failing smoke check is the first task.
 - Evidence is recorded on a clean tree after the commit; `close-check` must accept it before a task closes (ENG-EVID-1).
-- Only the sandbox and e-agent's own containers are touched; `archive/` and `research/` are read-only (ENG-BOUND-1, ENG-BOUND-2).
+- Only the sandbox and e-agent's own containers are touched; `archive/` is read-only and existing `research/` reports stay as written, while new studies may be added under `research/` (ENG-BOUND-1, ENG-BOUND-2).
 - Never flip a feature to passing without the evidence path from a successful gate.
 
 ## What runs on its own
