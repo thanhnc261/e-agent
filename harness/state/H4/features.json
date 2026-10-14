@@ -220,6 +220,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.R14/2026-10-14T11-13-00.143936+00-00-full.json"
+    },
+    {
+      "id": "F-H4-R15",
+      "category": "review",
+      "description": "Keep Claude Code's own configuration outside the repository under denied_paths; bring the H4 handoff up to date after round 15",
+      "steps": [
+        "conformance test for the denied globs passes",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
