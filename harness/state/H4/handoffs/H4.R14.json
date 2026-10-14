@@ -1,0 +1,19 @@
+{
+  "task": "H4.R14",
+  "changed": "Review round 14 (Claude reviewer with a workability pass) fixed: redirections dropped with their targets in bash-guard (IN-PASS-SET &> bypass closed; 2>&1 and > file pass), docker exec -w passes, check-scope decided by the checkout holding the file, writes outside every checkout follow only denied_paths (scratchpad and memory writes no longer refused), tidy skips hardlinked files; eng-session guidance for commit messages and pagers.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R14/2026-10-14T11-13-00.143936+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "Writes outside every harness checkout are allowed unless they match denied_paths",
+      "cost_if_wrong": "an edit to an unrelated directory is not limited by the task scope; denied paths and the permission rules still apply"
+    },
+    {
+      "ruling": "A redirection target is dropped from the analysed command",
+      "cost_if_wrong": "a redirect target is never treated as an argument; an expansion inside it still asks"
+    }
+  ],
+  "outside_repo": []
+}
