@@ -25,7 +25,6 @@ import re
 import shlex
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 MANIFEST = Path("harness") / "context.toml"
@@ -56,17 +55,20 @@ def _runner(root: Path) -> list[str]:
 
 # --- bash-guard: command shapes that permission rules cannot see -----------------------
 #
-# A command passes silently only when bash-guard has fully parsed it into a known, allowed
-# form. Strictest first:
-#   deny: a denied container is named next to a container tool, after quotes and backslashes
-#         are removed, whatever the executable path or dynamic form;
-#   ask:  anything bash-guard cannot parse completely: shell -c (any option form), eval,
-#         source, xargs, -exec, variables, substitutions or ANSI-C quoting next to git or a
-#         container tool; git subcommands that are not built in (aliases), inline aliases,
-#         git push, pull, merge, rebase and reset --hard; docker global options (daemon,
-#         context, config), unknown docker subcommands or options, and any target that is
-#         not an allowed container or compose project;
-#   none: everything else, left to the permission rules.
+# Contract (H4.R9): a finite set of git and docker commands passes silently; every other
+# command that runs git or a container tool asks the owner, and a denied container named
+# next to a container tool is denied. Silent pass, when the whole command parses:
+#   git:    a built-in subcommand other than push, pull, merge, rebase, reset with an option
+#           outside --soft/--mixed/--quiet/--patch, submodule foreach and bisect run; no
+#           alias, no inline alias;
+#   docker: ps, ls, images, version, info; exec, logs, inspect, top, port, stop, start,
+#           restart, kill, rm, pause, unpause, wait on allowed container names, with known
+#           options only, and exec running neither git, a container tool nor shell -c;
+#           compose -p <allowed project> ps, logs, top, images, ls, version, config;
+#   only with no endpoint, context, config or HOME override in the command or inherited,
+#   not under sudo or another user, and with a persisted docker context on a local socket.
+# Not inspected: scripts and programs the command runs (./deploy.sh, python -c), files and
+# configuration they read, and deliberate obfuscation. The sandbox is the boundary there.
 
 _CONTAINER_TOOL = re.compile(r"(?<![\w-])(?:docker|docker-compose|podman)(?![\w-])")
 _GIT_WORD = re.compile(r"(?<![\w-])git(?![\w-])")
@@ -381,7 +383,9 @@ def _compose_reason(command: str, rest: list[str], allowed: list[str]) -> str | 
     if sub not in _COMPOSE_SUBCOMMANDS:
         return f"docker compose {sub or '(no subcommand)'} can create or remove containers"
     if sub in _COMPOSE_CHANGES:
-        return _compose_targets_reason(project, allowed)
+        # Compose acts on the project's existing containers, whatever files it loads; their
+        # names are not in the command, so the owner confirms (H4.R9).
+        return f"docker compose {sub} changes the project's containers: the owner confirms"
     return None
 
 
@@ -469,61 +473,9 @@ def _docker_context_reason() -> str | None:
     return f"docker context {current} points at {host}, not a local daemon"
 
 
-# One budget for every daemon query in a command, well inside the Bash hook's 30 s host
-# timeout; each project is queried once. Module state is fine: one hook process judges
-# one command, and bash_guard resets it first.
-QUERY_BUDGET = 12.0
-_queries: dict[str, str | None] = {}
-_deadline = [0.0]
-
-
-def _compose_targets_reason(project: str, allowed: list[str]) -> str | None:
-    if project not in _queries:
-        remaining = _deadline[0] - time.monotonic()
-        if remaining < 1:
-            return "no time left to list the containers of compose projects"
-        _queries[project] = _query_targets(project, allowed, min(5.0, remaining))
-    return _queries[project]
-
-
-def _query_targets(project: str, allowed: list[str], timeout: float) -> str | None:
-    """The containers a compose stop, start, restart, pause or unpause acts on.
-
-    Compose selects them by the project label on existing containers, whatever files it
-    loads, so the daemon's own list is the target set. A read-only query; if it fails,
-    the targets are unknown and the owner decides.
-    """
-    try:
-        proc = subprocess.run(
-            [
-                "docker",
-                "ps",
-                "--all",
-                "--filter",
-                f"label=com.docker.compose.project={project}",
-                "--format",
-                "{{.Names}}",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return f"the containers of compose project {project} could not be listed"
-    if proc.returncode != 0:
-        return f"the containers of compose project {project} could not be listed"
-    for name in proc.stdout.split():
-        if not _allowed(name, allowed):
-            return f"compose project {project} contains {name}, outside the allowed list"
-    return None
-
-
 def bash_guard(root: Path, command: str) -> tuple[int, str]:
     """(exit code, stdout). Exit 2 denies; stdout may carry an "ask" decision."""
     denied, allowed = _policy(root)
-    _queries.clear()
-    _deadline[0] = time.monotonic() + QUERY_BUDGET
     joined = command.replace("\\\n", "")  # the shell removes a backslash-newline
     flat = re.sub(r"[\"'\\]", "", joined)
     tool = bool(_CONTAINER_TOOL.search(flat))
@@ -553,8 +505,6 @@ def bash_guard(root: Path, command: str) -> tuple[int, str]:
         if context:
             reasons.append(context)
     for segment in segments:
-        if reasons:
-            _deadline[0] = 0.0  # the owner is asked anyway: no further daemon queries
         try:
             words = shlex.split(segment)
         except ValueError:

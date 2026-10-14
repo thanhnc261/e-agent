@@ -346,7 +346,7 @@ def test_r4_literal_punctuation_passes(repo, tmp_path) -> None:
         "git commit -m 'costs $5 (approx)'",
         "git reset --soft HEAD~1",
         "docker compose -p odoo19-learning logs --tail 20 odoo",
-        "docker compose -p odoo19-learning restart odoo",
+        "docker compose -p odoo19-learning ps odoo",
         "docker exec odoo19-learning-odoo-1 odoo --version",
     ):
         assert _decision_of(_bash(repo, command, env=sandbox)) == "none", command
@@ -359,8 +359,8 @@ def test_r5_ordinary_variants_ask(repo) -> None:
         "env -S 'git push origin HEAD'",
         "git submodule --quiet foreach 'git push origin HEAD'",
         "git bisect start && git bisect --no-checkout run ./probe.sh",
-        "COMPOSE_FILE=/tmp/other.yml docker compose -p odoo19-learning restart",
-        "export COMPOSE_FILE=/tmp/other.yml; docker compose -p odoo19-learning restart",
+        "COMPOSE_FILE=/tmp/other.yml docker compose -p odoo19-learning ps",
+        "export COMPOSE_FILE=/tmp/other.yml; docker compose -p odoo19-learning ps",
         "timeout 5 eval git push",
     ):
         assert _decision_of(_bash(repo, command)) == "ask", command
@@ -370,7 +370,7 @@ def test_r5_inherited_compose_file_asks(repo) -> None:
     payload = {
         "hook_event_name": "PreToolUse",
         "tool_name": "Bash",
-        "tool_input": {"command": "docker compose -p odoo19-learning restart"},
+        "tool_input": {"command": "docker compose -p odoo19-learning ps"},
         "cwd": str(repo.root),
     }
     result = hook(["bash-guard"], payload, env={"COMPOSE_FILE": "/tmp/other.yml"})
@@ -449,25 +449,16 @@ def test_r6_bash_guard_on_an_old_python_denies(repo) -> None:
     assert "Python 3.11" in result.stderr
 
 
-def test_r7_compose_targets_come_from_the_daemon(repo, tmp_path) -> None:
-    restart = "docker compose -p odoo19-learning restart"
-    # Compose files do not matter: stop/restart act on the project's existing containers.
-    folder = repo.root / "sandbox"
-    folder.mkdir()
-    (folder / "compose.yaml").write_text(
-        'services: {db: {image: postgres:16, "container_name": production-db-1}}\n'
-    )
-    ok = _fake_docker(tmp_path / "ok", SANDBOX_NAMES)
-    assert _decision_of(_bash(repo, restart, cwd=folder, env=ok)) == "none"
-    calls = (tmp_path / "ok" / "calls").read_text()
-    assert "label=com.docker.compose.project=odoo19-learning" in calls
-    extra = _fake_docker(tmp_path / "extra", SANDBOX_NAMES + "production-db-1\n")
-    assert _decision_of(_bash(repo, restart, env=extra)) == "ask"
-    assert _decision_of(_bash(repo, "docker compose -p odoo19-learning stop", env=extra)) == "ask"
-    broken = _fake_docker(tmp_path / "broken", "", code=1)
-    assert _decision_of(_bash(repo, restart, env=broken)) == "ask"
-    # Read-only compose commands do not query the daemon.
-    assert _decision_of(_bash(repo, "docker compose -p odoo19-learning ps", env=broken)) == "none"
+def test_r9_compose_lifecycle_asks_without_querying(repo, tmp_path) -> None:
+    """Compose acts on the project's existing containers, not on names in the command."""
+    env = _fake_docker(tmp_path / "bin", SANDBOX_NAMES)
+    for sub in ("stop", "start", "restart odoo", "pause", "unpause"):
+        command = f"docker compose -p odoo19-learning {sub}"
+        assert _decision_of(_bash(repo, command, env=env)) == "ask", command
+    for sub in ("ps", "logs --tail 20 odoo", "top", "images", "ls", "version", "config"):
+        command = f"docker compose -p odoo19-learning {sub}"
+        assert _decision_of(_bash(repo, command, env=env)) == "none", command
+    assert not (tmp_path / "bin" / "calls").exists()  # the hook never calls the daemon
 
 
 def test_r7_docker_under_another_home_or_user_asks(repo, tmp_path) -> None:
@@ -476,7 +467,7 @@ def test_r7_docker_under_another_home_or_user_asks(repo, tmp_path) -> None:
         "HOME=/Users/other docker exec odoo19-learning-odoo-1 odoo --version",
         "export HOME=/Users/other; docker exec odoo19-learning-odoo-1 true",
         "sudo -H docker exec odoo19-learning-odoo-1 true",
-        "sudo -u other docker compose -p odoo19-learning restart",
+        "sudo -u other docker compose -p odoo19-learning ps",
     ):
         assert _decision_of(_bash(repo, command, env=sandbox)) == "ask", command
 
@@ -504,37 +495,8 @@ def test_r6_persisted_remote_docker_context_asks(repo, tmp_path) -> None:
     assert _guard_in(repo, command, repo.root, {"HOME": str(home)}) == "none"
 
 
-def test_r8_compose_queries_share_one_deadline(repo, tmp_path) -> None:
-    import time
-
-    folder = tmp_path / "slow"
-    folder.mkdir()
-    slow = folder / "docker"
-    slow.write_text(f'#!/bin/sh\necho "$@" >> "{folder}/calls"\nsleep 20\n')
-    slow.chmod(0o755)
-    env = {"PATH": f"{folder}:{os.environ['PATH']}"}
-    command = (
-        "docker compose -p odoo19-learning stop odoo && "
-        "docker compose -p e-agent-test-a restart && "
-        "docker compose -p e-agent-test-b start"
-    )
-    started = time.monotonic()
-    assert _decision_of(_bash(repo, command, env=env)) == "ask"
-    assert time.monotonic() - started < 15  # inside the Bash hook's 30 s host timeout
-    assert len((folder / "calls").read_text().splitlines()) == 1
-
-
-def test_r8_each_project_is_queried_once(repo, tmp_path) -> None:
-    env = _fake_docker(tmp_path / "bin", SANDBOX_NAMES)
-    command = (
-        "docker compose -p odoo19-learning stop odoo && docker compose -p odoo19-learning start"
-    )
-    assert _decision_of(_bash(repo, command, env=env)) == "none"
-    assert len((tmp_path / "bin" / "calls").read_text().splitlines()) == 1
-
-
 def test_r8_podman_compose_asks(repo, tmp_path) -> None:
     env = _fake_docker(tmp_path / "bin", SANDBOX_NAMES)
-    command = "podman compose -p odoo19-learning restart"
+    command = "podman compose -p odoo19-learning ps"
     assert _decision_of(_bash(repo, command, env=env)) == "ask"
     assert not (tmp_path / "bin" / "calls").exists()
