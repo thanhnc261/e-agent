@@ -219,3 +219,8 @@
 - changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.R12.json, harness/state/evidence/gates/H4.R12/2026-10-14T10-43-03.057440+00-00-full.json
 - next: Codex review round 12 under the silent-pass contract
 - open: none
+
+## 2026-10-14T10:52:46.386941+00:00 · 7ae53108-c378-473b-8d82-0a980741f45f · H4.R13
+- changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.R13.json, harness/state/evidence/gates/H4.R13/2026-10-14T10-51-55.385403+00-00-full.json
+- next: Codex review round 14 (confirmation)
+- open: none

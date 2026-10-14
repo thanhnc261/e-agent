@@ -1,0 +1,15 @@
+{
+  "task": "H4.R13",
+  "changed": "Codex review round 13 on H4 (harness correctness): tidy skips changed paths reached through a symlink and reports them. Regression test with links to an external file, an unchanged tracked file and an external directory; it fails on the previous tidy.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R13/2026-10-14T10-51-55.385403+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "Symlinked changed paths are skipped, not resolved and formatted",
+      "cost_if_wrong": "a symlinked Python file in a change is not formatted by tidy; the gate still checks it"
+    }
+  ],
+  "outside_repo": []
+}
