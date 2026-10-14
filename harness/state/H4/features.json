@@ -231,6 +231,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.R15/2026-10-14T11-19-20.177552+00-00-full.json"
+    },
+    {
+      "id": "F-H4-16",
+      "category": "docs",
+      "description": "Record H4 as done in the roadmap, the harness plan and the H4 plan before the merge to main",
+      "steps": [
+        "validate-context prints ok",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
