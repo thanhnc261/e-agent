@@ -1,0 +1,79 @@
+{
+  "gate_set": "full",
+  "task": "H4.R10",
+  "commit": "4e286032fab29ba8bc2faf058fea3bb7692ca54b",
+  "clean_tree": true,
+  "started_at": "2026-10-14T10:30:07.379785+00:00",
+  "ok": true,
+  "commands": [
+    {
+      "command": "uv sync --locked",
+      "exit_code": 0,
+      "seconds": 0.026,
+      "output_tail": "Resolved 84 packages in 4ms\nChecked 80 packages in 1ms",
+      "counts": {}
+    },
+    {
+      "command": "uv run ruff check .",
+      "exit_code": 0,
+      "seconds": 0.049,
+      "output_tail": "All checks passed!",
+      "counts": {}
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "exit_code": 0,
+      "seconds": 0.044,
+      "output_tail": "245 files already formatted",
+      "counts": {}
+    },
+    {
+      "command": "uv run mypy",
+      "exit_code": 0,
+      "seconds": 0.635,
+      "output_tail": "Success: no issues found in 118 source files",
+      "counts": {}
+    },
+    {
+      "command": "uv run lint-imports",
+      "exit_code": 0,
+      "seconds": 0.13,
+      "output_tail": "\n╔══╗─────────▶╔╗ ╔╗      ╔╗◀───┐\n╚╣╠╝◀─────┐  ╔╝╚╗║║────▶╔╝╚╗   │\n ║║   ╔══╦══╦╩╗╔╝║║  ╔╦═╩╗╔╝╔═╦══╗\n ║║╔══╣╔╗║╔╗║╔╣║ ║║ ╔╬╣╔╗║║ ║│║╔═╝\n╔╣╠╣║║║╚╝║╚╝║║║╚╗║╚═╝║║║║║╚╗║═╣║\n╚══╩╩╩╣╔═╩══╩╝╚═╝╚═══╩╩╝╚╩═╩╩═╩╝\n  └──▶║║                    ▲ \n      ╚╝────────────────────┘\n\n\n---------\nContracts\n---------\n\nAnalyzed 128 files, 710 dependencies.\n-------------------------------------\n\nLayered dependency direction (HLD §4) KEPT\nKernel never imports domains or server KEPT\nOnly the facade module imports e_agent.kernel.coordinator KEPT\nDomain packs never import the kernel or server KEPT\nAdapters never import kernel, domains, server or sibling adapters KEPT\nProvider adapters use only public domain APIs, never kernel, server or fixtures KEPT\nDomain bounded contexts are independent (ADR 0002) KEPT\nProduct code never imports the development harness KEPT\nCore packages do not import agent frameworks or provider SDKs KEPT\n\nContracts: 9 kept, 0 broken.",
+      "counts": {}
+    },
+    {
+      "command": "uv run python scripts/export_openapi.py --check",
+      "exit_code": 0,
+      "seconds": 0.607,
+      "output_tail": "",
+      "counts": {}
+    },
+    {
+      "command": "uv run pytest -q",
+      "exit_code": 0,
+      "seconds": 42.799,
+      "output_tail": "........................................................................ [  8%]\n........................................................................ [ 17%]\n........................................................................ [ 26%]\n........................................................................ [ 34%]\n........................................................................ [ 43%]\n.............................ssssssssssssssssssssssssssss............... [ 52%]\n.................ss..................................................... [ 61%]\n........................................................................ [ 69%]\n........................................................................ [ 78%]\n........................................................................ [ 87%]\n........................................................................ [ 96%]\n................................                                         [100%]\n794 passed, 30 skipped in 42.40s",
+      "counts": {
+        "passed": 794,
+        "skipped": 30
+      }
+    },
+    {
+      "command": "pnpm --dir ui gen:check",
+      "exit_code": 0,
+      "seconds": 1.01,
+      "output_tail": "\n> e-agent-ui@ gen:check /Users/thanhnguyen/dev/projects/personal/e-agent/.claude/worktrees/harness-h3/ui\n> pnpm gen && git diff --exit-code -- packages/client/src/schema.ts packages/tokens/src/generated\n\n\n> e-agent-ui@ gen /Users/thanhnguyen/dev/projects/personal/e-agent/.claude/worktrees/harness-h3/ui\n> openapi-typescript packages/client/openapi.json -o packages/client/src/schema.ts && node packages/tokens/build.mjs\n\n✨ openapi-typescript 7.13.0\n🚀 packages/client/openapi.json → packages/client/src/schema.ts [36.1ms]",
+      "counts": {}
+    },
+    {
+      "command": "pnpm --dir ui check",
+      "exit_code": 0,
+      "seconds": 5.756,
+      "output_tail": "\n✔ no dependency violations found (146 modules, 380 dependencies cruised)\n\n\n> e-agent-ui@ lint:neutral /Users/thanhnguyen/dev/projects/personal/e-agent/.claude/worktrees/harness-h3/ui\n> node scripts/check-provider-neutrality.mjs\n\nok  no provider identifiers in ui/\n\n> e-agent-ui@ build /Users/thanhnguyen/dev/projects/personal/e-agent/.claude/worktrees/harness-h3/ui\n> vite build --config apps/web/vite.config.ts && vite build --config packages/overlay-element/vite.config.ts && vite build --config apps/reference-vanilla/vite.config.ts\n\nvite v8.3.3 building client environment for production...\ntransforming...\n✓ 1406 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/web/index.html                   0.39 kB │ gzip:   0.26 kB\ndist/web/assets/index-DTZhuRev.css   38.75 kB │ gzip:   6.73 kB\ndist/web/assets/index-Cb0sprMQ.js   376.38 kB │ gzip: 114.94 kB\n\n✓ built in 117ms\nvite v8.3.3 building client environment for production...\ntransforming...\n✓ 1397 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/web/overlay/e-agent-overlay.js  528.76 kB │ gzip: 133.40 kB\n\n✓ built in 86ms\nvite v8.3.3 building client environment for production...\ntransforming...\n✓ 19 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/web/reference/index.html                  0.42 kB │ gzip:  0.27 kB\ndist/web/reference/assets/index-FX_QZI3v.css   8.25 kB │ gzip:  1.63 kB\ndist/web/reference/assets/index-DGaoQ4Xd.js   56.03 kB │ gzip: 17.82 kB\n\n✓ built in 24ms",
+      "counts": {
+        "passed": 166
+      }
+    }
+  ],
+  "finished_at": "2026-10-14T10:30:58.460022+00:00"
+}

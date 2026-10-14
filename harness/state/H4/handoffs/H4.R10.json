@@ -1,0 +1,15 @@
+{
+  "task": "H4.R10",
+  "changed": "Codex review round 9 on H4 (two IN-PASS-SET findings) fixed by narrowing the silent-pass list: git global options from a short list, options that run programs ask, config read-only, difftool and maintenance removed; podman always asks; environment assignments or exports next to git or docker ask. Regression tests for the reported commands and for ordinary commands that still pass.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R10/2026-10-14T10-30-07.379785+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "Narrow the silent-pass list instead of adding checks",
+      "cost_if_wrong": "more owner prompts for rarer git and docker forms (git -c, podman, VAR=x git ...)"
+    }
+  ],
+  "outside_repo": []
+}
