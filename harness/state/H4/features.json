@@ -154,6 +154,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.R8/2026-10-14T06-37-00.089206+00-00-full.json"
+    },
+    {
+      "id": "F-H4-R9",
+      "category": "review",
+      "description": "Restate bash-guard as a finite silent-pass allowlist; compose lifecycle commands ask; remove the daemon query",
+      "steps": [
+        "regression tests for the allowlist pass",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
