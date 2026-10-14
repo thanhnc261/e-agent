@@ -77,6 +77,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.R1/2026-10-14T00-01-30.633643+00-00-full.json"
+    },
+    {
+      "id": "F-H4-R2",
+      "category": "review",
+      "description": "Fix the twelve findings of Codex review round 2 on harness H4",
+      "steps": [
+        "regression tests for each finding pass",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
