@@ -187,6 +187,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.R11/2026-10-14T10-34-40.230654+00-00-full.json"
+    },
+    {
+      "id": "F-H4-R12",
+      "category": "review",
+      "description": "Fix the finding of Codex review round 11 on harness H4 (git bisect visualize runs a nested command)",
+      "steps": [
+        "regression tests for the finding pass",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
