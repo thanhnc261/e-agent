@@ -6,6 +6,8 @@
 
 **Architecture:** every hook calls one stdlib-only script, `.claude/hooks/harness_hook.py`, which finds the repository from the hook payload's `cwd` (a worktree has its own) and runs `uv run --directory <repo> e-agent-harness <command>` with the payload on stdin. Hard rules are permission rules (deny, ask); conditional checks are hooks. Subagents live in `.claude/agents/`. Codex has no hooks: it runs the same commands by hand from `eng-session`.
 
+**Status:** Done 2026-10-14; tasks H4.1 to H4.6, review fixes H4.R1 to H4.R15 and H4.16 ([handoff](../handoffs/2026-10-13-harness-h4.md)).
+
 **Tech Stack:** Claude Code settings, hooks and subagents; Python 3.12 stdlib; pytest.
 
 **Spec:** [harness plan](2026-10-12-dev-harness.md) section "Phase H4" and "Context strategy"; H0 decisions (auto-compact window 400K, unattended runs from Phase 2, cross-provider review); Claude Code docs for settings, permissions, hooks and subagents (read 2026-10-13).
@@ -33,28 +35,28 @@
 
 **Files:** `.claude/hooks/harness_hook.py`, `tests/harness/test_hook_wrapper.py`.
 
-- [ ] Failing tests: the script runs `check-scope --hook` and denies an out-of-scope `Write` (exit 2, reason on stderr); allows an in-scope one; `status --format hook` prints SessionStart JSON; `checkpoint --hook` appends an entry; with a payload `cwd` outside any repository `check-scope` exits 2 and the others exit 0; `format` runs the formatter on an edited `.py` file and always exits 0; the repository is found from the payload `cwd`.
-- [ ] Implement; commit `feat(harness): hook entry script for Claude Code`.
+- [x] Failing tests: the script runs `check-scope --hook` and denies an out-of-scope `Write` (exit 2, reason on stderr); allows an in-scope one; `status --format hook` prints SessionStart JSON; `checkpoint --hook` appends an entry; with a payload `cwd` outside any repository `check-scope` exits 2 and the others exit 0; `format` runs the formatter on an edited `.py` file and always exits 0; the repository is found from the payload `cwd`.
+- [x] Implement; commit `feat(harness): hook entry script for Claude Code`.
 
 ### Task H4.2: `.claude/settings.json`
 
 **Files:** `.claude/settings.json`, `tests/conformance/test_claude_settings.py`.
 
-- [ ] Failing tests: valid JSON; `autoCompactWindow` 400000; `worktree.baseRef` `"head"`; deny rules cover `docker compose -p odoo-bench`, `docker exec odoo-bench*`, stop, restart, rm, kill, `Edit(archive/**)` and the ERP-Bench `solution/` and `tests/` reads; ask rules cover `git push`, `git merge`, `git rebase`, `git reset --hard`; allow rules cover the `odoo19-learning` compose, exec and logs; hooks: `SessionStart` (startup, resume, clear, compact) → `status --format hook`, `PreCompact` → `checkpoint --hook`, `PreToolUse` `Edit|Write|NotebookEdit` → `check-scope --hook`, `PostToolUse` `Edit|Write` → `format`, `Stop` → `close-check --hook`; every hook command calls the entry script with a timeout.
-- [ ] Implement; commit `feat(harness): committed Claude Code settings (permissions, hooks, compaction, worktrees)`.
+- [x] Failing tests: valid JSON; `autoCompactWindow` 400000; `worktree.baseRef` `"head"`; deny rules cover `docker compose -p odoo-bench`, `docker exec odoo-bench*`, stop, restart, rm, kill, `Edit(archive/**)` and the ERP-Bench `solution/` and `tests/` reads; ask rules cover `git push`, `git merge`, `git rebase`, `git reset --hard`; allow rules cover the `odoo19-learning` compose, exec and logs; hooks: `SessionStart` (startup, resume, clear, compact) → `status --format hook`, `PreCompact` → `checkpoint --hook`, `PreToolUse` `Edit|Write|NotebookEdit` → `check-scope --hook`, `PostToolUse` `Edit|Write` → `format`, `Stop` → `close-check --hook`; every hook command calls the entry script with a timeout.
+- [x] Implement; commit `feat(harness): committed Claude Code settings (permissions, hooks, compaction, worktrees)`.
 
 ### Task H4.3: subagents
 
 **Files:** `.claude/agents/explorer.md`, `verifier.md`, `reviewer.md`, `sandbox-operator.md`, `tests/conformance/test_claude_agents.py`.
 
-- [ ] Failing tests: each agent has `name` equal to its file name and a short `description`; `explorer`, `verifier` and `reviewer` cannot edit (`disallowedTools` includes `Edit`, `Write`, `NotebookEdit`); preloaded skills exist and none has `disable-model-invocation: true`; the reviewer is never a fork; combined descriptions stay short.
-- [ ] Implement; commit `feat(harness): explorer, verifier, reviewer and sandbox-operator subagents`.
+- [x] Failing tests: each agent has `name` equal to its file name and a short `description`; `explorer`, `verifier` and `reviewer` cannot edit (`disallowedTools` includes `Edit`, `Write`, `NotebookEdit`); preloaded skills exist and none has `disable-model-invocation: true`; the reviewer is never a fork; combined descriptions stay short.
+- [x] Implement; commit `feat(harness): explorer, verifier, reviewer and sandbox-operator subagents`.
 
 ### Task H4.4: live verification and docs
 
-- [ ] In a scratch clone of the branch: `claude -p` reports the SessionStart brief's next action without using tools; `claude -p --permission-mode dontAsk --allowedTools Write` asked to write a file outside the contract is denied by the hook and the file does not exist.
-- [ ] Docs: `eng-session` (hooks now run the start brief, checkpoint before compaction and scope checks; edits through Bash are not hooked), README, AGENTS.md one line, harness plan H4 done line, handoff `docs/handoffs/2026-10-13-harness-h4.md`.
-- [ ] Commit `docs(harness): H4 live verification, skills and handoff`.
+- [x] In a scratch clone of the branch: `claude -p` reports the SessionStart brief's next action without using tools; `claude -p --permission-mode dontAsk --allowedTools Write` asked to write a file outside the contract is denied by the hook and the file does not exist.
+- [x] Docs: `eng-session` (hooks now run the start brief, checkpoint before compaction and scope checks; edits through Bash are not hooked), README, AGENTS.md one line, harness plan H4 done line, handoff `docs/handoffs/2026-10-13-harness-h4.md`.
+- [x] Commit `docs(harness): H4 live verification, skills and handoff`.
 
 ### Task H4.5: research accepts new files (owner decision 2026-10-13)
 

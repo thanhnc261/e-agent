@@ -1,0 +1,24 @@
+{
+  "id": "H4.16",
+  "phase": "H4",
+  "plan_ref": "docs/plans/2026-10-13-harness-h4-adapters.md",
+  "feature_ids": [
+    "F-H4-16"
+  ],
+  "context_digest": "5aeef8965d8256606beeb5ea046f54278f4ee10a75135e6272e2fa376bb00790",
+  "allowed_paths": [
+    "docs/roadmap.md",
+    "docs/plans/2026-10-12-dev-harness.md",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-13-harness-h4-adapters.md"
+  ],
+  "acceptance": [
+    "validate-context prints ok",
+    "full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "49b7eff40a1ef6fd448c663d10ccca3c4df45426",
+  "created_at": "2026-10-14T13:53:07+00:00",
+  "features_digest": "721dd5a281571d64b096cca19ea7e30418c9be16f802bf0204adaf8fde4ebafc"
+}

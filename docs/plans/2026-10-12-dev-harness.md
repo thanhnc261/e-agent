@@ -30,7 +30,7 @@ A harness pins context, scopes each task, runs the gates, records the evidence a
 - **Local permissions:** `.claude/settings.local.json`, which allows `odoo19-learning` and denies `odoo-bench`.
 - **Gates:** `make e2e`, `scripts/env_check.py`, `scripts/odoo_sandbox.py`, the git-ignored `evidence/` folder.
 
-**Status:** Accepted 2026-10-12 (H0 decided); H1 in progress. It runs as track H of the [roadmap](../roadmap.md), alongside Phase 1.
+**Status:** Accepted 2026-10-12 (H0 decided); H0 to H4 done 2026-10-14; H5 runs with roadmap Phase 2. It runs as track H of the [roadmap](../roadmap.md), alongside Phase 1.
 
 ## Principles from the sources
 
@@ -206,6 +206,8 @@ This is the local dev loop every task follows, attended or not. The `eng-session
 - A planted Docker command against `odoo-bench` is denied by the permission rule; a planted write under `archive/` and a planted edit outside the task's paths are denied by the hook.
 - A fresh session, a resumed session and a post-compaction session each show the status brief.
 - Codex produces a valid review JSON on a task package.
+
+**Done 2026-10-14** (branch `harness/h4-adapters`, [plan](2026-10-13-harness-h4-adapters.md), [handoff](../handoffs/2026-10-13-harness-h4.md)): committed `.claude/settings.json` (permissions, five hooks, `autoCompactWindow` 400K), the stdlib hook entry with `bash-guard` (a finite silent-pass contract), four subagents, `tidy`, `create_only` for `research/`, and fifteen review rounds (Codex and Claude). Codex adapters are the same CLI commands run by hand from `eng-session`.
 
 ## Phase H5: pilot and adoption
 
