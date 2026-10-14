@@ -242,6 +242,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/H4.16/2026-10-14T13-53-16.745027+00-00-full.json"
+    },
+    {
+      "id": "F-H4-17",
+      "category": "harness",
+      "description": "Infer a task's closure from its committed records (feature passes with its own gate evidence, handoff, progress entry), not from the working tree, the active plan or later commits",
+      "steps": [
+        "regression tests pass",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }
