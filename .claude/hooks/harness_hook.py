@@ -351,8 +351,9 @@ _COMPOSE_SUBCOMMANDS = {
 }
 
 
-def _compose_reason(segment: str, rest: list[str], allowed: list[str]) -> str | None:
-    if re.search(r"(?<![\w-])COMPOSE_[A-Z_]+=", segment) or any(
+def _compose_reason(command: str, rest: list[str], allowed: list[str]) -> str | None:
+    # The whole command: an earlier "export COMPOSE_FILE=..." applies to this segment too.
+    if re.search(r"(?<![\w-])COMPOSE_[A-Z_]+=", command) or any(
         os.environ.get(name) for name in _COMPOSE_VARIABLES
     ):
         return "a compose file, project or profile chosen by the environment"
@@ -377,18 +378,18 @@ def _compose_reason(segment: str, rest: list[str], allowed: list[str]) -> str | 
     return None
 
 
-def _docker_reason(segment: str, words: list[str], allowed: list[str]) -> str | None:
+def _docker_reason(segment: str, words: list[str], allowed: list[str], command: str) -> str | None:
     if re.search(r"(?<![\w-])DOCKER_[A-Z_]+=", segment):
         return "a docker environment override (daemon, context or config)"
     if Path(words[0]).name == "docker-compose":
-        return _compose_reason(segment, words[1:], allowed)
+        return _compose_reason(command, words[1:], allowed)
     if len(words) < 2:
         return None
     if words[1].startswith("-"):
         return "docker global options (daemon, context or config)"
     sub, rest = words[1], words[2:]
     if sub == "compose":
-        return _compose_reason(segment, rest, allowed)
+        return _compose_reason(command, rest, allowed)
     if sub == "container":
         if not rest:
             return None
@@ -476,7 +477,7 @@ def bash_guard(root: Path, command: str) -> tuple[int, str]:
             if name == "git":
                 reason = _git_reason(words[index:])
             elif name in _CONTAINER_TOOLS:
-                reason = _docker_reason(segment, words[index:], allowed)
+                reason = _docker_reason(segment, words[index:], allowed, joined)
             else:
                 continue
             if reason:

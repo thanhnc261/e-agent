@@ -60,7 +60,12 @@ def check_tree(contract: dict[str, Any] | None, m: Manifest, repo_root: Path) ->
     problems = [
         r
         for r in (
-            deny_reason(contract, m, p, new_file=_is_new(repo_root, base, p))
+            deny_reason(
+                contract,
+                m,
+                p,
+                new_file=_protected(m, normalize_relpath(p)) and _is_new(repo_root, base, p),
+            )
             for p in sorted(changed)
         )
         if r
@@ -116,5 +121,6 @@ def hook_decision(payload: dict[str, Any], resolve: Resolver) -> tuple[int, str]
         return 2, f"{target}: outside the repository {repo_root}"
     m, contract = resolve(repo_root)
     base = str(contract["base_commit"]) if contract else "HEAD"
-    reason = deny_reason(contract, m, rel, new_file=_is_new(repo_root, base, rel))
+    new_file = _protected(m, normalize_relpath(rel)) and _is_new(repo_root, base, rel)
+    reason = deny_reason(contract, m, rel, new_file=new_file)
     return (2, reason) if reason else (0, "")

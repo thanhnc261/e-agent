@@ -343,6 +343,7 @@ def test_r5_ordinary_variants_ask(repo) -> None:
         "git submodule --quiet foreach 'git push origin HEAD'",
         "git bisect start && git bisect --no-checkout run ./probe.sh",
         "COMPOSE_FILE=/tmp/other.yml docker compose -p odoo19-learning restart",
+        "export COMPOSE_FILE=/tmp/other.yml; docker compose -p odoo19-learning restart",
         "timeout 5 eval git push",
     ):
         assert _decision_of(_bash(repo, command)) == "ask", command
