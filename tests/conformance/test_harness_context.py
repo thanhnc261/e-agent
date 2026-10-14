@@ -236,3 +236,22 @@ def test_research_accepts_new_files_only() -> None:
     m = manifest.load_manifest(MANIFEST)
     assert "research/**" in m.protected.read_only
     assert "research/**" in m.protected.create_only
+
+
+def test_claude_code_configuration_outside_the_repository_is_denied() -> None:
+    """H4.R14 lets the check-scope hook allow writes outside every harness checkout
+    (scratchpad, memory) unless a denied_paths glob matches; Claude Code's own trust and
+    permission files must stay out of reach."""
+    from e_agent_harness.manifest import load_manifest, path_matches
+
+    m = load_manifest(MANIFEST)
+    for target in (
+        "Users/someone/.claude.json",
+        "Users/someone/.claude/settings.json",
+        "Users/someone/.claude/settings.local.json",
+    ):
+        assert any(path_matches(target, p) for p in m.environment.denied_paths), target
+    assert not any(
+        path_matches("Users/someone/.claude/projects/x/memory/a.md", p)
+        for p in m.environment.denied_paths
+    )
