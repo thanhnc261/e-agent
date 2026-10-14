@@ -199,3 +199,8 @@
 - changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.R8.json, harness/state/evidence/gates/H4.R8/2026-10-14T06-37-00.089206+00-00-full.json
 - next: Owner: merge decision and threat-model framing
 - open: none
+
+## 2026-10-14T10:20:05.043670+00:00 · 7ae53108-c378-473b-8d82-0a980741f45f · H4.R9
+- changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.R9.json, harness/state/evidence/gates/H4.R9/2026-10-14T10-19-11.421392+00-00-full.json
+- next: Codex review round 9 under the silent-pass contract
+- open: none

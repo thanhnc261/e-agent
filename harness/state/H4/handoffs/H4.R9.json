@@ -1,0 +1,19 @@
+{
+  "task": "H4.R9",
+  "changed": "bash-guard's contract restated as a finite silent-pass list (hook header and eng-session); compose lifecycle commands ask; the daemon query and its budget removed; tests retargeted so environment, podman and sudo checks are exercised on read-only compose commands.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R9/2026-10-14T10-19-11.421392+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "Compose stop, start, restart, pause and unpause ask even for the allowed sandbox project",
+      "cost_if_wrong": "one owner prompt per sandbox restart in attended sessions; denied in dontAsk; reversible"
+    },
+    {
+      "ruling": "Review findings count only when a command in the silent-pass list crosses the boundary; commands that ask work as designed; scripts and deliberate setup are informational",
+      "cost_if_wrong": "a real gap outside the list is reported as informational instead of blocking"
+    }
+  ],
+  "outside_repo": []
+}

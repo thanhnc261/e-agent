@@ -163,7 +163,8 @@
         "regression tests for the allowlist pass",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/H4.R9/2026-10-14T10-19-11.421392+00-00-full.json"
     }
   ]
 }
