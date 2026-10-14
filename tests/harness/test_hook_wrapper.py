@@ -548,3 +548,14 @@ def test_r10_ordinary_commands_still_pass(repo) -> None:
         "docker ps --format '{{.Names}}'",
     ):
         assert _decision_of(_bash(repo, command)) == "none", command
+
+
+def test_r11_option_operand_does_not_end_the_scan(repo) -> None:
+    for command in (
+        "git grep -e -- --open-files-in-pager='git push origin HEAD; true' -- README.md",
+        "git grep -e -- -O'git push' -- README.md",
+        "git grep -e -- --open='git push' -- README.md",
+        "git log -S -- --ext-diff",
+    ):
+        assert _decision_of(_bash(repo, command)) == "ask", command
+    assert _decision_of(_bash(repo, "git grep -n TODO -- src")) == "none"

@@ -384,9 +384,9 @@ def _allowed(name: str, allowed: list[str]) -> bool:
 
 def _runs_program(sub: str, rest: list[str]) -> str | None:
     longs, letters = _GIT_EXEC_OPTIONS.get(sub, (set(), ""))
+    # Every word, also after "--": an option operand (grep -e --) can look like the end of
+    # options while git keeps parsing. A pathspec that looks like such an option asks too.
     for word in rest:
-        if word == "--":
-            break
         name = word.split("=", 1)[0]
         if name.startswith("--") and len(name) > 2 and any(o.startswith(name) for o in longs):
             return word  # git accepts unambiguous abbreviations of long options
