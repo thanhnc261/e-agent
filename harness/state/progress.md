@@ -179,3 +179,8 @@
 - changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.R5.json, harness/state/evidence/gates/H4.R5/2026-10-14T05-08-59.965324+00-00-full.json
 - next: Owner: merge decision and threat-model framing; Codex has not re-verified round-5 fixes
 - open: none
+
+## 2026-10-14T06:20:05.546703+00:00 · 7ae53108-c378-473b-8d82-0a980741f45f · H4.R6
+- changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.R6.json, harness/state/evidence/gates/H4.R6/2026-10-14T06-19-14.224356+00-00-full.json
+- next: Codex review round 7 (2 of 3)
+- open: none

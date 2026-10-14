@@ -1,0 +1,23 @@
+{
+  "task": "H4.R6",
+  "changed": "Codex review round 6 on H4, three findings fixed with regression tests: guarding hook commands end in || exit 2 (close-check only unattended) so a python3 that cannot start the script denies; tomllib imported lazily so check-scope runs on Python 3.9 and bash-guard fails closed there; compose stop/start/restart/pause/unpause read the compose files and .env the working directory loads (COMPOSE_ variables, include/extends, container names) and ask after cd; a persisted docker context that is not a local socket asks. Live check on Claude Code 2.1.231 after the change.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R6/2026-10-14T06-19-14.224356+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "Compose targets are checked by reading container_name lines in the compose files the working directory would load, not by running docker compose config",
+      "cost_if_wrong": "a compose file that sets names through anchors or other YAML features the line check misses passes; the sandbox compose file uses plain names"
+    },
+    {
+      "ruling": "A docker context counts as local when its endpoint is a unix or npipe socket",
+      "cost_if_wrong": "a unix socket forwarded from a remote host is treated as local (deliberate setup, outside the habitual-command model)"
+    },
+    {
+      "ruling": "Editing .claude/settings.json hook commands to end in || exit 2 hardens fail-closed behaviour; no permission rule changed",
+      "cost_if_wrong": "none for status and checkpoint, which keep their non-blocking behaviour"
+    }
+  ],
+  "outside_repo": []
+}

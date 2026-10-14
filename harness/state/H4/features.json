@@ -130,7 +130,8 @@
         "regression tests for each finding pass",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/H4.R6/2026-10-14T06-19-14.224356+00-00-full.json"
     }
   ]
 }
