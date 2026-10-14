@@ -1,0 +1,15 @@
+{
+  "task": "H4.17",
+  "changed": "Closure inferred from committed close records (feature passes with this task's evidence, handoff, progress entry), so an unrelated untracked file, a new phase plan or a later commit no longer reopens a closed task in a checkout without a local record; amend-scope keeps a task open.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.17/2026-10-14T14-12-20.323364+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "Without a local record, the committed close records decide closure",
+      "cost_if_wrong": "in a fresh checkout a task with uncommitted fix work after its closure is treated as closed until refresh-task reopens it"
+    }
+  ],
+  "outside_repo": []
+}

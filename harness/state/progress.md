@@ -239,3 +239,8 @@
 - changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.16.json, harness/state/evidence/gates/H4.16/2026-10-14T13-53-16.745027+00-00-full.json
 - next: Merge harness/h4-adapters to main; then eng-phase-plan for roadmap Phase 2
 - open: none
+
+## 2026-10-14T14:13:18.802836+00:00 · 7ae53108-c378-473b-8d82-0a980741f45f · H4.17
+- changed: harness/state/H4/features.json, harness/state/H4/handoffs/H4.17.json, harness/state/evidence/gates/H4.17/2026-10-14T14-12-20.323364+00-00-full.json
+- next: Owner: open Claude Code in the main checkout and plan Phase 2 with eng-phase-plan
+- open: none

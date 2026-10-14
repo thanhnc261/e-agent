@@ -251,7 +251,8 @@
         "regression tests pass",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/H4.17/2026-10-14T14-12-20.323364+00-00-full.json"
     }
   ]
 }
