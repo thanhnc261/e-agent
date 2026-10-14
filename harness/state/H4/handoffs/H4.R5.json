@@ -1,13 +1,13 @@
 {
   "task": "H4.R5",
-  "changed": "Codex review round 5 on H4, six findings fixed with regression tests: wrapper timeout below the host timeouts (onFailure unsupported by the installed Claude Code), case-folded protected-path and create-only checks, wrapper option arities, submodule foreach and bisect run after options, COMPOSE_* variables, source and . only in command position. The H4 handoff records the five rounds and the threat model.",
+  "changed": "Codex review round 5 on H4, six findings fixed with regression tests: wrapper timeout below the host timeouts (onFailure unsupported by the installed Claude Code; live check on 2.1.231 shows the scope hook still denies), case-folded protected-path and create-only checks, wrapper option arities, submodule foreach and bisect run after options, COMPOSE_* variables assigned, exported or inherited, source and . only in command position. The H4 handoff records the five rounds, the live check and the threat model.",
   "evidence_refs": [
-    "harness/state/evidence/gates/H4.R5/2026-10-14T05-04-26.524999+00-00-full.json"
+    "harness/state/evidence/gates/H4.R5/2026-10-14T05-08-59.965324+00-00-full.json"
   ],
   "open_items": [],
   "rulings": [
     {
-      "ruling": "Fail-closed scope checks rely on the wrapper timeout (45 s) rather than onFailure; onFailure stays in settings for releases that support it",
+      "ruling": "Fail-closed scope checks rely on the wrapper timeout (45 s) rather than onFailure; onFailure stays in settings for releases that support it; live on 2.1.231 the key does not drop the hook",
       "cost_if_wrong": "if a future host timeout is set below 45 s, a stalled check follows the host default; a conformance test guards the ordering"
     },
     {
