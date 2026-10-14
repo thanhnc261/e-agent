@@ -1,0 +1,19 @@
+{
+  "task": "H4.R4",
+  "changed": "Codex review round 4 on H4, eight findings fixed with regression tests: quote-aware command splitting and shell continuation handling; variables in command position, eval/source anywhere, git submodule foreach and bisect run, non-safe git reset options, docker exec running git/docker/shell -c, exported or inherited docker endpoints, and compose beyond allowed lifecycle subcommands now ask; literal punctuation passes; new-task honours an open or reopened record. eng-session states bash-guard's threat model.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H4.R4/2026-10-14T00-41-39.314447+00-00-full.json"
+  ],
+  "open_items": [],
+  "rulings": [
+    {
+      "ruling": "bash-guard is scoped as a guard against habitual commands, not a sandbox; deliberate obfuscation and commands inside scripts are out of reach of any text inspection, so unattended runs need Claude Code sandboxing or a container without the Docker socket and push credentials",
+      "cost_if_wrong": "an obfuscated or scripted command in an attended session reaches the permission rules and the owner"
+    },
+    {
+      "ruling": "An interactive shell inside an allowed container passes; only a nested git, docker or shell -c asks",
+      "cost_if_wrong": "commands typed inside that shell are not inspected (they run inside the sandbox container)"
+    }
+  ],
+  "outside_repo": []
+}
