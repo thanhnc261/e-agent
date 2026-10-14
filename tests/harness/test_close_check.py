@@ -477,3 +477,11 @@ def test_rematerialising_a_reopened_task_keeps_it_open(repo) -> None:
     again = repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**")
     assert again.code == 0, again
     assert _write_code(repo, "docs/c.md") == 2
+
+
+def test_switching_from_an_open_task_needs_close_check(repo) -> None:
+    _closed(repo)
+    assert repo.invoke("new-task", "1", "1c.1", "--feature", "F-1", "--paths", "src/**").code == 0
+    result = repo.invoke("new-task", "1", "1c.2", "--feature", "F-2", "--paths", "src/**")
+    assert result.code == 1
+    assert "1c.1 is active" in result.out

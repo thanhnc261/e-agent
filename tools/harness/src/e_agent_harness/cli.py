@@ -128,7 +128,11 @@ def cmd_new_task(args: argparse.Namespace) -> int:
     current = (active or {}).get("task")
     # A task whose close-check passes is closed and may be followed without --replace.
     switching = bool(current) and current != args.task_id and not args.replace
-    closed = _marker(paths, root) == "closed" or not closecheck.problems(paths, m, root)
+    lifecycle = _marker(paths, root)
+    # Only close-check closes a task that has a record; inference is for checkouts without one.
+    closed = lifecycle == "closed" or (
+        lifecycle is None and not closecheck.problems(paths, m, root)
+    )
     if switching and not closed:
         print(f"task {current} is active; finish it with close-check or pass --replace")
         return 1

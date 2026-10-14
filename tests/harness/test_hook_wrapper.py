@@ -292,3 +292,44 @@ def test_r3_fully_parsed_commands_pass(repo) -> None:
         r"find . -name '*.py' -exec grep -l TODO {} \;",
     ):
         assert _decision_of(_bash(repo, command)) == "none", command
+
+
+def test_r4_shell_semantics_ask(repo) -> None:
+    for command in (
+        "gi\\\nt push origin HEAD",  # the shell removes a backslash-newline inside a word
+        "gi\"t\" -c 'core.pager=cat;cat' push origin HEAD",
+        '"$TOOL" push origin HEAD',
+        'command eval "$SCRIPT"',
+        "git submodule foreach git push origin HEAD",
+        "docker exec odoo19-learning-odoo-1 git push origin HEAD",
+        "git reset --ha HEAD",
+        "git reset --keep HEAD~1",
+        "export DOCKER_HOST=tcp://remote:2375; docker exec odoo19-learning-db-1 true",
+        "docker compose -p odoo19-learning run --name production-db-1 db true",
+        "docker compose -p odoo19-learning -f other.yml up -d",
+    ):
+        assert _decision_of(_bash(repo, command)) == "ask", command
+
+
+def test_r4_inherited_docker_endpoint_asks(repo) -> None:
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": "docker exec odoo19-learning-db-1 true"},
+        "cwd": str(repo.root),
+    }
+    result = hook(["bash-guard"], payload, env={"DOCKER_HOST": "tcp://remote:2375"})
+    assert _decision_of(result) == "ask"
+
+
+def test_r4_literal_punctuation_passes(repo) -> None:
+    for command in (
+        "git log -1 --format='%h (%s)'",
+        "git commit -m 'fix: a & b; c | d'",
+        "git commit -m 'costs $5 (approx)'",
+        "git reset --soft HEAD~1",
+        "docker compose -p odoo19-learning logs --tail 20 odoo",
+        "docker compose -p odoo19-learning restart odoo",
+        "docker exec odoo19-learning-odoo-1 odoo --version",
+    ):
+        assert _decision_of(_bash(repo, command)) == "none", command

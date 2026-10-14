@@ -70,6 +70,10 @@ The Phase 1 pilot log's other rows were fixed in harness H2.1; one remains.
 
 - A contract has one gate set (HP-6). When the plan asks for more levels per task (the Postgres run, `make e2e`), run them through [eng-verify](../eng-verify/SKILL.md) and name them in the handoff.
 
+## What bash-guard is not
+
+`bash-guard` stops the commands an agent writes by habit: a docker command against a denied or unlisted container, git push, pull, merge, rebase or a hard reset, and the forms it cannot read (shell `-c`, `eval`, variables in command position). It is not a sandbox. It cannot see inside a script (`./deploy.sh`) and cannot decode deliberate obfuscation. Treat it as one layer: the permission rules are another, and an unattended run needs a real boundary too: Claude Code's sandbox (filesystem and network isolation) or a container without the Docker socket and without push credentials, with branch protection on the remote as the last line for pushes.
+
 ## Unattended variant
 
 Allowed from roadmap Phase 2 for mechanical tasks. One worktree per task; the goal condition is the acceptance as shown by the gate command's output; `E_AGENT_HARNESS_UNATTENDED=1` so each stop is answered with `close-check`'s problems. The Stop gate is feedback, not a bound: every tool call resets Claude Code's count of consecutive Stop blocks, so set a turn cap (`--max-turns`) and a spend cap (`--max-budget-usd`), and run `close-check` yourself after the run. Results arrive as a handoff, never as a merge or a push.
