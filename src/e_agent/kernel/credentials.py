@@ -24,7 +24,9 @@ class CredentialService:
     ) -> None:
         self._catalog = catalog
         self._secrets = secrets
-        self._methods = dict(methods or {})  # integration_id -> {"method", "header", "prefix"}
+        # integration_id -> {"method", "header", "prefix"}. Kept by reference and read
+        # per call, so the registry can fill it while it admits plugins.
+        self._methods = methods if methods is not None else {}
 
     def scoped(self, integration_id: str) -> ScopedCredentials:
         return ScopedCredentials(self, integration_id)

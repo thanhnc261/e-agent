@@ -14,6 +14,7 @@ from typing import Any
 
 from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor
 from e_agent.sdk import SDK_API_VERSION
+from e_agent.sdk.connection import ConnectionSpec
 from e_agent.sdk.discovery import DiscoveredPlugin, DiscoveryError, artifact_digest
 from e_agent.sdk.manifest import BindingTemplate
 from e_agent.sdk.ports import (
@@ -25,6 +26,7 @@ from e_agent.sdk.ports import (
     PluginServices,
 )
 from e_agent.sdk.validation import ValidationDatasetBuilder
+from pydantic import ValidationError
 
 from .errors import ErrorCode, KernelError
 
@@ -63,6 +65,11 @@ class PluginRegistry:
         self.agent_guidance: list[str] = []
         self.report = AdmissionReport()
         self._admitted_inventory: dict[str, dict[str, Any]] = {}
+        self.connection_specs: dict[str, ConnectionSpec] = {}
+        """Admitted plugins' manifest ``connection`` sections (ADR 0012 item 1)."""
+        self.auth_placements: dict[str, dict[str, str]] = {}
+        """Credential placement per admitted plugin, filled before its code loads."""
+        self.plugin_executors: dict[str, tuple[ActionExecutor, ...]] = {}
 
     def surface_digest(self) -> str:
         """Digest of the tool surface a run is planned against (threat model T17):
@@ -106,6 +113,7 @@ class PluginRegistry:
                 self.report.skipped.append(pid)  # never imported
                 continue
             self._check_admissible(plugin, config)
+            self._admit_connection(plugin)
             self._admitted_inventory[pid] = {
                 "version": config.version,
                 "artifact_sha256": config.artifact_sha256,
@@ -145,6 +153,20 @@ class PluginRegistry:
             raise _reject(f"{pid}: incompatible SDK API range {manifest.sdk_api}")
         if plugin.entry_point_value != manifest.factory:
             raise _reject(f"{pid}: entry point does not match manifest factory")
+
+    def _admit_connection(self, plugin: DiscoveredPlugin) -> None:
+        pid = plugin.manifest.plugin_id
+        try:
+            spec = ConnectionSpec.from_manifest(plugin.manifest.connection)
+        except ValidationError as exc:
+            reasons = "; ".join(str(e["msg"]) for e in exc.errors())
+            raise _reject(f"{pid}: invalid manifest connection section: {reasons}") from exc
+        if spec is None:
+            return
+        self.connection_specs[pid] = spec
+        placement = spec.placement()
+        if placement is not None:
+            self.auth_placements[pid] = placement
 
     @staticmethod
     def _load(
@@ -196,6 +218,7 @@ class PluginRegistry:
                 )
         self.validators.extend(contribution.validators)
         self.executors.extend(contribution.executors)
+        self.plugin_executors[plugin_id] = tuple(contribution.executors)
         self.verifiers.extend(contribution.verifiers)
         self.drivers.extend(contribution.drivers)
         self.dataset_builders.extend(contribution.dataset_builders)

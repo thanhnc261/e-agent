@@ -30,13 +30,11 @@ from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.memory_store import InMemoryRunStore
 from e_agent.kernel.policy import DefaultPolicy
 from e_agent.kernel.registry import EnabledPlugin, PluginRegistry
-from e_agent.sdk.discovery import discover
+from e_agent.sdk.auth import SecretStore
+from e_agent.sdk.discovery import DiscoveredPlugin, discover
 from e_agent.sdk.ports import AgentDriver, PluginContribution
 
 from .profile import Profile
-
-AUTH_PLACEMENT = {"odoo19": {"method": "api_key", "header": "Authorization", "prefix": "bearer "}}
-LIVE_PROVIDERS_WITH_SANDBOX = {"odoo19"}
 
 
 @dataclass
@@ -193,6 +191,29 @@ def _operator(profile: Profile) -> Principal:
     )
 
 
+def admit_plugins(
+    profile: Profile,
+    catalog: ConnectionCatalog,
+    discovered: Iterable[DiscoveredPlugin],
+    secrets: SecretStore | None,
+) -> tuple[PluginRegistry, CredentialService]:
+    """Admit the profile's enabled plugins; credentials follow their manifests."""
+    registry = PluginRegistry(profile.bindings)
+    credentials = CredentialService(catalog, secrets, registry.auth_placements)
+    enabled = {
+        pid: EnabledPlugin(
+            cfg.version,
+            cfg.manifest_sha256,
+            dict(cfg.settings),
+            artifact_sha256=cfg.artifact_sha256,
+            allow_unverified_fixture=profile.environment == "fixture",
+        )
+        for pid, cfg in profile.enabled_plugins.items()
+    }
+    registry.admit(discovered, enabled, credentials_for=credentials.scoped)
+    return registry, credentials
+
+
 async def build_runtime(
     profile: Profile,
     *,
@@ -204,19 +225,9 @@ async def build_runtime(
     task_kind: str | None = None,
 ) -> Runtime:
     catalog = ConnectionCatalog(profile.connections)
-    credentials = CredentialService(catalog, _secret_store(profile), AUTH_PLACEMENT)
-    registry = PluginRegistry(profile.bindings)
-    enabled = {
-        pid: EnabledPlugin(
-            cfg.version,
-            cfg.manifest_sha256,
-            dict(cfg.settings),
-            artifact_sha256=cfg.artifact_sha256,
-            allow_unverified_fixture=profile.environment == "fixture",
-        )
-        for pid, cfg in profile.enabled_plugins.items()
-    }
-    registry.admit(discover(plugin_paths), enabled, credentials_for=credentials.scoped)
+    registry, credentials = admit_plugins(
+        profile, catalog, discover(plugin_paths), _secret_store(profile)
+    )
     # The composition root chooses the validation engine; domains supply datasets.
     registry.validators.append(ShaclPlanValidator(registry.dataset_builders))
     operator = _operator(profile)
@@ -289,7 +300,12 @@ async def build_runtime(
 async def _check_sandbox(
     profile: Profile, registry: PluginRegistry, operator: Principal, scope: frozenset[str]
 ) -> dict[str, Any]:
-    """Refuse to start unless every live provider reports the expected sandbox marker."""
+    """Refuse to start unless every live provider reports the expected sandbox marker.
+
+    A live provider is an enabled plugin that a profile connection uses. Its
+    manifest names the probe (``connection.test_connection``); one without a
+    probe refuses startup, never skips the check.
+    """
     found: dict[str, Any] = {}
     ctx = TaskContext(
         run_id="startup-check",
@@ -297,17 +313,28 @@ async def _check_sandbox(
         principal=operator,
         resource_scope=scope,
     )
-    probes = [e for e in registry.executors if hasattr(e, "sandbox_info")]
+    live = {conn.integration_id for conn in profile.connections}
     for pid, cfg in profile.enabled_plugins.items():
-        if pid not in LIVE_PROVIDERS_WITH_SANDBOX:
+        if pid not in live:
             continue
+        spec = registry.connection_specs.get(pid)
+        probe = spec.test_connection if spec is not None else None
+        if probe is None:
+            raise KernelError(
+                ErrorCode.STARTUP_REJECTED, f"{pid}: live provider declares no sandbox probe"
+            )
+        probes = [
+            getattr(e, probe)
+            for e in registry.plugin_executors.get(pid, ())
+            if callable(getattr(e, probe, None))
+        ]
         expected = cfg.settings.get("expected_sandbox_marker")
         if not expected or len(probes) != 1:
             raise KernelError(ErrorCode.STARTUP_REJECTED, f"{pid}: sandbox check not configured")
         for conn in profile.connections:
             if conn.integration_id != pid:
                 continue
-            info = await probes[0].sandbox_info(ctx, conn.connection_id)
+            info = await probes[0](ctx, conn.connection_id)
             target = {
                 "sandbox_marker": expected,
                 "database": cfg.settings.get("database"),
