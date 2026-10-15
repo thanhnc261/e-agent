@@ -274,3 +274,8 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1d.3.json, harness/state/evidence/gates/1d.3/2026-10-15T13-40-24.047416+00-00-full.json
 - next: second fresh-context Codex review of the 1d.3 R-1/R-2 fix; then clear context and new-task 1 1d.4 --feature F-1d-4
 - open: none
+
+## 2026-10-15T13:50:19.284580+00:00 · 9565b298-6ee2-43e1-84d4-7bac172b7b2a · 1d.3
+- changed: harness/state/1/features.json, harness/state/1/handoffs/1d.3.json, harness/state/evidence/gates/1d.3/2026-10-15T13-49-11.530787+00-00-full.json
+- next: task 1d.3 is closed: clear the context, then new-task 1 1d.4 --feature F-1d-4
+- open: none
