@@ -242,6 +242,145 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/1.R1/2026-10-13T13-58-27.990591+00-00-full.json"
+    },
+    {
+      "id": "F-1d-1",
+      "category": "docs",
+      "description": "Task 1d.1: Phase 0-1 review record and ADR 0026 plugin layout and reusable core",
+      "steps": [
+        "review record lists R-1 to R-8 with evidence and what was not run",
+        "ADR 0026 has status Proposed, the tree, the rules and the rejected alternatives",
+        "full gate passes",
+        "owner accepts ADR 0026 and answers D1-D6 before Part B"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1d-2",
+      "category": "server",
+      "description": "Task 1d.2: auth placement and the live sandbox probe come from adapter manifests (R-1)",
+      "steps": [
+        "test_odoo_auth_placement_from_manifest_equals_previous passes",
+        "test_live_provider_without_sandbox_probe_refuses_startup passes",
+        "AUTH_PLACEMENT and LIVE_PROVIDERS_WITH_SANDBOX are gone",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1d-3",
+      "category": "server",
+      "description": "Task 1d.3: task presets come from the domain pack; task_kind is a string validated at startup (R-3)",
+      "steps": [
+        "golden demo prompts recorded before the change",
+        "test_cli_demo_prompts_unchanged passes",
+        "test_unknown_task_kind_refused_at_startup passes",
+        "export_openapi.py --check reports no change; full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1d-4",
+      "category": "server",
+      "description": "Task 1d.4: the scripted driver is contributed by the domain pack through a driver factory (R-2 part 1)",
+      "steps": [
+        "test_scripted_driver_resolved_from_registry passes",
+        "bootstrap no longer imports ScriptedErpDriver",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1d-5",
+      "category": "plugins",
+      "description": "Task 1d.5: the ERP simulator becomes the discovered provider plugin fixture-erp under plugins/erp/simulator (R-2 part 2)",
+      "steps": [
+        "test_fixture_profile_composes_through_discovery passes",
+        "test_live_profile_never_imports_simulator passes",
+        "test_two_erp_providers_routing passes: one provider per connection resolves; two bindings of one contract on one connection are refused with CONFLICT",
+        "plugins/ and plugins/erp/ have no __init__.py",
+        "check_wheels.py passes; full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1d-6",
+      "category": "server",
+      "description": "Task 1d.6: the server ships no default profile; callers pass a path or E_AGENT_PROFILE",
+      "steps": [
+        "test_load_profile_requires_path_or_env passes",
+        "no load_profile() call without arguments remains",
+        "full gate and make e2e pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1d-7",
+      "category": "server",
+      "description": "Task 1d.7: import-linter contracts 'Core never imports plugins' and 'Plugins are guests'; the registry enforces required_features; notes pack composes through bootstrap",
+      "steps": [
+        "uv run lint-imports keeps both new contracts",
+        "test_notes_pack_composes_through_bootstrap and test_server_has_no_domain_literals pass",
+        "test_every_plugin_package_is_a_guest passes and fails on zero plugins",
+        "test_binding_missing_required_feature_refused passes",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1d-8",
+      "category": "packaging",
+      "description": "Task 1d.8: e-agent-server drops ERP dependencies; e-agent-erp bundle; core-only install check",
+      "steps": [
+        "scripts/check_core_only.py installs the core wheels without any ERP wheel and /health/ready answers",
+        "the core gate set runs check_core_only.py (and joins full only if fast enough)",
+        "third-party versions unchanged in uv.lock"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1d-9",
+      "category": "layout",
+      "description": "Task 1d.9: repo_move.py supports the plugins move set",
+      "steps": [
+        "test_plugins_move_on_scratch_repo passes",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1d-10",
+      "category": "layout",
+      "description": "Task 1d.10: move the domain pack and Odoo under plugins/erp and re-pin once",
+      "steps": [
+        "git shows renames",
+        "repo_move.py check --docs reports no leftovers",
+        "check_wheels.py file lists equal modulo the prefix map",
+        "full, pg and e2e gates and check_core_only.py pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1d-11",
+      "category": "verification",
+      "description": "Task 1d.11: end-of-phase levels 1-3, review, handoff, Phase 2 and Odoo plans amended",
+      "steps": [
+        "full gate, Postgres run and make e2e pass on a clean tree",
+        "phase review findings closed",
+        "handoff validates with e-agent-harness handoff"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-1d-12",
+      "category": "verification",
+      "description": "Task 1d.12: owner re-pins the local live profile and runs the live check",
+      "steps": [
+        "readiness admits domain-erp and odoo19 with the new pins and does not load fixture-erp",
+        "read-only task 1 succeeds; a wrong pin is refused",
+        "results recorded in the handoff, labelled live"
+      ],
+      "passes": false
     }
   ]
 }

@@ -1,0 +1,200 @@
+{
+  "phase": "2",
+  "entries": [
+    {
+      "id": "F-2a-1",
+      "category": "design",
+      "description": "Task 2a.1: target-architecture Execution IR section and threat-model entries T20, T21",
+      "steps": [
+        "the section settles task definition, action plan, lineage placeholders, plan digest, serial dispatch, partial failure, step record and toggle semantics",
+        "threat model lists T20 and T21 with mitigations",
+        "uv run python scripts/repo_move.py check reports no broken links",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2a-2",
+      "category": "adr",
+      "description": "Task 2a.2: ADR 0027 feature toggles",
+      "steps": [
+        "docs/adr/0027-feature-toggles.md exists with status Proposed and an index row",
+        "full gate passes",
+        "owner accepts ADR 0027 before 2b starts"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2a-3",
+      "category": "adr",
+      "description": "Task 2a.3: ADRs 0024 plan approval, 0025 execution IR, 0028 task definitions, and plan amendment",
+      "steps": [
+        "the three ADRs exist with index rows",
+        "the plan is amended in the same commit where an ADR shape differs from Tasks 2c.1-2c.9",
+        "full gate passes",
+        "owner accepts ADRs 0024, 0025 and 0028 before 2c starts"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2b-1",
+      "category": "contracts",
+      "description": "Task 2b.1: Profile.features with off/shadow/on, default off, and the off-mode golden baseline",
+      "steps": [
+        "off_mode_events.json baseline committed before any other change",
+        "test_profile_features_default_off and test_profile_rejects_unknown_feature pass",
+        "test_committed_profiles.py passes",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2b-2",
+      "category": "kernel",
+      "description": "Task 2b.2: feature.fallback and IR event types with reason codes, rendered by ui-core",
+      "steps": [
+        "test_record_fallback_appends_event_with_reason passes on memory and postgres",
+        "ui-core feature-events test passes",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2b-3",
+      "category": "server",
+      "description": "Task 2b.3: /health/ready and the evidence bundle report feature toggles",
+      "steps": [
+        "test_ready_reports_features, test_evidence_records_features and test_evidence_v1_keys_unchanged pass",
+        "export_openapi.py --check and pnpm --dir ui gen:check report no drift",
+        "full gate and make e2e pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2c-1",
+      "category": "contracts",
+      "description": "Task 2c.1: TaskDefinition, AcceptanceSpec, ActionPlan, PlannedStep, LineageRef and StepRecord contracts",
+      "steps": [
+        "contract tests for duplicate ids, unknown dependency, cycle and lineage ordering pass",
+        "uv run lint-imports keeps every contract",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2c-2",
+      "category": "erp",
+      "description": "Task 2c.2: task definitions for the eight ERP tasks, admitted by the registry",
+      "steps": [
+        "test_task_capabilities_equal_current_tool_lists passes",
+        "registry refuses unadmitted capabilities and duplicate task ids",
+        "notes-domain task definition admitted",
+        "check_wheels.py passes; full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2c-3",
+      "category": "store",
+      "description": "Task 2c.3: action plans and step records in the memory and Postgres stores (migration 0005)",
+      "steps": [
+        "store conformance tests for plans and atomic step commits pass on memory",
+        "the same pass with E_AGENT_TEST_STORE=postgres",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2c-4",
+      "category": "kernel",
+      "description": "Task 2c.4: IR compiler, plan validation and plan digest",
+      "steps": [
+        "test_one_step_plan_digest_equals_action_digest passes",
+        "plan digest golden vectors pass",
+        "validation is pure",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2c-5",
+      "category": "kernel",
+      "description": "Task 2c.5: execution_ir shadow mode records the compiled plan and acts on the existing path",
+      "steps": [
+        "test_shadow_adds_no_driver_calls_reads_or_budget passes",
+        "test_off_mode_event_stream_matches_baseline passes",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2c-6",
+      "category": "kernel",
+      "description": "Task 2c.6: execution_ir on with single-step plans, tool set from the task definition, fallback before reservation",
+      "steps": [
+        "test_on_tool_set_equals_task_definition passes",
+        "fallback tests record feature.fallback with reason codes",
+        "test_model_cannot_mark_plan_verified passes",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2c-7",
+      "category": "kernel",
+      "description": "Task 2c.7: multi-step plans approved once and dispatched serially with per-step verification and the live guard",
+      "steps": [
+        "test_plan_approved_once_dispatches_steps_in_order passes",
+        "test_live_profile_refuses_multi_write_budget passes",
+        "ERP and notes two-step scenarios pass",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2c-8",
+      "category": "kernel",
+      "description": "Task 2c.8: plan partial failure, reconciliation and evidence sections",
+      "steps": [
+        "test_no_fallback_after_first_reservation passes",
+        "test_unknown_step_blocks_remaining_steps and test_lineage_value_outside_bound_rule_stops_plan pass",
+        "recovery does not replay committed steps",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2c-9",
+      "category": "driver",
+      "description": "Task 2c.9: drivers emit ProposePlan behind the toggle",
+      "steps": [
+        "FunctionModel plan output becomes ProposePlan",
+        "off-mode driver outputs unchanged",
+        "model-chosen connections rejected",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2d-1",
+      "category": "verification",
+      "description": "Task 2d.1: end-of-phase levels 1-3, phase review and handoff",
+      "steps": [
+        "full gate, Postgres run and make e2e pass on a clean tree",
+        "phase review findings closed",
+        "handoff validates with e-agent-harness handoff"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-2d-2",
+      "category": "verification",
+      "description": "Task 2d.2: owner-run live check on odoo19-learning",
+      "steps": [
+        "draft-po with off, shadow and on and a read-only task with on behave as the plan's Live check says",
+        "results recorded in the handoff, labelled live"
+      ],
+      "passes": false
+    }
+  ]
+}
