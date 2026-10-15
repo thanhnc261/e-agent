@@ -4,11 +4,14 @@ import json
 from typing import Any
 
 import pytest
+from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.cli import main
+
+FIXTURE = ("--profile", str(fixture_profile_path()))
 
 
 def _run(capsys: pytest.CaptureFixture[str], *args: str) -> dict[str, Any]:
-    assert main(["demo", "--json", *args]) == 0
+    assert main([*FIXTURE, "demo", "--json", *args]) == 0
     return json.loads(capsys.readouterr().out)  # type: ignore[no-any-return]
 
 

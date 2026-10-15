@@ -14,6 +14,7 @@ import pytest
 from e_agent.contracts.run import RunState
 from e_agent.erp import plugin as erp_plugin
 from e_agent.kernel.errors import ErrorCode, KernelError
+from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.sdk.ports import AgentDriver, DriverRequest
 from e_agent.server import bootstrap
 from e_agent.server.bootstrap import build_runtime
@@ -22,7 +23,7 @@ from pydantic import ValidationError
 
 
 def _profile(**driver: Any) -> Profile:
-    data = load_profile().model_dump(mode="json")
+    data = load_profile(fixture_profile_path()).model_dump(mode="json")
     data["driver"] |= driver
     return Profile.model_validate(data)
 
@@ -70,7 +71,7 @@ async def test_scripted_driver_runs_against_any_enabled_erp_provider(
     task: str, state: RunState
 ) -> None:
     # The fixture provider here; the Odoo provider in the live check.
-    rt = await build_runtime(load_profile(), task_kind=task)
+    rt = await build_runtime(load_profile(fixture_profile_path()), task_kind=task)
     preset = rt.registry.task_presets[task]
     run = await rt.coordinator.start_run(rt.operator, preset.prompt, rt.scope)
     assert run.state is state
@@ -80,7 +81,7 @@ async def test_unknown_driver_kind_refused(monkeypatch: pytest.MonkeyPatch) -> N
     # The profile names the scripted driver, but no admitted plugin contributes it.
     monkeypatch.delitem(erp_plugin.DRIVER_FACTORIES, "scripted")
     with pytest.raises(KernelError) as exc:
-        await build_runtime(load_profile())
+        await build_runtime(load_profile(fixture_profile_path()))
     assert exc.value.code is ErrorCode.STARTUP_REJECTED
     assert "scripted" in exc.value.safe_message
 

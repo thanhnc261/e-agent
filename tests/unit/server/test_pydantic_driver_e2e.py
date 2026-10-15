@@ -9,6 +9,7 @@ import pytest
 from e_agent.adapters.pydantic_ai import PydanticAiDriver
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.run import RunState
+from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.bootstrap import build_runtime, tool_specs
 from e_agent.server.profile import Profile, load_profile
 from pydantic_ai import ModelMessage, ModelResponse, TextPart, ToolCallPart, models
@@ -77,7 +78,7 @@ def scripted_llm(first_offer: str) -> FunctionModel:
 
 
 async def _run(first_offer: str):  # type: ignore[no-untyped-def]
-    profile = load_profile()
+    profile = load_profile(fixture_profile_path())
     rt = await build_runtime(
         profile,
         driver_factory=lambda reg: PydanticAiDriver(
@@ -146,7 +147,7 @@ LITELLM_KEY = "sk-test-123"
 
 
 def _with_driver(**driver: object):  # type: ignore[no-untyped-def]
-    profile = load_profile()
+    profile = load_profile(fixture_profile_path())
     raw = profile.model_dump(mode="json")
     raw["driver"] = {**raw["driver"], "kind": "pydantic-ai", **driver}
     return Profile.model_validate(raw)  # validates, so the provider literal is exercised
@@ -175,7 +176,7 @@ async def test_default_provider_is_ollama_and_unchanged() -> None:
     rt = await build_runtime(_with_driver(model="qwen3"))
     assert rt.versions["model_provider"] == "ollama"
     assert rt.versions["model"] == "qwen3"
-    scripted = await build_runtime(load_profile())
+    scripted = await build_runtime(load_profile(fixture_profile_path()))
     assert scripted.versions["model_provider"] is None
 
 

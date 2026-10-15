@@ -17,6 +17,7 @@ from e_agent.erp.procurement import CREATE_DRAFT_PO, DEMAND_READ
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.registry import EnabledPlugin, PluginRegistry
+from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.plugins.erp.simulator.fake_erp import BINDINGS, PLUGIN_ID, FakeErp
 from e_agent.plugins.erp.simulator.scenarios import SCENARIOS
 from e_agent.sdk.discovery import discover
@@ -28,9 +29,11 @@ from e_agent.server.profile import Profile, load_profile
 REPO = Path(__file__).resolve().parents[5]
 SIMULATOR = "e_agent.plugins.erp.simulator"
 
+FIXTURE = ("--profile", str(fixture_profile_path()))
+
 
 def _demo(capsys: pytest.CaptureFixture[str], *args: str) -> dict[str, Any]:
-    assert main(["demo", "--json", *args]) == 0
+    assert main([*FIXTURE, "demo", "--json", *args]) == 0
     return json.loads(capsys.readouterr().out)  # type: ignore[no-any-return]
 
 
@@ -42,7 +45,7 @@ async def test_fixture_profile_composes_through_discovery() -> None:
         (t.binding_id, t.contract_id) for t in BINDINGS
     ]
 
-    rt = await build_runtime(load_profile())
+    rt = await build_runtime(load_profile(fixture_profile_path()))
     assert PLUGIN_ID in rt.registry.report.admitted
     [executor] = rt.registry.plugin_executors[PLUGIN_ID]
     assert isinstance(executor, FakeErp)
@@ -59,7 +62,9 @@ async def test_fixture_profile_composes_through_discovery() -> None:
         "zero-shortage",
     ]
     for name, scenario in SCENARIOS.items():
-        rt = await build_runtime(load_profile(), plugin_settings={PLUGIN_ID: {"scenario": name}})
+        rt = await build_runtime(
+            load_profile(fixture_profile_path()), plugin_settings={PLUGIN_ID: {"scenario": name}}
+        )
         assert rt.registry.plugin_executors[PLUGIN_ID][0].scenario is scenario  # type: ignore[attr-defined]
 
 
@@ -107,9 +112,7 @@ def test_live_profile_never_imports_simulator() -> None:
     assert [m for m in live["modules"] if m.startswith(SIMULATOR)] == []
     assert [m for m in live["modules"] if m.endswith(("fake_erp", "scenarios"))] == []
     # The check is not vacuous: the fixture profile imports the simulator.
-    fixture = _admit_in_subprocess(
-        REPO / "src" / "e_agent" / "server" / "profiles" / "fixture.json"
-    )
+    fixture = _admit_in_subprocess(fixture_profile_path())
     assert PLUGIN_ID in fixture["admitted"]
     assert f"{SIMULATOR}.fake_erp" in fixture["modules"]
 
@@ -201,7 +204,9 @@ SYNTHETIC = "REVIEW_SYNTHETIC_PRIVATE_VALUE"
 )
 async def test_unknown_scenario_refused(settings: dict[str, Any], named: str) -> None:
     with pytest.raises(KernelError) as exc:
-        await build_runtime(load_profile(), plugin_settings={PLUGIN_ID: settings})
+        await build_runtime(
+            load_profile(fixture_profile_path()), plugin_settings={PLUGIN_ID: settings}
+        )
     assert exc.value.code is ErrorCode.STARTUP_REJECTED
     message = exc.value.safe_message
     assert PLUGIN_ID in message and named in message
@@ -211,7 +216,9 @@ async def test_unknown_scenario_refused(settings: dict[str, Any], named: str) ->
 
 async def test_settings_for_a_plugin_not_enabled_refused() -> None:
     with pytest.raises(KernelError) as exc:
-        await build_runtime(load_profile(), plugin_settings={"odoo19": {"scenario": "valid"}})
+        await build_runtime(
+            load_profile(fixture_profile_path()), plugin_settings={"odoo19": {"scenario": "valid"}}
+        )
     assert exc.value.code is ErrorCode.STARTUP_REJECTED
 
 
@@ -230,7 +237,7 @@ def test_live_profile_settings_are_not_overridden() -> None:
 
 
 def _fixture_profile(scenario: str | None, settings: dict[str, Any] | None) -> Profile:
-    data = load_profile().model_dump(mode="json")
+    data = load_profile(fixture_profile_path()).model_dump(mode="json")
     data["fixture"]["scenario"] = scenario
     if settings is None:
         del data["enabled_plugins"][PLUGIN_ID]
@@ -269,11 +276,11 @@ async def test_fixture_scenario_no_plugin_takes_refused(settings: dict[str, Any]
 def test_cli_scenario_needs_a_plugin_taking_it(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert main(["demo", "--json", "--scenario", "no-such-scenario"]) == 2
+    assert main([*FIXTURE, "demo", "--json", "--scenario", "no-such-scenario"]) == 2
     err = capsys.readouterr().err
     assert "invalid setting 'scenario'" in err and "no-such-scenario" not in err
     # A profile whose plugins take no scenario setting refuses --scenario.
-    data = load_profile().model_dump(mode="json")
+    data = load_profile(fixture_profile_path()).model_dump(mode="json")
     data["enabled_plugins"][PLUGIN_ID]["settings"] = {}
     profile = tmp_path / "profile.json"
     profile.write_text(json.dumps(data), encoding="utf-8")

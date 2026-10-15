@@ -131,28 +131,25 @@ def main() -> int:
             cwd=neutral,
         )
         print("ok  installed plugin bytes match trusted wheel inventories before activation")
-        out = run(
-            [str(server_python), "-m", "e_agent.server.cli", "demo", "--json", "--approve"],
+        # The server ships no profile; the fixture profile is a resource of the installed simulator.
+        fixture = run(
+            [
+                str(server_python),
+                "-c",
+                "from e_agent.plugins.erp.simulator import fixture_profile_path as p; print(p())",
+            ],
             cwd=neutral,
-        )
+        ).strip()
+        if not Path(fixture).resolve().is_relative_to(neutral.resolve()):
+            raise SystemExit(f"FAILED: fixture profile not from the installed wheel: {fixture}")
+        cli = [str(server_python), "-m", "e_agent.server.cli", "--profile", fixture]
+        out = run([*cli, "demo", "--json", "--approve"], cwd=neutral)
         state = json.loads(out)["run"]["state"]
         if state != "SUCCEEDED":
             raise SystemExit(f"FAILED: installed demo ended in {state}")
         print("ok  installed e-agent demo completes outside the repository")
         for task in ("amend-rfq", "quotation", "crm-lead", "late-orders", "overdue-invoices"):
-            out = run(
-                [
-                    str(server_python),
-                    "-m",
-                    "e_agent.server.cli",
-                    "demo",
-                    "--json",
-                    "--approve",
-                    "--task",
-                    task,
-                ],
-                cwd=neutral,
-            )
+            out = run([*cli, "demo", "--json", "--approve", "--task", task], cwd=neutral)
             if json.loads(out)["run"]["state"] != "SUCCEEDED":
                 raise SystemExit(f"FAILED: installed {task} demo")
         print("ok  installed ERP-04..08 demos complete outside the repository")

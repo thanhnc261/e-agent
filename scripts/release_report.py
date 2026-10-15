@@ -21,6 +21,7 @@ from typing import Any
 
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.run import RunState
+from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.bootstrap import build_runtime
 from e_agent.server.profile import load_profile
 
@@ -166,7 +167,7 @@ CASES = [
 
 async def run_case(case: Case) -> dict[str, Any]:
     rt = await build_runtime(
-        load_profile(),
+        load_profile(fixture_profile_path()),
         driver_mode=case.mode,
         plugin_settings={
             "fixture-erp": {
@@ -224,7 +225,7 @@ async def main() -> int:
     parser.add_argument("--out", default="evals/reports/fixture-release.json")
     args = parser.parse_args()
     results = [await run_case(c) for c in CASES]
-    rt = await build_runtime(load_profile())
+    rt = await build_runtime(load_profile(fixture_profile_path()))
     report = {
         "report": "e-agent-release-matrix-v1",
         "environment": "fixture",

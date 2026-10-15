@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Mapping
-from importlib.resources import files
 from pathlib import Path
 from typing import Any, Literal
 
 from e_agent.contracts.common import Record
 from e_agent.contracts.connection import ConnectionDescriptor
 from e_agent.contracts.context import Budgets
+from e_agent.kernel.errors import ErrorCode, KernelError
 from pydantic import Field, model_validator
 
 
@@ -102,10 +103,13 @@ class Profile(Record):
 
 
 def load_profile(path: str | Path | None = None) -> Profile:
-    if path is None:
-        text = files(__package__).joinpath("profiles/fixture.json").read_text("utf-8")
-    else:
-        text = Path(path).read_text("utf-8")
+    """Load the given profile, else the one ``E_AGENT_PROFILE`` names; the server ships none."""
+    path = path or os.environ.get("E_AGENT_PROFILE")
+    if not path:
+        raise KernelError(
+            ErrorCode.STARTUP_REJECTED, "no profile given: pass --profile or set E_AGENT_PROFILE"
+        )
+    text = Path(path).read_text("utf-8")
     profile = Profile.model_validate(json.loads(text))
     for conn in profile.connections:
         if conn.tenant_id != profile.tenant_id:

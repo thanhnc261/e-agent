@@ -220,7 +220,7 @@ def _plugins(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="e-agent", description="e-agent CLI")
-    parser.add_argument("--profile", help="profile JSON (default: packaged fixture profile)")
+    parser.add_argument("--profile", help="profile JSON (default: the path in E_AGENT_PROFILE)")
     sub = parser.add_subparsers(dest="command", required=True)
     demo = sub.add_parser("demo", help="run the fixture procurement walking skeleton")
     demo.add_argument("--scenario", help="fixture scenario, checked by the plugin that takes it")

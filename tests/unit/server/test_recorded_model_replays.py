@@ -8,6 +8,7 @@ from e_agent.adapters.pydantic_ai import PydanticAiDriver
 from e_agent.contracts.action import ActionState
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.run import RunState
+from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.bootstrap import build_runtime, tool_specs
 from e_agent.server.profile import load_profile
 from pydantic_ai import ModelMessagesTypeAdapter, TextPart, ToolCallPart
@@ -50,7 +51,7 @@ async def replay(task, *, omit_late_order=False):
         cursor += 1
         return response
 
-    profile = load_profile()
+    profile = load_profile(fixture_profile_path())
     runtime = await build_runtime(
         profile,
         driver_factory=lambda registry: PydanticAiDriver(

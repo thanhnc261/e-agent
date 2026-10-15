@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 from unittest import mock
 
+from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server import bootstrap, cli
 from e_agent.server.profile import Profile, load_profile
 
@@ -64,7 +65,7 @@ def _with(base: Profile, **driver: Any) -> Profile:
 
 
 def _profiles() -> dict[str, Profile]:
-    base = load_profile()
+    base = load_profile(fixture_profile_path())
     refs = {key: f"{key}:LIVE" for key in REF_KEYS}
     legacy = {"demand_ref": "demand:LEGACY", "product_ref": "product:LEGACY"}
     return {

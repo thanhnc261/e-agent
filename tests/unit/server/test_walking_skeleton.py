@@ -3,11 +3,14 @@
 import json
 
 import pytest
+from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.cli import main
+
+FIXTURE = ("--profile", str(fixture_profile_path()))
 
 
 def _run(capsys: pytest.CaptureFixture[str], *args: str) -> dict:  # type: ignore[type-arg]
-    code = main(["demo", "--json", *args])
+    code = main([*FIXTURE, "demo", "--json", *args])
     assert code == 0
     return json.loads(capsys.readouterr().out)  # type: ignore[no-any-return]
 
@@ -75,7 +78,7 @@ def test_lost_response_is_unknown_until_reconciled(capsys) -> None:  # type: ign
 
 
 def test_plugins_listing_is_metadata_only(capsys) -> None:  # type: ignore[no-untyped-def]
-    assert main(["plugins"]) == 0
+    assert main([*FIXTURE, "plugins"]) == 0
     out = capsys.readouterr().out
     assert "domain-erp 0.1.0 [domain]" in out and "enabled" in out
 
@@ -113,7 +116,7 @@ def test_erp02_recommendation_verified_including_none(capsys) -> None:  # type: 
 
 def test_evidence_bundle_is_classified_versioned_and_private(capsys, tmp_path) -> None:  # type: ignore[no-untyped-def]
     out = tmp_path / "evidence.json"
-    assert main(["demo", "--approve", "--evidence-out", str(out)]) == 0
+    assert main([*FIXTURE, "demo", "--approve", "--evidence-out", str(out)]) == 0
     bundle = json.loads(out.read_text())
     assert bundle["schema"] == "e-agent-evidence-v1"
     assert bundle["environment"] == "fixture"

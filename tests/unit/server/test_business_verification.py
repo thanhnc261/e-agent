@@ -8,6 +8,7 @@ from e_agent.contracts.run import RunState
 from e_agent.erp.crm import LEAD_READ
 from e_agent.erp.procurement import PURCHASE_ORDER_READ
 from e_agent.erp.sales import QUOTATION_READ
+from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.bootstrap import build_runtime
 from e_agent.server.profile import load_profile
 
@@ -62,7 +63,7 @@ from e_agent.server.profile import load_profile
     ],
 )
 async def test_committed_effect_with_inexact_readback_is_not_verified(task, field, value):
-    runtime = await build_runtime(load_profile(), task_kind=task)
+    runtime = await build_runtime(load_profile(fixture_profile_path()), task_kind=task)
     [erp] = runtime.registry.plugin_executors["fixture-erp"]
     original = erp.read
 
@@ -131,7 +132,9 @@ async def test_verified_answer_finishes_after_one_bounded_acknowledgement(acknow
             return step
 
     driver = Driver()
-    runtime = await build_runtime(load_profile(), driver_factory=lambda registry: driver)
+    runtime = await build_runtime(
+        load_profile(fixture_profile_path()), driver_factory=lambda registry: driver
+    )
     run = await runtime.coordinator.start_run(runtime.operator, "shortage", runtime.scope)
     assert run.state is (
         RunState.FAILED if acknowledgement == "budget-exhausted" else RunState.SUCCEEDED
@@ -171,7 +174,9 @@ async def test_verified_recommendation_can_precede_an_approved_purchase_order():
                 return await self.purchase.advance(ctx, replace(step_input, action_result=None))
             return await self.recommend.advance(ctx, step_input)
 
-    runtime = await build_runtime(load_profile(), driver_factory=lambda registry: Driver())
+    runtime = await build_runtime(
+        load_profile(fixture_profile_path()), driver_factory=lambda registry: Driver()
+    )
     run = await runtime.coordinator.start_run(
         runtime.operator, "create purchase order", runtime.scope
     )

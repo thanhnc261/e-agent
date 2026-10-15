@@ -10,6 +10,7 @@ from pathlib import Path
 
 import qualify_model as harness
 from e_agent.adapters.pydantic_ai import PydanticAiDriver, ollama_model
+from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.bootstrap import build_runtime, tool_specs
 from e_agent.server.profile import load_profile
 from pydantic_ai import ModelMessagesTypeAdapter, ModelResponse, TextPart, ToolCallPart
@@ -30,7 +31,7 @@ async def main() -> int:
         captured = False
         for attempt in range(1, 4):
             before = harness.ollama_meta(args.base_url, args.model)
-            profile = load_profile()
+            profile = load_profile(fixture_profile_path())
             runtime = await build_runtime(
                 profile,
                 driver_factory=lambda registry, profile=profile: PydanticAiDriver(

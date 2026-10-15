@@ -48,6 +48,7 @@ from e_agent.erp.procurement import (
 from e_agent.erp.receivables import OVERDUE_INVOICES_ANSWER
 from e_agent.erp.sales import CREATE_DRAFT_QUOTATION, LATE_ORDERS_ANSWER
 from e_agent.erp.testing.scripted_tasks import TASK_KINDS
+from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.bootstrap import build_runtime, tool_specs
 from e_agent.server.profile import load_profile
 
@@ -142,7 +143,7 @@ async def trial(
     rt = None
     try:
         async with asyncio.timeout(deadline):
-            profile = load_profile()
+            profile = load_profile(fixture_profile_path())
             settings = {"temperature": temperature}
             if seed is not None:
                 settings["seed"] = seed

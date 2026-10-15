@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 import pytest
+from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.api import create_app
 from e_agent.server.bootstrap import build_runtime
 from e_agent.server.profile import load_profile
@@ -13,7 +14,7 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def client() -> Any:
-    app = create_app(lambda: build_runtime(load_profile()))
+    app = create_app(lambda: build_runtime(load_profile(fixture_profile_path())))
     with TestClient(app) as c:
         yield c
 
@@ -166,7 +167,9 @@ class _CrashingDriver:
 
 def test_background_crash_applies_crash_rules_not_a_guess() -> None:
     app = create_app(
-        lambda: build_runtime(load_profile(), driver_factory=lambda _r: _CrashingDriver())
+        lambda: build_runtime(
+            load_profile(fixture_profile_path()), driver_factory=lambda _r: _CrashingDriver()
+        )
     )
     with TestClient(app) as c:
         h = _login(c)
@@ -217,11 +220,11 @@ def test_ledger_must_not_share_the_provider_database() -> None:
     from e_agent.kernel.errors import KernelError
     from e_agent.server.bootstrap import check_ledger_separation
 
-    profile = load_profile().model_copy(
+    profile = load_profile(fixture_profile_path()).model_copy(
         update={
             "enabled_plugins": {
-                **load_profile().enabled_plugins,
-                "odoo19": load_profile()
+                **load_profile(fixture_profile_path()).enabled_plugins,
+                "odoo19": load_profile(fixture_profile_path())
                 .enabled_plugins["domain-erp"]
                 .model_copy(update={"settings": {"database": "erp_prod"}}),
             }
@@ -255,7 +258,7 @@ def test_clarification_resumes_same_run_and_input_replay_is_idempotent() -> None
     with TestClient(
         create_app(
             lambda: build_runtime(
-                load_profile(),
+                load_profile(fixture_profile_path()),
                 driver_factory=lambda registry: ClarifyingDriver(),
             )
         )
@@ -286,7 +289,7 @@ async def test_lost_work_lease_stops_claim_without_killing_worker(monkeypatch) -
     from e_agent.contracts.work import WorkClaim
     from e_agent.server.api import ApiState
 
-    runtime = await build_runtime(load_profile())
+    runtime = await build_runtime(load_profile(fixture_profile_path()))
     state = ApiState(runtime)
     started = asyncio.Event()
     original_sleep = asyncio.sleep
@@ -327,7 +330,7 @@ async def test_takeover_executes_durable_command_that_never_started(kind):
     from e_agent.contracts.run import RunState
     from e_agent.server.api import ApiState
 
-    runtime = await build_runtime(load_profile())
+    runtime = await build_runtime(load_profile(fixture_profile_path()))
     state = ApiState(runtime)
     if kind == "start":
         run_id, created = await runtime.coordinator.admit_run(
@@ -370,7 +373,7 @@ def test_conflicting_decision_is_rejected_before_the_worker_runs():
     admitted = {}
 
     async def factory():
-        runtime = await build_runtime(load_profile())
+        runtime = await build_runtime(load_profile(fixture_profile_path()))
         run = await runtime.coordinator.start_run(runtime.operator, "restock", runtime.scope)
         admitted["run_id"] = run.run_id
 
@@ -466,7 +469,7 @@ def test_ready_reports_whether_self_approval_is_allowed(client: TestClient) -> N
 def test_ready_reports_self_approval_disallowed_when_the_profile_flag_is_unset() -> None:
     from e_agent.server.profile import OperatorConfig
 
-    profile = load_profile()
+    profile = load_profile(fixture_profile_path())
     operator = OperatorConfig(  # allow_self_approval deliberately left unset
         principal_id=profile.operator.principal_id, roles=profile.operator.roles
     )
@@ -513,7 +516,7 @@ async def test_expired_approval_is_failed_by_the_worker_under_a_system_actor(tak
     from e_agent.contracts.run import ReasonCode, RunState
     from e_agent.server.api import ApiState
 
-    runtime = await build_runtime(load_profile())
+    runtime = await build_runtime(load_profile(fixture_profile_path()))
     state = ApiState(runtime)
     tenant = runtime.operator.tenant_id
     run = await runtime.coordinator.start_run(runtime.operator, "restock", runtime.scope)
@@ -543,7 +546,7 @@ async def test_sweeper_survives_a_failed_sweep_and_stops_on_cancel(monkeypatch) 
     from e_agent.server import worker
     from e_agent.server.api import ApiState
 
-    runtime = await build_runtime(load_profile())
+    runtime = await build_runtime(load_profile(fixture_profile_path()))
     state = ApiState(runtime)
     calls: list[int] = []
 
@@ -629,7 +632,7 @@ def test_startup_recovery_events_are_attributed_to_the_startup_worker() -> None:
     crashed: dict[str, str] = {}
 
     async def factory():
-        runtime = await build_runtime(load_profile())
+        runtime = await build_runtime(load_profile(fixture_profile_path()))
         run = await runtime.coordinator.start_run(runtime.operator, "restock", runtime.scope)
         pres = await runtime.coordinator.pending_approval(runtime.operator.tenant_id, run.run_id)
         original = runtime.store.put_action
@@ -667,7 +670,7 @@ def test_unexpected_worker_failure_is_logged_with_traceback(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     async def factory() -> Any:
-        runtime = await build_runtime(load_profile())
+        runtime = await build_runtime(load_profile(fixture_profile_path()))
 
         async def boom(tenant_id: str, run_id: str) -> None:
             raise RuntimeError("boom")
