@@ -294,3 +294,8 @@
 - changed: no working-tree changes
 - next: test_scripted_driver_resolved_from_registry passes
 - open: none
+
+## 2026-10-15T15:34:52.256316+00:00 · 69a418a6-8e79-4a58-9c38-eabb00a5f239 · 1d.5
+- changed: harness/state/1/features.json, harness/state/1/handoffs/1d.5.json, harness/state/evidence/gates/1d.5/2026-10-15T15-30-54.349113+00-00-full.json
+- next: fresh-context Codex review of 1d.5 (kernel registry and SDK discovery changed), then clear context and new-task 1 1d.6 --feature F-1d-6
+- open: none

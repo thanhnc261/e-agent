@@ -305,7 +305,8 @@
         "plugins/ and plugins/erp/ have no __init__.py",
         "check_wheels.py passes; full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/1d.5/2026-10-15T15-30-54.349113+00-00-full.json"
     },
     {
       "id": "F-1d-6",
