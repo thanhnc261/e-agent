@@ -1,7 +1,8 @@
 {
   "task": "1d.3",
-  "changed": "Task presets now come from the domain pack (R-3). e_agent.sdk.ports gains TaskPreset (kind, prompt template with named {ref} placeholders, default refs, help; a placeholder without a default is refused at construction) and PluginContribution.task_presets. PluginRegistry collects presets by kind and refuses two different definitions of one kind with STARTUP_REJECTED (PR-09). The ERP domain pack contributes the eight presets that were TASK_PROMPTS in server/cli.py and TASK_KINDS/DEFAULT_REFS in erp/testing/scripted_tasks.py; the scripted driver's TASK_KINDS and DEFAULT_REFS now derive from them. DriverConfig.task_kind is a plain string with no ERP wording; bootstrap refuses a kind no admitted plugin offers, naming the admitted kinds. The CLI renders the demo prompt from the admitted preset (defaults, then driver.refs, then the legacy demand_ref/product_ref), and --task has no static choices. qualify_model.py and capture_model_replays.py take prompts from the presets. A golden file of 36 demo prompts (8 kinds plus the profile default, under four profiles: default, refs, legacy refs, both) was recorded through the CLI's own demo path on the unchanged code (49abd0b) and is unchanged after the change.",
+  "changed": "Task presets now come from the domain pack (R-3). e_agent.sdk.ports gains TaskPreset (kind, the demo prompt with its default refs written out, the default refs in the order overrides apply, help; an empty default is refused) and PluginContribution.task_presets. TaskPreset.render applies (ref, value) overrides one after another by text replacement, which is the old CLI algorithm. PluginRegistry collects presets by kind and refuses two different definitions of one kind with STARTUP_REJECTED (PR-09). The ERP domain pack contributes the eight presets that were TASK_PROMPTS in server/cli.py and TASK_KINDS/DEFAULT_REFS in erp/testing/scripted_tasks.py; all eight share one ref table (TASK_REFS) in the old DEFAULT_REFS order plus demand_ref, and the scripted driver's TASK_KINDS and DEFAULT_REFS derive from them. DriverConfig.task_kind is a plain string with no ERP wording; bootstrap refuses a kind no admitted plugin offers, naming the admitted kinds. cli.demo_prompt applies the top-level demand_ref/product_ref, then refs in table order, skipping refs.demand_ref as before; --task has no static choices. qualify_model.py and capture_model_replays.py take prompts from the presets. Behaviour equality: a 72-case golden of the CLI's own demo path (8 kinds plus the profile default, under 8 profiles) recorded on unchanged code (36 cases at 49abd0b; 36 collision cases recorded on a 59dbb9c worktree with every e_agent module asserted to load from it), and an oracle test comparing cli.demo_prompt with the 59dbb9c algorithm, copied with frozen constants, over every pair of colliding overrides for all eight kinds. Codex review (harness/state/1/reviews/1d.3.json, rework): R-1 fixed in 93184fb: sequential replacement with one shared ref table; refs.demand_ref skipped as before. Red first: at 5b793e8 test_cli_demo_prompts_unchanged failed with 11 of 72 golden cases different (chain/amend-rfq, collide/quotation, legacy-default/* x5, refs-demand/* x4) and test_demo_prompt_matches_baseline_for_colliding_overrides failed with AttributeError: module 'e_agent.server.cli' has no attribute 'demo_prompt'; green after the fix (18 passed). R-2 fixed in 93184fb: no format template remains; render cannot raise on any prompt; an empty default is refused at construction (test_empty_default_refused). R-3 evidence supplied: first round, the new tests were run before any implementation and failed at collection with ImportError: cannot import name 'TaskPreset' from 'e_agent.sdk.ports' (2 errors; the plan expected AttributeError: task_presets, same cause); second round recorded above under R-1.",
   "evidence_refs": [
+    "harness/state/evidence/gates/1d.3/2026-10-15T13-40-24.047416+00-00-full.json",
     "harness/state/evidence/gates/1d.3/2026-10-15T13-29-26.372403+00-00-full.json",
     "harness/state/evidence/gates/1d.3/2026-10-15T13-26-42.206217+00-00-full.json",
     "harness/state/evidence/gates/1d.3/2026-10-15T13-08-40.813761+00-00-quick.json"
@@ -10,7 +11,9 @@
     "Harness defect: amend-scope given two --add flags keeps only the last one without warning (seen in this task; re-run per path); it should take a list or refuse, and belongs in the harness backlog",
     "The two skipped unit tests are the Postgres migration tests (E_AGENT_TEST_PG_DSN unset); the recorded-model replay suite ran inside the full gate and alone (9 passed, PR-32); the pg level is not part of this task's gate set (1d.10)",
     "SCENARIOS and the ScriptedErpDriver import keep server/cli.py and bootstrap.py importing e_agent.erp; they leave in 1d.4 and 1d.5",
-    "A manual CLI check ran on 1f83eb6: 'e-agent demo --task shortage' ended SUCCEEDED (fixture) and '--task nope' printed STARTUP_REJECTED naming the eight admitted kinds; no live check (1d.12)"
+    "Task 1d.4 folds demand_ref into refs: it removes the refs.demand_ref skip in cli.demo_prompt and re-records the golden's refs-demand cases on purpose (noted in the plan)",
+    "Manual CLI checks: 'e-agent demo --task shortage' ended SUCCEEDED on 1f83eb6 and 'demo --task quotation --approve' ended SUCCEEDED (outcome verified) on 93184fb, both fixture; '--task nope' printed STARTUP_REJECTED naming the eight admitted kinds; no live check (1d.12)",
+    "A second fresh-context Codex review of the R-1/R-2 fix is pending"
   ],
   "rulings": [
     {
@@ -22,16 +25,16 @@
       "cost_if_wrong": "a typo is reported after admission rather than by argparse, and --help no longer lists kinds; a two-stage parse could restore that later"
     },
     {
-      "ruling": "Presets are templates rendered with defaults then refs then legacy demand_ref/product_ref, instead of string replacement of default values; refs['demand_ref'] is now substituted where the old code ignored it",
-      "cost_if_wrong": "a profile that set refs.demand_ref while expecting demand:d-001 in the prompt would see a different prompt; no committed profile does, and 1d.4 folds demand_ref into refs anyway"
+      "ruling": "TaskPreset keeps the old sequential text-replacement semantics (literal prompt, ordered (ref, value) overrides, one shared ref table) instead of a format template, because ADR 0026 accepts run behaviour unchanged and a template cannot reproduce chained replacements (review R-1); this also removes the unchecked format syntax (R-2)",
+      "cost_if_wrong": "a default that is a substring of other prompt text is replaced too, as before; Phase 2 Task 2c.2 may replace this with typed task inputs under its own ADR"
     },
     {
-      "ruling": "The scope gained src/e_agent/kernel/registry.py and tests/unit/kernel/**, since every contribution field is aggregated by the registry; the plan's 1d.3 file list now names the registry",
-      "cost_if_wrong": "none beyond a kernel diff that needs the trust-anchor review path"
+      "ruling": "The scope gained src/e_agent/kernel/registry.py and tests/unit/kernel/**, since every contribution field is aggregated by the registry; the plan's 1d.3 file list names the registry",
+      "cost_if_wrong": "none beyond a kernel diff that needs the trust-anchor review path (Codex)"
     },
     {
       "ruling": "The golden recorder runs the real fixture runtime and only replaces coordinator.start_run, so the test compares the same CLI path the golden was captured from",
-      "cost_if_wrong": "the golden test builds eight-times-four fixture runtimes (about a second); low"
+      "cost_if_wrong": "the golden test builds 72 fixture runtimes (about two seconds); low"
     }
   ],
   "outside_repo": []

@@ -269,3 +269,8 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1d.3.json, harness/state/evidence/gates/1d.3/2026-10-15T13-08-40.813761+00-00-quick.json, harness/state/evidence/gates/1d.3/2026-10-15T13-26-42.206217+00-00-full.json, harness/state/evidence/gates/1d.3/2026-10-15T13-29-26.372403+00-00-full.json
 - next: fresh-context Codex review of 1d.3 (kernel registry changed), then clear context and new-task 1 1d.4 --feature F-1d-4
 - open: none
+
+## 2026-10-15T13:41:53.633816+00:00 · 9565b298-6ee2-43e1-84d4-7bac172b7b2a · 1d.3
+- changed: harness/state/1/features.json, harness/state/1/handoffs/1d.3.json, harness/state/evidence/gates/1d.3/2026-10-15T13-40-24.047416+00-00-full.json
+- next: second fresh-context Codex review of the 1d.3 R-1/R-2 fix; then clear context and new-task 1 1d.4 --feature F-1d-4
+- open: none

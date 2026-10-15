@@ -280,7 +280,7 @@
         "export_openapi.py --check reports no change; full gate passes"
       ],
       "passes": true,
-      "evidence": "harness/state/evidence/gates/1d.3/2026-10-15T13-29-26.372403+00-00-full.json"
+      "evidence": "harness/state/evidence/gates/1d.3/2026-10-15T13-40-24.047416+00-00-full.json"
     },
     {
       "id": "F-1d-4",
