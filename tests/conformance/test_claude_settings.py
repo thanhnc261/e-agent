@@ -10,7 +10,12 @@ HOOK = '"$CLAUDE_PROJECT_DIR"/.claude/hooks/harness_hook.py'
 
 
 def _bash_rule_matches(rule: str, command: str) -> bool:
-    """Claude Code Bash rules: `*` matches any run of characters; `:*` is a trailing `*`."""
+    """Claude Code Bash rules: `*` matches any run of characters; `:*` is a trailing `*`.
+
+    A bare `Bash` rule matches every shell command.
+    """
+    if rule == "Bash":
+        return True
     m = re.fullmatch(r"Bash\((.*)\)", rule)
     if not m:
         return False
@@ -54,6 +59,22 @@ def test_deny_rules_cover_odoo_bench_shapes() -> None:
         assert _decision(command) == "deny", command
 
 
+def test_deny_rules_cover_commands_that_reach_every_container() -> None:
+    # They never name odoo-bench but would still stop or delete the running bench.
+    for command in (
+        "docker stop $(docker ps -q)",
+        "docker kill $(docker ps -q)",
+        "docker restart $(docker ps -q)",
+        "docker rm -f $(docker ps -aq)",
+        "docker system prune -af",
+        "docker container prune -f",
+        "docker volume prune -f",
+        "docker network prune -f",
+    ):
+        assert _decision(command) == "deny", command
+    assert _decision("docker stop e-agent-test-pg") == "allow"
+
+
 def test_sandbox_commands_are_allowed() -> None:
     for command in (
         "docker compose -p odoo19-learning ps",
@@ -65,16 +86,14 @@ def test_sandbox_commands_are_allowed() -> None:
         assert _decision(command) == "allow", command
 
 
-def test_integration_commands_ask_the_owner() -> None:
-    for command in (
-        "git push",
-        "git push origin main",
-        "git merge --ff-only harness/h4-adapters",
-        "git rebase main",
-        "git reset --hard HEAD~1",
-    ):
-        assert _decision(command) == "ask", command
-    assert _decision("git status") == "default"
+def test_shell_is_pre_approved_and_deny_still_wins() -> None:
+    """The owner's 2026-10-15 instruction: no manual shell approval; deny rules stay."""
+    perms = SETTINGS["permissions"]
+    assert perms["allow"] == ["Bash"]
+    assert "ask" not in perms
+    for command in ("git status", "git push origin main", "git reset --hard HEAD~1"):
+        assert _decision(command) == "allow", command
+    assert _decision("docker exec odoo-bench-db-1 psql -U odoo") == "deny"
 
 
 def test_protected_and_external_paths_are_denied() -> None:
@@ -99,13 +118,11 @@ def test_hooks_call_the_entry_script() -> None:
         ("SessionStart", "startup|resume|clear|compact"): "status --format hook",
         ("PreCompact", None): "checkpoint --hook",
         ("PreToolUse", "Edit|Write|NotebookEdit"): "check-scope --hook",
-        ("PreToolUse", "Bash"): "bash-guard",
         ("Stop", None): "close-check --hook",
     }
     # A guarding hook maps any startup failure (an old python3, a missing script) to exit 2.
     suffix = {
         "check-scope --hook": " || exit 2",
-        "bash-guard": " || exit 2",
         "close-check --hook": ' || { test "$E_AGENT_HARNESS_UNATTENDED" = 1 && exit 2; exit 0; }',
     }
     for (event, matcher), args in expected.items():
@@ -127,9 +144,10 @@ def test_no_per_edit_formatting_hook() -> None:
     assert sorted(SETTINGS["hooks"]) == ["PreCompact", "PreToolUse", "SessionStart", "Stop"]
 
 
-def test_bash_guard_fails_closed_on_timeout() -> None:
-    (hook,) = _commands("PreToolUse", "Bash")
-    assert hook["onFailure"] == "block"
+def test_bash_guard_is_not_wired() -> None:
+    # Unwired at the owner's 2026-10-15 instruction so it cannot ask for shell approval;
+    # the helper stays tested in tests/harness.
+    assert _commands("PreToolUse", "Bash") == []
 
 
 def test_wrapper_timeout_is_below_every_host_timeout() -> None:
@@ -167,11 +185,9 @@ def test_guarding_hooks_block_when_python_fails_to_start(tmp_path) -> None:
     broken.chmod(0o755)
     path = {"PATH": f"{bin_dir}:/usr/bin:/bin"}
     scope = _commands("PreToolUse", "Edit|Write|NotebookEdit")[0]["command"]
-    guard = _commands("PreToolUse", "Bash")[0]["command"]
     stop = _commands("Stop", None)[0]["command"]
     status = _commands("SessionStart", "startup|resume|clear|compact")[0]["command"]
     assert _run_hook_command(scope, tmp_path, path) == 2
-    assert _run_hook_command(guard, tmp_path, path) == 2
     assert _run_hook_command(stop, tmp_path, {**path, "E_AGENT_HARNESS_UNATTENDED": "1"}) == 2
     assert _run_hook_command(stop, tmp_path, {**path, "E_AGENT_HARNESS_UNATTENDED": ""}) == 0
     assert _run_hook_command(status, tmp_path, path) == 1  # never blocks: not exit 2

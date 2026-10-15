@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-2"
   ],
-  "context_digest": "ad9c102b12d2a50905e7c6db1d366ee05c39d4ce49e89c64c987b98185611442",
+  "context_digest": "af5feb02ee0bc1532cfd0d1a53dd10ebbfc24387c88a7b774576a3f7f3960a67",
   "allowed_paths": [
     "src/e_agent/sdk/connection.py",
     "src/e_agent/sdk/__init__.py",
@@ -17,7 +17,11 @@
     "tests/unit/sdk/**",
     "harness/state/**",
     "docs/handoffs/**",
-    "docs/plans/2026-10-14-phase1d-plugin-boundary.md"
+    "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+    "AGENTS.md",
+    ".claude/settings.json",
+    ".agents/skills/eng-session/SKILL.md",
+    "tests/conformance/test_claude_settings.py"
   ],
   "acceptance": [
     "test_odoo_auth_placement_from_manifest_equals_previous passes",
@@ -31,5 +35,27 @@
   "gate_set": "full",
   "base_commit": "4bfef4ebbd99a8dbec8fdaadc07a0c4b6bb99fdd",
   "created_at": "2026-10-15T10:56:28+00:00",
-  "features_digest": "eb2ba7a65b6d618f7e5bcf99acaba850a82d809144deb3628c7e16b2c27521b7"
+  "features_digest": "eb2ba7a65b6d618f7e5bcf99acaba850a82d809144deb3628c7e16b2c27521b7",
+  "scope_changes": [
+    {
+      "glob": "AGENTS.md",
+      "reason": "owner's 2026-10-15 settings change (blanket Bash allow, no ask rules, bash-guard hook unwired) is committed with 1d.2 at the owner's instruction; conformance tests and AGENTS.md aligned",
+      "at": "2026-10-15T13:01:27+00:00"
+    },
+    {
+      "glob": ".claude/settings.json",
+      "reason": "owner's 2026-10-15 settings change (blanket Bash allow, no ask rules, bash-guard unwired) committed with 1d.2 at the owner's instruction; tests and docs aligned",
+      "at": "2026-10-15T13:01:47+00:00"
+    },
+    {
+      "glob": ".agents/skills/eng-session/SKILL.md",
+      "reason": "owner's 2026-10-15 settings change (blanket Bash allow, no ask rules, bash-guard unwired) committed with 1d.2 at the owner's instruction; tests and docs aligned",
+      "at": "2026-10-15T13:01:47+00:00"
+    },
+    {
+      "glob": "tests/conformance/test_claude_settings.py",
+      "reason": "owner's 2026-10-15 settings change (blanket Bash allow, no ask rules, bash-guard unwired) committed with 1d.2 at the owner's instruction; tests and docs aligned",
+      "at": "2026-10-15T13:01:47+00:00"
+    }
+  ]
 }

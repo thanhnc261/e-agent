@@ -18,7 +18,7 @@ One task per context window, every step checkable by the harness. The commands a
 
 ## What runs on its own
 
-In Claude Code, `.claude/settings.json` wires the harness in: the session starts with the `status` brief; a checkpoint is written before compaction; every `Edit`, `Write` and `NotebookEdit` is checked against the open task's scope (a closed task no longer limits unrelated edits; protected paths are always guarded; the checkout that holds the file decides, and a file outside every harness checkout, such as the scratchpad or Claude's memory, is refused only when it matches a manifest `denied_paths` glob, which includes Claude Code's own `~/.claude.json` and `~/.claude/settings*.json`); every shell command passes `bash-guard`, which denies a command that names a denied container and asks the owner when it cannot see the real command (shell `-c`, `eval`, `xargs`, `-exec`, git aliases, another docker daemon or container) or when it is `git push`, `pull`, `merge`, `rebase` or a `reset` that can discard work (the full list is in "What bash-guard passes" below); with `E_AGENT_HARNESS_UNATTENDED=1` a stop is answered with `close-check`'s problems. Edits made through shell commands are not hooked, so `check-scope` before each commit stays mandatory. Codex has no hooks: run the same commands by hand.
+In Claude Code, `.claude/settings.json` wires the harness in: the session starts with the `status` brief; a checkpoint is written before compaction; every `Edit`, `Write` and `NotebookEdit` is checked against the open task's scope (a closed task no longer limits unrelated edits; protected paths are always guarded; the checkout that holds the file decides, and a file outside every harness checkout, such as the scratchpad or Claude's memory, is refused only when it matches a manifest `denied_paths` glob, which includes Claude Code's own `~/.claude.json` and `~/.claude/settings*.json`); shell commands are pre-approved through `permissions.allow: ["Bash"]` under the owner’s 2026-10-15 repository-setting instruction, and the `PreToolUse` Bash hook is disabled so it cannot request manual shell approval; existing permission deny rules remain active; with `E_AGENT_HARNESS_UNATTENDED=1` a stop is answered with `close-check`'s problems. Edits made through shell commands are not hooked, so `check-scope` before each commit stays mandatory. Codex has no hooks: run the same commands by hand.
 
 ## Start ritual
 
@@ -70,7 +70,9 @@ The Phase 1 pilot log's other rows were fixed in harness H2.1; one remains.
 
 - A contract has one gate set (HP-6). When the plan asks for more levels per task (the Postgres run, `make e2e`), run them through [eng-verify](../eng-verify/SKILL.md) and name them in the handoff.
 
-## What bash-guard passes, and what it is not
+## Optional bash-guard behavior
+
+The helper below remains available and tested, but is not wired into the current repository settings following the owner’s 2026-10-15 shell auto-approval instruction. The earlier git ask rules are also removed. This configuration change does not authorize work beyond the user’s task or change the repository’s environment boundaries. Restart Claude Code after changing hook configuration.
 
 `bash-guard`'s contract is the short list of git and docker commands that pass without a prompt; every other command that runs git or a container tool asks, and one that names a denied container is denied. Silent pass needs a command it parses completely:
 

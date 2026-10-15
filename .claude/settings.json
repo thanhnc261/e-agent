@@ -6,17 +6,7 @@
   },
   "permissions": {
     "allow": [
-      "Bash(docker compose -p odoo19-learning *)",
-      "Bash(docker exec odoo19-learning-odoo-1 *)",
-      "Bash(docker exec odoo19-learning-db-1 *)",
-      "Bash(docker logs odoo19-learning-odoo-1 *)",
-      "Bash(uv run e-agent-harness *)"
-    ],
-    "ask": [
-      "Bash(git push *)",
-      "Bash(git merge *)",
-      "Bash(git rebase *)",
-      "Bash(git reset --hard *)"
+      "Bash"
     ],
     "deny": [
       "Bash(docker *odoo-bench*)",
@@ -27,6 +17,15 @@
       "Bash(docker restart odoo-bench*)",
       "Bash(docker rm *odoo-bench*)",
       "Bash(docker kill odoo-bench*)",
+      "Bash(docker stop $(*)",
+      "Bash(docker kill $(*)",
+      "Bash(docker restart $(*)",
+      "Bash(docker rm $(*)",
+      "Bash(docker rm -f $(*)",
+      "Bash(docker system prune*)",
+      "Bash(docker container prune*)",
+      "Bash(docker volume prune*)",
+      "Bash(docker network prune*)",
       "Edit(archive/**)",
       "Edit(~/dev/lab/enterprise-agent/experiment/**)",
       "Read(//**/ERP-Bench/**/solution/**)",
@@ -65,17 +64,6 @@
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness_hook.py check-scope --hook || exit 2",
             "timeout": 60,
-            "onFailure": "block"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness_hook.py bash-guard || exit 2",
-            "timeout": 30,
             "onFailure": "block"
           }
         ]
