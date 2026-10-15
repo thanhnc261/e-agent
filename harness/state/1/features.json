@@ -279,7 +279,8 @@
         "test_unknown_task_kind_refused_at_startup passes",
         "export_openapi.py --check reports no change; full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/1d.3/2026-10-15T13-29-26.372403+00-00-full.json"
     },
     {
       "id": "F-1d-4",
