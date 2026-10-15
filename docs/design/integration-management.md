@@ -2,7 +2,7 @@
 
 The approved [ADR 0014](../adr/0014-mvp-remediation-boundaries.md) clarifies current artifact admission, credential/fact freshness, worker ownership, target checks and public text boundaries. Current evidence and unresolved live gates are recorded in the [remediation retest](../reviews/2026-10-07-mvp-remediation-retest.md).
 
-**Date:** 2026-10-06. **Status:** accepted design ([ADR 0012](../adr/0012-schema-driven-integration-management.md)); nothing is implemented. Admin pages are confirmed for **Phase 2**. The auth SDK, tenant app registrations and user-delegated connections are detailed in [integration auth SDK](integration-auth-sdk.md) ([ADR 0013](../adr/0013-integration-auth-sdk-and-delegated-connections.md)). It extends HLD §5 (domain / capability / binding / connection) and the [UI architecture](ui-architecture.md).
+**Date:** 2026-10-06. **Status:** accepted design ([ADR 0012](../adr/0012-schema-driven-integration-management.md)); what is implemented is in the [README](../../README.md) status and the latest remediation retest; this document describes the full design. Admin pages are scheduled in roadmap Phase 8 ([roadmap](../roadmap.md)); "Phase 2" in this document means that post-MVP phase, not roadmap Phase 2. The auth SDK, tenant app registrations and user-delegated connections are detailed in [integration auth SDK](integration-auth-sdk.md) ([ADR 0013](../adr/0013-integration-auth-sdk-and-delegated-connections.md)). It extends HLD §5 (domain / capability / binding / connection) and the [UI architecture](ui-architecture.md).
 
 ## 1. Goal
 

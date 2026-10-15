@@ -1,0 +1,128 @@
+# e-agent: principles and their checks
+
+**Date:** 2026-10-14. **Status:** consolidated from existing sources; it adds no new principle. Checks were verified against `main` at `8bc7b1f` with the 2026-10-14 working tree.
+
+This file is the spine of the design ([adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) XA-00). Each row gives a binding principle, what it means in practice, where it was decided, the engineering rule that applies it, the **check that enforces it** and its status.
+
+How it relates to the other documents:
+- **This file** states each principle once, with its check.
+- **The ENG rules** (`.agents/skills/eng-foundations/references/rules.md`) say how engineers apply them.
+- **AGENTS.md** summarises and links here.
+- **The HLD, MVP design and target architecture** hold the mechanisms, and cite rows here instead of restating the principles.
+
+A principle with no check is a backlog item, not an assumption. The backlog is listed at the end.
+
+Status tags follow the target architecture: **[I]** implemented, **[Pa]** partial, **[P]** proposed, **[C]** conditional. "**none**" in the check column means that no machine check exists; only review enforces it.
+
+## Architecture
+
+| ID | Principle | In practice | Decided in | ENG | Check | Status |
+|---|---|---|---|---|---|---|
+| PR-01 | Dependencies point one way | contracts ← sdk ← kernel and domains ← adapters ← server; the kernel never imports domains, adapters or server | AGENTS.md; HLD §4 | ENG-ARCH-1 | 9 import-linter contracts (`pyproject.toml:86-165`), `uv run lint-imports` in the `full` gate | [I] |
+| PR-02 | Contracts are portable records | No vendor, framework or ORM type crosses a contract; domain fields live in domain APIs | AGENTS.md | ENG-ARCH-2 | Import contract "Core packages do not import agent frameworks or provider SDKs" forbids `pydantic_ai`, `httpx`, `psycopg`, `fastapi` in contracts, sdk, kernel and erp; vendor-shaped fields are review only | [Pa] |
+| PR-03 | Bootstrap composes; handlers, CLI and prompts hold no domain logic | Bootstrap picks implementations; HTTP and CLI delegate | AGENTS.md; HLD §4 | ENG-ARCH-3 | **none** (Phase 1d adds `test_server_has_no_domain_literals`) | [Pa] |
+| PR-04 | No speculative structure | No unused abstraction or empty future package; a seam exists for a concrete use or a trust boundary | AGENTS.md | ENG-ARCH-4 | **none** | [I] by review |
+| PR-05 | One namespace tree, independently releasable wheels | `src/e_agent/<part>/`, one build config per distribution, no namespace `__init__.py` | AGENTS.md; HLD §4 | ENG-ARCH-5 | `tests/conformance/test_repo_layout.py`; `scripts/check_wheels.py` | [I] |
+| PR-06 | Never loosen a boundary to make a change fit | No import-contract exemption or ignore added for convenience | Adoption review (X-agent gaps AP-03, AP-06) | none | **none** | [I] by review |
+
+## Plugins and integration
+
+| ID | Principle | In practice | Decided in | ENG | Check | Status |
+|---|---|---|---|---|---|---|
+| PR-07 | Discover metadata before import; activate only admitted artifacts | Disabled plugins are never imported; manifests are digest-pinned | AGENTS.md; MVP §6 | none | `test_disabled_plugin_is_never_imported` (`tests/unit/kernel/test_registry.py:140`); `test_manifest_digest_must_match_inventory` (`:171`) | [I] |
+| PR-08 | Plugins are guests | Plugins never import the store, the secret store, the server or kernel internals; credentials arrive only through scoped services | AGENTS.md; adoption review XA-02 | ENG-ARCH-1 | Adapter contracts in `pyproject.toml` ("Adapters never import kernel, domains, server or sibling adapters"; "Provider adapters use only public domain APIs"); store and secret store are excluded only by the sibling layers (`pyproject.toml:95`) | [Pa] |
+| PR-09 | Domain, capability, binding and connection stay separate; ambiguity is an error | Multiple bindings allowed; duplicates and ambiguous routing refused | AGENTS.md; HLD §5; ADR 0002 | none | `test_duplicate_binding_id_rejected` (`tests/unit/kernel/test_registry.py:48`); `test_duplicate_bindings_on_one_connection_are_ambiguous_not_available` (`tests/unit/kernel/test_discovery.py:192`) | [I] |
+| PR-10 | A declared capability requirement is enforced, or the capability is absent with a reason | `required_features` checked at admission | Adoption review XA-03 | none | **none** (`required_features` is declared at `contracts/capability.py:30` and never read) | [P] |
+| PR-11 | UI packages carry no provider or third-party identifiers | Names, icons and forms come from manifests through the server API | AGENTS.md; ADR 0011 | none | **none** | [I] by review |
+| PR-12 | Model output never selects credentials or connections | Host resolution picks binding and connection | AGENTS.md; HLD §5 | ENG-TRUST-1 | **none** (Phase 2 adds `test_plan_with_model_chosen_connection_is_rejected`) | [Pa] |
+
+## Trust anchor
+
+| ID | Principle | In practice | Decided in | ENG | Check | Status |
+|---|---|---|---|---|---|---|
+| PR-13 | Model output is a proposal | It cannot approve, change policy or budgets, install plugins, publish ontology or mark its own task verified | AGENTS.md; roadmap rule 4 | ENG-TRUST-1 | `test_verifier_rejects_inexact_readback` (`tests/unit/erp/test_procurement.py:253`) for answers; Phase 2 adds `test_model_cannot_mark_plan_verified` | [Pa] |
+| PR-14 | The kernel owns the state machines; every tool call goes through the gateway | Transition tables in contracts, enforced by the kernel | Roadmap rule 4; ADR 0018 | ENG-TRUST-2 | `test_run_transition_table_covers_every_state_and_terminals_are_final` (`tests/unit/contracts/test_records.py:115`); `test_terminal_run_rejects_further_transitions` (`tests/unit/kernel/test_lifecycle.py:590`); import contract "Kernel never imports domains or server" | [I] |
+| PR-15 | Approval binds the exact action, scope and versions | Stale approval rejected; no self-approval unless the profile allows it | ADRs 0006, 0014, 0019 | ENG-TRUST-3 | Digest golden vectors (`src/e_agent/contracts/golden/digest_vectors.json`, `tests/unit/contracts/test_digest.py`, `ui/packages/ui-core/test/digest.test.ts`); `test_requester_cannot_approve` (`tests/unit/kernel/test_lifecycle.py:66`); `test_ready_reports_whether_self_approval_is_allowed` (`tests/unit/server/test_api.py:461`) | [I] |
+| PR-16 | Nothing modifies an action after its approval digest | Changes only before the digest, shown to the approver; text replies may be redacted | Owner D-4; ADR 0024 | ENG-TRUST-3 | The bridge rejects a payload-digest mismatch (`addons/e_agent_bridge/models/bridge.py:234-237`); the guardrail rule has **none** (no guardrails yet) | [Pa] |
+| PR-17 | Evidence before writes; local state atomic; no transaction across a model or ERP call | Admission and dispatch evidence persisted first | ADR 0003; MVP §9 | ENG-TRUST-4 | `tests/conformance/test_run_store.py` on both stores | [I] |
+| PR-18 | An unknown outcome stays unknown | No blind replay; reconciliation; no exactly-once claim | ADR 0014; MVP §9 | ENG-TRUST-5 | `test_lost_response_reconciles_without_a_second_write` (`tests/unit/server/test_erp_tasks.py:82`); `test_lost_response_is_unknown_until_reconciled` (`tests/unit/server/test_walking_skeleton.py:66`) | [I] |
+| PR-19 | Outcomes are verified by independent read-back | Committed effect is distinct from verified business success | MVP §7–§8 | ENG-TRUST-5 | `test_verifier_rejects_inexact_readback` (`tests/unit/erp/test_procurement.py:253`) | [I] |
+| PR-20 | Every capability declares its effect | `risk`, `reversibility` on contracts; `idempotency` on bindings; live profiles refuse defaults | Adoption review XA-01; ADR 0029 | none | **none** | [P] |
+| PR-21 | Results are never fabricated | An error is never an empty result; a bounded result is marked partial | Adoption review AP-15; ADR 0030 | none | Completeness `COMPLETE/PARTIAL/UNKNOWN` (`contracts/evidence.py:11-14`); truncation markers have **none** | [Pa] |
+| PR-40 | Auto-approval is a benchmark-only setting | Only a profile marked benchmark-only (`operator.benchmark_auto_approve`) may auto-approve, only `read` and `write_low` steps with explicit (not defaulted) declarations, and never with `environment: live` | Owner D-3; ADR 0024 | ENG-TRUST-3 | **none** (no auto-approve setting exists yet) | [P] |
+
+## Toggles
+
+| ID | Principle | In practice | Decided in | ENG | Check | Status |
+|---|---|---|---|---|---|---|
+| PR-22 | Every new runtime feature has an `off/shadow/on` toggle with fallback only before a reservation, reported in readiness and evidence | `Profile.features`; `feature.fallback` | Roadmap rule 3; ADR 0027 | ENG-TOGGLE-1, -2, -3 | **none** (no `Profile.features` yet; Phase 2) | [P] |
+| PR-23 | `shadow` compares and acts on nothing; a toggle is not cover for a stub | Shadow records a comparison with the live path | Adoption review XA-24; ADR 0027 | ENG-TOGGLE-1 | **none** | [P] |
+
+## Data and security
+
+| ID | Principle | In practice | Decided in | ENG | Check | Status |
+|---|---|---|---|---|---|---|
+| PR-24 | Tenant scope on every row and query; a foreign record looks absent | Composite tenant keys; host-derived scope; FORBIDDEN maps to 404 | AGENTS.md; MVP §9 | none | Composite keys (`src/e_agent/adapters/postgres/migrations/0001_initial.sql`); `test_other_tenant_cannot_use_connection` (`tests/unit/kernel/test_lifecycle.py:256`); `test_requests_without_session_or_csrf_are_rejected` (`tests/unit/server/test_api.py:36`); RLS is Phase 7 | [Pa] |
+| PR-25 | Credentials never appear in logs, prompts, traces, evidence or the repository; plugins never hold a raw credential | Secret refs only; redacted `repr`; no `materialize()` | AGENTS.md; owner D-1 | ENG-BOUND-3, ENG-EVID-3 | `test_secret_repr_is_redacted` (`tests/unit/adapters/secretstore_local/test_local_store.py:40`); harness redaction (`tools/harness/src/e_agent_harness/gate.py`, `redact`); repository secret scan has **none** | [Pa] |
+| PR-26 | Run data is classified, minimized toward models, exported by class, retained and deletable | Field and record classes; route data boundary; purge keeps the audit skeleton | DR-05; ADR 0030 | none | **none** | [P] |
+| PR-27 | Every API route carries an authorization dependency | Session today, capability grants in Phase 7 | Adoption review XA-12 | none | **none** | [Pa] |
+
+## Evidence and verification
+
+| ID | Principle | In practice | Decided in | ENG | Check | Status |
+|---|---|---|---|---|---|---|
+| PR-28 | No hidden reasoning is persisted | Thinking parts stripped before storage, events, evidence and telemetry | AGENTS.md; ADR 0004 | ENG-EVID-3 | `test_no_hidden_reasoning_reaches_the_ledger` (`tests/unit/server/test_pydantic_driver_e2e.py:123`); `test_strip_thinking_removes_only_thinking_parts` (`tests/unit/adapters/pydantic_ai/test_driver_unit.py:43`) | [I] |
+| PR-29 | Fixture and live results are reported separately; every failure, skip and blocker is named | Reports carry their environment | AGENTS.md | ENG-EVID-2 | The release report labels `"environment": "fixture"` (`scripts/release_report.py`); the rest is review | [Pa] |
+| PR-30 | Store behaviour passes on both stores | Memory and PostgreSQL | Target §4; roadmap rule 1 | ENG-STORE-1 | `pg` gate; `tests/conformance/test_run_store.py` with `E_AGENT_TEST_STORE=postgres` | [I] |
+| PR-31 | A gate fails on empty input and prints its count | No vacuous pass | Adoption review XA-04 | none | **none** (`scripts/release_report.py:243` passes 0/0) | [Pa] |
+| PR-32 | A change to the driver, prompts or tool schemas runs the replay suite | Prompts are code | Adoption review XA-17 | none | `tests/unit/server/test_recorded_model_replays.py` runs in `pytest`, but it is not required by path and there is no prompt golden file | [Pa] |
+
+## Knowledge
+
+| ID | Principle | In practice | Decided in | ENG | Check | Status |
+|---|---|---|---|---|---|---|
+| PR-33 | Ontology belongs to domain packs, engines to adapters, and there is one rule inventory | Every rule declares its enforcement engine | AGENTS.md; ADR 0009 | none | `test_rule_inventory_lists_every_rule_with_an_engine` (`tests/unit/erp/test_procurement.py:146`); `test_rule_inventory_matches_shapes` (`tests/integration/test_procurement_rules.py:226`) | [I] |
+| PR-34 | Untrusted content is data; facts come from structure or people, and model output only creates candidates | Retrieved text, tool output and memory never become instructions or approved facts; fact-source mode is reported | AGENTS.md; target §7.2 rule 5, §9; owner D-2 | ENG-TRUST-1 | **none** (threat T1's injection fixtures are designed, not found as tests) | [Pa] |
+
+## Process and boundaries
+
+| ID | Principle | In practice | Decided in | ENG | Check | Status |
+|---|---|---|---|---|---|---|
+| PR-35 | Plan first, design first; a contract change needs an accepted ADR; code and design never drift silently | Phase plans in `docs/plans/`; ADRs in `docs/adr/` | Roadmap rules 1–2 | ENG-PLAN-1, -2, -3 | `uv run e-agent-harness validate-context` for the plan; ADR status and drift are review only | [Pa] |
+| PR-36 | Only the sandbox and e-agent's own containers are touched; protected paths stay protected | `odoo-bench` never; `archive/**` read-only | Roadmap rule 5; AGENTS.md | ENG-BOUND-1, -2 | Deny rules in `.claude/settings.json`; `harness/context.toml`; `uv run e-agent-harness check-scope` | [I] |
+| PR-37 | Configuration is typed; code does not read `os.environ` directly | One settings module | Adoption review XA-14 | none | **none** | [P] |
+| PR-38 | Background tasks are supervised | No bare `asyncio.create_task` | Adoption review XA-15 | none | **none** | [P] |
+| PR-39 | CI scans for secrets and vulnerable dependencies | Required checks | Adoption review XA-16 | ENG-BOUND-3 | **none** | [P] |
+
+## AGENTS.md section → rows
+
+| AGENTS.md section | Rows |
+|---|---|
+| How work is done (roadmap rules 1–5) | PR-14, PR-22, PR-23, PR-35, PR-36 |
+| Architecture rules | PR-01 – PR-06, PR-08, PR-09, PR-11, PR-12 |
+| Execution and data integrity | PR-10, PR-13 – PR-21, PR-24, PR-26, PR-27, PR-40 |
+| Plugins and knowledge | PR-07, PR-25, PR-33, PR-34 |
+| Development and verification | PR-05, PR-25, PR-28 – PR-32, PR-37 – PR-39 |
+| Environment boundaries | PR-36 |
+| Principles; Documentation and completion | All rows (they point here); "a new principle is recorded as a row" has no row of its own and is enforced by review |
+
+## Backlog: principles without a check
+
+| Row | Missing check | Where it lands |
+|---|---|---|
+| PR-03 | Server has no domain literals | Phase 1d (`test_server_has_no_domain_literals`) |
+| PR-08 | Named "Plugins are guests" import contract | Phase 1d Task 1d.7 (adoption review XA-02) |
+| PR-10 | Registry enforces `required_features` | Phase 1d Task 1d.7 (XA-03); instance feature probe in Phase 5 |
+| PR-12, PR-13 | Model cannot choose a connection or mark a plan verified | Phase 2 Tasks 2c.6 and 2c.9 |
+| PR-16 | Guardrail modification rule | First guardrail ADR |
+| PR-20 | Effect declarations and live refusal | Phase 2 Tasks 2c.1, 2c.2 (ADR 0029) |
+| PR-21, PR-26 | Bounded-result markers; data classes and minimization | Phase 3 (ADR 0030); markers per capability in Phase 5; retention and deletion in Phase 7 |
+| PR-40 | Startup refuses auto-approve outside a benchmark profile, above `write_low` or with a defaulted declaration | Phase 5 evaluation, after ADR 0029 declarations exist (ADR 0024) |
+| PR-22, PR-23 | Toggle tests (default `off`, shadow cost, fallback boundary, readiness) | Phase 2 Part 2b (ADR 0027) |
+| PR-25 | Repository secret scan | [Hygiene plan](../plans/2026-10-15-hygiene-gates-config-ci.md) Task H.5 (XA-16) |
+| PR-27 | OpenAPI route enumeration test | Before Phase 7 (XA-12) |
+| PR-31 | Zero-case guard in `release_report` and every gate | Hygiene plan Task H.1 (XA-04) |
+| PR-32 | Replay suite required by path; prompt golden file | Hygiene plan Task H.4 (XA-17) |
+| PR-34 | Injection fixtures (threat T1) | Phase 3 with the ContextAssembler |
+| PR-37, PR-38, PR-39 | Ruff TID251 ban; supervised-task helper and ban; dependency audit | Hygiene plan Tasks H.2, H.3, H.5 (XA-14, XA-15, XA-16) |
+| PR-04, PR-06, PR-11 | Review-only by nature | No machine check planned; reviewers cite the row |

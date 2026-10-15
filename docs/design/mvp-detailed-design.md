@@ -1,12 +1,12 @@
 # e-agent MVP: detailed design
 
-Selectable overlay follow-up (2026-10-08): [ADR 0016](../adr/0016-selectable-agent-surfaces.md) adds a responsive Workbench and an in-app View selector over the same controller and approval authority. See [research/design](../../research/11-enterprise-agent-overlay-design.md).
+**Status:** implementation specification. **Date:** 2026-10-06; status block and ADR 0018–0022 merges updated 2026-10-14. **Implementation status:** see the [README](../../README.md) status and the latest [remediation retest](../reviews/2026-10-07-mvp-remediation-retest.md). Principles and their checks are in [principles](principles.md). This document holds the mechanisms.
 
-
-UI implementation clarification (2026-10-08): [ADR 0015](../adr/0015-task-workspace-presentation.md) specializes the shared layered UI into a task workspace with exact readable approval, bounded session navigation, truthful outcome states and authorized evidence inspection. Presentation annotations do not change domain rules, provider routing or approval digests. See [UI architecture](ui-architecture.md) for the implemented scope and limits.
-
-Implementation clarification (2026-10-07): [ADR 0014](../adr/0014-mvp-remediation-boundaries.md) defines short transactions with work fencing, conservative external uncertainty, approved fact/credential binding and transient public text offsets. These implementation seams require the remediation and live qualification gates; source availability does not establish readiness.
-**Status:** implementation specification, not implemented. **Date:** 2026-10-06.
+Accepted ADRs that refine this design:
+- [ADR 0014](../adr/0014-mvp-remediation-boundaries.md): short transactions with work fencing, conservative external uncertainty, approved fact and credential binding, transient public text offsets.
+- [ADR 0015](../adr/0015-task-workspace-presentation.md): the task workspace with exact readable approval; presentation annotations never change rules, routing or digests ([UI architecture](ui-architecture.md)).
+- [ADR 0016](../adr/0016-selectable-agent-surfaces.md): the Workbench and View selector over the same controller and approval authority.
+- ADRs 0018–0022 are merged in §7, §9, §10 and §11 below.
 
 This document specializes the [high-level design](high-level-design.md). It selects a bounded procurement demo and independent adapter distributions, superseding the broader first-demo alternatives in [research 06](../../research/06-erp-mvp-delivery-plan.md). Numbers below are initial demo defaults and acceptance targets, not measured results or production SLAs.
 
@@ -180,6 +180,8 @@ Read actions use the same authorization/audit gateway but can move from VALIDATE
 
 Cancellation prevents undispatched actions. Once dispatch may have occurred, cancellation cannot assert rollback; record cancellation intent and reconcile the external effect. A cancellation with unresolved effects keeps the run in NEEDS_RECONCILIATION.
 
+Run transitions are a contract table, `ALLOWED_RUN_TRANSITIONS` in `contracts/run.py`. The kernel refuses any other change with `CONFLICT`, and terminal states have no successors; widening the table needs a new ADR ([ADR 0018](../adr/0018-run-transitions-reason-codes-event-attribution.md)). A run carries a typed `reason_code` next to its human `reason`, and every event names its actor (`principal:<id>`, `system:kernel`, `system:worker:<owner>`). A read that fails with a known no-effect error is recorded as `read.rejected`, counts against the read budget and returns to the driver as feedback. A final answer from a run with no reads, read attempts or proposals is a conversational reply: the run waits for input. Any final answer after reads or proposals still needs an independently verified outcome. The domain pack offers open-demand discovery so the model looks up references instead of guessing them ([ADR 0022](../adr/0022-conversational-turns-read-feedback-discovery.md)).
+
 ## 8. End-to-end execution
 
 1. Authenticate/local-map the requester; validate sandbox/connection scope; persist task and budgets.
@@ -237,6 +239,8 @@ PostgreSQL mechanisms ([ADR 0003](../adr/0003-durability-ownership.md)): workers
 
 Prefer provider-side idempotency when the selected Odoo deployment can enforce it. Do not assume standard RPC create is idempotent. A searchable correlation field alone is not a uniqueness guarantee. If atomic external uniqueness is unavailable, MVP uses one serialized writer per sandbox connection and never auto-retries ambiguous writes. Reconciliation may conclude UNKNOWN indefinitely; an operator investigates before any replacement action. Duplicate/collision matches are incidents, not automatic success. This scope does not promise exactly-once execution.
 
+A write reservation is refused with `CONNECTION_BUSY` while another action on the same tenant and connection is `RESERVED`, `DISPATCHING` or `UNKNOWN`. The check and the reservation insert are serialized per connection by a transaction-scoped advisory lock inside `reserve_operation`, so the rule holds even if the writer lock is lost. A retry of an already reserved operation reports `DuplicateOperation`, not `CONNECTION_BUSY` ([ADR 0020](../adr/0020-connection-level-write-admission.md)).
+
 ## 10. Agent behavior and budgets
 
 ADR 0001 selected Pydantic AI; target the 2.x line (stable since 2026-06-23) pinned exactly ([ADR 0004](../adr/0004-agent-driver-integration.md)). The driver remains behind the AgentDriver port. Qualification (plan I04) must demonstrate external/deferred tool requests, correlation-preserving resume, cancellation/error mapping, structured proposals and no route to raw ERP execution. If qualification fails, change the driver or its configuration and record the decision without changing kernel semantics.
@@ -247,6 +251,8 @@ Check budgets before each step and record usage afterward; record cancellation/o
 
 Continuation is opaque and tied to driver/version. Persist only what is necessary, redact secrets, and apply retention. Model thinking/reasoning parts are disabled or stripped before any persistence, event, evidence or telemetry export, because framework message history otherwise contains them (ADR 0004). The durable business ledger remains sufficient to determine whether actions may have occurred even if the framework continuation cannot be resumed.
 
+An approval that expires is not left waiting: a sweeper in the worker enqueues fenced `expire` work, and the claim re-checks state and TTL before moving the action to `BLOCKED` and the run to `FAILED` with `APPROVAL_EXPIRED`. A requester may not approve their own run unless the profile sets `operator.allow_self_approval`; live profiles default to forbidden, and `/health/ready` reports the value ([ADR 0019](../adr/0019-approval-reachability-and-self-approval.md)). The model provider is Ollama by default. LiteLLM is an explicit opt-in against a loopback proxy, with the key from an environment variable named in the profile. There is no fallback between providers ([ADR 0021](../adr/0021-litellm-model-provider.md)).
+
 ## 11. Ontology and evidence implementation
 
 Package a small vocabulary for Product, Supplier, Offer, Demand, StockObservation and DraftPurchaseOrder, plus shapes and named rules PR-001 through PR-006. Pin ontology, mapping and validator versions in every ValidationResult. Shape evaluation ERROR/UNKNOWN blocks writes just as FAIL does, with a distinct diagnosis.
@@ -256,6 +262,8 @@ Use one reviewed rule inventory and executable assets. Prompt explanations may s
 Competency fixtures must answer: which facts support shortage; which offer is allowed; why a proposal failed; what changed in a repair; who approved which digest; which ERP record proves the final state; whether an operation was duplicated. A fixture with a revoked evidence scope must not be served to the agent. Graph infrastructure is unnecessary to answer this first set.
 
 Evidence export includes scenario ID, environment class (fixture/live), model/driver/plugin versions, ontology/rules, proposals/findings, approvals, sanitized action attempts, receipts, final checks and failure classification. Do not store API keys, bearer tokens, hidden chain-of-thought or unredacted provider debug dumps. Raw export is authorized; local file permissions and retention apply.
+
+Failure classification reads a terminal run's `reason_code` first; text rules apply only to rows written before ADR 0018. Event reads are paged (`limit`, default page 500, ceiling 1000), and the evidence export pages internally ([ADR 0018](../adr/0018-run-transitions-reason-codes-event-attribution.md)).
 
 ### 11.1 Structured answers (implemented in I07)
 

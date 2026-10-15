@@ -1,8 +1,8 @@
 # e-agent: target architecture (v2)
 
-**Status:** Proposed. **Date:** 2026-10-11, revised 2026-10-12 after three review rounds. **Verified against:** commit `af50c62` plus the uncommitted working-tree changes present on 2026-10-12; every `[I]` tag and `file:line` reference refers to that tree and must be re-checked after the next commit. §15 and §16 were re-checked against the Phase 1 layout (2026-10-13); their paths are the moved ones. WP1 Tasks 2–8 and 10 re-verified against commit `591f3c6`. Unchanged `file:line` references were taken at `af50c62` and may have drifted after WP1. **Baseline:** the [high-level design](high-level-design.md), the [MVP detailed design](mvp-detailed-design.md) and the accepted ADRs remain authoritative until the ADR candidates in §17 are accepted. This document does not change contracts or code. When an ADR candidate is accepted, its content moves into the HLD or MVP design and the matching section here is marked "merged", so this document does not become a second architecture specification.
+**Status:** Proposed. **Date:** 2026-10-11, revised 2026-10-12 after three review rounds; revised 2026-10-14 (merge markers, §6.4, §9, §13.3, §18). **Verified against:** commit `af50c62` plus the uncommitted working-tree changes present on 2026-10-12; every `[I]` tag and `file:line` reference refers to that tree and must be re-checked after the next commit. §15 and §16 were re-checked against the Phase 1 layout (2026-10-13); their paths are the moved ones. WP1 Tasks 2–8 and 10 re-verified against commit `591f3c6`. Unchanged `file:line` references were taken at `af50c62` and may have drifted after WP1. §6.4 and §13.3 were written on 2026-10-14 against `main` (`8bc7b1f`); the `af50c62` and `591f3c6` caveats still apply to the other sections, which were not re-verified then. **Baseline:** the [high-level design](high-level-design.md), the [MVP detailed design](mvp-detailed-design.md) and the accepted ADRs remain authoritative. ADRs 0018–0022 were accepted on 2026-10-14 and merged into the MVP design §7, §9, §10 and §11; the sections here that they cover are marked "merged" and the MVP text wins where they differ. The remaining §17 candidates stay proposals until their ADRs are accepted. This document does not change contracts or code. When an ADR candidate is accepted, its content moves into the HLD or MVP design and the matching section here is marked "merged", so this document does not become a second architecture specification.
 
-**Implementation:** [WP1 correctness plan](../../archive/docs/superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) (verified defects D1–D7, ADR candidates 0018–0021) and the WP2–WP5 map in its Part A.
+**Implementation:** [WP1 correctness plan](../../archive/docs/superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) (verified defects D1–D7, ADRs 0018–0021, accepted 2026-10-14) and the WP2–WP5 map in its Part A.
 
 **Inputs:**
 - Reviews: the [scalability review](../reviews/2026-10-11-scalability-architecture-review.md) and the [architecture alignment review](../reviews/2026-10-07-architecture-alignment-review.md).
@@ -30,6 +30,7 @@ Every element carries a status:
 - **One database first.** PostgreSQL is the system of record for the ledger, queue and events [I], and later for knowledge claims and vectors (pgvector) [C]. A graph store, a dedicated vector store or a message bus are added only on measured triggers.
 - **It scales by roles.** Stateless API replicas, worker replicas with bounded concurrent run slots, LISTEN-driven streaming and a connection-level write admission rule. FastAPI stays.
 - **Authority, audit and explanation are kernel contracts.** Roles and approval scopes come from a versioned profile bundle (§13.2); every event names its actor and the append-only tables are enforced by database grants (§5.5); explanations are typed rationale and a deterministic projection over the event log, never chain-of-thought (§5.6).
+- **Principles.** Each principle, the practice that carries it and the check that enforces it are listed in [principles](principles.md); this document holds the target mechanisms.
 - **Start here.** Read §3 (diagrams), then §4 (swappable runtime), §5 (state) and §15 (repository map). Code entry points: `src/e_agent/kernel/coordinator.py`, `src/e_agent/sdk/ports.py`, `src/e_agent/sdk/store.py`.
 - **Landmines** (§19):
   - Never let a framework checkpointer or durable engine retry a write.
@@ -310,12 +311,16 @@ The market evidence is that topology, not framework, dominates cost: about 2.1×
 
 ### 5.1 Principles
 
+*Merged: principle 1 and actor attribution are in MVP §7 (ADR 0018, accepted 2026-10-14); same-transaction event appends are in MVP §9; reconstruction from the log stays [P]. The MVP design is authoritative for this part.*
+
 1. **State is typed and transitions are tabled.** Both run and action states change only through allowed transitions with compare-and-swap revisions. The action table exists (`contracts/action.py: ALLOWED_ACTION_TRANSITIONS`). The run table exists (`contracts/run.py: ALLOWED_RUN_TRANSITIONS`) and `_set_run_state` enforces it [I] (ADR 0018).
 2. **The event log is the audit truth.** Every state change appends a typed, versioned `RunEvent` in the same short transaction [I]. Current-state rows stay authoritative for compare-and-swap concurrency control. Making those rows fully reconstructable from the log is a [P] target, tested by the U3 fitness row; it is not guaranteed today.
 3. **Steps are first-class.** A *step* is one driver turn or one kernel action. Each step records its inputs (as refs), outputs, findings and status, so later steps and the model reason over results instead of re-deriving them.
 4. **No hidden reasoning is persisted.** Model reasoning parts are stripped (ADR 0004) [I]. Explanations today are proposals, findings, a free-text `run.reason` and a typed `ReasonCode` [I]; structured rationale fields are proposed in §5.6 [P]. No `rationale` field exists in the contracts, the driver or the evidence export.
 
 ### 5.2 Run state machine (transition table implemented)
+
+*Merged: the transition table is in MVP §7; ADR 0025 (Proposed) would widen it (ADR 0018, accepted 2026-10-14). The MVP design is authoritative for this part.*
 
 ```mermaid
 stateDiagram-v2
@@ -376,6 +381,8 @@ Every table carries `tenant_id` with composite keys. Cross-tenant references are
 
 ### 5.4 Step record (proposed contract sketch)
 
+Decided for Phase 2 by [ADR 0025](../adr/0025-execution-ir.md); its relation to plan steps and actions is in §6.4.
+
 ```python
 class StepKind(StrEnum):
     DRIVER_TURN = "driver_turn"
@@ -415,6 +422,8 @@ Why: today the agent's view of prior work is the framework message history. Step
 
 ### 5.5 Audit integrity and attribution
 
+*Merged: actor attribution (not the correlation id) and failure classification are in MVP §7 and §11; the other rows stay [P] or [C] (ADR 0018, accepted 2026-10-14). The MVP design is authoritative for this part.*
+
 The event log is the audit truth (§5.1), so its integrity and attribution are architecture, not operations detail.
 
 | Property | Today | Target | Status |
@@ -429,6 +438,8 @@ The event log is the audit truth (§5.1), so its integrity and attribution are a
 Redaction rules for the export stay as in MVP §11. HLD §9 requires export authorization; today the export is tenant-scoped only (§13.2 closes this).
 
 ### 5.6 Explanation contract
+
+*Merged: `ReasonCode` and the `reason_code` column are in MVP §7 and §11; `ProposalRationale` and the explanation projection stay [P] (ADR 0018, accepted 2026-10-14). The MVP design is authoritative for this part.*
 
 Three readers need explanations: the approver before a write, the requester after the outcome and the auditor afterwards. Three rules apply:
 
@@ -534,6 +545,150 @@ sequenceDiagram
 ```
 
 Repair limits come from the task definition and the profile (MVP §10 defaults). **Repeat detection [P]:** a proposal whose digest equals an already blocked revision in the same run gets a `KERNEL-REPEAT` finding without re-validation, and it counts against the repair budget. Today the kernel only short-circuits a repeated *verified* answer (`proposals.py: _handle_proposal`). An exhausted budget stops new work. A possibly dispatched write still goes to reconciliation.
+
+### 6.4 Execution IR [P]
+
+Status: proposed for roadmap Phase 2 ([plan](../plans/2026-10-14-phase2-execution-ir.md)); decided by ADRs [0027](../adr/0027-feature-toggles.md) (toggles), [0028](../adr/0028-task-definitions.md) (task definitions), [0029](../adr/0029-capability-effect-declarations.md) (effect declarations), [0025](../adr/0025-execution-ir.md) (plans, digest, dispatch, failure) and [0024](../adr/0024-plan-approval-model.md) (approval model). Closes DR-01 of the [design principles review](../reviews/2026-10-14-design-principles-review.md) and XA-01 of the [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md).
+
+The execution IR states a run's work in a form the kernel can check. It has three layers: a **task definition** says what the run may do and when it is done; an **action plan** says what the driver proposes to do; **step records** say what happened. Driver output stays a proposal. The kernel compiles, validates, approves, reserves, dispatches and verifies (ENG-TRUST-1, ENG-TRUST-2).
+
+**Names.** A *plan step* (`PlannedStep`) is one proposed capability invocation inside a plan. Each plan step yields exactly one `ActionRecord`; actions gain nullable `plan_id` and `step_index`, and actions written before this section keep both null. A *step record* (`StepRecord`, §5.4) records one kernel stage (validate, approval wait, dispatch, verify, reconcile) or one driver turn, and points to its action through `action_id`. No other "step" concept exists.
+
+#### 6.4.1 Task definitions (ADR 0028)
+
+```python
+class AcceptanceSpec(Record):           # e_agent.contracts.task (proposed)
+    required_effects: tuple[RequiredEffect, ...] = ()   # contract_id + minimum verified count
+    required_answer: str | None = None                  # an answer contract that must verify
+
+class TaskDefinition(Record):
+    task_id: str                       # unique across admitted packs
+    version: str
+    title: str
+    goal_template: str                 # the demo prompt of Phase 1d's task presets
+    capabilities: tuple[str, ...]      # contract ids; the run's fixed tool set
+    acceptance: AcceptanceSpec
+    budgets: Budgets | None = None     # narrows the profile budgets, never widens them
+    approval_ttl: timedelta | None = None   # per-task TTL deferred by ADR 0019
+```
+
+- Task definitions are domain-pack resources, declared in the pack manifest and admitted by the registry. Every capability must have an admitted binding, and a duplicate `task_id` is refused.
+- The Phase 1d "task presets" are the first version of the same resource. Phase 2 extends them into task definitions under the name `TaskDefinition`.
+- The server's `TaskTemplate` (ADR 0017) becomes a projection of an admitted task definition plus the requester's availability.
+- The run's tool set is fixed at admission: the definition's agent-visible capabilities (§7.2 rule 1).
+- The run records `task_id` and `version` (C11).
+- The kernel checks the acceptance spec at run end. When it is unmet, the run ends `FAILED` with `ACCEPTANCE_UNMET` and an acceptance finding (§6.1). The model cannot mark its own task as met.
+- A general `assistant` definition with read-only capabilities covers open questions (core plan Phase 2).
+
+#### 6.4.2 Capability effect declarations (ADR 0029)
+
+Every capability declares how risky its effect is and whether it can be undone. Every binding (`CapabilityBinding`, declared through the manifest's `BindingTemplate`) declares whether its provider deduplicates a repeated call. The current `effect` (`read | write | answer`) stays.
+
+| Field | Declared on | Values | Default when absent |
+|---|---|---|---|
+| `risk` | Capability contract (domain pack) | `read`, `write_low`, `write_high`, `destructive` | `read` for read and answer contracts; `write_high` for writes |
+| `reversibility` | Capability contract | `irreversible`, `compensable` (naming the compensating contract) | `irreversible` |
+| `idempotency` | Binding (adapter manifest) | `none`, `provider_key` (the provider deduplicates on a key derived from `logical_operation_id`) | `none` |
+
+Rules:
+- `risk: read` is allowed only with `effect: read | answer`, and a write may not declare `read`.
+- In a profile with `environment: live`, the registry refuses a write capability or write binding that relies on any default. Fixture profiles accept defaults and report them. This keeps every existing manifest loadable and forces live write capabilities to declare their effects.
+- The declarations are not inputs to the approval digest. They come from admitted, digest-pinned artifacts (MVP §6), so they cannot change during a run.
+- The approval presentation shows the highest `risk` and any `irreversible` steps of a plan. This is a presentation annotation under ADR 0015, which allows non-digest metadata on the approval card; the card's digest check (threat T9) is unchanged.
+- Tools that are not mapped to a contract (MCP, Phase 8) are treated as `write_high`, `irreversible`, `none`. A provider's own hints never set these values.
+- Retry rule (ENG-TRUST-5): a write whose outcome is ambiguous goes to reconciliation, as today. A re-send is allowed only when the binding declares `provider_key` and a conformance test proves the provider deduplicates on that key. The Odoo bridge's `operation_key` (`adapters/odoo/executor.py:340-347`) is the first candidate. Re-sending stays off in Phase 2; Phase 2 adds only the declarations and the refusal.
+- Benchmark auto-approve eligibility uses `risk` (ADR 0024).
+- The notes fixture domain declares the same fields (DR-08).
+
+#### 6.4.3 Action plans and lineage (ADR 0025)
+
+```python
+class LineageRef(Record):              # e_agent.contracts.plan (proposed)
+    step_id: str                       # an earlier plan step this step depends on
+    path: str                          # RFC 6901 JSON pointer into that step's verified outcome
+
+class PlannedStep(Record):
+    step_id: str
+    proposal: ActionProposal           # arguments may hold LineageRef placeholders
+    depends_on: tuple[str, ...] = ()
+
+class ActionPlan(Record):
+    plan_id: str
+    task_id: str
+    task_version: str
+    steps: tuple[PlannedStep, ...]     # step index = position
+```
+
+- **Structure** is checked by the records: step ids are unique, dependencies exist and are acyclic, and a `LineageRef` names a step in `depends_on`.
+- **Policy** is checked by the kernel, and the check is pure (no store or driver access):
+  - every `contract_id` is in the task definition;
+  - the plan's write count is at most `max_admitted_writes`;
+  - each step passes today's domain validation and policy, with each placeholder treated as a value of the type its input schema declares.
+- **Compilation.** A single `ProposeAction` compiles to a 1-step plan. A `ProposePlan` (a new `DriverStep` variant, with an `sdk_api` minor bump) carries an N-step plan.
+- **Lineage has one rule: copy from the verified outcome.** The resolved value is the value at `path` in the earlier step's *verified outcome*, the independent read-back (MVP §7–§8). It is never taken from a receipt or from model output. It must match the type its input schema declares. Phase 2 adds no other rule kinds; a new kind needs an ADR.
+
+#### 6.4.4 Plan digest (ADRs 0006, 0025)
+
+- **Placeholder encoding.** Inside a step's digest input, a placeholder is encoded as `{"$lineage": {"step": "<step_id>", "path": "<pointer>"}}`. A literal argument object with the key `$lineage` is refused at validation, so a literal can never imitate a placeholder.
+- **Step digest input.** It is today's `digest_input` (`kernel/approval.py:18-60`) with placeholders in `arguments`. A step N > 1 binds the evidence and fact digests known when the plan was proposed, which may be none.
+- **Plan digest.** It is `jcs-sha256-v1` over `{"plan_schema": "plan.v1", "steps": [{"step_id", "depends_on" (sorted), "input": <step digest input>} …]}` in step-index order.
+- **A 1-step plan's approval digest is that step's action digest**, byte for byte, so the approval UI and `ui-core/src/digest.ts` stay valid. Recomputing an N-step plan digest in the UI is the Phase 5 plan-approval thread (Phase 2 plan, owner decision D3). Until then, a live profile refuses multi-write plans.
+- Approval binds the plan digest once (ADR 0024).
+
+#### 6.4.5 Dispatch and revalidation
+
+- Steps dispatch serially in step-index order, which must be a topological order. Step N + 1 starts only after step N is `VERIFIED`.
+- Before each step's reservation the kernel revalidates (ENG-TRUST-3, ADR 0014):
+  - fact digests of the evidence the step cites;
+  - policy and rule-bundle versions;
+  - `connection_version` and `credential_version`;
+  - the approval TTL;
+  - lineage: it resolves each placeholder from the verified outcome and checks its type.
+- The resolved values are recorded in a `validate` step record and an `ir.lineage_resolved` event before `reserve_operation`.
+- Any mismatch stops the plan before that step reserves: `STALE`, `APPROVAL_EXPIRED` or `PLAN_LINEAGE_REJECTED`.
+- Each step reserves under its own logical operation id, derived from the plan id and step id. The connection-level admission rule (ADR 0020) applies unchanged: a busy connection stops the plan with `CONNECTION_BUSY`.
+- Evidence before writes and atomic local state hold per step (ENG-TRUST-4).
+
+#### 6.4.6 Partial failure and run states (ADR 0025 widens the ADR 0018 table)
+
+| Situation | Run outcome | Reason code | Steps |
+|---|---|---|---|
+| Step N verified, steps remain | `VERIFYING → RUNNING` (new pair) | none; event `ir.step_verified` | next step revalidates |
+| A later step dispatched and committed | `RUNNING → VERIFYING` (new pair) | none | verify as today |
+| A later step's receipt is `UNKNOWN` | `RUNNING → NEEDS_RECONCILIATION` (existing defensive pair, now with a call site) | `EFFECT_UNKNOWN`, as today | the remaining steps do not start; no replay |
+| Reconciliation proves the effect and verification passes | `NEEDS_RECONCILIATION → VERIFYING → RUNNING` | none | continue only after a fresh revalidation; an expired approval stops the plan |
+| Step validation, staleness or lineage fails before its reservation | `RUNNING → FAILED` | `STALE`, `APPROVAL_EXPIRED` or `PLAN_LINEAGE_REJECTED` | earlier steps stay committed and verified |
+| A step fails with a known no-effect error or fails verification | `→ FAILED` | `PROVIDER_ERROR` or `VERIFICATION_FAILED`, as today | earlier steps stay committed and verified |
+| Acceptance unmet at run end | `VERIFYING → FAILED` or `RUNNING → FAILED` (a run that ends without a write) | `ACCEPTANCE_UNMET` | — |
+| Worker crash between steps | recovery resumes at the first unstarted step after revalidation | — | committed steps are never replayed |
+
+- The outcome and the evidence bundle list each step as `verified`, `committed`, `unknown`, `failed` or `unstarted`.
+- **Reason codes do not depend on plan length.** A step's outcome uses today's codes and today's `classify` groups (ADR 0018), so a provider timeout on step 3 classifies exactly as on a 1-step run. Which step it was comes from `plan_id` and `step_index` on the action and from the step records. Only two codes are new: `PLAN_LINEAGE_REJECTED` (blocked-by-design) and `ACCEPTANCE_UNMET` (failed).
+- There is no fallback after the first reservation (ENG-TOGGLE-2).
+
+#### 6.4.7 Step records
+
+- Step records follow §5.4 and are written in the same transaction as their run events (ENG-TRUST-4).
+- Phase 2 delivers the records and the plan tables (`action_plans`, `run_steps`) in both stores (ENG-STORE-1).
+- The progress ledger that projects them for the driver is Phase 3 (§6.2).
+
+#### 6.4.8 Feature toggle (ADR 0027)
+
+- `features.execution_ir: off | shadow | on` covers task definitions, plans and step records:
+
+  | Mode | Behaviour |
+  |---|---|
+  | `off` | Today's single-action loop. No IR is compiled, no step record is written, no new event appears. |
+  | `shadow` | The run acts on the existing path. After today's proposal handling validates a proposal, the kernel compiles it into a 1-step plan, resolves the task definition, computes the plan digest and records `ir.plan_compiled` (plan digest, step count, task definition id and version, whether the step digest equals the action digest) and the step records. A compile or validation error records `ir.shadow_failed` and nothing else. |
+  | `on` | The run executes the IR. The tool set comes from the task definition at admission. A `ProposeAction` becomes a 1-step plan; a `ProposePlan` becomes an N-step plan, validated as a whole, approved once and dispatched step by step. |
+
+- **Fallback boundary:** the first `reserve_operation`. Before it, with `on`, a task-definition, compile or validation failure records `feature.fallback` (`IR_TASK_UNRESOLVED`, `IR_COMPILE_FAILED`, `IR_VALIDATION_FAILED`) and continues on today's path. A multi-step `ProposePlan` cannot run on that path, so it returns to the driver as a repair finding within `max_validation_repairs`. After the boundary there is no fallback (ENG-TOGGLE-2). The Phase 2 plan cites this table.
+- General rule (XA-24): a `shadow` path records a comparison with the live path and acts on nothing. For example, `ir.plan_compiled` records whether the compiled step digest equals the action digest. A shadow path adds no driver call, provider read or budget use.
+- A toggle is not cover for unfinished code: every mode a profile can select is complete and tested.
+
+#### 6.4.9 Modification after approval (ADR 0024)
+
+Nothing modifies an action after its approval digest is computed. A rule, guardrail or kernel step that wants to change an argument does so before the digest, and the approver sees the original and adjusted values together. A model's text reply may be redacted at any time, because it changes no external data. Any later change is a new proposal that needs a new approval. The presentation field for adjustments arrives with the first guardrail that needs it.
 
 ---
 
@@ -675,6 +830,14 @@ Principles (from research 03 and the KG research §H):
 - **ACL is applied before content reaches the reranker or the model.** Graph traversal checks permissions on nodes, edges and intermediate paths (research 03 §10).
 - **Generated queries are not executed raw.** SQL, Cypher and SPARQL use approved templates or AST validation, read-only credentials and cost limits.
 
+**Fact sources [P].** A knowledge setting `fact_sources: structured_only | with_model_candidates` chooses where facts may come from. With `structured_only`, facts come only from structured connector fields and from people. With `with_model_candidates`, the "Extract under declared ontology" step may also run a model. In both modes model output only ever creates candidates that carry a source span; curation alone accepts them as claims. `/health/ready` and the evidence bundle report the mode. Owner decision D-2 in the [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md).
+
+**Projection and sync rules [P]** (adoption review XA-25):
+- Indexes are projections and never authority; a lookup that disagrees with the canonical claims loses.
+- When an access re-check fails, the record is withheld from the result, not deleted from the store.
+- A sync watermark advances only after every sink has accepted the batch.
+- Facts are bitemporal: each carries a valid time and its evidence rows, and a superseded fact is kept with its end time instead of being overwritten.
+
 ### 9.2 Attachment through existing ports
 
 The knowledge service is a new distribution, `e-agent-knowledge` [C], with a narrow public API. Its trigger is the first real ingestion or curation use case (HLD §7; research 10). The agent reaches knowledge only through `EvidenceRetriever` capabilities admitted like any other read, so retrieval is authorized, audited and budgeted. Graph and vector engines are adapters (`adapter-knowledge-pg` [C], `adapter-graph-age` or `adapter-graph-neo4j` [C]).
@@ -771,7 +934,7 @@ A trigger is a business event that asks e-agent to start a task. Triggers must n
 3. **Untrusted payload.** The event body is task input and evidence, handled like user text. It cannot carry approvals, budgets or policy.
 4. **Same approval.** Writes still need policy evaluation and, where required, human approval by an authorized approver. The service principal cannot approve its own run's writes.
 5. **Rate and budget limits** per trigger and tenant, enforced at admission.
-6. **Approval reachability.** Approval expires (MVP §10 default 15 minutes), and `approval_ttl` is a single coordinator setting today (`coordinator.py: RunCoordinator.__init__`). Before WP1, expiry was checked only when a decision arrived and no sweeper existed, so a run started by a webhook at night stayed in `WAITING_APPROVAL` indefinitely. An **expiry sweeper [I]** (fenced `expire` work, ADR 0019) now runs every `APPROVAL_SWEEP_SECONDS = 30`: it enqueues `expire` work, and the worker re-checks the TTL under the claim, moves the pending action to `BLOCKED` and fails the run with `APPROVAL_EXPIRED`. Repairing the run per the task definition instead of failing it stays [P]. Triggered tasks that need approval therefore also need two things: an approver notification and inbox path [P], which is out of scope in ADR 0017 today, and an approval TTL set per task definition [P]. **Until both exist, triggers are limited to read/answer tasks and to writes that policy permits without approval.**
+6. **Approval reachability.** *Merged: the expiry sweeper is in MVP §10 (ADR 0019, accepted 2026-10-14); notification, inbox and per-task TTL stay [P].* Approval expires (MVP §10 default 15 minutes), and `approval_ttl` is a single coordinator setting today (`coordinator.py: RunCoordinator.__init__`). Before WP1, expiry was checked only when a decision arrived and no sweeper existed, so a run started by a webhook at night stayed in `WAITING_APPROVAL` indefinitely. An **expiry sweeper [I]** (fenced `expire` work, ADR 0019) now runs every `APPROVAL_SWEEP_SECONDS = 30`: it enqueues `expire` work, and the worker re-checks the TTL under the claim, moves the pending action to `BLOCKED` and fails the run with `APPROVAL_EXPIRED`. Repairing the run per the task definition instead of failing it stays [P]. Triggered tasks that need approval therefore also need two things: an approver notification and inbox path [P], which is out of scope in ADR 0017 today, and an approval TTL set per task definition [P]. **Until both exist, triggers are limited to read/answer tasks and to writes that policy permits without approval.**
 
 ```python
 class TriggerSpec(BaseModel):          # profile-declared (proposed)
@@ -815,7 +978,7 @@ flowchart TB
 | Model-call retry policy | Retries on model 429/5xx are allowed because they have no side effect, but they consume the active-time and token budget. They are a different category from write retries, which are never automatic | [P] (policy to be written down) |
 | Shared-singleton audit before slots > 1 | The driver keys `_RunState` by `run_id`; work claim is a `ContextVar`; still check the executor client, text bus and caches | [P] |
 | LISTEN dispatcher + slow fallback poll | Streaming load independent of idle viewers | [P] |
-| Connection-level write admission: no new write while a `RESERVED`, `DISPATCHING` or `UNKNOWN` action exists on that connection (`reserve_operation` raises `ConnectionBusy`; the run fails with `CONNECTION_BUSY`) | Restores the serialized-writer backstop even if a lock or lease is lost mid-call. `RESERVED` is in the set because the reservation commits before the action reaches `DISPATCHING` | [I] (ADR 0020; lease still [P]) |
+| *Merged into MVP §9 (ADR 0020, accepted 2026-10-14).* Connection-level write admission: no new write while a `RESERVED`, `DISPATCHING` or `UNKNOWN` action exists on that connection (`reserve_operation` raises `ConnectionBusy`; the run fails with `CONNECTION_BUSY`) | Restores the serialized-writer backstop even if a lock or lease is lost mid-call. `RESERVED` is in the set because the reservation commits before the action reaches `DISPATCHING` | [I] (ADR 0020; lease still [P]) |
 | Durable writer lease replacing the session advisory lock; TTL > provider timeout + margin | Stops pool connections being pinned during ERP I/O | [P] |
 | Separate pools per role (worker: slots + heartbeat + LISTEN; API) | Avoid starvation | [P] |
 | `e-agent worker` and `serve --no-worker` | Scale API and workers independently | [P] |
@@ -867,7 +1030,7 @@ Results are labelled fixture/infrastructure evidence, never live qualification.
 | Observability | OpenTelemetry with content capture off by default (ADR 0008). GenAI semantic conventions are still at Development status (moved to a separate repository in June 2026), so pin the convention version. No OpenTelemetry, structured-logging or `EventObserver` code exists in the tree yet | [P] (ADR accepted, not implemented) |
 | Evals | Deterministic scenarios plus live trials (ADR 0010); every domain pack ships scenarios and competency fixtures; evals run in CI on fixtures | [I] ERP / [P] per-pack contract |
 | Release | Approved artifact inventory with digests; drain or keep compatible continuations on upgrade (HLD §8, MVP §6). New: pack skill and task-definition versions are recorded per run in evidence export; revocation still overrides pins; a pack release requires its ADR 0010 scenarios to pass in CI. Skills are not part of the approval digest: they shape the proposal, not the facts being approved | [I] inventory / [P] drain tooling, per-run skill provenance |
-| Data lifecycle | Retention for evidence, continuations and memory; deletion cascades through projections | [P] |
+| Data lifecycle | Field and record classes, model-route data boundaries, minimization, class-aware evidence export, retention and deletion (§13.3, ADR 0030); memory and knowledge deletion cascades (§8–§9) | [P] |
 
 ### 13.1 Tenant isolation options
 
@@ -880,6 +1043,8 @@ Results are labelled fixture/infrastructure evidence, never live qualification.
 Adding a domain means creating a pack distribution with ontology, contracts, rules, verifiers, task definitions, skills and eval scenarios. Then add adapter bindings, enable the pack and bindings in the profile, and run the G-criteria gates (§2.2).
 
 ### 13.2 Authorization model
+
+*Merged: the self-approval rule is in MVP §10 and HLD §3 (ADR 0019, accepted 2026-10-14); approval scopes, run visibility and the bundle stay [P].*
 
 **Today [I].** Self-approval is refused unless `operator.allow_self_approval` is set (ADR 0019) [I]; the fixture profile sets it, `profiles/live.example.json` keeps the forbidden default, and `/health/ready` reports `self_approval_allowed`. Two static roles, `requester` and `approver` (`kernel/policy.py:9-10`). `DefaultPolicy` permits when the principal has the requester role and the connection is in `resource_scope`, and requires approval exactly when the effect is a write (`policy.py:13-31`). `decide` requires the approver role (`approval_flow.py: decide`); input requires the principal to be the requester (`api.py: submit_input`); run reads, the stream and the evidence export are tenant-scoped only (`api.py: get_run`, `stream`, `evidence`). Roles come from the profile's operator in local mode (`bootstrap.py:161-166`). Reads are the odd one out: any tenant member can read any run and export its evidence, while HLD §9 requires export authorization.
 
@@ -904,6 +1069,58 @@ Rules:
 5. **Enforcement lives in the kernel and the policy evaluator**, not in HTTP handlers. The API maps identity and nothing more.
 
 Rejected or deferred: an external policy decision point (OPA, Cedar) [C]. Trigger: a tenant requires externally managed policies, or more than one application must share them. Until then a versioned in-profile bundle keeps the no-unused-abstraction rule.
+
+### 13.3 Data governance [P]
+
+Decided by [ADR 0030](../adr/0030-data-governance.md) (Proposed). Closes DR-05 of the [design principles review](../reviews/2026-10-14-design-principles-review.md) and folds in XA-13 and AP-15 of the [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md). Knowledge and memory governance stays in §8–§9; this section covers run, evidence and model-context data.
+
+**Today.**
+- Observation data reaches the model unchanged (`adapters/pydantic_ai/driver.py:403`).
+- The evidence export carries business values from arguments, outcomes and model text, and checks only the tenant (`server/api.py:484-493`).
+- `RunStore` has no delete path (`sdk/store.py:60-197`), and no retention applies to continuations.
+- ADR 0021 leaves data egress for a hosted model upstream to the operator.
+
+**Data classes (pack data).** Each capability's input and output schemas mark their properties with `x-data-class`:
+
+| Class | Meaning | May reach a hosted model route | In the default evidence export |
+|---|---|---|---|
+| `public` | Published or non-business data | yes | yes |
+| `internal` | Business data without personal data | yes | yes |
+| `personal` | Identifies or describes a person (contact, employee, partner person) | only with a declared processing basis for that route | masked unless the exporter has auditor visibility |
+| `sensitive_personal` | Special-category personal data | no, unless the route is `local` | masked; auditor visibility only |
+| `secret` | Credentials and keys | never | never |
+
+- An unmarked property is treated as `personal`, the conservative default.
+- `/health/ready` reports the count of unmarked properties per capability, so Phase 5 marks each new capability as it lands.
+
+**Stored record classes.** Each stored record kind (run, event, action, approval, receipt, outcome, continuation, work item) declares, in a store-neutral registry `contracts/data_classes.py`, a record class (`audit_skeleton`: ids, digests, actors, states, reason codes, timestamps; `business_payload`: arguments, observations, outcomes, model text, continuations; `infra`: work queue, leases, idempotency rows) and a retention class. A contract test fails when a record kind or payload field has no declaration; both stores inherit it (ENG-STORE-1).
+
+**Model routes declare their data boundary.**
+- A driver route declares `data_boundary: local | hosted:<region>`. A loopback Ollama endpoint is `local`. A LiteLLM route is whatever the profile declares, and an undeclared route counts as `hosted:unknown`. The LiteLLM proxy is loopback (ADR 0021) but its upstream is not visible to e-agent, so a LiteLLM boundary is an operator assertion, reported in readiness as `declared`, not `verified`.
+- A profile may set `local_only: true`, which refuses any non-local route at startup.
+- A hosted route that may receive `personal` data needs a `data_processing` declaration in the profile (data owner, legal basis, region). `/health/ready` reports it the way it reports `self_approval_allowed`.
+- **Interim rule:** while `features.context_assembler` is not `on`, a profile with a non-local route and no `data_processing` declaration fails startup. In `off` and `shadow` the driver forwards observations unchanged, so this is the only safe rule. No committed profile uses a hosted route today.
+- This refines ADR 0021's note that egress review belongs to the deployment.
+
+**Minimization in the ContextAssembler (§7, Phase 3).**
+- `ContextPolicy` gains a class-per-route rule. The assembler masks or drops values that a route may not receive and records each drop in `ContextPack.dropped`.
+- Tool output is bounded per capability (§7.2 rule 2). A bounded or masked result carries `completeness: PARTIAL` and a `truncated` or `masked` marker. An error is never presented as an empty result (AP-15).
+- The driver alone cannot do this: by the time it holds `dict(obs.data)` (`driver.py:403`), the data has already been forwarded.
+- **The approval card is never masked.** Masking applies to model context and export projections only. The approver always sees the exact canonical arguments (ADR 0006, threat T9).
+- If telemetry content capture is ever enabled (ADR 0008, off by default), the same classes govern it, so T12 and T23 do not diverge.
+
+**Evidence export.**
+- The export is a projection over the same classes: `personal` and `sensitive_personal` values are masked unless the exporter has auditor visibility.
+- Export authorization (§13.2 rule 4) moves ahead of Phase 5 live evaluation, because evidence will then hold real-looking partner data. It brings the minimal visibility model with it (requester, approvers in scope, operator, auditor). In local session mode the profile operator holds auditor visibility, so evidence inspection keeps working for the one local user.
+- The access log for reads and exports stays with C17 part 2 (Phase 7).
+
+**Retention and deletion (Phase 7).**
+- **Retention:** each `business_payload` class has a retention period in the profile. A purge job drops payloads past it and keeps the audit skeleton. It runs under a dedicated purge role, the only role allowed to null payload columns once append-only grants exist (C17).
+- **Tenant offboarding** deletes a tenant's rows after an authorized export.
+- **Subject deletion** removes payload values of `personal` fields that hold a subject's identifier. It is tested like the §8 memory cascade.
+- **Data owner:** each live connection declares a data owner and legal basis.
+
+**Threats:** T23 (personal data egress to a hosted model) and T24 (evidence export as an exfiltration channel) in the [threat model](threat-model.md).
 
 ---
 
@@ -1053,26 +1270,29 @@ Paths are relative to `src/e_agent/`.
 |---|---|---|
 | C1 | Concurrent run slots per worker with per-tenant fairness; admission control at enqueue (queue depth checked in the enqueue transaction, token quotas); model-call retry policy (§12.2) | ADR 0003, 0014 |
 | C2 | LISTEN dispatcher for streams; text deltas in-process (combined mode) or coalesced NOTIFY from workers (split mode) | ADR 0007 |
-| C3 | Connection-level write admission rule + durable writer lease (TTL > provider timeout) — admission rule merged, lease pending | ADR 0003, 0014; MVP §9 |
+| C3 | Connection-level write admission rule + durable writer lease (TTL > provider timeout) — admission rule merged into MVP §9 (ADR 0020, accepted), lease pending | ADR 0003, 0014; MVP §9 |
 | C4 | API and worker process roles | HLD §4 |
 | C5 | HTTP framework stays FastAPI; revisit trigger | — |
-| C6 | Run transition table; no graph runtime in the kernel; LangGraph only as a driver adapter — WP1 part merged | ADR 0004; MVP §7 |
+| C6 | Run transition table; no graph runtime in the kernel; LangGraph only as a driver adapter — table merged into MVP §7 (ADR 0018, accepted); widened by ADR 0025 (Proposed) | ADR 0004; MVP §7 |
 | C7 | Swappable-runtime boundary: trust anchor vs ports (§4) | HLD §6 |
-| C8 | Step records and progress ledger as kernel projections; plan updates are proposals; `KERNEL-REPEAT` finding for repeated blocked proposals (§6) | MVP §4, §7 |
+| C8 | Step records and progress ledger as kernel projections; plan updates are proposals; `KERNEL-REPEAT` finding for repeated blocked proposals (§6) — step records and action plans: ADR 0025 (Proposed, §6.4); ledger and `KERNEL-REPEAT` stay Phase 3 | MVP §4, §7 |
 | C9 | ContextAssembler ownership split and context rules (§7) | ADR 0004 |
 | C10 | Memory model, promotion path and `MemoryStore` port (§8) | HLD §7 |
-| C11 | Task definitions with acceptance specs (AR-01) as the unit of specialization; per-task approval TTL; skill and task-definition versions recorded per run (§13) | ADR 0017 |
+| C11 | Task definitions with acceptance specs (AR-01) as the unit of specialization; per-task approval TTL; skill and task-definition versions recorded per run (§13) — ADR 0028 (Proposed, §6.4.1) | ADR 0017 |
 | C12 | MCP as a capability binding type (§10.2) | ADR 0012, 0013 |
-| C13 | Event-triggered runs: service principal, idempotency, approval unchanged; approval reachability: expiry sweeper, approver notification/inbox, scope limited to no-approval tasks until both exist (§11.2) — WP1 part merged | MVP §10, §12; ADR 0017 |
+| C13 | Event-triggered runs: service principal, idempotency, approval unchanged; approval reachability: expiry sweeper, approver notification/inbox, scope limited to no-approval tasks until both exist (§11.2) — sweeper merged into MVP §10 (ADR 0019, accepted) | MVP §10, §12; ADR 0017 |
 | C14 | Knowledge service and projection selection when triggered (§9) | HLD §7 |
 | C15 | Tenancy hardening: RLS with a control role and a tenant role (§13.1), OIDC, vault adapter | HLD §9 |
-| C16 | Authorization bundle: role mappings, task and capability grants, approval scopes, self-approval rule, run visibility (§13.2) — WP1 part merged | HLD §3, §9; ADR 0006 (digest golden vectors); threat model T3, T19 |
-| C17 | Audit integrity: actor and correlation id on every event, database-enforced append-only, access audit; hash chain and control-plane log when triggered (§5.5) — WP1 part merged | HLD §9; threat model §4 |
-| C18 | Explanation contract: `ProposalRationale`, `ReasonCode`, deterministic explanation projection (§5.6) — WP1 part merged | ADR 0004; HLD §9 |
+| C16 | Authorization bundle: role mappings, task and capability grants, approval scopes, self-approval rule, run visibility (§13.2) — self-approval rule merged into MVP §10 (ADR 0019, accepted) | HLD §3, §9; ADR 0006 (digest golden vectors); threat model T3, T19 |
+| C17 | Audit integrity: actor and correlation id on every event, database-enforced append-only, access audit; hash chain and control-plane log when triggered (§5.5) — actor attribution merged into MVP §7 (ADR 0018, accepted) | HLD §9; threat model §4 |
+| C18 | Explanation contract: `ProposalRationale`, `ReasonCode`, deterministic explanation projection (§5.6) — `ReasonCode` merged into MVP §7 and §11 (ADR 0018, accepted) | ADR 0004; HLD §9 |
+| C19 | Data governance for run, evidence and model-context data: field and record classes, route data boundaries, minimization, class-aware export, retention and deletion (§13.3) — ADR 0030 (Proposed) | ADRs 0004, 0008, 0021; HLD §8, §9 |
 
 ---
 
 ## 18. Roadmap
+
+*Superseded by the [roadmap](../roadmap.md) (phase order and status). The table is kept for its exit evidence.*
 
 | Phase | Content | Exit evidence |
 |---|---|---|

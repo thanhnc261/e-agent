@@ -1,7 +1,7 @@
 # Integration auth SDK: credentials and authentication for every integration
 
 Implementation clarification (2026-10-07): [ADR 0014](../adr/0014-mvp-remediation-boundaries.md) defines short transactions with work fencing, conservative external uncertainty, approved fact/credential binding and transient public text offsets. These implementation seams require the remediation and live qualification gates; source availability does not establish readiness.
-**Date:** 2026-10-06. **Status:** accepted design ([ADR 0013](../adr/0013-integration-auth-sdk-and-delegated-connections.md)); nothing is implemented. It refines [integration management](integration-management.md) (ADR 0012). Admin and user pages are **Phase 2**; the MVP implements only the subset in §11.
+**Date:** 2026-10-06. **Status:** accepted design ([ADR 0013](../adr/0013-integration-auth-sdk-and-delegated-connections.md)); what is implemented is in the [README](../../README.md) status and the latest remediation retest; this document describes the full design. It refines [integration management](integration-management.md) (ADR 0012). Admin and user pages are scheduled in roadmap Phase 8 ([roadmap](../roadmap.md)), and "Phase 2" in this document means that post-MVP phase, not roadmap Phase 2; the MVP implements only the subset in §11.
 
 ## 1. Goal
 
@@ -148,7 +148,7 @@ async def create_draft_po(ctx: InvocationContext, auth: AuthContext, cmd: Create
 | `require_scopes(keys)` | Raises `ScopeMissing(required, granted)` before any network call |
 | `http_client(**kw)` | `httpx.AsyncClient` whose auth hook applies the credential. A valid access token is refreshed before use. On a provider `401`, it refreshes **once** and retries; this is safe because a 401 is an authoritative rejection with no effect |
 | `apply(request)` | For non-httpx transports (gRPC, SDK clients): returns headers or params to attach |
-| `materialize()` | Escape hatch for vendor SDKs needing raw credentials. Returns a short-lived, non-serializable `CredentialHandle` with redacted `repr`; usage is audited; the adapter must declare `needs_raw_credentials: true` in its manifest |
+| ~~`materialize()`~~ | **Removed by owner decision 2026-10-14** ([adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) D-1): plugins never hold a raw credential. It may be re-added only by an ADR for one named adapter, which then runs in a separate process. Former design: a short-lived, non-serializable `CredentialHandle` for vendor SDKs needing raw credentials, audited, declared by `needs_raw_credentials: true` |
 
 The SDK raises typed errors that the kernel maps to run states:
 

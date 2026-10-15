@@ -1,12 +1,17 @@
 # e-agent: high-level design
 
-Selectable overlay follow-up (2026-10-08): [ADR 0016](../adr/0016-selectable-agent-surfaces.md) adds a responsive Workbench and an in-app View selector over the same controller and approval authority. See [research/design](../../research/11-enterprise-agent-overlay-design.md).
+**Status:** implementation baseline. **Date:** 2026-10-06; status block updated 2026-10-14. **Implementation status:** see the [README](../../README.md) status and the latest [remediation retest](../reviews/2026-10-07-mvp-remediation-retest.md); this document does not track it.
 
+**Read with:**
+- [Principles](principles.md): every binding principle with its enforcing check. This document holds the mechanisms and does not restate them.
+- [Roadmap](../roadmap.md): the order of work.
+- [ADR index](../adr/README.md): the decisions.
 
-UI implementation clarification (2026-10-08): [ADR 0015](../adr/0015-task-workspace-presentation.md) specializes the shared layered UI into a task workspace with exact readable approval, bounded session navigation, truthful outcome states and authorized evidence inspection. Presentation annotations do not change domain rules, provider routing or approval digests. See [UI architecture](ui-architecture.md) for the implemented scope and limits.
-
-Implementation clarification (2026-10-07): [ADR 0014](../adr/0014-mvp-remediation-boundaries.md) defines short transactions with work fencing, conservative external uncertainty, approved fact/credential binding and transient public text offsets. These implementation seams require the remediation and live qualification gates; source availability does not establish readiness.
-**Status:** proposed implementation baseline. **Date:** 2026-10-06. **Implementation status:** research/design only.
+Accepted ADRs that refine this design:
+- [ADR 0014](../adr/0014-mvp-remediation-boundaries.md): short transactions with work fencing, conservative external uncertainty, approved fact and credential binding, transient public text offsets.
+- [ADR 0015](../adr/0015-task-workspace-presentation.md): the layered UI as a task workspace with exact readable approval; presentation annotations never change rules, routing or digests.
+- [ADR 0016](../adr/0016-selectable-agent-surfaces.md): a responsive Workbench and a View selector over the same controller and approval authority.
+- ADRs 0018–0022: the run transition table and reason codes, the approval sweeper and the self-approval rule, connection-level write admission, LiteLLM as an opt-in provider, and conversational turns. They are merged in MVP design §7–§11; HLD §3 states the self-approval rule.
 
 > **Scope update.** [ADR 0001](../adr/0001-local-mvp-scope.md) (accepted) expands the MVP to a local Pydantic AI + Ollama driver, the `odoo19-learning` Odoo 19 sandbox with an `e_agent_bridge` addon, 5–10 Odoo tasks, a streaming overlay UI and a read-only BigQuery integration. Where this document says "MVP", read it together with that ADR and the [implementation plan](implementation-plan.md). Refinements are recorded in ADRs 0002–0013 ([index](../adr/README.md)), accepted by the project owner on 2026-10-06 (plan §0, D1–D5).
 
@@ -47,7 +52,7 @@ Flexibility means a bounded, testable change surface. It does not mean every pro
 
 ## 3. System context
 
-Actors are a task requester, an authorized approver, an operator investigating failures and, later, a domain/ontology steward. Requester and approver permissions are explicit even if one local demo operator holds both roles.
+Actors are a task requester, an authorized approver, an operator investigating failures and, later, a domain/ontology steward. Requester and approver permissions are explicit even if one local demo operator holds both roles. Per [ADR 0019](../adr/0019-approval-reachability-and-self-approval.md) (accepted 2026-10-14), a requester may not approve their own run unless the profile sets `operator.allow_self_approval`; live profiles default to forbidden and `/health/ready` reports the value.
 
 ```mermaid
 flowchart LR
