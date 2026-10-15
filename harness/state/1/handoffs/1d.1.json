@@ -1,0 +1,22 @@
+{
+  "task": "1d.1",
+  "changed": "Recorded the Phase 0-1 review (R-1 to R-8, with evidence and what was not run) and wrote ADR 0026 (plugin layout and a reusable core). The owner accepted ADR 0026 on 2026-10-15 with an amendment: plugins build on a common base of contracts and the SDK, and the SDK gains shared provider helpers. The Phase 1d plan gained Task 1d.7b (SDK HTTP helper, dependency closure) and feature F-1d-7b; the plan and ADR agree on driver_factories, DriverFactory, DriverRequest and the refs fold.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/1d.1/2026-10-15T07-24-54.216403+00-00-full.json",
+    "harness/state/evidence/gates/1d.1/2026-10-15T10-43-08.387364+00-00-full.json"
+  ],
+  "open_items": [
+    "D1-D6 answered at their defaults by the owner's plan approval (2026-10-15); Part B starts with Task 1d.2"
+  ],
+  "rulings": [
+    {
+      "ruling": "The common plugin SDK is contracts plus SDK, not an SDK-only import surface",
+      "cost_if_wrong": "if the owner wanted one import surface, the SDK must re-export contract records and the guest contract must forbid e_agent.contracts in a later task"
+    },
+    {
+      "ruling": "The HTTP helper sits in the SDK behind an optional extra, with one named ignore_imports entry for httpx",
+      "cost_if_wrong": "a separate distribution would be needed; the helper module moves and the exemption is removed"
+    }
+  ],
+  "outside_repo": []
+}

@@ -253,7 +253,8 @@
         "full gate passes",
         "owner accepts ADR 0026 and answers D1-D6 before Part B"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/1d.1/2026-10-15T10-43-08.387364+00-00-full.json"
     },
     {
       "id": "F-1d-2",

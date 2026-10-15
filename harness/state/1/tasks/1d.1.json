@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-1"
   ],
-  "context_digest": "c0fe68e957a9ef3209eda32534f15e03479c7aeefcb863b3e35b0766560748e5",
+  "context_digest": "ad9c102b12d2a50905e7c6db1d366ee05c39d4ce49e89c64c987b98185611442",
   "allowed_paths": [
     "docs/reviews/2026-10-14-phase1-plugin-boundary-review.md",
     "docs/adr/0026-plugin-layout-and-reusable-core.md",
