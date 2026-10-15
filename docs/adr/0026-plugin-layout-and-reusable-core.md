@@ -1,6 +1,6 @@
 # ADR 0026: Plugin layout and a reusable core
 
-Date: 2026-10-15. Status: Proposed. Refines ADRs 0002, 0012; HLD §4; [target architecture](../design/target-architecture.md) §15, §16 and the R3 row; [principles](../design/principles.md) PR-01, PR-03, PR-08, PR-10.
+Date: 2026-10-15. Status: Accepted (2026-10-15, owner; amended on acceptance: common plugin SDK). Refines ADRs 0002, 0012; HLD §4; [target architecture](../design/target-architecture.md) §15, §16 and the R3 row; [principles](../design/principles.md) PR-01, PR-03, PR-08, PR-10.
 
 ## Context
 
@@ -25,6 +25,14 @@ The owner asked on 2026-10-14 that plugins live in a plugins folder, that the la
 - *Core never imports plugins:* `e_agent.contracts`, `e_agent.sdk`, `e_agent.kernel` and `e_agent.server` never import `e_agent.plugins`.
 - *Plugins are guests* (XA-02, PR-08): a plugin package never imports `e_agent.kernel`, `e_agent.server`, `e_agent.adapters.postgres`, `e_agent.adapters.secretstore_local`, `e_agent.adapters.pydantic_ai` or `e_agent.adapters.shacl`. Credentials reach a plugin only through `PluginServices`. A conformance test derives the plugin packages from the installed `e_agent.plugins.v1` entry points, so a new provider cannot sit outside the contract.
 - A provider imports only its area's public domain API, never a sibling provider.
+
+**Common plugin SDK** (owner amendment on acceptance, 2026-10-15).
+- Every plugin builds on one common base: `e_agent.contracts` (portable records) and `e_agent.sdk` (ports, manifests, auth, errors and provider helpers), shipped as `e-agent-contracts` and `e-agent-plugin-sdk`. A plugin distribution depends on these two and, for a provider, its area's domain pack, and on no other e-agent distribution. A conformance test reads each plugin's `dists/<name>/pyproject.toml` and fails on any other e-agent dependency.
+- *Connection spec.* The typed models for the manifest `connection` section (auth methods with their placement, and the sandbox probe) live in `e_agent.sdk.connection`. The host and every provider validate against that one definition, and an unknown placement is refused there. A plugin without a `connection` section needs none.
+- *Rejections stay as they are.* `KnownNoEffectError` remains the one way a plugin tells the kernel that nothing was committed. No second rejection type is added.
+- *Authenticated HTTP client* in `e_agent.sdk.http`, behind the optional extra `e-agent-plugin-sdk[http]`. It applies the `AuthContext`; it refuses a request to any host other than the connection's base-URL host (the egress allowlist from the adoption review); and it classifies a 4xx response as a transport-level rejection with an allow-listed code and a fixed safe message, and a 5xx, timeout or transport error as ambiguous. Provider bodies and headers are never logged or echoed, because they may carry submitted values or credentials. The executor keeps mapping a rejection to `KnownNoEffectError`, because a 4xx rejects this call and does not prove that an earlier call had no effect. The Odoo client moves onto it in Phase 1d, with behaviour unchanged.
+- *The one boundary exemption.* The import contract "Core packages do not import agent frameworks or provider SDKs" gains one `ignore_imports` entry, `e_agent.sdk.http -> httpx`. The rest of the SDK stays free of `httpx`, and a consumer that does not install the extra never imports it.
+- *Deferred:* a plugin conformance test kit in the SDK, until a third provider exists.
 
 **Declared requirements** (XA-03, PR-10). `PluginRegistry.register()` refuses with `STARTUP_REJECTED` a binding template whose `supported_features` lacks any of its contract's `required_features`. Probing a live instance's features stays Phase 5.
 
@@ -51,12 +59,15 @@ The owner asked on 2026-10-14 that plugins live in a plugins folder, that the la
 - A top-level `plugins/<name>/` tree with its own `src/` per plugin: rejected because it contradicts the 2026-10-12 layout decision (one layer-grouped tree, no repeated folder names) and duplicates build configuration.
 - Nesting providers inside the domain package (`erp/odoo`): rejected because the shared sub-tree hook would put Odoo into the `domain-erp` wheel, so the two distributions would no longer be independent.
 - Keeping `demand_ref` and `product_ref` as top-level profile fields: rejected because they are ERP vocabulary in a generic schema (R-3); the loader alias keeps old profiles working.
+- One import surface (the SDK re-exports every contract record, and plugins may not import `e_agent.contracts`): not chosen by the owner; the common base is contracts and SDK together.
+- The HTTP helper as its own distribution instead of an SDK extra: rejected because it would add a release unit for one module; the extra plus one named `ignore_imports` entry keeps the SDK wheel free of `httpx` for consumers that do not need it.
+- The HTTP helper raising `KnownNoEffectError` directly on a 4xx: rejected because only the executor knows whether an earlier call with the same operation identity may have committed.
 - Checking capability requirements at call time instead of at registration: rejected because a missing feature would then fail silently mid-run (XA-03); the live feature probe that needs the instance stays in Phase 5.
 
 ## Consequences
 
-- Code: `sdk/ports.py` (`TaskPreset`, `task_presets`, `DriverFactory`, `DriverRequest`, `driver_factories`); `kernel/registry.py` (manifest `connection` sections reachable; required-features check); `server/bootstrap.py`, `server/profile.py`, `server/cli.py` lose their ERP and `odoo19` literals; `erp/plugin.py` contributes presets and the scripted factory; the simulator package and its manifest; `pyproject.toml` import contracts; `dists/server`, `dists/adapter-erp-simulator`, `dists/bundle-erp`; the mover's `plugins` set.
-- Tests and evidence: the Review Focus tests of the Phase 1d plan, including `test_live_provider_without_sandbox_probe_refuses_startup`, `test_live_profile_never_imports_simulator`, `test_two_erp_providers_routing`, `test_every_plugin_package_is_a_guest`, `test_binding_missing_required_feature_refused`, `test_server_has_no_domain_literals` and `scripts/check_core_only.py`; unchanged OpenAPI and golden CLI prompts.
+- Code: `sdk/connection.py` and `sdk/http.py` (with the `http` extra on `dists/plugin-sdk`); the Odoo client on the SDK helper; `sdk/ports.py` (`TaskPreset`, `task_presets`, `DriverFactory`, `DriverRequest`, `driver_factories`); `kernel/registry.py` (manifest `connection` sections reachable; required-features check); `server/bootstrap.py`, `server/profile.py`, `server/cli.py` lose their ERP and `odoo19` literals; `erp/plugin.py` contributes presets and the scripted factory; the simulator package and its manifest; `pyproject.toml` import contracts; `dists/server`, `dists/adapter-erp-simulator`, `dists/bundle-erp`; the mover's `plugins` set.
+- Tests and evidence: the Review Focus tests of the Phase 1d plan, including `test_live_provider_without_sandbox_probe_refuses_startup`, `test_live_profile_never_imports_simulator`, `test_two_erp_providers_routing`, `test_every_plugin_package_is_a_guest`, `test_binding_missing_required_feature_refused`, `test_server_has_no_domain_literals`, `test_plugin_dependencies_are_the_common_base`, `test_http_refuses_other_hosts`, `test_http_never_echoes_credentials` and `scripts/check_core_only.py`; unchanged OpenAPI and golden CLI prompts.
 - Operations: profiles must be given (`--profile` or `E_AGENT_PROFILE`); the `Makefile` and README commands pass one. The owner re-pins `profiles/live-odoo19-learning.local.json` once after Task 1d.10, because the `domain-erp` and `odoo19` digests change.
 - Documents: HLD §4, MVP §3, target §15, §16 and the R3 row, AGENTS.md repository map, ENG-ARCH-1 and ENG-ARCH-5 (Task 1d.10); principles PR-08 and PR-10 (Task 1d.11). The approved plan schedules these design updates with the code that makes them true, not with this ADR's acceptance.
 

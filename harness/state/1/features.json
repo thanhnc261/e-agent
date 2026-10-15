@@ -381,6 +381,18 @@
         "results recorded in the handoff, labelled live"
       ],
       "passes": false
+    },
+    {
+      "id": "F-1d-7b",
+      "category": "sdk",
+      "description": "Task 1d.7b: common plugin SDK HTTP helper (auth, host pinning, 4xx/5xx classification, no echo); Odoo client uses it; plugin dependency closure",
+      "steps": [
+        "test_http_* tests pass, including test_http_never_echoes_credentials and test_http_refuses_other_hosts",
+        "test_plugin_dependencies_are_the_common_base passes and fails on zero plugins",
+        "lint-imports keeps the one named ignore_imports entry; check_wheels passes",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }

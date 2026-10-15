@@ -41,6 +41,7 @@ Run behaviour does not change.
 **Tech Stack:** uv workspace, hatchling with the shared `dists/_hooks/src_tree.py` hook, import-linter, mypy, ruff, pytest, `scripts/repo_move.py` (extended), `scripts/plugin_inventory.py`, `scripts/check_wheels.py`, a new `scripts/check_core_only.py`.
 
 **Spec:**
+- The owner's acceptance of ADR 0026, 2026-10-15, with the amendment "plugins need a common SDK": contracts and the SDK are the common base, and the SDK gains shared provider helpers (connection spec in 1d.2, HTTP helper in 1d.7b).
 - The owner's comments, 2026-10-14:
   - "If it is a plugin, it belongs in a plugins folder."
   - D1: "`plugins/erp/odoo`; think further: there may be many ERP providers."
@@ -64,6 +65,7 @@ Run behaviour does not change.
   3. Two new distributions: `e-agent-adapter-erp-simulator` (code) and `e-agent-erp` (a bundle without code that installs the ERP product).
   4. The public import names of the domain pack and the Odoo adapter change in Task 1d.10.
   5. Two profile-schema changes: `DriverConfig.task_kind` becomes `str`, validated against the admitted task presets (Task 1d.3); `DriverConfig.demand_ref` and `product_ref` fold into `refs`, and the loader moves the two old keys into `refs` so existing profiles keep loading (Task 1d.4).
+  6. The common plugin SDK: `e_agent.sdk.connection` (1d.2) and `e_agent.sdk.http` behind the optional extra `e-agent-plugin-sdk[http]`, with one `ignore_imports` entry `e_agent.sdk.http -> httpx` in the core import contract (1d.7b).
 
   The existing ten distribution names and versions stay.
 - **Verbatim moves.** Moves use `git mv`, so git shows renames. File contents change only where a module path is embedded (ENG-WORK-2).
@@ -71,7 +73,7 @@ Run behaviour does not change.
 - **Pins.** No committed test asserts a plugin digest (checked 2026-10-14), so intermediate digest changes in 1d.3–1d.6 break nothing. The final pins of `domain-erp`, `odoo19` and `fixture-erp` are recorded once, in Task 1d.10, and the owner re-pins the local live profile once, in Task 1d.12.
 - **Ordering with Phase 2.** This phase runs before Phase 2. At this phase's close, the [Phase 2 plan](2026-10-14-phase2-execution-ir.md) is amended for the new paths, and its Task 2c.2 builds on the task presets from Task 1d.3 (ENG-PLAN-3). The R-1 fix replaces the "manifest `connection` consumed" item of the [Odoo tools plan](2026-10-12-odoo-tools-from-erp-bench.md) (DR-03); that plan drops the item at this phase's close.
 - **Harness.**
-  - Features `F-1d-1` … `F-1d-12` are in `harness/state/1/features.json` (decision D6).
+  - Features `F-1d-1` … `F-1d-12` and `F-1d-7b` are in `harness/state/1/features.json` (decision D6).
   - One contract per task, `check-scope` before each commit, gate evidence after the commit, `close-check` before a task closes.
   - Tasks that edit a digest input (1d.1 the ADR index; 1d.8 `harness/context.toml`; 1d.10 AGENTS.md, the roadmap and the designs; 1d.11 the roadmap) run `uv run e-agent-harness refresh-task` before `close-check` (G-7).
 - **Branch:** `refactor/phase1d-plugin-boundary` from `main`.
@@ -103,6 +105,8 @@ These are failure modes that the happy-path tests do not exercise. Each one is p
 8. **Stale module strings outside Python imports.** Entry-point values, the manifest `factory`, `check_wheels.py` (`files('e_agent.erp')`), `scripts/odoo_sandbox.py`, `scripts/qualify_model.py` and the docs all embed module paths. Test: Task 1d.10 `test_no_old_plugin_module_paths_remain` and `uv run python scripts/repo_move.py check --docs`.
 9. **A plugin escapes the guest contract.** A new provider package is added but not listed in the contract, so import-linter never checks it and the gate stays green. Test: Task 1d.7 `test_every_plugin_package_is_a_guest`, which derives the plugin packages from the installed `e_agent.plugins.v1` entry points rather than from a hand-kept list.
 10. **A declared requirement is never checked.** `CapabilityDescriptor.required_features` is declared and never read today, so a binding that lacks a required feature is admitted and fails, if at all, at call time. Test: Task 1d.7 `test_binding_missing_required_feature_refused`.
+11. **The HTTP helper leaks or wanders.** It must never log or echo a header or a body, and must refuse any host other than the connection's base-URL host. Tests: Task 1d.7b `test_http_never_echoes_credentials` and `test_http_refuses_other_hosts`.
+12. **A plugin depends on more than the common base.** Test: Task 1d.7b `test_plugin_dependencies_are_the_common_base`.
 
 ## Design refs
 
@@ -120,7 +124,7 @@ These are failure modes that the happy-path tests do not exercise. Each one is p
 
 | ADR | Decision | Status | Effect |
 |---|---|---|---|
-| 0026 (new, 1d.1) | Plugin layout and a reusable core. It covers: the tree above and its namespace rule; the core never imports `e_agent.plugins`; providers import only their area's domain API, never a sibling; the filing rule for vendors that span areas; the named "Plugins are guests" contract and the registry check of declared capability requirements (XA-02, XA-03); the simulator as a discovered provider; task presets and the scripted driver contributed by the domain pack; server dependencies narrowed and the `e-agent-erp` bundle; no default profile in the server | To write | Blocks Parts B and C (owner gate G1) |
+| 0026 (1d.1; accepted 2026-10-15 with the common-SDK amendment) | Plugin layout and a reusable core. It covers: the tree above and its namespace rule; the core never imports `e_agent.plugins`; providers import only their area's domain API, never a sibling; the filing rule for vendors that span areas; the named "Plugins are guests" contract and the registry check of declared capability requirements (XA-02, XA-03); the simulator as a discovered provider; task presets and the scripted driver contributed by the domain pack; server dependencies narrowed and the `e-agent-erp` bundle; no default profile in the server | Accepted | Parts B and C may start |
 | 0002 | Capability naming and domain packs | Accepted | Unchanged; Review Focus 4 tests its routing rule with two providers |
 | 0012 | Schema-driven integration management | Accepted | Item 1 becomes true in code (1d.2) |
 
@@ -150,7 +154,7 @@ No runtime feature is added, so there is no toggle and no fallback: roadmap rule
 |---|---|
 | 1d.1 | `full` (docs only) |
 | 1d.2–1d.4, 1d.6, 1d.7, 1d.9 | `full` |
-| 1d.5 | `full` and `uv run python scripts/check_wheels.py` |
+| 1d.5, 1d.7b | `full` and `uv run python scripts/check_wheels.py` |
 | 1d.8 | `full`, `core` and `uv run python scripts/check_wheels.py` |
 | 1d.10 | `full`, `pg`, `e2e`, `core` and `check_wheels.py` |
 | 1d.11 | end-of-phase levels 1–3 |
@@ -213,7 +217,8 @@ It may not touch `odoo-bench`, any container outside `odoo19-learning-*` and `e-
 ### Task 1d.2: auth placement and sandbox probe from manifests (R-1)
 
 **Files:**
-- `src/e_agent/server/bootstrap.py`: remove `AUTH_PLACEMENT` and `LIVE_PROVIDERS_WITH_SANDBOX`, and read `manifest.connection` of the admitted plugins.
+- `src/e_agent/sdk/connection.py`: typed models for the manifest `connection` section (auth methods with placement, sandbox probe). An unknown placement fails validation; a manifest without a `connection` section is valid (ADR 0026, common plugin SDK).
+- `src/e_agent/server/bootstrap.py`: remove `AUTH_PLACEMENT` and `LIVE_PROVIDERS_WITH_SANDBOX`, and read `manifest.connection` of the admitted plugins through `e_agent.sdk.connection`.
 - `src/e_agent/kernel/registry.py`: expose the admitted manifests' `connection` sections, if they are not reachable yet.
 - `tests/unit/server/test_manifest_connection.py`
 
@@ -340,6 +345,36 @@ It may not touch `odoo-bench`, any container outside `odoo19-learning-*` and `e-
 
 Out of scope: probing a live instance for its features, and leaving a capability off the tool surface with a reason code when the instance lacks one. Both land in Phase 5 with the per-capability feature probe (adoption review XA-03).
 
+### Task 1d.7b: common plugin SDK: authenticated HTTP helper (ADR 0026 amendment)
+
+Runs after 1d.7, so the helper is written inside the guest contract, and before 1d.8, because the `plugin-sdk` wheel gains an optional extra.
+
+**Files:**
+- `src/e_agent/sdk/http.py`: an authenticated async HTTP helper built from an `AuthContext` and the connection's base URL. It:
+  - applies the `AuthContext` to the request headers;
+  - refuses a request whose host differs from the base-URL host;
+  - raises a transport-level rejection for a 4xx response, with a code from the caller's allow-list (otherwise `REJECTED`) and a fixed safe message;
+  - lets a 5xx, timeout or transport error propagate as ambiguous;
+  - never logs or echoes a header or a response body.
+- `src/e_agent/adapters/odoo/client.py`: `OdooJson2Client` uses the helper. Its allow-listed codes, the database header and the target context stay in the Odoo client; the executor's mapping to `KnownNoEffectError` is unchanged.
+- `dists/plugin-sdk/pyproject.toml`: `[project.optional-dependencies] http = ["httpx>=0.28,<1"]`. `dists/adapter-odoo/pyproject.toml` depends on `e-agent-plugin-sdk[http]` and drops its direct `httpx` dependency.
+- `pyproject.toml`: the contract "Core packages do not import agent frameworks or provider SDKs" gains `ignore_imports = ["e_agent.sdk.http -> httpx"]`, the one exemption ADR 0026 names.
+- `tests/unit/sdk/test_http.py`, `tests/conformance/test_plugin_dependencies.py`
+
+**Steps:**
+- [ ] Write the failing tests:
+  - `test_http_applies_auth_context`
+  - `test_http_refuses_other_hosts`
+  - `test_http_4xx_is_rejection_with_allowed_code`: an unknown code becomes `REJECTED`, and the provider body text never appears in the exception.
+  - `test_http_5xx_and_transport_errors_are_ambiguous`
+  - `test_http_never_echoes_credentials`: the secret appears in no log record and no exception text (capture logs at DEBUG).
+  - `test_plugin_dependencies_are_the_common_base`: each plugin distribution (found from the `e_agent.plugins.v1` entry points in `dists/*/pyproject.toml`) depends on no e-agent distribution other than `e-agent-contracts`, `e-agent-plugin-sdk` and, for a provider, its area's domain pack. It fails when it finds no plugin.
+  - `test_sdk_imports_httpx_only_in_http_module`: importing `e_agent.sdk` and every other SDK module leaves `httpx` out of `sys.modules` (subprocess).
+- [ ] Run `uv run pytest -q tests/unit/sdk/test_http.py tests/conformance/test_plugin_dependencies.py`. Expected: fails (no `e_agent.sdk.http`).
+- [ ] Implement, then move the Odoo client onto the helper.
+- [ ] Run `uv run pytest -q tests/unit/adapters/odoo tests/unit/sdk`, `uv run lint-imports` and `uv run python scripts/check_wheels.py`. Expected: pass; the Odoo client's existing tests are unchanged.
+- [ ] Commit `feat(sdk): authenticated HTTP helper for plugins; Odoo client uses it`.
+
 ### Task 1d.8: packaging for a reusable core (D3)
 
 **Files:**
@@ -436,8 +471,9 @@ Out of scope: probing a live instance for its features, and leaving a capability
   - Enterprise beyond ERP and a reusable core → 1d.7 and 1d.8 (contract and core-only install), 1d.6 (no ERP default in the server), and the ADR 0026 filing rule.
   - R-1 → 1d.2. R-2 → 1d.4 and 1d.5. R-3 → 1d.3. R-4 → 1d.1, 1d.7 and 1d.10. R-5, R-6 and R-8 → 1d.11. R-7 → 1d.7.
   - DR-03 → 1d.2. DR-04 → 1d.5 and 1d.10.
+  - ADR 0026 common-SDK amendment → 1d.2 (connection spec) and 1d.7b (HTTP helper, dependency closure).
   - Adoption review XA-02 → 1d.7 and 1d.10. XA-03 → 1d.7 (static check); its runtime probe → Phase 5.
   - Roadmap rule 1 → 1d.11 and 1d.12.
 - **Placeholder scan.** No TBD. ADR 0026 settles `driver_factories`, `DriverFactory` and `DriverRequest`, and 1d.4 uses those names.
-- **Name consistency.** The following are spelled the same in every task: `e_agent.plugins.erp.{domain,odoo,simulator}`, `fixture-erp`, `odoo19`, `domain-erp`, `adapter-erp-simulator`, `e-agent-erp`, `TaskPreset`, `task_presets`, `driver_factories`, `DriverFactory`, `DriverRequest`, `fixture_profile_path`, `E_AGENT_PROFILE`, `check_core_only.py`, `STARTUP_REJECTED`, "Plugins are guests", `test_every_plugin_package_is_a_guest`, ADR 0026.
-- **Review Focus coverage.** Items 1–10 each name a task and a test.
+- **Name consistency.** The following are spelled the same in every task: `e_agent.plugins.erp.{domain,odoo,simulator}`, `fixture-erp`, `odoo19`, `domain-erp`, `adapter-erp-simulator`, `e-agent-erp`, `TaskPreset`, `task_presets`, `driver_factories`, `DriverFactory`, `DriverRequest`, `e_agent.sdk.connection`, `e_agent.sdk.http`, `e-agent-plugin-sdk[http]`, `fixture_profile_path`, `E_AGENT_PROFILE`, `check_core_only.py`, `STARTUP_REJECTED`, "Plugins are guests", `test_every_plugin_package_is_a_guest`, ADR 0026.
+- **Review Focus coverage.** Items 1–12 each name a task and a test.
