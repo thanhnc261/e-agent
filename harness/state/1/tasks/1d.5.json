@@ -1,0 +1,47 @@
+{
+  "id": "1d.5",
+  "phase": "1",
+  "plan_ref": "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+  "feature_ids": [
+    "F-1d-5"
+  ],
+  "context_digest": "f28c019747af7572cfab8509ca0a956fc5c94b1961c1e4b9133db7c228eff427",
+  "allowed_paths": [
+    "src/e_agent/plugins/**",
+    "src/e_agent/erp/testing/**",
+    "src/e_agent/server/bootstrap.py",
+    "src/e_agent/server/cli.py",
+    "src/e_agent/server/profile.py",
+    "src/e_agent/server/profiles/**",
+    "profiles/dev-ollama.json",
+    "src/e_agent/sdk/ports.py",
+    "src/e_agent/kernel/registry.py",
+    "dists/adapter-erp-simulator/**",
+    "pyproject.toml",
+    "uv.lock",
+    "scripts/check_wheels.py",
+    "scripts/qualify_model.py",
+    "scripts/release_report.py",
+    "scripts/capture_model_replays.py",
+    "tests/unit/plugins/**",
+    "tests/conformance/**",
+    "tests/unit/server/**",
+    "tests/unit/erp/**",
+    "tests/unit/kernel/**",
+    "tests/unit/sdk/**",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-14-phase1d-plugin-boundary.md"
+  ],
+  "acceptance": [
+    "test_fixture_profile_composes_through_discovery passes",
+    "test_live_profile_never_imports_simulator passes",
+    "test_two_erp_providers_routing passes: one provider per connection resolves; two bindings of one contract on one connection are refused with CONFLICT",
+    "plugins/ and plugins/erp/ have no __init__.py",
+    "check_wheels.py passes; full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "d47b5126f30dcb840fea1e7bef5c603449e4f4b3",
+  "created_at": "2026-10-15T15:20:38+00:00",
+  "features_digest": "381d5e4da2c901c32f42f8d1f55479a377260e703f4d27160aad86f8d891bb52"
+}
