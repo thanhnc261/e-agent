@@ -23,6 +23,16 @@ def test_load_profile_requires_path_or_env(monkeypatch: pytest.MonkeyPatch) -> N
     assert "E_AGENT_PROFILE" in caught.value.safe_message
 
 
+def test_empty_path_is_refused_not_replaced_by_the_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("E_AGENT_PROFILE", str(REPO / "profiles" / "dev-ollama.json"))
+    with pytest.raises(KernelError) as caught:
+        load_profile("")
+    assert caught.value.code is ErrorCode.STARTUP_REJECTED
+    monkeypatch.setenv("E_AGENT_PROFILE", "")
+    with pytest.raises(KernelError):
+        load_profile()
+
+
 def test_env_profile_is_used(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("E_AGENT_PROFILE", str(REPO / "profiles" / "dev-ollama.json"))
     assert load_profile().driver.kind == "pydantic-ai"

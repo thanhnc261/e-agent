@@ -103,8 +103,12 @@ class Profile(Record):
 
 
 def load_profile(path: str | Path | None = None) -> Profile:
-    """Load the given profile, else the one ``E_AGENT_PROFILE`` names; the server ships none."""
-    path = path or os.environ.get("E_AGENT_PROFILE")
+    """Load the given profile, else the one ``E_AGENT_PROFILE`` names; the server ships none.
+
+    An empty path is refused, never replaced by the environment's profile.
+    """
+    if path is None:
+        path = os.environ.get("E_AGENT_PROFILE")
     if not path:
         raise KernelError(
             ErrorCode.STARTUP_REJECTED, "no profile given: pass --profile or set E_AGENT_PROFILE"

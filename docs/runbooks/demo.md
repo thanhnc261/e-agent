@@ -6,7 +6,7 @@ Never point any of this at `odoo-bench` (port 8071) or a non-sandbox database. S
 
 ```bash
 uv sync
-export E_AGENT_PROFILE=src/e_agent/plugins/erp/simulator/fixture_profile.json  # the server ships no profile
+export E_AGENT_PROFILE="$PWD/src/e_agent/plugins/erp/simulator/fixture_profile.json"  # from the repository root; the server ships no profile
 uv run e-agent demo --approve                                   # ERP-03 draft PO
 uv run e-agent demo --driver-mode invalid-then-repair --approve # blocked by PR-003, repaired
 for t in shortage recommend amend-rfq quotation late-orders crm-lead overdue-invoices; do

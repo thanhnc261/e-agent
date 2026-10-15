@@ -105,7 +105,7 @@ Use the header **View** selector to choose **Compact**, **Workbench**, **Docked*
 
 ```bash
 uv sync                                   # Python 3.12+ and uv required
-export E_AGENT_PROFILE=src/e_agent/plugins/erp/simulator/fixture_profile.json  # the server ships no profile (or pass --profile)
+export E_AGENT_PROFILE="$PWD/src/e_agent/plugins/erp/simulator/fixture_profile.json"  # the server ships no profile (or pass --profile)
 uv run e-agent demo --approve             # fixture procurement run, approve explicitly
 uv run e-agent demo --driver-mode invalid-then-repair --approve   # blocked by PR-003, then repaired
 uv run e-agent demo --fault lost-response --approve --reconcile   # UNKNOWN -> read-only reconcile
