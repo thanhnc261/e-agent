@@ -1,0 +1,41 @@
+{
+  "id": "1d.6",
+  "phase": "1",
+  "plan_ref": "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+  "feature_ids": [
+    "F-1d-6"
+  ],
+  "context_digest": "ac4102fb88f6f2f2c923e1f21e8b79b238b69f02cbfb94ed1f8c769e9cb89d78",
+  "allowed_paths": [
+    "src/e_agent/server/profile.py",
+    "src/e_agent/server/profiles/**",
+    "src/e_agent/server/cli.py",
+    "src/e_agent/server/api.py",
+    "src/e_agent/plugins/erp/simulator/**",
+    "scripts/release_report.py",
+    "scripts/qualify_model.py",
+    "scripts/capture_model_replays.py",
+    "scripts/check_wheels.py",
+    "scripts/dev/serve.py",
+    "Makefile",
+    "README.md",
+    "ui/packages/ui-conformance/playwright.config.ts",
+    "tests/unit/server/**",
+    "tests/unit/plugins/**",
+    "tests/conformance/**",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-14-phase1d-plugin-boundary.md"
+  ],
+  "acceptance": [
+    "test_load_profile_requires_path_or_env passes",
+    "test_env_profile_is_used passes",
+    "test_no_caller_uses_the_implicit_default passes: no load_profile() call without arguments in src/, tests/ or scripts/",
+    "the fixture profile ships in the simulator package; fixture_profile_path() returns it; check_wheels.py passes",
+    "full gate and make e2e pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "9d63884b47b233fe7944a2533446e11e335d0f91",
+  "created_at": "2026-10-15T16:05:43+00:00",
+  "features_digest": "7428e1b71f161f3f98bf8307ad687de265cd1d46a3d23faed5ff42c10ee422ba"
+}
