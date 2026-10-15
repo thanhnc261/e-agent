@@ -1,14 +1,15 @@
 {
   "task": "1d.2",
-  "changed": "Auth placement and the live sandbox check now come from the admitted plugins' manifest connection sections instead of server tables keyed by the odoo19 id (R-1, ADR 0012 item 1, ADR 0026). New e_agent.sdk.connection types the section (auth methods with header placement, test_connection probe name). PluginRegistry validates it at admission, before plugin code loads, refusing an unknown placement, method type, key or a missing prefix with STARTUP_REJECTED, and records connection_specs, auth_placements and per-plugin executors. Bootstrap gains admit_plugins(); CredentialService reads the registry's placements by reference; _check_sandbox refuses a live provider (an enabled plugin used by a profile connection) whose manifest names no probe, and probes each provider through its own executor. AUTH_PLACEMENT and LIVE_PROVIDERS_WITH_SANDBOX are gone; the Odoo placement (Authorization, 'bearer ') and the Odoo target comparison are unchanged.",
+  "changed": "Auth placement and the live sandbox check now come from the admitted plugins' manifest connection sections instead of server tables keyed by the odoo19 id (R-1, ADR 0012 item 1, ADR 0026). New e_agent.sdk.connection types the section (auth methods with header placement, test_connection probe name). PluginRegistry validates it at admission, before plugin code loads, refusing an unknown placement, method type, key or a missing prefix with STARTUP_REJECTED, and records connection_specs, auth_placements and per-plugin executors. Bootstrap gains admit_plugins(); CredentialService reads the registry's placements by reference and refuses (AuthRequired) an integration that declares no auth method instead of defaulting to 'Authorization: Bearer' (review R-1); _check_sandbox refuses a live provider (an enabled plugin used by a profile connection) whose manifest names no probe, and probes each provider through its own executor. AUTH_PLACEMENT and LIVE_PROVIDERS_WITH_SANDBOX are gone; the Odoo placement (Authorization, 'bearer ') and the Odoo target comparison are unchanged.",
   "evidence_refs": [
     "harness/state/evidence/gates/1d.2/2026-10-15T12-24-20.690287+00-00-full.json"
   ],
   "open_items": [
-    "An integration without a connection section (the hand-wired fixture-erp) still gets CredentialService's api_key fallback with AuthContext.apply's 'Authorization: Bearer' defaults; removing that fallback is a follow-up, not widened here",
+    "AuthContext.apply in sdk/auth.py still carries 'Authorization'/'Bearer ' defaults; they are now unreachable from the host, because every placement the registry records names its header and prefix and CredentialService refuses an undeclared one; removing them is a cleanup outside this contract",
     "The sandbox target comparison (database, company_id, bridge_version, server_version 19.0) is still Odoo-shaped in bootstrap; a manifest-declared expectation map would change the odoo19 manifest digest and is left for the task that re-pins (1d.10/1d.12) or a later ADR",
     "Live check against odoo19-learning not run in this task (level 4 belongs to 1d.12); unit tests cover the probe with a stand-in executor and the real packaged Odoo connection section",
-    "check_wheels.py was run by hand on 7d6188e and passed; it is not part of the full gate set"
+    "check_wheels.py was run by hand on 7d6188e and passed; it is not part of the full gate set",
+    "Final gate and close-check for the review fix are blocked: the working tree holds uncommitted changes outside this task to .claude/settings.json and .agents/skills/eng-session/SKILL.md (not made by this session), which also fail 5 tests in tests/conformance/test_claude_settings.py; the owner decides whether to commit or discard them"
   ],
   "rulings": [
     {
@@ -34,6 +35,14 @@
     {
       "ruling": "Contract scope added src/e_agent/kernel/credentials.py (keep the placement mapping by reference) and bootstrap.admit_plugins() as a test seam; neither is in the plan's file list",
       "cost_if_wrong": "small; the seam can be folded back into build_runtime"
+    },
+    {
+      "ruling": "Review R-1 fixed in this task: CredentialService no longer falls back to api_key for an integration with no declared placement; it raises AuthRequired",
+      "cost_if_wrong": "a plugin admitted without auth_methods that expected the old Bearer default now fails at its first credential lookup; it must declare its placement (or type none) in its manifest"
+    },
+    {
+      "ruling": "Review R-2 (an enabled plugin that no connection uses is not probed) accepted as is: nothing can reach such a plugin's executor without a connection of its integration",
+      "cost_if_wrong": "if a future path reaches a provider without a connection, the live check must key on plugin kind instead"
     }
   ],
   "outside_repo": []
