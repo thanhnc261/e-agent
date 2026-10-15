@@ -304,3 +304,8 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1d.5.json, harness/state/evidence/gates/1d.5/2026-10-15T15-44-24.514476+00-00-full.json
 - next: fresh-context Codex re-review of 1d.5 (R-1 and R-2 answered in 5d402aa), then clear context and new-task 1 1d.6 --feature F-1d-6
 - open: none
+
+## 2026-10-15T15:48:42.577572+00:00 · 69a418a6-8e79-4a58-9c38-eabb00a5f239 · 1d.5
+- changed: no working-tree changes
+- next: re-run the fresh-context Codex re-review of 1d.5 after the Codex limit resets (2026-10-16 00:35); the committed review is still the rework one; then new-task 1 1d.6 --feature F-1d-6
+- open: none
