@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-3"
   ],
-  "context_digest": "af5feb02ee0bc1532cfd0d1a53dd10ebbfc24387c88a7b774576a3f7f3960a67",
+  "context_digest": "32231feced96521e7061887822556c79a8c2045b3766e523e9204f66a97fb0de",
   "allowed_paths": [
     "src/e_agent/sdk/ports.py",
     "src/e_agent/sdk/__init__.py",
