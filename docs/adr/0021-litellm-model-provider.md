@@ -1,6 +1,6 @@
 # ADR 0021: LiteLLM as an explicit second model provider
 
-Date: 2026-10-12. Status: Proposed. Refines ADR 0001 (Ollama first, no silent cloud fallback).
+Date: 2026-10-12. Status: Accepted (owner, 2026-10-14). Refines ADR 0001 (Ollama first, no silent cloud fallback).
 
 ## Context
 

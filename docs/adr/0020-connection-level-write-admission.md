@@ -1,6 +1,6 @@
 # ADR 0020: Connection-level write admission rule
 
-Date: 2026-10-12. Status: Proposed. Refines ADRs 0003, 0005, 0014; MVP design §9.
+Date: 2026-10-12. Status: Accepted (owner, 2026-10-14). Refines ADRs 0003, 0005, 0014; MVP design §9.
 Source: [target architecture](../design/target-architecture.md) §12.2, §19 (C3 part 1).
 
 ## Context

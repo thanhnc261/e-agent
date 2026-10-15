@@ -1,6 +1,6 @@
 # ADR 0022: Conversational turns, read feedback and record discovery
 
-Date: 2026-10-12. Status: Proposed. Refines ADRs 0003, 0018; MVP design §7.
+Date: 2026-10-12. Status: Accepted (owner, 2026-10-14). Refines ADRs 0003, 0018; MVP design §7.
 
 ## Context
 

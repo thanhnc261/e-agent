@@ -1,6 +1,6 @@
 # ADR 0018: Run transition table, reason codes and event attribution
 
-Date: 2026-10-12. Status: Proposed. Refines ADRs 0003, 0007; MVP design §7, §11.
+Date: 2026-10-12. Status: Accepted (owner, 2026-10-14). Refines ADRs 0003, 0007; MVP design §7, §11.
 Source: [target architecture](../design/target-architecture.md) §5.1, §5.5, §5.6, §12.4 (candidates C6, C17 part 1, C18 part 1).
 
 ## Context
