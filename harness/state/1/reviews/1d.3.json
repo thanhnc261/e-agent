@@ -1,0 +1,31 @@
+{
+  "task": "1d.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Blocker",
+      "affects": "contract",
+      "summary": "Template rendering changes existing demo prompts outside the golden's coverage, contradicting the accepted behavior-preserving refactor.",
+      "evidence": "src/e_agent/server/cli.py:44-45; docs/adr/0026-plugin-layout-and-reusable-core.md:53 (Accepted: run behavior unchanged); docs/plans/2026-10-14-phase1d-plugin-boundary.md:58-67; ENG-PLAN-2, ENG-PLAN-3; F-1d-3 prompt compatibility acceptance. Read-only comparison of the baseline 59dbb9c replacement algorithm with the actual current CLI capture reproduced: (1) quotation refs={customer_ref: 'product:widget-a', product_ref: 'product:NEW'} previously rendered both refs as product:NEW, but now leaves the customer as product:widget-a; (2) draft-po with legacy product_ref='product:widget-a' and refs.product_ref='product:NEW' previously rendered product:NEW but now renders product:widget-a; (3) refs.demand_ref='demand:NEW' previously left demand:d-001 but now changes the prompt, although the scripted procurement driver still uses its separate demand_ref argument. The 36-case golden omits demand_ref in REF_KEYS and uses distinct non-default overrides (tests/unit/server/record_demo_prompts.py:30,60-61). The ruling at harness/state/1/handoffs/1d.3.json:25 acknowledges only case 3 and cannot override the accepted ADR. Preserve the existing behavior and cover these cases, or obtain an accepted change to the compatibility contract. Braces inside ref values were also checked and remain literal in both versions. The existing 18 targeted tests pass, demonstrating the coverage gap."
+    },
+    {
+      "id": "R-2",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "TaskPreset accepts format syntax that bypasses its default-ref validation and crashes when the CLI renders the admitted preset.",
+      "evidence": "src/e_agent/sdk/ports.py:205-216; src/e_agent/server/cli.py:45; ENG-PLAN-3; Task 1d.3 TaskPreset template/default-ref contract and its stated guarantee at ports.py:196-197. With default_refs={'ref': 'hello'}, construction succeeds for prompt='{ref:{width}}', but render() raises KeyError('width'); '{ref:d}' and '{ref!z}' likewise construct successfully and then raise ValueError. Formatter.parse returns the nested format specification and conversion separately, and __post_init__ ignores both. Registry admission does not render or otherwise validate them. Reject unsupported specifications/conversions at construction, or validate all supported syntax and nested refs so an admitted preset satisfies the rendering guarantee. Reproduced directly against the SDK without modifying files."
+    },
+    {
+      "id": "R-3",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "The supplied handoff and evidence do not demonstrate the required watched failing-first test run.",
+      "evidence": "harness/state/1/handoffs/1d.3.json:4-13; harness/state/evidence/gates/1d.3/2026-10-15T13-08-40.813761+00-00-quick.json; harness/state/evidence/gates/1d.3/2026-10-15T13-26-42.206217+00-00-full.json; harness/state/evidence/gates/1d.3/2026-10-15T13-29-26.372403+00-00-full.json; ENG-WORK-2; docs/plans/2026-10-14-phase1d-plugin-boundary.md:251-257. The quick gate passed the pre-existing 151 server tests before the new tests existed, and both full gates record only successful post-implementation runs. Neither the handoff nor the task progress entry names an observed failing run of the new tests. Commit 49abd0b establishes that the golden preceded implementation, but does not establish the separate failing-first step. Supply the actual test names and observed red-then-green results; this finding concerns missing evidence, not a claim that the failing run never happened."
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}
