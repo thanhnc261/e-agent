@@ -1,0 +1,36 @@
+{
+  "id": "1d.3",
+  "phase": "1",
+  "plan_ref": "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+  "feature_ids": [
+    "F-1d-3"
+  ],
+  "context_digest": "af5feb02ee0bc1532cfd0d1a53dd10ebbfc24387c88a7b774576a3f7f3960a67",
+  "allowed_paths": [
+    "src/e_agent/sdk/ports.py",
+    "src/e_agent/sdk/__init__.py",
+    "src/e_agent/erp/plugin.py",
+    "src/e_agent/erp/testing/scripted_tasks.py",
+    "src/e_agent/server/profile.py",
+    "src/e_agent/server/bootstrap.py",
+    "src/e_agent/server/cli.py",
+    "scripts/capture_model_replays.py",
+    "scripts/qualify_model.py",
+    "tests/unit/server/**",
+    "tests/unit/sdk/**",
+    "tests/unit/erp/**",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-14-phase1d-plugin-boundary.md"
+  ],
+  "acceptance": [
+    "golden demo prompts recorded before the change",
+    "test_cli_demo_prompts_unchanged passes",
+    "test_unknown_task_kind_refused_at_startup passes",
+    "export_openapi.py --check reports no change; full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "59dbb9c2be62a0087a6a8c409716502b0a5d20bf",
+  "created_at": "2026-10-15T13:08:25+00:00",
+  "features_digest": "477b23931f67c6e00363d1d10adb6495c8700dbe7c657d1b72f3e9ed89e5ad52"
+}
