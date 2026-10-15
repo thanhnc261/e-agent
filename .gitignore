@@ -21,3 +21,6 @@ build/
 
 # Harness: per-checkout state that is not shared (closed-task marker)
 /harness/state/local/
+
+# Owner-local source screenshots for the X-agent review (deleted; never committed)
+/research/dx/
