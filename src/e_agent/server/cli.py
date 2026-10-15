@@ -10,13 +10,13 @@ from typing import Any
 
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.run import RunState
-from e_agent.kernel.errors import ErrorCode, KernelError
+from e_agent.kernel.errors import KernelError
 from e_agent.kernel.evidence import build_evidence
 from e_agent.sdk.discovery import discover
 from e_agent.sdk.ports import TaskPreset
 from e_agent.sdk.store import actor_scope
 
-from .bootstrap import build_runtime, open_store
+from .bootstrap import build_runtime, open_store, settings_for_takers
 from .profile import DriverConfig, Profile, load_profile
 
 
@@ -34,24 +34,14 @@ def _print(text: str = "") -> None:
 def plugin_overrides(profile: Profile, args: argparse.Namespace) -> dict[str, dict[str, Any]]:
     """``--scenario`` and ``--fault`` as settings of the enabled plugins that take them.
 
-    A plugin takes a setting when its profile entry names it; the plugin checks the
-    value at startup. A flag that no enabled plugin takes is refused.
+    A plugin takes a setting when its profile entry names it (``settings_for_takers``).
     """
     wanted: dict[str, Any] = {}
     if args.scenario is not None:
         wanted["scenario"] = args.scenario
     if args.fault == "lost-response":
         wanted["lose_response_after_commit"] = True
-    overrides: dict[str, dict[str, Any]] = {}
-    for key, value in wanted.items():
-        takers = [pid for pid, cfg in profile.enabled_plugins.items() if key in cfg.settings]
-        if not takers:
-            raise KernelError(
-                ErrorCode.INVALID_REQUEST, f"no enabled plugin takes the setting {key!r}"
-            )
-        for pid in takers:
-            overrides.setdefault(pid, {})[key] = value
-    return overrides
+    return settings_for_takers(profile, wanted, "the command line")
 
 
 async def _demo(args: argparse.Namespace) -> int:

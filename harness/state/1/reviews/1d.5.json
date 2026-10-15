@@ -1,0 +1,24 @@
+{
+  "task": "1d.5",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "Invalid scenario settings are echoed verbatim into the operator-safe startup error. Reject invalid values without rendering their contents, and test that arbitrary nested values cannot reach safe_message.",
+      "evidence": "src/e_agent/plugins/erp/simulator/plugin.py:24 formats scenario with !r even when it is not a string; src/e_agent/kernel/registry.py:188-189 copies the exception text directly into KernelError.safe_message; src/e_agent/server/cli.py:295 prints that field to stderr. Independently reproduced with build_runtime(load_profile(), plugin_settings={'fixture-erp': {'scenario': {'api_key': 'REVIEW_SYNTHETIC_PRIVATE_VALUE'}}}): startup correctly fails with STARTUP_REJECTED, but safe_message contains the entire dictionary and synthetic private value. No real credential was used. This contradicts the new InvalidPluginSettings contract at src/e_agent/sdk/errors.py:27-31 (setting names, never credentials or provider data), ENG-BOUND-3 / PR-25, and the handoff ruling that simulator messages contain only setting and scenario names. The catch is narrow and fail-closed; the defect is the unsafe message supplied to it."
+    },
+    {
+      "id": "R-2",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "Removing FixtureConfig.scenario introduces a breaking profile-schema change outside the approved interface-change list. Preserve legacy scenario semantics through migration, or explicitly amend the governing ADR and Global Constraints to authorize the break; the task-local ruling alone leaves the contract inconsistent.",
+      "evidence": "src/e_agent/server/profile.py:32-35 removes scenario, and load_profile at :108 validates without a migration. Independently reproduced by adding fixture.scenario='over-budget' to the otherwise current fixture profile: Profile.model_validate rejects ('fixture', 'scenario') with extra_forbidden, even though the profile already enables fixture-erp. docs/plans/2026-10-14-phase1d-plugin-boundary.md:62-67 says its named interface changes are the only allowed changes and lists only the task_kind and driver-ref schema changes. The implementation adds a contrary third-change ruling at :288 but leaves that constraint unchanged. Accepted docs/adr/0026-plugin-layout-and-reusable-core.md authorizes discovery of the simulator and provider-neutral diagnostics, but does not authorize removing fixture.scenario or breaking its compatibility. harness/state/1/handoffs/1d.5.json explicitly acknowledges that existing local fixture profiles stop loading. ENG-PLAN-2, ENG-PLAN-3 / PR-35."
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}

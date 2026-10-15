@@ -23,7 +23,7 @@ from e_agent.sdk.discovery import discover
 from e_agent.sdk.ports import PluginContribution
 from e_agent.server.bootstrap import admit_plugins, build_runtime
 from e_agent.server.cli import main
-from e_agent.server.profile import load_profile
+from e_agent.server.profile import Profile, load_profile
 
 REPO = Path(__file__).resolve().parents[5]
 SIMULATOR = "e_agent.plugins.erp.simulator"
@@ -185,22 +185,28 @@ def test_two_erp_providers_routing() -> None:
     assert "duplicate binding id" in exc.value.safe_message
 
 
+SYNTHETIC = "REVIEW_SYNTHETIC_PRIVATE_VALUE"
+
+
 @pytest.mark.parametrize(
-    "settings",
-    [{"scenario": "no-such-scenario"}, {"scenario": 3}, {"lose_response_after_commit": "yes"}],
+    ("settings", "named"),
+    [
+        ({"scenario": "no-such-scenario"}, "'scenario'"),
+        ({"scenario": 3}, "'scenario'"),
+        ({"scenario": {"api_key": SYNTHETIC}}, "'scenario'"),
+        ({"lose_response_after_commit": SYNTHETIC}, "'lose_response_after_commit'"),
+        ({"scenrio": "valid"}, "'scenrio'"),
+        ({f"key {SYNTHETIC}": "valid"}, "<unnamed setting>"),
+    ],
 )
-async def test_unknown_scenario_refused(settings: dict[str, Any]) -> None:
+async def test_unknown_scenario_refused(settings: dict[str, Any], named: str) -> None:
     with pytest.raises(KernelError) as exc:
         await build_runtime(load_profile(), plugin_settings={PLUGIN_ID: settings})
     assert exc.value.code is ErrorCode.STARTUP_REJECTED
-    assert PLUGIN_ID in exc.value.safe_message
-
-
-async def test_unknown_setting_refused() -> None:
-    with pytest.raises(KernelError) as exc:
-        await build_runtime(load_profile(), plugin_settings={PLUGIN_ID: {"scenrio": "valid"}})
-    assert exc.value.code is ErrorCode.STARTUP_REJECTED
-    assert "scenrio" in exc.value.safe_message
+    message = exc.value.safe_message
+    assert PLUGIN_ID in message and named in message
+    # A setting's value never reaches the operator's message (R-1 of the 1d.5 review).
+    assert SYNTHETIC not in message and "no-such-scenario" not in message
 
 
 async def test_settings_for_a_plugin_not_enabled_refused() -> None:
@@ -223,11 +229,49 @@ def test_live_profile_settings_are_not_overridden() -> None:
     assert "fixture profiles only" in exc.value.safe_message
 
 
+def _fixture_profile(scenario: str | None, settings: dict[str, Any] | None) -> Profile:
+    data = load_profile().model_dump(mode="json")
+    data["fixture"]["scenario"] = scenario
+    if settings is None:
+        del data["enabled_plugins"][PLUGIN_ID]
+    else:
+        data["enabled_plugins"][PLUGIN_ID]["settings"] = settings
+    return Profile.model_validate(data)
+
+
+async def test_fixture_scenario_equal_to_the_plugin_setting_is_one_setting() -> None:
+    profile = _fixture_profile("over-budget", {"scenario": "over-budget"})
+    rt = await build_runtime(profile)
+    assert rt.registry.plugin_executors[PLUGIN_ID][0].scenario is SCENARIOS["over-budget"]  # type: ignore[attr-defined]
+
+
+async def test_fixture_scenario_differing_from_the_plugin_setting_refused() -> None:
+    with pytest.raises(KernelError) as exc:
+        await build_runtime(_fixture_profile("over-budget", {"scenario": "valid"}))
+    assert exc.value.code is ErrorCode.STARTUP_REJECTED
+    assert "fixture.scenario" in exc.value.safe_message
+    assert f"enabled_plugins.{PLUGIN_ID}.settings.scenario" in exc.value.safe_message
+
+
+@pytest.mark.parametrize("settings", [{}, None], ids=["no-setting", "pre-1d.5-profile"])
+async def test_fixture_scenario_no_plugin_takes_refused(settings: dict[str, Any] | None) -> None:
+    # A profile written before 1d.5 (no fixture-erp entry) still loads; it cannot run,
+    # because ADR 0026 has fixture profiles enable the simulator, and startup says why.
+    profile = _fixture_profile("over-budget", settings)
+    with pytest.raises(KernelError) as exc:
+        await build_runtime(profile)
+    assert exc.value.code is ErrorCode.STARTUP_REJECTED
+    assert "no enabled plugin takes the setting 'scenario' (from fixture.scenario)" in (
+        exc.value.safe_message
+    )
+
+
 def test_cli_scenario_needs_a_plugin_taking_it(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert main(["demo", "--json", "--scenario", "no-such-scenario"]) == 2
-    assert "no-such-scenario" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "invalid setting 'scenario'" in err and "no-such-scenario" not in err
     # A profile whose plugins take no scenario setting refuses --scenario.
     data = load_profile().model_dump(mode="json")
     data["enabled_plugins"][PLUGIN_ID]["settings"] = {}

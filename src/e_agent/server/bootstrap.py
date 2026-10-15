@@ -228,6 +228,46 @@ def admit_plugins(
     return registry, credentials
 
 
+def settings_for_takers(
+    profile: Profile, wanted: Mapping[str, Any], source: str
+) -> dict[str, dict[str, Any]]:
+    """Each wanted setting for every enabled plugin whose profile entry names it.
+
+    The plugin checks the value at startup. A setting that no enabled plugin takes
+    is refused, never dropped.
+    """
+    overrides: dict[str, dict[str, Any]] = {}
+    for key, value in wanted.items():
+        takers = [pid for pid, cfg in profile.enabled_plugins.items() if key in cfg.settings]
+        if not takers:
+            raise KernelError(
+                ErrorCode.STARTUP_REJECTED,
+                f"no enabled plugin takes the setting {key!r} (from {source})",
+            )
+        for pid in takers:
+            overrides.setdefault(pid, {})[key] = value
+    return overrides
+
+
+def fixture_scenario_check(profile: Profile) -> None:
+    """``fixture.scenario`` from a profile written before ADR 0026 (the 1d.4 rule).
+
+    It must equal the scenario setting of the enabled plugins that take one: equal
+    values are one setting, a different value is refused, and so is a scenario no
+    enabled plugin takes. Live profiles never used it, as before.
+    """
+    fixture = profile.fixture
+    if profile.environment != "fixture" or fixture is None or fixture.scenario is None:
+        return
+    for pid in settings_for_takers(profile, {"scenario": fixture.scenario}, "fixture.scenario"):
+        if profile.enabled_plugins[pid].settings["scenario"] != fixture.scenario:
+            raise KernelError(
+                ErrorCode.STARTUP_REJECTED,
+                f"fixture.scenario and enabled_plugins.{pid}.settings.scenario differ; "
+                "keep only the plugin setting",
+            )
+
+
 async def build_runtime(
     profile: Profile,
     *,
@@ -237,6 +277,7 @@ async def build_runtime(
     driver_factory: Callable[[PluginRegistry], AgentDriver] | None = None,
     task_kind: str | None = None,
 ) -> Runtime:
+    fixture_scenario_check(profile)
     catalog = ConnectionCatalog(profile.connections)
     registry, credentials = admit_plugins(
         profile, catalog, discover(plugin_paths), _secret_store(profile), plugin_settings

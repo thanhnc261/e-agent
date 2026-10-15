@@ -15,16 +15,20 @@ SETTINGS = frozenset({"scenario", "lose_response_after_commit"})
 
 
 def create_plugin(services: PluginServices) -> PluginContribution:
+    # Refusals name the setting, never its value (InvalidPluginSettings).
     settings = services.settings
-    unknown = sorted(set(settings) - SETTINGS)
-    if unknown:
-        raise InvalidPluginSettings(f"unknown settings {unknown}; known: {sorted(SETTINGS)}")
+    for name in sorted(map(str, settings)):
+        if name not in SETTINGS:
+            raise InvalidPluginSettings(
+                name, f"not a setting (known: {', '.join(sorted(SETTINGS))})"
+            )
     scenario = settings.get("scenario", "valid")
     if not isinstance(scenario, str) or scenario not in SCENARIOS:
-        raise InvalidPluginSettings(f"unknown scenario {scenario!r}; known: {sorted(SCENARIOS)}")
+        known = ", ".join(sorted(SCENARIOS))
+        raise InvalidPluginSettings("scenario", f"not a known scenario (known: {known})")
     lose = settings.get("lose_response_after_commit", False)
     if not isinstance(lose, bool):
-        raise InvalidPluginSettings("lose_response_after_commit must be true or false")
+        raise InvalidPluginSettings("lose_response_after_commit", "must be true or false")
     erp = FakeErp(SCENARIOS[scenario], lose_response_after_commit=lose)
 
     def diagnostics() -> Mapping[str, Any]:

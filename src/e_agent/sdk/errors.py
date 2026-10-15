@@ -24,8 +24,14 @@ class DriverBudgetExceeded(Exception):
 
 
 class InvalidPluginSettings(ValueError):
-    """A plugin factory refuses its profile settings; admission fails closed.
+    """A plugin factory refuses one of its profile settings; admission fails closed.
 
-    The message is shown to the operator at startup: it names the setting, never
-    a credential or provider data.
+    The host composes the operator's startup message from ``setting`` (the name)
+    and ``reason`` (fixed text from the plugin). A setting's value is never part of
+    either: a profile value may hold anything, including private data.
     """
+
+    def __init__(self, setting: str, reason: str) -> None:
+        super().__init__(f"{setting}: {reason}")
+        self.setting = setting
+        self.reason = reason

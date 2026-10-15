@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -51,6 +52,18 @@ class AdmissionReport:
 
 def _reject(message: str) -> KernelError:
     return KernelError(ErrorCode.STARTUP_REJECTED, message)
+
+
+_SETTING_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_.-]{0,63}")
+
+
+def _settings_rejection(plugin_id: str, exc: InvalidPluginSettings) -> KernelError:
+    """The operator's message names the setting and the plugin's reason, never a value.
+
+    A setting name comes from the profile too, so only a plain name is shown.
+    """
+    name = exc.setting if _SETTING_NAME.fullmatch(exc.setting) else "<unnamed setting>"
+    return _reject(f"{plugin_id}: invalid setting {name!r}: {exc.reason}")
 
 
 class PluginRegistry:
@@ -186,7 +199,7 @@ class PluginRegistry:
                 PluginServices(settings=dict(config.settings), credentials=credentials)
             )
         except InvalidPluginSettings as exc:
-            raise _reject(f"{plugin.manifest.plugin_id}: invalid settings: {exc}") from exc
+            raise _settings_rejection(plugin.manifest.plugin_id, exc) from exc
         if not isinstance(contribution, PluginContribution):
             raise _reject(f"{plugin.manifest.plugin_id}: factory returned an invalid contribution")
         return contribution
