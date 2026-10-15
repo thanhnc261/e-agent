@@ -48,8 +48,12 @@ class CredentialService:
         conn = self._catalog.usable(ctx, connection_id)
         if conn.integration_id != integration_id:
             raise AuthRequired(integration_id, "connection belongs to another integration")
-        spec = dict(self._methods.get(integration_id, {"method": "api_key"}))
-        method = spec.pop("method", "api_key")
+        declared = self._methods.get(integration_id)
+        if declared is None:
+            # A placement is never defaulted: the manifest must declare one.
+            raise AuthRequired(integration_id, "integration declares no auth method")
+        spec = dict(declared)
+        method = spec.pop("method")
         secret = None
         if method != "none":
             if conn.secret_ref is None or self._secrets is None:

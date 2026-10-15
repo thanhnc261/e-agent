@@ -16,7 +16,7 @@ from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.credentials import CredentialService
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.registry import EnabledPlugin, PluginRegistry
-from e_agent.sdk.auth import Secret
+from e_agent.sdk.auth import AuthRequired, Secret
 from e_agent.sdk.connection import ConnectionSpec
 from e_agent.sdk.discovery import DiscoveredPlugin, artifact_digest, discover
 from e_agent.sdk.manifest import PluginManifest
@@ -282,14 +282,27 @@ async def test_second_provider_wired_without_server_edit(
     assert await _header(profile, loaded, "odoo19") == {"Authorization": f"bearer {KEY}"}
 
 
+@pytest.mark.parametrize(
+    "section", [{}, {"test_connection": "sandbox_info"}], ids=["no-section", "no-auth-method"]
+)
+async def test_undeclared_auth_placement_is_not_defaulted(
+    loaded: dict[str, ProbeExecutor], artifact: Path, section: dict[str, object]
+) -> None:
+    profile = _profile("fixture", {"acme-crm": {}}, artifact)
+    _admit(profile, [_plugin("acme-crm", section, artifact)])
+    with pytest.raises(AuthRequired):
+        await _header(profile, loaded, "acme-crm")
+
+
+@pytest.mark.parametrize("section", [_api_key_section(), {}], ids=["no-probe", "no-section"])
 async def test_live_provider_without_sandbox_probe_refuses_startup(
-    loaded: dict[str, ProbeExecutor], artifact: Path
+    loaded: dict[str, ProbeExecutor], artifact: Path, section: dict[str, object]
 ) -> None:
     # Every sandbox setting is present and the executor could answer, so the only
     # reason to refuse is that the manifest declares no probe.
     settings = ODOO_SETTINGS | {"_probe_info": ODOO_INFO}
     profile = _profile("live", {"acme-crm": settings}, artifact)
-    registry, _ = _admit(profile, [_plugin("acme-crm", _api_key_section(), artifact)])
+    registry, _ = _admit(profile, [_plugin("acme-crm", section, artifact)])
     with pytest.raises(KernelError) as exc:
         await _sandbox(profile, registry)
     assert exc.value.code is ErrorCode.STARTUP_REJECTED

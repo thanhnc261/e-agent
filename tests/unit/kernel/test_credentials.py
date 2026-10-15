@@ -86,3 +86,24 @@ async def test_scope_check() -> None:
     auth = await _service().scoped("odoo19").context_for(_ctx(), "odoo")
     with pytest.raises(ScopeMissing):
         auth.require_scopes(frozenset({"purchase.write"}))
+
+
+async def test_undeclared_placement_is_not_defaulted() -> None:
+    service = CredentialService(
+        ConnectionCatalog(
+            [
+                ConnectionDescriptor(
+                    tenant_id="t",
+                    connection_id="odoo",
+                    version=1,
+                    integration_id="odoo19",
+                    ownership=ConnectionOwnership.TENANT_SHARED,
+                    secret_ref="secretref:local/odoo",
+                )
+            ]
+        ),
+        Store(),
+        {},
+    )
+    with pytest.raises(AuthRequired, match="declares no auth method"):
+        await service.scoped("odoo19").context_for(_ctx(), "odoo")
