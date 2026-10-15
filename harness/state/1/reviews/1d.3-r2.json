@@ -1,0 +1,38 @@
+{
+  "task": "1d.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Resolved: the eight ERP presets preserve baseline prompt computation, including collisions and explicit prompts.",
+      "evidence": "src/e_agent/server/cli.py:24-37,54-55; src/e_agent/sdk/ports.py:212-218; src/e_agent/erp/plugin.py:101-169; ADR 0026 run-behaviour compatibility; Task 1d.3 prompt compatibility acceptance. The top-level demand/product replacements and subsequent ordered refs replacements now have the same defaults, order and conditions as 59dbb9c; refs.demand_ref remains excluded as Task 1d.4 requires. This establishes equivalence for all string-valued overrides of the existing eight presets, not just the sampled values. Independent AST comparison found the oracle loops identical to the baseline after variable renaming and its prompt/ref constants identical, including ref order. Its enumeration actually exercises collisions: 2,377 configurations and 19,016 matching prompt comparisons. All 72 golden entries independently match the prompt computation extracted directly from git show 59dbb9c:src/e_agent/server/cli.py. Twenty-four real CLI captures with explicit literal, empty and whitespace prompts match the baseline; truthy explicit prompts bypass rendering. The unconditional preset lookup is safe after bootstrap.py:255-263 validates the same resolved task kind; startup rejection for an unadmitted kind is explicitly required by this task, including with --prompt. scripted_tasks.py:42 adds demand_ref to DEFAULT_REFS, but no driver call to ref() requests that key; procurement still receives self.demand_ref at lines 60-65, so its run behaviour is unchanged. This is a resolved-review note, not an outstanding defect."
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Resolved: removing format-template interpretation eliminates the unchecked-format rendering crashes.",
+      "evidence": "src/e_agent/sdk/ports.py:193-218; docs/plans/2026-10-14-phase1d-plugin-boundary.md:240; ENG-PLAN-3. Rendering now performs literal str.replace operations. Direct checks of {ref:{width}}, {ref:d}, {ref!z}, and unmatched opening/closing braces all returned the literal prompt without exceptions; empty defaults are refused at construction. tests/unit/sdk/test_task_preset.py covers sequential replacements and empty-default rejection. This is a resolved-review note, not an outstanding defect."
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Resolved: the handoff now names observed red/green results, corroborated by the separate red commit and baseline golden.",
+      "evidence": "ENG-WORK-2; harness/state/1/handoffs/1d.3.json:3; commits 49abd0b, 5b793e8 and 93184fb. The handoff supplies the initial collection ImportError and names the second-round test_cli_demo_prompts_unchanged failure (11/72 mismatches) and test_demo_prompt_matches_baseline_for_colliding_overrides failure (missing demo_prompt), followed by 18 passing tests. Commit 5b793e8 contains only tests/golden changes and precedes the production fix 93184fb. An independent in-memory execution of the prompt code and TaskPreset from 5b793e8 reproduced exactly the reported 11 mismatches. All 36 original golden entries from pre-implementation commit 49abd0b are preserved; all 36 additions match actual baseline computation, making the claimed baseline provenance credible. Git cannot independently prove that a historical run was watched; the named handoff results meet the reporting requirement. Current targeted pytest run: 18 passed in 2.52s. Cited full gate harness/state/evidence/gates/1d.3/2026-10-15T13-40-24.047416+00-00-full.json reports success on clean commit 6a905a9, with only bookkeeping afterward. The requested close-check --session review returned last progress entry is not from session review; direct read-only closecheck.problems without that reviewer-session constraint returned [], so this is not a task defect. Initial uv attempts hit the sandbox cache restriction; reruns used UV_NO_CACHE=1, UV_NO_SYNC=1 and disabled bytecode/pytest cache writes. This is a resolved-review note, not an outstanding defect."
+    },
+    {
+      "id": "R-4",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "The fix makes default-ref order affect prompts, but registry equality ignores that order and silently admits conflicting definitions of one task kind.",
+      "evidence": "src/e_agent/sdk/ports.py:191-204; src/e_agent/server/cli.py:32-37; src/e_agent/kernel/registry.py:233-236; docs/plans/2026-10-14-phase1d-plugin-boundary.md:243 requires differently defined presets of one kind to be refused at startup (PR-09); ENG-PLAN-3. Reproduced through PluginRegistry.register: preset a has kind=notes, prompt=\"customer:acme product:widget-a\", default_refs={customer_ref: customer:acme, product_ref: product:widget-a}; preset b has the same fields with those two default_refs entries reversed. Dataclass equality reports a == b because dict equality ignores insertion order. For DriverConfig(refs={customer_ref: product:widget-a, product_ref: product:NEW}), demo_prompt(a, driver) produces \"product:NEW product:NEW\", while demo_prompt(b, driver) produces \"product:widget-a product:NEW\". Registering a then b admits both (report.admitted=[a,b]) and silently selects b. Thus plugin registration order chooses between different task behaviours instead of rejecting the conflict. Include ordered ref items in preset identity/conflict comparison and cover this order-only conflict with a regression test."
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}
