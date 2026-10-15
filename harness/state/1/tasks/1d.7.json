@@ -1,0 +1,33 @@
+{
+  "id": "1d.7",
+  "phase": "1",
+  "plan_ref": "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+  "feature_ids": [
+    "F-1d-7"
+  ],
+  "context_digest": "ac4102fb88f6f2f2c923e1f21e8b79b238b69f02cbfb94ed1f8c769e9cb89d78",
+  "allowed_paths": [
+    "pyproject.toml",
+    "src/e_agent/kernel/registry.py",
+    "src/e_agent/kernel/proposals.py",
+    "src/e_agent/server/**",
+    "tests/unit/server/**",
+    "tests/unit/kernel/**",
+    "tests/conformance/**",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+    "README.md"
+  ],
+  "acceptance": [
+    "uv run lint-imports keeps both new contracts",
+    "test_notes_pack_composes_through_bootstrap and test_server_has_no_domain_literals pass",
+    "test_every_plugin_package_is_a_guest passes and fails on zero plugins",
+    "test_binding_missing_required_feature_refused passes",
+    "full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "da9c971d9cbb7665be2fe0cbb69edd2f7f728113",
+  "created_at": "2026-10-15T23:14:19+00:00",
+  "features_digest": "5c42981fa81dbe2be1bef744155d7f66f7ff6b5de0ee927d07bce7d58a809187"
+}
