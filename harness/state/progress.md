@@ -319,3 +319,8 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1d.6.json, harness/state/evidence/gates/1d.6/2026-10-15T16-23-14.076061+00-00-full.json
 - next: task 1d.6 is closed and reviewed (accept; R-1, R-2 fixed in 71ae31a): clear context, then new-task 1 1d.7 --feature F-1d-7
 - open: none
+
+## 2026-10-15T16:27:47.133317+00:00 · 4cd242a9-0cb6-4bd8-8bc5-a25c9373a77d · 1d.6
+- changed: harness/state/1/handoffs/1d.6.json
+- next: 1d.6 closed and reviewed (accept): clear context, then new-task 1 1d.7 --feature F-1d-7; the 1d.5 Codex re-review is still owed after the limit resets (2026-10-16 00:35)
+- open: none

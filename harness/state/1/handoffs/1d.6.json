@@ -7,14 +7,16 @@
     "harness/state/evidence/gates/1d.6/2026-10-15T16-13-52.312896+00-00-full.json"
   ],
   "open_items": [
-    "make e2e is not in the full gate set (HP-6): run on the working tree later committed as 6bf57df, 150 passed and 4 skipped, the same counts as the Phase 1 baseline; the backend started with the fixture profile from the Playwright config",
-    "check_wheels.py is not in the full gate set (HP-6): passed on the 1d.6 work tree before commit; the e-agent-server wheel ships no JSON file and the simulator wheel ships e_agent/plugins/erp/simulator/fixture_profile.json; the installed draft-po and ERP-04..08 demos complete outside the repository with the profile path taken from the installed wheel",
+    "make e2e is not in the full gate set (HP-6): run at a30b76d (after the review fix 71ae31a) on a clean tree, 150 passed and 4 skipped, the same counts as the Phase 1 baseline and as the run before the fix; the backend started with the fixture profile from the Playwright config",
+    "check_wheels.py is not in the full gate set (HP-6): passed at a30b76d on a clean tree; the e-agent-server wheel ships no JSON file and the simulator wheel ships e_agent/plugins/erp/simulator/fixture_profile.json; the installed draft-po and ERP-04..08 demos complete outside the repository with the profile path taken from the installed wheel",
     "The fixture-erp artifact digest changes again (the profile is now in its package files); no profile pins fixture-erp and the final pins are recorded in 1d.10",
     "load_profile reads os.environ['E_AGENT_PROFILE'] directly, a fourth direct read in the server next to the three in bootstrap.py; PR-37 is [P] and the hygiene plan (2026-10-15-hygiene-gates-config-ci.md) re-takes its call-site list at task start, so it should migrate this one too",
     "docs/plans/2026-10-14-phase2-execution-ir.md:39 still names src/e_agent/server/profiles/fixture.json; it is amended for the new paths at this phase's close (plan Global Constraints, Ordering with Phase 2)",
     "The Makefile, Playwright config, README and runbook name the fixture profile by its repository path; an installed (non-checkout) user gets the path from fixture_profile_path()",
     "pg is not this task's gate set (1d.10); no live check (1d.12)",
-    "Review R-3 (not fixed): the implicit-default scan matches only the literal call; load_profile(None) and CLI invocations without --profile are outside it, and the reviewer checked those callers by hand"
+    "Review R-3 (not fixed): the implicit-default scan matches only the literal call; load_profile(None) and CLI invocations without --profile are outside it, and the reviewer checked those callers by hand",
+    "Makefile mapping checked with make -pn: PROFILE= gives E_AGENT_DEV_PROFILE := src/e_agent/plugins/erp/simulator/fixture_profile.json; the default gives profiles/dev-ollama.json",
+    "Carried over from 1d.5: its fresh-context Codex re-review is still owed (Codex limit resets 2026-10-16 00:35); the committed 1d.5 review is still the rework one"
   ],
   "rulings": [
     {
