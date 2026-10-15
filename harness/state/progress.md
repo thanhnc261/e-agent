@@ -289,3 +289,8 @@
 - changed: harness/state/1/reviews/1d.4.json
 - next: task 1d.4 is closed: clear the context, then new-task 1 1d.5 --feature F-1d-5
 - open: none
+
+## 2026-10-15T15:01:16.650612+00:00 · 69a418a6-8e79-4a58-9c38-eabb00a5f239 · 1d.4
+- changed: no working-tree changes
+- next: test_scripted_driver_resolved_from_registry passes
+- open: none
