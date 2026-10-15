@@ -279,3 +279,8 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1d.3.json, harness/state/evidence/gates/1d.3/2026-10-15T13-49-11.530787+00-00-full.json
 - next: task 1d.3 is closed: clear the context, then new-task 1 1d.4 --feature F-1d-4
 - open: none
+
+## 2026-10-15T14:17:35.125110+00:00 · 69a418a6-8e79-4a58-9c38-eabb00a5f239 · 1d.4
+- changed: harness/state/1/features.json, harness/state/1/handoffs/1d.4.json, harness/state/evidence/gates/1d.4/2026-10-15T14-16-00.250761+00-00-full.json
+- next: fresh-context Codex review of 1d.4 (kernel registry changed), then clear context and new-task 1 1d.5 --feature F-1d-5
+- open: none

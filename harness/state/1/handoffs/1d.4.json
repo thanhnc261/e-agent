@@ -1,0 +1,35 @@
+{
+  "task": "1d.4",
+  "changed": "The scripted driver comes from the domain pack (R-2 part 1, ADR 0026). e_agent.sdk.ports gains DriverRequest (connection id, mode, task kind, refs) and the DriverFactory protocol, and PluginContribution.driver_factories keyed by driver.kind; drivers (ready instances) stays. PluginRegistry collects factories by kind and refuses a kind contributed twice with STARTUP_REJECTED (factories are not comparable, so any duplicate conflicts). erp/plugin.py contributes {'scripted': scripted_driver}; the factory imports ScriptedErpDriver inside the function, because scripted_tasks imports the presets from plugin.py, and so a model-driver profile never imports the testing module. bootstrap.py no longer imports ScriptedErpDriver and holds no demand:d-001/product:widget-a literals: pydantic-ai stays host-built, every other kind resolves through registry.driver_factories or is refused, and the request's refs are the task preset's default_refs (in preset order) with the profile's refs over them. ScriptedErpDriver loses its demand_ref/product_ref fields; the procurement sub-driver reads them through ref(), so refs are the one source. DriverConfig.demand_ref and product_ref are removed; a before-validator moves the two old top-level keys into refs (null sets nothing, equal values are one setting, different values are refused). cli.demo_prompt applies refs in preset order, refs.demand_ref included. The golden demo prompts were re-recorded in the work commit: the four refs-demand procurement cases (<profile task>, draft-po, recommend, shortage) now carry demand:NEW; the nine legacy-default cases are gone (that profile is now refused); legacy+refs uses equal old/refs values and its prompts are unchanged; all other 59 cases are unchanged. The recorder builds profiles through model_validate, since model_copy would skip the fold. The 59dbb9c oracle test now encodes the 1d.4 rule (refs in preset order with demand_ref last) and asserts every conflicting pair is refused. Red first: test_driver_factories.py and test_registry.py failed at collection with ImportError: cannot import name 'DriverRequest' from 'e_agent.sdk.ports' (no factory seam).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/1d.4/2026-10-15T14-16-00.250761+00-00-full.json",
+    "harness/state/evidence/gates/1d.4/2026-10-15T14-08-03.227755+00-00-quick.json"
+  ],
+  "open_items": [
+    "No live check: test_scripted_driver_runs_against_any_enabled_erp_provider runs the fixture provider only; the Odoo run is the phase live check (1d.12); tests/integration/test_odoo_live.py already writes old and refs keys with equal values, which the fold accepts",
+    "The two skipped unit tests are the Postgres migration tests (E_AGENT_TEST_PG_DSN unset); the recorded-model replay suite ran inside the full gate (PR-32); pg and e2e are not this task's gate set (1d.10)",
+    "SCENARIOS and FakeErp keep server/cli.py and bootstrap.py importing e_agent.erp; they leave in 1d.5",
+    "A plugin may contribute a factory named 'pydantic-ai'; bootstrap builds that kind itself and never consults it (DriverConfig.kind is still a Literal), so such a contribution is silently unused",
+    "ADR 0026's 'the loader moves the two old keys into refs' does not say what happens when both are set; the refusal rule is recorded in the plan and here, not yet in the ADR",
+    "Manual CLI checks on the fixture at 23d37fd: 'e-agent demo --task shortage' ended SUCCEEDED (answered); 'demo --task draft-po --approve' ended SUCCEEDED (outcome verified)"
+  ],
+  "rulings": [
+    {
+      "ruling": "An old top-level demand_ref/product_ref that differs from its refs entry is refused at load; an equal one is accepted; a null one sets nothing. The 1d.3 golden pinned both resolutions (legacy+refs: old key won; legacy-default: refs won), which no single fold reproduces, so legacy-default leaves the golden for a refusal test and legacy+refs uses equal values (plan updated in the work commit, ENG-PLAN-3)",
+      "cost_if_wrong": "a local profile carrying both keys with different values stops loading with a validation error naming the key; the owner's live profile sets neither and the live test sets equal values, so no known profile breaks"
+    },
+    {
+      "ruling": "DriverConfig.kind stays Literal['scripted','pydantic-ai']; test_unknown_driver_kind_refused covers a profile naming 'scripted' when no admitted plugin contributes it",
+      "cost_if_wrong": "a plugin-contributed third driver kind needs a profile-schema change (kind: str checked at startup, as task_kind became in 1d.3) and an OpenAPI check"
+    },
+    {
+      "ruling": "The scripted factory imports ScriptedErpDriver lazily instead of moving the presets out of plugin.py, which would need a new module outside the scope",
+      "cost_if_wrong": "one function-level import; low"
+    },
+    {
+      "ruling": "The scope includes src/e_agent/kernel/registry.py and tests/unit/kernel/**, since the registry aggregates every contribution field",
+      "cost_if_wrong": "a kernel diff, so the review goes to Codex (trust-anchor path)"
+    }
+  ],
+  "outside_repo": []
+}

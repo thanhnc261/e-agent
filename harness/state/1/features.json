@@ -291,7 +291,8 @@
         "bootstrap no longer imports ScriptedErpDriver",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/1d.4/2026-10-15T14-16-00.250761+00-00-full.json"
     },
     {
       "id": "F-1d-5",
