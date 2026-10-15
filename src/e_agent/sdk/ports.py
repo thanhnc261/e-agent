@@ -6,9 +6,8 @@ client, a database session or the ability to issue approvals.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from string import Formatter
 from typing import Any, Protocol, runtime_checkable
 
 from e_agent.contracts.action import ActionRecord
@@ -191,29 +190,32 @@ class PluginServices:
 
 @dataclass(frozen=True)
 class TaskPreset:
-    """A named demo task a domain pack offers: its prompt template and default refs.
+    """A named demo task a domain pack offers: its prompt and the refs it names.
 
-    ``prompt`` names each ref as ``{key}``; every key needs a default, so rendering
-    never fails on a missing ref. Phase 2 extends presets into task definitions.
+    ``prompt`` is the task text with every default ref written out. Rendering
+    replaces a default with an override by plain text replacement, one override
+    after another, so an override equal to another ref's default is replaced again
+    by a later one. Phase 2 extends presets into task definitions.
     """
 
     kind: str
     prompt: str
     default_refs: Mapping[str, str] = field(default_factory=dict)
+    """Ref name to default value, in the order overrides are applied."""
     help: str = ""
 
     def __post_init__(self) -> None:
-        for _text, name, _spec, _conv in Formatter().parse(self.prompt):
-            if name is None:
-                continue
-            if not name.isidentifier():
-                raise ValueError(f"task preset {self.kind!r}: placeholders must be named refs")
-            if name not in self.default_refs:
-                raise ValueError(f"task preset {self.kind!r}: no default for {{{name}}}")
+        for name, value in self.default_refs.items():
+            if not value:
+                raise ValueError(f"task preset {self.kind!r}: empty default for {name!r}")
 
-    def render(self, refs: Mapping[str, str] | None = None) -> str:
-        """The prompt with ``refs`` replacing the defaults; unused refs are ignored."""
-        return self.prompt.format_map({**self.default_refs, **(refs or {})})
+    def render(self, overrides: Iterable[tuple[str, str]] = ()) -> str:
+        """The prompt after each ``(ref name, value)`` in turn; unknown names are ignored."""
+        text = self.prompt
+        for name, value in overrides:
+            if name in self.default_refs:
+                text = text.replace(self.default_refs[name], value)
+        return text
 
 
 @dataclass

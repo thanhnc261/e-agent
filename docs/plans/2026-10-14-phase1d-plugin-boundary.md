@@ -237,7 +237,7 @@ It may not touch `odoo-bench`, any container outside `odoo19-learning-*` and `e-
 ### Task 1d.3: task presets from the domain pack (R-3)
 
 **Files:**
-- `src/e_agent/sdk/ports.py`: add `PluginContribution.task_presets: tuple[TaskPreset, ...]`. `TaskPreset` holds the kind, the demo prompt template, the default refs and the help text. Phase 2 Task 2c.2 extends these into task definitions.
+- `src/e_agent/sdk/ports.py`: add `PluginContribution.task_presets: tuple[TaskPreset, ...]`. `TaskPreset` holds the kind, the demo prompt with its default refs written out, the default refs in the order overrides apply, and the help text. Rendering replaces defaults one override after another, exactly as the CLI did, so the prompts stay unchanged even when an override equals another ref's default (review R-1). Phase 2 Task 2c.2 extends these into task definitions.
 - `src/e_agent/erp/plugin.py`: the eight presets, which today are `TASK_PROMPTS` in `cli.py`, and `TASK_KINDS` and `DEFAULT_REFS` in `erp/testing/scripted_tasks.py`.
 - `src/e_agent/server/profile.py`: `DriverConfig.task_kind: str = "draft-po"`; remove the ERP wording from the field docs.
 - `src/e_agent/kernel/registry.py`: collect the presets by kind; two plugins that define one kind differently are refused at startup (PR-09).
@@ -264,7 +264,7 @@ It may not touch `odoo-bench`, any container outside `odoo19-learning-*` and `e-
 - `src/e_agent/sdk/ports.py`: `PluginContribution.driver_factories: Mapping[str, DriverFactory]`, keyed by `driver.kind`. A `DriverFactory` takes a `DriverRequest` (connection id, mode, task kind, refs) and returns an `AgentDriver`. The scripted driver needs those profile arguments, so contributed instances (`drivers`) are not enough; `drivers` stays (ADR 0026).
 - `src/e_agent/erp/plugin.py`: contributes the `scripted` driver factory.
 - `src/e_agent/server/bootstrap.py`: `driver.kind == "scripted"` resolves through the registry. No `ScriptedErpDriver` import remains, and the `demand:d-001` and `product:widget-a` defaults come from the task preset.
-- `src/e_agent/server/profile.py`: `DriverConfig.demand_ref` and `product_ref` fold into `refs` under the same keys; the loader moves the two old top-level keys into `refs`, so existing local profiles keep loading (ADR 0026).
+- `src/e_agent/server/profile.py`: `DriverConfig.demand_ref` and `product_ref` fold into `refs` under the same keys; the loader moves the two old top-level keys into `refs`, so existing local profiles keep loading (ADR 0026). `refs.demand_ref` is not read before this task (`cli.demo_prompt` skips it, as the old CLI did); folding the key removes that skip, and the golden's `refs-demand` cases change on purpose, re-recorded in the same commit.
 - `tests/unit/server/test_driver_factories.py`
 
 **Steps:**

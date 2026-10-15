@@ -26,7 +26,7 @@ from e_agent.sdk.ports import (
 )
 
 from ..crm import CONTACT_READ, CREATE_LEAD, TEAMS_READ
-from ..plugin import TASK_PRESETS
+from ..plugin import TASK_PRESETS, TASK_REFS
 from ..procurement import AMEND_DRAFT_RFQ, DRAFT_RFQ_READ
 from ..receivables import OPEN_INVOICES_READ, OVERDUE_INVOICES_ANSWER
 from ..receivables.api import OpenInvoices
@@ -39,7 +39,7 @@ from .scripted_driver import ScriptedProcurementDriver
 PROCUREMENT_KINDS = {"draft-po", "shortage", "recommend"}
 # The domain pack's task presets are the one list of kinds and default refs.
 TASK_KINDS = frozenset(preset.kind for preset in TASK_PRESETS)
-DEFAULT_REFS = {k: v for preset in TASK_PRESETS for k, v in preset.default_refs.items()}
+DEFAULT_REFS = dict(TASK_REFS)
 
 
 @dataclass

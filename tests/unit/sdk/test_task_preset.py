@@ -1,4 +1,4 @@
-"""TaskPreset renders its prompt from default refs and profile overrides (R-3)."""
+"""TaskPreset renders its prompt by replacing default refs in turn (R-3)."""
 
 from __future__ import annotations
 
@@ -6,24 +6,27 @@ import pytest
 from e_agent.sdk.ports import TaskPreset
 
 PRESET = TaskPreset(
-    kind="restock",
-    prompt="Restock {product_ref} for {demand_ref}.",
-    default_refs={"product_ref": "product:a", "demand_ref": "demand:1"},
+    kind="quote",
+    prompt="Quote customer:acme for product:a.",
+    default_refs={"customer_ref": "customer:acme", "product_ref": "product:a"},
 )
 
 
-def test_render_uses_defaults_then_overrides() -> None:
-    assert PRESET.render() == "Restock product:a for demand:1."
-    assert PRESET.render({"product_ref": "product:b", "unused": "x"}) == (
-        "Restock product:b for demand:1."
+def test_render_replaces_defaults_in_turn() -> None:
+    assert PRESET.render() == "Quote customer:acme for product:a."
+    assert PRESET.render([("product_ref", "product:b"), ("unknown", "x")]) == (
+        "Quote customer:acme for product:b."
+    )
+    # An override equal to another default is replaced again by a later override.
+    assert PRESET.render([("customer_ref", "product:a"), ("product_ref", "product:b")]) == (
+        "Quote product:b for product:b."
+    )
+    # A name may come twice; each replacement applies to the text so far.
+    assert PRESET.render([("product_ref", "product:a"), ("product_ref", "product:c")]) == (
+        "Quote customer:acme for product:c."
     )
 
 
-def test_placeholder_without_default_refused() -> None:
+def test_empty_default_refused() -> None:
     with pytest.raises(ValueError, match="customer_ref"):
-        TaskPreset(kind="quote", prompt="Quote for {customer_ref}.")
-
-
-def test_positional_placeholder_refused() -> None:
-    with pytest.raises(ValueError, match="named"):
-        TaskPreset(kind="quote", prompt="Quote for {}.")
+        TaskPreset(kind="quote", prompt="Quote.", default_refs={"customer_ref": ""})

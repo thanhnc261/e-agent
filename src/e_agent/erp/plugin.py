@@ -96,63 +96,70 @@ GUIDANCE = (
     "host independently verifies the structured result before your final explanation."
 )
 
-_PROCUREMENT_REFS = {"product_ref": "product:widget-a", "demand_ref": "demand:d-001"}
+# One ref table for every preset, in the order overrides are applied, so an
+# override that equals another ref's default chains the same way for every kind.
+TASK_REFS = {
+    "rfq_ref": "rfq:po-100",
+    "customer_ref": "customer:acme",
+    "product_ref": "product:widget-a",
+    "contact_ref": "contact:jane",
+    "team_ref": "team:direct",
+    "owner_ref": "user:alice",
+    "other_owner_ref": "user:carol",
+    "source_ref": "source:website",
+    "as_of": "2026-10-06",
+    "demand_ref": "demand:d-001",
+}
 TASK_PRESETS = (
     TaskPreset(
         kind="draft-po",
-        prompt="Restock {product_ref} for {demand_ref} by creating a draft purchase order.",
-        default_refs=_PROCUREMENT_REFS,
+        prompt="Restock product:widget-a for demand:d-001 by creating a draft purchase order.",
+        default_refs=TASK_REFS,
         help="ERP-03: create a draft purchase order",
     ),
     TaskPreset(
         kind="shortage",
-        prompt="Calculate the shortage of {product_ref} for {demand_ref}.",
-        default_refs=_PROCUREMENT_REFS,
+        prompt="Calculate the shortage of product:widget-a for demand:d-001.",
+        default_refs=TASK_REFS,
         help="ERP-01: report the shortage for a demand",
     ),
     TaskPreset(
         kind="recommend",
-        prompt="Recommend an approved offer for {product_ref} and {demand_ref} within budget.",
-        default_refs=_PROCUREMENT_REFS,
+        prompt="Recommend an approved offer for product:widget-a and demand:d-001 within budget.",
+        default_refs=TASK_REFS,
         help="ERP-02: recommend a supplier offer",
     ),
     TaskPreset(
         kind="amend-rfq",
-        prompt="Amend draft RFQ {rfq_ref} to quantity 15, retaining its current requested date.",
-        default_refs={"rfq_ref": "rfq:po-100"},
+        prompt="Amend draft RFQ rfq:po-100 to quantity 15, retaining its current requested date.",
+        default_refs=TASK_REFS,
         help="ERP-04: amend a draft RFQ",
     ),
     TaskPreset(
         kind="quotation",
-        prompt="Create a draft quotation for {customer_ref} for {product_ref}, quantity 2.",
-        default_refs={"customer_ref": "customer:acme", "product_ref": "product:widget-a"},
+        prompt="Create a draft quotation for customer:acme for product:widget-a, quantity 2.",
+        default_refs=TASK_REFS,
         help="ERP-05: create a draft quotation",
     ),
     TaskPreset(
         kind="late-orders",
-        prompt="Report late sales orders as of {as_of}.",
-        default_refs={"as_of": "2026-10-06"},
+        prompt="Report late sales orders as of 2026-10-06.",
+        default_refs=TASK_REFS,
         help="ERP-06: report late sales orders",
     ),
     TaskPreset(
         kind="crm-lead",
         prompt=(
-            "Create a CRM lead for {contact_ref} assigned to {owner_ref} in {team_ref} "
-            "from {source_ref}."
+            "Create a CRM lead for contact:jane assigned to user:alice in team:direct "
+            "from source:website."
         ),
-        default_refs={
-            "contact_ref": "contact:jane",
-            "owner_ref": "user:alice",
-            "other_owner_ref": "user:carol",
-            "team_ref": "team:direct",
-            "source_ref": "source:website",
-        },
+        default_refs=TASK_REFS,
         help="ERP-07: create a CRM lead",
     ),
     TaskPreset(
         kind="overdue-invoices",
-        prompt="Report overdue customer invoices as of {as_of}.",
-        default_refs={"as_of": "2026-10-06"},
+        prompt="Report overdue customer invoices as of 2026-10-06.",
+        default_refs=TASK_REFS,
         help="ERP-08: report overdue customer invoices",
     ),
 )

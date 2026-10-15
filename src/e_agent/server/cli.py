@@ -14,10 +14,27 @@ from e_agent.erp.testing.scenarios import SCENARIOS
 from e_agent.kernel.errors import KernelError
 from e_agent.kernel.evidence import build_evidence
 from e_agent.sdk.discovery import discover
+from e_agent.sdk.ports import TaskPreset
 from e_agent.sdk.store import actor_scope
 
 from .bootstrap import build_runtime, open_store
-from .profile import load_profile
+from .profile import DriverConfig, load_profile
+
+
+def demo_prompt(preset: TaskPreset, driver: DriverConfig) -> str:
+    """The preset's prompt with the profile's refs: the top-level refs, then ``refs``."""
+    overrides = [
+        (name, value)
+        for name, value in (("demand_ref", driver.demand_ref), ("product_ref", driver.product_ref))
+        if value is not None
+    ]
+    # refs.demand_ref is not read yet; Task 1d.4 folds the top-level key into refs.
+    overrides += [
+        (name, driver.refs[name])
+        for name in preset.default_refs
+        if name in driver.refs and name != "demand_ref"
+    ]
+    return preset.render(overrides)
 
 
 def _print(text: str = "") -> None:
@@ -33,16 +50,9 @@ async def _demo(args: argparse.Namespace) -> int:
         lose_response_after_commit=args.fault == "lost-response",
         task_kind=args.task,
     )
-    prompt = args.prompt
-    if not prompt:
-        # The task kind was checked against the admitted presets at startup.
-        preset = rt.registry.task_presets[args.task or profile.driver.task_kind]
-        legacy = {
-            "demand_ref": profile.driver.demand_ref,
-            "product_ref": profile.driver.product_ref,
-        }
-        refs = profile.driver.refs | {k: v for k, v in legacy.items() if v is not None}
-        prompt = preset.render(refs)
+    # The task kind was checked against the admitted presets at startup.
+    preset = rt.registry.task_presets[args.task or profile.driver.task_kind]
+    prompt = args.prompt or demo_prompt(preset, profile.driver)
     run = await rt.coordinator.start_run(rt.operator, prompt, rt.scope)
 
     say = (lambda _text="": None) if args.json else _print
