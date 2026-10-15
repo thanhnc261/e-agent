@@ -1,0 +1,33 @@
+# ADR 0027: Feature toggles with shadow comparison and pre-reservation fallback
+
+Date: 2026-10-14. Status: Proposed. Refines roadmap rule 3 and ENG-TOGGLE-1..3; [target architecture](../design/target-architecture.md) §6.4.8.
+
+## Context
+
+Roadmap rule 3 requires every new runtime feature (execution IR, ContextAssembler, conversations, grounded answers, action plans) to ship behind a profile toggle `off | shadow | on`, with fallback only before a write is reserved. Nothing in the code implements it: `Profile` has no `features` field (`server/profile.py:70-81`), and no `feature.fallback` event exists. Phase 2's first task builds it, and every later phase uses it. The [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) (XA-24) adds that a shadow path must have a real comparison consumer, and that a toggle is not cover for a stub.
+
+## Decision
+
+- `Profile.features` is a record `Features` with one field per feature, each a `FeatureMode` (`off`, `shadow`, `on`). It defaults to all `off`. An unknown feature name is a validation error (`extra="forbid"`). A profile without `features` loads as all `off`.
+- `off` is exactly today's behaviour: no new event, record or code path is reached. A golden event stream recorded before the feature lands proves it.
+- `shadow` computes the new path and records a **comparison with the live path** (for example "compiled step digest equals action digest"). It acts on nothing and adds no driver call, provider read or budget use. A shadow failure records its own event (`<feature>.shadow_failed`) and changes nothing else.
+- `on` uses the new path. It falls back to the existing path only **before the first write reservation**, recording `feature.fallback` with `feature`, a typed `reason_code` and a detail. After a reservation there is no fallback: the run fails closed or goes to reconciliation. Fallback never bypasses approval, admission, verification or the transition table.
+- `/health/ready` returns `features` with each mode, and the evidence bundle records the same object as an additive key under `e-agent-evidence-v1`.
+- A mode a profile can select is complete and tested. A toggle never hides a stub.
+- Committed profiles keep every new feature `off` until the owner turns it on.
+
+## Alternatives considered
+
+- Boolean flags (`*_ENABLED`): rejected because they have no shadow mode, so a new path cannot be compared with the old one before it acts.
+- Per-tenant or runtime-switchable flags in the database: deferred until there are several tenants. Profiles are per deployment today.
+- Environment-variable flags: rejected because typed profile settings are validated at startup and reported, while environment flags are neither (XA-14).
+
+## Consequences
+
+- Code: new `contracts/features.py`; `Profile.features`; the coordinator receives the features; a `feature.fallback` event type and reason codes; readiness and evidence fields.
+- Tests and evidence: profile default and unknown-name tests; an `off`-mode golden event stream; a shadow-cost test (no extra calls, reads or budget); readiness and evidence tests. OpenAPI and the UI client are regenerated.
+- Operations: operators see the modes in `/health/ready`, and release reports record them.
+
+## Gates
+
+Phase 2 Tasks 2b.1–2b.3 ([plan](../plans/2026-10-14-phase2-execution-ir.md)), gate `full` plus `pg`; `make e2e` for 2b.3.
