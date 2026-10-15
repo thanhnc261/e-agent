@@ -1,0 +1,40 @@
+{
+  "task": "1d.2",
+  "changed": "Auth placement and the live sandbox check now come from the admitted plugins' manifest connection sections instead of server tables keyed by the odoo19 id (R-1, ADR 0012 item 1, ADR 0026). New e_agent.sdk.connection types the section (auth methods with header placement, test_connection probe name). PluginRegistry validates it at admission, before plugin code loads, refusing an unknown placement, method type, key or a missing prefix with STARTUP_REJECTED, and records connection_specs, auth_placements and per-plugin executors. Bootstrap gains admit_plugins(); CredentialService reads the registry's placements by reference; _check_sandbox refuses a live provider (an enabled plugin used by a profile connection) whose manifest names no probe, and probes each provider through its own executor. AUTH_PLACEMENT and LIVE_PROVIDERS_WITH_SANDBOX are gone; the Odoo placement (Authorization, 'bearer ') and the Odoo target comparison are unchanged.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/1d.2/2026-10-15T12-24-20.690287+00-00-full.json"
+  ],
+  "open_items": [
+    "An integration without a connection section (the hand-wired fixture-erp) still gets CredentialService's api_key fallback with AuthContext.apply's 'Authorization: Bearer' defaults; removing that fallback is a follow-up, not widened here",
+    "The sandbox target comparison (database, company_id, bridge_version, server_version 19.0) is still Odoo-shaped in bootstrap; a manifest-declared expectation map would change the odoo19 manifest digest and is left for the task that re-pins (1d.10/1d.12) or a later ADR",
+    "Live check against odoo19-learning not run in this task (level 4 belongs to 1d.12); unit tests cover the probe with a stand-in executor and the real packaged Odoo connection section",
+    "check_wheels.py was run by hand on 7d6188e and passed; it is not part of the full gate set"
+  ],
+  "rulings": [
+    {
+      "ruling": "A manifest with more than one auth method is refused at admission, because connections carry no auth-method id and choosing one would be a default",
+      "cost_if_wrong": "a provider offering several methods cannot be admitted until connections gain a method reference (ADR 0013 admin work); relax the validator then"
+    },
+    {
+      "ruling": "AuthMethod.type is limited to api_key and none, and placement to header, matching what AuthContext.apply implements",
+      "cost_if_wrong": "OAuth or query placement providers are refused until their mechanics land (ADR 0013); extend the Literal with the implementation"
+    },
+    {
+      "ruling": "The connection section stays an untyped dict on PluginManifest and is validated at admission, so an installed but not enabled plugin with a bad section never breaks discovery",
+      "cost_if_wrong": "a malformed section is noticed only when the plugin is enabled; if discovery-time validation is wanted, type PluginManifest.connection later"
+    },
+    {
+      "ruling": "test_connection must be a public lower-case identifier, since bootstrap calls it with getattr on the plugin's executor",
+      "cost_if_wrong": "a provider with a differently named probe must rename it; low"
+    },
+    {
+      "ruling": "The plan's expected red for the second-provider test (KeyError from AUTH_PLACEMENT) did not occur: CredentialService fell back to 'Authorization: Bearer'. The test asserts an X-Api-Key header with an empty prefix, which failed for that reason before the change",
+      "cost_if_wrong": "none; the test is stronger than planned"
+    },
+    {
+      "ruling": "Contract scope added src/e_agent/kernel/credentials.py (keep the placement mapping by reference) and bootstrap.admit_plugins() as a test seam; neither is in the plan's file list",
+      "cost_if_wrong": "small; the seam can be folded back into build_runtime"
+    }
+  ],
+  "outside_repo": []
+}

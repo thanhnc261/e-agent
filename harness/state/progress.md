@@ -254,3 +254,8 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1d.1.json, harness/state/1/tasks/1d.1.json, harness/state/evidence/gates/1d.1/2026-10-15T07-24-54.216403+00-00-full.json, harness/state/evidence/gates/1d.1/2026-10-15T10-43-08.387364+00-00-full.json
 - next: new-task 1 1d.2 --feature F-1d-2 (auth placement and sandbox probe from manifests via e_agent.sdk.connection)
 - open: none
+
+## 2026-10-15T12:47:54.791164+00:00 · 8f177d35-7776-4216-8196-b9ee72435830 · 1d.2
+- changed: .agents/skills/eng-session/SKILL.md, .claude/settings.json, harness/state/1/features.json, harness/state/1/handoffs/1d.2.json, harness/state/evidence/gates/1d.2/2026-10-15T12-24-20.690287+00-00-full.json
+- next: fresh-context review of 1d.2, then clear context and new-task 1 1d.3 --feature F-1d-3
+- open: none

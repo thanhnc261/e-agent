@@ -266,7 +266,8 @@
         "AUTH_PLACEMENT and LIVE_PROVIDERS_WITH_SANDBOX are gone",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/1d.2/2026-10-15T12-24-20.690287+00-00-full.json"
     },
     {
       "id": "F-1d-3",
