@@ -55,17 +55,29 @@ async def _build_runtime(profile: Profile, **kw: Any) -> Any:
     return runtime
 
 
+def _with(base: Profile, **driver: Any) -> Profile:
+    return base.model_copy(update={"driver": base.driver.model_copy(update=driver)})
+
+
 def _profiles() -> dict[str, Profile]:
     base = load_profile()
     refs = {key: f"{key}:LIVE" for key in REF_KEYS}
     legacy = {"demand_ref": "demand:LEGACY", "product_ref": "product:LEGACY"}
     return {
         "default": base,
-        "refs": base.model_copy(update={"driver": base.driver.model_copy(update={"refs": refs})}),
-        "legacy": base.model_copy(update={"driver": base.driver.model_copy(update=legacy)}),
-        "legacy+refs": base.model_copy(
-            update={"driver": base.driver.model_copy(update={**legacy, "refs": refs})}
+        "refs": _with(base, refs=refs),
+        "legacy": _with(base, **legacy),
+        "legacy+refs": _with(base, **legacy, refs=refs),
+        # Overrides that equal another ref's default: replacements chain in order.
+        "collide": _with(
+            base, refs={"customer_ref": "product:widget-a", "product_ref": "product:NEW"}
         ),
+        "legacy-default": _with(
+            base, product_ref="product:widget-a", refs={"product_ref": "product:NEW"}
+        ),
+        "chain": _with(base, refs={"rfq_ref": "customer:acme", "customer_ref": "customer:X"}),
+        # refs.demand_ref is not read; only the top-level demand_ref is.
+        "refs-demand": _with(base, refs={"demand_ref": "demand:NEW"}),
     }
 
 
