@@ -1,7 +1,8 @@
-"""Record the prompts `e-agent demo` sends for every task kind (golden for Task 1d.3).
+"""Record the prompts `e-agent demo` sends for every task kind (golden since Task 1d.3).
 
 Runs the CLI's own demo path on a real fixture runtime and captures the text
-passed to ``start_run`` instead of starting the run. Run on unchanged code:
+passed to ``start_run`` instead of starting the run. Re-record only for a change
+the plan names (Task 1d.4: refs.demand_ref):
 ``uv run python tests/unit/server/record_demo_prompts.py``.
 """
 
@@ -56,7 +57,10 @@ async def _build_runtime(profile: Profile, **kw: Any) -> Any:
 
 
 def _with(base: Profile, **driver: Any) -> Profile:
-    return base.model_copy(update={"driver": base.driver.model_copy(update=driver)})
+    # Validated, so the old top-level ref keys fold into refs as a loaded profile's do.
+    data = base.model_dump(mode="json")
+    data["driver"] |= driver
+    return Profile.model_validate(data)
 
 
 def _profiles() -> dict[str, Profile]:
@@ -67,16 +71,14 @@ def _profiles() -> dict[str, Profile]:
         "default": base,
         "refs": _with(base, refs=refs),
         "legacy": _with(base, **legacy),
-        "legacy+refs": _with(base, **legacy, refs=refs),
+        # An old key equal to its refs entry is the same setting (the live check's form).
+        "legacy+refs": _with(base, **legacy, refs={**refs, **legacy}),
         # Overrides that equal another ref's default: replacements chain in order.
         "collide": _with(
             base, refs={"customer_ref": "product:widget-a", "product_ref": "product:NEW"}
         ),
-        "legacy-default": _with(
-            base, product_ref="product:widget-a", refs={"product_ref": "product:NEW"}
-        ),
         "chain": _with(base, refs={"rfq_ref": "customer:acme", "customer_ref": "customer:X"}),
-        # refs.demand_ref is not read; only the top-level demand_ref is.
+        # refs.demand_ref is read since Task 1d.4 folded the top-level key into refs.
         "refs-demand": _with(base, refs={"demand_ref": "demand:NEW"}),
     }
 

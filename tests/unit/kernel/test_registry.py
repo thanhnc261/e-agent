@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from e_agent.contracts.capability import CapabilityDescriptor, EffectKind
@@ -9,7 +10,7 @@ from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.registry import EnabledPlugin, PluginRegistry
 from e_agent.sdk.discovery import discover
 from e_agent.sdk.manifest import BindingTemplate
-from e_agent.sdk.ports import PluginContribution, TaskPreset
+from e_agent.sdk.ports import DriverRequest, PluginContribution, TaskPreset
 
 from .conftest import BINDINGS, CREATE, READ
 
@@ -217,6 +218,29 @@ def test_conflicting_task_presets_rejected() -> None:
         register(reg, "c", "List the notes.")
     assert exc.value.code is ErrorCode.STARTUP_REJECTED
     assert reg.task_presets["notes"].prompt == "Summarise the notes."
+
+
+def test_driver_kind_contributed_twice_rejected() -> None:
+    def register(reg: PluginRegistry, plugin_id: str) -> None:
+        reg.register(
+            plugin_id=plugin_id,
+            plugin_version="1",
+            declared_capabilities=(),
+            binding_templates=(),
+            contribution=PluginContribution(driver_factories={"scripted": factory}),
+        )
+
+    def factory(request: DriverRequest) -> Any:
+        raise AssertionError("never built at registration")
+
+    reg = PluginRegistry({})
+    register(reg, "a")
+    assert reg.driver_factories == {"scripted": factory}
+    # Factories are not comparable definitions, so any second contribution conflicts.
+    with pytest.raises(KernelError) as exc:
+        register(reg, "b")
+    assert exc.value.code is ErrorCode.STARTUP_REJECTED
+    assert "scripted" in exc.value.safe_message
 
 
 def test_task_presets_differing_only_in_ref_order_conflict() -> None:

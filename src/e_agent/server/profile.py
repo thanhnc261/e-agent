@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from importlib.resources import files
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from e_agent.contracts.common import Record
 from e_agent.contracts.connection import ConnectionDescriptor
 from e_agent.contracts.context import Budgets
-from pydantic import Field
+from pydantic import Field, model_validator
 
 
 class OperatorConfig(Record):
@@ -39,6 +40,10 @@ class StoreConfig(Record):
     """Name of the environment variable holding the DSN; the DSN is never in the profile."""
 
 
+OLD_REF_KEYS = frozenset({"demand_ref", "product_ref"})
+"""Top-level driver keys that profiles written before ADR 0026 carry."""
+
+
 class DriverConfig(Record):
     kind: Literal["scripted", "pydantic-ai"] = "scripted"
     provider: Literal["ollama", "litellm"] = "ollama"
@@ -52,11 +57,32 @@ class DriverConfig(Record):
     temperature: str | None = None
     task_kind: str = "draft-po"
     """A task preset kind contributed by an admitted plugin; startup refuses any other."""
-    demand_ref: str | None = None
-    """Scripted driver only: provider refs for deterministic live smoke tests."""
-    product_ref: str | None = None
     refs: dict[str, str] = Field(default_factory=dict)
     """Refs that replace the task preset's defaults in the demo prompt and scripted driver."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _fold_old_ref_keys(cls, data: Any) -> Any:
+        """Move the old top-level ``demand_ref`` and ``product_ref`` into ``refs`` (ADR 0026).
+
+        An old key that differs from its ``refs`` entry is refused, never resolved.
+        """
+        if not isinstance(data, Mapping) or not OLD_REF_KEYS & data.keys():
+            return data
+        folded = {k: v for k, v in data.items() if k not in OLD_REF_KEYS}
+        refs = folded.get("refs", {})
+        if not isinstance(refs, Mapping):
+            return folded  # field validation reports the bad refs
+        refs = dict(refs)
+        for name in sorted(OLD_REF_KEYS & data.keys()):
+            value = data[name]
+            if value is None:
+                continue
+            if name in refs and refs[name] != value:
+                raise ValueError(f"driver.{name} and driver.refs.{name} differ; keep only refs")
+            refs[name] = value
+        folded["refs"] = refs
+        return folded
 
 
 class Profile(Record):

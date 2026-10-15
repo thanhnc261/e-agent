@@ -230,6 +230,21 @@ class TaskPreset:
         return text
 
 
+@dataclass(frozen=True)
+class DriverRequest:
+    """The profile's driver arguments, handed to a contributed driver factory."""
+
+    connection_id: str
+    mode: str
+    task_kind: str
+    refs: Mapping[str, str] = field(default_factory=dict)
+    """The task preset's default refs, in its order, with the profile's refs over them."""
+
+
+class DriverFactory(Protocol):
+    def __call__(self, request: DriverRequest) -> AgentDriver: ...
+
+
 @dataclass
 class PluginContribution:
     """What an initialized plugin contributes to the registry."""
@@ -247,6 +262,8 @@ class PluginContribution:
     """ValidationDatasetBuilder instances (see e_agent.sdk.validation)."""
     task_presets: tuple[TaskPreset, ...] = ()
     """Demo tasks the pack offers; a profile's ``driver.task_kind`` names one."""
+    driver_factories: Mapping[str, DriverFactory] = field(default_factory=dict)
+    """Driver factories keyed by the profile's ``driver.kind`` (ADR 0026)."""
 
 
 class PluginFactory(Protocol):

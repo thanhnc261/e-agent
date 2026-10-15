@@ -47,9 +47,8 @@ class ScriptedErpDriver:
     connection_id: str
     mode: str = "valid"
     task_kind: str = "draft-po"
-    demand_ref: str = "demand:d-001"
-    product_ref: str = "product:widget-a"
     refs: Mapping[str, str] = field(default_factory=dict)
+    """Overrides of the preset refs; the procurement tasks read demand_ref and product_ref."""
     driver_id: str = "scripted-erp-driver"
     _attempts: dict[str, int] = field(default_factory=dict)
     _procurement: ScriptedProcurementDriver | None = None
@@ -61,8 +60,8 @@ class ScriptedErpDriver:
             connection_id=self.connection_id,
             mode=self.mode,
             task_kind=self.task_kind if self.task_kind in PROCUREMENT_KINDS else "draft-po",
-            demand_ref=self.demand_ref,
-            product_ref=self.product_ref,
+            demand_ref=self.ref("demand_ref"),
+            product_ref=self.ref("product_ref"),
         )
 
     def ref(self, name: str) -> str:

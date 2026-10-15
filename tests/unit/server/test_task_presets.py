@@ -18,6 +18,7 @@ from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.server import cli
 from e_agent.server.bootstrap import build_runtime
 from e_agent.server.profile import DriverConfig, Profile, load_profile
+from pydantic import ValidationError
 
 from .record_demo_prompts import GOLDEN, TASKS, capture_prompts
 
@@ -60,7 +61,9 @@ async def test_task_kind_choices_come_from_presets() -> None:
     assert all(kind in exc.value.safe_message for kind in contributed)
 
 
-# The demo prompt rendering at 59dbb9c, copied verbatim with its constants frozen.
+# The demo prompt rendering at 59dbb9c, copied verbatim with its constants frozen,
+# then changed on purpose in Task 1d.4: the old top-level keys fold into refs, and
+# every ref, demand_ref included, applies in the preset's order.
 BASELINE_PROMPTS = {
     "draft-po": "Restock product:widget-a for demand:d-001 by creating a draft purchase order.",
     "shortage": "Calculate the shortage of product:widget-a for demand:d-001.",
@@ -86,30 +89,23 @@ BASELINE_REFS = {
     "other_owner_ref": "user:carol",
     "source_ref": "source:website",
     "as_of": "2026-10-06",
+    "demand_ref": "demand:d-001",
 }
 
 
 def _baseline_prompt(task: str, driver: DriverConfig) -> str:
     prompt = BASELINE_PROMPTS[task]
-    for old, new in (
-        ("demand:d-001", driver.demand_ref),
-        ("product:widget-a", driver.product_ref),
-    ):
-        if new is not None:
-            prompt = prompt.replace(old, new)
     for key, old in BASELINE_REFS.items():
         if key in driver.refs:
             prompt = prompt.replace(old, driver.refs[key])
     return prompt
 
 
-def _override_cases() -> Iterator[DriverConfig]:
+def _override_cases() -> Iterator[dict[str, Any]]:
     """Every pair of overrides drawn from values that collide with other defaults."""
-    slots = [("demand_ref",), ("product_ref",)] + [
-        ("refs", key) for key in [*BASELINE_REFS, "demand_ref"]
-    ]
+    slots = [("demand_ref",), ("product_ref",)] + [("refs", key) for key in BASELINE_REFS]
     pool = ("product:widget-a", "customer:acme", "demand:d-001", "rfq:po-100", "user:carol", "X")
-    yield DriverConfig()
+    yield {}
     for a, b in itertools.combinations(slots, 2):
         for va, vb in itertools.product(pool, repeat=2):
             fields: dict[str, Any] = {"refs": {}}
@@ -118,15 +114,24 @@ def _override_cases() -> Iterator[DriverConfig]:
                     fields["refs"][slot[1]] = value
                 else:
                     fields[slot[0]] = value
-            yield DriverConfig.model_construct(**fields)
+            yield fields
 
 
 def test_demo_prompt_matches_baseline_for_colliding_overrides() -> None:
     presets = {preset.kind: preset for preset in TASK_PRESETS}
     assert set(presets) == set(BASELINE_PROMPTS)
-    cases = 0
-    for driver in _override_cases():
+    cases = refused = 0
+    for fields in _override_cases():
+        old = {k: v for k, v in fields.items() if k != "refs"}
+        if any(fields.get("refs", {}).get(k, v) != v for k, v in old.items()):
+            # An old key that differs from its refs entry is refused, never resolved.
+            with pytest.raises(ValidationError):
+                DriverConfig.model_validate(fields)
+            refused += 1
+            continue
+        driver = DriverConfig.model_validate(fields)
         for task, preset in presets.items():
-            assert cli.demo_prompt(preset, driver) == _baseline_prompt(task, driver), (task, driver)
+            assert cli.demo_prompt(preset, driver) == _baseline_prompt(task, driver), (task, fields)
             cases += 1
+    assert refused > 0
     assert cases > 10_000

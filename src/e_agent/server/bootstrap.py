@@ -22,7 +22,6 @@ from e_agent.erp.testing.fake_erp import BINDINGS as FIXTURE_BINDINGS
 from e_agent.erp.testing.fake_erp import PLUGIN_ID as FIXTURE_PLUGIN_ID
 from e_agent.erp.testing.fake_erp import FakeErp
 from e_agent.erp.testing.scenarios import SCENARIOS
-from e_agent.erp.testing.scripted_tasks import ScriptedErpDriver
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.coordinator import RunCoordinator
 from e_agent.kernel.credentials import CredentialService
@@ -32,7 +31,7 @@ from e_agent.kernel.policy import DefaultPolicy
 from e_agent.kernel.registry import EnabledPlugin, PluginRegistry
 from e_agent.sdk.auth import SecretStore
 from e_agent.sdk.discovery import DiscoveredPlugin, discover
-from e_agent.sdk.ports import AgentDriver, PluginContribution
+from e_agent.sdk.ports import AgentDriver, DriverRequest, PluginContribution
 
 from .profile import Profile
 
@@ -267,14 +266,21 @@ async def build_runtime(
     elif profile.driver.kind == "pydantic-ai":
         driver = build_driver(profile, registry)
     else:
+        # Every other kind is contributed by an admitted plugin (ADR 0026).
+        factory = registry.driver_factories.get(profile.driver.kind)
+        if factory is None:
+            raise KernelError(
+                ErrorCode.STARTUP_REJECTED,
+                f"driver kind {profile.driver.kind!r} is not contributed by an admitted plugin",
+            )
         mode = driver_mode or (profile.fixture.driver_mode if profile.fixture else "valid")
-        driver = ScriptedErpDriver(
-            connection_id=connection_id,
-            mode=mode,
-            task_kind=task_kind,
-            demand_ref=profile.driver.demand_ref or "demand:d-001",
-            product_ref=profile.driver.product_ref or "product:widget-a",
-            refs=profile.driver.refs,
+        driver = factory(
+            DriverRequest(
+                connection_id=connection_id,
+                mode=mode,
+                task_kind=task_kind,
+                refs={**registry.task_presets[task_kind].default_refs, **profile.driver.refs},
+            )
         )
 
     sandbox: dict[str, Any] = {}

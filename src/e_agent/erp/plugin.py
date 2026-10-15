@@ -1,4 +1,5 @@
-"""Plugin factory. Contributes capability definitions, verifiers and task presets.
+"""Plugin factory. Contributes capability definitions, verifiers, task presets and
+the scripted driver.
 
 Validation engines and provider executors are adapters, not part of this pack.
 """
@@ -10,7 +11,14 @@ from importlib.resources import files
 
 from e_agent.sdk import MANIFEST_FILENAME
 from e_agent.sdk.manifest import PluginManifest
-from e_agent.sdk.ports import PluginContribution, PluginServices, TaskPreset
+from e_agent.sdk.ports import (
+    AgentDriver,
+    DriverFactory,
+    DriverRequest,
+    PluginContribution,
+    PluginServices,
+    TaskPreset,
+)
 
 from .crm.api import ContactQuery, CreateLead, LeadQuery, TeamsQuery
 from .crm.lead import LeadDatasetBuilder, LeadVerifier
@@ -165,6 +173,23 @@ TASK_PRESETS = (
 )
 
 
+def scripted_driver(request: DriverRequest) -> AgentDriver:
+    """The deterministic driver for fixture runs and live smoke tests (no model)."""
+    # Imported here: the scripted driver reads the presets above, and a profile with
+    # a model driver never imports it.
+    from .testing.scripted_tasks import ScriptedErpDriver
+
+    return ScriptedErpDriver(
+        connection_id=request.connection_id,
+        mode=request.mode,
+        task_kind=request.task_kind,
+        refs=request.refs,
+    )
+
+
+DRIVER_FACTORIES: dict[str, DriverFactory] = {"scripted": scripted_driver}
+
+
 def load_manifest() -> PluginManifest:
     text = files(__package__).joinpath(MANIFEST_FILENAME).read_text("utf-8")
     return PluginManifest.model_validate(json.loads(text))
@@ -193,4 +218,5 @@ def create_plugin(services: PluginServices) -> PluginContribution:
         input_schemas=INPUT_SCHEMAS,
         agent_guidance=GUIDANCE,
         task_presets=TASK_PRESETS,
+        driver_factories=dict(DRIVER_FACTORIES),
     )

@@ -20,6 +20,7 @@ from e_agent.sdk.manifest import BindingTemplate
 from e_agent.sdk.ports import (
     ActionExecutor,
     AgentDriver,
+    DriverFactory,
     OutcomeVerifier,
     PlanValidator,
     PluginContribution,
@@ -65,6 +66,7 @@ class PluginRegistry:
         self.input_schemas: dict[str, Mapping[str, Any]] = {}
         self.agent_guidance: list[str] = []
         self.task_presets: dict[str, TaskPreset] = {}
+        self.driver_factories: dict[str, DriverFactory] = {}
         self.report = AdmissionReport()
         self._admitted_inventory: dict[str, dict[str, Any]] = {}
         self.connection_specs: dict[str, ConnectionSpec] = {}
@@ -234,6 +236,10 @@ class PluginRegistry:
             if preset.kind in self.task_presets and self.task_presets[preset.kind] != preset:
                 raise _reject(f"conflicting task presets for {preset.kind}")
             self.task_presets[preset.kind] = preset
+        for kind, factory in contribution.driver_factories.items():
+            if kind in self.driver_factories:
+                raise _reject(f"driver kind {kind!r} contributed by two plugins")
+            self.driver_factories[kind] = factory
         self.report.admitted.append(plugin_id)
 
     # -- resolution -------------------------------------------------------------

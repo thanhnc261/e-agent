@@ -22,19 +22,10 @@ from .profile import DriverConfig, load_profile
 
 
 def demo_prompt(preset: TaskPreset, driver: DriverConfig) -> str:
-    """The preset's prompt with the profile's refs: the top-level refs, then ``refs``."""
-    overrides = [
-        (name, value)
-        for name, value in (("demand_ref", driver.demand_ref), ("product_ref", driver.product_ref))
-        if value is not None
-    ]
-    # refs.demand_ref is not read yet; Task 1d.4 folds the top-level key into refs.
-    overrides += [
-        (name, driver.refs[name])
-        for name in preset.default_refs
-        if name in driver.refs and name != "demand_ref"
-    ]
-    return preset.render(overrides)
+    """The preset's prompt with the profile's refs, in the preset's ref order."""
+    return preset.render(
+        (name, driver.refs[name]) for name in preset.default_refs if name in driver.refs
+    )
 
 
 def _print(text: str = "") -> None:
