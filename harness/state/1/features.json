@@ -318,7 +318,7 @@
         "full gate and make e2e pass"
       ],
       "passes": true,
-      "evidence": "harness/state/evidence/gates/1d.6/2026-10-15T16-15-16.779229+00-00-full.json"
+      "evidence": "harness/state/evidence/gates/1d.6/2026-10-15T16-23-14.076061+00-00-full.json"
     },
     {
       "id": "F-1d-7",
