@@ -13,8 +13,6 @@ from typing import Any
 import pytest
 from e_agent.erp.plugin import TASK_PRESETS
 from e_agent.kernel.errors import ErrorCode, KernelError
-from e_agent.kernel.registry import PluginRegistry
-from e_agent.sdk.ports import PluginContribution, TaskPreset
 from e_agent.server import cli
 from e_agent.server.bootstrap import build_runtime
 from e_agent.server.profile import Profile, load_profile
@@ -58,34 +56,3 @@ async def test_task_kind_choices_come_from_presets() -> None:
     with pytest.raises(KernelError) as exc:
         await build_runtime(load_profile(), task_kind="notes-summary")
     assert all(kind in exc.value.safe_message for kind in contributed)
-
-
-def test_conflicting_task_presets_rejected() -> None:
-    def contribution(prompt: str) -> PluginContribution:
-        return PluginContribution(task_presets=(TaskPreset(kind="notes", prompt=prompt),))
-
-    registry = PluginRegistry({})
-    registry.register(
-        plugin_id="a",
-        plugin_version="1",
-        declared_capabilities=(),
-        binding_templates=(),
-        contribution=contribution("Summarise the notes."),
-    )
-    # The same preset from a second plugin is not a conflict.
-    registry.register(
-        plugin_id="b",
-        plugin_version="1",
-        declared_capabilities=(),
-        binding_templates=(),
-        contribution=contribution("Summarise the notes."),
-    )
-    with pytest.raises(KernelError) as exc:
-        registry.register(
-            plugin_id="c",
-            plugin_version="1",
-            declared_capabilities=(),
-            binding_templates=(),
-            contribution=contribution("List the notes."),
-        )
-    assert exc.value.code is ErrorCode.STARTUP_REJECTED

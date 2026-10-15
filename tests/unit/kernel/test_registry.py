@@ -9,7 +9,7 @@ from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.registry import EnabledPlugin, PluginRegistry
 from e_agent.sdk.discovery import discover
 from e_agent.sdk.manifest import BindingTemplate
-from e_agent.sdk.ports import PluginContribution
+from e_agent.sdk.ports import PluginContribution, TaskPreset
 
 from .conftest import BINDINGS, CREATE, READ
 
@@ -196,3 +196,24 @@ def test_artifact_bytes_are_checked_before_import(tmp_path: Path) -> None:
             },
         )
     assert not marker.exists()
+
+
+def test_conflicting_task_presets_rejected() -> None:
+    def register(reg: PluginRegistry, plugin_id: str, prompt: str) -> None:
+        reg.register(
+            plugin_id=plugin_id,
+            plugin_version="1",
+            declared_capabilities=(),
+            binding_templates=(),
+            contribution=PluginContribution(
+                task_presets=(TaskPreset(kind="notes", prompt=prompt),)
+            ),
+        )
+
+    reg = PluginRegistry({})
+    register(reg, "a", "Summarise the notes.")
+    register(reg, "b", "Summarise the notes.")  # the same definition is not a conflict
+    with pytest.raises(KernelError) as exc:
+        register(reg, "c", "List the notes.")
+    assert exc.value.code is ErrorCode.STARTUP_REJECTED
+    assert reg.task_presets["notes"].prompt == "Summarise the notes."
