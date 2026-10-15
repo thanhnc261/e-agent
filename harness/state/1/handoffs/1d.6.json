@@ -1,0 +1,36 @@
+{
+  "task": "1d.6",
+  "changed": "The server package ships no profile any more (D4, ADR 0026). src/e_agent/server/profiles/fixture.json moved with git mv (content unchanged) to src/e_agent/plugins/erp/simulator/fixture_profile.json, a resource of the simulator wheel; e_agent.plugins.erp.simulator.fixture_profile_path() returns its path using importlib.resources only (no fake_erp or scenarios import). server/profile.py load_profile(path=None) now loads the given path, else the path in E_AGENT_PROFILE, and otherwise raises KernelError STARTUP_REJECTED 'no profile given: pass --profile or set E_AGENT_PROFILE', which the CLI prints as 'error STARTUP_REJECTED: ...' with exit 2 instead of a traceback; the CLI --profile help names E_AGENT_PROFILE and no longer mentions the fixture. Nothing under src/e_agent/server imports the helper. Callers migrated: 36 load_profile() calls in tests (8 test modules and tests/unit/server/record_demo_prompts.py) and 4 in the three scripts (release_report.py, qualify_model.py, capture_model_replays.py) pass fixture_profile_path(); the CLI tests (test_walking_skeleton, test_erp_tasks, test_simulator_plugin) pass --profile; test_live_profile_never_imports_simulator takes the fixture path from the helper. check_wheels.py asks the installed simulator for the profile path, refuses one outside the neutral install directory, and passes --profile to the installed draft-po and ERP-04..08 demos. The Playwright backend (ui-conformance playwright.config.ts) passes --profile with the fixture path; the Makefile maps an empty PROFILE= to the fixture profile (FIXTURE_PROFILE), so make dev PROFILE= keeps its scripted-driver behaviour; README and docs/runbooks/demo.md export E_AGENT_PROFILE before the fixture commands. New tests in tests/unit/server/test_profile_location.py: test_load_profile_requires_path_or_env, test_env_profile_is_used (an explicit path wins over the environment), test_server_package_ships_no_profile, test_no_caller_uses_the_implicit_default (scans 184 .py files under src/, tests/ and scripts/, excluding itself, prints the count and fails on zero). Red first: the module failed at collection with ImportError: cannot import name 'fixture_profile_path'.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/1d.6/2026-10-15T16-15-16.779229+00-00-full.json",
+    "harness/state/evidence/gates/1d.6/2026-10-15T16-13-52.312896+00-00-full.json"
+  ],
+  "open_items": [
+    "make e2e is not in the full gate set (HP-6): run on the working tree later committed as 6bf57df, 150 passed and 4 skipped, the same counts as the Phase 1 baseline; the backend started with the fixture profile from the Playwright config",
+    "check_wheels.py is not in the full gate set (HP-6): passed on the 1d.6 work tree before commit; the e-agent-server wheel ships no JSON file and the simulator wheel ships e_agent/plugins/erp/simulator/fixture_profile.json; the installed draft-po and ERP-04..08 demos complete outside the repository with the profile path taken from the installed wheel",
+    "The fixture-erp artifact digest changes again (the profile is now in its package files); no profile pins fixture-erp and the final pins are recorded in 1d.10",
+    "load_profile reads os.environ['E_AGENT_PROFILE'] directly, a fourth direct read in the server next to the three in bootstrap.py; PR-37 is [P] and the hygiene plan (2026-10-15-hygiene-gates-config-ci.md) re-takes its call-site list at task start, so it should migrate this one too",
+    "docs/plans/2026-10-14-phase2-execution-ir.md:39 still names src/e_agent/server/profiles/fixture.json; it is amended for the new paths at this phase's close (plan Global Constraints, Ordering with Phase 2)",
+    "The Makefile, Playwright config, README and runbook name the fixture profile by its repository path; an installed (non-checkout) user gets the path from fixture_profile_path()",
+    "pg is not this task's gate set (1d.10); no live check (1d.12)"
+  ],
+  "rulings": [
+    {
+      "ruling": "The no-profile refusal is KernelError STARTUP_REJECTED rather than a ValueError, so the CLI's existing KernelError handler prints it and exits 2, and serve fails the same way",
+      "cost_if_wrong": "a caller that caught ValueError for a missing profile would miss it; none exists (grep)"
+    },
+    {
+      "ruling": "The resource is named fixture_profile.json at the simulator package root, not profiles/fixture.json, so the package needs no data subdirectory",
+      "cost_if_wrong": "a rename later is one git mv plus the helper and four repository-path references"
+    },
+    {
+      "ruling": "make dev PROFILE= (empty) maps to the simulator's fixture profile in the Makefile rather than failing, so the documented scripted-driver dev mode keeps working; scripts/dev/serve.py is unchanged",
+      "cost_if_wrong": "the Makefile names a plugin path, which only a repository checkout has; the Makefile is repository tooling, not the server"
+    },
+    {
+      "ruling": "docs/runbooks/demo.md was added to the scope (amend-scope) because its fixture commands would otherwise fail; it now exports E_AGENT_PROFILE like README",
+      "cost_if_wrong": "none beyond one doc line"
+    }
+  ],
+  "outside_repo": []
+}
