@@ -63,6 +63,7 @@ Run behaviour does not change.
   2. `e-agent-server` no longer depends on `e-agent-domain-erp` or `e-agent-adapter-odoo`.
   3. Two new distributions: `e-agent-adapter-erp-simulator` (code) and `e-agent-erp` (a bundle without code that installs the ERP product).
   4. The public import names of the domain pack and the Odoo adapter change in Task 1d.10.
+  5. Two profile-schema changes: `DriverConfig.task_kind` becomes `str`, validated against the admitted task presets (Task 1d.3); `DriverConfig.demand_ref` and `product_ref` fold into `refs`, and the loader moves the two old keys into `refs` so existing profiles keep loading (Task 1d.4).
 
   The existing ten distribution names and versions stay.
 - **Verbatim moves.** Moves use `git mv`, so git shows renames. File contents change only where a module path is embedded (ENG-WORK-2).
@@ -254,10 +255,10 @@ It may not touch `odoo-bench`, any container outside `odoo19-learning-*` and `e-
 ### Task 1d.4: the scripted driver contributed by the domain pack (R-2, part 1)
 
 **Files:**
-- `src/e_agent/sdk/ports.py`: a driver factory in `PluginContribution`. The scripted driver needs profile arguments (connection, mode, task kind, refs), so contributed instances (`drivers`) are not enough. ADR 0026 names this use case.
+- `src/e_agent/sdk/ports.py`: `PluginContribution.driver_factories: Mapping[str, DriverFactory]`, keyed by `driver.kind`. A `DriverFactory` takes a `DriverRequest` (connection id, mode, task kind, refs) and returns an `AgentDriver`. The scripted driver needs those profile arguments, so contributed instances (`drivers`) are not enough; `drivers` stays (ADR 0026).
 - `src/e_agent/erp/plugin.py`: contributes the `scripted` driver factory.
 - `src/e_agent/server/bootstrap.py`: `driver.kind == "scripted"` resolves through the registry. No `ScriptedErpDriver` import remains, and the `demand:d-001` and `product:widget-a` defaults come from the task preset.
-- `src/e_agent/server/profile.py`: `DriverConfig.demand_ref` and `product_ref` fold into `refs`, or ADR 0026 records them as an accepted leftover.
+- `src/e_agent/server/profile.py`: `DriverConfig.demand_ref` and `product_ref` fold into `refs` under the same keys; the loader moves the two old top-level keys into `refs`, so existing local profiles keep loading (ADR 0026).
 - `tests/unit/server/test_driver_factories.py`
 
 **Steps:**
@@ -265,6 +266,7 @@ It may not touch `odoo-bench`, any container outside `odoo19-learning-*` and `e-
   - `test_scripted_driver_resolved_from_registry`
   - `test_scripted_driver_runs_against_any_enabled_erp_provider` (fixture now; Odoo in the live check)
   - `test_unknown_driver_kind_refused`
+  - `test_old_ref_keys_move_into_refs`
 - [ ] Run `uv run pytest -q tests/unit/server/test_driver_factories.py`. Expected: fails (no factory seam).
 - [ ] Implement.
 - [ ] Run the same command and `uv run pytest -q`. Expected: pass.
@@ -436,6 +438,6 @@ Out of scope: probing a live instance for its features, and leaving a capability
   - DR-03 → 1d.2. DR-04 → 1d.5 and 1d.10.
   - Adoption review XA-02 → 1d.7 and 1d.10. XA-03 → 1d.7 (static check); its runtime probe → Phase 5.
   - Roadmap rule 1 → 1d.11 and 1d.12.
-- **Placeholder scan.** No TBD. The driver-factory field name is settled in ADR 0026, and 1d.4 uses that name.
-- **Name consistency.** The following are spelled the same in every task: `e_agent.plugins.erp.{domain,odoo,simulator}`, `fixture-erp`, `odoo19`, `domain-erp`, `adapter-erp-simulator`, `e-agent-erp`, `TaskPreset`, `task_presets`, `fixture_profile_path`, `E_AGENT_PROFILE`, `check_core_only.py`, `STARTUP_REJECTED`, "Plugins are guests", `test_every_plugin_package_is_a_guest`, ADR 0026.
+- **Placeholder scan.** No TBD. ADR 0026 settles `driver_factories`, `DriverFactory` and `DriverRequest`, and 1d.4 uses those names.
+- **Name consistency.** The following are spelled the same in every task: `e_agent.plugins.erp.{domain,odoo,simulator}`, `fixture-erp`, `odoo19`, `domain-erp`, `adapter-erp-simulator`, `e-agent-erp`, `TaskPreset`, `task_presets`, `driver_factories`, `DriverFactory`, `DriverRequest`, `fixture_profile_path`, `E_AGENT_PROFILE`, `check_core_only.py`, `STARTUP_REJECTED`, "Plugins are guests", `test_every_plugin_package_is_a_guest`, ADR 0026.
 - **Review Focus coverage.** Items 1–10 each name a task and a test.
