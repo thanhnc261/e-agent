@@ -240,8 +240,9 @@ It may not touch `odoo-bench`, any container outside `odoo19-learning-*` and `e-
 - `src/e_agent/sdk/ports.py`: add `PluginContribution.task_presets: tuple[TaskPreset, ...]`. `TaskPreset` holds the kind, the demo prompt template, the default refs and the help text. Phase 2 Task 2c.2 extends these into task definitions.
 - `src/e_agent/erp/plugin.py`: the eight presets, which today are `TASK_PROMPTS` in `cli.py`, and `TASK_KINDS` and `DEFAULT_REFS` in `erp/testing/scripted_tasks.py`.
 - `src/e_agent/server/profile.py`: `DriverConfig.task_kind: str = "draft-po"`; remove the ERP wording from the field docs.
+- `src/e_agent/kernel/registry.py`: collect the presets by kind; two plugins that define one kind differently are refused at startup (PR-09).
 - `src/e_agent/server/bootstrap.py`: validate `task_kind` against the admitted presets.
-- `src/e_agent/server/cli.py`: choices and prompts come from the presets.
+- `src/e_agent/server/cli.py`: prompts come from the presets. `--task` has no static choices, because the parser is built before admission; bootstrap refuses an unknown kind and names the admitted ones.
 - `tests/unit/server/test_task_presets.py`
 - `tests/unit/server/golden/demo_prompts.json`, written by `tests/unit/server/record_demo_prompts.py`.
 
@@ -385,7 +386,7 @@ Runs after 1d.7, so the helper is written inside the guest contract, and before 
   - builds the core wheels (contracts, plugin-sdk, kernel, server and the four infrastructure adapters);
   - builds a throwaway `core-test-pack` wheel from an inline notes-domain module, because `tests/unit/kernel/conftest.py` is not installable;
   - installs both into a fresh temporary venv without any ERP wheel;
-  - starts the server with a profile that enables only the test pack, and calls `/health/ready`.
+  - starts the server with a profile that enables only the test pack, and calls `/health/ready`. The test pack contributes a task preset and the profile names it in `driver.task_kind`, because bootstrap refuses a kind that no admitted plugin offers (Task 1d.3).
 - `harness/context.toml`: a new gate set `core` runs the script. The script also joins `full` if it finishes in under about a minute; otherwise it runs at the end of the phase and in CI.
 - `tests/conformance/test_core_only.py`: the script's assertions are unit-tested on its helpers.
 

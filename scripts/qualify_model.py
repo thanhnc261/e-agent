@@ -38,6 +38,7 @@ from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.context import Budgets
 from e_agent.contracts.run import RunState
 from e_agent.erp.crm import CREATE_LEAD
+from e_agent.erp.plugin import TASK_PRESETS
 from e_agent.erp.procurement import (
     AMEND_DRAFT_RFQ,
     CREATE_DRAFT_PO,
@@ -48,13 +49,13 @@ from e_agent.erp.receivables import OVERDUE_INVOICES_ANSWER
 from e_agent.erp.sales import CREATE_DRAFT_QUOTATION, LATE_ORDERS_ANSWER
 from e_agent.erp.testing.scripted_tasks import TASK_KINDS
 from e_agent.server.bootstrap import build_runtime, tool_specs
-from e_agent.server.cli import TASK_PROMPTS
 from e_agent.server.profile import load_profile
 
 TASK = (
     "Restock product product:widget-a for demand demand:d-001 by creating a draft purchase order."
 )
 SCENARIOS = ("valid", "zero-shortage", "over-budget")
+TASK_PROMPTS = {preset.kind: preset.render() for preset in TASK_PRESETS}
 TASK_CONTRACTS = {
     "draft-po": CREATE_DRAFT_PO,
     "shortage": SHORTAGE_ANSWER,

@@ -1,7 +1,7 @@
 """Record the prompts `e-agent demo` sends for every task kind (golden for Task 1d.3).
 
-Runs the CLI's own demo path with the runtime stubbed out and captures the text
-passed to ``start_run``. Run on unchanged code:
+Runs the CLI's own demo path on a real fixture runtime and captures the text
+passed to ``start_run`` instead of starting the run. Run on unchanged code:
 ``uv run python tests/unit/server/record_demo_prompts.py``.
 """
 
@@ -10,11 +10,10 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 from unittest import mock
 
-from e_agent.server import cli
+from e_agent.server import bootstrap, cli
 from e_agent.server.profile import Profile, load_profile
 
 GOLDEN = Path(__file__).parent / "golden" / "demo_prompts.json"
@@ -50,9 +49,10 @@ async def _start_run(_operator: Any, prompt: str, _scope: Any) -> None:
     raise _Captured(prompt)
 
 
-async def _build_runtime(_profile: Profile, **_kw: Any) -> Any:
-    coordinator = SimpleNamespace(start_run=_start_run)
-    return SimpleNamespace(coordinator=coordinator, operator=None, scope=None)
+async def _build_runtime(profile: Profile, **kw: Any) -> Any:
+    runtime = await bootstrap.build_runtime(profile, **kw)
+    runtime.coordinator.start_run = _start_run
+    return runtime
 
 
 def _profiles() -> dict[str, Profile]:

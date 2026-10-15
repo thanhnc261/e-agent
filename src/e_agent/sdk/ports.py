@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from string import Formatter
 from typing import Any, Protocol, runtime_checkable
 
 from e_agent.contracts.action import ActionRecord
@@ -188,6 +189,33 @@ class PluginServices:
     """CredentialResolver scoped to this plugin's integration (e_agent.sdk.auth)."""
 
 
+@dataclass(frozen=True)
+class TaskPreset:
+    """A named demo task a domain pack offers: its prompt template and default refs.
+
+    ``prompt`` names each ref as ``{key}``; every key needs a default, so rendering
+    never fails on a missing ref. Phase 2 extends presets into task definitions.
+    """
+
+    kind: str
+    prompt: str
+    default_refs: Mapping[str, str] = field(default_factory=dict)
+    help: str = ""
+
+    def __post_init__(self) -> None:
+        for _text, name, _spec, _conv in Formatter().parse(self.prompt):
+            if name is None:
+                continue
+            if not name.isidentifier():
+                raise ValueError(f"task preset {self.kind!r}: placeholders must be named refs")
+            if name not in self.default_refs:
+                raise ValueError(f"task preset {self.kind!r}: no default for {{{name}}}")
+
+    def render(self, refs: Mapping[str, str] | None = None) -> str:
+        """The prompt with ``refs`` replacing the defaults; unused refs are ignored."""
+        return self.prompt.format_map({**self.default_refs, **(refs or {})})
+
+
 @dataclass
 class PluginContribution:
     """What an initialized plugin contributes to the registry."""
@@ -203,6 +231,8 @@ class PluginContribution:
     """Domain task guidance for drivers. Explanatory only: rules are enforced by validators."""
     dataset_builders: tuple[Any, ...] = ()
     """ValidationDatasetBuilder instances (see e_agent.sdk.validation)."""
+    task_presets: tuple[TaskPreset, ...] = ()
+    """Demo tasks the pack offers; a profile's ``driver.task_kind`` names one."""
 
 
 class PluginFactory(Protocol):

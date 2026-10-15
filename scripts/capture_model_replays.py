@@ -11,7 +11,6 @@ from pathlib import Path
 import qualify_model as harness
 from e_agent.adapters.pydantic_ai import PydanticAiDriver, ollama_model
 from e_agent.server.bootstrap import build_runtime, tool_specs
-from e_agent.server.cli import TASK_PROMPTS
 from e_agent.server.profile import load_profile
 from pydantic_ai import ModelMessagesTypeAdapter, ModelResponse, TextPart, ToolCallPart
 from pydantic_core import to_jsonable_python
@@ -90,7 +89,7 @@ async def main() -> int:
                 "kind": "recorded-public-model-parts-fixture-replay",
                 "environment": "synthetic fixture ERP; replay is not live evidence",
                 "task": task,
-                "prompt": TASK_PROMPTS[task],
+                "prompt": harness.TASK_PROMPTS[task],
                 "model_digest": before["model_digest"],
                 "context_length": after["context_length"],
                 "temperature": 0,

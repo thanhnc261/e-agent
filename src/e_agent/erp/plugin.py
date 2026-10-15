@@ -1,4 +1,4 @@
-"""Plugin factory. Contributes capability definitions and the outcome verifier.
+"""Plugin factory. Contributes capability definitions, verifiers and task presets.
 
 Validation engines and provider executors are adapters, not part of this pack.
 """
@@ -10,7 +10,7 @@ from importlib.resources import files
 
 from e_agent.sdk import MANIFEST_FILENAME
 from e_agent.sdk.manifest import PluginManifest
-from e_agent.sdk.ports import PluginContribution, PluginServices
+from e_agent.sdk.ports import PluginContribution, PluginServices, TaskPreset
 
 from .crm.api import ContactQuery, CreateLead, LeadQuery, TeamsQuery
 from .crm.lead import LeadDatasetBuilder, LeadVerifier
@@ -96,6 +96,67 @@ GUIDANCE = (
     "host independently verifies the structured result before your final explanation."
 )
 
+_PROCUREMENT_REFS = {"product_ref": "product:widget-a", "demand_ref": "demand:d-001"}
+TASK_PRESETS = (
+    TaskPreset(
+        kind="draft-po",
+        prompt="Restock {product_ref} for {demand_ref} by creating a draft purchase order.",
+        default_refs=_PROCUREMENT_REFS,
+        help="ERP-03: create a draft purchase order",
+    ),
+    TaskPreset(
+        kind="shortage",
+        prompt="Calculate the shortage of {product_ref} for {demand_ref}.",
+        default_refs=_PROCUREMENT_REFS,
+        help="ERP-01: report the shortage for a demand",
+    ),
+    TaskPreset(
+        kind="recommend",
+        prompt="Recommend an approved offer for {product_ref} and {demand_ref} within budget.",
+        default_refs=_PROCUREMENT_REFS,
+        help="ERP-02: recommend a supplier offer",
+    ),
+    TaskPreset(
+        kind="amend-rfq",
+        prompt="Amend draft RFQ {rfq_ref} to quantity 15, retaining its current requested date.",
+        default_refs={"rfq_ref": "rfq:po-100"},
+        help="ERP-04: amend a draft RFQ",
+    ),
+    TaskPreset(
+        kind="quotation",
+        prompt="Create a draft quotation for {customer_ref} for {product_ref}, quantity 2.",
+        default_refs={"customer_ref": "customer:acme", "product_ref": "product:widget-a"},
+        help="ERP-05: create a draft quotation",
+    ),
+    TaskPreset(
+        kind="late-orders",
+        prompt="Report late sales orders as of {as_of}.",
+        default_refs={"as_of": "2026-10-06"},
+        help="ERP-06: report late sales orders",
+    ),
+    TaskPreset(
+        kind="crm-lead",
+        prompt=(
+            "Create a CRM lead for {contact_ref} assigned to {owner_ref} in {team_ref} "
+            "from {source_ref}."
+        ),
+        default_refs={
+            "contact_ref": "contact:jane",
+            "owner_ref": "user:alice",
+            "other_owner_ref": "user:carol",
+            "team_ref": "team:direct",
+            "source_ref": "source:website",
+        },
+        help="ERP-07: create a CRM lead",
+    ),
+    TaskPreset(
+        kind="overdue-invoices",
+        prompt="Report overdue customer invoices as of {as_of}.",
+        default_refs={"as_of": "2026-10-06"},
+        help="ERP-08: report overdue customer invoices",
+    ),
+)
+
 
 def load_manifest() -> PluginManifest:
     text = files(__package__).joinpath(MANIFEST_FILENAME).read_text("utf-8")
@@ -124,4 +185,5 @@ def create_plugin(services: PluginServices) -> PluginContribution:
         ),
         input_schemas=INPUT_SCHEMAS,
         agent_guidance=GUIDANCE,
+        task_presets=TASK_PRESETS,
     )

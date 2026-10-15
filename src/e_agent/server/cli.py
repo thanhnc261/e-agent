@@ -11,7 +11,6 @@ from typing import Any
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.run import RunState
 from e_agent.erp.testing.scenarios import SCENARIOS
-from e_agent.erp.testing.scripted_tasks import DEFAULT_REFS, TASK_KINDS
 from e_agent.kernel.errors import KernelError
 from e_agent.kernel.evidence import build_evidence
 from e_agent.sdk.discovery import discover
@@ -19,22 +18,6 @@ from e_agent.sdk.store import actor_scope
 
 from .bootstrap import build_runtime, open_store
 from .profile import load_profile
-
-TASK_PROMPTS = {
-    "draft-po": "Restock product:widget-a for demand:d-001 by creating a draft purchase order.",
-    "shortage": "Calculate the shortage of product:widget-a for demand:d-001.",
-    "recommend": "Recommend an approved offer for product:widget-a and demand:d-001 within budget.",
-    "amend-rfq": (
-        "Amend draft RFQ rfq:po-100 to quantity 15, retaining its current requested date."
-    ),
-    "quotation": "Create a draft quotation for customer:acme for product:widget-a, quantity 2.",
-    "late-orders": "Report late sales orders as of 2026-10-06.",
-    "crm-lead": (
-        "Create a CRM lead for contact:jane assigned to user:alice in team:direct "
-        "from source:website."
-    ),
-    "overdue-invoices": "Report overdue customer invoices as of 2026-10-06.",
-}
 
 
 def _print(text: str = "") -> None:
@@ -50,17 +33,16 @@ async def _demo(args: argparse.Namespace) -> int:
         lose_response_after_commit=args.fault == "lost-response",
         task_kind=args.task,
     )
-    prompt = args.prompt or TASK_PROMPTS[args.task or profile.driver.task_kind]
-    if not args.prompt:
-        for old, new in (
-            ("demand:d-001", profile.driver.demand_ref),
-            ("product:widget-a", profile.driver.product_ref),
-        ):
-            if new is not None:
-                prompt = prompt.replace(old, new)
-        for key, old in DEFAULT_REFS.items():
-            if key in profile.driver.refs:
-                prompt = prompt.replace(old, profile.driver.refs[key])
+    prompt = args.prompt
+    if not prompt:
+        # The task kind was checked against the admitted presets at startup.
+        preset = rt.registry.task_presets[args.task or profile.driver.task_kind]
+        legacy = {
+            "demand_ref": profile.driver.demand_ref,
+            "product_ref": profile.driver.product_ref,
+        }
+        refs = profile.driver.refs | {k: v for k, v in legacy.items() if v is not None}
+        prompt = preset.render(refs)
     run = await rt.coordinator.start_run(rt.operator, prompt, rt.scope)
 
     say = (lambda _text="": None) if args.json else _print
@@ -240,8 +222,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     demo.add_argument(
         "--task",
-        choices=sorted(TASK_KINDS),
-        help="ERP-03 draft PO (default), ERP-01 shortage, ERP-02 recommendation",
+        help="task preset kind from an admitted plugin (default: the profile's driver.task_kind)",
     )
     group = demo.add_mutually_exclusive_group()
     group.add_argument("--approve", action="store_true", help="operator approves the action")

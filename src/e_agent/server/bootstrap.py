@@ -252,6 +252,15 @@ async def build_runtime(
             contribution=PluginContribution(executors=(fake_erp,)),
         )
 
+    task_kind = task_kind or profile.driver.task_kind
+    if task_kind not in registry.task_presets:
+        known = ", ".join(sorted(registry.task_presets)) or "none"
+        raise KernelError(
+            ErrorCode.STARTUP_REJECTED,
+            f"task kind {task_kind!r} is not a task preset of an admitted plugin "
+            f"(admitted: {known})",
+        )
+
     driver: AgentDriver
     if driver_factory is not None:
         driver = driver_factory(registry)
@@ -262,7 +271,7 @@ async def build_runtime(
         driver = ScriptedErpDriver(
             connection_id=connection_id,
             mode=mode,
-            task_kind=task_kind or profile.driver.task_kind,
+            task_kind=task_kind,
             demand_ref=profile.driver.demand_ref or "demand:d-001",
             product_ref=profile.driver.product_ref or "product:widget-a",
             refs=profile.driver.refs,

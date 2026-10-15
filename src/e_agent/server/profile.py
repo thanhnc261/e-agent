@@ -50,21 +50,13 @@ class DriverConfig(Record):
     """LiteLLM only: env var holding the proxy key. The key itself is never in the profile."""
     requests_per_step: int = 4
     temperature: str | None = None
-    task_kind: Literal[
-        "draft-po",
-        "shortage",
-        "recommend",
-        "amend-rfq",
-        "quotation",
-        "late-orders",
-        "crm-lead",
-        "overdue-invoices",
-    ] = "draft-po"
+    task_kind: str = "draft-po"
+    """A task preset kind contributed by an admitted plugin; startup refuses any other."""
     demand_ref: str | None = None
     """Scripted driver only: provider refs for deterministic live smoke tests."""
     product_ref: str | None = None
     refs: dict[str, str] = Field(default_factory=dict)
-    """Scripted driver only: refs for ERP-04..08 (rfq_ref, customer_ref, contact_ref, ...)."""
+    """Refs that replace the task preset's defaults in the demo prompt and scripted driver."""
 
 
 class Profile(Record):

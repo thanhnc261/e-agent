@@ -24,6 +24,7 @@ from e_agent.sdk.ports import (
     PlanValidator,
     PluginContribution,
     PluginServices,
+    TaskPreset,
 )
 from e_agent.sdk.validation import ValidationDatasetBuilder
 from pydantic import ValidationError
@@ -63,6 +64,7 @@ class PluginRegistry:
         self.dataset_builders: list[ValidationDatasetBuilder] = []
         self.input_schemas: dict[str, Mapping[str, Any]] = {}
         self.agent_guidance: list[str] = []
+        self.task_presets: dict[str, TaskPreset] = {}
         self.report = AdmissionReport()
         self._admitted_inventory: dict[str, dict[str, Any]] = {}
         self.connection_specs: dict[str, ConnectionSpec] = {}
@@ -228,6 +230,10 @@ class PluginRegistry:
             self.input_schemas[schema_id] = schema
         if contribution.agent_guidance:
             self.agent_guidance.append(contribution.agent_guidance)
+        for preset in contribution.task_presets:
+            if preset.kind in self.task_presets and self.task_presets[preset.kind] != preset:
+                raise _reject(f"conflicting task presets for {preset.kind}")
+            self.task_presets[preset.kind] = preset
         self.report.admitted.append(plugin_id)
 
     # -- resolution -------------------------------------------------------------
