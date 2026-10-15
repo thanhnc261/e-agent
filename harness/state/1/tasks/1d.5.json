@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-5"
   ],
-  "context_digest": "9b83c1e7889a21ecdc4f5165eaea54e6f0a201eaaede41d041afe1ee9d4faade",
+  "context_digest": "ac4102fb88f6f2f2c923e1f21e8b79b238b69f02cbfb94ed1f8c769e9cb89d78",
   "allowed_paths": [
     "src/e_agent/plugins/**",
     "src/e_agent/erp/testing/**",
