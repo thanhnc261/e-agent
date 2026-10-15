@@ -13,10 +13,10 @@ files = [
   "docs/design/target-architecture.md",
   "docs/adr/README.md",
 ]
-active_plan = "docs/plans/2026-10-13-harness-h4-adapters.md"
-# Section names the sibling plans already use. From roadmap Phase 2 on, plans
-# also need "Toggles and fallback" and "Gate" sections (harness plan, eng-phase-plan).
-active_plan_required_sections = ["Global Constraints", "Review Focus"]
+active_plan = "docs/plans/2026-10-14-phase1d-plugin-boundary.md"
+# From roadmap Phase 2 on, plans also need "Toggles and fallback" and "Gate"
+# sections (harness plan, eng-phase-plan).
+active_plan_required_sections = ["Global Constraints", "Review Focus", "Toggles and fallback", "Gate"]
 
 [protected]
 read_only = ["archive/**", "research/**"]
