@@ -30,3 +30,13 @@ def test_render_replaces_defaults_in_turn() -> None:
 def test_empty_default_refused() -> None:
     with pytest.raises(ValueError, match="customer_ref"):
         TaskPreset(kind="quote", prompt="Quote.", default_refs={"customer_ref": ""})
+
+
+def test_equality_includes_default_ref_order() -> None:
+    reordered = TaskPreset(
+        kind="quote",
+        prompt=PRESET.prompt,
+        default_refs={"product_ref": "product:a", "customer_ref": "customer:acme"},
+    )
+    assert reordered != PRESET
+    assert TaskPreset(PRESET.kind, PRESET.prompt, dict(PRESET.default_refs)) == PRESET

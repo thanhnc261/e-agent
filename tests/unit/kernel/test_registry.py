@@ -217,3 +217,22 @@ def test_conflicting_task_presets_rejected() -> None:
         register(reg, "c", "List the notes.")
     assert exc.value.code is ErrorCode.STARTUP_REJECTED
     assert reg.task_presets["notes"].prompt == "Summarise the notes."
+
+
+def test_task_presets_differing_only_in_ref_order_conflict() -> None:
+    # Overrides apply in default-ref order, so the order is part of the definition.
+    def register(reg: PluginRegistry, plugin_id: str, refs: dict[str, str]) -> None:
+        preset = TaskPreset(kind="notes", prompt="customer:acme product:a", default_refs=refs)
+        reg.register(
+            plugin_id=plugin_id,
+            plugin_version="1",
+            declared_capabilities=(),
+            binding_templates=(),
+            contribution=PluginContribution(task_presets=(preset,)),
+        )
+
+    reg = PluginRegistry({})
+    register(reg, "a", {"customer_ref": "customer:acme", "product_ref": "product:a"})
+    with pytest.raises(KernelError) as exc:
+        register(reg, "b", {"product_ref": "product:a", "customer_ref": "customer:acme"})
+    assert exc.value.code is ErrorCode.STARTUP_REJECTED

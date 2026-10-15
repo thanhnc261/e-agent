@@ -209,6 +209,18 @@ class TaskPreset:
             if not value:
                 raise ValueError(f"task preset {self.kind!r}: empty default for {name!r}")
 
+    def __eq__(self, other: object) -> bool:
+        # Overrides apply in default-ref order, so two presets differing only in that
+        # order render differently and are not equal (a dict comparison ignores order).
+        if not isinstance(other, TaskPreset):
+            return NotImplemented
+        return (self.kind, self.prompt, tuple(self.default_refs.items()), self.help) == (
+            other.kind,
+            other.prompt,
+            tuple(other.default_refs.items()),
+            other.help,
+        )
+
     def render(self, overrides: Iterable[tuple[str, str]] = ()) -> str:
         """The prompt after each ``(ref name, value)`` in turn; unknown names are ignored."""
         text = self.prompt
