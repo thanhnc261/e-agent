@@ -18,14 +18,10 @@ from e_agent.contracts.common import format_decimal, new_id, utc_now
 from e_agent.contracts.context import TaskContext
 from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
-from e_agent.sdk.errors import KnownNoEffectError
-from e_agent.sdk.manifest import BindingTemplate
-from e_agent.sdk.ports import Observation, ReadRequest
-
-from ..crm import CONTACT_READ, CREATE_LEAD, LEAD_READ, TEAMS_READ
-from ..crm.api import CreateLead
-from ..inventory import AVAILABILITY_READ
-from ..procurement import (
+from e_agent.erp.crm import CONTACT_READ, CREATE_LEAD, LEAD_READ, TEAMS_READ
+from e_agent.erp.crm.api import CreateLead
+from e_agent.erp.inventory import AVAILABILITY_READ
+from e_agent.erp.procurement import (
     AMEND_DRAFT_RFQ,
     CREATE_DRAFT_PO,
     DEMAND_READ,
@@ -34,10 +30,14 @@ from ..procurement import (
     OPEN_DEMANDS_READ,
     PURCHASE_ORDER_READ,
 )
-from ..procurement.api import AmendDraftRfq, DraftPurchaseOrder
-from ..receivables import OPEN_INVOICES_READ
-from ..sales import CREATE_DRAFT_QUOTATION, OPEN_ORDERS_READ, PRICING_READ, QUOTATION_READ
-from ..sales.api import DraftQuotation
+from e_agent.erp.procurement.api import AmendDraftRfq, DraftPurchaseOrder
+from e_agent.erp.receivables import OPEN_INVOICES_READ
+from e_agent.erp.sales import CREATE_DRAFT_QUOTATION, OPEN_ORDERS_READ, PRICING_READ, QUOTATION_READ
+from e_agent.erp.sales.api import DraftQuotation
+from e_agent.sdk.errors import KnownNoEffectError
+from e_agent.sdk.manifest import BindingTemplate
+from e_agent.sdk.ports import Observation, ReadRequest
+
 from .scenarios import FixtureRfq, FixtureScenario
 
 PLUGIN_ID = "fixture-erp"

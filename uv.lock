@@ -9,6 +9,7 @@ resolution-markers = [
 [manifest]
 members = [
     "e-agent-adapter-agent-pydantic",
+    "e-agent-adapter-erp-simulator",
     "e-agent-adapter-odoo",
     "e-agent-adapter-postgres",
     "e-agent-adapter-secretstore-local",
@@ -450,6 +451,23 @@ requires-dist = [
 ]
 
 [[package]]
+name = "e-agent-adapter-erp-simulator"
+version = "0.1.0"
+source = { editable = "dists/adapter-erp-simulator" }
+dependencies = [
+    { name = "e-agent-contracts" },
+    { name = "e-agent-domain-erp" },
+    { name = "e-agent-plugin-sdk" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "e-agent-contracts", editable = "dists/contracts" },
+    { name = "e-agent-domain-erp", editable = "dists/domain-erp" },
+    { name = "e-agent-plugin-sdk", editable = "dists/plugin-sdk" },
+]
+
+[[package]]
 name = "e-agent-adapter-odoo"
 version = "0.1.0"
 source = { editable = "dists/adapter-odoo" }
@@ -631,6 +649,7 @@ source = { virtual = "." }
 [package.dev-dependencies]
 dev = [
     { name = "e-agent-adapter-agent-pydantic" },
+    { name = "e-agent-adapter-erp-simulator" },
     { name = "e-agent-adapter-odoo" },
     { name = "e-agent-adapter-postgres" },
     { name = "e-agent-adapter-secretstore-local" },
@@ -654,6 +673,7 @@ dev = [
 [package.metadata.requires-dev]
 dev = [
     { name = "e-agent-adapter-agent-pydantic", editable = "dists/adapter-agent-pydantic" },
+    { name = "e-agent-adapter-erp-simulator", editable = "dists/adapter-erp-simulator" },
     { name = "e-agent-adapter-odoo", editable = "dists/adapter-odoo" },
     { name = "e-agent-adapter-postgres", editable = "dists/adapter-postgres" },
     { name = "e-agent-adapter-secretstore-local", editable = "dists/adapter-secretstore-local" },

@@ -6,7 +6,7 @@ client, a database session or the ability to issue approvals.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
@@ -264,6 +264,9 @@ class PluginContribution:
     """Demo tasks the pack offers; a profile's ``driver.task_kind`` names one."""
     driver_factories: Mapping[str, DriverFactory] = field(default_factory=dict)
     """Driver factories keyed by the profile's ``driver.kind`` (ADR 0026)."""
+    diagnostics: Callable[[], Mapping[str, Any]] | None = None
+    """Counters a provider reports for fixture runs and tests, such as how many writes
+    reached it. Never business data, and never read by the kernel's run logic."""
 
 
 class PluginFactory(Protocol):

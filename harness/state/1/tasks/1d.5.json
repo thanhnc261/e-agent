@@ -31,7 +31,9 @@
     "tests/unit/sdk/**",
     "harness/state/**",
     "docs/handoffs/**",
-    "docs/plans/2026-10-14-phase1d-plugin-boundary.md"
+    "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+    "src/e_agent/sdk/errors.py",
+    "src/e_agent/sdk/discovery.py"
   ],
   "acceptance": [
     "test_fixture_profile_composes_through_discovery passes",
@@ -43,5 +45,17 @@
   "gate_set": "full",
   "base_commit": "d47b5126f30dcb840fea1e7bef5c603449e4f4b3",
   "created_at": "2026-10-15T15:20:38+00:00",
-  "features_digest": "381d5e4da2c901c32f42f8d1f55479a377260e703f4d27160aad86f8d891bb52"
+  "features_digest": "381d5e4da2c901c32f42f8d1f55479a377260e703f4d27160aad86f8d891bb52",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/sdk/errors.py",
+      "reason": "the simulator factory refuses bad settings with an SDK exception that admission turns into STARTUP_REJECTED; plugins cannot raise KernelError",
+      "at": "2026-10-15T15:22:55+00:00"
+    },
+    {
+      "glob": "src/e_agent/sdk/discovery.py",
+      "reason": "discovery cannot locate an editable plugin under two namespace levels (plugins/erp/) in a fresh process: PathFinder needs the namespace parent in sys.modules",
+      "at": "2026-10-15T15:25:02+00:00"
+    }
+  ]
 }

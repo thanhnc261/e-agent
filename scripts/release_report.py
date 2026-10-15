@@ -167,9 +167,13 @@ CASES = [
 async def run_case(case: Case) -> dict[str, Any]:
     rt = await build_runtime(
         load_profile(),
-        scenario=case.scenario,
         driver_mode=case.mode,
-        lose_response_after_commit=case.fault,
+        plugin_settings={
+            "fixture-erp": {
+                "scenario": case.scenario or "valid",
+                "lose_response_after_commit": case.fault,
+            }
+        },
         task_kind=case.kind,
     )
     run = await rt.coordinator.start_run(rt.operator, case.name, rt.scope)
@@ -192,7 +196,7 @@ async def run_case(case: Case) -> dict[str, Any]:
         if e.type == "validation.completed"
     ]
     outcomes = tuple(e.payload["status"] for e in events if e.type == "outcome.reported")
-    writes = rt.fake_erp.create_calls if rt.fake_erp else -1
+    writes = rt.diagnostics().get("fixture-erp", {}).get("create_calls", -1)
     checks = {
         "final_state": run.state.value == case.expect_state,
         "outcomes": outcomes == case.expect_outcomes,

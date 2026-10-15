@@ -103,7 +103,7 @@ async def test_model_proposal_is_approved_executed_and_verified() -> None:
         decision=ApprovalDecision.APPROVED,
     )
     assert run.state is RunState.SUCCEEDED
-    assert rt.fake_erp is not None and rt.fake_erp.create_calls == 1
+    assert rt.diagnostics()["fixture-erp"]["create_calls"] == 1
     events = await rt.store.list_events(rt.operator.tenant_id, run.run_id)
     assert events[-3].type == "message.final"
 

@@ -30,7 +30,8 @@ class EnabledPluginConfig(Record):
 
 
 class FixtureConfig(Record):
-    scenario: str = "valid"
+    """The scripted driver's mode. The simulator's scenario is a setting of its plugin."""
+
     driver_mode: str = "valid"
 
 

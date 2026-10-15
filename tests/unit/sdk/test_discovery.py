@@ -1,6 +1,7 @@
 """Metadata-only discovery: plugins are found without importing their code."""
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -63,3 +64,40 @@ def test_manifest_validation() -> None:
         PluginManifest.model_validate({**MANIFEST, "sdk_api": "1.x"})
     with pytest.raises(ValueError, match="factory"):
         PluginManifest.model_validate({**MANIFEST, "factory": "no_colon"})
+
+
+def test_editable_plugin_under_nested_namespace_packages_is_found(tmp_path: Path) -> None:
+    # An editable install records only a .pth, so discovery locates the package on
+    # sys.path. Under two namespace levels (as ``e_agent.plugins.erp``) neither parent
+    # is imported yet in a fresh process; a subprocess keeps it fresh.
+    src = tmp_path / "src"
+    pkg = src / "ns_top" / "ns_mid" / "notes_pkg"
+    pkg.mkdir(parents=True)
+    marker = tmp_path / "IMPORTED"
+    (pkg / "__init__.py").write_text(
+        f"from pathlib import Path\nPath({str(marker)!r}).write_text('imported')\n"
+    )
+    manifest = MANIFEST | {"factory": "ns_top.ns_mid.notes_pkg.plugin:create_plugin"}
+    (pkg / "e_agent_plugin.json").write_text(json.dumps(manifest))
+    site = tmp_path / "site"
+    info = site / "notes_fixture-0.3.0.dist-info"
+    info.mkdir(parents=True)
+    (info / "METADATA").write_text("Metadata-Version: 2.1\nName: notes-fixture\nVersion: 0.3.0\n")
+    (info / "entry_points.txt").write_text(
+        "[e_agent.plugins.v1]\nnotes = ns_top.ns_mid.notes_pkg.plugin:create_plugin\n"
+    )
+    (info / "RECORD").write_text("notes_fixture.pth,,\n")
+    code = (
+        "import sys; sys.path.insert(0, sys.argv[1])\n"
+        "from e_agent.sdk.discovery import discover\n"
+        "print([p.manifest.plugin_id for p in discover([sys.argv[2]])])\n"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", code, str(src), str(site)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.strip() == "['notes-fixture']"
+    assert not marker.exists(), "discovery must not import plugin code"

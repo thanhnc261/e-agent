@@ -63,8 +63,7 @@ from e_agent.server.profile import load_profile
 )
 async def test_committed_effect_with_inexact_readback_is_not_verified(task, field, value):
     runtime = await build_runtime(load_profile(), task_kind=task)
-    erp = runtime.fake_erp
-    assert erp is not None
+    [erp] = runtime.registry.plugin_executors["fixture-erp"]
     original = erp.read
 
     async def corrupt(ctx, binding, request):
@@ -140,7 +139,7 @@ async def test_verified_answer_finishes_after_one_bounded_acknowledgement(acknow
     assert driver.acknowledgements == 1
     actions = await runtime.store.list_actions(runtime.operator.tenant_id, run.run_id)
     assert len(actions) == 1 and str(actions[0].state) == "VERIFIED"
-    assert runtime.fake_erp.create_calls == 0
+    assert runtime.diagnostics()["fixture-erp"]["create_calls"] == 0
     events = await runtime.store.list_events(runtime.operator.tenant_id, run.run_id)
     if acknowledgement == "repeat-proposal":
         assert any(event.type == "message.final" for event in events)
@@ -188,4 +187,7 @@ async def test_verified_recommendation_can_precede_an_approved_purchase_order():
         expected_run_revision=presentation.run_revision,
         decision=ApprovalDecision.APPROVED,
     )
-    assert run.state is RunState.SUCCEEDED and runtime.fake_erp.create_calls == 1
+    assert (
+        run.state is RunState.SUCCEEDED
+        and runtime.diagnostics()["fixture-erp"]["create_calls"] == 1
+    )

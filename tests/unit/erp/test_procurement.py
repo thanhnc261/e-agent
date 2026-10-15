@@ -13,8 +13,8 @@ from e_agent.erp.plugin import create_plugin, load_manifest
 from e_agent.erp.procurement import CREATE_DRAFT_PO, DEMAND_READ, OFFERS_READ, OPEN_DEMANDS_READ
 from e_agent.erp.procurement.normalizer import collect_facts
 from e_agent.erp.procurement.verifier import DraftPurchaseOrderVerifier
-from e_agent.erp.testing.fake_erp import FakeErp
-from e_agent.erp.testing.scenarios import SCENARIOS
+from e_agent.plugins.erp.simulator.fake_erp import FakeErp
+from e_agent.plugins.erp.simulator.scenarios import SCENARIOS
 from e_agent.sdk.errors import KnownNoEffectError
 from e_agent.sdk.ports import PluginServices
 

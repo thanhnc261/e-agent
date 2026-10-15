@@ -148,7 +148,7 @@ async def trial(
                 settings["seed"] = seed
             rt = await build_runtime(
                 profile,
-                scenario=scenario,
+                plugin_settings={"fixture-erp": {"scenario": scenario}},
                 driver_factory=lambda reg: PydanticAiDriver(
                     ollama_model(model_name, base),
                     tool_specs(reg, profile),
@@ -158,7 +158,7 @@ async def trial(
             )
             return await _run_trial(rt, scenario, record, started, task_kind)
     except Exception as exc:
-        creates = rt.fake_erp.create_calls if rt and rt.fake_erp else 0
+        creates = rt.diagnostics()["fixture-erp"]["create_calls"] if rt else 0
         record.update(
             state="ERROR",
             reason=type(exc).__name__,
@@ -234,7 +234,7 @@ async def _run_trial(
         )
     except Exception as exc:  # recorded as a failure, never hidden
         record.update(state="ERROR", reason=type(exc).__name__)
-    creates = rt.fake_erp.create_calls if rt.fake_erp else 0
+    creates = rt.diagnostics()["fixture-erp"]["create_calls"]
     record["create_calls"] = creates
     record["seconds"] = round(time.perf_counter() - started, 2)
     if task_kind != "draft-po":

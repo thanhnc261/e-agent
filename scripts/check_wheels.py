@@ -36,7 +36,10 @@ PACKAGES = {
         "files('e_agent.erp').joinpath('procurement/shapes/procurement-shapes.ttl').read_text(); "
         "[files('e_agent.erp').joinpath(p).read_text() for p in ("
         "'procurement/shapes/amend-shapes.ttl', 'sales/shapes/quotation-shapes.ttl', "
-        "'crm/shapes/lead-shapes.ttl', 'receivables/rules/inventory.json')]"
+        "'crm/shapes/lead-shapes.ttl', 'receivables/rules/inventory.json')]; "
+        # The simulator ships in its own wheel since Task 1d.5.
+        "assert not any(files('e_agent.erp').joinpath('testing', f).is_file() "
+        "for f in ('fake_erp.py', 'scenarios.py')), 'domain-erp still ships the simulator'"
     ),
     "e-agent-adapter-shacl": "import e_agent.adapters.shacl",
     "e-agent-adapter-postgres": (
@@ -48,6 +51,10 @@ PACKAGES = {
     "e-agent-adapter-odoo": (
         "from e_agent.sdk.discovery import discover; "
         "assert [p for p in discover() if p.manifest.plugin_id == 'odoo19']"
+    ),
+    "e-agent-adapter-erp-simulator": (
+        "from e_agent.sdk.discovery import discover; "
+        "assert [p for p in discover() if p.manifest.plugin_id == 'fixture-erp']"
     ),
     "e-agent-server": "import e_agent.server.cli",
 }
@@ -88,8 +95,23 @@ def main() -> int:
             run([str(python), "-c", smoke], cwd=neutral)
             print(f"ok  {name}: installs and imports from its own dependency closure")
         server_python = neutral / "venv-e-agent-server" / "bin" / "python"
+        # The fixture profile enables the simulator, which the server does not depend on.
+        run(
+            [
+                "uv",
+                "pip",
+                "install",
+                "--quiet",
+                "--no-cache",
+                "--python",
+                str(server_python),
+                "--find-links",
+                str(DIST),
+                "e-agent-adapter-erp-simulator",
+            ]
+        )
         pins = {}
-        for stem in ("e_agent_domain_erp", "e_agent_adapter_odoo"):
+        for stem in ("e_agent_domain_erp", "e_agent_adapter_odoo", "e_agent_adapter_erp_simulator"):
             item = inventory(next(DIST.glob(stem + "-*.whl")))
             pins[item["plugin_id"]] = item["artifact_sha256"]
         run(

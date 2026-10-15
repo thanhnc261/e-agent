@@ -16,6 +16,7 @@ from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor
 from e_agent.sdk import SDK_API_VERSION
 from e_agent.sdk.connection import ConnectionSpec
 from e_agent.sdk.discovery import DiscoveredPlugin, DiscoveryError, artifact_digest
+from e_agent.sdk.errors import InvalidPluginSettings
 from e_agent.sdk.manifest import BindingTemplate
 from e_agent.sdk.ports import (
     ActionExecutor,
@@ -74,6 +75,8 @@ class PluginRegistry:
         self.auth_placements: dict[str, dict[str, str]] = {}
         """Credential placement per admitted plugin, filled before its code loads."""
         self.plugin_executors: dict[str, tuple[ActionExecutor, ...]] = {}
+        self.diagnostics: dict[str, Callable[[], Mapping[str, Any]]] = {}
+        """Admitted plugins' diagnostics hooks, by plugin id (fixture runs and tests)."""
 
     def surface_digest(self) -> str:
         """Digest of the tool surface a run is planned against (threat model T17):
@@ -178,9 +181,12 @@ class PluginRegistry:
     ) -> PluginContribution:
         module_name, _, attr = plugin.manifest.factory.partition(":")
         factory = getattr(importlib.import_module(module_name), attr)
-        contribution = factory(
-            PluginServices(settings=dict(config.settings), credentials=credentials)
-        )
+        try:
+            contribution = factory(
+                PluginServices(settings=dict(config.settings), credentials=credentials)
+            )
+        except InvalidPluginSettings as exc:
+            raise _reject(f"{plugin.manifest.plugin_id}: invalid settings: {exc}") from exc
         if not isinstance(contribution, PluginContribution):
             raise _reject(f"{plugin.manifest.plugin_id}: factory returned an invalid contribution")
         return contribution
@@ -223,6 +229,8 @@ class PluginRegistry:
         self.validators.extend(contribution.validators)
         self.executors.extend(contribution.executors)
         self.plugin_executors[plugin_id] = tuple(contribution.executors)
+        if contribution.diagnostics is not None:
+            self.diagnostics[plugin_id] = contribution.diagnostics
         self.verifiers.extend(contribution.verifiers)
         self.drivers.extend(contribution.drivers)
         self.dataset_builders.extend(contribution.dataset_builders)

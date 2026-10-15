@@ -14,6 +14,13 @@
   "enabled_plugins": {
     "domain-erp": {
       "version": "0.1.0"
+    },
+    "fixture-erp": {
+      "version": "0.1.0",
+      "settings": {
+        "scenario": "valid",
+        "lose_response_after_commit": false
+      }
     }
   },
   "connections": [
@@ -80,7 +87,6 @@
     ]
   },
   "fixture": {
-    "scenario": "valid",
     "driver_mode": "valid"
   }
 }

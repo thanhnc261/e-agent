@@ -34,7 +34,7 @@ def test_writes_are_blocked_by_the_named_rule_then_repaired_and_verified(
     outcome = _payloads(result, "outcome.reported")[-1]
     assert outcome["status"] == "VERIFIED"
     assert result["run"]["state"] == "SUCCEEDED"
-    assert result["fixture_erp_create_calls"] == 1
+    assert result["provider_diagnostics"]["fixture-erp"]["create_calls"] == 1
 
 
 @pytest.mark.parametrize(
@@ -47,7 +47,7 @@ def test_invalid_targets_are_blocked_and_nothing_is_written(
     result = _run(capsys, "--task", task, "--scenario", scenario, "--approve")
     assert result["run"]["state"] == "FAILED"
     assert rule in _failed_rules(_payloads(result, "validation.completed")[0])
-    assert result["fixture_erp_create_calls"] == 0
+    assert result["provider_diagnostics"]["fixture-erp"]["create_calls"] == 0
     assert "approval.requested" not in [e["type"] for e in result["events"]]
 
 
@@ -59,7 +59,9 @@ def test_read_only_answers_fail_verification_when_wrong_then_pass(
     statuses = [p["status"] for p in _payloads(result, "outcome.reported")]
     assert statuses == ["FAILED", "VERIFIED"]
     assert result["run"]["state"] == "SUCCEEDED"
-    assert result["fixture_erp_create_calls"] == 0  # read-only: never a write
+    assert (
+        result["provider_diagnostics"]["fixture-erp"]["create_calls"] == 0
+    )  # read-only: never a write
     assert "approval.requested" not in [e["type"] for e in result["events"]]
 
 
@@ -84,4 +86,4 @@ def test_lost_response_reconciles_without_a_second_write(
 ) -> None:
     result = _run(capsys, "--task", task, "--fault", "lost-response", "--approve", "--reconcile")
     assert result["run"]["state"] == "SUCCEEDED"
-    assert result["fixture_erp_create_calls"] == 1
+    assert result["provider_diagnostics"]["fixture-erp"]["create_calls"] == 1

@@ -1,0 +1,24 @@
+[project]
+name = "e-agent-adapter-erp-simulator"
+version = "0.1.0"
+description = "In-memory ERP simulator provider for e-agent fixture runs and tests (plugin fixture-erp)"
+requires-python = ">=3.12"
+dependencies = [
+    "e-agent-contracts>=0.1,<0.2",
+    "e-agent-plugin-sdk>=0.1,<0.2",
+    "e-agent-domain-erp>=0.1,<0.2",
+]
+
+[project.entry-points."e_agent.plugins.v1"]
+fixture-erp = "e_agent.plugins.erp.simulator.plugin:create_plugin"
+
+[build-system]
+requires = ["hatchling>=1.32,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+dev-mode-dirs = ["../../src"]
+
+[tool.hatch.build.hooks.custom]
+path = "../_hooks/src_tree.py"
+package = "e_agent/plugins/erp/simulator"

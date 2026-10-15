@@ -78,7 +78,9 @@ async def test_accepted_public_model_calls_pass_independent_fixture_verification
     runtime, run, recording, cursor, response_count = await replay(task)
     assert run.state is RunState.SUCCEEDED
     assert cursor == response_count
-    assert runtime.fake_erp.create_calls == recording["expected_fixture_writes"]
+    assert (
+        runtime.diagnostics()["fixture-erp"]["create_calls"] == recording["expected_fixture_writes"]
+    )
     actions = await runtime.store.list_actions(runtime.operator.tenant_id, run.run_id)
     assert any(
         action.contract_id == recording["expected_contract"]
@@ -95,6 +97,6 @@ async def test_accepted_public_model_calls_pass_independent_fixture_verification
 async def test_recorded_late_order_trace_cannot_verify_a_missing_order():
     runtime, run, _, _, _ = await replay("late-orders", omit_late_order=True)
     assert run.state is RunState.FAILED
-    assert runtime.fake_erp.create_calls == 0
+    assert runtime.diagnostics()["fixture-erp"]["create_calls"] == 0
     actions = await runtime.store.list_actions(runtime.operator.tenant_id, run.run_id)
     assert not any(action.state is ActionState.VERIFIED for action in actions)

@@ -60,11 +60,17 @@ def _read_manifest(dist: metadata.Distribution, entry_value: str) -> str:
 
 
 def _package_spec(parts: tuple[str, ...]):  # type: ignore[no-untyped-def]
-    """Walk import paths without executing any parent package."""
+    """Walk import paths without executing any parent package.
+
+    Each level is looked up by its own name in the previous level's directories,
+    which is what the path finder matches on. A dotted name would make it read the
+    parent's path from ``sys.modules``, which fails for a namespace parent nothing
+    has imported yet (``e_agent.plugins.erp``).
+    """
     search = sys.path
     spec = None
-    for index in range(len(parts)):
-        spec = PathFinder.find_spec(".".join(parts[: index + 1]), search)
+    for part in parts:
+        spec = PathFinder.find_spec(part, search)
         if spec is None:
             return None
         search = list(spec.submodule_search_locations or ())

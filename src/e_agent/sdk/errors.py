@@ -21,3 +21,11 @@ class KnownNoEffectError(Exception):
 
 class DriverBudgetExceeded(Exception):
     """The driver exhausted a host-supplied usage bound; no tool was dispatched."""
+
+
+class InvalidPluginSettings(ValueError):
+    """A plugin factory refuses its profile settings; admission fails closed.
+
+    The message is shown to the operator at startup: it names the setting, never
+    a credential or provider data.
+    """

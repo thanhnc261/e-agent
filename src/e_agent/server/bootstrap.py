@@ -1,14 +1,14 @@
 """Composition root: discover/admit plugins, wire kernel services (MVP design §6).
 
-The only place that chooses concrete implementations. Fixture components are
-wired only in ``environment=fixture`` profiles; live profiles must pass the
-sandbox-marker check before any run starts.
+The only place that chooses concrete implementations. Fixture providers are
+plugins a fixture profile enables, admitted like any other; live profiles must
+pass the sandbox-marker check before any run starts.
 """
 
 from __future__ import annotations
 
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -18,10 +18,6 @@ from e_agent.adapters.secretstore_local import LocalSecretStore
 from e_agent.adapters.shacl import ShaclPlanValidator
 from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.context import Principal, TaskContext
-from e_agent.erp.testing.fake_erp import BINDINGS as FIXTURE_BINDINGS
-from e_agent.erp.testing.fake_erp import PLUGIN_ID as FIXTURE_PLUGIN_ID
-from e_agent.erp.testing.fake_erp import FakeErp
-from e_agent.erp.testing.scenarios import SCENARIOS
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.coordinator import RunCoordinator
 from e_agent.kernel.credentials import CredentialService
@@ -31,7 +27,7 @@ from e_agent.kernel.policy import DefaultPolicy
 from e_agent.kernel.registry import EnabledPlugin, PluginRegistry
 from e_agent.sdk.auth import SecretStore
 from e_agent.sdk.discovery import DiscoveredPlugin, discover
-from e_agent.sdk.ports import AgentDriver, DriverRequest, PluginContribution
+from e_agent.sdk.ports import AgentDriver, DriverRequest
 
 from .profile import Profile
 
@@ -44,10 +40,13 @@ class Runtime:
     registry: PluginRegistry
     operator: Principal
     scope: frozenset[str]
-    fake_erp: FakeErp | None
     connections: ConnectionCatalog | None = None
     sandbox: dict[str, Any] = field(default_factory=dict)
     versions: dict[str, Any] = field(default_factory=dict)
+
+    def diagnostics(self) -> dict[str, dict[str, Any]]:
+        """The admitted plugins' diagnostics, by plugin id (fixture runs and tests)."""
+        return {pid: dict(hook()) for pid, hook in sorted(self.registry.diagnostics.items())}
 
 
 def runtime_versions(
@@ -195,15 +194,31 @@ def admit_plugins(
     catalog: ConnectionCatalog,
     discovered: Iterable[DiscoveredPlugin],
     secrets: SecretStore | None,
+    plugin_settings: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> tuple[PluginRegistry, CredentialService]:
-    """Admit the profile's enabled plugins; credentials follow their manifests."""
+    """Admit the profile's enabled plugins; credentials follow their manifests.
+
+    ``plugin_settings`` overrides settings of enabled plugins, by plugin id, in
+    fixture profiles only: a live plugin runs with its profile's settings. The
+    plugin's factory checks them.
+    """
+    overrides = dict(plugin_settings or {})
+    if overrides and profile.environment != "fixture":
+        raise KernelError(
+            ErrorCode.STARTUP_REJECTED, "plugin settings overrides are for fixture profiles only"
+        )
+    not_enabled = sorted(set(overrides) - set(profile.enabled_plugins))
+    if not_enabled:
+        raise KernelError(
+            ErrorCode.STARTUP_REJECTED, f"settings given for plugins not enabled: {not_enabled}"
+        )
     registry = PluginRegistry(profile.bindings)
     credentials = CredentialService(catalog, secrets, registry.auth_placements)
     enabled = {
         pid: EnabledPlugin(
             cfg.version,
             cfg.manifest_sha256,
-            dict(cfg.settings),
+            {**cfg.settings, **overrides.get(pid, {})},
             artifact_sha256=cfg.artifact_sha256,
             allow_unverified_fixture=profile.environment == "fixture",
         )
@@ -216,40 +231,21 @@ def admit_plugins(
 async def build_runtime(
     profile: Profile,
     *,
-    scenario: str | None = None,
     driver_mode: str | None = None,
-    lose_response_after_commit: bool = False,
+    plugin_settings: Mapping[str, Mapping[str, Any]] | None = None,
     plugin_paths: Iterable[str] | None = None,
     driver_factory: Callable[[PluginRegistry], AgentDriver] | None = None,
     task_kind: str | None = None,
 ) -> Runtime:
     catalog = ConnectionCatalog(profile.connections)
     registry, credentials = admit_plugins(
-        profile, catalog, discover(plugin_paths), _secret_store(profile)
+        profile, catalog, discover(plugin_paths), _secret_store(profile), plugin_settings
     )
     # The composition root chooses the validation engine; domains supply datasets.
     registry.validators.append(ShaclPlanValidator(registry.dataset_builders))
     operator = _operator(profile)
     scope = frozenset(c.connection_id for c in profile.connections)
     connection_id = profile.connections[0].connection_id
-
-    fake_erp: FakeErp | None = None
-    if profile.environment == "fixture":
-        if profile.fixture is None:
-            raise KernelError(ErrorCode.STARTUP_REJECTED, "fixture profile lacks fixture config")
-        scenario_name = scenario or profile.fixture.scenario
-        if scenario_name not in SCENARIOS:
-            raise KernelError(ErrorCode.INVALID_REQUEST, f"unknown scenario {scenario_name!r}")
-        fake_erp = FakeErp(
-            SCENARIOS[scenario_name], lose_response_after_commit=lose_response_after_commit
-        )
-        registry.register(
-            plugin_id=FIXTURE_PLUGIN_ID,
-            plugin_version="0.1.0+fixture",
-            declared_capabilities=(),
-            binding_templates=FIXTURE_BINDINGS,
-            contribution=PluginContribution(executors=(fake_erp,)),
-        )
 
     task_kind = task_kind or profile.driver.task_kind
     if task_kind not in registry.task_presets:
@@ -305,7 +301,6 @@ async def build_runtime(
         registry,
         operator,
         scope,
-        fake_erp,
         catalog,
         sandbox,
         runtime_versions(profile, registry, driver),

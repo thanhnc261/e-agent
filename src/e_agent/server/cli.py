@@ -10,15 +10,14 @@ from typing import Any
 
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.run import RunState
-from e_agent.erp.testing.scenarios import SCENARIOS
-from e_agent.kernel.errors import KernelError
+from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.evidence import build_evidence
 from e_agent.sdk.discovery import discover
 from e_agent.sdk.ports import TaskPreset
 from e_agent.sdk.store import actor_scope
 
 from .bootstrap import build_runtime, open_store
-from .profile import DriverConfig, load_profile
+from .profile import DriverConfig, Profile, load_profile
 
 
 def demo_prompt(preset: TaskPreset, driver: DriverConfig) -> str:
@@ -32,13 +31,35 @@ def _print(text: str = "") -> None:
     sys.stdout.write(text + "\n")
 
 
+def plugin_overrides(profile: Profile, args: argparse.Namespace) -> dict[str, dict[str, Any]]:
+    """``--scenario`` and ``--fault`` as settings of the enabled plugins that take them.
+
+    A plugin takes a setting when its profile entry names it; the plugin checks the
+    value at startup. A flag that no enabled plugin takes is refused.
+    """
+    wanted: dict[str, Any] = {}
+    if args.scenario is not None:
+        wanted["scenario"] = args.scenario
+    if args.fault == "lost-response":
+        wanted["lose_response_after_commit"] = True
+    overrides: dict[str, dict[str, Any]] = {}
+    for key, value in wanted.items():
+        takers = [pid for pid, cfg in profile.enabled_plugins.items() if key in cfg.settings]
+        if not takers:
+            raise KernelError(
+                ErrorCode.INVALID_REQUEST, f"no enabled plugin takes the setting {key!r}"
+            )
+        for pid in takers:
+            overrides.setdefault(pid, {})[key] = value
+    return overrides
+
+
 async def _demo(args: argparse.Namespace) -> int:
     profile = load_profile(args.profile)
     rt = await build_runtime(
         profile,
-        scenario=args.scenario,
         driver_mode=args.driver_mode,
-        lose_response_after_commit=args.fault == "lost-response",
+        plugin_settings=plugin_overrides(profile, args),
         task_kind=args.task,
     )
     # The task kind was checked against the admitted presets at startup.
@@ -94,7 +115,7 @@ async def _demo(args: argparse.Namespace) -> int:
             "run": run.model_dump(mode="json"),
             "approval_presentation": presentation,
             "events": [e.model_dump(mode="json") for e in events],
-            "fixture_erp_create_calls": rt.fake_erp.create_calls if rt.fake_erp else None,
+            "provider_diagnostics": rt.diagnostics(),
         }
         _print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
@@ -212,12 +233,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--profile", help="profile JSON (default: packaged fixture profile)")
     sub = parser.add_subparsers(dest="command", required=True)
     demo = sub.add_parser("demo", help="run the fixture procurement walking skeleton")
-    demo.add_argument("--scenario", choices=sorted(SCENARIOS))
+    demo.add_argument("--scenario", help="fixture scenario, checked by the plugin that takes it")
     demo.add_argument(
         "--driver-mode",
         choices=["valid", "invalid-then-repair", "always-invalid", "wrong-answer-then-correct"],
     )
-    demo.add_argument("--fault", choices=["lost-response"])
+    demo.add_argument(
+        "--fault",
+        choices=["lost-response"],
+        help="lose the response after the write commits (a plugin that takes it)",
+    )
     demo.add_argument(
         "--prompt", help="Exact operator task text (including live resource references)"
     )

@@ -363,7 +363,7 @@ async def test_takeover_executes_durable_command_that_never_started(kind):
     await state._run_work(claim)
     recovered = await runtime.store.get_run(runtime.operator.tenant_id, run_id)
     assert recovered.state is (RunState.WAITING_APPROVAL if kind == "start" else RunState.SUCCEEDED)
-    assert runtime.fake_erp.create_calls == (0 if kind == "start" else 1)
+    assert runtime.diagnostics()["fixture-erp"]["create_calls"] == (0 if kind == "start" else 1)
 
 
 def test_conflicting_decision_is_rejected_before_the_worker_runs():
@@ -534,7 +534,7 @@ async def test_expired_approval_is_failed_by_the_worker_under_a_system_actor(tak
     changed = [e for e in events if e.type.value in {"approval.decided", "run.state_changed"}]
     assert changed[-2].type.value == "approval.decided"
     assert all(e.actor == "system:worker:worker-test" for e in changed[-2:]), changed[-2:]
-    assert runtime.fake_erp.create_calls == 0
+    assert runtime.diagnostics()["fixture-erp"]["create_calls"] == 0
 
 
 async def test_sweeper_survives_a_failed_sweep_and_stops_on_cancel(monkeypatch) -> None:
