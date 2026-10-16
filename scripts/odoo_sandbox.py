@@ -17,8 +17,8 @@ import os
 import sys
 from urllib.parse import urlsplit
 
-from e_agent.adapters.odoo.client import OdooJson2Client
 from e_agent.contracts.connection import ConnectionOwnership
+from e_agent.plugins.erp.odoo.client import OdooJson2Client
 from e_agent.sdk.auth import AuthContext, Secret
 
 

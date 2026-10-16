@@ -13,10 +13,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from e_agent.erp.procurement import CREATE_DRAFT_PO, DEMAND_READ
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.registry import EnabledPlugin, PluginRegistry
+from e_agent.plugins.erp.domain.procurement import CREATE_DRAFT_PO, DEMAND_READ
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.plugins.erp.simulator.fake_erp import BINDINGS, PLUGIN_ID, FakeErp
 from e_agent.plugins.erp.simulator.scenarios import SCENARIOS

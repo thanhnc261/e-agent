@@ -5,8 +5,8 @@ import uuid
 from typing import Any
 
 import pytest
-from e_agent.adapters.odoo.client import OdooRejected
 from e_agent.contracts.run import RunState
+from e_agent.plugins.erp.odoo.client import OdooRejected
 from e_agent.server.bootstrap import build_runtime
 
 from .test_odoo_live import ADMIN_KEY, URL, _approve, _bridge, _profile, secrets  # noqa: F401

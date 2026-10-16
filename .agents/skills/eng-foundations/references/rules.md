@@ -6,8 +6,8 @@ Each rule has one ID, a one-sentence statement, its source, how it is enforced (
 
 ### ENG-ARCH-1 — Layer direction
 
-- **Statement:** Dependencies point one way: contracts ← sdk ← kernel and domains ← adapters ← server; the kernel never imports domains, adapters or server, and adapters never import kernel internals or sibling adapters.
-- **Source:** AGENTS.md "Architecture rules"; `[tool.importlinter]` contracts in `pyproject.toml`.
+- **Statement:** Dependencies point one way: contracts ← sdk ← kernel and domains ← adapters ← server; the kernel never imports domains, adapters or server; the core (`contracts`, `sdk`, `kernel`, `server`) never imports a plugin under `e_agent.plugins.*` (the ERP plugins are `e_agent.plugins.erp.{domain,odoo,simulator}`); and adapters never import kernel internals or sibling adapters.
+- **Source:** AGENTS.md "Architecture rules"; ADR 0026; `[tool.importlinter]` contracts in `pyproject.toml` (among them "Core never imports plugins").
 - **Enforcement:** gate
 - **Evidence:** `uv run lint-imports` reports every contract kept.
 
@@ -34,7 +34,7 @@ Each rule has one ID, a one-sentence statement, its source, how it is enforced (
 
 ### ENG-ARCH-5 — Namespace package layout
 
-- **Statement:** Product code lives in `src/e_agent/<part>/` with one build config per distribution in `dists/<dist>/` after roadmap Phase 1a, and `src/e_agent/__init__.py` and `src/e_agent/adapters/__init__.py` are never added.
+- **Statement:** Product code lives in `src/e_agent/<part>/` with one build config per distribution in `dists/<dist>/` after roadmap Phase 1a; plugins live in `src/e_agent/plugins/<area>/<name>/` (ADR 0026); and no `__init__.py` is ever added to `src/e_agent/`, `src/e_agent/adapters/`, `src/e_agent/plugins/` or `src/e_agent/plugins/erp/`.
 - **Source:** AGENTS.md "Development and verification"; Phase 1 plan Global Constraints.
 - **Enforcement:** test
 - **Evidence:** `tests/conformance/test_repo_layout.py` passes.

@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 dependencies = ["e-agent-contracts>=0.1,<0.2", "e-agent-plugin-sdk>=0.1,<0.2", "pydantic>=2.13,<3"]
 
 [project.entry-points."e_agent.plugins.v1"]
-domain-erp = "e_agent.erp.plugin:create_plugin"
+domain-erp = "e_agent.plugins.erp.domain.plugin:create_plugin"
 
 [build-system]
 requires = ["hatchling>=1.32,<2"]
@@ -17,4 +17,4 @@ dev-mode-dirs = ["../../src"]
 
 [tool.hatch.build.hooks.custom]
 path = "../_hooks/src_tree.py"
-package = "e_agent/erp"
+package = "e_agent/plugins/erp/domain"

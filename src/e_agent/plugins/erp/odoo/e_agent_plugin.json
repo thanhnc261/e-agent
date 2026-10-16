@@ -2,7 +2,7 @@
   "plugin_id": "odoo19",
   "version": "0.1.0",
   "sdk_api": ">=1.0,<2.0",
-  "factory": "e_agent.adapters.odoo.plugin:create_plugin",
+  "factory": "e_agent.plugins.erp.odoo.plugin:create_plugin",
   "kind": "provider",
   "provides_capabilities": [],
   "provides_bindings": [

@@ -9,10 +9,15 @@ from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.context import Principal, TaskContext
 from e_agent.contracts.outcome import OutcomeStatus
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
-from e_agent.erp.plugin import create_plugin, load_manifest
-from e_agent.erp.procurement import CREATE_DRAFT_PO, DEMAND_READ, OFFERS_READ, OPEN_DEMANDS_READ
-from e_agent.erp.procurement.normalizer import collect_facts
-from e_agent.erp.procurement.verifier import DraftPurchaseOrderVerifier
+from e_agent.plugins.erp.domain.plugin import create_plugin, load_manifest
+from e_agent.plugins.erp.domain.procurement import (
+    CREATE_DRAFT_PO,
+    DEMAND_READ,
+    OFFERS_READ,
+    OPEN_DEMANDS_READ,
+)
+from e_agent.plugins.erp.domain.procurement.normalizer import collect_facts
+from e_agent.plugins.erp.domain.procurement.verifier import DraftPurchaseOrderVerifier
 from e_agent.plugins.erp.simulator.fake_erp import FakeErp
 from e_agent.plugins.erp.simulator.scenarios import SCENARIOS
 from e_agent.sdk.errors import KnownNoEffectError
@@ -131,12 +136,16 @@ def test_manifest_is_packaged_and_matches_contribution() -> None:
     ],
 )
 def test_new_rule_inventories_reference_packaged_shapes(path: str) -> None:
-    rules = json.loads(files("e_agent.erp").joinpath(path).read_text("utf-8"))["rules"]
+    rules = json.loads(files("e_agent.plugins.erp.domain").joinpath(path).read_text("utf-8"))[
+        "rules"
+    ]
     allowed = {"shacl-core", "shacl-sparql", "normalizer-derived", "policy", "verifier"}
     for rule in rules:
         assert rule["engine"] and set(rule["engine"]) <= allowed
         if "shacl-core" in rule["engine"] or "shacl-sparql" in rule["engine"]:
-            shapes = files("e_agent.erp").joinpath(path.split("/")[0]).joinpath("shapes")
+            shapes = (
+                files("e_agent.plugins.erp.domain").joinpath(path.split("/")[0]).joinpath("shapes")
+            )
             text = "".join(
                 t.read_text("utf-8") for t in shapes.iterdir() if t.name.endswith(".ttl")
             )
@@ -144,7 +153,11 @@ def test_new_rule_inventories_reference_packaged_shapes(path: str) -> None:
 
 
 def test_rule_inventory_lists_every_rule_with_an_engine() -> None:
-    raw = files("e_agent.erp").joinpath("procurement/rules/inventory.json").read_text("utf-8")
+    raw = (
+        files("e_agent.plugins.erp.domain")
+        .joinpath("procurement/rules/inventory.json")
+        .read_text("utf-8")
+    )
     rules = json.loads(raw)["rules"]
     assert [r["id"] for r in rules] == [f"PR-00{i}" for i in range(1, 7)]
     allowed = {"shacl-core", "shacl-sparql", "normalizer-derived", "policy", "verifier"}

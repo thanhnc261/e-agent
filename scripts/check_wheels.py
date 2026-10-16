@@ -42,13 +42,15 @@ PACKAGES = {
         "ps = [p for p in discover() if p.manifest.plugin_id == 'domain-erp']; "
         "assert ps, 'domain-erp not discoverable from installed wheel'; "
         "from importlib.resources import files; "
-        "files('e_agent.erp').joinpath('procurement/rules/inventory.json').read_text(); "
-        "files('e_agent.erp').joinpath('procurement/shapes/procurement-shapes.ttl').read_text(); "
-        "[files('e_agent.erp').joinpath(p).read_text() for p in ("
+        "files('e_agent.plugins.erp.domain').joinpath("
+        "'procurement/rules/inventory.json').read_text(); "
+        "files('e_agent.plugins.erp.domain').joinpath("
+        "'procurement/shapes/procurement-shapes.ttl').read_text(); "
+        "[files('e_agent.plugins.erp.domain').joinpath(p).read_text() for p in ("
         "'procurement/shapes/amend-shapes.ttl', 'sales/shapes/quotation-shapes.ttl', "
         "'crm/shapes/lead-shapes.ttl', 'receivables/rules/inventory.json')]; "
         # The simulator ships in its own wheel since Task 1d.5.
-        "assert not any(files('e_agent.erp').joinpath('testing', f).is_file() "
+        "assert not any(files('e_agent.plugins.erp.domain').joinpath('testing', f).is_file() "
         "for f in ('fake_erp.py', 'scenarios.py')), 'domain-erp still ships the simulator'"
     ),
     "e-agent-adapter-shacl": "import e_agent.adapters.shacl",
@@ -62,7 +64,7 @@ PACKAGES = {
         "from e_agent.sdk.discovery import discover; "
         "assert [p for p in discover() if p.manifest.plugin_id == 'odoo19']; "
         # The client imports the SDK HTTP helper, whose httpx comes from plugin-sdk[http].
-        "import e_agent.adapters.odoo.client"
+        "import e_agent.plugins.erp.odoo.client"
     ),
     "e-agent-adapter-erp-simulator": (
         "from e_agent.sdk.discovery import discover; "

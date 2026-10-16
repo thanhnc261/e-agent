@@ -43,7 +43,8 @@ CORE_DISTRIBUTIONS = (
 ERP_DISTRIBUTIONS = frozenset(
     {"e-agent-domain-erp", "e-agent-adapter-odoo", "e-agent-adapter-erp-simulator", "e-agent-erp"}
 )
-ERP_MODULES = ("e_agent.erp", "e_agent.adapters.odoo", "e_agent.plugins.erp")
+# One parent covers the domain pack, the Odoo adapter and the simulator (ADR 0026).
+ERP_MODULES = ("e_agent.plugins.erp",)
 
 PACK_DISTRIBUTION = "core-test-pack"
 PACK_VERSION = "0.1.0"

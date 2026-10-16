@@ -26,7 +26,7 @@ Remedy: compare the current policy version with the canonical approved policy ve
 
 ### F02 — P1, confirmed: absent revisions are treated as proof of unchanged facts
 
-Source: [coordinator.py](../../src/e_agent/kernel/coordinator.py), lines 813–819; [executor.py](../../src/e_agent/adapters/odoo/executor.py), pricing/contact/team reads. Requirement: MVP design §5 compares provider revisions **or a canonical relevant-fact digest**; unknown facts must remain explicit.
+Source: [coordinator.py](../../src/e_agent/kernel/coordinator.py), lines 813–819; [executor.py](../../src/e_agent/plugins/erp/odoo/executor.py), pricing/contact/team reads. Requirement: MVP design §5 compares provider revisions **or a canonical relevant-fact digest**; unknown facts must remain explicit.
 
 Trigger: initial and refreshed observations both have `revision=None`, but refreshed material content differs. Expected: detect the change or fail closed when identity cannot be established. Observed: equality of `None` values permits one write. `test_missing_source_revision_uses_material_fact_digest` reproduces this with both stores. Several live Odoo observations have no revision, so this is not only a fixture contract edge case; exact ERP impact awaits live tests.
 
@@ -46,7 +46,7 @@ Remedy: recover from authoritative action/receipt states across every interrupte
 
 ### F04 — P1, confirmed: wrong approved PO date can be VERIFIED
 
-Source: [verifier.py](../../src/e_agent/erp/procurement/verifier.py), `DraftPurchaseOrderVerifier.verify` line 29. Requirement: exact approved material arguments and independently verified business success.
+Source: [verifier.py](../../src/e_agent/plugins/erp/domain/procurement/verifier.py), `DraftPurchaseOrderVerifier.verify` line 29. Requirement: exact approved material arguments and independently verified business success.
 
 Trigger: approve the fixture PO, alter its resulting `requested_date` to `2099-01-01`, and include that actual date in independent read-back. Expected: verification failure. Observed: `SUCCEEDED`, reason `outcome verified`. `test_po_wrong_requested_date_cannot_be_verified` and `R06-date-readback.log` isolate this from the fixture view's own omission of requested date. The verifier compares monetary fields and parties but omits requested date.
 
@@ -88,7 +88,7 @@ Remedy: explicit business-refusal outcomes, failure classification, complete met
 
 ### F09 — P1, source-observed: sandbox identity is checked at startup, not each write
 
-Source: [bootstrap.py](../../src/e_agent/server/bootstrap.py), `_check_sandbox` line 251; [executor.py](../../src/e_agent/adapters/odoo/executor.py), `execute`; bridge `_check` and `_require_sandbox`. Requirement: threat model T14 says exact sandbox identity/target is checked at startup and before each write.
+Source: [bootstrap.py](../../src/e_agent/server/bootstrap.py), `_check_sandbox` line 251; [executor.py](../../src/e_agent/plugins/erp/odoo/executor.py), `execute`; bridge `_check` and `_require_sandbox`. Requirement: threat model T14 says exact sandbox identity/target is checked at startup and before each write.
 
 Startup compares an expected marker. Runtime dispatch does not repeat it; ordinary bridge commands only check integration-group membership. Admin seed/reset require merely a nonempty marker, and live test fixtures seed before runtime validation. URL/DB/company target allowlisting is not established by a port suffix guard or a configurable marker alone. No marker-removal, wrong-target or company-permission attack was run on the owner's ERP; this is a source-level gap, not a claimed live breach.
 

@@ -5,9 +5,9 @@ from dataclasses import replace
 import pytest
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.run import RunState
-from e_agent.erp.crm import LEAD_READ
-from e_agent.erp.procurement import PURCHASE_ORDER_READ
-from e_agent.erp.sales import QUOTATION_READ
+from e_agent.plugins.erp.domain.crm import LEAD_READ
+from e_agent.plugins.erp.domain.procurement import PURCHASE_ORDER_READ
+from e_agent.plugins.erp.domain.sales import QUOTATION_READ
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.bootstrap import build_runtime
 from e_agent.server.profile import load_profile
@@ -106,7 +106,7 @@ async def test_committed_effect_with_inexact_readback_is_not_verified(task, fiel
 
 @pytest.mark.parametrize("acknowledgement", ["repeat-proposal", "budget-exhausted"])
 async def test_verified_answer_finishes_after_one_bounded_acknowledgement(acknowledgement):
-    from e_agent.erp.testing.scripted_tasks import ScriptedErpDriver
+    from e_agent.plugins.erp.domain.testing.scripted_tasks import ScriptedErpDriver
     from e_agent.sdk.errors import DriverBudgetExceeded
     from e_agent.sdk.ports import ProposeAction
 
@@ -151,7 +151,7 @@ async def test_verified_answer_finishes_after_one_bounded_acknowledgement(acknow
 
 
 async def test_verified_recommendation_can_precede_an_approved_purchase_order():
-    from e_agent.erp.testing.scripted_tasks import ScriptedErpDriver
+    from e_agent.plugins.erp.domain.testing.scripted_tasks import ScriptedErpDriver
     from e_agent.sdk.ports import FinalAnswer
 
     class Driver:

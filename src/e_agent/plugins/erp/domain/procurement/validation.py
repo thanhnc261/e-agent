@@ -22,7 +22,11 @@ PO = "https://e-agent.dev/ns/procurement#"
 RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 RULE_BUNDLE_VERSION = "procurement-rules@0.1.0"
 SHACL_RULES = ("PR-001", "PR-002", "PR-003", "PR-004", "PR-005")
-SHAPES = (ResourceRef(package="e_agent.erp.procurement", path="shapes/procurement-shapes.ttl"),)
+SHAPES = (
+    ResourceRef(
+        package="e_agent.plugins.erp.domain.procurement", path="shapes/procurement-shapes.ttl"
+    ),
+)
 PROPOSAL = "urn:e-agent:proposal"
 
 

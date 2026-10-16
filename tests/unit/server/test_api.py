@@ -236,7 +236,7 @@ def test_ledger_must_not_share_the_provider_database() -> None:
 
 
 def test_clarification_resumes_same_run_and_input_replay_is_idempotent() -> None:
-    from e_agent.erp.testing.scripted_tasks import ScriptedErpDriver
+    from e_agent.plugins.erp.domain.testing.scripted_tasks import ScriptedErpDriver
     from e_agent.sdk.ports import AskClarification
 
     class ClarifyingDriver:

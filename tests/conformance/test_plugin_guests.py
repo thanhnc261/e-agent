@@ -27,7 +27,7 @@ def _guest_sources() -> list[str]:
 
 
 def _plugin_package(entry_value: str) -> str:
-    """``e_agent.adapters.odoo.plugin:create_plugin`` -> ``e_agent.adapters.odoo``."""
+    """``e_agent.plugins.erp.odoo.plugin:create_plugin`` -> ``e_agent.plugins.erp.odoo``."""
     return entry_value.split(":", 1)[0].rpartition(".")[0]
 
 
@@ -50,10 +50,10 @@ def test_every_plugin_package_is_a_guest() -> None:
 
 def test_guest_check_fails_on_zero_plugins() -> None:
     with pytest.raises(AssertionError, match=re.escape(f"no {ENTRY_POINT_GROUP} entry points")):
-        _unguarded([], ["e_agent.erp"])
+        _unguarded([], ["e_agent.plugins.erp.domain"])
 
 
 def test_guest_check_reports_an_unlisted_plugin() -> None:
-    assert _unguarded(["e_agent.plugins.crm.acme.plugin:create_plugin"], ["e_agent.erp"]) == [
-        "e_agent.plugins.crm.acme"
-    ]
+    assert _unguarded(
+        ["e_agent.plugins.crm.acme.plugin:create_plugin"], ["e_agent.plugins.erp.domain"]
+    ) == ["e_agent.plugins.crm.acme"]

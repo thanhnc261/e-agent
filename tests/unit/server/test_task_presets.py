@@ -13,8 +13,8 @@ from collections.abc import Iterator
 from typing import Any
 
 import pytest
-from e_agent.erp.plugin import TASK_PRESETS
 from e_agent.kernel.errors import ErrorCode, KernelError
+from e_agent.plugins.erp.domain.plugin import TASK_PRESETS
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server import cli
 from e_agent.server.bootstrap import build_runtime

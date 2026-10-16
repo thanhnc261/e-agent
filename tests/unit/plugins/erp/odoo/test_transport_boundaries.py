@@ -5,12 +5,12 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from e_agent.adapters.odoo.client import OdooJson2Client, OdooRejected
-from e_agent.adapters.odoo.executor import OdooExecutor
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.connection import ConnectionOwnership
 from e_agent.contracts.context import Principal, TaskContext
-from e_agent.erp.procurement import CREATE_DRAFT_PO, OPEN_DEMANDS_READ
+from e_agent.plugins.erp.domain.procurement import CREATE_DRAFT_PO, OPEN_DEMANDS_READ
+from e_agent.plugins.erp.odoo.client import OdooJson2Client, OdooRejected
+from e_agent.plugins.erp.odoo.executor import OdooExecutor
 from e_agent.sdk.auth import AuthContext, Secret
 from e_agent.sdk.errors import KnownNoEffectError
 from e_agent.sdk.ports import ReadRequest
@@ -156,7 +156,7 @@ async def test_revoked_credentials_are_known_no_effect_before_http():
     ],
 )
 async def test_reconciliation_requires_matching_command_and_digest(command, digest, committed):
-    from e_agent.erp.crm import CREATE_LEAD
+    from e_agent.plugins.erp.domain.crm import CREATE_LEAD
 
     class Credentials:
         async def context_for(self, ctx, connection_id):

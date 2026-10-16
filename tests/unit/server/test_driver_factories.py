@@ -12,8 +12,8 @@ from typing import Any
 
 import pytest
 from e_agent.contracts.run import RunState
-from e_agent.erp import plugin as erp_plugin
 from e_agent.kernel.errors import ErrorCode, KernelError
+from e_agent.plugins.erp.domain import plugin as erp_plugin
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.sdk.ports import AgentDriver, DriverRequest
 from e_agent.server import bootstrap

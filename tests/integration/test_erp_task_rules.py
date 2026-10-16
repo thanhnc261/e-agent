@@ -10,12 +10,12 @@ from e_agent.contracts.context import Principal, TaskContext
 from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.validation import ValidationStatus
-from e_agent.erp.crm import CONTACT_READ, CREATE_LEAD, TEAMS_READ
-from e_agent.erp.crm.lead import LeadDatasetBuilder
-from e_agent.erp.procurement import AMEND_DRAFT_RFQ, DRAFT_RFQ_READ
-from e_agent.erp.procurement.amend import AmendDatasetBuilder
-from e_agent.erp.sales import CREATE_DRAFT_QUOTATION, PRICING_READ
-from e_agent.erp.sales.quotation import QuotationDatasetBuilder
+from e_agent.plugins.erp.domain.crm import CONTACT_READ, CREATE_LEAD, TEAMS_READ
+from e_agent.plugins.erp.domain.crm.lead import LeadDatasetBuilder
+from e_agent.plugins.erp.domain.procurement import AMEND_DRAFT_RFQ, DRAFT_RFQ_READ
+from e_agent.plugins.erp.domain.procurement.amend import AmendDatasetBuilder
+from e_agent.plugins.erp.domain.sales import CREATE_DRAFT_QUOTATION, PRICING_READ
+from e_agent.plugins.erp.domain.sales.quotation import QuotationDatasetBuilder
 from e_agent.sdk.ports import Observation, ValidationInput
 
 pytestmark = pytest.mark.asyncio

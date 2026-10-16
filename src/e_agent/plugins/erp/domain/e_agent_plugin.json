@@ -2,7 +2,7 @@
   "plugin_id": "domain-erp",
   "version": "0.1.0",
   "sdk_api": ">=1.0,<2.0",
-  "factory": "e_agent.erp.plugin:create_plugin",
+  "factory": "e_agent.plugins.erp.domain.plugin:create_plugin",
   "kind": "domain",
   "provides_capabilities": [
     {

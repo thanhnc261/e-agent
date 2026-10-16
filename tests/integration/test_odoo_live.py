@@ -16,12 +16,12 @@ from urllib.parse import urlsplit
 
 import httpx
 import pytest
-from e_agent.adapters.odoo.client import OdooJson2Client, OdooRejected
 from e_agent.adapters.secretstore_local import LocalSecretStore, generate_key
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.connection import ConnectionOwnership
 from e_agent.contracts.run import RunState
 from e_agent.kernel.errors import KernelError
+from e_agent.plugins.erp.odoo.client import OdooJson2Client, OdooRejected
 from e_agent.sdk.auth import AuthContext, Secret
 from e_agent.server.bootstrap import build_runtime
 from e_agent.server.profile import Profile
@@ -159,7 +159,7 @@ async def test_integration_user_cannot_run_sandbox_tools() -> None:
 def _odoo_bindings() -> list[str]:
     from importlib.resources import files
 
-    raw = files("e_agent.adapters.odoo").joinpath("e_agent_plugin.json").read_text("utf-8")
+    raw = files("e_agent.plugins.erp.odoo").joinpath("e_agent_plugin.json").read_text("utf-8")
     return [b["binding_id"] for b in json.loads(raw)["provides_bindings"]]
 
 

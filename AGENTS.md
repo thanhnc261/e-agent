@@ -4,6 +4,8 @@
 
 e-agent is a plugin-driven enterprise agent product. The first implementation target is a bounded procurement workflow with executable ontology validation, explicit approval, a draft PO in an isolated Odoo sandbox and independent outcome verification.
 
+The core (contracts, plugin SDK, kernel, server and the infrastructure adapters) is domain-neutral. ERP is the first plugin area: the domain pack, the Odoo adapter and the ERP simulator live under `src/e_agent/plugins/erp/` ([ADR 0026](docs/adr/0026-plugin-layout-and-reusable-core.md)).
+
 The implementation status lives in the **Status** paragraph at the top of the [README](README.md) and in the roadmap's status column, not here. Read them before describing what exists. Do not describe historical or fixture evidence as current live release qualification, and do not invent results.
 
 Work is ordered by the [roadmap](docs/roadmap.md), the one roadmap: each phase has a detailed plan in `docs/plans/`, and the status column says which phase is current. `archive/` is history: superseded plans, reports and mockups, kept read-only for reference.
@@ -43,7 +45,7 @@ Each task gets a review of its diff and evidence. Each phase ends with end-to-en
 
 ## Repository map
 
-- `src/e_agent/`: all Python product code in one layer-grouped tree: `contracts/`, `sdk/`, `kernel/`, `erp/`, `adapters/<name>/`, `server/`.
+- `src/e_agent/`: all Python product code in one layer-grouped tree: `contracts/`, `sdk/`, `kernel/`, `server/`, `adapters/<name>/` (infrastructure adapters) and `plugins/<area>/<name>/` (plugins; ERP is `plugins/erp/{domain,odoo,simulator}`).
 - `dists/<distribution>/`: one build config per independently released distribution (wheels built from `src/` by the shared hook in `dists/_hooks/`).
 - `tests/`: `unit/<part>/` mirrors `src/e_agent/`; plus `conformance/`, `integration/`, `harness/` and `replays/`.
 - `ui/`: the TypeScript UI workspace (pnpm).
@@ -60,7 +62,7 @@ Each task gets a review of its diff and evidence. Each phase ends with end-to-en
 
 - Use a monorepo and modular monolith initially. Adapter distributions are independently buildable/releasable; do not recreate a single shared `integrations` artifact (PR-05).
 - Contracts contain portable records, not vendor/framework/ORM objects. Domain-specific fields belong in domain APIs (PR-02).
-- SDK depends on contracts; kernel depends on contracts/SDK; domains depend on public contracts/SDK; adapters implement ports and may depend on required public domain APIs. Kernel never imports domains, adapters or server. Adapters never import kernel internals or sibling implementations (PR-01).
+- SDK depends on contracts; kernel depends on contracts/SDK; domains depend on public contracts/SDK; adapters implement ports and may depend on required public domain APIs. Kernel never imports domains, adapters or server, and the core (`contracts`, `sdk`, `kernel`, `server`) never imports a plugin (`e_agent.plugins.*`). Adapters never import kernel internals or sibling implementations (PR-01).
 - Plugins are guests: they never import the store, the secret store, the server or kernel internals (PR-08).
 - Never loosen an import contract, add an exemption or widen an allow-list to make a change fit. Change the design through an ADR instead (PR-06).
 - Bootstrap chooses concrete implementations. Domain logic does not belong in HTTP handlers, CLI commands or framework prompts (PR-03).
@@ -103,7 +105,7 @@ Skills live in `.agents/skills/` (linked for Claude under `.claude/skills/`). Va
 
 ## Development and verification
 
-- Python code lives in `src/e_agent/<part>/`; each distribution's build config is in `dists/<dist>/pyproject.toml`. `e_agent` and `e_agent.adapters` are namespace packages: never add `src/e_agent/__init__.py` or `src/e_agent/adapters/__init__.py`. Tests for a part live in `tests/unit/<part>/`.
+- Python code lives in `src/e_agent/<part>/`; each distribution's build config is in `dists/<dist>/pyproject.toml`. `e_agent`, `e_agent.adapters`, `e_agent.plugins` and `e_agent.plugins.erp` are namespace packages: never add an `__init__.py` to `src/e_agent/`, `src/e_agent/adapters/`, `src/e_agent/plugins/` or `src/e_agent/plugins/erp/`. Tests for a part live in `tests/unit/<part>/`. The server ships no default profile: give one with `--profile` or `E_AGENT_PROFILE` (the ERP fixture profile ships with the simulator plugin).
 - Distributions are released as wheels: `uv build --package <name> --wheel`. The development install imports from `src/` (`tests/conformance/test_repo_layout.py` guards this) (PR-05).
 - Inspect the actual repository before choosing commands. Use the declared formatter, type checker, build and test configuration; document real commands in README.
 - Build/test distributions in clean environments outside editable workspace where independence matters. Verify resources and declared dependency closure.

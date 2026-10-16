@@ -37,17 +37,17 @@ from e_agent.adapters.pydantic_ai import PydanticAiDriver, ollama_model
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.context import Budgets
 from e_agent.contracts.run import RunState
-from e_agent.erp.crm import CREATE_LEAD
-from e_agent.erp.plugin import TASK_PRESETS
-from e_agent.erp.procurement import (
+from e_agent.plugins.erp.domain.crm import CREATE_LEAD
+from e_agent.plugins.erp.domain.plugin import TASK_PRESETS
+from e_agent.plugins.erp.domain.procurement import (
     AMEND_DRAFT_RFQ,
     CREATE_DRAFT_PO,
     OFFER_RECOMMENDATION,
     SHORTAGE_ANSWER,
 )
-from e_agent.erp.receivables import OVERDUE_INVOICES_ANSWER
-from e_agent.erp.sales import CREATE_DRAFT_QUOTATION, LATE_ORDERS_ANSWER
-from e_agent.erp.testing.scripted_tasks import TASK_KINDS
+from e_agent.plugins.erp.domain.receivables import OVERDUE_INVOICES_ANSWER
+from e_agent.plugins.erp.domain.sales import CREATE_DRAFT_QUOTATION, LATE_ORDERS_ANSWER
+from e_agent.plugins.erp.domain.testing.scripted_tasks import TASK_KINDS
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.bootstrap import build_runtime, tool_specs
 from e_agent.server.profile import load_profile

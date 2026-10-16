@@ -78,7 +78,7 @@ python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 mypy_path = ["src", "tools/harness/src"]
-packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai", "e_agent.adapters.secretstore_local", "e_agent.adapters.odoo", "e_agent.plugins.erp.simulator", "e_agent_harness"]
+packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.plugins.erp.domain", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai", "e_agent.adapters.secretstore_local", "e_agent.plugins.erp.odoo", "e_agent.plugins.erp.simulator", "e_agent_harness"]
 explicit_package_bases = true
 namespace_packages = true
 
@@ -88,7 +88,7 @@ testpaths = ["tests"]
 addopts = "--import-mode=importlib"
 
 [tool.importlinter]
-root_packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai", "e_agent.adapters.secretstore_local", "e_agent.adapters.odoo", "e_agent.plugins.erp.simulator"]
+root_packages = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.plugins.erp.domain", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai", "e_agent.adapters.secretstore_local", "e_agent.plugins.erp.odoo", "e_agent.plugins.erp.simulator"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
@@ -96,8 +96,8 @@ name = "Layered dependency direction (HLD §4)"
 type = "layers"
 layers = [
     "e_agent.server",
-    "e_agent.kernel | e_agent.adapters.shacl | e_agent.adapters.postgres | e_agent.adapters.pydantic_ai | e_agent.adapters.secretstore_local | e_agent.adapters.odoo | e_agent.plugins.erp.simulator",
-    "e_agent.erp",
+    "e_agent.kernel | e_agent.adapters.shacl | e_agent.adapters.postgres | e_agent.adapters.pydantic_ai | e_agent.adapters.secretstore_local | e_agent.plugins.erp.odoo | e_agent.plugins.erp.simulator",
+    "e_agent.plugins.erp.domain",
     "e_agent.sdk",
     "e_agent.contracts",
 ]
@@ -106,12 +106,12 @@ layers = [
 name = "Core never imports plugins"
 type = "forbidden"
 source_modules = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.server"]
-forbidden_modules = ["e_agent.erp", "e_agent.adapters.odoo", "e_agent.plugins.erp.simulator"]
+forbidden_modules = ["e_agent.plugins.**"]
 
 [[tool.importlinter.contracts]]
 name = "Plugins are guests"
 type = "forbidden"
-source_modules = ["e_agent.erp", "e_agent.adapters.odoo", "e_agent.plugins.erp.simulator"]
+source_modules = ["e_agent.plugins.erp.domain", "e_agent.plugins.erp.odoo", "e_agent.plugins.erp.simulator"]
 forbidden_modules = ["e_agent.kernel", "e_agent.server", "e_agent.adapters.postgres", "e_agent.adapters.secretstore_local", "e_agent.adapters.pydantic_ai", "e_agent.adapters.shacl"]
 
 [[tool.importlinter.contracts]]
@@ -142,20 +142,20 @@ forbidden_modules = ["e_agent.kernel.coordinator"]
 [[tool.importlinter.contracts]]
 name = "Domain packs never import the kernel or server"
 type = "forbidden"
-source_modules = ["e_agent.erp"]
+source_modules = ["e_agent.plugins.erp.domain"]
 forbidden_modules = ["e_agent.kernel", "e_agent.server", "e_agent.plugins.erp.simulator"]
 
 [[tool.importlinter.contracts]]
 name = "Adapters never import kernel, domains, server or sibling adapters"
 type = "forbidden"
 source_modules = ["e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai", "e_agent.adapters.secretstore_local"]
-forbidden_modules = ["e_agent.kernel", "e_agent.erp", "e_agent.server", "e_agent.plugins.erp.simulator"]
+forbidden_modules = ["e_agent.kernel", "e_agent.plugins.erp.domain", "e_agent.server", "e_agent.plugins.erp.simulator"]
 
 [[tool.importlinter.contracts]]
 name = "Provider adapters use only public domain APIs, never kernel, server or fixtures"
 type = "forbidden"
-source_modules = ["e_agent.adapters.odoo", "e_agent.plugins.erp.simulator"]
-forbidden_modules = ["e_agent.kernel", "e_agent.server", "e_agent.erp.testing"]
+source_modules = ["e_agent.plugins.erp.odoo", "e_agent.plugins.erp.simulator"]
+forbidden_modules = ["e_agent.kernel", "e_agent.server", "e_agent.plugins.erp.domain.testing"]
 
 [[tool.importlinter.contracts]]
 name = "Server never imports the ERP simulator; profiles enable it (ADR 0026)"
@@ -166,23 +166,23 @@ forbidden_modules = ["e_agent.plugins.erp.simulator"]
 [[tool.importlinter.contracts]]
 name = "ERP providers are independent of each other (ADR 0026)"
 type = "independence"
-modules = ["e_agent.adapters.odoo", "e_agent.plugins.erp.simulator"]
+modules = ["e_agent.plugins.erp.odoo", "e_agent.plugins.erp.simulator"]
 
 [[tool.importlinter.contracts]]
 name = "Domain bounded contexts are independent (ADR 0002)"
 type = "independence"
-modules = ["e_agent.erp.procurement", "e_agent.erp.inventory", "e_agent.erp.sales", "e_agent.erp.crm", "e_agent.erp.receivables"]
+modules = ["e_agent.plugins.erp.domain.procurement", "e_agent.plugins.erp.domain.inventory", "e_agent.plugins.erp.domain.sales", "e_agent.plugins.erp.domain.crm", "e_agent.plugins.erp.domain.receivables"]
 
 [[tool.importlinter.contracts]]
 name = "Product code never imports the development harness"
 type = "forbidden"
-source_modules = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai", "e_agent.adapters.secretstore_local", "e_agent.adapters.odoo", "e_agent.plugins.erp.simulator"]
+source_modules = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.plugins.erp.domain", "e_agent.server", "e_agent.adapters.shacl", "e_agent.adapters.postgres", "e_agent.adapters.pydantic_ai", "e_agent.adapters.secretstore_local", "e_agent.plugins.erp.odoo", "e_agent.plugins.erp.simulator"]
 forbidden_modules = ["e_agent_harness"]
 
 [[tool.importlinter.contracts]]
 name = "Core packages do not import agent frameworks or provider SDKs"
 type = "forbidden"
-source_modules = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp"]
+source_modules = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.plugins.erp.domain"]
 forbidden_modules = ["pydantic_ai", "httpx", "psycopg", "fastapi"]
 # The one exemption ADR 0026 names: the common plugin SDK's HTTP helper (Task 1d.7b).
 ignore_imports = ["e_agent.sdk.http -> httpx"]

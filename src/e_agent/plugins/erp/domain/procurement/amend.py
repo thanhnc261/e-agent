@@ -23,7 +23,9 @@ from .api import AmendDraftRfq, DraftRfq, PurchaseOrderView
 
 PO = "https://e-agent.dev/ns/procurement#"
 AMEND_RULES = ("AM-001", "AM-002", "AM-003", "AM-004")
-AMEND_SHAPES = ResourceRef(package="e_agent.erp.procurement", path="shapes/amend-shapes.ttl")
+AMEND_SHAPES = ResourceRef(
+    package="e_agent.plugins.erp.domain.procurement", path="shapes/amend-shapes.ttl"
+)
 AMEND_BUNDLE = "procurement-amend-rules@0.1.0"
 
 

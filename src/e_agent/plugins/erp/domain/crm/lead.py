@@ -16,7 +16,7 @@ from .api import Contact, CreateLead, LeadView, Teams
 
 CRM = "https://e-agent.dev/ns/crm#"
 LEAD_RULES = ("CL-001", "CL-002", "CL-003", "CL-004")
-LEAD_SHAPES = ResourceRef(package="e_agent.erp.crm", path="shapes/lead-shapes.ttl")
+LEAD_SHAPES = ResourceRef(package="e_agent.plugins.erp.domain.crm", path="shapes/lead-shapes.ttl")
 LEAD_BUNDLE = "crm-lead-rules@0.1.0"
 
 

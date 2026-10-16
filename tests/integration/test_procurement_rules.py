@@ -14,9 +14,9 @@ from e_agent.contracts.context import Principal, TaskContext
 from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.validation import ValidationStatus
-from e_agent.erp.procurement import CREATE_DRAFT_PO, DEMAND_READ, OFFERS_READ
-from e_agent.erp.procurement.validation import SHAPES, ProcurementDatasetBuilder
-from e_agent.erp.testing.fixture_validator import FixtureRuleValidator
+from e_agent.plugins.erp.domain.procurement import CREATE_DRAFT_PO, DEMAND_READ, OFFERS_READ
+from e_agent.plugins.erp.domain.procurement.validation import SHAPES, ProcurementDatasetBuilder
+from e_agent.plugins.erp.domain.testing.fixture_validator import FixtureRuleValidator
 from e_agent.sdk.ports import Observation, ValidationInput
 from rdflib import Graph, Namespace
 
@@ -224,7 +224,7 @@ async def test_parity_with_procedural_control(name: str) -> None:
 
 
 def test_rule_inventory_matches_shapes() -> None:
-    base = files("e_agent.erp.procurement")
+    base = files("e_agent.plugins.erp.domain.procurement")
     inventory = json.loads(base.joinpath("rules/inventory.json").read_text("utf-8"))
     shapes = Graph().parse(data=base.joinpath(SHAPES[0].path).read_text("utf-8"), format="turtle")
     ea = Namespace("https://e-agent.dev/ns/core#")
@@ -241,7 +241,7 @@ def test_rule_inventory_matches_shapes() -> None:
 
 
 def test_ontology_and_shapes_parse_from_package_resources() -> None:
-    base = files("e_agent.erp.procurement")
+    base = files("e_agent.plugins.erp.domain.procurement")
     Graph().parse(
         data=base.joinpath("ontology/procurement.ttl").read_text("utf-8"), format="turtle"
     )

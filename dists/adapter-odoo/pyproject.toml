@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.entry-points."e_agent.plugins.v1"]
-odoo19 = "e_agent.adapters.odoo.plugin:create_plugin"
+odoo19 = "e_agent.plugins.erp.odoo.plugin:create_plugin"
 
 [build-system]
 requires = ["hatchling>=1.32,<2"]
@@ -21,4 +21,4 @@ dev-mode-dirs = ["../../src"]
 
 [tool.hatch.build.hooks.custom]
 path = "../_hooks/src_tree.py"
-package = "e_agent/adapters/odoo"
+package = "e_agent/plugins/erp/odoo"

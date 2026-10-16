@@ -48,7 +48,7 @@ Rows R1–R6 are the first-round criteria, U1–U9 the second-round criteria and
 |---|---|---|---|---|
 | R1 | Scale / high load | Role split API vs worker; bounded run slots; per-tenant fairness (§12) | [P] | Load harness: N concurrent fixture runs complete; queue wait and p95 step latency recorded per release |
 | R2 | High concurrency | Concurrent claims per process; LISTEN-driven SSE; pool sizing per role (§12) | [Pa] (1 slot; polling SSE) | K runs progress simultaneously in one process; streaming DB queries do not grow with idle viewers |
-| R3 | Plugin-driven | Metadata discovery → admission → activation; entry points + manifests (§10) | [I] | Disabled plugin never imported (`tests/unit/kernel/test_registry.py::test_disabled_plugin_is_never_imported`); duplicate binding rejected before activation |
+| R3 | Plugin-driven | Metadata discovery → admission → activation; entry points + manifests (§10) | [I] for domain packs and provider adapters; [P] for drivers, stores, validators and secret stores (DR-04) | Disabled plugin never imported (`tests/unit/kernel/test_registry.py::test_disabled_plugin_is_never_imported`); duplicate binding rejected before activation |
 | R4 | Reusable packages | Independent wheels in a PEP 420 namespace; import-linter contracts (§15) | [I] | Each wheel installs and tests outside the workspace (`scripts/check_wheels.py`) |
 | R5 | Event-driven | `run_events` log; LISTEN wake-ups; outbox on demand; business-event triggers (§11) | [Pa] | Trigger replay with the same source event ID creates one run; triggered write still waits for human approval |
 | R6 | HTTP framework | FastAPI confined to `e_agent.server` (§14) | [I] | import-linter forbids `fastapi` in core packages (exists) |
@@ -862,7 +862,7 @@ This is unchanged from HLD §5 and is the core of explicit integration. The mode
 
 | Adapter kind | Example | Status | Notes |
 |---|---|---|---|
-| Native client | Odoo JSON-2 executor | [I] | `adapters/odoo/executor.py` |
+| Native client | Odoo JSON-2 executor | [I] | `plugins/erp/odoo/executor.py` |
 | Transactional bridge | `addons/e_agent_bridge` | [I] | Provider-side uniqueness and reconciliation reads (ADR 0005) |
 | MCP client binding | Governed MCP server tools mapped to capability contracts | [P] | See §10.2 |
 | Analytics | BigQuery read-only, parameterized | [C] | ADR 0001 scope, I12 |
@@ -1153,7 +1153,7 @@ Decided by [ADR 0030](../adr/0030-data-governance.md) (Proposed). Closes DR-05 o
 
 Legend: `[I]` exists, `[P]` proposed (created when implemented), `[C]` created only when its trigger fires. Per AGENTS.md, no empty future packages are created.
 
-The layout is `[I]` since roadmap Phase 1 (2026-10-13). All Python code is one layer-grouped tree under `src/e_agent/` with no repeated folder names, and each distribution keeps its own build config in `dists/<name>/`, so the 10 distributions are still released independently; see the [Phase 1 plan](../plans/2026-10-12-phase1-structure-refactor.md). A new distribution adds `src/e_agent/<part>/`, `dists/<name>/pyproject.toml` and `tests/unit/<part>/`. The kernel and server modules are mixins behind the `RunCoordinator` and `ApiState` facades (Phase 1); collaborators later if needed. `tests/unit/kernel/test_structure.py` keeps each method defined once, every kernel module at most 500 lines and only the facade importing `coordinator`.
+The layout is `[I]` since roadmap Phase 1 (2026-10-13). All Python code is one layer-grouped tree under `src/e_agent/` with no repeated folder names, and each distribution keeps its own build config in `dists/<name>/`, so the distributions (12 since Phase 1d) are still released independently; see the [Phase 1 plan](../plans/2026-10-12-phase1-structure-refactor.md). Since Phase 1d ([ADR 0026](../adr/0026-plugin-layout-and-reusable-core.md)) the core (`contracts`, `sdk`, `kernel`, `server` and the infrastructure adapters under `adapters/`) is domain-neutral and plugins live under `plugins/<area>/<name>/`; ERP is the first area, and the "Core never imports plugins" import contract forbids `e_agent.plugins.**` from the core. `plugins/` and `plugins/erp/` are namespace packages like `e_agent/` and `adapters/`. A new distribution adds `src/e_agent/<part>/`, `dists/<name>/pyproject.toml` and `tests/unit/<part>/`. The kernel and server modules are mixins behind the `RunCoordinator` and `ApiState` facades (Phase 1); collaborators later if needed. `tests/unit/kernel/test_structure.py` keeps each method defined once, every kernel module at most 500 lines and only the facade importing `coordinator`.
 
 ```text
 e-agent/
@@ -1184,13 +1184,17 @@ e-agent/
 │   │   ├── context.py              ContextAssembler                           [P]
 │   │   ├── ledger.py               ProgressLedger projection                  [P]
 │   │   └── approval.py policy.py registry.py discovery.py ...                [I]
-│   ├── erp/                        e_agent.erp — bounded contexts            [I]
-│   │   ├── procurement/            api, normalizer, rules, shapes, ontology,  [I]
-│   │   │                           verifier, answers
-│   │   ├── procurement/tasks/      task definitions + acceptance specs        [P]
-│   │   ├── procurement/skills/     SKILL.md playbooks                         [P]
-│   │   ├── inventory/ sales/ crm/ receivables/                                [I]
-│   │   └── testing/                fake ERP, scripted driver, scenarios       [I]
+│   ├── plugins/                    e_agent.plugins.* (namespace)              [I]
+│   │   └── erp/                    ERP plugin area (namespace)                [I]
+│   │       ├── domain/             e_agent.plugins.erp.domain — domain pack   [I]
+│   │       │   ├── procurement/    api, normalizer, rules, shapes, ontology,  [I]
+│   │       │   │                   verifier, answers
+│   │       │   ├── procurement/tasks/   task definitions + acceptance specs   [P]
+│   │       │   ├── procurement/skills/  SKILL.md playbooks                    [P]
+│   │       │   ├── inventory/ sales/ crm/ receivables/                        [I]
+│   │       │   └── testing/        scripted driver, fixture validator         [I]
+│   │       ├── odoo/               Odoo 19 executor + reconciliation          [I]
+│   │       └── simulator/          fake ERP, scenarios, fixture profile       [I]
 │   ├── analytics/                  e_agent.analytics                          [C]
 │   ├── knowledge/                  e_agent.knowledge — claims, router API     [C]
 │   ├── adapters/                   e_agent.adapters.* (namespace)             [I]
@@ -1198,7 +1202,6 @@ e-agent/
 │   │   ├── langgraph/              AgentDriver alternative                    [C]
 │   │   ├── postgres/               RunStore, migrations                       [I]
 │   │   ├── shacl/                  validation engine                          [I]
-│   │   ├── odoo/                   ERP executor + reconciliation              [I]
 │   │   ├── secretstore_local/      SecretStore                                [I]
 │   │   ├── mcp/                    MCP client binding                         [P]
 │   │   ├── knowledge_pg/           pgvector + full-text projection            [C]
@@ -1214,9 +1217,9 @@ e-agent/
 │       │                           `e-agent worker` role, run slots           [P]
 │       ├── streaming.py            public text bus                            [I]
 │       │                           LISTEN dispatcher + SSE fan-out            [P]
-│       ├── triggers.py             webhook/schedule → run admission           [P]
-│       └── profiles/               non-secret profiles                        [I]
-├── dists/                          one build config per distribution          [I]
+│       └── triggers.py             webhook/schedule → run admission           [P]
+├── dists/                          one build config per distribution;         [I]
+│                                   bundle-erp/ is the code-less e-agent-erp
 │   ├── <distribution>/pyproject.toml   name, version, deps, entry points      [I]
 │   └── _hooks/src_tree.py          wheel takes src/e_agent/<part>; editable   [I]
 │                                   installs import from src/; no sdists
@@ -1255,7 +1258,8 @@ Paths are relative to `src/e_agent/`.
 | SSE | `server/api.py: stream` (route closure); `server/streaming.py: PublicTextBus` | LISTEN dispatcher in `server/streaming.py` |
 | Plugin discovery/admission | `sdk/discovery.py`, `kernel/discovery.py`, `kernel/registry.py` | unchanged |
 | Driver adapter | `adapters/pydantic_ai/driver.py` | + context rendering from `ContextPack` |
-| Domain rules and verifiers | `erp/procurement/{rules,shapes,validation.py,verifier.py}` | + `tasks/`, `skills/` |
+| Domain rules and verifiers | `plugins/erp/domain/procurement/{rules,shapes,validation.py,verifier.py}` | + `tasks/`, `skills/` |
+| ERP providers | `plugins/erp/odoo/`, `plugins/erp/simulator/` (ADR 0026) | further providers beside them |
 | Task catalog | `server/api.py: TaskTemplate` (ADR 0017) | backed by `contracts/task.py` definitions |
 | Authorization | `kernel/policy.py: DefaultPolicy` (two roles); `server/api.py` requester and tenant checks | `contracts/authz.py: AuthorizationBundle`; checks in `kernel/policy.py` and `kernel/approval.py` (C16) |
 | Reason codes and rationale | `contracts/run.py: reason` (free text) and `ReasonCode` / `RunRecord.reason_code` [I]; no rationale field | `contracts/action.py: ProposalRationale` (C18) |

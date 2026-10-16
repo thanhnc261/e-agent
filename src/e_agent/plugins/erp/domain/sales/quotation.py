@@ -16,7 +16,9 @@ from .api import DraftQuotation, Pricing, QuotationView
 
 SO = "https://e-agent.dev/ns/sales#"
 QUOTATION_RULES = ("SQ-001", "SQ-002", "SQ-003", "SQ-004")
-QUOTATION_SHAPES = ResourceRef(package="e_agent.erp.sales", path="shapes/quotation-shapes.ttl")
+QUOTATION_SHAPES = ResourceRef(
+    package="e_agent.plugins.erp.domain.sales", path="shapes/quotation-shapes.ttl"
+)
 QUOTATION_BUNDLE = "sales-quotation-rules@0.1.0"
 
 

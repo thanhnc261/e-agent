@@ -4,7 +4,7 @@ import importlib.util
 from pathlib import Path
 
 import pytest
-from e_agent.erp.testing.scripted_tasks import ScriptedErpDriver
+from e_agent.plugins.erp.domain.testing.scripted_tasks import ScriptedErpDriver
 
 
 @pytest.fixture

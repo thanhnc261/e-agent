@@ -17,10 +17,10 @@ from e_agent.contracts.common import format_decimal, new_id, utc_now
 from e_agent.contracts.context import TaskContext
 from e_agent.contracts.evidence import Completeness, EvidenceRef
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
-from e_agent.erp.crm import CONTACT_READ, CREATE_LEAD, LEAD_READ, TEAMS_READ
-from e_agent.erp.crm.api import CreateLead
-from e_agent.erp.inventory import AVAILABILITY_READ
-from e_agent.erp.procurement import (
+from e_agent.plugins.erp.domain.crm import CONTACT_READ, CREATE_LEAD, LEAD_READ, TEAMS_READ
+from e_agent.plugins.erp.domain.crm.api import CreateLead
+from e_agent.plugins.erp.domain.inventory import AVAILABILITY_READ
+from e_agent.plugins.erp.domain.procurement import (
     AMEND_DRAFT_RFQ,
     CREATE_DRAFT_PO,
     DEMAND_READ,
@@ -29,15 +29,15 @@ from e_agent.erp.procurement import (
     OPEN_DEMANDS_READ,
     PURCHASE_ORDER_READ,
 )
-from e_agent.erp.procurement.api import AmendDraftRfq, DraftPurchaseOrder
-from e_agent.erp.receivables import OPEN_INVOICES_READ
-from e_agent.erp.sales import (
+from e_agent.plugins.erp.domain.procurement.api import AmendDraftRfq, DraftPurchaseOrder
+from e_agent.plugins.erp.domain.receivables import OPEN_INVOICES_READ
+from e_agent.plugins.erp.domain.sales import (
     CREATE_DRAFT_QUOTATION,
     OPEN_ORDERS_READ,
     PRICING_READ,
     QUOTATION_READ,
 )
-from e_agent.erp.sales.api import DraftQuotation
+from e_agent.plugins.erp.domain.sales.api import DraftQuotation
 from e_agent.sdk.auth import AuthError, CredentialResolver
 from e_agent.sdk.errors import AUTH_REQUIRED, KnownNoEffectError
 from e_agent.sdk.ports import Observation, ReadRequest

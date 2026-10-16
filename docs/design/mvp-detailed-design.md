@@ -54,15 +54,16 @@ src/e_agent/server/                   # e_agent.server: bootstrap, CLI, API, wor
 src/e_agent/contracts/                # e_agent.contracts: portable records
 src/e_agent/sdk/                      # e_agent.sdk: public ports and manifests
 src/e_agent/kernel/                   # e_agent.kernel: state, gates and orchestration
-src/e_agent/erp/                      # e_agent.erp: bounded-context modules, DTOs, rules, resources
+src/e_agent/plugins/erp/domain/       # e_agent.plugins.erp.domain: bounded-context modules, DTOs, rules, resources
+src/e_agent/plugins/erp/odoo/         # e_agent.plugins.erp.odoo: Odoo JSON-2 adapter (ADR 0005)
+src/e_agent/plugins/erp/simulator/    # e_agent.plugins.erp.simulator: fake ERP, scenarios, fixture profile
 src/e_agent/analytics/                # e_agent.analytics (I12, ADR 0001)
 src/e_agent/adapters/pydantic_ai/     # Pydantic AI 2.x driver (ADR 0001, ADR 0004)
-src/e_agent/adapters/odoo/            # JSON-2 (ADR 0005)
 src/e_agent/adapters/bigquery/        # e_agent.adapters.bigquery (I12)
 src/e_agent/adapters/secretstore_local/  # local envelope-encrypted SecretStore (ADR 0012/0013)
 src/e_agent/adapters/postgres/        # e_agent.adapters.postgres, migrations
 src/e_agent/adapters/shacl/           # e_agent.adapters.shacl
-dists/<distribution>/                 # one wheel build config per distribution
+dists/<distribution>/                 # one wheel build config per distribution; bundle-erp/ is the code-less e-agent-erp
 addons/e_agent_bridge/                # Odoo 19 addon: transactional bridge commands (ADR 0005)
 ui/                                   # TS workspace: client, ui-core, tokens, ui-react, components, layouts, overlay element, conformance (ADR 0011)
 ui/apps/web/                          # default standalone web UI (I08)
@@ -77,7 +78,7 @@ docs/                                 # roadmap, designs, plans, ADRs, runbooks
 research/                             # source research
 ```
 
-Each distribution has a build config `dists/<name>/pyproject.toml` with its declared dependencies and entry points; its code is `src/e_agent/<part>/` and its tests `tests/unit/<part>/` (Phase 1 layout, [plan](../plans/2026-10-12-phase1-structure-refactor.md)). All Python distributions share the PEP 420 namespace package `e_agent` (no `__init__.py` in `src/e_agent/`), so import roots stay short (`e_agent.contracts`, `e_agent.sdk`, `e_agent.kernel`, `e_agent.erp`, `e_agent.server`, `e_agent.adapters.<name>`). Each config names its package for the shared hatchling hook (`dists/_hooks/src_tree.py`), which builds the wheel from the `src/` sub-tree; distributions are released as wheels. Domain ontology, shapes, manifest, rule inventory and competency fixtures are packaged resources. Read them through resource APIs, not current working directory. Generate wire-schema snapshots from one authoritative DTO definition; do not hand-maintain divergent schema copies.
+Each distribution has a build config `dists/<name>/pyproject.toml` with its declared dependencies and entry points; its code is `src/e_agent/<part>/` and its tests `tests/unit/<part>/` (Phase 1 layout, [plan](../plans/2026-10-12-phase1-structure-refactor.md)). All Python distributions share the PEP 420 namespace package `e_agent` (no `__init__.py` in `src/e_agent/`, `src/e_agent/adapters/`, `src/e_agent/plugins/` or `src/e_agent/plugins/erp/`), so import roots stay short (`e_agent.contracts`, `e_agent.sdk`, `e_agent.kernel`, `e_agent.server`, `e_agent.adapters.<name>`, `e_agent.plugins.erp.<name>`). Since Phase 1d ([ADR 0026](../adr/0026-plugin-layout-and-reusable-core.md)) the ERP domain pack (`e-agent-domain-erp`), the Odoo adapter (`e-agent-adapter-odoo`) and the simulator (`e-agent-adapter-erp-simulator`) are plugins under `plugins/erp/`; the core never imports them, and the code-less `e-agent-erp` bundle installs the ERP product. Each config names its package for the shared hatchling hook (`dists/_hooks/src_tree.py`), which builds the wheel from the `src/` sub-tree; distributions are released as wheels. Domain ontology, shapes, manifest, rule inventory and competency fixtures are packaged resources. Read them through resource APIs, not current working directory. Generate wire-schema snapshots from one authoritative DTO definition; do not hand-maintain divergent schema copies.
 
 Do not create speculative empty CRM, Google or knowledge packages. A small non-ERP fixture plugin can live in test fixtures and build its own test artifact.
 

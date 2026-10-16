@@ -9,12 +9,12 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from e_agent.adapters.odoo.client import OdooJson2Client
-from e_agent.adapters.odoo.executor import OdooExecutor
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.connection import ConnectionOwnership
 from e_agent.contracts.context import Principal, TaskContext
-from e_agent.erp.procurement import CREATE_DRAFT_PO
+from e_agent.plugins.erp.domain.procurement import CREATE_DRAFT_PO
+from e_agent.plugins.erp.odoo.client import OdooJson2Client
+from e_agent.plugins.erp.odoo.executor import OdooExecutor
 from e_agent.sdk.auth import AuthContext, Secret
 from e_agent.sdk.errors import KnownNoEffectError
 
