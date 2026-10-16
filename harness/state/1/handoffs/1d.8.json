@@ -1,0 +1,38 @@
+{
+  "task": "1d.8",
+  "changed": "The core distributions install and the server starts without any ERP distribution, and the new code-less bundle e-agent-erp installs the ERP product (ADR 0026, decision D3), in 7b43a74 and 6fbef41. dists/server/pyproject.toml drops e-agent-domain-erp and e-agent-adapter-odoo; no src/ change was needed, because the server source already imports no ERP code (test_server_has_no_domain_literals, lint-imports). New dists/bundle-erp/pyproject.toml: e-agent-erp 0.1.0 depends on e-agent-server, e-agent-domain-erp, e-agent-adapter-odoo and e-agent-adapter-erp-simulator; it builds a metadata-only wheel through hatchling's wheel bypass-selection and has no custom src_tree hook, which requires a package. pyproject.toml adds e-agent-erp to [tool.uv.sources] and the dev group; uv.lock is relocked with only first-party changes (the new member and its four dependencies, the two edges removed from e-agent-server); the 72 registry packages and their versions are identical before and after (sorted name-version diff). New scripts/check_core_only.py: builds the 8 core wheels (contracts, plugin-sdk, kernel, server, adapter-shacl, adapter-postgres, adapter-agent-pydantic, adapter-secretstore-local) into a temporary directory, never dist/; writes a throwaway hatchling project for core-test-pack (plugin id core-test-pack, one read capability corenotes.note.read.v1 bound as core-notes.read, a read-only executor, a scripted driver factory and the task preset core-note; it imports only e_agent.contracts and e_agent.sdk) and builds it with uv build; installs all 9 into one fresh uv venv outside the repository with --refresh-package for each first-party name; asserts, from the venv with python -I, that the installed distribution list is non-empty and holds none of the 4 ERP distributions, that none of e_agent.erp, e_agent.adapters.odoo and e_agent.plugins.erp is importable, and that the installed e-agent-server requires no ERP distribution; then starts `python -m e_agent.server.cli --profile <p> serve` on a free loopback port from a neutral directory and requires /health/ready to answer status ready with plugins == ['core-test-pack'], failing at once if the process exits; it prints counts and the elapsed time. Before the packaging change it failed as planned (3.4 s): uv could not resolve e-agent-server, naming e-agent-adapter-odoo rather than e-agent-domain-erp (same cause). After: about 10 s warm and 12 s with an empty uv cache, so harness/context.toml gains the set core = [check_core_only.py] and the same command joins full as its last step, and .github/workflows/ci.yml runs it in the wheels job after check_wheels.py. New tests/conformance/test_core_only.py (11 cases, about 1 s, imports the script by file path): the core list equals every dists/* project minus the named ERP set and fails on no dists, on an unclassified new dist and on a named ERP dist that does not exist; no core distribution's dependencies or extras name an ERP distribution; the pack project's entry point equals its manifest factory and versions agree; the profile validates as Profile with task_kind equal to the pack's preset; the pack composes through build_runtime in a subprocess from the same files and is the only admitted plugin; the forbidden-distribution check flags each ERP name and raises on an empty list. Two of them were watched red before the packaging change (the bundle did not exist; e-agent-server depended on ERP). tests/conformance/test_repo_layout.py: 12 distributions; dists/bundle-erp is the named exception with no hook and a wheel target of exactly bypass-selection. scripts/check_wheels.py: the server smoke asserts that its venv holds no ERP distribution (shown failing when run in the workspace venv); a new e-agent-erp smoke asserts discover() finds domain-erp, odoo19 and fixture-erp; the plugin-pin check and the installed demos move from the server venv, which no longer gets odoo, to the bundle venv, and the separate simulator install is dropped. README: 12 distributions, the core versus the bundle, and the new commands. Gates on bb5cf96 (clean tree): full passes (now including the core check), the core set passes, and check_wheels.py passes (12 wheels from their own closure, pins match, installed demos complete; 52 s; no evidence file, as before).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/1d.8/2026-10-16T08-24-16.738984+00-00-full.json",
+    "harness/state/evidence/gates/1d.8/2026-10-16T08-25-38.729180+00-00-core.json"
+  ],
+  "open_items": [
+    "check_wheels.py ran green on bb5cf96 (12 wheels, pins, installed demos); it is not a harness gate set (HP-6) and has no evidence file, as in 1d.5 and 1d.7b",
+    "make e2e and the Postgres run were not run; the change touches no store, kernel or server code. Plan 1d.10 runs both",
+    "The pack source inside check_core_only.py is a string, so mypy does not check it; test_core_only composes it through build_runtime on every full run, which catches an SDK or contract change that breaks it",
+    "1d.10 moves the ERP packages; check_core_only.py's ERP_MODULES and check_wheels.py's resource paths must follow the move (Review Focus 8, test_no_old_plugin_module_paths_remain)",
+    "Carried over: the Codex reviews of 1d.5 and 1d.7 are still owed, and the review-schema question for non-fresh re-reviews (owner decisions)"
+  ],
+  "rulings": [
+    {
+      "ruling": "The core check joins full (and CI's wheels job) as well as having its own core set: it runs in about 10 to 12 s, under the plan's 'about a minute' threshold",
+      "cost_if_wrong": "about 12 s more per full gate; removing one line from the full list restores the plan's fallback (end of phase and CI)"
+    },
+    {
+      "ruling": "The test pack is built with uv build from a temporary hatchling project rather than a hand-written wheel, so its METADATA, entry points and RECORD are real",
+      "cost_if_wrong": "the check needs the hatchling build backend from the uv cache or the index, as every other wheel build in the repository already does"
+    },
+    {
+      "ruling": "e-agent-erp has no src_tree hook and builds a metadata-only wheel through hatchling's bypass-selection; test_repo_layout names it as the one exception",
+      "cost_if_wrong": "if the bundle later needs code (a CLI entry point), it gains a hook and a package, and the exception is removed"
+    },
+    {
+      "ruling": "The pack's contract id corenotes.note.read.v1 and binding id core-notes.read were chosen by the implementer; the plan names none",
+      "cost_if_wrong": "none outside the throwaway pack"
+    },
+    {
+      "ruling": "Stale first-party wheels in the uv cache are avoided with --refresh-package for each first-party name instead of --no-cache, so third-party wheels stay cached; the script asserts the installed server requires no ERP distribution, which a stale pre-change wheel would fail",
+      "cost_if_wrong": "a stale wheel of another core distribution would go unnoticed until check_wheels.py, which runs with --no-cache"
+    }
+  ],
+  "outside_repo": []
+}

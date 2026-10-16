@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-8"
   ],
-  "context_digest": "675089730aa0b7e691e62cb3790a82fb4294c87ad62ebb2a663be7f6b822cf70",
+  "context_digest": "793d3328426f72244c6e9ae2ecd6567ee1d11d2574ae95aeb43d9bd184c7fb84",
   "allowed_paths": [
     "dists/server/pyproject.toml",
     "dists/bundle-erp/**",
