@@ -1,0 +1,28 @@
+{
+  "task": "1d.9",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-7",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "Close bookkeeping predates the review fixes: F-1d-9 cites the 09-30-38 gate (commit 2d046e5), the 09-45-59 full gate at 02eca3d is uncommitted, close-check fails, and the handoff omits the review round. Bookkeeping only; no code or plan defect remains.",
+      "evidence": "harness/state/1/features.json F-1d-9; close-check: 'feature F-1d-9: code changed after evidence 2d046e5'; untracked harness/state/evidence/gates/1d.9/2026-10-16T09-45-59.188160+00-00-full.json (ok, clean tree, 963 passed, 30 skipped). ENG-EVID-1."
+    },
+    {
+      "id": "R-8",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "R-1, R-3 and R-4 are addressed by 8235aff. Optional: the R-3 discovery grep does not exclude harness/state or the mover's own files, so most post-move hits are history and fixtures; it is a discovery aid, not a pass/fail check.",
+      "evidence": "docs/plans/2026-10-14-phase1d-plugin-boundary.md:105, :437-441; worktree at 02eca3d after `layout --set plugins`: `check --set plugins --docs` gave 0 code/config leftovers, 11 in current docs, and 15 broken links (the git-ignored evidence links the plan names); ruff fix and format leave 2 E501 to wrap by hand."
+    },
+    {
+      "id": "R-9",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "R-2 and R-5 are addressed by 612c017; every listed mutant, and each PLUGIN_EXEMPT line on its own, now fails the plugin tests. Optional and present before the fix: the packages set's _leftovers still uses --exclude-standard (that set has already run), and _drop_caches removes only __pycache__ although _is_cache also accepts .pytest_cache, .mypy_cache and .ruff_cache, which git mv would carry along.",
+      "evidence": "Worktree at 02eca3d: mutants (a) to (e) failed with the named decoys; the real-repo layout run left exempt paths unchanged; after the move `pytest tests/unit/plugins tests/conformance/test_repo_move.py` gave 68 passed. scripts/repo_move.py:270. ENG-WORK-2."
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}
