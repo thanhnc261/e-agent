@@ -411,17 +411,18 @@ Runs after 1d.7, so the helper is written inside the guest contract, and before 
 - `tests/conformance/test_repo_move.py`
 
 **Steps:**
-- [ ] Write the failing test `test_plugins_move_on_scratch_repo`. It covers: renames; rewritten imports, entry point and `factory`; no `__init__.py` in a namespace directory; `check` clean.
-- [ ] Run `uv run pytest -q tests/conformance/test_repo_move.py -k plugins`. Expected: fails (unknown move set).
-- [ ] Implement.
-- [ ] Run the same command. Expected: pass.
-- [ ] Commit `feat(scripts): mover support for the plugin layout`.
+- [x] Write the failing test `test_plugins_move_on_scratch_repo`. It covers: renames; rewritten imports, entry point and `factory`; no `__init__.py` in a namespace directory; `check` clean.
+- [x] Run `uv run pytest -q tests/conformance/test_repo_move.py -k plugins`. Expected: fails (unknown move set). Observed: argparse rejected `--set` before the set lookup existed; `unknown move set` is now its own test for `layout` and `check`.
+- [x] Implement.
+- [x] Run the same command. Expected: pass.
+- [x] Commit `feat(scripts): mover support for the plugin layout`.
 
 ### Task 1d.10: run the move and re-pin (one commit)
 
 **Files:**
 - the domain pack and the Odoo adapter, with their tests, moved by `git mv`;
 - the importing files outside them: the simulator, `scripts/check_wheels.py`, `scripts/qualify_model.py`, `scripts/odoo_sandbox.py`, and tests under `tests/integration`, `tests/unit/server` and `tests/unit/adapters/odoo`;
+- `scripts/check_core_only.py`: after the mover's rewrite, `ERP_MODULES` names `e_agent.plugins.erp` and its two subpackages; reduce it to the one parent (found in 1d.9);
 - `dists/domain-erp/pyproject.toml` and `dists/adapter-odoo/pyproject.toml`: entry point and hook `package`;
 - both `e_agent_plugin.json`: `factory`;
 - `pyproject.toml`: import-linter `root_packages` and contracts, with the core-never-imports-plugins contract now on `e_agent.plugins.*` and the "Plugins are guests" source modules now the packages under `e_agent.plugins.erp`;
