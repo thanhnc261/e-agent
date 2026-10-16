@@ -1,0 +1,33 @@
+{
+  "task": "1d.7b",
+  "changed": "The common plugin SDK gains an authenticated HTTP helper and the Odoo client uses it (ADR 0026 common-SDK amendment), in 5234025. New src/e_agent/sdk/http.py: PluginHttpClient(base_url, timeout, transport).post_json(auth, path, body, headers, allowed_codes, rejection_code) applies the AuthContext last (a caller Authorization header cannot override it), refuses before sending (HostNotAllowed) any path that does not start with a single '/', any merged or built URL whose scheme, host or port differ from the base URL, and a caller Host header; sends with follow_redirects=False; turns a 4xx into HttpRejected(status, code) whose code is the caller's rejection_code(parsed body) when that code is in allowed_codes, otherwise REJECTED, with a fixed safe_message; turns a 5xx, a redirect, a 2xx body that is not JSON, a timeout or a transport error into HttpAmbiguous with a fixed reason. The helper has no logger, and every exception is raised outside the handler of the underlying httpx or JSON error, so no header or body is kept on, or chained into, an exception. src/e_agent/adapters/odoo/client.py keeps OdooJson2Client's constructor and call() signature, OdooRejected and the ten allow-listed E_AGENT_* codes (now ALLOWED_CODES), the X-Odoo-Database header and the host target context; it re-raises HttpRejected as OdooRejected(status, code, 'Odoo rejected the request') from None, so executor.py is unchanged. dists/plugin-sdk/pyproject.toml gains the optional extra http = ['httpx>=0.28,<1']; dists/adapter-odoo depends on e-agent-plugin-sdk[http] and drops its direct httpx dependency; uv.lock adds the extra and re-points the Odoo dependency with no third-party version change. pyproject.toml: the contract 'Core packages do not import agent frameworks or provider SDKs' gains ignore_imports = ['e_agent.sdk.http -> httpx']; lint-imports keeps all 12 contracts and reports '(1 ignored import)'. scripts/check_wheels.py: the bare e-agent-plugin-sdk wheel must not install httpx, and the e-agent-adapter-odoo wheel must import e_agent.adapters.odoo.client, which proves the extra resolves. docs/design/principles.md: PR-08 names test_plugin_dependencies_are_the_common_base and PR-25 names test_http_never_echoes_credentials (status columns unchanged). New tests: tests/unit/sdk/test_http.py (33 cases: test_http_applies_auth_context, test_http_auth_context_wins_over_caller_headers, test_http_refuses_other_hosts over 7 paths with no request sent, test_http_refuses_a_caller_host_header, test_http_does_not_follow_redirects_to_another_host, test_http_4xx_is_rejection_with_allowed_code, test_http_4xx_without_a_readable_code_is_rejected, test_http_5xx_and_transport_errors_are_ambiguous over 500, 503, 200-not-JSON, connect error and timeout, test_http_never_echoes_credentials over 5 outcomes x Authorization and X-Api-Key with root logging at DEBUG, walking __cause__/__context__ and checking str, repr, args and vars of every link, test_sdk_imports_httpx_only_in_http_module in a subprocess over e_agent.sdk and its 8 other modules) and tests/conformance/test_plugin_dependencies.py (test_plugin_dependencies_are_the_common_base reads the 3 plugin distributions from dists/*/pyproject.toml entry points and their manifests' kind and contracts; test_dependency_check_fails_on_zero_plugins; test_dependency_check_reports_core_and_unbound_domain_dependencies; test_core_contract_exempts_only_the_sdk_http_module). Red first: test_http.py failed at collection (no e_agent.sdk.http) and test_core_contract_exempts_only_the_sdk_http_module failed (no ignore_imports); the dependency scan and its two pure-function tests passed on the existing tree, which a guard over an already-compliant tree must; its negative test is the evidence that it detects a violation. Two never-echo cases then failed because the test itself allow-listed the canary; the test was fixed to allow only E_AGENT_STALE. The existing tests/unit/adapters/odoo tests pass unchanged.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/1d.7b/2026-10-16T04-27-47.148715+00-00-full.json"
+  ],
+  "open_items": [
+    "check_wheels.py ran green before the commit on the same tree (all 11 wheels install from their own closure; installed demos complete); it is not part of the full gate set (HP-6) and has no evidence file",
+    "make e2e and the Postgres run were not run; the change touches no store or server code",
+    "No live check: the odoo19 artifact bytes changed, so the owner's git-ignored live profile pin for odoo19 no longer matches; F-1d-12 re-pins it once after 1d.10",
+    "Fresh-context review owed: Codex review of 1d.7b (the HTTP helper is a credential and outcome-classification boundary), plus the carried-over Codex reviews of 1d.5 and 1d.7 (1d.7 R-5)",
+    "test_plugin_dependencies derives the manifest path from the entry point module under src/; it keeps working after 1d.10 moves the packages, as long as the entry points name the new modules"
+  ],
+  "rulings": [
+    {
+      "ruling": "PluginHttpClient holds the base URL, timeout and transport and takes the AuthContext per request, where the plan says the helper is 'built from an AuthContext': the Odoo plugin builds its client once in create_plugin, and an AuthContext covers one invocation",
+      "cost_if_wrong": "a per-invocation wrapper object around the same post_json; no caller outside the Odoo client exists yet"
+    },
+    {
+      "ruling": "A 5xx, redirect, non-JSON 2xx, timeout or transport error raises the SDK's HttpAmbiguous instead of letting the raw httpx exception propagate, because httpx.HTTPStatusError keeps the request with its credential header; the executor maps every exception other than KnownNoEffectError to UNKNOWN, so no outcome changes",
+      "cost_if_wrong": "code that catches httpx exceptions from the Odoo client would stop matching; git grep finds none in src/ or tests/"
+    },
+    {
+      "ruling": "A 4xx body that is not a JSON object now gives REJECTED (a known no-effect rejection of this call); before, the client raised an AttributeError, which the kernel recorded as UNKNOWN",
+      "cost_if_wrong": "a malformed Odoo 4xx would be reported as a rejection rather than reconciled; 4xx already means this call was rejected, and the identity codes that need reconciliation still parse from a JSON message"
+    },
+    {
+      "ruling": "docs/design/principles.md and scripts/check_wheels.py were added to the scope (amend-scope, recorded in the contract): the new checks are named in their principle rows, and the wheel smokes prove the [http] extra, which discovery alone does not import",
+      "cost_if_wrong": "two table cells and two smoke strings"
+    }
+  ],
+  "outside_repo": []
+}

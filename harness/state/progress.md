@@ -344,3 +344,8 @@
 - changed: harness/state/1/reviews/1d.7.json
 - next: 1d.7 closed and reviewed (accept; R-1 fixed in 83f3912): clear context, then new-task 1 1d.7b --feature F-1d-7b; owner to decide on a Codex review of 1d.5 and 1d.7 (R-5)
 - open: none
+
+## 2026-10-16T04:30:02.791138+00:00 · caf0c79e-fec3-4e70-b520-1f9bce845c51 · 1d.7b
+- changed: harness/state/1/features.json, harness/state/1/handoffs/1d.7b.json, harness/state/evidence/gates/1d.7b/2026-10-16T04-27-47.148715+00-00-full.json
+- next: 1d.7b closed: Codex fresh-context review of 1d.7b; fix findings; then clear context and new-task 1 1d.8 --feature F-1d-8
+- open: none

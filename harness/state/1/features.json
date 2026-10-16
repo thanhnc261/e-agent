@@ -399,7 +399,8 @@
         "lint-imports keeps the one named ignore_imports entry; check_wheels passes",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/1d.7b/2026-10-16T04-27-47.148715+00-00-full.json"
     }
   ]
 }
