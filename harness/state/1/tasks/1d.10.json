@@ -1,0 +1,46 @@
+{
+  "id": "1d.10",
+  "phase": "1",
+  "plan_ref": "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+  "feature_ids": [
+    "F-1d-10"
+  ],
+  "context_digest": "c24a040062ffffc480c7e595c95dd2a5d482e8eee74f51a6ef11e11e6a1940b4",
+  "allowed_paths": [
+    "src/e_agent/erp/**",
+    "src/e_agent/adapters/odoo/**",
+    "src/e_agent/plugins/**",
+    "tests/unit/erp/**",
+    "tests/unit/adapters/odoo/**",
+    "tests/unit/plugins/**",
+    "tests/unit/server/**",
+    "tests/unit/kernel/conftest.py",
+    "tests/integration/**",
+    "tests/conformance/**",
+    "scripts/check_core_only.py",
+    "scripts/check_wheels.py",
+    "scripts/odoo_sandbox.py",
+    "scripts/qualify_model.py",
+    "dists/domain-erp/pyproject.toml",
+    "dists/adapter-odoo/pyproject.toml",
+    "pyproject.toml",
+    "docs/design/**",
+    "docs/reviews/2026-10-07-mvp-review-report.md",
+    "README.md",
+    "AGENTS.md",
+    ".agents/skills/eng-foundations/references/rules.md",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-14-phase1d-plugin-boundary.md"
+  ],
+  "acceptance": [
+    "git shows renames for the domain pack and the Odoo adapter",
+    "repo_move.py check --set plugins --docs reports no leftovers in code, config or current docs",
+    "check_wheels.py file lists equal modulo the prefix map",
+    "full, pg, e2e and core gates pass; export_openapi.py --check unchanged"
+  ],
+  "gate_set": "full",
+  "base_commit": "6495018662f96a4b5c874c92866e856755ebfbba",
+  "created_at": "2026-10-16T10:38:31+00:00",
+  "features_digest": "5ec1763bb90c73537a1a65c692fd87d01b72a957cea626e1b70188a9dfc94e3e"
+}
