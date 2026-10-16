@@ -379,3 +379,8 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1d.9.json, harness/state/1/reviews/1d.9-r2.json, harness/state/evidence/gates/1d.9/2026-10-16T09-45-59.188160+00-00-full.json
 - next: 1d.9 closed after fresh-context review and scoped re-review (R-1 to R-5 fixed, R-7 bookkeeping done): clear context, then new-task 1 1d.10 --feature F-1d-10
 - open: none
+
+## 2026-10-16T09:54:54.645017+00:00 · a8909b32-dde8-4b78-8ed5-b7ab7a7c149f · 1d.9
+- changed: harness/state/1/features.json, harness/state/1/handoffs/1d.9.json, harness/state/evidence/gates/1d.9/2026-10-16T09-53-38.177795+00-00-full.json
+- next: 1d.9 closed after review, scoped re-review and retro G-14: clear context, then new-task 1 1d.10 --feature F-1d-10
+- open: none
