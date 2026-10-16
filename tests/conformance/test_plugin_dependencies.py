@@ -34,22 +34,27 @@ class PluginDist:
     binds: frozenset[str]
 
 
-def _plugin_dists() -> list[PluginDist]:
+def _requirements(project: dict) -> frozenset[str]:
+    """Required and optional (extra) dependency names; an extra is installable too."""
+    specs = list(project.get("dependencies", []))
+    for extra in project.get("optional-dependencies", {}).values():
+        specs += extra
+    return frozenset(canonicalize_name(Requirement(spec).name) for spec in specs)
+
+
+def _plugin_dists(root: Path = REPO) -> list[PluginDist]:
     found = []
-    for config in sorted(REPO.glob("dists/*/pyproject.toml")):
+    for config in sorted(root.glob("dists/*/pyproject.toml")):
         project = tomllib.loads(config.read_text("utf-8"))["project"]
         for value in project.get("entry-points", {}).get(ENTRY_POINT_GROUP, {}).values():
             package = value.split(":", 1)[0].rpartition(".")[0]
-            manifest_path = REPO / "src" / Path(*package.split(".")) / MANIFEST_FILENAME
+            manifest_path = root / "src" / Path(*package.split(".")) / MANIFEST_FILENAME
             manifest = json.loads(manifest_path.read_text("utf-8"))
             found.append(
                 PluginDist(
                     name=canonicalize_name(project["name"]),
                     kind=manifest["kind"],
-                    requires=frozenset(
-                        canonicalize_name(Requirement(r).name)
-                        for r in project.get("dependencies", [])
-                    ),
+                    requires=_requirements(project),
                     provides=frozenset(c["contract_id"] for c in manifest["provides_capabilities"]),
                     binds=frozenset(b["contract_id"] for b in manifest["provides_bindings"]),
                 )
@@ -114,3 +119,25 @@ def test_core_contract_exempts_only_the_sdk_http_module() -> None:
     for other in config["tool"]["importlinter"]["contracts"]:
         if other["name"] != CORE_CONTRACT:
             assert "ignore_imports" not in other, other["name"]
+
+
+def test_dependency_check_reads_optional_extras(tmp_path: Path) -> None:
+    package = tmp_path / "src" / "e_agent" / "plugins" / "x" / "acme"
+    package.mkdir(parents=True)
+    (package / MANIFEST_FILENAME).write_text(
+        json.dumps({"kind": "provider", "provides_capabilities": [], "provides_bindings": []}),
+        "utf-8",
+    )
+    dist = tmp_path / "dists" / "adapter-acme"
+    dist.mkdir(parents=True)
+    (dist / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "e-agent-adapter-acme"\n'
+        'dependencies = ["e-agent-plugin-sdk[http]>=0.1,<0.2"]\n'
+        "[project.optional-dependencies]\n"
+        'forbidden = ["e-agent-kernel>=0.1,<0.2"]\n'
+        f'[project.entry-points."{ENTRY_POINT_GROUP}"]\n'
+        'acme = "e_agent.plugins.x.acme.plugin:create_plugin"\n',
+        "utf-8",
+    )
+    assert _outside_base(_plugin_dists(tmp_path)) == ["e-agent-adapter-acme -> e-agent-kernel"]

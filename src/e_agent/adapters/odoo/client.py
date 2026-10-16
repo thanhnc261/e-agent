@@ -43,11 +43,20 @@ class OdooRejected(Exception):
 
 
 def _rejection_code(body: Any) -> object:
-    """The bridge prefixes its codes to the message; Odoo's own errors carry a name."""
-    message = str(body.get("message", ""))
+    """The bridge prefixes its codes to the message; Odoo's own errors carry a name.
+
+    A body of another shape raises, so the helper reports the call as ambiguous: it
+    may hide an identity code the executor has to reconcile (review 1d.7b R-3).
+    """
+    if not isinstance(body, dict):
+        raise TypeError("rejection body is not an object")
+    message = body.get("message", "")
+    name = body.get("name", "REJECTED")
+    if not isinstance(message, str) or not isinstance(name, str):
+        raise TypeError("rejection message or name is not a string")
     if message.startswith("E_AGENT_"):
         return message.split(":", 1)[0]
-    return body.get("name", "REJECTED")
+    return name
 
 
 class OdooJson2Client:
