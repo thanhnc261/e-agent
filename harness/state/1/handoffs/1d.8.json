@@ -13,7 +13,9 @@
     "The pack source inside check_core_only.py is a string, so mypy does not check it; test_core_only composes it through build_runtime on every full run, which catches an SDK or contract change that breaks it",
     "1d.10 moves the ERP packages; the ERP distribution and module names are kept by hand in two places, check_core_only.py (ERP_DISTRIBUTIONS, ERP_MODULES) and check_wheels.py (ERP_DISTRIBUTIONS and its resource paths), and both must follow the move (review R-3; Review Focus 8, test_no_old_plugin_module_paths_remain)",
     "Carried over: the Codex reviews of 1d.5 and 1d.7 are still owed, and the review-schema question for non-fresh re-reviews (owner decisions)",
-    "check_core_only.py relies on uv applying the -c constraints; it does not re-check the installed third-party versions against the pins afterwards"
+    "check_core_only.py relies on uv applying the -c constraints; it does not re-check the installed third-party versions against the pins afterwards",
+    "Harness gap: while a task is open, the check-scope PreToolUse hook refuses Edit/Write under .superpowers/sdd/** (the implementer's SDD report was refused), although CLAUDE.md names that directory as the SDD ledger; the report stayed in the session scratchpad. Owner: allow .superpowers/sdd/** in the manifest or move the ledger",
+    "CI has not run the new check_core_only.py step: the branch is not pushed, and CI's wheels job uses Python 3.13 while it was verified locally on 3.12"
   ],
   "rulings": [
     {
