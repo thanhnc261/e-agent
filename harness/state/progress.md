@@ -389,3 +389,8 @@
 - changed: docs/plans/2026-10-14-phase1d-plugin-boundary.md, harness/state/1/features.json, harness/state/1/handoffs/1d.10.json, harness/state/1/tasks/1d.10.json, harness/state/evidence/gates/1d.10/2026-10-16T10-56-07.520114+00-00-full.json, harness/state/evidence/gates/1d.10/2026-10-16T10-57-18.502873+00-00-core.json, harness/state/evidence/gates/1d.10/2026-10-16T10-57-34.655562+00-00-pg.json, harness/state/evidence/gates/1d.10/2026-10-16T10-57-46.940632+00-00-e2e.json
 - next: 1d.10 closed pending fresh-context review: run the reviewer on 1d.10, fix findings, then new-task 1 1d.11 --feature F-1d-11
 - open: none
+
+## 2026-10-16T11:01:55.574956+00:00 · 926b1718-80df-49f9-ba17-a9e06fdeacdd · 1d.10
+- changed: harness/state/1/features.json, harness/state/1/handoffs/1d.10.json, harness/state/evidence/gates/1d.10/2026-10-16T11-00-42.564250+00-00-full.json
+- next: 1d.10 closed pending fresh-context review: apply reviewer findings, then new-task 1 1d.11 --feature F-1d-11
+- open: none
