@@ -1,0 +1,29 @@
+{
+  "task": "1d.9",
+  "changed": "scripts/repo_move.py gains named move sets: `layout --set <name>` and `check --set <name>` (default `packages`, unchanged behaviour; an unknown name raises `unknown move set`). The new `plugins` set git-moves src/e_agent/erp to src/e_agent/plugins/erp/domain and src/e_agent/adapters/odoo to src/e_agent/plugins/erp/odoo, with tests/unit/erp and tests/unit/adapters/odoo moved to tests/unit/plugins/erp/{domain,odoo}. In tracked .py, .toml and .json files it rewrites dotted and slash module paths (imports, entry points, hook `package`, manifest `factory`, script module strings) with one longest-first, token-bounded regex. It never creates __init__.py under src/, refuses untracked non-cache files in the moved trees, rewrites relative Markdown links, and excludes archive/, research/, harness/state/, docs/handoffs/ and the mover's own two files from text rewriting. `check --set plugins` lists old-path leftovers in code and config (and docs with --docs). The real move has not been run; that is 1d.10.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/1d.9/2026-10-16T09-30-38.501464+00-00-full.json",
+    "harness/state/evidence/gates/1d.9/2026-10-16T09-19-00.422948+00-00-quick.json"
+  ],
+  "open_items": [
+    "Task 1d.10 runs `layout --set plugins` on the real repo; a dry `check --set plugins` today lists 108 old-path references in 31 code and config files and 11 in 4 Markdown files.",
+    "Task 1d.10 edits by hand what the mover cannot see: the split names in tests/conformance/test_repo_layout.py, the import-linter contracts in pyproject.toml, and ERP_MODULES in scripts/check_core_only.py (now listed in the plan).",
+    "mypy's configured packages do not include scripts/; repo_move.py passes `mypy --strict` when run directly but the full gate does not type-check it.",
+    "The quick smoke gate without --package runs `pytest -q .`, which collects the git-ignored local evidence/review/test_review_probes.py and fails; the first quick evidence file (09-18-43) records that failure, and the rerun with --package tests/conformance passed."
+  ],
+  "rulings": [
+    {
+      "ruling": "The red step failed with argparse rejecting `--set` rather than with `unknown move set`; the unknown-name error is its own test for both layout and check (plan step annotated).",
+      "cost_if_wrong": "None for behaviour; the red was for a missing CLI option, which the same tests now cover."
+    },
+    {
+      "ruling": "Markdown text is not rewritten by the plugins set; only relative links are, across every tracked .md outside archive/ and research/, as `links --layout` does, so links in docs/handoffs and docs/plans pointing into the moved trees are fixed while their prose keeps the old names.",
+      "cost_if_wrong": "1d.10 hand-edits the current docs that `check --set plugins --docs` lists (README and three design docs); if history links should stay unchanged, revert those link edits in the 1d.10 commit."
+    },
+    {
+      "ruling": "Non-Markdown, non-code text files (Makefile, YAML, txt) count as docs in `check --set plugins` and fail it only with --docs.",
+      "cost_if_wrong": "A stale path in CI YAML would pass `check` without --docs; 1d.10 runs `check --docs`, so it is still caught there."
+    }
+  ],
+  "outside_repo": []
+}
