@@ -17,7 +17,8 @@
     "harness/state/**",
     "docs/handoffs/**",
     "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
-    "README.md"
+    "README.md",
+    "docs/design/principles.md"
   ],
   "acceptance": [
     "uv run lint-imports keeps both new contracts",
@@ -29,5 +30,12 @@
   "gate_set": "full",
   "base_commit": "da9c971d9cbb7665be2fe0cbb69edd2f7f728113",
   "created_at": "2026-10-15T23:14:19+00:00",
-  "features_digest": "5c42981fa81dbe2be1bef744155d7f66f7ff6b5de0ee927d07bce7d58a809187"
+  "features_digest": "5c42981fa81dbe2be1bef744155d7f66f7ff6b5de0ee927d07bce7d58a809187",
+  "scope_changes": [
+    {
+      "glob": "docs/design/principles.md",
+      "reason": "PR-14 row names the import contract this task replaced (review R-1)",
+      "at": "2026-10-16T03:40:54+00:00"
+    }
+  ]
 }
