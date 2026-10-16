@@ -260,3 +260,58 @@ def test_task_presets_differing_only_in_ref_order_conflict() -> None:
     with pytest.raises(KernelError) as exc:
         register(reg, "b", {"product_ref": "product:a", "customer_ref": "customer:acme"})
     assert exc.value.code is ErrorCode.STARTUP_REJECTED
+
+
+# --- declared capability requirements (XA-03, PR-10) ------------------------------
+
+FEATURED = CapabilityDescriptor(
+    contract_id="notes.note.search.v1",
+    effect=EffectKind.READ,
+    input_schema_id="q",
+    output_schema_id="n",
+    required_features=frozenset({"x"}),
+)
+
+
+def _register_featured(reg: PluginRegistry, supported: frozenset[str]) -> None:
+    reg.register(
+        plugin_id="notes-fixture",
+        plugin_version="1",
+        declared_capabilities=(FEATURED,),
+        binding_templates=(
+            BindingTemplate(
+                binding_id="notes-mem.search",
+                contract_id=FEATURED.contract_id,
+                supported_features=supported,
+            ),
+        ),
+        contribution=PluginContribution(capabilities=(FEATURED,)),
+    )
+
+
+def test_binding_missing_required_feature_refused() -> None:
+    reg = PluginRegistry({"notes-mem.search": ("c1",)})
+    with pytest.raises(KernelError) as exc:
+        _register_featured(reg, frozenset())
+    assert exc.value.code is ErrorCode.STARTUP_REJECTED
+    message = exc.value.safe_message
+    assert "notes-mem.search" in message
+    assert FEATURED.contract_id in message
+    assert "'x'" in message
+    assert reg.bindings == []
+    assert reg.report.admitted == []
+
+
+def test_binding_missing_required_feature_refused_without_a_connection() -> None:
+    # The template is refused at registration, not only once a connection is assigned.
+    with pytest.raises(KernelError) as exc:
+        _register_featured(PluginRegistry({}), frozenset({"y"}))
+    assert exc.value.code is ErrorCode.STARTUP_REJECTED
+
+
+def test_binding_with_required_features_admitted() -> None:
+    reg = PluginRegistry({"notes-mem.search": ("c1",)})
+    _register_featured(reg, frozenset({"x", "y"}))
+    binding = reg.resolve(FEATURED.contract_id, "c1")
+    assert binding.supported_features == frozenset({"x", "y"})
+    assert reg.report.admitted == ["notes-fixture"]

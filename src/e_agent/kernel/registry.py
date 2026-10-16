@@ -227,6 +227,13 @@ class PluginRegistry:
                 raise _reject(f"duplicate binding id {template.binding_id!r}")
             if template.contract_id not in self.capabilities:
                 raise _reject(f"binding {template.binding_id} for unknown contract")
+            required = self.capabilities[template.contract_id].required_features
+            missing = sorted(required - template.supported_features)
+            if missing:
+                raise _reject(
+                    f"{plugin_id}: binding {template.binding_id} for {template.contract_id} "
+                    f"lacks required features {missing}"
+                )
             self._binding_owner[template.binding_id] = plugin_id
             for connection_id in self._binding_connections.get(template.binding_id, ()):
                 self.bindings.append(

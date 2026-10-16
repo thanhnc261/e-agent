@@ -101,10 +101,16 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "Kernel never imports domains or server"
+name = "Core never imports plugins"
 type = "forbidden"
-source_modules = ["e_agent.kernel"]
-forbidden_modules = ["e_agent.erp", "e_agent.server", "e_agent.plugins.erp.simulator"]
+source_modules = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.server"]
+forbidden_modules = ["e_agent.erp", "e_agent.adapters.odoo", "e_agent.plugins.erp.simulator"]
+
+[[tool.importlinter.contracts]]
+name = "Plugins are guests"
+type = "forbidden"
+source_modules = ["e_agent.erp", "e_agent.adapters.odoo", "e_agent.plugins.erp.simulator"]
+forbidden_modules = ["e_agent.kernel", "e_agent.server", "e_agent.adapters.postgres", "e_agent.adapters.secretstore_local", "e_agent.adapters.pydantic_ai", "e_agent.adapters.shacl"]
 
 [[tool.importlinter.contracts]]
 name = "Only the facade module imports e_agent.kernel.coordinator"

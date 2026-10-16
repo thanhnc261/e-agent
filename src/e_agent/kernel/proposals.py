@@ -227,7 +227,7 @@ class ProposalsMixin(ContinuationMixin):
         self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
     ) -> RunRecord | DriverInput:
         """Structured answers: no approval or dispatch; the domain verifier recomputes
-        the answer from fresh, independent reads (MVP plan ERP-01/02/06/08)."""
+        the answer from fresh, independent reads."""
         ctx = cont.ctx
         connection = self._connections.usable(ctx, proposal.connection_id)
         verifier = self._registry.verifier_for(proposal.contract_id)
