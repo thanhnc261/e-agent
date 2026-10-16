@@ -53,6 +53,7 @@ full = [
   "uv run pytest -q",
   "pnpm --dir ui gen:check",
   "pnpm --dir ui check",
+  "uv run python scripts/check_core_only.py",
 ]
 # UI type check, unit tests, layer and neutrality rules, build (pilot log HP-12).
 ui = ["pnpm --dir ui check"]

@@ -58,6 +58,7 @@ jobs:
           python-version: "3.13"
       - run: uv sync --locked
       - run: uv run python scripts/check_wheels.py
+      - run: uv run python scripts/check_core_only.py
 
   ui:
     name: UI layers, conformance (default, overlay, reference)
