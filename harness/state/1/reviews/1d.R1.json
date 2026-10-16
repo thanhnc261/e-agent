@@ -1,0 +1,9 @@
+{
+  "task": "1d.R1",
+  "verdict": "accept",
+  "findings": [],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}
