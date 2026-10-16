@@ -41,3 +41,11 @@ Fixed on branch `harness/h21-cli-fixes` ([plan](../../../docs/plans/2026-10-13-h
 | HP-12 | `gate full` and a new `ui` set run `pnpm --dir ui check`. Running it found a provider identifier in a UI test that had been red on `main` since 89b2b1e; fixed in `8ae3413`. | `5145fb0` |
 | HP-13 | The `pg` gate no longer aliases the live DSN; `[gate_guards.pg]` requires `E_AGENT_TEST_PG_DSN` and refuses when it names the same host, port and database as `E_AGENT_PG_DSN`. | `38ef5fb` |
 | HP-14 | `add-feature` appends a validated entry, so a phase-review fix gets its feature id by command. | `b84fe8c` |
+
+## Carried to harness plan H5 (Phase 1d, 2026-10-16)
+
+| Id | State | Seen again |
+|---|---|---|
+| HP-6 | Open, carried to the H5 backlog ([Phase 1d plan](../../../docs/plans/2026-10-14-phase1d-plugin-boundary.md) D5; plugin boundary review R-8). A contract still holds one gate set, so a task whose plan asks for `full`, `pg`, `e2e` and `core` runs the extra sets as their own `gate` commands and cites their evidence in the handoff. | 1d.8 (`full` and `core`), 1d.10 (`full`, `core`, `pg`, `e2e` and `check_wheels.py` by hand) |
+| HP-13 | Resolved by `[gate_guards.pg]` and `[gate_guards."*"]` in `harness/context.toml` (H2.1 `38ef5fb`); the 1d.10 `pg` run used `E_AGENT_TEST_PG_DSN` on `e_agent_test` with `E_AGENT_PG_DSN` unset. | — |
+

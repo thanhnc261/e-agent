@@ -86,3 +86,12 @@ Each task handoff states its rulings with cost-if-wrong. The ones that change th
 | Created database `e_agent_test` in the `e-agent-ledger` container, for the Postgres test suite | `docker exec e-agent-ledger psql -U <user> -d postgres -c "DROP DATABASE e_agent_test"` |
 | Live runs from the check added run records to the live ledger (9 runs: 6 on the branch including the UI run, 3 on `main`) | none needed; they are normal run history |
 | Started and stopped `e-agent-ledger` (found stopped, left stopped) | none |
+
+## Follow-up (2026-10-16, Phase 1d Task 1d.11)
+
+This handoff is a dated record; the notes below correct it without rewriting it.
+
+- **Merge state.** "Not merged, not pushed" above was true on 2026-10-13. Phase 1 has since been merged to `main` (the roadmap's Phase 1 row; `main` contains the final checkpoint `036407b`). Pushing stays the owner's action ([plugin boundary review](../reviews/2026-10-14-phase1-plugin-boundary-review.md) R-6).
+- **Research links.** The open item "Allow a link-only rewrite of `research/`" is closed without a change: `research/` is create-only (ENG-BOUND-2), so the four links to moved designs (`research/14-enterprise-wide-agent-experience.md`, three; `research/mockups/agentic-chat-v4/design-system/README.md`, one) stay broken by ruling ([Phase 1d plan](../plans/2026-10-14-phase1d-plugin-boundary.md) D5; review R-5).
+- **Layout.** Phase 1d moved the ERP domain pack and the Odoo adapter under `src/e_agent/plugins/erp/` ([ADR 0026](../adr/0026-plugin-layout-and-reusable-core.md)); the paths in this handoff are those of 2026-10-13.
+

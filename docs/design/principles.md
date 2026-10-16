@@ -1,6 +1,6 @@
 # e-agent: principles and their checks
 
-**Date:** 2026-10-14. **Status:** consolidated from existing sources; it adds no new principle. Checks were verified against `main` at `8bc7b1f` with the 2026-10-14 working tree.
+**Date:** 2026-10-14. **Status:** consolidated from existing sources; it adds no new principle. Checks were verified against `main` at `8bc7b1f` with the 2026-10-14 working tree. The checks of PR-01, PR-03, PR-08 and PR-10 were re-verified at the close of Phase 1d (2026-10-16, branch `refactor/phase1d-plugin-boundary`).
 
 This file is the spine of the design ([adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) XA-00). Each row gives a binding principle, what it means in practice, where it was decided, the engineering rule that applies it, the **check that enforces it** and its status.
 
@@ -18,9 +18,9 @@ Status tags follow the target architecture: **[I]** implemented, **[Pa]** partia
 
 | ID | Principle | In practice | Decided in | ENG | Check | Status |
 |---|---|---|---|---|---|---|
-| PR-01 | Dependencies point one way | contracts ← sdk ← kernel and domains ← adapters ← server; the kernel never imports domains, adapters or server | AGENTS.md; HLD §4 | ENG-ARCH-1 | 9 import-linter contracts (`pyproject.toml:86-165`), `uv run lint-imports` in the `full` gate | [I] |
+| PR-01 | Dependencies point one way | contracts ← sdk ← kernel and domains ← adapters ← server; the kernel never imports domains, adapters or server | AGENTS.md; HLD §4 | ENG-ARCH-1 | 12 import-linter contracts (`pyproject.toml:90-189`), `uv run lint-imports` in the `full` gate | [I] |
 | PR-02 | Contracts are portable records | No vendor, framework or ORM type crosses a contract; domain fields live in domain APIs | AGENTS.md | ENG-ARCH-2 | Import contract "Core packages do not import agent frameworks or provider SDKs" forbids `pydantic_ai`, `httpx`, `psycopg`, `fastapi` in contracts, sdk, kernel and erp; vendor-shaped fields are review only | [Pa] |
-| PR-03 | Bootstrap composes; handlers, CLI and prompts hold no domain logic | Bootstrap picks implementations; HTTP and CLI delegate | AGENTS.md; HLD §4 | ENG-ARCH-3 | **none** (Phase 1d adds `test_server_has_no_domain_literals`) | [Pa] |
+| PR-03 | Bootstrap composes; handlers, CLI and prompts hold no domain logic | Bootstrap picks implementations; HTTP and CLI delegate | AGENTS.md; HLD §4 | ENG-ARCH-3 | `test_server_has_no_domain_literals` (`tests/unit/server/test_generic_composition.py:146`) finds no ERP literal in `src/e_agent/server/`; that handlers and prompts hold no domain logic beyond literals stays a review item | [Pa] |
 | PR-04 | No speculative structure | No unused abstraction or empty future package; a seam exists for a concrete use or a trust boundary | AGENTS.md | ENG-ARCH-4 | **none** | [I] by review |
 | PR-05 | One namespace tree, independently releasable wheels | `src/e_agent/<part>/`, one build config per distribution, no namespace `__init__.py` | AGENTS.md; HLD §4 | ENG-ARCH-5 | `tests/conformance/test_repo_layout.py`; `scripts/check_wheels.py` | [I] |
 | PR-06 | Never loosen a boundary to make a change fit | No import-contract exemption or ignore added for convenience | Adoption review (X-agent gaps AP-03, AP-06) | none | **none** | [I] by review |
@@ -30,9 +30,9 @@ Status tags follow the target architecture: **[I]** implemented, **[Pa]** partia
 | ID | Principle | In practice | Decided in | ENG | Check | Status |
 |---|---|---|---|---|---|---|
 | PR-07 | Discover metadata before import; activate only admitted artifacts | Disabled plugins are never imported; manifests are digest-pinned | AGENTS.md; MVP §6 | none | `test_disabled_plugin_is_never_imported` (`tests/unit/kernel/test_registry.py:140`); `test_manifest_digest_must_match_inventory` (`:171`) | [I] |
-| PR-08 | Plugins are guests | Plugins never import the store, the secret store, the server or kernel internals; credentials arrive only through scoped services | AGENTS.md; adoption review XA-02 | ENG-ARCH-1 | Adapter contracts in `pyproject.toml` ("Adapters never import kernel, domains, server or sibling adapters"; "Provider adapters use only public domain APIs"); store and secret store are excluded only by the sibling layers (`pyproject.toml:95`); plugin distributions depend only on contracts, the SDK and the domain packs they bind (`test_plugin_dependencies_are_the_common_base`, `tests/conformance/test_plugin_dependencies.py`) | [Pa] |
+| PR-08 | Plugins are guests | Plugins never import the store, the secret store, the server or kernel internals; credentials arrive only through scoped services | AGENTS.md; adoption review XA-02 | ENG-ARCH-1 | Import contract "Plugins are guests" (`pyproject.toml:111-115`): the ERP plugin packages never import the kernel, the server, the store, the secret store, the driver or the validator; `test_every_plugin_package_is_a_guest` (`tests/conformance/test_plugin_guests.py:45`) fails when an installed plugin package is not a source of that contract; "Core never imports plugins" (`pyproject.toml:105-109`) forbids `e_agent.plugins.**` from contracts, SDK, kernel and server; plugin distributions depend only on contracts, the SDK and the domain packs they bind (`test_plugin_dependencies_are_the_common_base`, `tests/conformance/test_plugin_dependencies.py`). Credentials reaching plugins only through scoped services is PR-25 | [I] |
 | PR-09 | Domain, capability, binding and connection stay separate; ambiguity is an error | Multiple bindings allowed; duplicates and ambiguous routing refused | AGENTS.md; HLD §5; ADR 0002 | none | `test_duplicate_binding_id_rejected` (`tests/unit/kernel/test_registry.py:48`); `test_duplicate_bindings_on_one_connection_are_ambiguous_not_available` (`tests/unit/kernel/test_discovery.py:192`) | [I] |
-| PR-10 | A declared capability requirement is enforced, or the capability is absent with a reason | `required_features` checked at admission | Adoption review XA-03 | none | **none** (`required_features` is declared at `contracts/capability.py:30` and never read) | [P] |
+| PR-10 | A declared capability requirement is enforced, or the capability is absent with a reason | `required_features` checked at admission | Adoption review XA-03 | none | The registry refuses a binding whose `supported_features` lack its capability's `required_features` (`kernel/registry.py:230-236`): `test_binding_missing_required_feature_refused`, `test_binding_missing_required_feature_refused_without_a_connection` and `test_binding_with_required_features_admitted` (`tests/unit/kernel/test_registry.py:292-312`). Probing a live instance for its features is Phase 5 | [I] |
 | PR-11 | UI packages carry no provider or third-party identifiers | Names, icons and forms come from manifests through the server API | AGENTS.md; ADR 0011 | none | **none** | [I] by review |
 | PR-12 | Model output never selects credentials or connections | Host resolution picks binding and connection | AGENTS.md; HLD §5 | ENG-TRUST-1 | **none** (Phase 2 adds `test_plan_with_model_chosen_connection_is_rejected`) | [Pa] |
 
@@ -110,9 +110,6 @@ Status tags follow the target architecture: **[I]** implemented, **[Pa]** partia
 
 | Row | Missing check | Where it lands |
 |---|---|---|
-| PR-03 | Server has no domain literals | Phase 1d (`test_server_has_no_domain_literals`) |
-| PR-08 | Named "Plugins are guests" import contract | Phase 1d Task 1d.7 (adoption review XA-02) |
-| PR-10 | Registry enforces `required_features` | Phase 1d Task 1d.7 (XA-03); instance feature probe in Phase 5 |
 | PR-12, PR-13 | Model cannot choose a connection or mark a plan verified | Phase 2 Tasks 2c.6 and 2c.9 |
 | PR-16 | Guardrail modification rule | First guardrail ADR |
 | PR-20 | Effect declarations and live refusal | Phase 2 Tasks 2c.1, 2c.2 (ADR 0029) |

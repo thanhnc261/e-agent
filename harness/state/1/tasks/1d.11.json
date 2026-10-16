@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-11"
   ],
-  "context_digest": "7d16506696d3f6a4441525c24c83193eb4c458eed5f1a69aabd2ea4ce0826c20",
+  "context_digest": "c81eb241d03902a75f10644ce3f05f5239d94c9cae39200e2826a3d9b2d61079",
   "allowed_paths": [
     "docs/handoffs/**",
     "harness/state/**",
@@ -14,7 +14,8 @@
     "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
     "docs/roadmap.md",
     "docs/design/principles.md",
-    ".agents/skills/eng-foundations/references/gotchas.md"
+    ".agents/skills/eng-foundations/references/gotchas.md",
+    "AGENTS.md"
   ],
   "acceptance": [
     "full gate, Postgres run and make e2e pass on a clean tree",
@@ -24,5 +25,12 @@
   "gate_set": "full",
   "base_commit": "3700bc707cc8df678f10c40e4b941471dffc83b3",
   "created_at": "2026-10-16T11:12:25+00:00",
-  "features_digest": "72d8e4a5cf7aeb03fc40fb3a3fa13abe962f3f6c6f7a49c9d57c2ea0d8b54190"
+  "features_digest": "72d8e4a5cf7aeb03fc40fb3a3fa13abe962f3f6c6f7a49c9d57c2ea0d8b54190",
+  "scope_changes": [
+    {
+      "glob": "AGENTS.md",
+      "reason": "PR-10 line says required_features is not read yet; the registry enforces it since 1d.7",
+      "at": "2026-10-16T11:14:08+00:00"
+    }
+  ]
 }

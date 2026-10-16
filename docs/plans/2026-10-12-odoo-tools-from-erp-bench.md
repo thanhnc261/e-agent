@@ -28,6 +28,8 @@ Phases 0–2 can run in parallel with the core plan.
 
 **Status:** Proposed. Nothing implemented.
 
+**Amended at Phase 1d's close (2026-10-16, ENG-PLAN-3).** The Odoo adapter now lives in `src/e_agent/plugins/erp/odoo/` and the ERP domain pack in `src/e_agent/plugins/erp/domain/` ([ADR 0026](../adr/0026-plugin-layout-and-reusable-core.md)); new Odoo bindings go there, and further ERP providers sit beside them under `plugins/erp/`. The manifest `connection` section (auth placement and sandbox probe) is consumed by bootstrap since Phase 1d Task 1d.2 (design-principles review DR-03), so no phase of this plan has to deliver it; this plan named no separate task for it, so nothing is removed.
+
 ## Source pin (decision D7, implementation-plan §8)
 
 | Field | Value |
