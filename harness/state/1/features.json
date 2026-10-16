@@ -404,6 +404,17 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/1d.7b/2026-10-16T04-50-53.893472+00-00-full.json"
+    },
+    {
+      "id": "F-1d-R1",
+      "category": "trust",
+      "description": "Phase review 1d R-1: a binding routes only to its own provider's connections, and the live sandbox guard probes every provider with a routable binding",
+      "steps": [
+        "a binding on another integration's connection, or a connection naming no enabled plugin, is refused at admission",
+        "the sandbox guard refuses a live profile whose bindings reach a provider without a probe",
+        "full gate passes"
+      ],
+      "passes": false
     }
   ]
 }

@@ -1,0 +1,20 @@
+{
+  "gate_set": "pg",
+  "task": "1d.11",
+  "commit": "bbdf8fe0ed5d42823c2668a378391488fc7f7511",
+  "clean_tree": true,
+  "started_at": "2026-10-16T11:15:56.989136+00:00",
+  "ok": true,
+  "commands": [
+    {
+      "command": "E_AGENT_TEST_STORE=postgres uv run pytest -q tests/unit/kernel",
+      "exit_code": 0,
+      "seconds": 8.746,
+      "output_tail": "........................................................................ [ 43%]\n........................................................................ [ 86%]\n.......................                                                  [100%]\n167 passed in 8.50s",
+      "counts": {
+        "passed": 167
+      }
+    }
+  ],
+  "finished_at": "2026-10-16T11:16:05.759249+00:00"
+}

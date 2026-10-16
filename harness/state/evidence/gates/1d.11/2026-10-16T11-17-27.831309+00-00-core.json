@@ -1,0 +1,18 @@
+{
+  "gate_set": "core",
+  "task": "1d.11",
+  "commit": "bbdf8fe0ed5d42823c2668a378391488fc7f7511",
+  "clean_tree": true,
+  "started_at": "2026-10-16T11:17:27.831309+00:00",
+  "ok": true,
+  "commands": [
+    {
+      "command": "uv run python scripts/check_core_only.py",
+      "exit_code": 0,
+      "seconds": 7.758,
+      "output_tail": "ok  built 9 wheels (core and the test pack) outside dist/\nok  72 third-party versions constrained to uv.lock\nok  54 distributions installed; none of the 4 ERP distributions, none of the 1 ERP packages importable\nok  installed server is ready with only core-test-pack: 2 fields\ncore-only check passed in 7.7s",
+      "counts": {}
+    }
+  ],
+  "finished_at": "2026-10-16T11:17:35.612663+00:00"
+}
