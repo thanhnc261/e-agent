@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-R1"
   ],
-  "context_digest": "c81eb241d03902a75f10644ce3f05f5239d94c9cae39200e2826a3d9b2d61079",
+  "context_digest": "6ff10f2444e229a37b1bb023e3cb371a19e79846b0423f2790d73ea8c4379678",
   "allowed_paths": [
     "src/e_agent/server/bootstrap.py",
     "tests/unit/server/**",

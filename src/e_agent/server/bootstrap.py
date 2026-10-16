@@ -225,7 +225,38 @@ def admit_plugins(
         for pid, cfg in profile.enabled_plugins.items()
     }
     registry.admit(discovered, enabled, credentials_for=credentials.scoped)
+    _check_connection_owners(profile, registry)
     return registry, credentials
+
+
+def _check_connection_owners(profile: Profile, registry: PluginRegistry) -> None:
+    """In a live profile every connection belongs to an enabled plugin, and a binding
+    uses only its own plugin's connections.
+
+    The live sandbox guard probes the providers that connections name, and live
+    credentials are looked up by the connection's integration id as a plugin id; a
+    binding on another integration's connection would route to a provider the guard
+    never probed (phase review 1d R-1). Fixture profiles are never probed, and their
+    test packs may name an integration apart from the plugin.
+    """
+    if profile.environment != "live":
+        return
+    owners = {conn.connection_id: conn.integration_id for conn in profile.connections}
+    for connection_id, integration_id in owners.items():
+        if integration_id not in profile.enabled_plugins:
+            raise KernelError(
+                ErrorCode.STARTUP_REJECTED,
+                f"connection {connection_id} names integration {integration_id!r}, "
+                "which is not an enabled plugin",
+            )
+    for binding in registry.bindings:
+        owner = owners.get(binding.connection_id)
+        if owner != binding.plugin_id:
+            raise KernelError(
+                ErrorCode.STARTUP_REJECTED,
+                f"binding {binding.binding_id} of {binding.plugin_id} is mapped to "
+                f"connection {binding.connection_id} of {owner!r}",
+            )
 
 
 def settings_for_takers(
@@ -353,7 +384,8 @@ async def _check_sandbox(
 ) -> dict[str, Any]:
     """Refuse to start unless every live provider reports the expected sandbox marker.
 
-    A live provider is an enabled plugin that a profile connection uses. Its
+    A live provider is an enabled plugin that a profile connection names or an
+    admitted binding routes to. Its
     manifest names the probe (``connection.test_connection``); one without a
     probe refuses startup, never skips the check.
     """
@@ -364,7 +396,9 @@ async def _check_sandbox(
         principal=operator,
         resource_scope=scope,
     )
+    # A provider is live when a connection names it or a binding routes to it.
     live = {conn.integration_id for conn in profile.connections}
+    live |= {binding.plugin_id for binding in registry.bindings}
     for pid, cfg in profile.enabled_plugins.items():
         if pid not in live:
             continue

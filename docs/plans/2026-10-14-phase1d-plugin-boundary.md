@@ -89,7 +89,7 @@ Run behaviour does not change.
 
 These are failure modes that the happy-path tests do not exercise. Each one is pinned to the task that adds its test.
 
-1. **The live sandbox guard weakens.** `LIVE_PROVIDERS_WITH_SANDBOX` is a safety check: it verifies the synthetic sandbox identity before live work. Once manifests drive it, a live provider whose manifest declares no sandbox probe must make startup refuse; skipping the check is not allowed. Test: Task 1d.2 `test_live_provider_without_sandbox_probe_refuses_startup`.
+1. **The live sandbox guard weakens.** `LIVE_PROVIDERS_WITH_SANDBOX` is a safety check: it verifies the synthetic sandbox identity before live work. Once manifests drive it, a live provider whose manifest declares no sandbox probe must make startup refuse; skipping the check is not allowed. Test: Task 1d.2 `test_live_provider_without_sandbox_probe_refuses_startup`. The phase review (Codex, R-1 Blocker) found the guard chose live providers by `connection.integration_id` alone, so a binding mapped to another integration's connection reached a provider the guard never probed; Task 1d.R1 refuses that at admission and makes the guard probe every provider with a routable binding (`tests/unit/server/test_connection_ownership.py`).
 2. **Credentials go somewhere else.** The auth placement read from the manifest must equal today's (`Authorization`, prefix `bearer `). An unknown placement is refused, never defaulted. Tests: Task 1d.2 `test_odoo_auth_placement_from_manifest_equals_previous` and `test_unknown_auth_placement_refused`.
 3. **Simulator code reached from a live composition.** A profile that does not enable `fixture-erp` never imports the simulator package. Test: Task 1d.5 `test_live_profile_never_imports_simulator` (subprocess, `sys.modules`).
 4. **Two ERP providers route ambiguously** (ADR 0002; `PluginRegistry.resolve`). Odoo and the simulator are both installed:
@@ -469,6 +469,15 @@ Runs after 1d.7, so the helper is written inside the guest contract, and before 
   - changes outside the repository: the owner's re-pin and how to undo it;
   - what remains: the four infrastructure adapters become discoverable plugins in Phases 3 and 7 (DR-04).
 - [ ] Commit `docs: Phase 1d handoff; Phase 2 and Odoo plans amended`.
+
+### Task 1d.R1: phase review R-1, connection ownership and the sandbox guard
+
+**Files:** `src/e_agent/server/bootstrap.py`; `tests/unit/server/test_connection_ownership.py`.
+
+- [x] Write the failing tests: `test_binding_on_a_connection_of_an_unconfigured_integration_refused` (the review's reproduction: a live profile enables `fixture-erp` and maps its binding to a connection of an integration that no enabled plugin is), `test_binding_on_another_providers_connection_refused`, `test_connection_naming_no_enabled_plugin_refused` and `test_sandbox_guard_probes_every_provider_with_a_routable_binding`. Observed: all four fail with `DID NOT RAISE KernelError`; the guard returned `{}` with the simulator's binding admitted.
+- [x] Implement: `admit_plugins` refuses, in a live profile, a connection whose integration is not an enabled plugin and a binding mapped to a connection of another integration (`_check_connection_owners`); `_check_sandbox` counts as live every provider that a connection names or an admitted binding routes to.
+- [x] Ruling: the ownership check runs for live profiles only. Live credentials are already looked up by the connection's integration id as a plugin id, and only live profiles are probed; the non-ERP test packs (`check_core_only.py`, the notes pack) name an integration apart from their plugin in fixture profiles. Cost if wrong: a fixture profile may route a binding through another integration's connection, which reaches no live system.
+- [x] Commit `fix(server): a binding routes only to its own provider's connections (phase review R-1)`.
 
 ### Task 1d.12: live check
 
