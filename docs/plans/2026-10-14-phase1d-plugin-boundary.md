@@ -102,7 +102,7 @@ These are failure modes that the happy-path tests do not exercise. Each one is p
 5. **The core still needs ERP.** The core wheels must install and the server must start without any ERP wheel. Test: Task 1d.8 `scripts/check_core_only.py`.
 6. **A caller still relies on the packaged default profile.** Test: Task 1d.6 `test_load_profile_requires_path_or_env`, and every existing caller migrated (a grep test for `load_profile()` without arguments).
 7. **A namespace directory gains an `__init__.py`**, which would change the import root and, through the hook, the pins. Test: Tasks 1d.5 and 1d.10, which extend `tests/conformance/test_repo_layout.py::test_e_agent_stays_a_namespace_package` to `plugins/` and `plugins/erp/`.
-8. **Stale module strings outside Python imports.** Entry-point values, the manifest `factory`, `check_wheels.py` (`files('e_agent.erp')`), `scripts/odoo_sandbox.py`, `scripts/qualify_model.py` and the docs all embed module paths. Test: Task 1d.10 `test_no_old_plugin_module_paths_remain` and `uv run python scripts/repo_move.py check --docs`.
+8. **Stale module strings outside Python imports.** Entry-point values, the manifest `factory`, `check_wheels.py` (`files('e_agent.erp')`), `scripts/odoo_sandbox.py`, `scripts/qualify_model.py` and the docs all embed module paths. Test: Task 1d.10 `test_no_old_plugin_module_paths_remain` and `uv run python scripts/repo_move.py check --set plugins --docs` (without `--set plugins` the check runs the default `packages` set and passes vacuously; 1d.9 review R-1).
 9. **A plugin escapes the guest contract.** A new provider package is added but not listed in the contract, so import-linter never checks it and the gate stays green. Test: Task 1d.7 `test_every_plugin_package_is_a_guest`, which derives the plugin packages from the installed `e_agent.plugins.v1` entry points rather than from a hand-kept list.
 10. **A declared requirement is never checked.** `CapabilityDescriptor.required_features` is declared and never read today, so a binding that lacks a required feature is admitted and fails, if at all, at call time. Test: Task 1d.7 `test_binding_missing_required_feature_refused`.
 11. **The HTTP helper leaks or wanders.** It must never log or echo a header or a body, and must refuse any host other than the connection's base-URL host. Tests: Task 1d.7b `test_http_never_echoes_credentials` and `test_http_refuses_other_hosts`.
@@ -434,7 +434,11 @@ Runs after 1d.7, so the helper is written inside the guest contract, and before 
 - [ ] Write the failing tests:
   - `test_no_old_plugin_module_paths_remain`
   - the layout test asserting the new paths, `xfail(strict=True)` until the move
-- [ ] Run `uv run python scripts/repo_move.py layout --set plugins`, then `uv run python scripts/repo_move.py check --docs`. Expected: no leftovers.
+- [ ] Run `uv run python scripts/repo_move.py layout --set plugins`, then `uv run python scripts/repo_move.py check --set plugins --docs`. Expected: no leftovers after the hand edits below. The check needs `--set plugins` (1d.9 review R-1). Run it in the main checkout: in a fresh clone, 15 links in `docs/handoffs/2026-10-08-*.md` point at the git-ignored `evidence/` folder and count as broken whatever the move did.
+- [ ] Hand-edit what the mover cannot see:
+  - the current docs `check --set plugins --docs` lists;
+  - short paths without the `e_agent/` or `tests/unit/` prefix, found with `git grep -n -E 'adapters/odoo|(^|[^/_.])erp/' -- ':!archive' ':!research' ':!docs/handoffs'` (for example `docs/design/target-architecture.md` names `adapters/odoo/executor.py`; 1d.9 review R-3).
+- [ ] Run `uv run ruff check --fix .` and `uv run ruff format .`, then wrap the lines ruff still reports. The rewrite leaves imports unsorted and lines too long: 21 errors and 6 files to reformat in the 1d.9 dry run (review R-4).
 - [ ] Rebuild the wheels. Run `uv run python scripts/check_wheels.py` and compare the file lists through the prefix map. Expected: equal to before, minus the simulator files that moved out in 1d.5.
 - [ ] Record the new pins for `domain-erp`, `odoo19` and `fixture-erp` with `scripts/plugin_inventory.py`, for the handoff and the owner's re-pin.
 - [ ] Run the `full`, `pg` and `e2e` gates and `check_core_only.py`. Expected: pass; `export_openapi.py --check` shows no change.
