@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-7b"
   ],
-  "context_digest": "2a25950322f9587e52feaaff9e912552284c86a18bc20b4d57f723dd0677a0ac",
+  "context_digest": "675089730aa0b7e691e62cb3790a82fb4294c87ad62ebb2a663be7f6b822cf70",
   "allowed_paths": [
     "src/e_agent/sdk/http.py",
     "src/e_agent/adapters/odoo/client.py",
@@ -21,7 +21,8 @@
     "README.md",
     "docs/design/principles.md",
     "scripts/check_wheels.py",
-    "tests/unit/adapters/odoo/test_rejection_classification.py"
+    "tests/unit/adapters/odoo/test_rejection_classification.py",
+    ".agents/skills/eng-foundations/references/gotchas.md"
   ],
   "acceptance": [
     "test_http_* tests pass, including test_http_never_echoes_credentials and test_http_refuses_other_hosts",
@@ -48,6 +49,11 @@
       "glob": "tests/unit/adapters/odoo/test_rejection_classification.py",
       "reason": "review R-3: executor-level regression for 4xx bodies the client cannot classify; existing Odoo tests stay unchanged",
       "at": "2026-10-16T04:38:41+00:00"
+    },
+    {
+      "glob": ".agents/skills/eng-foundations/references/gotchas.md",
+      "reason": "ENG-WORK-3 retro: second review finding of a secret reaching an operator surface through an untested path (1d.5 R-1, 1d.7b R-1/R-2)",
+      "at": "2026-10-16T04:50:40+00:00"
     }
   ]
 }
