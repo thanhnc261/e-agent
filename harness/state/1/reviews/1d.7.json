@@ -1,0 +1,42 @@
+{
+  "task": "1d.7",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "The task removes the import contract 'Kernel never imports domains or server', but the PR-14 row in principles still names it as its enforcing check. The handoff does not mention this and no later task is assigned to fix it: the plan's design-refs table gives principles.md only PR-08, PR-10 and the backlog (1d.11). So the design drifted silently from the code. The protection itself is intact: a probe showed kernel->server BROKEN under the layers contract, and kernel->erp/odoo/simulator is now covered by 'Core never imports plugins'. Fix: point the PR-14 check at the new contract plus the layers contract. principles.md is outside allowed_paths, so alternatively record a ruling or open item that hands it to 1d.11 and add it to the plan's design-refs row.",
+      "evidence": "docs/design/principles.md:44 (PR-14 check column: import contract \"Kernel never imports domains or server\"); pyproject.toml:103-107; docs/plans/2026-10-14-phase1d-plugin-boundary.md design-refs row for principles.md; harness/state/1/handoffs/1d.7.json open_items; ENG-PLAN-3, ENG-DOC-1"
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "test_notes_pack_composes_through_bootstrap only sees modules that build_runtime and a start_run import. A probe that added an ERP import to bootstrap.py made it fail (non-vacuous). An ERP import in worker.py, api.py, streaming.py or cli.py is outside its reach and is caught only by the static 'Core never imports plugins' contract. That split between the two checks is acceptable but undocumented.",
+      "evidence": "tests/unit/server/test_generic_composition.py:46-69,123-137; probe: an 'import e_agent.erp.procurement' appended to a scratch copy of server/bootstrap.py failed at test_generic_composition.py:137"
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The literal regex matches 'erp' anywhere in a word, case-insensitively, so later server code that says 'interpret', 'Interpreter' or 'excerpt' will fail the test without naming a domain. Nothing matches today, so the pass is honest. The pattern list is the plan's. Separately, the 'draft-po' default in profile.py escapes every pattern. That is consistent with the plan (Task 1d.3 prescribes it) and is recorded as a ruling and an open item, so no ADR is needed.",
+      "evidence": "tests/unit/server/test_generic_composition.py:143; src/e_agent/server/profile.py:61; docs/plans/2026-10-14-phase1d-plugin-boundary.md:242"
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "On refusal, register() has already written the plugin's capabilities into self.capabilities and appended the bindings of earlier templates in the loop. The new test checks bindings == [] only because the refused template is the first one. This is the same partial-state pattern as the existing 'duplicate binding id' and 'unknown contract' rejections. admit() propagates the error and the CLI exits 2 (cli.py:284-286), so the partial registry is never used. Not a regression. The message echoes only plugin, binding, contract and feature ids from an admitted manifest, the same as the other messages in this function.",
+      "evidence": "src/e_agent/kernel/registry.py:218-249; tests/unit/kernel/test_registry.py:293-303; src/e_agent/server/cli.py:284-286"
+    },
+    {
+      "id": "R-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Under the H0 rule, this task changes kernel admission logic (registry.register), so it calls for a review by the other provider. This review was run by claude. The handoff already owes a Codex re-review for 1d.5; the caller decides whether 1d.7 needs one as well.",
+      "evidence": "src/e_agent/kernel/registry.py:230-236; .claude/skills/eng-review/SKILL.md (hard limits, H0); harness/state/1/handoffs/1d.7.json open_items"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}
