@@ -1,0 +1,23 @@
+{
+  "task": "1d.R1",
+  "changed": "Phase review R-1 (Codex, Blocker): the live sandbox guard chose its live providers by connection.integration_id alone, and admission never checked that a binding's connection belongs to the binding's provider, so a live profile that enabled fixture-erp and mapped its binding to a connection of an unconfigured integration passed the guard and routed reads to the simulator. Commit cf346db: admit_plugins now runs _check_connection_owners, which in a live profile refuses with STARTUP_REJECTED a connection whose integration_id is not an enabled plugin and a binding mapped to a connection of another integration; _check_sandbox counts as live every provider that a connection names or an admitted binding routes to (union, so no connection loses its probe). New tests in tests/unit/server/test_connection_ownership.py: the review's reproduction, a binding on another provider's connection, a connection naming no enabled plugin, the guard on a registry admitted without the ownership check (all four watched failing with DID NOT RAISE KernelError, then passing), and the shipped live example and fixture profiles still admitting with every binding on its own provider's connection. Only src/e_agent/server/bootstrap.py changed, so the three plugin pins recorded in 1d.10 still hold.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/1d.R1/2026-10-16T11-28-15.702552+00-00-full.json"
+  ],
+  "open_items": [
+    "The Codex re-review of this fix is the next step (H0 rule: trust-anchor code).",
+    "The ownership rule lives in the server's composition root beside the sandbox guard; moving it into PluginRegistry would be a kernel API change (every PluginRegistry construction) and is left for an ADR if wanted.",
+    "levels pg and e2e run again at 1d.11 on the final head; this task's gate set is full."
+  ],
+  "rulings": [
+    {
+      "ruling": "The ownership check runs for live profiles only: live credentials are already looked up by the connection's integration id as a plugin id and only live profiles are probed, while the non-ERP test packs (check_core_only.py's core pack, the notes pack) name an integration apart from their plugin in fixture profiles.",
+      "cost_if_wrong": "A fixture profile may route a binding through another integration's connection; it reaches no live system, and the guard never runs there."
+    },
+    {
+      "ruling": "The check sits in bootstrap.admit_plugins rather than in PluginRegistry, so every admission path (build_runtime, the CLI, tests) runs it without a kernel API change.",
+      "cost_if_wrong": "A caller that builds a PluginRegistry and admits plugins without admit_plugins skips the ownership check; the sandbox guard's union still refuses an unprobed provider that a binding reaches."
+    }
+  ],
+  "outside_repo": []
+}

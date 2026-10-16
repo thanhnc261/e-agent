@@ -414,7 +414,8 @@
         "the sandbox guard refuses a live profile whose bindings reach a provider without a probe",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/1d.R1/2026-10-16T11-28-15.702552+00-00-full.json"
     }
   ]
 }

@@ -404,3 +404,8 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1d.10.json, harness/state/evidence/gates/1d.10/2026-10-16T11-10-56.447294+00-00-full.json
 - next: 1d.10 closed after review and re-review (R-1 to R-6 fixed): new-task 1 1d.11 --feature F-1d-11
 - open: none
+
+## 2026-10-16T11:29:43.388817+00:00 · 926b1718-80df-49f9-ba17-a9e06fdeacdd · 1d.R1
+- changed: harness/state/1/features.json, harness/state/1/handoffs/1d.R1.json, harness/state/evidence/gates/1d.R1/2026-10-16T11-28-15.702552+00-00-full.json
+- next: 1d.R1 closed pending Codex re-review of cf346db; then new-task 1 1d.11 --replace and re-run levels 1-3
+- open: none
