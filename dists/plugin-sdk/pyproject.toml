@@ -5,6 +5,10 @@ description = "Public ports, manifests and plugin lifecycle for e-agent"
 requires-python = ">=3.12"
 dependencies = ["e-agent-contracts>=0.1,<0.2", "pydantic>=2.13,<3"]
 
+[project.optional-dependencies]
+# e_agent.sdk.http, the authenticated HTTP helper for provider plugins (ADR 0026).
+http = ["httpx>=0.28,<1"]
+
 [build-system]
 requires = ["hatchling>=1.32,<2"]
 build-backend = "hatchling.build"

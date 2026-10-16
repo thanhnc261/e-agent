@@ -364,8 +364,10 @@ Runs after 1d.7, so the helper is written inside the guest contract, and before 
 - `pyproject.toml`: the contract "Core packages do not import agent frameworks or provider SDKs" gains `ignore_imports = ["e_agent.sdk.http -> httpx"]`, the one exemption ADR 0026 names.
 - `tests/unit/sdk/test_http.py`, `tests/conformance/test_plugin_dependencies.py`
 
+  Ruling (1d.7b): `PluginHttpClient` holds the base URL, timeout and transport, and takes the `AuthContext` per request (`post_json(auth, path, body, …)`): the Odoo plugin builds its client once at `create_plugin`, while an `AuthContext` covers one invocation. A 5xx, a redirect, a 2xx body that is not JSON, a timeout and a transport error raise the SDK's `HttpAmbiguous` instead of the raw httpx exception, because `httpx.HTTPStatusError` keeps the request and its credential header; every helper exception is raised outside the handler of the httpx error, so nothing chains to it. The executor maps any exception other than `KnownNoEffectError` to UNKNOWN, so this changes no outcome. A 4xx body that is not a JSON object now gives `REJECTED`; before, it raised an `AttributeError`, an ambiguous outcome. A path must start with a single `/`; a caller `Host` header is refused. Scope additions: `docs/design/principles.md` (PR-08 and PR-25 name the new checks) and `scripts/check_wheels.py` (the bare SDK wheel installs no httpx; the Odoo wheel imports its client through the extra).
+
 **Steps:**
-- [ ] Write the failing tests:
+- [x] Write the failing tests:
   - `test_http_applies_auth_context`
   - `test_http_refuses_other_hosts`
   - `test_http_4xx_is_rejection_with_allowed_code`: an unknown code becomes `REJECTED`, and the provider body text never appears in the exception.
@@ -373,10 +375,10 @@ Runs after 1d.7, so the helper is written inside the guest contract, and before 
   - `test_http_never_echoes_credentials`: the secret appears in no log record and no exception text (capture logs at DEBUG).
   - `test_plugin_dependencies_are_the_common_base`: each plugin distribution (found from the `e_agent.plugins.v1` entry points in `dists/*/pyproject.toml`) depends on no e-agent distribution other than `e-agent-contracts`, `e-agent-plugin-sdk` and, for a provider, its area's domain pack. It fails when it finds no plugin.
   - `test_sdk_imports_httpx_only_in_http_module`: importing `e_agent.sdk` and every other SDK module leaves `httpx` out of `sys.modules` (subprocess).
-- [ ] Run `uv run pytest -q tests/unit/sdk/test_http.py tests/conformance/test_plugin_dependencies.py`. Expected: fails (no `e_agent.sdk.http`).
-- [ ] Implement, then move the Odoo client onto the helper.
-- [ ] Run `uv run pytest -q tests/unit/adapters/odoo tests/unit/sdk`, `uv run lint-imports` and `uv run python scripts/check_wheels.py`. Expected: pass; the Odoo client's existing tests are unchanged.
-- [ ] Commit `feat(sdk): authenticated HTTP helper for plugins; Odoo client uses it`.
+- [x] Run `uv run pytest -q tests/unit/sdk/test_http.py tests/conformance/test_plugin_dependencies.py`. Expected: fails (no `e_agent.sdk.http`).
+- [x] Implement, then move the Odoo client onto the helper.
+- [x] Run `uv run pytest -q tests/unit/adapters/odoo tests/unit/sdk`, `uv run lint-imports` and `uv run python scripts/check_wheels.py`. Expected: pass; the Odoo client's existing tests are unchanged.
+- [x] Commit `feat(sdk): authenticated HTTP helper for plugins; Odoo client uses it`.
 
 ### Task 1d.8: packaging for a reusable core (D3)
 
@@ -393,10 +395,10 @@ Runs after 1d.7, so the helper is written inside the guest contract, and before 
 - `tests/conformance/test_core_only.py`: the script's assertions are unit-tested on its helpers.
 
 **Steps:**
-- [ ] Write the failing check: run `uv run python scripts/check_core_only.py`. Expected today: it fails while resolving the server wheel, because the server depends on `e-agent-domain-erp`. Time the run to decide whether it joins `full`.
-- [ ] Implement. Confirm the lock with `uv lock --check`; relock only for the new members and the narrowed dependencies, and show that third-party versions are unchanged (G-3).
-- [ ] Run the script, `uv run python scripts/check_wheels.py` and the `full` gate. Expected: pass.
-- [ ] Commit `build: core installs without ERP; e-agent-erp bundle`.
+- [x] Write the failing check: run `uv run python scripts/check_core_only.py`. Expected today: it fails while resolving the server wheel, because the server depends on `e-agent-domain-erp`. Time the run to decide whether it joins `full`.
+- [x] Implement. Confirm the lock with `uv lock --check`; relock only for the new members and the narrowed dependencies, and show that third-party versions are unchanged (G-3).
+- [x] Run the script, `uv run python scripts/check_wheels.py` and the `full` gate. Expected: pass.
+- [x] Commit `build: core installs without ERP; e-agent-erp bundle`.
 
 ---
 

@@ -182,3 +182,5 @@ name = "Core packages do not import agent frameworks or provider SDKs"
 type = "forbidden"
 source_modules = ["e_agent.contracts", "e_agent.sdk", "e_agent.kernel", "e_agent.erp"]
 forbidden_modules = ["pydantic_ai", "httpx", "psycopg", "fastapi"]
+# The one exemption ADR 0026 names: the common plugin SDK's HTTP helper (Task 1d.7b).
+ignore_imports = ["e_agent.sdk.http -> httpx"]

@@ -25,7 +25,11 @@ PACKAGES = {
         "from importlib.resources import files; import e_agent.contracts.digest as d; "
         "files('e_agent.contracts').joinpath('golden/digest_vectors.json').read_text()"
     ),
-    "e-agent-plugin-sdk": "import e_agent.sdk.discovery, e_agent.sdk.ports",
+    # httpx comes only with the [http] extra (Task 1d.7b).
+    "e-agent-plugin-sdk": (
+        "import importlib.util, e_agent.sdk.discovery, e_agent.sdk.ports; "
+        "assert importlib.util.find_spec('httpx') is None, 'bare plugin-sdk installs httpx'"
+    ),
     "e-agent-kernel": "import e_agent.kernel.coordinator, e_agent.kernel.registry",
     "e-agent-domain-erp": (
         "from e_agent.sdk.discovery import discover; "
@@ -50,7 +54,9 @@ PACKAGES = {
     "e-agent-adapter-secretstore-local": "import e_agent.adapters.secretstore_local",
     "e-agent-adapter-odoo": (
         "from e_agent.sdk.discovery import discover; "
-        "assert [p for p in discover() if p.manifest.plugin_id == 'odoo19']"
+        "assert [p for p in discover() if p.manifest.plugin_id == 'odoo19']; "
+        # The client imports the SDK HTTP helper, whose httpx comes from plugin-sdk[http].
+        "import e_agent.adapters.odoo.client"
     ),
     "e-agent-adapter-erp-simulator": (
         "from e_agent.sdk.discovery import discover; "

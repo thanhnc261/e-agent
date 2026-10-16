@@ -474,16 +474,14 @@ source = { editable = "dists/adapter-odoo" }
 dependencies = [
     { name = "e-agent-contracts" },
     { name = "e-agent-domain-erp" },
-    { name = "e-agent-plugin-sdk" },
-    { name = "httpx" },
+    { name = "e-agent-plugin-sdk", extra = ["http"] },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "e-agent-contracts", editable = "dists/contracts" },
     { name = "e-agent-domain-erp", editable = "dists/domain-erp" },
-    { name = "e-agent-plugin-sdk", editable = "dists/plugin-sdk" },
-    { name = "httpx", specifier = ">=0.28,<1" },
+    { name = "e-agent-plugin-sdk", extras = ["http"], editable = "dists/plugin-sdk" },
 ]
 
 [[package]]
@@ -602,11 +600,18 @@ dependencies = [
     { name = "pydantic" },
 ]
 
+[package.optional-dependencies]
+http = [
+    { name = "httpx" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "e-agent-contracts", editable = "dists/contracts" },
+    { name = "httpx", marker = "extra == 'http'", specifier = ">=0.28,<1" },
     { name = "pydantic", specifier = ">=2.13,<3" },
 ]
+provides-extras = ["http"]
 
 [[package]]
 name = "e-agent-server"

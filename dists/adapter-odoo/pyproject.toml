@@ -5,9 +5,8 @@ description = "Odoo 19 JSON-2 provider adapter for e-agent (bridge commands, ADR
 requires-python = ">=3.12"
 dependencies = [
     "e-agent-contracts>=0.1,<0.2",
-    "e-agent-plugin-sdk>=0.1,<0.2",
+    "e-agent-plugin-sdk[http]>=0.1,<0.2",
     "e-agent-domain-erp>=0.1,<0.2",
-    "httpx>=0.28,<1",
 ]
 
 [project.entry-points."e_agent.plugins.v1"]
