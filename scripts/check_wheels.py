@@ -4,7 +4,7 @@ Builds every distribution, then for each one creates a clean virtualenv OUTSIDE
 the workspace, installs only that wheel plus its declared dependency closure
 (first-party wheels from dist/, third-party from the index) and runs a smoke
 check from a neutral working directory. Finally runs the fixture demo from the
-installed server wheel to prove resources load without the repository.
+installed e-agent-erp bundle to prove resources load without the repository.
 """
 
 from __future__ import annotations
@@ -20,6 +20,12 @@ from plugin_inventory import inventory
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
+ERP_DISTRIBUTIONS = (
+    "e-agent-domain-erp",
+    "e-agent-adapter-odoo",
+    "e-agent-adapter-erp-simulator",
+    "e-agent-erp",
+)
 PACKAGES = {
     "e-agent-contracts": (
         "from importlib.resources import files; import e_agent.contracts.digest as d; "
@@ -62,7 +68,22 @@ PACKAGES = {
         "from e_agent.sdk.discovery import discover; "
         "assert [p for p in discover() if p.manifest.plugin_id == 'fixture-erp']"
     ),
-    "e-agent-server": "import e_agent.server.cli",
+    # The server installs without any ERP distribution (Task 1d.8).
+    "e-agent-server": (
+        "import e_agent.server.cli; from importlib.metadata import distributions; "
+        "names = {d.metadata['Name'].lower().replace('_', '-') for d in distributions()}; "
+        "assert names, 'no installed distributions'; "
+        f"bad = names & set({sorted(ERP_DISTRIBUTIONS)!r}); "
+        "assert not bad, f'the server venv installs ERP distributions: {sorted(bad)}'"
+    ),
+    # The ERP product bundle: no code, the server plus the ERP plugins.
+    "e-agent-erp": (
+        "from e_agent.sdk.discovery import discover; "
+        "ids = {p.manifest.plugin_id for p in discover()}; "
+        "missing = {'domain-erp', 'odoo19', 'fixture-erp'} - ids; "
+        "assert not missing, f'bundle misses plugins: {sorted(missing)}'; "
+        "import e_agent.server.cli"
+    ),
 }
 
 
@@ -100,29 +121,15 @@ def main() -> int:
             )
             run([str(python), "-c", smoke], cwd=neutral)
             print(f"ok  {name}: installs and imports from its own dependency closure")
-        server_python = neutral / "venv-e-agent-server" / "bin" / "python"
-        # The fixture profile enables the simulator, which the server does not depend on.
-        run(
-            [
-                "uv",
-                "pip",
-                "install",
-                "--quiet",
-                "--no-cache",
-                "--python",
-                str(server_python),
-                "--find-links",
-                str(DIST),
-                "e-agent-adapter-erp-simulator",
-            ]
-        )
+        # The ERP bundle venv holds the server and every ERP plugin.
+        bundle_python = neutral / "venv-e-agent-erp" / "bin" / "python"
         pins = {}
         for stem in ("e_agent_domain_erp", "e_agent_adapter_odoo", "e_agent_adapter_erp_simulator"):
             item = inventory(next(DIST.glob(stem + "-*.whl")))
             pins[item["plugin_id"]] = item["artifact_sha256"]
         run(
             [
-                str(server_python),
+                str(bundle_python),
                 "-c",
                 (
                     "import json, sys\n"
@@ -140,7 +147,7 @@ def main() -> int:
         # The server ships no profile; the fixture profile is a resource of the installed simulator.
         fixture = run(
             [
-                str(server_python),
+                str(bundle_python),
                 "-c",
                 "from e_agent.plugins.erp.simulator import fixture_profile_path as p; print(p())",
             ],
@@ -148,7 +155,7 @@ def main() -> int:
         ).strip()
         if not Path(fixture).resolve().is_relative_to(neutral.resolve()):
             raise SystemExit(f"FAILED: fixture profile not from the installed wheel: {fixture}")
-        cli = [str(server_python), "-m", "e_agent.server.cli", "--profile", fixture]
+        cli = [str(bundle_python), "-m", "e_agent.server.cli", "--profile", fixture]
         out = run([*cli, "demo", "--json", "--approve"], cwd=neutral)
         state = json.loads(out)["run"]["state"]
         if state != "SUCCEEDED":

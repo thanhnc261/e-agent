@@ -51,7 +51,7 @@ CLI / API
         -> storage adapter: durable run/action records
 ```
 
-- **Monorepo, modular monolith:** simple initial deployment with independently packaged adapters. All Python code is one layer-grouped tree, `src/e_agent/{contracts,sdk,kernel,erp,adapters/*,server}`; each of the 10 distributions has its build config in `dists/<name>/` and is released as a wheel.
+- **Monorepo, modular monolith:** simple initial deployment with independently packaged adapters. All Python code is one layer-grouped tree, `src/e_agent/{contracts,sdk,kernel,erp,adapters/*,server}`; each of the 12 distributions has its build config in `dists/<name>/` and is released as a wheel. The core (contracts, plugin SDK, kernel, server and the infrastructure adapters) installs and starts without any ERP distribution; the code-less `e-agent-erp` bundle installs the ERP product (server, ERP domain, Odoo adapter and simulator).
 - **Domain-neutral kernel:** ERP and future CRM/document domains register capabilities through public contracts.
 - **Provider and connection separation:** Google Workspace/Odoo adapters are distinct from business domains and tenant accounts.
 - **Host-controlled execution:** frameworks propose actions; the application owns permission, approval and verification.
@@ -131,11 +131,14 @@ uv run mypy
 uv run lint-imports                       # architecture dependency gates
 uv run pytest -q
 uv run python scripts/check_wheels.py     # each wheel installs/runs outside the repo
+uv run python scripts/check_core_only.py # core wheels + a non-ERP test pack, no ERP wheel; server answers /health/ready
+uv build --package e-agent-erp --wheel      # the code-less ERP bundle: server, ERP domain, Odoo adapter, simulator
 uv build --package e-agent-kernel --wheel   # one distribution (wheels only; dists/<name>/ builds from src/)
 uv run pytest -q tests/conformance/test_harness_context.py  # dev-harness manifest and contract samples
 uv run e-agent-harness status                 # dev-harness brief: state, boundaries, one next action
 uv run e-agent-harness validate-context       # manifest vs checkout
 uv run e-agent-harness gate quick --package tests/unit/kernel   # evidence under harness/state/evidence/ (committed)
+uv run e-agent-harness gate core             # runs scripts/check_core_only.py
 uv run e-agent-harness gate pg               # needs E_AGENT_TEST_PG_DSN with its own database name; every gate refuses the live ledger's name
 uv run e-agent-harness new-task <phase> <id> --feature <F-id> --paths <glob>   # task contract
 uv run e-agent-harness check-scope            # changed paths inside the task contract

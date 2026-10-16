@@ -18,6 +18,7 @@ dev = [
     "e-agent-adapter-secretstore-local",
     "e-agent-adapter-odoo",
     "e-agent-adapter-erp-simulator",
+    "e-agent-erp",
     "e-agent-harness",
     "pytest>=9.1",
     "pytest-asyncio>=1.0",
@@ -46,6 +47,7 @@ e-agent-adapter-agent-pydantic = { workspace = true }
 e-agent-adapter-secretstore-local = { workspace = true }
 e-agent-adapter-odoo = { workspace = true }
 e-agent-adapter-erp-simulator = { workspace = true }
+e-agent-erp = { workspace = true }
 e-agent-harness = { workspace = true }
 
 [tool.ruff]

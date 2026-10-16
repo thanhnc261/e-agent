@@ -58,6 +58,8 @@ full = [
 ui = ["pnpm --dir ui check"]
 pg = ["E_AGENT_TEST_STORE=postgres uv run pytest -q tests/unit/kernel"]
 e2e = ["make e2e"]
+# Core wheels and a non-ERP test pack install without any ERP wheel; the server starts (Task 1d.8).
+core = ["uv run python scripts/check_core_only.py"]
 live = ["uv run python scripts/env_check.py", "uv run python scripts/odoo_sandbox.py info"]
 
 # The Postgres tests truncate their database, and any gate whose pytest run sees

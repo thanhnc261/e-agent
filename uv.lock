@@ -16,6 +16,7 @@ members = [
     "e-agent-adapter-shacl",
     "e-agent-contracts",
     "e-agent-domain-erp",
+    "e-agent-erp",
     "e-agent-harness",
     "e-agent-kernel",
     "e-agent-plugin-sdk",
@@ -566,6 +567,25 @@ requires-dist = [
 ]
 
 [[package]]
+name = "e-agent-erp"
+version = "0.1.0"
+source = { editable = "dists/bundle-erp" }
+dependencies = [
+    { name = "e-agent-adapter-erp-simulator" },
+    { name = "e-agent-adapter-odoo" },
+    { name = "e-agent-domain-erp" },
+    { name = "e-agent-server" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "e-agent-adapter-erp-simulator", editable = "dists/adapter-erp-simulator" },
+    { name = "e-agent-adapter-odoo", editable = "dists/adapter-odoo" },
+    { name = "e-agent-domain-erp", editable = "dists/domain-erp" },
+    { name = "e-agent-server", editable = "dists/server" },
+]
+
+[[package]]
 name = "e-agent-harness"
 version = "0.1.0"
 source = { editable = "tools/harness" }
@@ -619,12 +639,10 @@ version = "0.1.0"
 source = { editable = "dists/server" }
 dependencies = [
     { name = "e-agent-adapter-agent-pydantic" },
-    { name = "e-agent-adapter-odoo" },
     { name = "e-agent-adapter-postgres" },
     { name = "e-agent-adapter-secretstore-local" },
     { name = "e-agent-adapter-shacl" },
     { name = "e-agent-contracts" },
-    { name = "e-agent-domain-erp" },
     { name = "e-agent-kernel" },
     { name = "e-agent-plugin-sdk" },
     { name = "fastapi" },
@@ -634,12 +652,10 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "e-agent-adapter-agent-pydantic", editable = "dists/adapter-agent-pydantic" },
-    { name = "e-agent-adapter-odoo", editable = "dists/adapter-odoo" },
     { name = "e-agent-adapter-postgres", editable = "dists/adapter-postgres" },
     { name = "e-agent-adapter-secretstore-local", editable = "dists/adapter-secretstore-local" },
     { name = "e-agent-adapter-shacl", editable = "dists/adapter-shacl" },
     { name = "e-agent-contracts", editable = "dists/contracts" },
-    { name = "e-agent-domain-erp", editable = "dists/domain-erp" },
     { name = "e-agent-kernel", editable = "dists/kernel" },
     { name = "e-agent-plugin-sdk", editable = "dists/plugin-sdk" },
     { name = "fastapi", specifier = ">=0.142,<1" },
@@ -661,6 +677,7 @@ dev = [
     { name = "e-agent-adapter-shacl" },
     { name = "e-agent-contracts" },
     { name = "e-agent-domain-erp" },
+    { name = "e-agent-erp" },
     { name = "e-agent-harness" },
     { name = "e-agent-kernel" },
     { name = "e-agent-plugin-sdk" },
@@ -685,6 +702,7 @@ dev = [
     { name = "e-agent-adapter-shacl", editable = "dists/adapter-shacl" },
     { name = "e-agent-contracts", editable = "dists/contracts" },
     { name = "e-agent-domain-erp", editable = "dists/domain-erp" },
+    { name = "e-agent-erp", editable = "dists/bundle-erp" },
     { name = "e-agent-harness", editable = "tools/harness" },
     { name = "e-agent-kernel", editable = "dists/kernel" },
     { name = "e-agent-plugin-sdk", editable = "dists/plugin-sdk" },

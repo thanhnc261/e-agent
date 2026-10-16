@@ -24,9 +24,16 @@ def test_no_old_layout_files_remain_tracked() -> None:
 
 def test_every_dist_builds_an_existing_src_package() -> None:
     configs = sorted((REPO / "dists").glob("*/pyproject.toml"))
-    assert len(configs) == 11
+    assert len(configs) == 12
+    # The e-agent-erp bundle carries no code: only its dependencies (Task 1d.8).
+    bundle = REPO / "dists" / "bundle-erp" / "pyproject.toml"
+    assert bundle in configs
     for config in configs:
         build = tomllib.loads(config.read_text(encoding="utf-8"))["tool"]["hatch"]["build"]
+        if config == bundle:
+            assert "hooks" not in build, config
+            assert build["targets"]["wheel"] == {"bypass-selection": True}, config
+            continue
         hook = build["hooks"]["custom"]
         assert (config.parent / hook["path"]).is_file(), config
         assert (REPO / "src" / hook["package"]).is_dir(), config

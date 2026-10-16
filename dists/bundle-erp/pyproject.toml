@@ -1,0 +1,19 @@
+[project]
+name = "e-agent-erp"
+version = "0.1.0"
+description = "e-agent ERP product bundle: the server with the ERP domain, the Odoo adapter and the simulator (no code)"
+requires-python = ">=3.12"
+dependencies = [
+    "e-agent-server>=0.1,<0.2",
+    "e-agent-domain-erp>=0.1,<0.2",
+    "e-agent-adapter-odoo>=0.1,<0.2",
+    "e-agent-adapter-erp-simulator>=0.1,<0.2",
+]
+
+[build-system]
+requires = ["hatchling>=1.32,<2"]
+build-backend = "hatchling.build"
+
+# A code-less wheel: only metadata and the dependency list.
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
