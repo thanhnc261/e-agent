@@ -1,0 +1,37 @@
+{
+  "task": "1d.11",
+  "changed": "End-of-phase verification and bookkeeping for Phase 1d. Commit bbdf8fe: the Phase 2 plan names the new plugin paths and Task 2c.2 extends the 1d.3 task presets; the Odoo tools plan gets a dated amendment (new paths; the manifest connection section is consumed since 1d.2, and the plan never listed a separate item for it); principles PR-01 (12 contracts), PR-03, PR-08 and PR-10 name their checks, PR-08 and PR-10 are [I] and their backlog rows (and PR-03's) are removed; AGENTS.md's PR-10 line no longer says required_features is unread (scope amended); the Phase 1 handoff gets a dated follow-up (merge state, research links ruled to stay broken: review R-5, R-6); the pilot log carries HP-6 to H5 (R-8); the roadmap 1d row records the status; gotcha G-15 (plan edits before the gate). Levels 1-3 passed on bbdf8fe. The phase review ran on Codex (harness/state/1/reviews/1d-phase.json): rework, R-1 Blocker (the live sandbox guard could skip a provider reachable through a binding on another integration's connection). It was fixed as Task 1d.R1 (cf346db) and Codex accepted the fix (harness/state/1/reviews/1d.R1.json). Levels 1-3 and core then passed on the final head fdc3c8d (full: 972 passed, 30 skipped; pg: 167 passed on e_agent_test; e2e: 150 passed, 4 skipped), and scripts/check_wheels.py passed there by hand. The phase handoff is docs/handoffs/2026-10-16-phase1d-plugin-boundary.md, with the three plugin pins for the owner's re-pin.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/1d.11/2026-10-16T11-34-11.086089+00-00-full.json",
+    "harness/state/evidence/gates/1d.11/2026-10-16T11-35-17.654503+00-00-pg.json",
+    "harness/state/evidence/gates/1d.11/2026-10-16T11-35-25.267333+00-00-e2e.json",
+    "harness/state/evidence/gates/1d.11/2026-10-16T11-36-47.719174+00-00-core.json",
+    "harness/state/evidence/gates/1d.11/2026-10-16T11-14-48.530844+00-00-full.json"
+  ],
+  "open_items": [
+    "Task 1d.12 (owner only): re-pin domain-erp and odoo19 in the git-ignored live profile and run the live check through live-sandbox; the Odoo API keys expire 2026-10-19.",
+    "Merge and push of refactor/phase1d-plugin-boundary are the owner's.",
+    "The owner decides whether this Codex phase review covers the Codex reviews still owed for 1d.5 (re-review) and 1d.7.",
+    "Harness backlog H5: HP-6, amend-scope with two --add flags, the scope hook refusing .superpowers/sdd/, and the review schema refusing fresh_context false."
+  ],
+  "rulings": [
+    {
+      "ruling": "The Odoo tools plan had no 'manifest connection consumed' item to drop, so it gets a dated amendment saying the section is consumed since 1d.2.",
+      "cost_if_wrong": "None; the plan text now states the current fact."
+    },
+    {
+      "ruling": "principles.md also updates PR-01 and PR-03 next to PR-08 and PR-10, and AGENTS.md's PR-10 line, because their check columns were stale.",
+      "cost_if_wrong": "None; each row names a check that runs in the full gate."
+    },
+    {
+      "ruling": "The phase-review fix ran as its own task 1d.R1 (new-task --replace), and 1d.11 was re-materialised after it with the 1d.R1 files added to its scope by amend-scope (they sit inside its base range).",
+      "cost_if_wrong": "None for coverage; 1d.R1 has its own contract, gate, handoff and Codex review."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "Started the stopped e-agent-ledger container for the pg runs against e_agent_test (1d.10, 1d.11); left running.",
+      "undo": "docker stop e-agent-ledger"
+    }
+  ]
+}
