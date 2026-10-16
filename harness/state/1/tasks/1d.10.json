@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-10"
   ],
-  "context_digest": "f879c741a9c27946fe46dc0f458aebd3c3ba657c77a6f0c5fd2ff4543a67881e",
+  "context_digest": "51fbbb96f1e02d0317a674800f7df19bcd1c24ffd6322f6af024469b4e0bd378",
   "allowed_paths": [
     "src/e_agent/erp/**",
     "src/e_agent/adapters/odoo/**",
@@ -31,7 +31,8 @@
     ".agents/skills/eng-foundations/references/rules.md",
     "harness/state/**",
     "docs/handoffs/**",
-    "docs/plans/2026-10-14-phase1d-plugin-boundary.md"
+    "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+    "scripts/repo_move.py"
   ],
   "acceptance": [
     "git shows renames for the domain pack and the Odoo adapter",
@@ -42,5 +43,12 @@
   "gate_set": "full",
   "base_commit": "6495018662f96a4b5c874c92866e856755ebfbba",
   "created_at": "2026-10-16T10:38:31+00:00",
-  "features_digest": "5ec1763bb90c73537a1a65c692fd87d01b72a957cea626e1b70188a9dfc94e3e"
+  "features_digest": "5ec1763bb90c73537a1a65c692fd87d01b72a957cea626e1b70188a9dfc94e3e",
+  "scope_changes": [
+    {
+      "glob": "scripts/repo_move.py",
+      "reason": "1d.10 review R-1: PLUGIN_EXEMPT must list tests/conformance/test_repo_layout.py so check --set plugins exits 0",
+      "at": "2026-10-16T11:05:08+00:00"
+    }
+  ]
 }

@@ -1,7 +1,9 @@
 """Repository layout after the Phase 1 move (roadmap Phase 1a, plan Task 1a.2)."""
 
 import importlib
+import importlib.util
 import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -119,3 +121,15 @@ def test_plugins_dirs_are_namespace_packages() -> None:
     for directory in (plugins, plugins / "erp"):
         assert directory.is_dir(), directory
         assert not (directory / "__init__.py").exists(), directory
+
+
+def test_mover_plugin_check_finds_no_old_paths() -> None:
+    # The mover's own check (`check --set plugins --docs`), minus links: a fresh clone
+    # lacks the git-ignored evidence/ folder that some handoff links point at.
+    spec = importlib.util.spec_from_file_location("repo_move", REPO / "scripts" / "repo_move.py")
+    assert spec is not None and spec.loader is not None
+    mover = sys.modules.setdefault(spec.name, importlib.util.module_from_spec(spec))
+    spec.loader.exec_module(mover)  # dataclasses resolve annotations through sys.modules
+    report = mover.check_plugins(REPO)
+    assert report.stale_references == []
+    assert report.doc_references == []

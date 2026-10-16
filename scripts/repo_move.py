@@ -182,13 +182,15 @@ PLUGIN_MOVES: tuple[PluginMove, ...] = (
 DEFAULT_SET = "packages"
 MOVE_SETS = (DEFAULT_SET, "plugins")
 PLUGIN_REWRITE_SUFFIXES = (".py", ".toml", ".json")
-# History, harness records and the mover's own fixtures keep the old plugin paths.
+# History, harness records, the mover's own fixtures and the layout test's list of
+# old plugin paths keep the old plugin paths.
 PLUGIN_EXEMPT = (
     "archive/",
     "research/",
     "harness/state/",
     "docs/handoffs/",
     "scripts/repo_move.py",
+    "tests/conformance/test_repo_layout.py",
     "tests/conformance/test_repo_move.py",
 )
 

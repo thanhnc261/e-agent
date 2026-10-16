@@ -1,6 +1,6 @@
 """A tiny NON-ERP fixture domain ("notes") used to prove the kernel is domain-neutral.
 
-Nothing here imports e_agent.plugins.erp.domain: the kernel must run its full lifecycle with only
+Nothing here imports a plugin (e_agent.plugins.*): the kernel must run its full lifecycle with only
 this domain installed (MVP design §13, domain neutrality gate).
 """
 

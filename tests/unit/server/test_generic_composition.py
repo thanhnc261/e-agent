@@ -24,7 +24,7 @@ from tests.unit.kernel.conftest import BINDINGS, CONN, CREATE, READ, TENANT
 
 REPO = Path(__file__).resolve().parents[3]
 SERVER = REPO / "src" / "e_agent" / "server"
-ERP_PACKAGES = ("e_agent.plugins.erp.domain", "e_agent.plugins.erp.odoo", "e_agent.plugins.erp")
+ERP_PACKAGES = ("e_agent.plugins.erp",)
 
 _NOTES_PLUGIN = """
 from e_agent.sdk.ports import PluginContribution, TaskPreset

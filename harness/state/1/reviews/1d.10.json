@@ -1,0 +1,38 @@
+{
+  "task": "1d.10",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "On the committed tree `repo_move.py check --set plugins --docs` exits 1 with 6 old-path references in code and config, all in the new test's OLD_PLUGIN_PATHS constants (test_repo_layout.py is not in PLUGIN_EXEMPT); the handoff and plan line say 0. Fix: add the exemption (scripts/repo_move.py needs a scope amendment) and correct the claim.",
+      "evidence": "tests/conformance/test_repo_layout.py:62-67; scripts/repo_move.py:186-193; harness/state/1/handoffs/1d.10.json; docs/plans/2026-10-14-phase1d-plugin-boundary.md:446; ENG-EVID-1"
+    },
+    {
+      "id": "R-2",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "docs/design/target-architecture.md:599 still names `adapters/odoo/executor.py:340-347`, the plan's own hand-edit example; neither check catches short forms.",
+      "evidence": "docs/design/target-architecture.md:599; docs/plans/2026-10-14-phase1d-plugin-boundary.md:438-440; ENG-DOC-1"
+    },
+    {
+      "id": "R-3",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "HLD \u00a74 and target-architecture \u00a715 say the core including the infrastructure adapters never imports a plugin under the 'Core never imports plugins' contract, whose sources are only contracts, sdk, kernel and server; narrow the wording.",
+      "evidence": "docs/design/high-level-design.md:99; docs/design/target-architecture.md:1156; pyproject.toml [tool.importlinter]; ADR 0026:25; ENG-ARCH-1"
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "ERP_PACKAGES lists e_agent.plugins.erp beside its own subpackages; the kernel conftest docstring names only e_agent.plugins.erp.domain where the intent is no plugin code.",
+      "evidence": "tests/unit/server/test_generic_composition.py:27; tests/unit/kernel/conftest.py:3"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}
