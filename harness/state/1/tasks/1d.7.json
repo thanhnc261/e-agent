@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-7"
   ],
-  "context_digest": "ac4102fb88f6f2f2c923e1f21e8b79b238b69f02cbfb94ed1f8c769e9cb89d78",
+  "context_digest": "b56ba2db0fada44dae390cd4a5ea69908835bd7fe86185f38eb3e57a812413a7",
   "allowed_paths": [
     "pyproject.toml",
     "src/e_agent/kernel/registry.py",
