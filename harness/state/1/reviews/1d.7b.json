@@ -1,0 +1,59 @@
+{
+  "task": "1d.7b",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Blocker",
+      "affects": "correctness",
+      "summary": "The HTTP dependency loggers expose credentials despite the helper’s no-echo guarantee.",
+      "evidence": "src/e_agent/sdk/http.py:108 and src/e_agent/sdk/http.py:115; tests/unit/sdk/test_http.py:227; accepted docs/adr/0026-plugin-layout-and-reusable-core.md:33; ENG-EVID-3, ENG-BOUND-3; contract acceptance 1. Reproduced without sockets using the actual httpx.AsyncHTTPTransport and httpcore.AsyncMockBackend at root DEBUG: a response X-Echo header containing a synthetic credential is included verbatim in httpcore.http11 receive_response_headers.complete; a credential ending in newline appears in send_request_headers.failed; malformed response bytes appear in receive_response_headers.failed. Separately, a response reason_phrase containing the canary appears in the httpx INFO request log even with MockTransport. Sanitizing the exception after send cannot remove these already-emitted records. The current no-echo test bypasses httpcore and does not exercise these cases; dependency logging must be made safe and covered."
+    },
+    {
+      "id": "R-2",
+      "severity": "Blocker",
+      "affects": "correctness",
+      "summary": "Request construction can raise an unsanitized exception containing the complete credential.",
+      "evidence": "src/e_agent/sdk/http.py:111; accepted docs/adr/0026-plugin-layout-and-reusable-core.md:33; ENG-EVID-3, ENG-BOUND-3; contract acceptance 1. Reproduced post_json with an ordinary AuthContext placing Secret(\"review-synthetic-credentialé\") in X-Api-Key. http.build_request raises UnicodeEncodeError before the protected send block; repr(exc), exc.args and exc.object contain the entire credential. No request is sent. The advertised safe exception boundary must include header encoding/request construction, and tests must inspect this failure as well as send failures."
+    },
+    {
+      "id": "R-3",
+      "severity": "Blocker",
+      "affects": "correctness",
+      "summary": "Malformed 4xx responses now turn an uncertain operation outcome into KnownNoEffectError.",
+      "evidence": "src/e_agent/sdk/http.py:143 and src/e_agent/sdk/http.py:145; src/e_agent/adapters/odoo/client.py:80; src/e_agent/adapters/odoo/executor.py:348 and src/e_agent/adapters/odoo/executor.py:353; harness/state/1/handoffs/1d.7b.json:24; ENG-TRUST-5, ENG-PLAN-3; accepted docs/adr/0026-plugin-layout-and-reusable-core.md:33. In-memory comparison with the client loaded from git show 0972f1b:src/e_agent/adapters/odoo/client.py, through the unchanged executor: HTTP 409 with JSON [\"E_AGENT_CONFLICT: identity already reserved\"] changes AttributeError to KnownNoEffectError(REJECTED); {\"name\": [\"E_AGENT_CONFLICT\"]} changes TypeError to KnownNoEffectError(REJECTED). The fallback loses the information needed to decide whether a prior operation committed, and bypasses the executor’s identity-code reconciliation branch. The handoff ruling that 4xx alone justifies this change is unsound. Preserve ambiguity when the provider rejection cannot be reliably classified, with executor-level regression coverage."
+    },
+    {
+      "id": "R-4",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "AuthContext does not reliably control the credential ultimately sent on the wire.",
+      "evidence": "src/e_agent/sdk/http.py:101, src/e_agent/sdk/http.py:105 and src/e_agent/sdk/http.py:115; tests/unit/sdk/test_http.py:86; harness/state/1/handoffs/1d.7b.json:3; ENG-WORK-2; task 1d.7b AuthContext acceptance and accepted ADR 0026 common-SDK amendment. Reproduced with MockTransport: caller headers={\"authorization\":\"Bearer attacker\"} plus AuthContext placement Authorization yields two Authorization values, attacker first, rather than replacing the caller value. Also, base_url=\"https://user:password@good.example\" causes httpx.send to replace the applied Bearer credential with Basic dXNlcjpwYXNzd29yZA==. Normalize credential header replacement case-insensitively and prevent implicit URL-userinfo authentication from superseding the AuthContext; the existing test covers only identically cased header keys."
+    },
+    {
+      "id": "R-5",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "Auth placement can inject a different Host after the host guard has already passed.",
+      "evidence": "src/e_agent/sdk/http.py:102, src/e_agent/sdk/http.py:105 and src/e_agent/sdk/http.py:112; src/e_agent/sdk/connection.py:22; ENG-WORK-2; contract acceptance 1 and accepted ADR 0026 common-SDK host-pinning requirement. Reproduced with a valid AuthContext placement {\"header\":\"Host\",\"prefix\":\"\"} and synthetic secret \"evil.example\": post_json to https://good.example/x sends Host: evil.example without HostNotAllowed. The request URL origin stays good.example, so the subsequent URL-only check does not detect the different HTTP authority and a shared ingress can route to another virtual host. Validate the effective headers after auth application and request construction, or reject routing-header auth placements. This is an HTTP authority bypass, not evidence of a changed TCP destination."
+    },
+    {
+      "id": "R-6",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "The plugin dependency conformance check ignores forbidden dependencies in optional extras.",
+      "evidence": "tests/conformance/test_plugin_dependencies.py:49 and tests/conformance/test_plugin_dependencies.py:51; ENG-WORK-2; contract acceptance 2; docs/adr/0026-plugin-layout-and-reusable-core.md:30. Reproduced with an in-memory Path.read_text wrapper only (no file edit): append [project.optional-dependencies] forbidden = [\"e-agent-kernel>=0.1,<0.2\"] to the Odoo pyproject text. test_plugin_dependencies_are_the_common_base still passes and reports 3 plugins. Installing that extra would introduce a forbidden e-agent dependency while this promised distribution guard stays green. Include optional dependency groups in the scan and a negative test through the manifest/config reader, rather than testing only already-normalized PluginDist objects."
+    },
+    {
+      "id": "R-7",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "The change incorrectly marks the unimplemented task 1d.8 and its verification steps complete.",
+      "evidence": "docs/plans/2026-10-14-phase1d-plugin-boundary.md:398, docs/plans/2026-10-14-phase1d-plugin-boundary.md:399, docs/plans/2026-10-14-phase1d-plugin-boundary.md:400 and docs/plans/2026-10-14-phase1d-plugin-boundary.md:401; harness/state/1/features.json:346; dists/server/pyproject.toml:10; ENG-EVID-2, ENG-DOC-1, ENG-WORK-1. git diff 0972f1b...HEAD changes all four task 1d.8 checkboxes from unchecked to checked. However, scripts/check_core_only.py and dists/bundle-erp/pyproject.toml do not exist, the server still declares ERP dependencies, and F-1d-8 remains passes=false. These completion and verification claims are outside this task and unsupported; restore the pending checkboxes."
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}

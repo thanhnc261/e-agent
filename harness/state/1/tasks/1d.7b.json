@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-7b"
   ],
-  "context_digest": "083999fc122c5a3e03f3d8e1b3fa06bcc085c4a05ca0c4c53a9795f91ec1d257",
+  "context_digest": "2a25950322f9587e52feaaff9e912552284c86a18bc20b4d57f723dd0677a0ac",
   "allowed_paths": [
     "src/e_agent/sdk/http.py",
     "src/e_agent/adapters/odoo/client.py",
