@@ -1,0 +1,35 @@
+{
+  "id": "1d.8",
+  "phase": "1",
+  "plan_ref": "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+  "feature_ids": [
+    "F-1d-8"
+  ],
+  "context_digest": "675089730aa0b7e691e62cb3790a82fb4294c87ad62ebb2a663be7f6b822cf70",
+  "allowed_paths": [
+    "dists/server/pyproject.toml",
+    "dists/bundle-erp/**",
+    "pyproject.toml",
+    "uv.lock",
+    "scripts/check_core_only.py",
+    "scripts/check_wheels.py",
+    "harness/context.toml",
+    "tests/conformance/**",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+    "README.md",
+    ".github/workflows/ci.yml",
+    ".agents/skills/eng-foundations/references/gotchas.md"
+  ],
+  "acceptance": [
+    "uv run python scripts/check_core_only.py installs the core wheels without any ERP wheel and /health/ready answers",
+    "the core gate set in harness/context.toml runs check_core_only.py; it joins full only if it finishes in about a minute",
+    "tests/conformance/test_core_only.py passes; third-party versions unchanged in uv.lock (uv lock --check)",
+    "full gate, core set and uv run python scripts/check_wheels.py pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "43a9398804be87a430b4648ea2cc9f4dfc5707b3",
+  "created_at": "2026-10-16T06:26:43+00:00",
+  "features_digest": "699a305aacbd90353ac18209facd73cb77f3804e9fbd710c65ec6d2beace47bf"
+}
