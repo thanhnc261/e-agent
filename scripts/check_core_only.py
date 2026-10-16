@@ -273,6 +273,31 @@ def forbidden_installed(installed: Iterable[str]) -> list[str]:
     return sorted(names & ERP_DISTRIBUTIONS)
 
 
+def locked_constraints(text: str) -> list[str]:
+    """Third-party pins from ``uv export``; fails on none or on any first-party entry.
+
+    The core venv installs the versions uv.lock holds, so an upstream release
+    cannot turn the gate red without a code change.
+    """
+    names = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("-") or "file:" in line:
+            raise ValueError(f"constraint is not a plain pin: {line!r}")
+        requirement = Requirement(line)
+        name = canonicalize_name(requirement.name)
+        if name.startswith("e-agent") or name == PACK_DISTRIBUTION:
+            raise ValueError(f"constraints name a first-party distribution: {line!r}")
+        if len(requirement.specifier) != 1 or next(iter(requirement.specifier)).operator != "==":
+            raise ValueError(f"constraint is not an exact pin: {line!r}")
+        names.append(name)
+    if not names:
+        raise ValueError("no locked third-party constraints exported")
+    return sorted(names)
+
+
 def free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
@@ -346,13 +371,20 @@ def main() -> int:
             fail(f"expected {len(CORE_DISTRIBUTIONS) + 1} wheels, built {built}")
         print(f"ok  built {len(built)} wheels (core and the test pack) outside dist/")
 
+        constraints = neutral / "constraints.txt"
+        export = ["uv", "export", "--frozen", "--no-hashes", "--no-header", "--no-annotate"]
+        run([*export, "--no-emit-workspace", "--all-groups", "-o", str(constraints)], cwd=ROOT)
+        pins = locked_constraints(constraints.read_text("utf-8"))
+        print(f"ok  {len(pins)} third-party versions constrained to uv.lock")
+
         venv = neutral / "venv"
         run(["uv", "venv", "--quiet", str(venv)])
         python = venv / "bin" / "python"
         first_party = [*CORE_DISTRIBUTIONS, PACK_DISTRIBUTION]
         refresh = [arg for name in first_party for arg in ("--refresh-package", name)]
         install = ["uv", "pip", "install", "--quiet", "--python", str(python), *refresh]
-        run([*install, "--find-links", str(wheels), *first_party], cwd=neutral)
+        install += ["-c", str(constraints), "--find-links", str(wheels)]
+        run([*install, *first_party], cwd=neutral)
 
         # -I: no PYTHONPATH, no cwd on sys.path; nothing may come from the repository.
         facts = json.loads(run([str(python), "-I", "-c", _INSPECT, *ERP_MODULES], cwd=neutral))

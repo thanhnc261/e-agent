@@ -195,3 +195,44 @@ def test_wait_ready_fails_at_once_when_the_server_exits(tmp_path: Path) -> None:
     url = f"http://127.0.0.1:{core.free_port()}/health/ready"
     with pytest.raises(RuntimeError, match=r"(?s)exited with 3.*boom"):
         core.wait_ready(proc, url, log, timeout=5)
+
+
+def test_locked_constraints_are_exact_third_party_pins() -> None:
+    text = "# header\n\nanyio==4.15.1\ncffi==2.1.1 ; platform_python_implementation != 'PyPy'\n"
+    assert core.locked_constraints(text) == ["anyio", "cffi"]
+    for bad in (
+        "e-agent-kernel==0.1.0",
+        "E_Agent_Server==0.1.0",
+        "core-test-pack==0.1.0",
+        "-e ./dists/kernel",
+        "pkg @ file:///x/pkg.whl",
+        "fastapi>=0.142",
+    ):
+        with pytest.raises(ValueError, match="constraint"):
+            core.locked_constraints(f"anyio==4.15.1\n{bad}\n")
+    with pytest.raises(ValueError, match="no locked third-party constraints"):
+        core.locked_constraints("# only a comment\n\n")
+
+
+def test_uv_export_gives_the_locked_third_party_pins() -> None:
+    out = subprocess.run(
+        [
+            "uv",
+            "export",
+            "--frozen",
+            "--no-hashes",
+            "--no-header",
+            "--no-annotate",
+            "--no-emit-workspace",
+            "--all-groups",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=REPO,
+    ).stdout
+    pins = core.locked_constraints(out)
+    lock = tomllib.loads((REPO / "uv.lock").read_text("utf-8"))
+    registry = {p["name"] for p in lock["package"] if "registry" in p.get("source", {})}
+    print(f"{len(pins)} constraints, {len(registry)} registry packages in uv.lock")
+    assert set(pins) == registry

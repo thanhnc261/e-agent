@@ -161,11 +161,11 @@ No runtime feature is added, so there is no toggle and no fallback: roadmap rule
 | 1d.12 | level 4 (live) |
 
 The gate commands come from `harness/context.toml`:
-- `full`: `uv sync --locked`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run lint-imports`, `uv run python scripts/export_openapi.py --check`, `uv run pytest -q`, `pnpm --dir ui gen:check`, `pnpm --dir ui check`.
+- `full`: `uv sync --locked`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run lint-imports`, `uv run python scripts/export_openapi.py --check`, `uv run pytest -q`, `pnpm --dir ui gen:check`, `pnpm --dir ui check`, `uv run python scripts/check_core_only.py`.
 - `pg`: `E_AGENT_TEST_STORE=postgres uv run pytest -q tests/unit/kernel`, with `E_AGENT_TEST_PG_DSN` pointing at `e_agent_test` (G-11).
 - `e2e`: `make e2e`.
 
-Task 1d.8 adds a `core` set in `harness/context.toml` (`uv run python scripts/check_core_only.py`); it joins `full` only if it is fast enough.
+Task 1d.8 adds a `core` set in `harness/context.toml` (`uv run python scripts/check_core_only.py`); at about 10 s it also joined `full` and CI's `wheels` job.
 
 **End-of-phase levels** (`eng-verify`, in order, on a clean tree):
 1. the `full` gate and the `core` set;
@@ -395,10 +395,10 @@ Runs after 1d.7, so the helper is written inside the guest contract, and before 
 - `tests/conformance/test_core_only.py`: the script's assertions are unit-tested on its helpers.
 
 **Steps:**
-- [ ] Write the failing check: run `uv run python scripts/check_core_only.py`. Expected today: it fails while resolving the server wheel, because the server depends on `e-agent-domain-erp`. Time the run to decide whether it joins `full`.
-- [ ] Implement. Confirm the lock with `uv lock --check`; relock only for the new members and the narrowed dependencies, and show that third-party versions are unchanged (G-3).
-- [ ] Run the script, `uv run python scripts/check_wheels.py` and the `full` gate. Expected: pass.
-- [ ] Commit `build: core installs without ERP; e-agent-erp bundle`.
+- [x] Write the failing check: run `uv run python scripts/check_core_only.py`. Expected today: it fails while resolving the server wheel, because the server depends on `e-agent-domain-erp`. Time the run to decide whether it joins `full`.
+- [x] Implement. Confirm the lock with `uv lock --check`; relock only for the new members and the narrowed dependencies, and show that third-party versions are unchanged (G-3).
+- [x] Run the script, `uv run python scripts/check_wheels.py` and the `full` gate. Expected: pass.
+- [x] Commit `build: core installs without ERP; e-agent-erp bundle`.
 
 ---
 
