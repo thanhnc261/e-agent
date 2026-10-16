@@ -344,7 +344,7 @@
         "third-party versions unchanged in uv.lock"
       ],
       "passes": true,
-      "evidence": "harness/state/evidence/gates/1d.8/2026-10-16T08-24-16.738984+00-00-full.json"
+      "evidence": "harness/state/evidence/gates/1d.8/2026-10-16T08-37-12.311535+00-00-full.json"
     },
     {
       "id": "F-1d-9",

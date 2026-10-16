@@ -364,3 +364,8 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1d.8.json, harness/state/1/tasks/1d.8.json, harness/state/evidence/gates/1d.8/2026-10-16T08-24-16.738984+00-00-full.json, harness/state/evidence/gates/1d.8/2026-10-16T08-25-38.729180+00-00-core.json
 - next: 1d.8 closed pending fresh-context review: run the reviewer on 1d.8, fix findings, then clear context and new-task 1 1d.9 --feature F-1d-9
 - open: none
+
+## 2026-10-16T08:39:42.593141+00:00 · 7286ca87-8c6e-4ad8-b1e8-96ab356697d4 · 1d.8
+- changed: harness/state/1/features.json, harness/state/1/handoffs/1d.8.json, harness/state/evidence/gates/1d.8/2026-10-16T08-37-12.311535+00-00-full.json, harness/state/evidence/gates/1d.8/2026-10-16T08-38-32.847160+00-00-core.json
+- next: 1d.8 closed after fresh-context review and scoped re-review (R-1, R-4 fixed; R-3 recorded; R-2 parked): clear context, then new-task 1 1d.9 --feature F-1d-9
+- open: none
