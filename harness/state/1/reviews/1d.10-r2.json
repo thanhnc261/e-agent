@@ -1,0 +1,25 @@
+{
+  "task": "1d.10",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-5",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "HLD \u00a74 says no contract forbids the infrastructure adapters from importing plugins; the layers contract and the adapter contract already forbid the three existing ERP plugins, and only the e_agent.plugins.** wildcard for future plugins is missing.",
+      "evidence": "docs/design/high-level-design.md:99; pyproject.toml [tool.importlinter]; harness/state/1/handoffs/1d.10.json open_items[4]; ENG-ARCH-1, ENG-DOC-1"
+    },
+    {
+      "id": "R-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The plan's 1d.10 Observed line says the layout test 'is not in PLUGIN_EXEMPT', no longer true after R-1; use the past tense.",
+      "evidence": "docs/plans/2026-10-14-phase1d-plugin-boundary.md:446"
+    }
+  ],
+  "notes": "R-1 to R-4 verified fixed: check --set plugins --docs exits 0; tests/conformance 217 passed; test_repo_layout alone 18 and with test_repo_move in either order 36; check_plugins flags an old import and an old doc path on a scratch repo; close-check ok.",
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}
