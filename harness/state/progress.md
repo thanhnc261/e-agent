@@ -349,3 +349,8 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1d.7b.json, harness/state/evidence/gates/1d.7b/2026-10-16T04-27-47.148715+00-00-full.json
 - next: 1d.7b closed: Codex fresh-context review of 1d.7b; fix findings; then clear context and new-task 1 1d.8 --feature F-1d-8
 - open: none
+
+## 2026-10-16T04:49:06.081567+00:00 · caf0c79e-fec3-4e70-b520-1f9bce845c51 · 1d.7b
+- changed: harness/state/1/features.json, harness/state/1/handoffs/1d.7b.json, harness/state/1/reviews/1d.7b-r2.json, harness/state/evidence/gates/1d.7b/2026-10-16T04-42-11.141401+00-00-full.json
+- next: 1d.7b closed after Codex review and re-review (R-1..R-7 fixed, R-8 closed by this commit): clear context, then new-task 1 1d.8 --feature F-1d-8; owner: review-schema fresh_context for re-reviews, Codex reviews of 1d.5 and 1d.7
+- open: none

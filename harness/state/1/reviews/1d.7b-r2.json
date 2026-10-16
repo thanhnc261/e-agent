@@ -1,0 +1,66 @@
+{
+  "task": "1d.7b",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "fixed — dependency logging leaks from the original probes are closed.",
+      "evidence": "src/e_agent/sdk/http.py:41, src/e_agent/sdk/http.py:95 and src/e_agent/sdk/http.py:186; ENG-EVID-3, ENG-BOUND-3; accepted ADR 0026. Repeated real httpx.AsyncHTTPTransport/httpcore.AsyncMockBackend probes with echoed response headers, reason phrase and malformed bytes: no synthetic credential in log records or exception chains. Audited every getLogger call in the installed httpx/httpcore sources: all current logger names are covered. Overlapped a suspended helper request with an unrelated httpx request: only the unrelated request logged. Cancellation reset _IN_FLIGHT. test_http_dependency_logs_never_echo_over_the_real_transport, test_http_reason_phrase_is_not_logged and test_http_leaves_other_httpx_logging_alone pass. Status note for the resolved original finding; not an outstanding defect. Verified against e6ace64, with HEAD 3993f19."
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "fixed — non-ASCII and control characters in credential headers are refused without echo.",
+      "evidence": "src/e_agent/sdk/http.py:161 and src/e_agent/sdk/http.py:192; ENG-EVID-3, ENG-BOUND-3; contract acceptance 1. Repeated the UnicodeEncodeError probe and extended it to 38 invalid character values, including ASCII controls, DEL, non-ASCII, a surrogate and U+10FFFF. Each produced HeaderNotAllowed without the canary in str/repr/args/attributes or the cause/context chain. Header validation occurs before sending; request construction ValueError/InvalidURL is converted outside the handler. test_http_refuses_header_values_that_are_not_printable_ascii passes. Status note for the resolved original finding; not an outstanding defect. Verified against e6ace64, with HEAD 3993f19."
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "fixed — malformed JSON rejection shapes preserve ambiguity at the Odoo executor.",
+      "evidence": "src/e_agent/sdk/http.py:217, src/e_agent/sdk/http.py:238 and src/e_agent/adapters/odoo/client.py:51; ENG-TRUST-5. Repeated both original HTTP 409 probes through OdooExecutor: a list body containing E_AGENT_CONFLICT and a list-valued name now raise HttpAmbiguous, never KnownNoEffectError. Eight malformed JSON shapes were checked. All ten allow-listed codes retain the expected executor classification, including reconciliation for E_AGENT_CONFLICT and E_AGENT_DUPLICATE_IN_FLIGHT. Non-JSON 4xx remains REJECTED, matching the pre-task client. tests/unit/adapters/odoo/test_rejection_classification.py passes; the plan ruling at docs/plans/2026-10-14-phase1d-plugin-boundary.md:367 is corrected. Status note for the resolved original finding; not an outstanding defect. Verified against e6ace64, with HEAD 3993f19."
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "fixed — case-insensitive credential precedence and refusal of URL userinfo are enforced.",
+      "evidence": "src/e_agent/sdk/http.py:128, src/e_agent/sdk/http.py:143 and src/e_agent/sdk/http.py:152; ENG-WORK-2; contract acceptance 1. Repeated the duplicate Authorization probe with four header casings: exactly one AuthContext credential reached MockTransport. Username/password, username-only and percent-encoded userinfo base URLs were all refused. An additional 72 URL probes across ordinary hosts, explicit ports, base paths and IDNA hosts found 24 refused inputs and 48 requests retaining the original scheme/host/port; no origin escape was observed. Status note for the resolved original finding; not an outstanding defect. Verified against e6ace64, with HEAD 3993f19."
+    },
+    {
+      "id": "R-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "fixed — auth placement cannot inject Host or message-framing headers.",
+      "evidence": "src/e_agent/sdk/http.py:156; ENG-WORK-2; contract acceptance 1. Repeated Host and mixed-case hOsT auth placement probes: HostNotAllowed with no credential echo. Content-Length and Transfer-Encoding auth placements raise HeaderNotAllowed. The corresponding caller-header tests pass. These checks run after merging auth and caller headers. Status note for the resolved original finding; not an outstanding defect. Verified against e6ace64, with HEAD 3993f19."
+    },
+    {
+      "id": "R-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "fixed — optional extras are included in the plugin dependency guard.",
+      "evidence": "tests/conformance/test_plugin_dependencies.py:37 and tests/conformance/test_plugin_dependencies.py:124; ENG-WORK-2; contract acceptance 2. Repeated the original in-memory Path.read_text injection of [project.optional-dependencies] forbidden = [\"e-agent-kernel>=0.1,<0.2\"] into the Odoo config: _outside_base now reports e-agent-adapter-odoo -> e-agent-kernel. No repository configuration was edited. test_dependency_check_reads_optional_extras passes through the config/manifest reader. Status note for the resolved original finding; not an outstanding defect. Verified against e6ace64, with HEAD 3993f19."
+    },
+    {
+      "id": "R-7",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "fixed — the unimplemented task 1d.8 checkboxes are pending again.",
+      "evidence": "docs/plans/2026-10-14-phase1d-plugin-boundary.md:398; ENG-EVID-2, ENG-DOC-1. git diff 17bdf03...e6ace64 restores all four task 1d.8 checkboxes to unchecked, consistent with F-1d-8 passes=false. No remaining false completion claim was found in those steps. Status note for the resolved original finding; not an outstanding defect. Verified against e6ace64, with HEAD 3993f19."
+    },
+    {
+      "id": "R-8",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "not fixed — the fix gate has passed, but its task close ritual is incomplete.",
+      "evidence": "harness/state/progress.md:348; harness/state/1/features.json:403; harness/state/evidence/gates/1d.7b/2026-10-16T04-42-11.141401+00-00-full.json:4; ENG-EVID-1, ENG-DOC-2. The supplied full gate is valid, clean_tree=true, ok=true, at HEAD 3993f19, and records 945 passed / 30 skipped. During review another actor updated features.json and the handoff to reference it; those updates and the new evidence remain uncommitted. Before writing this review, the unchanged closecheck.problems implementation, called read-only without the CLI lifecycle-marker write, returned \"working tree is not clean\" and \"progress log has no checkpoint after the gate evidence\". The last checkpoint is 04:30:02, before the new gate finished at 04:43:17. Complete and commit fix bookkeeping and obtain a successful close-check. This is a closure finding, not an additional code defect. Local checks: 75 targeted tests, 12 import contracts, mypy (122 files) and Ruff passed. No containers or wheel builds were run. Review validation constraint: the requested reviewer.fresh_context=false is retained truthfully, but tools/harness/src/e_agent_harness/schemas/review.schema.json:32 requires const true; the unmodified validator cannot print ok for this request. No schema or other repository file was edited by this reviewer."
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": false
+  }
+}
