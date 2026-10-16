@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -338,10 +339,21 @@ MODULES = ("e_agent.erp", "e_agent.adapters.odoo", "e_agent.plugins.erp")
 TESTS = ["tests/unit/erp", "tests/unit/adapters/odoo/test_y.py"]
 SOURCE = "src/e_agent/erp/plugin.py"
 EXTRA = "e_agent.erp_extra"
+DOTTED = "pkg.e_agent.erp.x"
+SLASHED = "mye_agent/erp"
 """
 
 ARCHIVE_NOTE = "The domain pack lived in e_agent.erp.\n"
 HARNESS_STATE = '{"paths": ["src/e_agent/erp", "e_agent.erp"]}\n'
+# Rewritable code under every exempt prefix and at the mover's own paths stays as it is.
+EXEMPT_CODE = 'PATHS = ("src/e_agent/erp", "tests/unit/erp")\nMODULE = "e_agent.erp"\n'
+EXEMPT_FILES = (
+    "archive/old.py",
+    "research/old.json",
+    "docs/handoffs/old.json",
+    "scripts/repo_move.py",
+    "tests/conformance/test_repo_move.py",
+)
 
 
 def _manifest(module: str) -> str:
@@ -393,6 +405,8 @@ def plugin_repo(tmp_path: Path) -> Path:
     )
     write(tmp_path, "archive/x.md", ARCHIVE_NOTE)
     write(tmp_path, "harness/state/x.json", HARNESS_STATE)
+    for name in (*EXEMPT_FILES, "scripts/t.py"):
+        write(tmp_path, name, EXEMPT_CODE)
     git(tmp_path, "init", "-q")
     git(tmp_path, "add", "-A")
     git(tmp_path, "commit", "-q", "-m", "init")
@@ -475,11 +489,21 @@ def test_plugins_move_on_scratch_repo(
     assert "from e_agent.adapters.postgres import store" in script
     assert '"e_agent.plugins.erp")' in script
     assert 'EXTRA = "e_agent.erp_extra"' in script
+    # Lookbehinds: a dotted key after "." and a slash key after a word character stay.
+    assert 'DOTTED = "pkg.e_agent.erp.x"' in script
+    assert 'SLASHED = "mye_agent/erp"' in script
     assert (repo / "src/e_agent/adapters/postgres/__init__.py").read_text() == (
         "import e_agent.adapters\n"
     )
     assert (repo / "archive/x.md").read_text() == ARCHIVE_NOTE
     assert (repo / "harness/state/x.json").read_text() == HARNESS_STATE
+    for name in EXEMPT_FILES:
+        assert (repo / name).read_text() == EXEMPT_CODE, name
+    # The same text outside the exemptions is rewritten, so the decoys above are live.
+    assert (repo / "scripts/t.py").read_text() == (
+        'PATHS = ("src/e_agent/plugins/erp/domain", "tests/unit/plugins/erp/domain")\n'
+        'MODULE = "e_agent.plugins.erp.domain"\n'
+    )
     # Markdown is not text-rewritten, but its relative links follow the move.
     assert (repo / "docs/design.md").read_text() == (
         "See [plugin](../src/e_agent/plugins/erp/domain/plugin.py#L1) and "
@@ -520,6 +544,26 @@ def test_plugins_layout_refuses_untracked_files_in_moved_trees(plugin_repo: Path
     with pytest.raises(rm.MoveError, match=r"tests/unit/erp/scratch\.txt"):
         rm.main(["--root", str(plugin_repo), "layout", "--set", "plugins"])
     assert (plugin_repo / "src/e_agent/erp/plugin.py").is_file()
+
+
+def test_plugins_layout_refuses_ignored_files_but_drops_caches(plugin_repo: Path) -> None:
+    write(plugin_repo, ".gitignore", ".DS_Store\n*.egg-info/\n")
+    git(plugin_repo, "add", ".gitignore")
+    git(plugin_repo, "commit", "-q", "-m", "ignore")
+    write(plugin_repo, "src/e_agent/erp/.DS_Store", "finder")
+    write(plugin_repo, "tests/unit/adapters/odoo/x.egg-info/PKG-INFO", "meta")
+    with pytest.raises(rm.MoveError) as refused:
+        rm.main(["--root", str(plugin_repo), "layout", "--set", "plugins"])
+    assert "src/e_agent/erp/.DS_Store" in str(refused.value)
+    assert "tests/unit/adapters/odoo/x.egg-info/PKG-INFO" in str(refused.value)
+    assert (plugin_repo / "src/e_agent/erp/plugin.py").is_file()
+
+    (plugin_repo / "src/e_agent/erp/.DS_Store").unlink()
+    shutil.rmtree(plugin_repo / "tests/unit/adapters/odoo/x.egg-info")
+    write(plugin_repo, "src/e_agent/erp/__pycache__/x.pyc", "cache")
+    assert rm.main(["--root", str(plugin_repo), "layout", "--set", "plugins"]) == 0
+    assert not (plugin_repo / "src/e_agent/plugins/erp/domain/__pycache__").exists()
+    assert not (plugin_repo / "src/e_agent/erp").exists()
 
 
 def test_plugins_unknown_move_set_is_an_error(plugin_repo: Path) -> None:

@@ -357,9 +357,10 @@ def layout(root: Path, moves: Sequence[Move] = MOVES) -> None:
 
 
 def _plugin_leftovers(root: Path, moves: Sequence[PluginMove]) -> list[str]:
-    """Untracked, non-cache files git mv would carry along unstaged: refuse them."""
+    """Untracked or ignored non-cache files git mv would carry along unstaged: refuse them."""
     kept = [d + "/" for m in moves for d in (m.old_code, m.old_tests) if (root / d).is_dir()]
-    untracked = _git(root, "ls-files", "-z", "--others", "--exclude-standard", "--", *kept)
+    # No --exclude-standard: ignored files (.DS_Store, *.egg-info) are refused too.
+    untracked = _git(root, "ls-files", "-z", "--others", "--", *kept)
     return [name for name in untracked.split("\0")[:-1] if not _is_cache(Path(name))]
 
 
