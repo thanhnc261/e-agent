@@ -394,3 +394,8 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1d.10.json, harness/state/evidence/gates/1d.10/2026-10-16T11-00-42.564250+00-00-full.json
 - next: 1d.10 closed pending fresh-context review: apply reviewer findings, then new-task 1 1d.11 --feature F-1d-11
 - open: none
+
+## 2026-10-16T11:07:51.271189+00:00 · 926b1718-80df-49f9-ba17-a9e06fdeacdd · 1d.10
+- changed: harness/state/1/features.json, harness/state/1/handoffs/1d.10.json, harness/state/evidence/gates/1d.10/2026-10-16T11-06-35.759847+00-00-full.json
+- next: 1d.10 review fixes pass full; scoped re-review of d3bed9c, then new-task 1 1d.11 --feature F-1d-11
+- open: none
