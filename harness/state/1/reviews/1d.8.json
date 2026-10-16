@@ -1,0 +1,35 @@
+{
+  "task": "1d.8",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The core venv resolves third-party dependencies from the public index at the newest versions the ranges allow, not the uv.lock versions, so the full gate (which now runs this check) can turn red after an upstream release with no code change, and needs network on a cold cache. check_wheels.py already does this, but it was never part of full. Constraining the install with the locked versions (for example a constraints file exported from uv.lock) would make the gate repeatable.",
+      "evidence": "scripts/check_core_only.py:354-355 (uv pip install --find-links with bare names, no constraints); harness/context.toml full list now ends with check_core_only.py; G-3 covers only the lock file"
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "First-party names, including core-test-pack, are installed by bare name with --find-links while the public index is also consulted. On the pre-change tree uv's error names the registry for e-agent-adapter-odoo, which shows the index is queried for first-party names. None of these names exist on PyPI today (simple index returns 404 for each), so there is no live risk. Installing the built wheel files by path, or pinning name==version with --no-index for first-party names, would close the dependency-confusion path. The pack's entry point is imported by the server during every full gate. check_wheels.py has the same existing pattern.",
+      "evidence": "scripts/check_core_only.py:352-355; reviewer run of HEAD check_core_only.py against a git-archive copy of f8f8840: 'e-agent-adapter-odoo was not found in the package registry'"
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Two hand-kept copies of the ERP distribution set exist, and nothing ties them together. The handoff's 1d.10 open item names check_core_only.py's ERP_MODULES and check_wheels.py's resource paths, but not check_wheels.py's ERP_DISTRIBUTIONS. 1d.10 should update or share both.",
+      "evidence": "scripts/check_core_only.py:43-46; scripts/check_wheels.py:23-28; harness/state/1/handoffs/1d.8.json open_items[3]"
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Plan bookkeeping is stale: the four Task 1d.8 step checkboxes are still unticked, and the Gate section's list of full commands does not include check_core_only.py, which now runs as the last full command. The plan file is in allowed_paths.",
+      "evidence": "docs/plans/2026-10-14-phase1d-plugin-boundary.md:398-401 and :164; harness/context.toml full list; ENG-DOC-1"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}
