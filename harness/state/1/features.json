@@ -331,7 +331,8 @@
         "test_binding_missing_required_feature_refused passes",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/1d.7/2026-10-16T02-49-11.072722+00-00-full.json"
     },
     {
       "id": "F-1d-8",

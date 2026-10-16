@@ -1,0 +1,44 @@
+{
+  "task": "1d.7",
+  "changed": "The plugin boundary is locked and declared capability requirements are enforced (XA-02, XA-03, R-7), in 79978a1. pyproject.toml gains two import-linter contracts: 'Core never imports plugins' (sources e_agent.contracts, e_agent.sdk, e_agent.kernel, e_agent.server; forbidden e_agent.erp, e_agent.adapters.odoo, e_agent.plugins.erp.simulator), which replaces the kernel-only 'Kernel never imports domains or server' (kernel -> server stays forbidden by the layers contract), and 'Plugins are guests' (sources the three plugin packages; forbidden e_agent.kernel, e_agent.server, e_agent.adapters.postgres, e_agent.adapters.secretstore_local, e_agent.adapters.pydantic_ai, e_agent.adapters.shacl); the per-plugin contracts stay. lint-imports keeps all 12 contracts; with the plan's temporary probes (from e_agent.erp import plugin in bootstrap.py, import e_agent.adapters.postgres in the simulator's plugin.py) both new contracts reported BROKEN, and both files were restored. PluginRegistry.register() refuses with STARTUP_REJECTED a binding template whose supported_features lack any of its contract's required_features, whether or not a connection is assigned; the message names the plugin, the binding, the contract and the sorted missing features. The proposals.py _handle_answer docstring drops the ERP task ids, and the demo help text in server/cli.py drops 'procurement'. New tests: tests/conformance/test_plugin_guests.py (test_every_plugin_package_is_a_guest derives the packages from the installed e_agent.plugins.v1 entry points, 3 today, and reads the contract's source_modules from pyproject.toml; test_guest_check_fails_on_zero_plugins; test_guest_check_reports_an_unlisted_plugin), tests/unit/kernel/test_registry.py (test_binding_missing_required_feature_refused, test_binding_missing_required_feature_refused_without_a_connection, test_binding_with_required_features_admitted), tests/unit/server/test_generic_composition.py (test_notes_pack_composes_through_bootstrap installs the kernel conftest's notes pack as a discovered distribution in tmp_path and, in a subprocess, composes it with build_runtime, records read.recorded and reaches WAITING_APPROVAL with no e_agent.erp, e_agent.adapters.odoo or e_agent.plugins.erp module in sys.modules; test_server_has_no_domain_literals scans the 7 server sources case-insensitively for demand:, product:, odoo, erp and procure, prints the count and fails on zero; test_capabilities_without_requirements_unchanged pins the fixture profile's admission: domain-erp and fixture-erp admitted, odoo19 skipped, 17 bindings equal to the profile's, 21 capabilities). Red first: the guest test (no such contract), both feature-refusal tests (DID NOT RAISE) and the literal test (cli.py:225 'procurement') failed before the change; the composition, admitted-with-features and unchanged-admission tests passed on the existing tree, which the plan expects for them. The OpenAPI check exits 0, so the API is unchanged.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/1d.7/2026-10-16T02-49-11.072722+00-00-full.json",
+    "harness/state/evidence/gates/1d.7/2026-10-16T02-46-10.998069+00-00-full.json"
+  ],
+  "open_items": [
+    "The task_kind default 'draft-po' in server/profile.py:60 is still a domain literal in the server that none of the plan's patterns match; it goes with the Phase 2 task definitions",
+    "test_plugin_guests matches the contract's source_modules literally; once 1d.10 writes the contract as e_agent.plugins.*, its helper must understand that wildcard",
+    "The principles rows PR-08 and PR-10 still name no check and stay [P]/[Pa]; the plan gives their update and the backlog rows' removal to 1d.11",
+    "The 'Core never imports plugins' and 'Plugins are guests' module lists name today's plugin packages and are rewritten for the new layout in 1d.10",
+    "make e2e, check_wheels.py and the Postgres run are not in this task's full gate set (HP-6) and were not run; the change touches no store code and no wheel contents beyond the registry check",
+    "No live check (1d.12)",
+    "Carried over from 1d.5: its fresh-context Codex re-review is still owed"
+  ],
+  "rulings": [
+    {
+      "ruling": "The literal test keeps the plan's five patterns; the old profile keys demand_ref and product_ref (the ADR 0026 migration fold in profile.OLD_REF_KEYS) match none of them and stay, with a comment in the test saying so",
+      "cost_if_wrong": "a reviewer who wants every domain word out of the server would need a wider pattern list and an allowlist for the approved fold; the test is one regex"
+    },
+    {
+      "ruling": "The 'draft-po' task_kind default stays, because removing it is a profile-schema change the plan's Global Constraints do not name",
+      "cost_if_wrong": "a profile without driver.task_kind keeps selecting the ERP preset until Phase 2; with no ERP plugin admitted, startup refuses it with STARTUP_REJECTED and names the admitted presets"
+    },
+    {
+      "ruling": "The literal test failed on the demo help text, a third red the plan's Expected line did not list; the help now reads 'run the fixture walking skeleton', and the plan records the observation (7770968)",
+      "cost_if_wrong": "none beyond the help text; no golden file or doc quotes it (git grep)"
+    },
+    {
+      "ruling": "test_capabilities_without_requirements_unchanged lives in tests/unit/server/test_generic_composition.py rather than tests/unit/kernel/test_registry.py, so the kernel tests import no ERP code; the plan names the three files without assigning tests to them",
+      "cost_if_wrong": "a move between two allowed test files"
+    },
+    {
+      "ruling": "The contract is named exactly 'Plugins are guests', without the citation suffix other contracts carry, so the conformance test finds it by the plan's name; the citation is in the plan and the commit",
+      "cost_if_wrong": "renaming it means changing GUEST_CONTRACT in the test too"
+    },
+    {
+      "ruling": "'Core never imports plugins' replaces 'Kernel never imports domains or server' as the plan says; kernel -> server is still forbidden by the layers contract",
+      "cost_if_wrong": "if the layers contract is ever loosened, kernel -> server would need its own forbid again"
+    }
+  ],
+  "outside_repo": []
+}

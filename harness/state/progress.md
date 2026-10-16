@@ -329,3 +329,8 @@
 - changed: pyproject.toml,src/e_agent/kernel/registry.py,src/e_agent/kernel/proposals.py,src/e_agent/server/cli.py,tests/unit/kernel/test_registry.py,tests/conformance/test_plugin_guests.py,tests/unit/server/test_generic_composition.py
 - next: 1d.7 implemented at 79978a1, full gate passed: write the 1d.7 handoff, close-check, then a fresh-context review
 - open: draft-po default in profile.py:60 is a remaining server domain literal (Phase 2 task definitions); handoff rulings: literal test was a third red, unchanged-admission test lives in the server suite
+
+## 2026-10-16T03:34:06.803057+00:00 · 1d.7-impl · 1d.7
+- changed: harness/state/1/features.json,harness/state/1/handoffs/1d.7.json
+- next: 1d.7 closed: fresh-context review of 1d.7 (reviewer subagent), then clear context and new-task 1 1d.7b --feature F-1d-7b
+- open: none
