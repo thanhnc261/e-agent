@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-11"
   ],
-  "context_digest": "6ff10f2444e229a37b1bb023e3cb371a19e79846b0423f2790d73ea8c4379678",
+  "context_digest": "087b4b286a3746703419369abf9065a8cf9fe7464ca5bdc64172084bb1b4fcc8",
   "allowed_paths": [
     "docs/handoffs/**",
     "harness/state/**",
@@ -15,7 +15,9 @@
     "docs/roadmap.md",
     "docs/design/principles.md",
     ".agents/skills/eng-foundations/references/gotchas.md",
-    "AGENTS.md"
+    "AGENTS.md",
+    "src/e_agent/server/bootstrap.py",
+    "tests/unit/server/test_connection_ownership.py"
   ],
   "acceptance": [
     "full gate, Postgres run and make e2e pass on a clean tree",
@@ -31,6 +33,16 @@
       "glob": "AGENTS.md",
       "reason": "PR-10 line says required_features is not read yet; the registry enforces it since 1d.7",
       "at": "2026-10-16T11:14:08+00:00"
+    },
+    {
+      "glob": "src/e_agent/server/bootstrap.py",
+      "reason": "committed under task 1d.R1 (cf346db), inside this contract's base range",
+      "at": "2026-10-16T11:34:06+00:00"
+    },
+    {
+      "glob": "tests/unit/server/test_connection_ownership.py",
+      "reason": "committed under task 1d.R1 (cf346db), inside this contract's base range",
+      "at": "2026-10-16T11:34:06+00:00"
     }
   ]
 }

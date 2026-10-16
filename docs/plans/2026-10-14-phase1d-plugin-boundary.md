@@ -461,14 +461,15 @@ Runs after 1d.7, so the helper is written inside the guest contract, and before 
 - `docs/handoffs/<date>-phase1d-plugin-boundary.md`
 
 **Steps:**
-- [ ] Run `eng-verify` levels 1–3 on a clean tree and record each result.
-- [ ] Run the phase review with `eng-review` against this plan. Fix findings as `1d.R<n>`.
-- [ ] Write the handoff with `eng-handoff`. It records:
+- [x] Run `eng-verify` levels 1–3 on a clean tree and record each result.
+- [x] Run the phase review with `eng-review` against this plan. Fix findings as `1d.R<n>`.
+- [x] Write the handoff with `eng-handoff`. It records:
   - changes and each level's output;
   - rulings D1–D6;
   - changes outside the repository: the owner's re-pin and how to undo it;
   - what remains: the four infrastructure adapters become discoverable plugins in Phases 3 and 7 (DR-04).
-- [ ] Commit `docs: Phase 1d handoff; Phase 2 and Odoo plans amended`.
+- [x] Commit `docs: Phase 1d handoff; Phase 2 and Odoo plans amended`.
+- Observed: the phase review ran on Codex (`harness/state/1/reviews/1d-phase.json`): rework with one Blocker, R-1 (the sandbox guard could skip a provider reachable through a binding on another integration's connection). It was fixed as Task 1d.R1 below, and Codex accepted the fix (`harness/state/1/reviews/1d.R1.json`). Levels 1–3 ran again on the final head; the Odoo tools plan had no "manifest `connection` consumed" item, so it gets a dated amendment instead; principles PR-01 and PR-03 were also updated, and AGENTS.md's PR-10 line (scope amended).
 
 ### Task 1d.R1: phase review R-1, connection ownership and the sandbox guard
 
