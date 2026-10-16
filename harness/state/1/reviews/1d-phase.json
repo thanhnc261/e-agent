@@ -1,0 +1,17 @@
+{
+  "task": "1d-phase",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Blocker",
+      "affects": "correctness",
+      "summary": "The sandbox guard can skip a provider that remains reachable through admitted bindings. It selects providers using connection.integration_id, but binding admission never verifies that this integration matches the binding’s provider. A pinned live profile with fixture-erp and a connection naming an unconfigured integration therefore passes the sandbox guard despite the simulator lacking a probe, and its executor remains callable. Reject unadmitted connection integrations and mismatched binding ownership before startup, and add a regression test covering this configuration.",
+      "evidence": "src/e_agent/server/bootstrap.py:367-375 skips the provider; src/e_agent/kernel/registry.py:237-247 accepts the mismatched connection assignment; src/e_agent/kernel/gateway.py:28-35 routes without checking provider identity. A read-only Python reproduction using real discovery, artifact pins and admission returned {'live_profile': 'live', 'sandbox_result': {}, 'routed_provider': 'fixture-erp', 'read_environment': 'fixture', 'read_contract': 'procurement.demand.read.v1'}. Only an in-memory fixture read was performed. At 30005a6, simulator construction and registration were restricted to environment='fixture'. This violates accepted ADR 0026 (docs/adr/0026-plugin-layout-and-reusable-core.md:40), Phase 1d Review Focus 1, and ENG-TRUST-2/ENG-BOUND-1."
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}
