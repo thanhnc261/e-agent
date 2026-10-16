@@ -82,7 +82,7 @@ Codex ran the end-of-phase review on `bbdf8fe` (`harness/state/1/reviews/1d-phas
 
 - **R-1, Blocker, correctness.** The live sandbox guard chose its live providers by `connection.integration_id`, and admission never checked that a binding's connection belongs to the binding's provider. A pinned live profile that enabled `fixture-erp` and mapped its binding to a connection of an unconfigured integration passed the guard, and reads routed to the simulator (Codex reproduced it in memory with fixture reads only). Before Phase 1d the simulator was registered only for `environment: fixture`. It violated ADR 0026 and Review Focus 1.
 - **Fix, Task 1d.R1 (`cf346db`).** In a live profile, `admit_plugins` refuses a connection whose integration is not an enabled plugin and a binding mapped to a connection of another integration; `_check_sandbox` counts as live every provider that a connection names or an admitted binding routes to. Four new tests reproduce the finding and were watched failing (`DID NOT RAISE KernelError`), then passing.
-- **Codex review of the fix** (`harness/state/1/reviews/1d.R1.json`): `{"task": "1d.R1", "verdict": "accept", "findings": [], "reviewer": {"provider": "codex", "fresh_context": true}}`.
+- **Codex review of the fix** (`harness/state/1/reviews/1d.R1.json`; Codex job `task-mvavyjlz-a5rktr`, session `01a14479-efcc-7581-830f-15dd0b14ffb8`, 3 min 30 s and 29 commands, among them `git show cf346db`, `lint-imports` and in-memory Python reproductions; the phase review was job `task-mvavjedn-ps9d8t`): `{"task": "1d.R1", "verdict": "accept", "findings": [], "reviewer": {"provider": "codex", "fresh_context": true}}`.
 
 ## Rulings
 
@@ -112,6 +112,7 @@ Codex ran the end-of-phase review on `bbdf8fe` (`harness/state/1/reviews/1d-phas
 5. Merge and push of `refactor/phase1d-plugin-boundary`; CI has not run `check_core_only.py` on Python 3.13.
 6. No import contract yet forbids the infrastructure adapters from importing future plugins.
 7. Whether the binding-ownership rule should move into `PluginRegistry` (a kernel API change, through an ADR) or stay in the composition root.
+8. The roadmap 1d row (written before the phase review) does not mention 1d.R1; this handoff, which it links, does.
 
 ## Changes outside the repository
 
