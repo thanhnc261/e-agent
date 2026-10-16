@@ -1,0 +1,33 @@
+{
+  "id": "1d.7b",
+  "phase": "1",
+  "plan_ref": "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+  "feature_ids": [
+    "F-1d-7b"
+  ],
+  "context_digest": "b56ba2db0fada44dae390cd4a5ea69908835bd7fe86185f38eb3e57a812413a7",
+  "allowed_paths": [
+    "src/e_agent/sdk/http.py",
+    "src/e_agent/adapters/odoo/client.py",
+    "dists/plugin-sdk/pyproject.toml",
+    "dists/adapter-odoo/pyproject.toml",
+    "pyproject.toml",
+    "uv.lock",
+    "tests/unit/sdk/**",
+    "tests/conformance/**",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+    "README.md"
+  ],
+  "acceptance": [
+    "test_http_* tests pass, including test_http_never_echoes_credentials and test_http_refuses_other_hosts",
+    "test_plugin_dependencies_are_the_common_base passes and fails on zero plugins",
+    "lint-imports keeps the one named ignore_imports entry; check_wheels passes",
+    "full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "0972f1b35d416ad8b97812e10bb30dfa670fc004",
+  "created_at": "2026-10-16T03:52:56+00:00",
+  "features_digest": "3ce69cdfc350a1a51013a6264d205d7238fae5ca9eb81a2a0c55c0329d6387f2"
+}
