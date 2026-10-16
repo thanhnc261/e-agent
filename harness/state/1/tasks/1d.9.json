@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-9"
   ],
-  "context_digest": "8f73f177115c8cbc75f715b2a9fc5f40184d116c1d2e7f2c109cb36a7b1c9a4a",
+  "context_digest": "c24a040062ffffc480c7e595c95dd2a5d482e8eee74f51a6ef11e11e6a1940b4",
   "allowed_paths": [
     "scripts/repo_move.py",
     "tests/conformance/test_repo_move.py",
