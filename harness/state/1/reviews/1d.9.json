@@ -1,0 +1,49 @@
+{
+  "task": "1d.9",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "The plan's 1d.10 verification command (Task 1d.10 step 2 and risk 8) runs `repo_move.py check --docs` without `--set plugins`. That uses the default `packages` set, so it passes vacuously after the plugin move while 11 stale references remain in README.md and three design docs. Fix: name `check --set plugins --docs` in both plan lines.",
+      "evidence": "Throwaway worktree at 362501d: after `layout --set plugins`, `check --docs` printed '0 old-path references in code and config, 0 in current docs' while `check --set plugins --docs` printed '11 in current docs'. In a fresh clone, 15 links in docs/handoffs/2026-10-08-*.md to the git-ignored evidence/ folder count as broken whatever the move did. ENG-DOC-1; PR-31."
+    },
+    {
+      "id": "R-2",
+      "severity": "Medium",
+      "affects": "style",
+      "summary": "Only one rewrite exclusion (harness/state/) and neither regex lookbehind was covered by a test. These mutants left all four plugin tests passing: dropping docs/handoffs/, loosening the dotted lookbehind, removing the slash lookbehind, and dropping the self-exemptions (in a real run the last turns PLUGIN_MOVES into identity moves).",
+      "evidence": "Mutants run in a throwaway worktree with `pytest tests/conformance/test_repo_move.py -k plugins`; fixture tests/conformance/test_repo_move.py:343-344,394-395,481-482. ENG-WORK-2."
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "`check --set plugins --docs` cannot see shortened paths without the e_agent/ or tests/unit/ prefix, such as `adapters/odoo/executor.py` at docs/design/target-architecture.md:599 and :865. The 1d.10 hand-edit list should name them, or 1d.10 should grep for them.",
+      "evidence": "`git grep -n 'adapters/odoo'` in the worktree after the move. ENG-DOC-1."
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "On the real repo the move's output fails lint: 21 ruff errors (11 E501, 10 I001) and 6 files to reformat. The 1d.10 steps do not include ruff fix/format and line wraps. The full gate catches it, so this is informational.",
+      "evidence": "Throwaway worktree after `layout --set plugins`: `ruff check --statistics .` and `ruff format --check .`."
+    },
+    {
+      "id": "R-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "`_plugin_leftovers` used `--exclude-standard`, so git-ignored non-cache files in a moved tree would be carried along silently. rewrite_links also rewrites links in dated records, which the handoff ruling covers.",
+      "evidence": "scripts/repo_move.py:359-363; layout run in the worktree changed docs/reviews/2026-10-07-mvp-review-report.md."
+    },
+    {
+      "id": "R-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "No issue found in: scope, acceptance, the regex on real files (no false positives), idempotency, namespace __init__ rules, refusal of untracked files, check after the move, and the unchanged default `packages` behaviour.",
+      "evidence": "Throwaway worktree at 362501d: `layout --set plugins` rewrote 32 files; diff inspected. Main checkout: 17 passed; close-check ok."
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}
