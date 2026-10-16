@@ -5,10 +5,14 @@ Subcommands:
            tests/unit/<part> and its pyproject.toml to dists/<name>/, where the
            uv_build sections are replaced by a hatchling build that takes the
            package sub-tree from src/ through the shared dists/_hooks hook.
+           `layout --set plugins` instead moves the ERP domain pack and the Odoo
+           adapter under src/e_agent/plugins/erp (ADR 0026, Task 1d.9) and
+           rewrites their module paths in tracked code and config.
   links    rewrite relative Markdown links after `layout` (--layout), or git mv
            documents into a folder and rewrite links to and from them (--move).
   check    report broken relative links and references to old paths; --docs also
            fails on old paths named in current (non-history) Markdown.
+           `check --set plugins` reports the old plugin module paths instead.
 
 archive/ and research/ are history and are never rewritten.
 """
@@ -143,6 +147,84 @@ MOVES: tuple[Move, ...] = (
 )
 
 
+@dataclass(frozen=True)
+class PluginMove:
+    """One package moved inside src/, with its tests; no build config moves."""
+
+    old_code: str
+    new_code: str
+    old_tests: str
+    new_tests: str
+
+    @property
+    def old_module(self) -> str:
+        return self.old_code.removeprefix("src/").replace("/", ".")
+
+    @property
+    def new_module(self) -> str:
+        return self.new_code.removeprefix("src/").replace("/", ".")
+
+
+PLUGIN_MOVES: tuple[PluginMove, ...] = (
+    PluginMove(
+        "src/e_agent/erp",
+        "src/e_agent/plugins/erp/domain",
+        "tests/unit/erp",
+        "tests/unit/plugins/erp/domain",
+    ),
+    PluginMove(
+        "src/e_agent/adapters/odoo",
+        "src/e_agent/plugins/erp/odoo",
+        "tests/unit/adapters/odoo",
+        "tests/unit/plugins/erp/odoo",
+    ),
+)
+DEFAULT_SET = "packages"
+MOVE_SETS = (DEFAULT_SET, "plugins")
+PLUGIN_REWRITE_SUFFIXES = (".py", ".toml", ".json")
+# History, harness records and the mover's own fixtures keep the old plugin paths.
+PLUGIN_EXEMPT = (
+    "archive/",
+    "research/",
+    "harness/state/",
+    "docs/handoffs/",
+    "scripts/repo_move.py",
+    "tests/conformance/test_repo_move.py",
+)
+
+
+def plugin_mapping(moves: Sequence[PluginMove] = PLUGIN_MOVES) -> dict[str, str]:
+    """Old to new paths for code and tests (Markdown links)."""
+    mapping: dict[str, str] = {}
+    for move in moves:
+        mapping[move.old_code] = move.new_code
+        mapping[move.old_tests] = move.new_tests
+    return mapping
+
+
+def _plugin_keys(moves: Sequence[PluginMove]) -> tuple[dict[str, str], dict[str, str]]:
+    dotted = {m.old_module: m.new_module for m in moves}
+    slashed: dict[str, str] = {}
+    for move in moves:
+        slashed[move.old_code.removeprefix("src/")] = move.new_code.removeprefix("src/")
+        slashed[move.old_tests] = move.new_tests
+    return dotted, slashed
+
+
+def _plugin_pattern(moves: Sequence[PluginMove]) -> tuple[re.Pattern[str], dict[str, str]]:
+    """Dotted module keys and slash path keys, longest first, on token boundaries."""
+    dotted, slashed = _plugin_keys(moves)
+
+    def alternation(keys: dict[str, str]) -> str:
+        return "|".join(re.escape(k) for k in sorted(keys, key=len, reverse=True))
+
+    pattern = re.compile(
+        r"(?<![\w.])(" + alternation(dotted) + r")(?!\w)"
+        r"|(?<!\w)(" + alternation(slashed) + r")(?!\w)"
+    )
+    return pattern, {**dotted, **slashed}
+
+
 @dataclass
 class Report:
     broken_links: list[tuple[str, str]] = field(default_factory=list)
@@ -274,6 +356,64 @@ def layout(root: Path, moves: Sequence[Move] = MOVES) -> None:
         _remove_cache_tree(root / old)
 
 
+def _plugin_leftovers(root: Path, moves: Sequence[PluginMove]) -> list[str]:
+    """Untracked, non-cache files git mv would carry along unstaged: refuse them."""
+    kept = [d + "/" for m in moves for d in (m.old_code, m.old_tests) if (root / d).is_dir()]
+    untracked = _git(root, "ls-files", "-z", "--others", "--exclude-standard", "--", *kept)
+    return [name for name in untracked.split("\0")[:-1] if not _is_cache(Path(name))]
+
+
+def rewrite_plugin_paths(root: Path, moves: Sequence[PluginMove] = PLUGIN_MOVES) -> list[str]:
+    """Rewrite old plugin module paths in tracked code and config; Markdown is left alone."""
+    pattern, mapping = _plugin_pattern(moves)
+    changed = []
+    for name in _tracked(root):
+        if not name.endswith(PLUGIN_REWRITE_SUFFIXES) or name.startswith(PLUGIN_EXEMPT):
+            continue
+        file = root / name
+        text = file.read_text(encoding="utf-8")
+        new = pattern.sub(lambda m: mapping[m.group(0)], text)
+        if new != text:
+            file.write_text(new, encoding="utf-8")
+            changed.append(name)
+    return changed
+
+
+def layout_plugins(root: Path, moves: Sequence[PluginMove] = PLUGIN_MOVES) -> list[str]:
+    """git mv the plugin packages and their tests, then rewrite paths and links."""
+    for move in moves:
+        if not (root / move.old_code).is_dir():
+            raise MoveError(f"missing {move.old_code}")
+        for target in (move.new_code, move.new_tests):
+            if (root / target).exists():
+                raise MoveError(f"target exists: {target}")
+    leftovers = _plugin_leftovers(root, moves)
+    if leftovers:
+        raise MoveError("untracked files in moved trees: " + ", ".join(leftovers))
+
+    for move in moves:
+        _git_mv(root, move.old_code, move.new_code)
+        _drop_caches(root / move.new_code)
+        if (root / move.old_tests).is_dir():
+            _git_mv(root, move.old_tests, move.new_tests)
+            _drop_caches(root / move.new_tests)
+    changed = rewrite_plugin_paths(root, moves)
+    changed += rewrite_links(root, plugin_mapping(moves))
+
+    # src/e_agent/plugins and plugins/erp stay namespace packages; tests are packages.
+    created = []
+    for package in sorted({str(Path(m.new_tests).parent) for m in moves}):
+        while package != "tests":
+            init = root / package / "__init__.py"
+            if not init.exists():
+                init.write_text("", encoding="utf-8")
+                created.append(init.relative_to(root).as_posix())
+            package = str(Path(package).parent)
+    if created:
+        _git(root, "add", "--", *created)
+    return sorted(set(changed))
+
+
 def layout_mapping(moves: Sequence[Move] = MOVES) -> dict[str, str]:
     mapping: dict[str, str] = {}
     for move in moves:
@@ -398,8 +538,7 @@ def _link_targets(text: str) -> list[str]:
     return found
 
 
-def check(root: Path, moves: Sequence[Move] = MOVES, extra_old: Sequence[str] = ()) -> Report:
-    report = Report()
+def _check_links(root: Path, report: Report) -> None:
     for name in _tracked(root, "*.md"):
         if name.startswith("archive/"):
             continue
@@ -412,6 +551,10 @@ def check(root: Path, moves: Sequence[Move] = MOVES, extra_old: Sequence[str] = 
             if path and not (root / base / unquote(path)).exists():
                 broken.append((name, path))
 
+
+def check(root: Path, moves: Sequence[Move] = MOVES, extra_old: Sequence[str] = ()) -> Report:
+    report = Report()
+    _check_links(root, report)
     old = [m.old_root for m in moves] + list(extra_old)
     # A path starts the token or follows ./ or ../; ui/packages/... is a different tree.
     full = re.compile(
@@ -439,11 +582,41 @@ def check(root: Path, moves: Sequence[Move] = MOVES, extra_old: Sequence[str] = 
     return report
 
 
+def check_plugins(root: Path, moves: Sequence[PluginMove] = PLUGIN_MOVES) -> Report:
+    """Broken links, and old plugin module paths left in code, config and current docs."""
+    report = Report()
+    _check_links(root, report)
+    pattern, _ = _plugin_pattern(moves)
+    for name in _tracked(root):
+        if name.startswith(PLUGIN_EXEMPT):
+            continue
+        is_doc = name.endswith(".md")
+        if is_doc and name.startswith(DOC_HISTORY):
+            continue
+        try:
+            text = (root / name).read_text(encoding="utf-8")
+        except (UnicodeDecodeError, FileNotFoundError, IsADirectoryError):
+            continue
+        found = report.stale_references
+        if is_doc or not name.endswith(PLUGIN_REWRITE_SUFFIXES):
+            found = report.doc_references
+        for number, line in enumerate(text.splitlines(), start=1):
+            found.extend((name, number, m.group(0)) for m in pattern.finditer(line))
+    return report
+
+
+def _move_set(name: str) -> str:
+    if name not in MOVE_SETS:
+        raise MoveError(f"unknown move set: {name} (known: {', '.join(MOVE_SETS)})")
+    return name
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--root", type=Path, default=ROOT)
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("layout")
+    layouter = sub.add_parser("layout")
+    layouter.add_argument("--set", default=DEFAULT_SET, help=f"move set: {', '.join(MOVE_SETS)}")
     links = sub.add_parser("links")
     links.add_argument("--layout", action="store_true", help="rewrite after `layout`")
     links.add_argument("--move", nargs="+", default=[], help="documents to git mv")
@@ -451,10 +624,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     checker = sub.add_parser("check")
     checker.add_argument("--old", nargs="*", default=[], help="more old paths to report")
     checker.add_argument("--docs", action="store_true", help="also fail on doc mentions")
+    checker.add_argument("--set", default=DEFAULT_SET, help=f"move set: {', '.join(MOVE_SETS)}")
     args = parser.parse_args(argv)
     root: Path = args.root.resolve()
 
     if args.command == "layout":
+        if _move_set(args.set) == "plugins":
+            changed = layout_plugins(root)
+            print(f"moved {len(PLUGIN_MOVES)} plugin packages; rewrote {len(changed)} files")
+            for name in changed:
+                print(f"  {name}")
+            return 0
         layout(root)
         print(f"moved {len(MOVES)} distributions; run `links --layout` next")
         return 0
@@ -471,7 +651,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         for name in changed:
             print(f"  {name}")
         return 0
-    report = check(root, MOVES, args.old)
+    if _move_set(args.set) == "plugins":
+        if args.old:
+            parser.error("--old applies to the packages set only")
+        report = check_plugins(root)
+    else:
+        report = check(root, MOVES, args.old)
     for name, target in report.broken_links:
         print(f"broken link: {name}: {target}")
     for name, target in report.read_only_broken_links:

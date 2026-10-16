@@ -1,6 +1,7 @@
 """The Phase 1 mover script on a scratch git repository (plan Task 1a.2)."""
 
 import importlib.util
+import json
 import subprocess
 import sys
 import tomllib
@@ -300,3 +301,228 @@ def test_check_reports_doc_mentions_separately_and_skips_history(repo: Path) -> 
 def test_layout_writes_the_committed_build_hook() -> None:
     hook = (REPO / "dists/_hooks/src_tree.py").read_text(encoding="utf-8")
     assert hook == rm.HOOK
+
+
+# Task 1d.9: the ERP plugins move under src/e_agent/plugins/erp (post-1d.8 shape).
+DOMAIN_PYPROJECT = """[project]
+name = "e-agent-domain-erp"
+version = "0.1.0"
+
+[project.entry-points."e_agent.plugins.v1"]
+domain-erp = "e_agent.erp.plugin:create_plugin"
+
+[build-system]
+requires = ["hatchling>=1.32,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+dev-mode-dirs = ["../../src"]
+
+[tool.hatch.build.hooks.custom]
+path = "../_hooks/src_tree.py"
+package = "e_agent/erp"
+"""
+
+ODOO_PYPROJECT = (
+    DOMAIN_PYPROJECT.replace("e-agent-domain-erp", "e-agent-adapter-odoo")
+    .replace("domain-erp = ", "odoo19 = ")
+    .replace("e_agent.erp.plugin", "e_agent.adapters.odoo.plugin")
+    .replace('"e_agent/erp"', '"e_agent/adapters/odoo"')
+)
+
+SCRIPT = """import e_agent.adapters.odoo.client
+from e_agent.adapters.postgres import store
+from e_agent.erp.procurement import rules
+
+MODULES = ("e_agent.erp", "e_agent.adapters.odoo", "e_agent.plugins.erp")
+TESTS = ["tests/unit/erp", "tests/unit/adapters/odoo/test_y.py"]
+SOURCE = "src/e_agent/erp/plugin.py"
+EXTRA = "e_agent.erp_extra"
+"""
+
+ARCHIVE_NOTE = "The domain pack lived in e_agent.erp.\n"
+HARNESS_STATE = '{"paths": ["src/e_agent/erp", "e_agent.erp"]}\n'
+
+
+def _manifest(module: str) -> str:
+    return '{\n  "plugin_id": "x",\n  "factory": "' + module + '.plugin:create_plugin"\n}\n'
+
+
+@pytest.fixture
+def plugin_repo(tmp_path: Path) -> Path:
+    write(tmp_path, "src/e_agent/erp/__init__.py")
+    write(tmp_path, "src/e_agent/erp/plugin.py", "from e_agent.erp.procurement import x\n")
+    write(tmp_path, "src/e_agent/erp/e_agent_plugin.json", _manifest("e_agent.erp"))
+    write(tmp_path, "src/e_agent/erp/procurement/__init__.py", "x = 1\n")
+    write(tmp_path, "src/e_agent/adapters/odoo/__init__.py")
+    write(
+        tmp_path,
+        "src/e_agent/adapters/odoo/plugin.py",
+        "from e_agent.erp.procurement import x\nfrom e_agent.adapters.odoo import client\n",
+    )
+    write(
+        tmp_path,
+        "src/e_agent/adapters/odoo/e_agent_plugin.json",
+        _manifest("e_agent.adapters.odoo"),
+    )
+    write(tmp_path, "src/e_agent/adapters/postgres/__init__.py", "import e_agent.adapters\n")
+    write(tmp_path, "src/e_agent/plugins/erp/simulator/__init__.py")
+    write(
+        tmp_path,
+        "src/e_agent/plugins/erp/simulator/fake_erp.py",
+        "from e_agent.erp.procurement import x\n",
+    )
+    for package in ("unit", "unit/adapters", "unit/plugins", "unit/plugins/erp"):
+        write(tmp_path, f"tests/{package}/__init__.py")
+    write(tmp_path, "tests/unit/erp/__init__.py")
+    write(tmp_path, "tests/unit/erp/test_x.py", "from e_agent.erp.plugin import create_plugin\n")
+    write(tmp_path, "tests/unit/adapters/odoo/__init__.py")
+    write(
+        tmp_path,
+        "tests/unit/adapters/odoo/test_y.py",
+        "from e_agent.adapters.odoo.plugin import create_plugin\n",
+    )
+    write(tmp_path, "dists/domain-erp/pyproject.toml", DOMAIN_PYPROJECT)
+    write(tmp_path, "dists/adapter-odoo/pyproject.toml", ODOO_PYPROJECT)
+    write(tmp_path, "scripts/s.py", SCRIPT)
+    write(
+        tmp_path,
+        "docs/design.md",
+        "See [plugin](../src/e_agent/erp/plugin.py#L1) and "
+        "[odoo tests](../tests/unit/adapters/odoo/).\n",
+    )
+    write(tmp_path, "archive/x.md", ARCHIVE_NOTE)
+    write(tmp_path, "harness/state/x.json", HARNESS_STATE)
+    git(tmp_path, "init", "-q")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-q", "-m", "init")
+    return tmp_path
+
+
+def test_plugins_move_on_scratch_repo(
+    plugin_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = plugin_repo
+    assert rm.main(["--root", str(repo), "check", "--set", "plugins"]) == 1
+    before = capsys.readouterr().out
+    assert "scripts/s.py" in before
+    assert "dists/domain-erp/pyproject.toml" in before
+
+    assert rm.main(["--root", str(repo), "layout", "--set", "plugins"]) == 0
+
+    # Renames, tracked by git; the old directories are gone.
+    for old in ("src/e_agent/erp", "src/e_agent/adapters/odoo", "tests/unit/erp"):
+        assert not (repo / old).exists()
+    assert not (repo / "tests/unit/adapters/odoo").exists()
+    tracked = git(repo, "ls-files").split()
+    for new in (
+        "src/e_agent/plugins/erp/domain/plugin.py",
+        "src/e_agent/plugins/erp/domain/procurement/__init__.py",
+        "src/e_agent/plugins/erp/odoo/e_agent_plugin.json",
+        "tests/unit/plugins/erp/domain/test_x.py",
+        "tests/unit/plugins/erp/odoo/test_y.py",
+    ):
+        assert new in tracked
+    assert "??" not in git(repo, "status", "--porcelain")
+
+    # Namespace directories stay namespaces; tests keep their packages.
+    assert not (repo / "src/e_agent/plugins/__init__.py").exists()
+    assert not (repo / "src/e_agent/plugins/erp/__init__.py").exists()
+    assert not (repo / "src/e_agent/adapters/__init__.py").exists()
+    assert (repo / "tests/unit/plugins/erp/domain/__init__.py").is_file()
+    assert (repo / "tests/unit/plugins/erp/odoo/__init__.py").is_file()
+
+    # Imports, entry points, hook package and manifest factory.
+    domain = repo / "src/e_agent/plugins/erp/domain"
+    odoo = repo / "src/e_agent/plugins/erp/odoo"
+    assert (domain / "plugin.py").read_text() == (
+        "from e_agent.plugins.erp.domain.procurement import x\n"
+    )
+    assert (odoo / "plugin.py").read_text() == (
+        "from e_agent.plugins.erp.domain.procurement import x\n"
+        "from e_agent.plugins.erp.odoo import client\n"
+    )
+    assert json.loads((domain / "e_agent_plugin.json").read_text())["factory"] == (
+        "e_agent.plugins.erp.domain.plugin:create_plugin"
+    )
+    assert json.loads((odoo / "e_agent_plugin.json").read_text())["factory"] == (
+        "e_agent.plugins.erp.odoo.plugin:create_plugin"
+    )
+    for dist, entry, module, package in (
+        ("domain-erp", "domain-erp", "e_agent.plugins.erp.domain", "e_agent/plugins/erp/domain"),
+        ("adapter-odoo", "odoo19", "e_agent.plugins.erp.odoo", "e_agent/plugins/erp/odoo"),
+    ):
+        config = tomllib.loads((repo / f"dists/{dist}/pyproject.toml").read_text())
+        points = config["project"]["entry-points"]["e_agent.plugins.v1"]
+        assert points == {entry: f"{module}.plugin:create_plugin"}
+        assert config["tool"]["hatch"]["build"]["hooks"]["custom"]["package"] == package
+    assert (repo / "tests/unit/plugins/erp/domain/test_x.py").read_text() == (
+        "from e_agent.plugins.erp.domain.plugin import create_plugin\n"
+    )
+    assert (repo / "src/e_agent/plugins/erp/simulator/fake_erp.py").read_text() == (
+        "from e_agent.plugins.erp.domain.procurement import x\n"
+    )
+    script = (repo / "scripts/s.py").read_text()
+    assert script == (
+        SCRIPT.replace("e_agent.adapters.odoo", "e_agent.plugins.erp.odoo")
+        .replace('"e_agent.erp"', '"e_agent.plugins.erp.domain"')
+        .replace("e_agent.erp.procurement", "e_agent.plugins.erp.domain.procurement")
+        .replace("tests/unit/erp", "tests/unit/plugins/erp/domain")
+        .replace("tests/unit/adapters/odoo", "tests/unit/plugins/erp/odoo")
+        .replace("src/e_agent/erp", "src/e_agent/plugins/erp/domain")
+    )
+    # Decoys: other adapters, look-alike tokens, history and harness state.
+    assert "from e_agent.adapters.postgres import store" in script
+    assert '"e_agent.plugins.erp")' in script
+    assert 'EXTRA = "e_agent.erp_extra"' in script
+    assert (repo / "src/e_agent/adapters/postgres/__init__.py").read_text() == (
+        "import e_agent.adapters\n"
+    )
+    assert (repo / "archive/x.md").read_text() == ARCHIVE_NOTE
+    assert (repo / "harness/state/x.json").read_text() == HARNESS_STATE
+    # Markdown is not text-rewritten, but its relative links follow the move.
+    assert (repo / "docs/design.md").read_text() == (
+        "See [plugin](../src/e_agent/plugins/erp/domain/plugin.py#L1) and "
+        "[odoo tests](../tests/unit/plugins/erp/odoo/).\n"
+    )
+
+    capsys.readouterr()
+    assert rm.main(["--root", str(repo), "check", "--set", "plugins", "--docs"]) == 0
+    assert "0 old-path references in code and config, 0 in current docs" in capsys.readouterr().out
+
+    # The rewrite is idempotent.
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "moved")
+    assert rm.rewrite_plugin_paths(repo) == []
+    assert git(repo, "status", "--porcelain") == ""
+
+
+def test_plugins_check_reports_doc_mentions_only_with_docs(
+    plugin_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    rm.main(["--root", str(plugin_repo), "layout", "--set", "plugins"])
+    write(plugin_repo, "README.md", "Run `uv run pytest tests/unit/erp`.\n")
+    write(plugin_repo, "docs/plans/old.md", "The pack was e_agent.erp.\n")
+    git(plugin_repo, "add", "README.md", "docs/plans/old.md")
+    capsys.readouterr()
+
+    assert rm.main(["--root", str(plugin_repo), "check", "--set", "plugins"]) == 0
+    assert rm.main(["--root", str(plugin_repo), "check", "--set", "plugins", "--docs"]) == 1
+    out = capsys.readouterr().out
+    assert "old path in doc: README.md:1: tests/unit/erp" in out
+    assert "docs/plans/old.md" not in out
+
+
+def test_plugins_layout_refuses_untracked_files_in_moved_trees(plugin_repo: Path) -> None:
+    (plugin_repo / "src/e_agent/erp/__pycache__").mkdir()
+    (plugin_repo / "src/e_agent/erp/__pycache__/p.pyc").write_bytes(b"x")
+    write(plugin_repo, "tests/unit/erp/scratch.txt", "local")
+    with pytest.raises(rm.MoveError, match=r"tests/unit/erp/scratch\.txt"):
+        rm.main(["--root", str(plugin_repo), "layout", "--set", "plugins"])
+    assert (plugin_repo / "src/e_agent/erp/plugin.py").is_file()
+
+
+def test_plugins_unknown_move_set_is_an_error(plugin_repo: Path) -> None:
+    for command in ("layout", "check"):
+        with pytest.raises(rm.MoveError, match="unknown move set: nope"):
+            rm.main(["--root", str(plugin_repo), command, "--set", "nope"])
