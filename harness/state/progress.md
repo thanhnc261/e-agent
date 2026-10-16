@@ -339,3 +339,8 @@
 - changed: docs/design/principles.md,harness/state/1/features.json,harness/state/1/handoffs/1d.7.json,harness/state/1/reviews/1d.7.json
 - next: 1d.7 review fix R-1 at 83f3912: reviewer confirms R-1, then clear context and new-task 1 1d.7b --feature F-1d-7b
 - open: none
+
+## 2026-10-16T03:43:15.459094+00:00 · 1d.7-impl · 1d.7
+- changed: harness/state/1/reviews/1d.7.json
+- next: 1d.7 closed and reviewed (accept; R-1 fixed in 83f3912): clear context, then new-task 1 1d.7b --feature F-1d-7b; owner to decide on a Codex review of 1d.5 and 1d.7 (R-5)
+- open: none
