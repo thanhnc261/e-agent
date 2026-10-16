@@ -431,18 +431,19 @@ Runs after 1d.7, so the helper is written inside the guest contract, and before 
 - `.agents/skills/eng-foundations/references/rules.md`: ENG-ARCH-1 and ENG-ARCH-5 name the layout; check with `uv run python scripts/check_agent_skills.py`.
 
 **Steps:**
-- [ ] Write the failing tests:
+- [x] Write the failing tests:
   - `test_no_old_plugin_module_paths_remain`
   - the layout test asserting the new paths, `xfail(strict=True)` until the move
-- [ ] Run `uv run python scripts/repo_move.py layout --set plugins`, then `uv run python scripts/repo_move.py check --set plugins --docs`. Expected: no leftovers after the hand edits below. The check needs `--set plugins` (1d.9 review R-1). Run it in the main checkout: in a fresh clone, 15 links in `docs/handoffs/2026-10-08-*.md` point at the git-ignored `evidence/` folder and count as broken whatever the move did.
-- [ ] Hand-edit what the mover cannot see:
+- [x] Run `uv run python scripts/repo_move.py layout --set plugins`, then `uv run python scripts/repo_move.py check --set plugins --docs`. Expected: no leftovers after the hand edits below. The check needs `--set plugins` (1d.9 review R-1). Run it in the main checkout: in a fresh clone, 15 links in `docs/handoffs/2026-10-08-*.md` point at the git-ignored `evidence/` folder and count as broken whatever the move did.
+- [x] Hand-edit what the mover cannot see:
   - the current docs `check --set plugins --docs` lists;
   - short paths without the `e_agent/` or `tests/unit/` prefix, found with `git grep -n -E 'adapters/odoo|(^|[^/_.])erp/' -- ':!archive' ':!research' ':!docs/handoffs'` (for example `docs/design/target-architecture.md` names `adapters/odoo/executor.py`; 1d.9 review R-3).
-- [ ] Run `uv run ruff check --fix .` and `uv run ruff format .`, then wrap the lines ruff still reports. The rewrite leaves imports unsorted and lines too long: 21 errors and 6 files to reformat in the 1d.9 dry run (review R-4).
-- [ ] Rebuild the wheels. Run `uv run python scripts/check_wheels.py` and compare the file lists through the prefix map. Expected: equal to before, minus the simulator files that moved out in 1d.5.
-- [ ] Record the new pins for `domain-erp`, `odoo19` and `fixture-erp` with `scripts/plugin_inventory.py`, for the handoff and the owner's re-pin.
-- [ ] Run the `full`, `pg` and `e2e` gates and `check_core_only.py`. Expected: pass; `export_openapi.py --check` shows no change.
-- [ ] Commit `refactor: ERP plugins move under plugins/erp (ADR 0026)`.
+- [x] Run `uv run ruff check --fix .` and `uv run ruff format .`, then wrap the lines ruff still reports. The rewrite leaves imports unsorted and lines too long: 21 errors and 6 files to reformat in the 1d.9 dry run (review R-4).
+- [x] Rebuild the wheels. Run `uv run python scripts/check_wheels.py` and compare the file lists through the prefix map. Expected: equal to before, minus the simulator files that moved out in 1d.5.
+- [x] Record the new pins for `domain-erp`, `odoo19` and `fixture-erp` with `scripts/plugin_inventory.py`, for the handoff and the owner's re-pin.
+- [x] Run the `full`, `pg` and `e2e` gates and `check_core_only.py`. Expected: pass; `export_openapi.py --check` shows no change.
+- [x] Commit `refactor: ERP plugins move under plugins/erp (ADR 0026)`.
+- Observed (2daed08): 47 renames; `check --set plugins --docs` reports 0 broken links and 0 old paths in code, config and current docs; the 12 wheel file lists are equal through the prefix map; `full`, `core`, `pg` (167 passed on `e_agent_test`), `e2e` and `check_wheels.py` pass. Rulings: "Core never imports plugins" forbids `e_agent.plugins.**`, while "Plugins are guests" keeps its explicit source list, because `test_every_plugin_package_is_a_guest` matches source modules literally; the mover rewrote the old-path constants in the new `test_repo_layout.py` tests (that file is not in `PLUGIN_EXEMPT`), which were restored by hand; `docs/design/principles.md` (a 1d.11 file) had its test paths and line numbers updated here so the check is clean.
 
 ---
 

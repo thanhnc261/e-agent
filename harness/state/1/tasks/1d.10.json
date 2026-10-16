@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-10"
   ],
-  "context_digest": "c24a040062ffffc480c7e595c95dd2a5d482e8eee74f51a6ef11e11e6a1940b4",
+  "context_digest": "b7d6a168faf4ea85f3a76b3417aa4c6869cb60baa08400774d1c946c71647a3e",
   "allowed_paths": [
     "src/e_agent/erp/**",
     "src/e_agent/adapters/odoo/**",

@@ -367,7 +367,8 @@
         "check_wheels.py file lists equal modulo the prefix map",
         "full, pg and e2e gates and check_core_only.py pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/1d.10/2026-10-16T10-56-07.520114+00-00-full.json"
     },
     {
       "id": "F-1d-11",
