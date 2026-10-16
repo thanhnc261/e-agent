@@ -333,17 +333,18 @@ It may not touch `odoo-bench`, any container outside `odoo19-learning-*` and `e-
 - `tests/unit/server/test_generic_composition.py`, `tests/conformance/test_plugin_guests.py`, `tests/unit/kernel/test_registry.py`
 
 **Steps:**
-- [ ] Write the failing tests:
+- [x] Write the failing tests:
   - `test_notes_pack_composes_through_bootstrap`: the non-ERP notes pack from `tests/unit/kernel/conftest.py`, registered through injected discovery, composes and runs a fixture read without importing any ERP package.
-  - `test_server_has_no_domain_literals`: a grep over `src/e_agent/server` for `demand:`, `product:`, `odoo`, `erp` and `procure`. Import-linter cannot see string literals such as the `"demand:d-001"` default in `bootstrap.py`.
+  - `test_server_has_no_domain_literals`: a grep over `src/e_agent/server` for `demand:`, `product:`, `odoo`, `erp` and `procure`. Import-linter cannot see string literals. (Ruling at 1d.7: the `"demand:d-001"` default had already left `bootstrap.py` in 1d.4; the old profile keys `demand_ref` and `product_ref`, an approved migration fold, match none of the patterns and stay. The `task_kind` default `"draft-po"` in `profile.py` matches none either and is left for the Phase 2 task definitions, because removing it is a profile-schema change not named in the Global Constraints.)
   - `test_every_plugin_package_is_a_guest`: reads the installed `e_agent.plugins.v1` entry points, takes the parent package of each entry point's module (`e_agent.adapters.odoo.plugin` → `e_agent.adapters.odoo`), and fails if any is not a source module of "Plugins are guests". It also fails when it finds no plugin at all, so it cannot pass on empty input.
   - `test_binding_missing_required_feature_refused`: a capability requiring `{"x"}` with a template that supports nothing is refused at registration with `STARTUP_REJECTED`.
   - `test_binding_with_required_features_admitted`: the same capability with a template supporting `{"x", "y"}` is admitted.
-  - `test_capabilities_without_requirements_unchanged`: the fixture profile admits the same plugins and bindings as before.
-- [ ] Run `uv run pytest -q tests/unit/server/test_generic_composition.py tests/conformance/test_plugin_guests.py tests/unit/kernel/test_registry.py`. Expected: the guest test fails (no such contract), and the feature test fails (the binding is admitted).
-- [ ] Implement.
-- [ ] Run `uv run lint-imports` and the same tests. Expected: pass. To watch each contract fail, temporarily add `from e_agent.erp import plugin` to `bootstrap.py`, and then `import e_agent.adapters.postgres` to the simulator's `plugin.py`; restore both.
-- [ ] Commit `test: core never imports plugins; plugins are guests; required features enforced`.
+  - `test_binding_missing_required_feature_refused_without_a_connection`: the template is refused at registration even when no connection is assigned to it.
+  - `test_capabilities_without_requirements_unchanged`: the fixture profile admits the same plugins and bindings as before. (Ruling at 1d.7: it lives in `tests/unit/server/test_generic_composition.py`, so the kernel tests stay free of ERP imports.)
+- [x] Run `uv run pytest -q tests/unit/server/test_generic_composition.py tests/conformance/test_plugin_guests.py tests/unit/kernel/test_registry.py`. Expected: the guest test fails (no such contract), and the feature tests fail (the binding is admitted). Observed at 1d.7: the literal test fails too, on the demo help text in `cli.py` ("procurement"), which is reworded; the composition test passes on the existing tree.
+- [x] Implement.
+- [x] Run `uv run lint-imports` and the same tests. Expected: pass. To watch each contract fail, temporarily add `from e_agent.erp import plugin` to `bootstrap.py`, and then `import e_agent.adapters.postgres` to the simulator's `plugin.py`; restore both.
+- [x] Commit `test: core never imports plugins; plugins are guests; required features enforced`.
 
 Out of scope: probing a live instance for its features, and leaving a capability off the tool surface with a reason code when the instance lacks one. Both land in Phase 5 with the per-capability feature probe (adoption review XA-03).
 

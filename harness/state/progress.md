@@ -324,3 +324,8 @@
 - changed: harness/state/1/handoffs/1d.6.json
 - next: 1d.6 closed and reviewed (accept): clear context, then new-task 1 1d.7 --feature F-1d-7; the 1d.5 Codex re-review is still owed after the limit resets (2026-10-16 00:35)
 - open: none
+
+## 2026-10-16T02:47:24.066136+00:00 · 1d.7-impl · 1d.7
+- changed: pyproject.toml,src/e_agent/kernel/registry.py,src/e_agent/kernel/proposals.py,src/e_agent/server/cli.py,tests/unit/kernel/test_registry.py,tests/conformance/test_plugin_guests.py,tests/unit/server/test_generic_composition.py
+- next: 1d.7 implemented at 79978a1, full gate passed: write the 1d.7 handoff, close-check, then a fresh-context review
+- open: draft-po default in profile.py:60 is a remaining server domain literal (Phase 2 task definitions); handoff rulings: literal test was a third red, unchanged-admission test lives in the server suite
