@@ -449,3 +449,8 @@
 - changed: harness/state/1h/features.json, harness/state/1h/handoffs/H.3.json, harness/state/1h/reviews/H.3-r2.json, harness/state/1h/reviews/H.3.json, harness/state/1h/tasks/H.3.json, harness/state/evidence/gates/H.3/2026-10-17T10-39-32.536749+00-00-full.json
 - next: H.3 closed; open H.4 (prompt golden file; every recording replayed)
 - open: none
+
+## 2026-10-17T10:46:40.876248+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.4
+- changed: harness/state/1h/features.json, harness/state/1h/handoffs/H.4.json, harness/state/1h/reviews/H.4.json, harness/state/1h/tasks/H.4.json, harness/state/evidence/gates/H.4/2026-10-17T10-44-36.855544+00-00-full.json
+- next: H.4 closed; open H.5 (CI secret scan and dependency audit; owner push needed to close)
+- open: none

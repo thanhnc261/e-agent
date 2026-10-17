@@ -47,7 +47,8 @@
         "test_base_instructions_match_golden passes; test_every_recording_is_replayed passes and fails on a scratch recording (probe in the handoff)",
         "check_agent_skills.py and the full gate pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/H.4/2026-10-17T10-44-36.855544+00-00-full.json"
     },
     {
       "id": "F-HY-5",

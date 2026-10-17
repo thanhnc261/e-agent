@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-HY-4"
   ],
-  "context_digest": "bf1d992df5a1ab68c2557f3bea7632989ff17632a7203e24a4cfcc92bb97a96c",
+  "context_digest": "794a46d062c41ddc67586ea2377d061a51f8fab7e936365af0172b8f1d4e3289",
   "allowed_paths": [
     "tests/unit/adapters/pydantic_ai/golden/base_instructions.txt",
     "tests/unit/adapters/pydantic_ai/test_prompt_golden.py",
