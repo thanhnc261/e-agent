@@ -35,7 +35,8 @@
         "test_create_task_banned_in_product_code fires TID251; allowlist pinned at three files",
         "full gate passes; worker and sweeper tests unchanged"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/H.3/2026-10-17T10-39-32.536749+00-00-full.json"
     },
     {
       "id": "F-HY-4",

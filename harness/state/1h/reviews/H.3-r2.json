@@ -1,0 +1,9 @@
+{
+  "task": "H.3-r2",
+  "verdict": "accept",
+  "findings": [],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}

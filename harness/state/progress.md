@@ -444,3 +444,8 @@
 - changed: harness/state/1h/features.json, harness/state/1h/handoffs/H.2.json, harness/state/1h/reviews/H.2.json, harness/state/1h/tasks/H.2.json, harness/state/evidence/gates/H.2/2026-10-17T10-19-09.439740+00-00-full.json
 - next: H.2 closed; open H.3 (supervised background tasks, kernel change, Codex review)
 - open: none
+
+## 2026-10-17T10:42:49.615717+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.3
+- changed: harness/state/1h/features.json, harness/state/1h/handoffs/H.3.json, harness/state/1h/reviews/H.3-r2.json, harness/state/1h/reviews/H.3.json, harness/state/1h/tasks/H.3.json, harness/state/evidence/gates/H.3/2026-10-17T10-39-32.536749+00-00-full.json
+- next: H.3 closed; open H.4 (prompt golden file; every recording replayed)
+- open: none

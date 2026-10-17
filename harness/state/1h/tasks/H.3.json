@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-HY-3"
   ],
-  "context_digest": "7a146f9f15e84ae59e353d7c92a4c18164539acd90ba3ba1729f40e4d2db9040",
+  "context_digest": "bf1d992df5a1ab68c2557f3bea7632989ff17632a7203e24a4cfcc92bb97a96c",
   "allowed_paths": [
     "src/e_agent/sdk/tasks.py",
     "src/e_agent/server/worker.py",
