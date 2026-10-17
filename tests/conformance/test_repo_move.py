@@ -97,6 +97,8 @@ def repo(tmp_path: Path) -> Path:
     write(tmp_path, "docs/plan.md", "[design](design.md) and [plan](plan.md#steps)\n")
     write(tmp_path, "archive/old.md", "[design](../docs/design.md)\n")
     git(tmp_path, "init", "-q")
+    # CI runners have no global gitignore; keep the developer's from hiding caches here.
+    git(tmp_path, "config", "core.excludesFile", "/dev/null")
     git(tmp_path, "add", "-A")
     git(tmp_path, "commit", "-q", "-m", "init")
     return tmp_path
@@ -408,6 +410,8 @@ def plugin_repo(tmp_path: Path) -> Path:
     for name in (*EXEMPT_FILES, "scripts/t.py"):
         write(tmp_path, name, EXEMPT_CODE)
     git(tmp_path, "init", "-q")
+    # CI runners have no global gitignore; keep the developer's from hiding caches here.
+    git(tmp_path, "config", "core.excludesFile", "/dev/null")
     git(tmp_path, "add", "-A")
     git(tmp_path, "commit", "-q", "-m", "init")
     return tmp_path

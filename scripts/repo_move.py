@@ -270,7 +270,11 @@ def _leftovers(root: Path, move: Move) -> list[str]:
             continue
         found.append(name)
     untracked = _git(root, "ls-files", "-z", "--others", "--exclude-standard", "--", *kept)
-    found.extend(name for name in untracked.split("\0")[:-1] if name not in found)
+    found.extend(
+        name
+        for name in untracked.split("\0")[:-1]
+        if name not in found and not _is_cache(Path(name))
+    )
     return found
 
 
