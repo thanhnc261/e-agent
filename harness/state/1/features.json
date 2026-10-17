@@ -391,7 +391,8 @@
         "read-only task 1 succeeds; a wrong pin is refused",
         "results recorded in the handoff, labelled live"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/1d.12/2026-10-17T09-37-54.689073+00-00-live.json"
     },
     {
       "id": "F-1d-7b",

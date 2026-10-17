@@ -1,0 +1,43 @@
+{
+  "task": "1d.12",
+  "changed": "Live check of Phase 1d on the odoo19-learning sandbox, results labelled live in docs/handoffs/2026-10-16-phase1d-plugin-boundary.md (commit f9f3fa6). The domain-erp, odoo19 and fixture-erp wheels rebuilt at 4de0de3 give the pins of the phase handoff. With the previous pins, serve exits 3 with STARTUP_REJECTED (domain-erp artifact bytes differ). The agent re-pinned domain-erp and odoo19 in the git-ignored live profile on the owner's instruction; /health/ready then reports ready, environment live, plugins domain-erp and odoo19 only (no fixture-erp), store postgres, after the startup sandbox guard ran the odoo19 manifest probe. Task 1 (API: 'hi', then 'Which products are short for open demand?') ran as run_6409317e94f84bccbb72718410fc9849: SUCCEEDED, answered, procurement.shortage.answer.v1 VERIFIED (shortage 0), event counts equal to the 2026-10-13 baseline, sandbox only read. A temporary profile with the odoo19 pin's last digit flipped exits 3 with STARTUP_REJECTED and was deleted. The owner ran the harness live gate set (env_check.py, odoo_sandbox.py info) with the Odoo keys exported: it passed on d14c490 (marker odoo19-learning, training19_demo, company 1, bridge 19.0.0.4.0); a second run one second later passed identically; two earlier attempts failed (placeholder key; variables not exported) and are committed as records. Codex reviewed the change (harness/state/1/reviews/1d.12.json): rework, R-1 (completion claimed before closure) and R-2 (skipped-check account incomplete), both contract wording, fixed in f9f3fa6 before commit.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/1d.12/2026-10-17T09-37-54.689073+00-00-live.json",
+    "harness/state/evidence/live/1d.12-startup.json",
+    "harness/state/evidence/live/1d.12-flow1.json",
+    "harness/state/evidence/gates/1d.12/2026-10-17T09-08-12.297428+00-00-live.json",
+    "harness/state/evidence/gates/1d.12/2026-10-17T09-27-33.047383+00-00-live.json",
+    "harness/state/evidence/gates/1d.12/2026-10-17T09-37-55.377015+00-00-live.json"
+  ],
+  "open_items": [
+    "Rotate the Odoo API keys before 2026-10-19; the integration key was exposed in this session through an editor selection, so rotate it in any case.",
+    "The roadmap 1d row still says the owner's gate live run is pending; it is updated after this task closes, because a roadmap commit after the gate evidence would not be bookkeeping.",
+    "Merge and push of refactor/phase1d-plugin-boundary are the owner's.",
+    "Codex's R-1/R-2 fixes were not re-reviewed by Codex (wording only).",
+    "env_check.py raises a traceback on a non-Latin-1 header value instead of reporting it (minor, out of scope)."
+  ],
+  "rulings": [
+    {
+      "ruling": "The plan reserved the live profile re-pin for the owner; the owner instructed the agent in-session to implement F-1d-12, so the agent re-pinned with a script that replaced only the two artifact_sha256 values and printed no other profile value.",
+      "cost_if_wrong": "Restore the previous pins recorded in the phase handoff's rulings (they no longer start)."
+    },
+    {
+      "ruling": "Failed live gate evidence is committed as a record rather than deleted, so the next gate run starts on a clean tree and the attempts stay visible.",
+      "cost_if_wrong": "Two extra small files under harness/state/evidence/gates/1d.12/."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "profiles/live-odoo19-learning.local.json re-pinned (domain-erp, odoo19 artifact_sha256).",
+      "undo": "Restore the previous pins from the phase handoff ruling."
+    },
+    {
+      "change": "Temporary profiles/live-odoo19-learning-wrongpin.local.json created (0600) for the wrong-pin start and deleted.",
+      "undo": "None needed."
+    },
+    {
+      "change": "Live server started on 127.0.0.1:8795 and stopped; one run added to the live ledger.",
+      "undo": "None needed; normal run history."
+    }
+  ]
+}
