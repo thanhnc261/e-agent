@@ -98,12 +98,12 @@ No runtime feature is added, so roadmap rule 3 does not apply.
 - `tests/conformance/test_banned_api.py`
 
 **Steps:**
-- [ ] Write the failing tests:
+- [x] Write the failing tests:
   - `test_os_environ_banned_in_product_code`: runs `ruff check` on a scratch module under a temporary `src/e_agent` path that reads `os.environ` and expects `TID251`.
   - `test_banned_api_allowlist_is_pinned`: the per-file ignores for `TID251` under `src/` are exactly the two files above (H.3 adds its helper).
   - `test_missing_dsn_env_reports_variable_name`: a profile whose `dsn_env` is unset fails startup naming the variable.
-- [ ] Run `uv run pytest -q tests/conformance/test_banned_api.py tests/unit/server`. Expected: the ban test fails (no `TID`).
-- [ ] Implement. Run `uv run ruff check .` and fix every finding in `src/` through the helper.
+- [x] Run `uv run pytest -q tests/conformance/test_banned_api.py tests/unit/server`. Expected: the ban test fails (no `TID`).
+- [x] Implement. Run `uv run ruff check .` and fix every finding in `src/` through the helper.
 - [ ] Run the `full` gate. Expected: pass.
 - [ ] Commit `chore: typed environment reads; ban os.environ in product code`.
 

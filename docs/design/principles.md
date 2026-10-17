@@ -90,7 +90,7 @@ Status tags follow the target architecture: **[I]** implemented, **[Pa]** partia
 |---|---|---|---|---|---|---|
 | PR-35 | Plan first, design first; a contract change needs an accepted ADR; code and design never drift silently | Phase plans in `docs/plans/`; ADRs in `docs/adr/` | Roadmap rules 1–2 | ENG-PLAN-1, -2, -3 | `uv run e-agent-harness validate-context` for the plan; ADR status and drift are review only | [Pa] |
 | PR-36 | Only the sandbox and e-agent's own containers are touched; protected paths stay protected | `odoo-bench` never; `archive/**` read-only | Roadmap rule 5; AGENTS.md | ENG-BOUND-1, -2 | Deny rules in `.claude/settings.json`; `harness/context.toml`; `uv run e-agent-harness check-scope` | [I] |
-| PR-37 | Configuration is typed; code does not read `os.environ` directly | One settings module | Adoption review XA-14 | none | **none** | [P] |
+| PR-37 | Configuration is typed; code does not read `os.environ` directly | `server/environment.py` is the one reader | Adoption review XA-14 | ENG-ARCH-6 | Ruff TID251 bans `os.environ` and `os.getenv` under `src/e_agent` (`uv run ruff check .`); `tests/conformance/test_banned_api.py` proves the ban fires and pins the two-file allowlist; the helper's tests are in `tests/unit/server/test_environment.py` | [I] |
 | PR-38 | Background tasks are supervised | No bare `asyncio.create_task` | Adoption review XA-15 | none | **none** | [P] |
 | PR-39 | CI scans for secrets and vulnerable dependencies | Required checks | Adoption review XA-16 | ENG-BOUND-3 | **none** | [P] |
 
@@ -121,5 +121,5 @@ Status tags follow the target architecture: **[I]** implemented, **[Pa]** partia
 | PR-31 | Zero-case guard in the replay `TASKS` constant and any other gate on the ENG-EVID-4 list | Hygiene plan Task H.4 (XA-17) |
 | PR-32 | Replay suite required by path; prompt golden file | Hygiene plan Task H.4 (XA-17) |
 | PR-34 | Injection fixtures (threat T1) | Phase 3 with the ContextAssembler |
-| PR-37, PR-38, PR-39 | Ruff TID251 ban; supervised-task helper and ban; dependency audit | Hygiene plan Tasks H.2, H.3, H.5 (XA-14, XA-15, XA-16) |
+| PR-38, PR-39 | Supervised-task helper and ban; dependency audit | Hygiene plan Tasks H.3, H.5 (XA-15, XA-16) |
 | PR-04, PR-06, PR-11 | Review-only by nature | No machine check planned; reviewers cite the row |

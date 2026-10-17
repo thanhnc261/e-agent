@@ -7,7 +7,6 @@ pass the sandbox-marker check before any run starts.
 
 from __future__ import annotations
 
-import os
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -29,6 +28,7 @@ from e_agent.sdk.auth import SecretStore
 from e_agent.sdk.discovery import DiscoveredPlugin, discover
 from e_agent.sdk.ports import AgentDriver, DriverRequest
 
+from .environment import optional_env, require_env
 from .profile import Profile
 
 
@@ -76,9 +76,7 @@ async def open_store(profile: Profile) -> Any:
         if profile.environment == "live":
             raise KernelError(ErrorCode.STARTUP_REJECTED, "live runs require a PostgreSQL ledger")
         return InMemoryRunStore()
-    dsn = os.environ.get(profile.store.dsn_env)
-    if not dsn:
-        raise KernelError(ErrorCode.STARTUP_REJECTED, f"{profile.store.dsn_env} is not set")
+    dsn = require_env(profile.store.dsn_env)
     check_ledger_separation(profile, dsn)
     await apply_migrations(dsn)
     return await PostgresRunStore.open(dsn)
@@ -143,17 +141,12 @@ def build_driver(profile: Profile, registry: PluginRegistry) -> AgentDriver:
             ErrorCode.STARTUP_REJECTED, f"pydantic-ai driver needs a {cfg.provider} model"
         )
     env_name, default_url = MODEL_ENDPOINTS[cfg.provider]
-    base_url = os.environ.get(cfg.base_url_env or env_name, default_url)
+    base_url = optional_env(cfg.base_url_env or env_name, default_url)
     try:
         if cfg.provider == "litellm":
             api_key = None
             if cfg.api_key_env is not None:
-                api_key = os.environ.get(cfg.api_key_env)
-                if not api_key:
-                    raise KernelError(
-                        ErrorCode.STARTUP_REJECTED,
-                        f"{cfg.api_key_env} is not set for the LiteLLM proxy",
-                    )
+                api_key = require_env(cfg.api_key_env, purpose="for the LiteLLM proxy")
             model = litellm_model(cfg.model, base_url, api_key)
         else:
             model = ollama_model(cfg.model, base_url)

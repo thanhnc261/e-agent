@@ -39,6 +39,13 @@ Each rule has one ID, a one-sentence statement, its source, how it is enforced (
 - **Enforcement:** test
 - **Evidence:** `tests/conformance/test_repo_layout.py` passes.
 
+### ENG-ARCH-6 — Typed environment reads
+
+- **Statement:** Product code reads the process environment only through `e_agent.server.environment`, which names a missing variable and never echoes its value; Ruff TID251 bans `os.environ` and `os.getenv` under `src/e_agent` outside two pinned files.
+- **Source:** AGENTS.md "Development and verification"; PR-37; adoption review XA-14.
+- **Enforcement:** gate, test
+- **Evidence:** `uv run ruff check .` passes and `test_os_environ_banned_in_product_code` and `test_banned_api_allowlist_is_pinned` (`tests/conformance/test_banned_api.py`) pass.
+
 ## Trust anchor
 
 ### ENG-TRUST-1 — Model output is a proposal
