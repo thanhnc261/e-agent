@@ -41,17 +41,17 @@ Each rule has one ID, a one-sentence statement, its source, how it is enforced (
 
 ### ENG-ARCH-6 — Typed environment reads
 
-- **Statement:** Product code reads the process environment only through `e_agent.server.environment`, which names a missing variable and never echoes its value; Ruff TID251 bans `os.environ` and `os.getenv` under `src/e_agent` outside two pinned files (the pinned TID251 allowlist also holds `e_agent.sdk.tasks`, ENG-ARCH-7).
+- **Statement:** Product code reads the process environment only through `e_agent.server.environment`, which names a missing variable and never echoes its value; Ruff TID251 bans `os.environ` and `os.getenv` under `src/e_agent`; no file is exempt, and the reads in `server/environment.py` and `adapters/secretstore_local/store.py` carry line-level `# noqa: TID251` exemptions pinned by file and banned API.
 - **Source:** AGENTS.md "Development and verification"; PR-37; adoption review XA-14.
 - **Enforcement:** gate, test
-- **Evidence:** `uv run ruff check .` passes and `test_os_environ_banned_in_product_code` and `test_banned_api_allowlist_is_pinned` (`tests/conformance/test_banned_api.py`) pass.
+- **Evidence:** `uv run ruff check .` passes and `test_os_environ_banned_in_product_code` `test_banned_api_allowlist_is_pinned` and `test_allowed_files_still_ban_the_other_api` (`tests/conformance/test_banned_api.py`) pass.
 
 ### ENG-ARCH-7 — Supervised background tasks
 
-- **Statement:** Product code starts a background task only through `e_agent.sdk.tasks.supervised_task`, which keeps a reference until the task is done, logs a failure with the task name and exception type (never its message) and still raises it on await; Ruff TID251 bans `asyncio.create_task` under `src/e_agent` outside that module.
+- **Statement:** Product code starts a background task only through `e_agent.sdk.tasks.supervised_task`, which keeps a reference until the task is done, logs a failure with the task name and exception type (never its message) and still raises it on await; a task its caller awaits and handles passes `log_failure=False`. Ruff TID251 bans `asyncio.create_task` under `src/e_agent`; the one call in that module carries a pinned line-level `# noqa: TID251`.
 - **Source:** AGENTS.md "Development and verification"; PR-38; adoption review XA-15.
 - **Enforcement:** gate, test
-- **Evidence:** `uv run ruff check .` passes; `test_supervised_task_failure_is_logged_and_reraised_on_await` and `test_supervised_task_cancel_is_not_logged_as_failure` (`tests/unit/sdk/test_tasks.py`), `test_create_task_banned_in_product_code` and `test_banned_api_allowlist_is_pinned` (`tests/conformance/test_banned_api.py`) pass.
+- **Evidence:** `uv run ruff check .` passes; `test_supervised_task_failure_is_logged_and_reraised_on_await` and `test_supervised_task_cancel_is_not_logged_as_failure` (`tests/unit/sdk/test_tasks.py`), `test_timed_call_failure_reaches_the_caller_unlogged` (`tests/unit/kernel/test_timed_logging.py`), `test_create_task_banned_in_product_code`, `test_banned_api_allowlist_is_pinned` and `test_allowed_files_still_ban_the_other_api` (`tests/conformance/test_banned_api.py`) pass.
 
 ## Trust anchor
 

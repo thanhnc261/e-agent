@@ -76,3 +76,21 @@ async def test_supervised_task_holds_a_reference_until_done() -> None:
     assert await task == 7
     await asyncio.sleep(0)
     assert task not in tasks._RUNNING
+
+
+async def test_supervised_task_without_failure_logging_still_reraises(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    sentinel = _Boom(CANARY)
+
+    async def fail() -> None:
+        raise sentinel
+
+    caplog.set_level(logging.DEBUG, logger=LOGGER)
+    task = supervised_task(fail(), name="probe.awaited", log_failure=False)
+    with pytest.raises(_Boom) as excinfo:
+        await task
+    await asyncio.sleep(0)
+    assert excinfo.value is sentinel
+    assert not [r for r in caplog.records if r.name == LOGGER]
+    assert task not in tasks._RUNNING

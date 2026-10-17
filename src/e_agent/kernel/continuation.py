@@ -249,7 +249,10 @@ class ContinuationMixin:
         async def invoke() -> T:
             return await call()
 
-        task: asyncio.Task[T] = supervised_task(invoke(), name=f"kernel.call:{cont.ctx.run_id}")
+        # An awaited child, not a background task: the caller handles its failure, so no log.
+        task: asyncio.Task[T] = supervised_task(
+            invoke(), name=f"kernel.call:{cont.ctx.run_id}", log_failure=False
+        )
         if cancellable:
             self._active_calls[cont.ctx.run_id] = task
         try:

@@ -47,13 +47,15 @@ class LocalSecretStore:
 
     @classmethod
     def from_environment(cls, path: Path | None = None) -> LocalSecretStore:
-        kek = os.environ.get("E_AGENT_SECRET_KEY")
-        key_file = os.environ.get("E_AGENT_SECRET_KEY_FILE")
+        kek = os.environ.get("E_AGENT_SECRET_KEY")  # noqa: TID251 - key-encryption key source
+        key_file = os.environ.get("E_AGENT_SECRET_KEY_FILE")  # noqa: TID251 - key-encryption key source
         if not kek and key_file:
             kek = Path(key_file).read_text("utf-8").strip()
         if not kek:
             raise ValueError("set E_AGENT_SECRET_KEY or E_AGENT_SECRET_KEY_FILE")
-        default = Path(os.environ.get("E_AGENT_SECRETS_PATH", "~/.e-agent/secrets.json"))
+        default = Path(
+            os.environ.get("E_AGENT_SECRETS_PATH", "~/.e-agent/secrets.json")  # noqa: TID251 - secrets path
+        )
         return cls((path or default).expanduser(), kek)
 
     def _load(self) -> dict[str, dict[str, str]]:
