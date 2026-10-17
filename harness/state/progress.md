@@ -424,3 +424,8 @@
 - changed: docs/handoffs/2026-10-16-phase1d-plugin-boundary.md, harness/state/1/features.json, harness/state/1/handoffs/1d.12.json, harness/state/evidence/gates/1d.12/2026-10-17T09-37-54.689073+00-00-live.json, harness/state/evidence/gates/1d.12/2026-10-17T09-37-55.377015+00-00-live.json
 - next: 1d.12 closed: update the roadmap 1d row (live gate passed); then the owner decides the merge and Hygiene phase 1h
 - open: none
+
+## 2026-10-17T10:04:42.970494+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 1d.12
+- changed: harness/state/1/features.json, harness/state/1/handoffs/1d.12.json, harness/state/evidence/gates/1d.12/2026-10-17T10-04-24.314510+00-00-live.json
+- next: Phase 1d closed; merge refactor/phase1d-plugin-boundary into local main (owner approved), then start Hygiene on chore/hygiene-gates
+- open: none

@@ -1,0 +1,25 @@
+{
+  "gate_set": "live",
+  "task": "1d.12",
+  "commit": "e4d53cd2a581dd06630da75e853925876eb82358",
+  "clean_tree": true,
+  "started_at": "2026-10-17T10:04:24.314510+00:00",
+  "ok": true,
+  "commands": [
+    {
+      "command": "uv run python scripts/env_check.py",
+      "exit_code": 0,
+      "seconds": 0.121,
+      "output_tail": "        \"digest\": \"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643\",\n        \"size\": 17741872154\n      },\n      {\n        \"name\": \"maternion/LightOnOCR-2:1b\",\n        \"digest\": \"ee7d83c4eb673860b0cacc68401145b37ac2b13004e8d5e0c46f7b8e8dff79c1\",\n        \"size\": 1468350136\n      },\n      {\n        \"name\": \"qwen3-coder:latest\",\n        \"digest\": \"06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca\",\n        \"size\": 18556700761\n      },\n      {\n        \"name\": \"ornith:35b\",\n        \"digest\": \"5a470e0f652cac9b5a375fd58d67831d48be07a1cc4ed3f7250ca4875b3226d8\",\n        \"size\": 21166759599\n      },\n      {\n        \"name\": \"ornith:latest\",\n        \"digest\": \"a75697c145891910e312c95e4a9fc1ccb8653e5ef543b23b0403a4665b82fd91\",\n        \"size\": 5629110568\n      },\n      {\n        \"name\": \"qwen3-coder:30b\",\n        \"digest\": \"06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca\",\n        \"size\": 18556700761\n      },\n      {\n        \"name\": \"qwen2.5-coder:7b\",\n        \"digest\": \"dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364\",\n        \"size\": 4683087561\n      }\n    ]\n  },\n  \"postgres\": {\n    \"status\": \"not-configured\"\n  },\n  \"python\": \"3.13.14\"\n}",
+      "counts": {}
+    },
+    {
+      "command": "uv run python scripts/odoo_sandbox.py info",
+      "exit_code": 0,
+      "seconds": 0.276,
+      "output_tail": "{\n  \"sandbox_marker\": \"odoo19-learning\",\n  \"database\": \"training19_demo\",\n  \"company_id\": \"1\",\n  \"bridge_version\": \"19.0.0.4.0\",\n  \"company\": \"My Company (San Francisco)\",\n  \"server_version\": \"19.0.1.3\"\n}",
+      "counts": {}
+    }
+  ],
+  "finished_at": "2026-10-17T10:04:24.735227+00:00"
+}

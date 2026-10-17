@@ -2,6 +2,7 @@
   "task": "1d.12",
   "changed": "Live check of Phase 1d on the odoo19-learning sandbox, results labelled live in docs/handoffs/2026-10-16-phase1d-plugin-boundary.md (commit f9f3fa6). The domain-erp, odoo19 and fixture-erp wheels rebuilt at 4de0de3 give the pins of the phase handoff. With the previous pins, serve exits 3 with STARTUP_REJECTED (domain-erp artifact bytes differ). The agent re-pinned domain-erp and odoo19 in the git-ignored live profile on the owner's instruction; /health/ready then reports ready, environment live, plugins domain-erp and odoo19 only (no fixture-erp), store postgres, after the startup sandbox guard ran the odoo19 manifest probe. Task 1 (API: 'hi', then 'Which products are short for open demand?') ran as run_6409317e94f84bccbb72718410fc9849: SUCCEEDED, answered, procurement.shortage.answer.v1 VERIFIED (shortage 0), event counts equal to the 2026-10-13 baseline, sandbox only read. A temporary profile with the odoo19 pin's last digit flipped exits 3 with STARTUP_REJECTED and was deleted. The owner ran the harness live gate set (env_check.py, odoo_sandbox.py info) with the Odoo keys exported: it passed on d14c490 (marker odoo19-learning, training19_demo, company 1, bridge 19.0.0.4.0); a second run one second later passed identically; two earlier attempts failed (placeholder key; variables not exported) and are committed as records. Codex reviewed the change (harness/state/1/reviews/1d.12.json): rework, R-1 (completion claimed before closure) and R-2 (skipped-check account incomplete), both contract wording, fixed in f9f3fa6 before commit.",
   "evidence_refs": [
+    "harness/state/evidence/gates/1d.12/2026-10-17T10-04-24.314510+00-00-live.json",
     "harness/state/evidence/gates/1d.12/2026-10-17T09-37-54.689073+00-00-live.json",
     "harness/state/evidence/live/1d.12-startup.json",
     "harness/state/evidence/live/1d.12-flow1.json",
@@ -11,7 +12,6 @@
   ],
   "open_items": [
     "Rotate the Odoo API keys before 2026-10-19; the integration key was exposed in this session through an editor selection, so rotate it in any case.",
-    "The roadmap 1d row still says the owner's gate live run is pending; it is updated after this task closes, because a roadmap commit after the gate evidence would not be bookkeeping.",
     "Merge and push of refactor/phase1d-plugin-boundary are the owner's.",
     "Codex's R-1/R-2 fixes were not re-reviewed by Codex (wording only).",
     "env_check.py raises a traceback on a non-Latin-1 header value instead of reporting it (minor, out of scope)."
