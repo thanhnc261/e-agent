@@ -1,4 +1,5 @@
-"""Ruff's banned-api rule keeps ``os.environ`` out of product code (PR-37, ENG-ARCH-6)."""
+"""Ruff's banned-api rule keeps ``os.environ`` (PR-37, ENG-ARCH-6) and bare
+``asyncio.create_task`` (PR-38, ENG-ARCH-7) out of product code."""
 
 from __future__ import annotations
 
@@ -9,9 +10,10 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
-ALLOWED_ENV_FILES = {
+ALLOWED_FILES = {
     "src/e_agent/server/environment.py",
     "src/e_agent/adapters/secretstore_local/store.py",
+    "src/e_agent/sdk/tasks.py",
 }
 
 
@@ -34,6 +36,22 @@ def _ruff(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     ids=["environ", "getenv"],
 )
 def test_os_environ_banned_in_product_code(tmp_path: Path, source: str) -> None:
+    _assert_banned(tmp_path, source)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import asyncio\n\n\nasync def go() -> None:\n    asyncio.create_task(go())\n",
+        "from asyncio import create_task\n\n\nasync def go() -> None:\n    create_task(go())\n",
+    ],
+    ids=["attribute", "import"],
+)
+def test_create_task_banned_in_product_code(tmp_path: Path, source: str) -> None:
+    _assert_banned(tmp_path, source)
+
+
+def _assert_banned(tmp_path: Path, source: str) -> None:
     scratch = tmp_path / "src" / "e_agent" / "scratch" / "probe.py"
     scratch.parent.mkdir(parents=True)
     scratch.write_text(source, "utf-8")
@@ -53,7 +71,7 @@ def test_banned_api_allowlist_is_pinned() -> None:
         if "TID251" in codes and pattern.startswith("src/")
     }
     assert allowed, "no TID251 exemptions under src/: the pin would pass on nothing"
-    assert allowed == ALLOWED_ENV_FILES
+    assert allowed == ALLOWED_FILES
     banned = ruff["flake8-tidy-imports"]["banned-api"]
-    assert {"os.environ", "os.getenv"} <= set(banned)
+    assert {"os.environ", "os.getenv", "asyncio.create_task"} <= set(banned)
     assert "TID251" in ruff["select"]

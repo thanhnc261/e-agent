@@ -117,15 +117,15 @@ No runtime feature is added, so roadmap rule 3 does not apply.
 - `.agents/skills/eng-foundations/references/rules.md`: a rule for supervised background tasks, citing AGENTS.md "Development and verification".
 
 **Steps:**
-- [ ] Write the failing tests:
+- [x] Write the failing tests:
   - `test_supervised_task_failure_is_logged_and_reraised_on_await`
   - `test_supervised_task_cancel_is_not_logged_as_failure`
   - `test_create_task_banned_in_product_code` (the same probe as H.2)
   - extend `test_banned_api_allowlist_is_pinned` to three files.
-- [ ] Run `uv run pytest -q tests/unit/sdk/test_tasks.py tests/conformance/test_banned_api.py`. Expected: fails (no helper).
-- [ ] Implement and migrate the four call sites.
-- [ ] Run the `full` gate. Expected: pass; the worker and sweeper tests are unchanged.
-- [ ] Commit `chore: supervised background tasks; ban bare create_task`.
+- [x] Run `uv run pytest -q tests/unit/sdk/test_tasks.py tests/conformance/test_banned_api.py`. Expected: fails (no helper).
+- [x] Implement and migrate the four call sites.
+- [x] Run the `full` gate. Expected: pass; the worker and sweeper tests are unchanged.
+- [x] Commit `chore: supervised background tasks; ban bare create_task`.
 
 ### Task H.4: prompts are code; every recording is replayed (XA-17, PR-32)
 

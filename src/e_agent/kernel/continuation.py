@@ -41,6 +41,7 @@ from e_agent.sdk.ports import (
     ReadRequest,
 )
 from e_agent.sdk.store import RunStore
+from e_agent.sdk.tasks import supervised_task
 from pydantic import BaseModel, Field
 
 from .connections import ConnectionCatalog
@@ -248,7 +249,7 @@ class ContinuationMixin:
         async def invoke() -> T:
             return await call()
 
-        task: asyncio.Task[T] = asyncio.create_task(invoke())
+        task: asyncio.Task[T] = supervised_task(invoke(), name=f"kernel.call:{cont.ctx.run_id}")
         if cancellable:
             self._active_calls[cont.ctx.run_id] = task
         try:

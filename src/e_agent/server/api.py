@@ -36,6 +36,7 @@ from e_agent.kernel.discovery import (
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.evidence import build_evidence
 from e_agent.sdk.store import ConcurrencyConflict, NotFound, actor_scope, current_actor
+from e_agent.sdk.tasks import supervised_task
 from fastapi import Depends, FastAPI, Header, Query, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
@@ -212,9 +213,9 @@ def create_app(
         with actor_scope("system:worker:startup"):
             await runtime.coordinator.recover()
         holder["state"] = ApiState(runtime)
-        worker = asyncio.create_task(holder["state"].worker())
+        worker = supervised_task(holder["state"].worker(), name="server.worker")
         holder["state"].tasks.add(worker)
-        sweeper = asyncio.create_task(holder["state"].sweeper())
+        sweeper = supervised_task(holder["state"].sweeper(), name="server.sweeper")
         holder["state"].tasks.add(sweeper)
         yield
         state = holder["state"]

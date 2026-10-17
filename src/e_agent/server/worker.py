@@ -15,6 +15,7 @@ from e_agent.contracts.context import Principal
 from e_agent.contracts.run import RunState
 from e_agent.contracts.work import WorkClaim
 from e_agent.sdk.store import ConcurrencyConflict, NotFound, actor_scope
+from e_agent.sdk.tasks import supervised_task
 
 from .bootstrap import Runtime
 
@@ -68,7 +69,7 @@ class WorkerMixin:
                     current.cancel()
                     return
 
-        pulse = asyncio.create_task(heartbeat())
+        pulse = supervised_task(heartbeat(), name=f"server.heartbeat:{claim.run_id}")
         try:
             async with rt.store.work_scope(claim):
                 rt.coordinator.release_continuation(claim.run_id)
