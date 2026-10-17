@@ -1,0 +1,9 @@
+{
+  "task": "1h-final-r2",
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  },
+  "verdict": "accept",
+  "findings": []
+}
