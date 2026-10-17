@@ -82,11 +82,11 @@ No runtime feature is added, so roadmap rule 3 does not apply.
 - `.agents/skills/eng-foundations/references/rules.md`: a new rule "Gates fail on empty input" with a finite **Known silent-pass paths** list. Its first entries are `release_report.py` (fixed here) and the replay `TASKS` constant (fixed in H.4).
 
 **Steps:**
-- [ ] Write the failing test `test_release_report_fails_on_zero_cases`: call the report's summary function with an empty result list and expect exit code 1 and the text `0/0`.
-- [ ] Run `uv run pytest -q tests/conformance/test_release_report.py`. Expected: fails (returns 0). If the summary is not a separate function yet, extract it first without changing output.
-- [ ] Implement.
-- [ ] Run the test and `uv run python scripts/check_agent_skills.py`. Expected: pass.
-- [ ] Commit `fix(scripts): release report fails on zero cases; silent-pass list`.
+- [x] Write the failing test `test_release_report_fails_on_zero_cases`: call the report's summary function with an empty result list and expect exit code 1 and the text `0/0`.
+- [x] Run `uv run pytest -q tests/conformance/test_release_report.py`. Expected: fails (returns 0). If the summary is not a separate function yet, extract it first without changing output.
+- [x] Implement.
+- [x] Run the test and `uv run python scripts/check_agent_skills.py`. Expected: pass.
+- [x] Commit `fix(scripts): release report fails on zero cases; silent-pass list`.
 
 ### Task H.2: typed settings for environment reads (XA-14, PR-37)
 

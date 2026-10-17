@@ -131,6 +131,18 @@ Each rule has one ID, a one-sentence statement, its source, how it is enforced (
 - **Enforcement:** command, review
 - **Evidence:** evidence files contain `[REDACTED]` where a secret appeared; the review greps for key material.
 
+### ENG-EVID-4 — Gates fail on empty input
+
+- **Statement:** A gate, report or scan prints how many cases it ran and fails when that number is zero; a vacuous pass is a defect. A new gate gets a test that feeds it empty input.
+- **Source:** AGENTS.md "Development and verification"; PR-31; adoption review XA-04.
+- **Enforcement:** test, review
+- **Evidence:** `test_release_report_fails_on_zero_cases` (`tests/conformance/test_release_report.py`) passes.
+
+**Known silent-pass paths** (finite; add an entry only with the task that fixes it):
+
+- `scripts/release_report.py`: passed 0/0; fixed in Hygiene H.1.
+- The replay `TASKS` constant in `tests/unit/server/test_recorded_model_replays.py`: an empty list passes; open, fixed in Hygiene H.4.
+
 ## Boundaries
 
 ### ENG-BOUND-1 — Sandbox only

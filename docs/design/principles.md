@@ -74,7 +74,7 @@ Status tags follow the target architecture: **[I]** implemented, **[Pa]** partia
 | PR-28 | No hidden reasoning is persisted | Thinking parts stripped before storage, events, evidence and telemetry | AGENTS.md; ADR 0004 | ENG-EVID-3 | `test_no_hidden_reasoning_reaches_the_ledger` (`tests/unit/server/test_pydantic_driver_e2e.py:123`); `test_strip_thinking_removes_only_thinking_parts` (`tests/unit/adapters/pydantic_ai/test_driver_unit.py:43`) | [I] |
 | PR-29 | Fixture and live results are reported separately; every failure, skip and blocker is named | Reports carry their environment | AGENTS.md | ENG-EVID-2 | The release report labels `"environment": "fixture"` (`scripts/release_report.py`); the rest is review | [Pa] |
 | PR-30 | Store behaviour passes on both stores | Memory and PostgreSQL | Target §4; roadmap rule 1 | ENG-STORE-1 | `pg` gate; `tests/conformance/test_run_store.py` with `E_AGENT_TEST_STORE=postgres` | [I] |
-| PR-31 | A gate fails on empty input and prints its count | No vacuous pass | Adoption review XA-04 | none | **none** (`scripts/release_report.py:243` passes 0/0) | [Pa] |
+| PR-31 | A gate fails on empty input and prints its count | No vacuous pass | Adoption review XA-04 | ENG-EVID-4 | `test_release_report_fails_on_zero_cases` (`tests/conformance/test_release_report.py`); other gates are listed as known silent-pass paths in ENG-EVID-4 (the replay `TASKS` constant lands in H.4) | [Pa] |
 | PR-32 | A change to the driver, prompts or tool schemas runs the replay suite | Prompts are code | Adoption review XA-17 | none | `tests/unit/server/test_recorded_model_replays.py` runs in `pytest`, but it is not required by path and there is no prompt golden file | [Pa] |
 
 ## Knowledge
@@ -118,7 +118,7 @@ Status tags follow the target architecture: **[I]** implemented, **[Pa]** partia
 | PR-22, PR-23 | Toggle tests (default `off`, shadow cost, fallback boundary, readiness) | Phase 2 Part 2b (ADR 0027) |
 | PR-25 | Repository secret scan | [Hygiene plan](../plans/2026-10-15-hygiene-gates-config-ci.md) Task H.5 (XA-16) |
 | PR-27 | OpenAPI route enumeration test | Before Phase 7 (XA-12) |
-| PR-31 | Zero-case guard in `release_report` and every gate | Hygiene plan Task H.1 (XA-04) |
+| PR-31 | Zero-case guard in the replay `TASKS` constant and any other gate on the ENG-EVID-4 list | Hygiene plan Task H.4 (XA-17) |
 | PR-32 | Replay suite required by path; prompt golden file | Hygiene plan Task H.4 (XA-17) |
 | PR-34 | Injection fixtures (threat T1) | Phase 3 with the ContextAssembler |
 | PR-37, PR-38, PR-39 | Ruff TID251 ban; supervised-task helper and ban; dependency audit | Hygiene plan Tasks H.2, H.3, H.5 (XA-14, XA-15, XA-16) |
