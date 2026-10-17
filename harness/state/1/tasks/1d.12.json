@@ -1,0 +1,24 @@
+{
+  "id": "1d.12",
+  "phase": "1",
+  "plan_ref": "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+  "feature_ids": [
+    "F-1d-12"
+  ],
+  "context_digest": "087b4b286a3746703419369abf9065a8cf9fe7464ca5bdc64172084bb1b4fcc8",
+  "allowed_paths": [
+    "docs/handoffs/**",
+    "harness/state/**",
+    "docs/plans/2026-10-14-phase1d-plugin-boundary.md",
+    "docs/roadmap.md"
+  ],
+  "acceptance": [
+    "readiness admits domain-erp and odoo19 with the new pins and does not load fixture-erp",
+    "read-only task 1 succeeds; a wrong pin is refused",
+    "results recorded in the handoff, labelled live"
+  ],
+  "gate_set": "live",
+  "base_commit": "c5beb53698be35a24215f7a1da8cd8653663214b",
+  "created_at": "2026-10-17T06:32:45+00:00",
+  "features_digest": "ffd9a880e95090722f90a64d61d8285fa8a212e7608a367a80851dfde8779e44"
+}
