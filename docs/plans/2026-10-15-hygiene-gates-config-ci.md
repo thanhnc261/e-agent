@@ -104,8 +104,8 @@ No runtime feature is added, so roadmap rule 3 does not apply.
   - `test_missing_dsn_env_reports_variable_name`: a profile whose `dsn_env` is unset fails startup naming the variable.
 - [x] Run `uv run pytest -q tests/conformance/test_banned_api.py tests/unit/server`. Expected: the ban test fails (no `TID`).
 - [x] Implement. Run `uv run ruff check .` and fix every finding in `src/` through the helper.
-- [ ] Run the `full` gate. Expected: pass.
-- [ ] Commit `chore: typed environment reads; ban os.environ in product code`.
+- [x] Run the `full` gate. Expected: pass.
+- [x] Commit `chore: typed environment reads; ban os.environ in product code`.
 
 ### Task H.3: supervised background tasks (XA-15, PR-38)
 
