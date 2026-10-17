@@ -126,11 +126,13 @@ jobs:
       - name: pip-audit over the exported lock
         run: |
           uv export --frozen --format requirements-txt --no-hashes --no-emit-workspace -o "$RUNNER_TEMP/requirements.txt"
-          packages="$(grep -cE '^[A-Za-z0-9_.-]+==' "$RUNNER_TEMP/requirements.txt" || true)"
-          echo "pip-audit: auditing ${packages} pinned packages"
-          test "${packages}" -gt 0
           # An advisory is ignored only with --ignore-vuln <id> and a comment giving the reason.
-          uvx --from "pip-audit==${PIP_AUDIT_VERSION}" pip-audit -r "$RUNNER_TEMP/requirements.txt" --no-deps --disable-pip
+          # pip-audit exits non-zero on a vulnerability, which fails the step before the count.
+          uvx --from "pip-audit==${PIP_AUDIT_VERSION}" pip-audit -r "$RUNNER_TEMP/requirements.txt" --no-deps --disable-pip --format json --output "$RUNNER_TEMP/pip-audit.json"
+          # Count what pip-audit audited, not requirement lines: markers and skipped entries do not count.
+          audited="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1]))["dependencies"]; print(sum(1 for e in d if "skip_reason" not in e))' "$RUNNER_TEMP/pip-audit.json")"
+          echo "pip-audit: audited ${audited} packages"
+          test "${audited}" -gt 0
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: ui/package.json

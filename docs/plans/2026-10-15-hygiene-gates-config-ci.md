@@ -96,6 +96,7 @@ No runtime feature is added, so roadmap rule 3 does not apply.
 - `.agents/skills/eng-foundations/references/rules.md`: a rule for typed environment reads, citing AGENTS.md "Development and verification".
 - `pyproject.toml`: add `TID` to Ruff `select`; `[tool.ruff.lint.flake8-tidy-imports.banned-api]` bans `os.environ` and `os.getenv`; per-file ignores allow `src/e_agent/server/environment.py` and `src/e_agent/adapters/secretstore_local/store.py` (the key-encryption key is a legitimate secret source), and exempt `scripts/**`, `tools/**` and `tests/**`.
 - `tests/conformance/test_banned_api.py`
+- **Amendment 2026-10-17 (review ruling; the built form).** `select` adds `TID251` only, not all of `TID`: `TID252` (relative imports) would add 51 unrelated findings. There is no `TID251` per-file ignore under `src/`. The two legitimate readers carry line-level `# noqa: TID251 - <reason>` exemptions instead: two in `server/environment.py`, three in `adapters/secretstore_local/store.py` and (from H.3) one in `sdk/tasks.py`, six in all. `test_banned_api_allowlist_is_pinned` pins those six lines, and `test_allowed_files_still_ban_the_other_api` proves an exempt file still bans the other API. The text above that says "add `TID`" and "per-file ignores allow" is superseded.
 
 **Steps:**
 - [x] Write the failing tests:
@@ -114,6 +115,7 @@ No runtime feature is added, so roadmap rule 3 does not apply.
 - `src/e_agent/server/worker.py:71`, `src/e_agent/server/api.py:215,217`, `src/e_agent/kernel/continuation.py:251`: use the helper.
 - `pyproject.toml`: ban `asyncio.create_task` under `src/e_agent/**`; the helper module is the only allowed caller.
 - `tests/unit/sdk/test_tasks.py`, `tests/conformance/test_banned_api.py`
+- **Amendment 2026-10-17 (review ruling; the built form).** The signature is `supervised_task(coro, *, name, log_failure=True)`. The awaited kernel `_timed` call passes `log_failure=False`, because its caller already reports the failure and a second log line would duplicate it; `tests/unit/kernel/test_timed_logging.py` pins that. The allowlist is the line-level exemption in `sdk/tasks.py` (see H.2), not a per-file ignore, and `test_banned_api_allowlist_is_pinned` covers it.
 - `.agents/skills/eng-foundations/references/rules.md`: a rule for supervised background tasks, citing AGENTS.md "Development and verification".
 
 **Steps:**
