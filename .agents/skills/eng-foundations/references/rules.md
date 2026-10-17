@@ -155,7 +155,14 @@ Each rule has one ID, a one-sentence statement, its source, how it is enforced (
 **Known silent-pass paths** (finite; add an entry only with the task that fixes it):
 
 - `scripts/release_report.py`: passed 0/0; fixed in Hygiene H.1.
-- The replay `TASKS` constant in `tests/unit/server/test_recorded_model_replays.py`: an empty list passes; open, fixed in Hygiene H.4.
+- The replay `TASKS` constant in `tests/unit/server/test_recorded_model_replays.py`: an empty list passes and an unlisted recording is never replayed; fixed in Hygiene H.4 by `test_every_recording_is_replayed`.
+
+### ENG-EVID-5 — Prompts are code
+
+- **Statement:** A change to the driver, the prompts or the tool schemas keeps the recorded-model replay suite and the prompt golden file green; an intended prompt change updates `tests/unit/adapters/pydantic_ai/golden/base_instructions.txt` in the same commit. A new recording is replayed or the suite fails.
+- **Source:** AGENTS.md "Development and verification"; PR-32; adoption review XA-17.
+- **Enforcement:** test, review
+- **Evidence:** `test_base_instructions_match_golden` (`tests/unit/adapters/pydantic_ai/test_prompt_golden.py`) and `test_every_recording_is_replayed` (`tests/unit/server/test_recorded_model_replays.py`) pass, as does the replay suite.
 
 ## Boundaries
 

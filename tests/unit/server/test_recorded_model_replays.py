@@ -27,6 +27,16 @@ TASKS = [
 ]
 
 
+def test_every_recording_is_replayed():
+    recorded = {path.stem for path in ROOT.glob("*.json")}
+    assert recorded, f"no recordings found in {ROOT}"
+    assert len(TASKS) == len(set(TASKS)), "TASKS lists a task twice"
+    assert recorded == set(TASKS), (
+        f"recordings without a replay test: {sorted(recorded - set(TASKS))}; "
+        f"TASKS without a recording: {sorted(set(TASKS) - recorded)}"
+    )
+
+
 async def replay(task, *, omit_late_order=False):
     recording = json.loads((ROOT / f"{task}.json").read_text())
     responses = ModelMessagesTypeAdapter.validate_python(recording["responses"])

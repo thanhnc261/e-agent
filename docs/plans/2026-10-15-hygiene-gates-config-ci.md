@@ -136,13 +136,13 @@ No runtime feature is added, so roadmap rule 3 does not apply.
 - `.agents/skills/eng-foundations/references/rules.md`: the "Known silent-pass paths" entry for `TASKS` is marked fixed; a rule says a change to the driver, prompts or tool schemas must keep the replay suite and the prompt golden file green, and an intended prompt change updates the golden file in the same commit.
 
 **Steps:**
-- [ ] Record the golden file from the current constant and commit it before any other change.
-- [ ] Write the failing tests:
+- [x] Record the golden file from the current constant and commit it before any other change.
+- [x] Write the failing tests:
   - `test_base_instructions_match_golden`
   - `test_every_recording_is_replayed`: the stems of the `*.json` recordings (the directory also holds a `README.md`) equal `set(TASKS)`, and the set is not empty.
-- [ ] Run the two test files. Expected: the golden test passes on unchanged code; the recording test passes today (8 recordings, 8 tasks, checked 2026-10-15) and fails when a scratch recording is added; record that probe in the handoff.
-- [ ] Run `uv run python scripts/check_agent_skills.py` and the `full` gate. Expected: pass.
-- [ ] Commit `test: prompt golden file; every recorded replay runs`.
+- [x] Run the two test files. Expected: the golden test passes on unchanged code; the recording test passes today (8 recordings, 8 tasks, checked 2026-10-15) and fails when a scratch recording is added; record that probe in the handoff.
+- [x] Run `uv run python scripts/check_agent_skills.py` and the `full` gate. Expected: pass.
+- [x] Commit `test: prompt golden file; every recorded replay runs`.
 
 ### Task H.5: secret scan and dependency audit in CI (XA-16, PR-25, PR-39)
 
