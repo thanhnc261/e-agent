@@ -1,0 +1,17 @@
+# gitleaks configuration for the CI `security` job (PR-25, PR-39).
+# The default rules stay on; this file only adds an allowlist.
+title = "e-agent gitleaks"
+
+[extend]
+useDefault = true
+
+# Allowlist rule: an entry is allowed only for a test fixture string, and
+# carries its reason. Never allowlist a real credential: rotate it and report
+# it to the owner.
+
+[[allowlists]]
+description = "Test fixture: SECRET is a sentinel string that the thinking-hygiene test builds into a ThinkingPart and asserts never reaches the evidence blob. It is not a credential. The file is listed at both its old path (history) and its current path."
+paths = [
+  '''^apps/server/tests/test_pydantic_driver_e2e\.py$''',
+  '''^tests/unit/server/test_pydantic_driver_e2e\.py$''',
+]

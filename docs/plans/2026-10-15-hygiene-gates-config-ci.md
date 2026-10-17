@@ -155,10 +155,10 @@ No runtime feature is added, so roadmap rule 3 does not apply.
 - `README.md`: the same commands for a local run.
 
 **Steps:**
-- [ ] Run the scanner and both audits locally first and record the baseline in the task contract. Triage each finding: fix it, or allowlist it with its reason. A real credential in history is reported to the owner at once and is not pushed anywhere.
-- [ ] Add the job.
+- [x] Run the scanner and both audits locally first and record the baseline in the task contract. Triage each finding: fix it, or allowlist it with its reason. A real credential in history is reported to the owner at once and is not pushed anywhere.
+- [x] Add the job.
 - [ ] The owner pushes the branch; the `security` job is green. Record the run link in the handoff.
-- [ ] Commit `ci: secret scan and dependency audit`.
+- [x] Commit `ci: secret scan and dependency audit`.
 
 ---
 

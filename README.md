@@ -99,6 +99,17 @@ make dev PROFILE=                        # scripted fixture driver (deterministi
 make help
 ```
 
+Secret scan and dependency audit (the CI `security` job runs the same checks; PR-25, PR-39). Install [gitleaks](https://github.com/gitleaks/gitleaks/releases) 8.28.0 from a verified release first:
+
+```bash
+gitleaks git --redact -c .gitleaks.toml .         # full history; prints "N commits scanned", never the secret
+uv export --frozen --format requirements-txt --no-hashes --no-emit-workspace -o /tmp/requirements.txt
+uvx --from pip-audit==2.9.0 pip-audit -r /tmp/requirements.txt --no-deps --disable-pip
+pnpm --dir ui audit --prod                         # production UI dependencies
+```
+
+A finding fails the run. Allowlist an entry only for a test fixture string, in `.gitleaks.toml` with its reason, or with `--ignore-vuln <id>` and a comment giving the reason.
+
 Use the header **View** selector to choose **Compact**, **Workbench**, **Docked**, or **Workspace** (standalone only). To open the expanded enterprise overlay directly, use `http://127.0.0.1:5173/?layout=workbench`, then open its launcher. Embedded hosts also accept `layout="workbench"`. Switching retains the active task and unsent draft and returns any open confirmation to review. See [overlay research and design](research/11-enterprise-agent-overlay-design.md).
 
 `make e2e` always uses the fixture backend and its own port (`E2E_PORT=8791` by default), independent of `PROFILE` or a running dev session. It does not perform live ERP/model qualification. Frontend source changes hot-reload in the standalone app; rebuild/restart `make dev` after changing embedded overlay/reference sources to refresh their built assets. A fixture backend restart loses its in-memory runs.
