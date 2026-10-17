@@ -1,0 +1,18 @@
+{
+  "gate_set": "live",
+  "task": "1d.12",
+  "commit": "aeb2fdff0c1500302d4aef4759120343d77a6a72",
+  "clean_tree": true,
+  "started_at": "2026-10-17T09:08:12.297428+00:00",
+  "ok": false,
+  "commands": [
+    {
+      "command": "uv run python scripts/env_check.py",
+      "exit_code": 1,
+      "seconds": 0.101,
+      "output_tail": "    \"odoo\": check_odoo(),\n            ~~~~~~~~~~^^\n  File \"/Users/thanhnguyen/dev/projects/personal/e-agent/scripts/env_check.py\", line 71, in check_odoo\n    status, me = _http(\n                 ~~~~~^\n        f\"{url}/json/2/res.users/context_get\", method=\"POST\", body={}, headers=headers\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"/Users/thanhnguyen/dev/projects/personal/e-agent/scripts/env_check.py\", line 43, in _http\n    with urllib.request.urlopen(req, timeout=timeout) as resp:\n         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/thanhnguyen/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/urllib/request.py\", line 189, in urlopen\n    return opener.open(url, data, timeout)\n           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/thanhnguyen/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/urllib/request.py\", line 489, in open\n    response = self._open(req, data)\n  File \"/Users/thanhnguyen/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/urllib/request.py\", line 506, in _open\n    result = self._call_chain(self.handle_open, protocol, protocol +\n                              '_open', req)\n  File \"/Users/thanhnguyen/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/urllib/request.py\", line 466, in _call_chain\n    result = func(*args)\n  File \"/Users/thanhnguyen/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/urllib/request.py\", line 1348, in http_open\n    return self.do_open(http.client.HTTPConnection, req)\n           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/thanhnguyen/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/urllib/request.py\", line 1319, in do_open\n    h.request(req.get_method(), req.selector, req.data, headers,\n    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n              encode_chunked=req.has_header('Transfer-encoding'))\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/thanhnguyen/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/http/client.py\", line 1367, in request\n    self._send_request(method, url, body, headers, encode_chunked)\n    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/thanhnguyen/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/http/client.py\", line 1408, in _send_request\n    self.putheader(hdr, value)\n    ~~~~~~~~~~~~~~^^^^^^^^^^^^\n  File \"/Users/thanhnguyen/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13/http/client.py\", line 1340, in putheader\n    values[i] = one_value.encode('latin-1')\n                ~~~~~~~~~~~~~~~~^^^^^^^^^^^\nUnicodeEncodeError: 'latin-1' codec can't encode character '\\u2026' in position 7: ordinal not in range(256)",
+      "counts": {}
+    }
+  ],
+  "finished_at": "2026-10-17T09:08:12.422157+00:00"
+}
