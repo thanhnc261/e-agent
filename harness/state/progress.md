@@ -429,3 +429,8 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1d.12.json, harness/state/evidence/gates/1d.12/2026-10-17T10-04-24.314510+00-00-live.json
 - next: Phase 1d closed; merge refactor/phase1d-plugin-boundary into local main (owner approved), then start Hygiene on chore/hygiene-gates
 - open: none
+
+## 2026-10-17T10:07:35.592171+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.1
+- changed: no working-tree changes
+- next: implement H.1 in a cleared context: check release_report.py:243 summary first, then test_release_report_fails_on_zero_cases red, fix, rule + silent-pass list
+- open: none
