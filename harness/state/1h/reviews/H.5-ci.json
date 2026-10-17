@@ -1,0 +1,6 @@
+{
+  "task": "H.5-ci",
+  "reviewer": {"provider": "claude", "fresh_context": true},
+  "verdict": "accept",
+  "findings": []
+}
