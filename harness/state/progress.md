@@ -454,3 +454,8 @@
 - changed: harness/state/1h/features.json, harness/state/1h/handoffs/H.4.json, harness/state/1h/reviews/H.4.json, harness/state/1h/tasks/H.4.json, harness/state/evidence/gates/H.4/2026-10-17T10-44-36.855544+00-00-full.json
 - next: H.4 closed; open H.5 (CI secret scan and dependency audit; owner push needed to close)
 - open: none
+
+## 2026-10-17T11:01:11.855910+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.5
+- changed: harness/state/1h/handoffs/H.5.json, harness/state/1h/reviews/H.5-r2.json, harness/state/1h/tasks/H.5.json, harness/state/evidence/gates/H.5/2026-10-17T10-58-49.262221+00-00-full.json
+- next: H.5 waits on the owner's push and a green security job on a PR; then flip F-HY-5, close H.5, write the Hygiene phase handoff and update the roadmap row
+- open: none

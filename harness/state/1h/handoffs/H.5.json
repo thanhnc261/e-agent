@@ -1,0 +1,34 @@
+{
+  "task": "H.5",
+  "changed": "Commit 15eae16 adds a 'security' job to .github/workflows/ci.yml: gitleaks 8.28.0 linux_x64 downloaded from the official release with its SHA-256 hard-coded and checked by sha256sum -c, run over the full history (checkout fetch-depth 0) with --redact, printing the number of commits scanned and failing on zero; pip-audit 2.9.0 through uvx on the 'uv export' requirements and 'pnpm --dir ui audit --prod', each printing the packages audited and failing on zero or on any finding. .gitleaks.toml extends the default rules; README has the local commands; principles.md PR-25 and PR-39 name the job, status [Pa] until the owner's pushed run is green, backlog rows removed. Review (harness/state/1h/reviews/H.5.json) found R-1 (no pipefail: a history with leaks left the step green) and R-2 (allowlist disabled every rule for two whole files). Fix a795734: the job runs with 'defaults: run: shell: bash' (bash -eo pipefail); the allowlist is one condition=AND entry for the old path apps/server/tests/test_pydantic_driver_e2e.py plus an anchored regex for the exact sentinel; probes show a seeded fake ghp_ token fails the step and is reported at the current and the old path, and the real history scans clean. A dated plan note records PR-25/PR-39 staying [Pa]. Full gate passed on 54bcda0. Re-review (harness/state/1h/reviews/H.5-r2.json): accept. LOCAL BASELINE 2026-10-17 (gitleaks 8.28.0 darwin_arm64, checksum verified, --redact): 453 commits at the first run (456 at re-review), 2 raw generic-api-key findings, both at apps/server/tests/test_pydantic_driver_e2e.py line 19 in commits 3ae9aafb and 60a7422c; triage: a readable 28-character sentinel passed to ThinkingPart and asserted absent from the evidence blob (test fixture, not a credential), allowlisted with its reason; no other finding. pip-audit 2.9.0: 72 pinned packages, 0 vulnerabilities. pnpm audit --prod: 28 packages, 0 vulnerabilities.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H.5/2026-10-17T10-58-49.262221+00-00-full.json",
+    "harness/state/evidence/gates/H.5/2026-10-17T10-49-56.353524+00-00-full.json"
+  ],
+  "open_items": [
+    "Owner: push chore/hygiene-gates and open a pull request (CI runs on pull_request and on pushes to main only); the security job must be green; record the run link here, then F-HY-5 can pass and H.5 close.",
+    "After the green run, PR-25 and PR-39 can move from [Pa] to [I] (plan note 2026-10-17).",
+    "Deferred minor (review R-5): actions/checkout and astral-sh/setup-uv use floating major tags, as the existing jobs do; uvx resolves pip-audit's own dependencies unpinned.",
+    "Making the security job a required check is a branch-protection setting for the owner."
+  ],
+  "rulings": [
+    {
+      "ruling": "Review R-2: the allowlist stays in .gitleaks.toml as one AND entry (old path plus an anchored regex for the exact sentinel), because targetRules did not match in gitleaks 8.28.0 and a path-only entry disabled every rule.",
+      "cost_if_wrong": "Switch to .gitleaksignore fingerprints."
+    },
+    {
+      "ruling": "Review R-4: PR-25 and PR-39 stay [Pa] until the owner's pushed run is green, recorded as a dated plan note.",
+      "cost_if_wrong": "A one-line status flip after the run."
+    },
+    {
+      "ruling": "The baseline is recorded in this handoff, not the task contract, because the contract schema allows no extra fields (review R-3).",
+      "cost_if_wrong": "None; the handoff is committed."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "gitleaks 8.28.0 darwin_arm64 release tarball and binary downloaded (checksum verified) into the session scratchpad for the local baseline; pip-audit fetched through uvx; pnpm audit queried the npm registry with the UI lockfile's production dependencies.",
+      "undo": "Delete the scratchpad directories; nothing was installed system-wide."
+    }
+  ]
+}
