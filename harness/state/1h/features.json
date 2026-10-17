@@ -23,7 +23,8 @@
         "test_missing_dsn_env_reports_variable_name",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/H.2/2026-10-17T10-19-09.439740+00-00-full.json"
     },
     {
       "id": "F-HY-3",

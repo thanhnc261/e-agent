@@ -439,3 +439,8 @@
 - changed: harness/state/1h/features.json, harness/state/1h/handoffs/H.1.json, harness/state/1h/reviews/H.1.json, harness/state/1h/tasks/H.1.json, harness/state/evidence/gates/H.1/2026-10-17T10-13-20.420880+00-00-full.json
 - next: H.1 closed; open H.2 (typed environment reads) with new-task 1h H.2 --feature F-HY-2
 - open: none
+
+## 2026-10-17T10:21:10.584293+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.2
+- changed: harness/state/1h/features.json, harness/state/1h/handoffs/H.2.json, harness/state/1h/reviews/H.2.json, harness/state/1h/tasks/H.2.json, harness/state/evidence/gates/H.2/2026-10-17T10-19-09.439740+00-00-full.json
+- next: H.2 closed; open H.3 (supervised background tasks, kernel change, Codex review)
+- open: none
