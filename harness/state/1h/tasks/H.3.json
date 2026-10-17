@@ -1,0 +1,32 @@
+{
+  "id": "H.3",
+  "phase": "1h",
+  "plan_ref": "docs/plans/2026-10-15-hygiene-gates-config-ci.md",
+  "feature_ids": [
+    "F-HY-3"
+  ],
+  "context_digest": "7a146f9f15e84ae59e353d7c92a4c18164539acd90ba3ba1729f40e4d2db9040",
+  "allowed_paths": [
+    "src/e_agent/sdk/tasks.py",
+    "src/e_agent/server/worker.py",
+    "src/e_agent/server/api.py",
+    "src/e_agent/kernel/continuation.py",
+    "pyproject.toml",
+    "tests/unit/sdk/test_tasks.py",
+    "tests/conformance/test_banned_api.py",
+    ".agents/skills/eng-foundations/references/rules.md",
+    "docs/design/principles.md",
+    "docs/plans/2026-10-15-hygiene-gates-config-ci.md",
+    "harness/state/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "test_supervised_task_failure_is_logged_and_reraised_on_await and test_supervised_task_cancel_is_not_logged_as_failure pass",
+    "test_create_task_banned_in_product_code fires TID251; allowlist pinned at three files",
+    "full gate passes; worker and sweeper tests unchanged"
+  ],
+  "gate_set": "full",
+  "base_commit": "26320184e4d61c22ee78b514446f39097fab67e1",
+  "created_at": "2026-10-17T10:21:25+00:00",
+  "features_digest": "8d21dd33e76bb8bebb7e20f583f889724deec30514e14004c28d2abf1db5905d"
+}
