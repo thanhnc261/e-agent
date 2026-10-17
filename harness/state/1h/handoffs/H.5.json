@@ -6,8 +6,7 @@
     "harness/state/evidence/gates/H.5/2026-10-17T11-07-41.937096+00-00-full.json",
     "harness/state/evidence/gates/H.5/2026-10-17T10-58-49.262221+00-00-full.json",
     "harness/state/evidence/gates/H.5/2026-10-17T10-49-56.353524+00-00-full.json",
-    "harness/state/evidence/gates/H.5/2026-10-17T12-28-58.523199+00-00-full.json",
-    "harness/state/evidence/gates/H.5/2026-10-17T11-07-41.937096+00-00-full.json"
+    "harness/state/evidence/gates/H.5/2026-10-17T12-28-58.523199+00-00-full.json"
   ],
   "open_items": [
     "Owner: merge PR #4 and set branch protection so the security job is required (PR-39 then [I]).",

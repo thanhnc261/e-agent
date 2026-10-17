@@ -469,3 +469,8 @@
 - changed: docs/handoffs/2026-10-17-hygiene-gates.md, harness/state/1h/features.json, harness/state/1h/handoffs/H.5.json, harness/state/evidence/gates/H.5/2026-10-17T12-34-10.513516+00-00-full.json
 - next: Hygiene closed; owner merges PR #4; Phase 2 plan awaits owner review
 - open: none
+
+## 2026-10-17T12:36:13.301155+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.5
+- changed: no working-tree changes
+- next: local baseline of scanner and audits recorded and triaged in the contract
+- open: none
