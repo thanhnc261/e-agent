@@ -1,0 +1,61 @@
+{
+  "phase": "1h",
+  "entries": [
+    {
+      "id": "F-HY-1",
+      "category": "scripts",
+      "description": "Task H.1: release_report.py fails on zero cases and prints its count; ENG rule 'Gates fail on empty input' with a finite Known silent-pass paths list (XA-04, PR-31)",
+      "steps": [
+        "test_release_report_fails_on_zero_cases watched failing, then passing",
+        "check_agent_skills.py passes with the new rule and silent-pass list",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-HY-2",
+      "category": "server",
+      "description": "Task H.2: typed environment reads through server/environment.py; Ruff TID251 bans os.environ and os.getenv in src/e_agent with a two-file allowlist (XA-14, PR-37)",
+      "steps": [
+        "test_os_environ_banned_in_product_code: ruff on a scratch src/e_agent module expects TID251",
+        "test_banned_api_allowlist_is_pinned: exactly the two allowed files",
+        "test_missing_dsn_env_reports_variable_name",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-HY-3",
+      "category": "sdk",
+      "description": "Task H.3: sdk/tasks.py supervised_task; the four bare asyncio.create_task call sites migrated; Ruff bans create_task outside the helper (XA-15, PR-38); kernel change, Codex review",
+      "steps": [
+        "test_supervised_task_failure_is_logged_and_reraised_on_await and test_supervised_task_cancel_is_not_logged_as_failure pass",
+        "test_create_task_banned_in_product_code fires TID251; allowlist pinned at three files",
+        "full gate passes; worker and sweeper tests unchanged"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-HY-4",
+      "category": "tests",
+      "description": "Task H.4: golden file for the driver's base instructions; every recorded replay is replayed (XA-17, PR-32)",
+      "steps": [
+        "golden file committed from the unchanged constant before any other change",
+        "test_base_instructions_match_golden passes; test_every_recording_is_replayed passes and fails on a scratch recording (probe in the handoff)",
+        "check_agent_skills.py and the full gate pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-HY-5",
+      "category": "ci",
+      "description": "Task H.5: CI security job with a pinned gitleaks over full history, pip-audit and pnpm audit, failing on unallowlisted findings and on zero scanned (XA-16, PR-25, PR-39)",
+      "steps": [
+        "local baseline of scanner and audits recorded and triaged in the contract",
+        "security job added; README has the local commands",
+        "owner pushes the branch; the security job is green; run link in the handoff"
+      ],
+      "passes": false
+    }
+  ]
+}
