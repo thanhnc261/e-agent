@@ -414,3 +414,8 @@
 - changed: docs/handoffs/2026-10-16-phase1d-plugin-boundary.md, harness/state/1/features.json, harness/state/1/handoffs/1d.11.json, harness/state/evidence/gates/1d.11/2026-10-16T11-34-11.086089+00-00-full.json, harness/state/evidence/gates/1d.11/2026-10-16T11-35-17.654503+00-00-pg.json, harness/state/evidence/gates/1d.11/2026-10-16T11-35-25.267333+00-00-e2e.json, harness/state/evidence/gates/1d.11/2026-10-16T11-36-47.719174+00-00-core.json
 - next: Phase 1d tasks 1d.1-1d.11 and 1d.R1 closed; Task 1d.12 (owner re-pin and live check through live-sandbox) is next and owner-only
 - open: none
+
+## 2026-10-17T08:00:13.980240+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 1d.12
+- changed: no working-tree changes
+- next: owner runs 'uv run e-agent-harness gate live' with E_AGENT_ODOO_URL, E_AGENT_ODOO_DB, E_AGENT_ODOO_ADMIN_KEY and E_AGENT_ODOO_API_KEY set on the clean tree; then flip F-1d-12 with that evidence, write the 1d.12 handoff JSON, checkpoint, commit bookkeeping, close-check
+- open: none
