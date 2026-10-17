@@ -464,3 +464,8 @@
 - changed: harness/state/1h/handoffs/H.5.json, harness/state/1h/reviews/1h-final-r2.json, harness/state/1h/reviews/1h-final.json, harness/state/1h/tasks/H.5.json, harness/state/evidence/gates/H.5/2026-10-17T11-07-41.937096+00-00-full.json
 - next: owner pushes chore/hygiene-gates and opens a PR; security job green -> record run link, flip F-HY-5, close H.5, PR-25/PR-39 to [I], roadmap 1h done
 - open: none
+
+## 2026-10-17T12:36:10.897320+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.5
+- changed: docs/handoffs/2026-10-17-hygiene-gates.md, harness/state/1h/features.json, harness/state/1h/handoffs/H.5.json, harness/state/evidence/gates/H.5/2026-10-17T12-34-10.513516+00-00-full.json
+- next: Hygiene closed; owner merges PR #4; Phase 2 plan awaits owner review
+- open: none

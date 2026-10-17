@@ -59,7 +59,8 @@
         "security job added; README has the local commands",
         "owner pushes the branch; the security job is green; run link in the handoff"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/H.5/2026-10-17T12-34-10.513516+00-00-full.json"
     }
   ]
 }
