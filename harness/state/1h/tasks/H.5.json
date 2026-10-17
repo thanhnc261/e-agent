@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-HY-5"
   ],
-  "context_digest": "c8913d3624ddc16b8b4dd1d76458a0ff5535e9e63f95fd105e2717963293c345",
+  "context_digest": "b8f76512740c7d8b4ad3afc4daeeccf98c67d41ddd5fbd267f8eceb24abcb994",
   "allowed_paths": [
     ".github/workflows/ci.yml",
     ".gitleaks.toml",
