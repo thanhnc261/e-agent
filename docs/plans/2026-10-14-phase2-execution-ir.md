@@ -95,6 +95,8 @@ All five Phase 2 ADRs were written in `6aaab54` and are Proposed; 2a.1 reconcile
 | D3 | Approval surface for multi-step plans | Phase 2: fixtures, CLI and API only, with the live guard; UI plan approval is an `ag-*` thread with Phase 5 writes |
 | D4 | ADRs 0018 and 0020 (DR-06) | **Done:** accepted 2026-10-14 with 0019, 0021, 0022 |
 | D5 | Evidence bundle | Additive keys (`features`, `plan`, `steps`) under `e-agent-evidence-v1`; existing keys unchanged |
+| D6 | How a run's tool set reaches the driver (amendment 2026-10-17, P2R-3). The API builds one runtime and one driver for every task kind, so a tool set fixed at driver construction cannot differ per run. The alternative is to build a driver per run | `DriverInput.allowed_capabilities` (additive SDK port field, same `sdk_api` minor bump as `ProposePlan`), set by the run loop on every turn; the kernel refuses any read or proposal outside it, and the driver's filter only shapes what the model sees (Task 2c.6; recorded in ADR 0028 by Task 2a.1) |
+| D7 | Per-task `approval_ttl` and budget narrowing (ADR 0028; amendment 2026-10-17, P2R-10). The alternative is to defer both at G1 and keep the global TTL and profile budgets in Phase 2 | Implemented in Phase 2: admission refuses a widening budget (Task 2c.2), and runs use the definition's TTL and narrowed budgets (Task 2c.6) |
 
 ## Toggles and fallback
 
