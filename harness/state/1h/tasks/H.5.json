@@ -15,7 +15,8 @@
     "harness/state/**",
     "docs/handoffs/**",
     "scripts/repo_move.py",
-    "tests/conformance/test_repo_move.py"
+    "tests/conformance/test_repo_move.py",
+    "docs/roadmap.md"
   ],
   "acceptance": [
     "local baseline of scanner and audits recorded and triaged in the contract",
@@ -36,6 +37,11 @@
       "glob": "tests/conformance/test_repo_move.py",
       "reason": "PR #4 CI: make the scratch repo ignore the developer's global gitignore so the failure reproduces locally",
       "at": "2026-10-17T12:28:02+00:00"
+    },
+    {
+      "glob": "docs/roadmap.md",
+      "reason": "Hygiene phase close: roadmap 1h row Done",
+      "at": "2026-10-17T12:33:44+00:00"
     }
   ]
 }

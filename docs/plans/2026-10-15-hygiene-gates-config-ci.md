@@ -159,16 +159,16 @@ No runtime feature is added, so roadmap rule 3 does not apply.
 **Steps:**
 - [x] Run the scanner and both audits locally first and record the baseline in the task contract. Triage each finding: fix it, or allowlist it with its reason. A real credential in history is reported to the owner at once and is not pushed anywhere.
 - [x] Add the job.
-- [ ] The owner pushes the branch; the `security` job is green. Record the run link in the handoff.
-  - 2026-10-17: PR-25 and PR-39 stay [Pa] in principles.md until the owner's pushed run is green (a deviation from the Design refs' status [I]).
+- [x] The owner pushes the branch; the `security` job is green. Record the run link in the handoff. (2026-10-17: pushed on the owner's instruction; PR #4, [run 39032815905](https://github.com/thanhnc261/e-agent/actions/runs/39032815905), all five jobs green.)
+  - 2026-10-17: PR-25 and PR-39 stay [Pa] in principles.md until the owner's pushed run is green (a deviation from the Design refs' status [I]). After the green run PR-25 is [I]; PR-39 stays [Pa] because its mechanism, a required check, needs the owner's branch protection.
 - [x] Commit `ci: secret scan and dependency audit`.
 
 ---
 
 ### Close
 
-- [ ] Update principles.md: PR-25, PR-31, PR-32, PR-37, PR-38 and PR-39 name their checks; the backlog rows for them are removed.
-- [ ] Write the handoff with `eng-handoff`: each task's check, its probe and the baseline findings from H.5.
+- [x] Update principles.md: PR-25, PR-31, PR-32, PR-37, PR-38 and PR-39 name their checks; the backlog rows for them are removed. (PR-39 stays [Pa]: a required check needs the owner's branch protection.)
+- [x] Write the handoff with `eng-handoff`: each task's check, its probe and the baseline findings from H.5 ([handoff](../handoffs/2026-10-17-hygiene-gates.md)).
 
 ## Self-review
 
