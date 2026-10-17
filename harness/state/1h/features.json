@@ -10,7 +10,8 @@
         "check_agent_skills.py passes with the new rule and silent-pass list",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/H.1/2026-10-17T10-13-20.420880+00-00-full.json"
     },
     {
       "id": "F-HY-2",

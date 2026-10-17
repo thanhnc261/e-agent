@@ -1,0 +1,22 @@
+{
+  "task": "H.1",
+  "changed": "Commit f2b434b: scripts/release_report.py gains summarize(), which prints the pass count in every case and returns 1 when no case ran (0/0 used to pass); non-empty output is unchanged, pinned by a test. tests/conformance/test_release_report.py adds test_release_report_fails_on_zero_cases (watched failing: assert 0 == 1) and an output-pinning test. eng-foundations rules.md adds ENG-EVID-4 'Gates fail on empty input' with a finite Known silent-pass paths list: release_report.py (fixed) and the replay TASKS constant in tests/unit/server/test_recorded_model_replays.py (open, H.4). principles.md PR-31 names the check and keeps [Pa]; its backlog row now names only the TASKS part (H.4). The plan's H.1 steps are ticked. Full gate passed on f2b434b. Claude review (harness/state/1h/reviews/H.1.json): accept, three Low style notes.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H.1/2026-10-17T10-13-20.420880+00-00-full.json"
+  ],
+  "open_items": [
+    "PR-31 stays [Pa] until H.4 checks the replay TASKS constant.",
+    "Review R-3 (Low): on zero cases release_report.py still writes the empty report JSON before exiting 1; later scans should not copy the write-then-fail order."
+  ],
+  "rulings": [
+    {
+      "ruling": "The silent-pass list sits as a sub-list under ENG-EVID-4, because check_agent_skills.py rejects rule fields that wrap onto a continuation line.",
+      "cost_if_wrong": "Move the list to its own section; no check depends on its position."
+    },
+    {
+      "ruling": "The PR-31 backlog row is retargeted to the undelivered TASKS part (H.4) instead of removed, and PR-31 stays [Pa].",
+      "cost_if_wrong": "None; H.4 removes the row when it lands."
+    }
+  ],
+  "outside_repo": []
+}

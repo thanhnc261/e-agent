@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-HY-1"
   ],
-  "context_digest": "85db7826a4dd4e7d226f275d9f446d873a18fb55d13d899ddc2ab24f21e2b040",
+  "context_digest": "829da4597730ac1ca8a35f8a19d1a92127430b204b5b9fdae4364096e6ba36b6",
   "allowed_paths": [
     "scripts/release_report.py",
     "tests/conformance/test_release_report.py",
