@@ -3,36 +3,24 @@
   "entries": [
     {
       "id": "F-2a-1",
-      "category": "design",
-      "description": "Task 2a.1: target-architecture Execution IR section and threat-model entries T20, T21",
+      "category": "adr",
+      "description": "Task 2a.1: reconcile ADRs 0024, 0025, 0027-0029 and target 6.4 with the plan and the checkout",
       "steps": [
-        "the section settles task definition, action plan, lineage placeholders, plan digest, serial dispatch, partial failure, step record and toggle semantics",
-        "threat model lists T20 and T21 with mitigations",
-        "uv run python scripts/repo_move.py check reports no broken links",
-        "full gate passes"
+        "every ADR contract shape matches Tasks 2b.1-2c.9, or the plan or ADR is amended in the same commit",
+        "ADR 0028 records the DriverInput.allowed_capabilities mechanism; lineage is LineageRef(step_id, path) with one rule",
+        "stale code references in ADRs 0027, 0028 and 0029 fixed",
+        "uv run python scripts/repo_move.py check reports no broken links; full gate passes"
       ],
       "passes": false
     },
     {
       "id": "F-2a-2",
       "category": "adr",
-      "description": "Task 2a.2: ADR 0027 feature toggles",
+      "description": "Task 2a.2: owner accepts ADRs 0024, 0025, 0027, 0028, 0029 and target 6.4 (gate G1)",
       "steps": [
-        "docs/adr/0027-feature-toggles.md exists with status Proposed and an index row",
-        "full gate passes",
-        "owner accepts ADR 0027 before 2b starts"
-      ],
-      "passes": false
-    },
-    {
-      "id": "F-2a-3",
-      "category": "adr",
-      "description": "Task 2a.3: ADRs 0024 plan approval, 0025 execution IR, 0028 task definitions, and plan amendment",
-      "steps": [
-        "the three ADRs exist with index rows",
-        "the plan is amended in the same commit where an ADR shape differs from Tasks 2c.1-2c.9",
-        "full gate passes",
-        "owner accepts ADRs 0024, 0025 and 0028 before 2c starts"
+        "each ADR status reads Accepted with a date in the ADR and the index",
+        "2b starts only after 0027 is accepted; 2c only after 0024, 0025, 0028 and 0029",
+        "full gate passes"
       ],
       "passes": false
     },
@@ -41,9 +29,9 @@
       "category": "contracts",
       "description": "Task 2b.1: Profile.features with off/shadow/on, default off, and the off-mode golden baseline",
       "steps": [
-        "off_mode_events.json baseline committed before any other change",
+        "off_mode_events.json baseline committed before any other change, with deterministic ids, and test_off_baseline_fails_on_empty_golden passes",
         "test_profile_features_default_off and test_profile_rejects_unknown_feature pass",
-        "test_committed_profiles.py passes",
+        "test_committed_profiles_keep_execution_ir_off covers all three committed profiles",
         "full and pg gates pass"
       ],
       "passes": false
@@ -86,10 +74,10 @@
       "category": "erp",
       "description": "Task 2c.2: task definitions for the eight ERP tasks, admitted by the registry",
       "steps": [
-        "test_task_capabilities_equal_current_tool_lists passes",
-        "registry refuses unadmitted capabilities and duplicate task ids",
-        "notes-domain task definition admitted",
-        "check_wheels.py passes; full gate passes"
+        "test_task_capabilities_match_golden passes with a non-zero case count",
+        "registry refuses unadmitted capabilities, duplicate task ids and widening budgets; assistant definition is read-only",
+        "notes-domain task definition admitted; a pack without task definitions still loads",
+        "check_wheels.py and check_core_only.py pass; full gate passes"
       ],
       "passes": false
     },
@@ -132,9 +120,9 @@
       "category": "kernel",
       "description": "Task 2c.6: execution_ir on with single-step plans, tool set from the task definition, fallback before reservation",
       "steps": [
-        "test_on_tool_set_equals_task_definition passes",
-        "fallback tests record feature.fallback with reason codes",
-        "test_model_cannot_mark_plan_verified passes",
+        "test_on_tool_set_equals_task_definition, test_on_read_outside_task_definition_refused and test_driver_offers_only_allowed_tools pass",
+        "fallback tests record feature.fallback with reason codes; ACCEPTANCE_UNMET fails the run",
+        "test_model_cannot_mark_plan_verified passes; replay suite and prompt golden pass",
         "full and pg gates pass"
       ],
       "passes": false
@@ -144,7 +132,7 @@
       "category": "kernel",
       "description": "Task 2c.7: multi-step plans approved once and dispatched serially with per-step verification and the live guard",
       "steps": [
-        "test_plan_approved_once_dispatches_steps_in_order passes",
+        "test_plan_approved_once_dispatches_steps_in_order passes with the VERIFYING to RUNNING pair added in this task",
         "test_live_profile_refuses_multi_write_budget passes",
         "ERP and notes two-step scenarios pass",
         "full and pg gates pass"
@@ -157,7 +145,7 @@
       "description": "Task 2c.8: plan partial failure, reconciliation and evidence sections",
       "steps": [
         "test_no_fallback_after_first_reservation passes",
-        "test_unknown_step_blocks_remaining_steps and test_lineage_value_outside_bound_rule_stops_plan pass",
+        "test_unknown_step_blocks_remaining_steps and test_lineage_value_outside_verified_outcome_stops_plan pass",
         "recovery does not replay committed steps",
         "full and pg gates pass"
       ],
@@ -171,7 +159,7 @@
         "FunctionModel plan output becomes ProposePlan",
         "off-mode driver outputs unchanged",
         "model-chosen connections rejected",
-        "full gate passes"
+        "replay suite replays the new plan recording; prompt golden passes; full gate passes"
       ],
       "passes": false
     },
