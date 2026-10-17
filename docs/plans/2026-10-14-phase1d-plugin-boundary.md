@@ -482,8 +482,8 @@ Runs after 1d.7, so the helper is written inside the guest contract, and before 
 
 ### Task 1d.12: live check
 
-- [ ] The owner re-pins the local live profile and runs the live check above through `live-sandbox`. The results go into the handoff, labelled live.
-- [ ] Commit `docs: Phase 1d live check results`.
+- [x] The owner re-pins the local live profile and runs the live check above through `live-sandbox`. The results go into the handoff, labelled live. (2026-10-17: re-pinned by the agent on the owner's instruction; readiness, task 1 and the pin refusals pass. The harness `live` gate set, `env_check.py` and `odoo_sandbox.py info`, is left to the owner, who holds the Odoo keys; see the handoff.)
+- [x] Commit `docs: Phase 1d live check results`.
 
 ## Self-review
 

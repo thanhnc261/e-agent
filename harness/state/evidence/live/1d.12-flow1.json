@@ -1,0 +1,44 @@
+{
+ "run_id": "run_6409317e94f84bccbb72718410fc9849",
+ "messages": [
+  "hi",
+  "Which products are short for open demand?"
+ ],
+ "states": [
+  "CREATED",
+  "RUNNING",
+  "WAITING_INPUT",
+  "RUNNING",
+  "SUCCEEDED"
+ ],
+ "final_state": "SUCCEEDED",
+ "reason_code": "answered",
+ "actions": [
+  {
+   "contract_id": "procurement.shortage.answer.v1",
+   "state": "VERIFIED",
+   "arguments": {
+    "inbound": "10",
+    "shortage": "0",
+    "available": "4",
+    "demand_ref": "odoo/e_agent.demand/1",
+    "product_ref": "odoo/product.product/201",
+    "demand_quantity": "12"
+   }
+  }
+ ],
+ "pending_approval": null,
+ "final_text": "There is no shortage for the product \"E-Agent Widget A\" (odoo/product.product/201). The available stock and inbound quantities together exceed the demand.",
+ "event_types": {
+  "run.created": 1,
+  "run.state_changed": 4,
+  "input.requested": 1,
+  "input.received": 1,
+  "read.recorded": 5,
+  "proposal.created": 1,
+  "outcome.reported": 1,
+  "message.final": 1,
+  "run.terminal": 1
+ },
+ "seconds": 31.6
+}

@@ -1,0 +1,40 @@
+{
+ "task": "1d.12",
+ "label": "live",
+ "date": "2026-10-17",
+ "commit": "4de0de3",
+ "sandbox": "odoo19-learning (marker checked by the odoo19 sandbox probe at startup)",
+ "wheel_pins_rebuilt_at_head": {
+  "domain-erp": "93fa9a4d84d4f7529def4f532532b82aee7c537b709ec0201a898c5d9220e3b4",
+  "odoo19": "5f2296c3064b3a94e3a053d617a3abae1b9cce8f2097125430f9b91abef70ac7",
+  "fixture-erp": "3342fa23df5f8051e2b0408e6045df3d6d6d17111f425e599e97631cebce8a48"
+ },
+ "cases": [
+  {
+   "case": "previous pins (before re-pin)",
+   "result": "refused",
+   "exit_code": 3,
+   "reason": "STARTUP_REJECTED: domain-erp: artifact bytes differ from the approved build inventory"
+  },
+  {
+   "case": "re-pinned profile /health/ready",
+   "result": "ready",
+   "readiness": {
+    "status": "ready",
+    "environment": "live",
+    "plugins": [
+     "domain-erp",
+     "odoo19"
+    ],
+    "store": "postgres",
+    "self_approval_allowed": true
+   }
+  },
+  {
+   "case": "odoo19 pin with its last hex digit flipped",
+   "result": "refused",
+   "exit_code": 3,
+   "reason": "STARTUP_REJECTED: odoo19: artifact bytes differ from the approved build inventory"
+  }
+ ]
+}

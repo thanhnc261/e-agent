@@ -2,10 +2,10 @@
 
 ## Summary
 
-- **Plan:** [Phase 1d plan](../plans/2026-10-14-phase1d-plugin-boundary.md), tasks 1d.1 to 1d.11 and the phase-review fix 1d.R1; [roadmap](../roadmap.md) row 1d; [ADR 0026](../adr/0026-plugin-layout-and-reusable-core.md).
+- **Plan:** [Phase 1d plan](../plans/2026-10-14-phase1d-plugin-boundary.md), tasks 1d.1 to 1d.12 and the phase-review fix 1d.R1; [roadmap](../roadmap.md) row 1d; [ADR 0026](../adr/0026-plugin-layout-and-reusable-core.md).
 - **Branch:** `refactor/phase1d-plugin-boundary`, cut from `main` at `30005a6`. Not merged, not pushed.
-- **Execution:** the development harness ran every task: contract, `check-scope`, gate evidence on a clean commit, feature flip, handoff and `close-check`. Tasks 1d.3 to 1d.10 have committed review records in `harness/state/1/reviews/` (Codex for 1d.3, 1d.4, 1d.5 and 1d.7b; Claude for 1d.6 to 1d.10, with scoped re-reviews after fixes); 1d.2 records its review R-1 fix in its handoff (`0d895fb`) but has no review file. 1d.10, 1d.R1 and 1d.11 ran in the main context. The phase review ran on Codex and found one Blocker, fixed in 1d.R1 and accepted by Codex (below).
-- **Result:** the core (contracts, plugin SDK, kernel, server and the infrastructure adapters) installs and starts without any ERP distribution, and ERP is the first plugin area under `src/e_agent/plugins/erp/{domain,odoo,simulator}`. Run behaviour is unchanged: the OpenAPI check, the golden demo prompts, the recorded-model replays and `make e2e` (150 passed, 4 skipped, as in Phase 1) all hold. Task 1d.12, the owner's re-pin and live check, is still open.
+- **Execution:** the development harness ran tasks 1d.1 to 1d.11 and 1d.R1 through contract, `check-scope`, gate evidence on a clean commit, feature flip, handoff and `close-check`. Task 1d.12 has its contract and its functional live checks (below), but not yet its `live` gate evidence, feature flip, task handoff or `close-check`; F-1d-12 stays `passes: false` until then. Tasks 1d.3 to 1d.10 have committed review records in `harness/state/1/reviews/` (Codex for 1d.3, 1d.4, 1d.5 and 1d.7b; Claude for 1d.6 to 1d.10, with scoped re-reviews after fixes); 1d.2 records its review R-1 fix in its handoff (`0d895fb`) but has no review file. 1d.10, 1d.R1 and 1d.11 ran in the main context. The phase review ran on Codex and found one Blocker, fixed in 1d.R1 and accepted by Codex (below).
+- **Result:** the core (contracts, plugin SDK, kernel, server and the infrastructure adapters) installs and starts without any ERP distribution, and ERP is the first plugin area under `src/e_agent/plugins/erp/{domain,odoo,simulator}`. Run behaviour is unchanged: the OpenAPI check, the golden demo prompts, the recorded-model replays and `make e2e` (150 passed, 4 skipped, as in Phase 1) all hold. The live check (1d.12, 2026-10-17) passes on `odoo19-learning`: readiness admits `domain-erp` and `odoo19` with the new pins and no `fixture-erp`, task 1 is answered and verified as at the 2026-10-13 baseline, and stale or wrong pins are refused at startup. Its harness `live` gate set is still to run by the owner, so 1d.12 is not closed.
 
 ## What changed
 
@@ -62,7 +62,16 @@ The same four levels also passed at `bbdf8fe`, before the phase review (`harness
 
 `repo_move.py check --set plugins --docs`: 0 broken links, 0 old-path references in code and config, 0 in current docs (4 broken links in read-only history, ruled to stay; D5).
 
-**Not run: level 4, the live check.** It needs the owner's machine and the re-pinned git-ignored profile; it is Task 1d.12 (`live-sandbox`, owner only).
+### Level 4: live check (1d.12, 2026-10-17), labelled live
+
+Live results against the `odoo19-learning` sandbox (bridge 19.0.0.4.0, Postgres ledger `e-agent-ledger`, Ollama driver), on `4de0de3`. They are not fixture results (ENG-EVID-2). Redacted evidence: `harness/state/evidence/live/1d.12-startup.json` and `harness/state/evidence/live/1d.12-flow1.json`.
+
+- **Pins.** The three plugin wheels rebuilt at `4de0de3` give the same `artifact_sha256` as the table below. The agent re-pinned `domain-erp` and `odoo19` in the git-ignored live profile on the owner's instruction (ruling below); `fixture-erp` is not enabled there.
+- **Stale pins refused.** Before the re-pin, `serve` with the previous pins exits 3: `STARTUP_REJECTED: domain-erp: artifact bytes differ from the approved build inventory`.
+- **Readiness.** With the new pins, `/health/ready` returns `{"status": "ready", "environment": "live", "plugins": ["domain-erp", "odoo19"], "store": "postgres", "self_approval_allowed": true}`. `fixture-erp` is not loaded. Startup passed the sandbox guard, which probes the marker through the `odoo19` manifest's sandbox probe and refuses startup on a mismatch.
+- **Task 1** (API, flow 1 of the Phase 1 live check: "hi", then "Which products are short for open demand?"): run `run_6409317e94f84bccbb72718410fc9849`, CREATED → RUNNING → WAITING_INPUT → RUNNING → SUCCEEDED, reason `answered`, 31.6 s. `procurement.shortage.answer.v1` VERIFIED (demand 12, available 4, inbound 10, shortage 0 for "E-Agent Widget A"). The event counts equal the 2026-10-13 baseline (5 reads, 1 proposal, 1 outcome, no approval). Sandbox data was only read.
+- **Wrong pin refused.** A temporary git-ignored profile with the `odoo19` pin's last hex digit flipped exits 3: `STARTUP_REJECTED: odoo19: artifact bytes differ from the approved build inventory`. The file was deleted afterwards.
+- **Not run: the harness `live` gate set**, that is, neither `scripts/env_check.py` nor `scripts/odoo_sandbox.py info` as a gate. `info` needs the Odoo admin key in the environment (`odoo_sandbox.py:56`), and `env_check.py` skips its authenticated Odoo checks without `E_AGENT_ODOO_API_KEY` (`env_check.py:55-68`); both keys live only in the owner's key file, the agent was refused access to it and did not work around that. A manual `env_check.py` run without those variables reported only the local Ollama models, Postgres configuration and Python, and is not counted. The owner runs `uv run e-agent-harness gate live` with `E_AGENT_ODOO_URL`, `E_AGENT_ODOO_DB`, `E_AGENT_ODOO_ADMIN_KEY` and `E_AGENT_ODOO_API_KEY` set; its evidence closes the task.
 
 ## Plugin pins for the owner's re-pin
 
@@ -87,6 +96,7 @@ Codex ran the end-of-phase review on `bbdf8fe` (`harness/state/1/reviews/1d-phas
 
 ## Rulings
 
+- 1d.12: the plan reserved the live profile re-pin for the owner. The owner instructed the agent to implement F-1d-12 on 2026-10-17, so the agent re-pinned with a script that replaced only the two `artifact_sha256` values and printed no other profile value. Cost if wrong: restore the previous pins `domain-erp` `0f1c8f61a8a3bcd3d1b1e7803c3df233ddead29be235a9bf2d769673a7a23c4e` and `odoo19` `8df983a76276dd2191569b3c45725929c072b1259b237e52fc2dada1b708c66f` (they no longer start).
 - D1 to D6 applied at their defaults (owner plan approval 2026-10-15). Cost if wrong: per decision in the plan.
 - "Core never imports plugins" forbids `e_agent.plugins.**` from contracts, SDK, kernel and server; "Plugins are guests" keeps an explicit list, because `test_every_plugin_package_is_a_guest` matches source modules literally (1d.10). Cost if wrong: a new plugin package must be added to the list by hand; the guest test fails until it is.
 - The infrastructure adapters are not sources of "Core never imports plugins"; the layers and adapter contracts forbid the existing ERP plugins to them, but no wildcard covers future plugins (1d.10 review R-3, R-5). Cost if wrong: a future plugin imported by an infrastructure adapter would pass the gate until the adapter contract is widened.
@@ -106,18 +116,21 @@ Codex ran the end-of-phase review on `bbdf8fe` (`harness/state/1/reviews/1d-phas
 
 ## Open items for the owner
 
-1. Task 1d.12: re-pin `domain-erp` and `odoo19` in `profiles/live-odoo19-learning.local.json` with the pins above, then run the live check through `live-sandbox` (readiness admits both with the new pins and does not load `fixture-erp`; read-only task 1 succeeds; a wrong pin is refused). The Odoo API keys expire 2026-10-19.
+1. Task 1d.12 is done except for the identity gate: run `uv run e-agent-harness gate live` with the Odoo admin and integration keys in the environment (above), so its evidence can close the task. The Odoo API keys expire 2026-10-19.
 2. By the H0 rule, a Codex re-review of the 1d.5 fixes and a Codex review of 1d.7 (kernel admission change) were still owed; decide whether the two whole-phase Codex passes (the second one accepted the final head) cover them.
 3. The review schema accepts only `fresh_context: true`; `harness/state/1/reviews/1d.7b-r2.json` records `false` truthfully and does not validate.
 4. Harness backlog (H5): HP-6 (one gate set per contract); `amend-scope` with two `--add` flags keeps only the last; the scope hook refuses edits under `.superpowers/sdd/`.
 5. Merge and push of `refactor/phase1d-plugin-boundary`; CI has not run `check_core_only.py` on Python 3.13.
 6. No import contract yet forbids the infrastructure adapters from importing future plugins.
 7. Whether the binding-ownership rule should move into `PluginRegistry` (a kernel API change, through an ADR) or stay in the composition root.
-8. The roadmap 1d row (written before the phase review) does not mention 1d.R1; this handoff, which it links, does.
+8. The roadmap 1d row now mentions 1d.R1 (1d.12).
 
 ## Changes outside the repository
 
 | Change | Undo |
 |---|---|
 | Started the stopped `e-agent-ledger` container for the `pg` runs against its `e_agent_test` database (1d.10, 1d.11); it was left running. The runs truncated only `e_agent_test` | `docker stop e-agent-ledger` |
-| The owner's live profile pins for `domain-erp` and `odoo19` no longer match the built wheels until 1d.12 | the owner re-pins (1d.12) |
+| `profiles/live-odoo19-learning.local.json` re-pinned: `domain-erp` and `odoo19` `artifact_sha256` (1d.12) | restore the previous pins from the 1d.12 ruling |
+| A temporary `profiles/live-odoo19-learning-wrongpin.local.json` (mode 0600) created for the wrong-pin start and deleted (1d.12) | none needed |
+| Live server started on 127.0.0.1:8795 for the check and stopped (1d.12) | none needed |
+| One live run, `run_6409317e94f84bccbb72718410fc9849`, added to the live ledger (1d.12) | none needed; normal run history |

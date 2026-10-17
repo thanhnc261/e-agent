@@ -1,0 +1,24 @@
+{
+  "task": "1d.12",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Completion reporting is premature: the handoff says the harness ran every task through gate evidence, feature flip, handoff and close-check, while F-1d-12 is passes:false with no gate evidence or task handoff; the plan ticks the results commit while the results are uncommitted. Limit the lifecycle claim to completed tasks and separate the functional checks from pending closure.",
+      "evidence": "docs/handoffs/2026-10-16-phase1d-plugin-boundary.md:7; docs/plans/2026-10-14-phase1d-plugin-boundary.md:485-486; harness/state/1/features.json F-1d-12; ENG-EVID-1, ENG-EVID-2, ENG-DOC-1"
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "The skipped-check account names only odoo_sandbox.py info, while the unrun live gate set also contains env_check.py; the owner instructions omit E_AGENT_ODOO_API_KEY, without which env_check.py skips its authenticated Odoo checks.",
+      "evidence": "docs/handoffs/2026-10-16-phase1d-plugin-boundary.md:74; harness/context.toml:64; scripts/odoo_sandbox.py:56; scripts/env_check.py:55-68; ENG-EVID-2, ENG-DOC-1"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}
