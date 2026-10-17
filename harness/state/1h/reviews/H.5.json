@@ -1,0 +1,42 @@
+{
+  "task": "H.5",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "The gitleaks step passes when gitleaks finds a leak. The job sets no shell, so GitHub runs it as `bash -e {0}` without pipefail, and `gitleaks ... 2>&1 | tee` takes tee's exit status. gitleaks exits 1 on findings, but the step then checks only the 'N commits scanned' count, which gitleaks prints either way. A real credential in history would leave the job green, against the plan's 'fails on any finding not in the allowlist'. The owner's push step would not catch this, because a clean history goes green either way. Fix with `set -o pipefail` in the step, `shell: bash` (which adds -eo pipefail), or a check of PIPESTATUS[0], and add a probe that the step fails on a seeded fake token.",
+      "evidence": ".github/workflows/ci.yml:115 (pipe into tee), :116-118 (count check only); no shell or defaults.run.shell for the security job (the `defaults:` at :66 belongs to the ui job). Reproduced locally with gitleaks 8.28.0 (darwin_arm64, checksum verified) and a config with no allowlist: the log shows '454 commits scanned' and 'leaks found: 2', and the pipeline exits 0. `bash -e -c 'false | tee /dev/null; echo continues'` exits 0. Plan Task H.5 Files bullet 3; ENG-EVID-4; PR-25, PR-39"
+    },
+    {
+      "id": "R-2",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "The allowlist entry turns off every rule for two whole files, not one test fixture string. One of the two paths had no finding at all. In git mode the only raw findings are generic-api-key at the old apps/server path, line 19, commits 3ae9aafb and 60a7422c; the current tests/unit/server path is listed with no finding, so a credential added to it later would never be reported. A probe confirmed this: a fake ghp_ token placed in tests/unit/server/test_pydantic_driver_e2e.py is not reported under the committed config. Narrower forms do work in 8.28.0: (a) an [[allowlists]] entry with condition = \"AND\", the old path in `paths`, and the exact sentinel in `regexes` (regexTarget line or match), keeping its description as the reason; (b) a `stopwords` entry for the exact sentinel; (c) the narrowest, a .gitleaksignore with the two finding fingerprints (commit:file:rule:line). With (a) or (b) the same probe token is reported. targetRules did not take effect in my run either, alone or with paths, so the implementer's observation holds, but path-wide scope does not follow from it. Investigation also confirms the hits are a test fixture: a readable hyphenated 28-character sentinel built into ThinkingPart and asserted absent from the evidence blob (`assert SECRET not in blob`, current file lines 20, 33, 57, 140). It is not a credential.",
+      "evidence": ".gitleaks.toml:12-17; plan Task H.5 'An entry is allowed only for a test fixture string' and Global Constraints 'never disable a rule wholesale (PR-06)'; local gitleaks 8.28.0 runs: with no allowlist, 2 findings, both at the apps/server path; the stopwords, AND+paths+regexes and fingerprint-ignore configs each exit 0 on the real history; the committed config hides a seeded fake token at the current path; tests/unit/server/test_pydantic_driver_e2e.py:20,33,57,140"
+    },
+    {
+      "id": "R-3",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Acceptance step 1 ('local baseline ... recorded and triaged in the contract') is not shown in any committed record. The task schema allows no additional properties, so the contract cannot hold a baseline. The triage (2 generic-api-key findings: file, line, commits, ruled a fixture) appears only in the git-ignored .superpowers report, while principles.md carries only the totals. The H.5 handoff must record the baseline (453 commits, 2 raw findings with rule, file:line and commits, and the triage; 72 Python and 28 UI packages with 0 findings), as plan Close step 2 also requires ('the baseline findings from H.5').",
+      "evidence": "harness/state/1h/tasks/H.5.json (no baseline; acceptance[0]); tools/harness/src/e_agent_harness/schemas/task.schema.json:6 additionalProperties false; close-check reports 'handoff missing: harness/state/1h/handoffs/H.5.json'; docs/plans/2026-10-15-hygiene-gates-config-ci.md:168; ENG-DOC-2"
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "PR-25 and PR-39 at [Pa], with the 'not yet run on a pushed branch' caveat and their backlog rows removed, fit the legend: each row now names a concrete check, and [Pa] is honest while the job has never run (and while R-1 is open, [I] would be false). The plan's file table says 'status [I]', and the deviation is not recorded there (ENG-PLAN-3, review-only). After R-1 is fixed and the owner's run is green, flip PR-39 (and the PR-25 scan clause) as the plan says, or record the ruling in the handoff. The dated caveat is a status line that will go stale. A minor wording point: the PR-25 row says the job 'fails when it scans zero commits' but not that it fails on a finding, which today it does not (R-1).",
+      "evidence": "docs/design/principles.md:15 (legend), PR-25 row (:66), PR-39 row (:95), backlog table; docs/plans/2026-10-15-hygiene-gates-config-ci.md:56"
+    },
+    {
+      "id": "R-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Verified and correct: the gitleaks version and SHA-256 are pinned in the workflow, and the SHA matches the upstream v8.28.0 checksums file for linux_x64. curl -sSfL and sha256sum -c fail the step under -e. fetch-depth 0 plus the is-shallow check guard full history. pip-audit (pinned 2.9.0) and the first `pnpm --dir ui audit --prod` are not piped, so a finding fails the step. The zero-count guards for commits, exported packages and totalDependencies are sound, because an empty or missing value fails `test -gt 0`. Optional hardening, not required by the plan: the actions are floating major tags (checkout@v4, setup-uv@v6, action-setup@v4, setup-node@v4, matching the other jobs), and uvx resolves pip-audit's own dependencies unpinned.",
+      "evidence": ".github/workflows/ci.yml:95-141; https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_checksums.txt (linux_x64 line matches GITLEAKS_SHA256)"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}
