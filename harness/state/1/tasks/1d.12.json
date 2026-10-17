@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-1d-12"
   ],
-  "context_digest": "087b4b286a3746703419369abf9065a8cf9fe7464ca5bdc64172084bb1b4fcc8",
+  "context_digest": "3a572ae74bc30978e9f068cabc04b0fe48f120717f667d2f9fe51b9321ac5abb",
   "allowed_paths": [
     "docs/handoffs/**",
     "harness/state/**",
