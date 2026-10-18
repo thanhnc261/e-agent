@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2c-6"
   ],
-  "context_digest": "b295290367f15043c97d86487ab4d25560ab2dd37771623a3287c1fa3dcecf50",
+  "context_digest": "e1dd1951eea2ca225687e1ddc3a48fa15176d506969709ae2400eaf0f9200cf9",
   "allowed_paths": [
     "src/e_agent/sdk/ports.py",
     "src/e_agent/kernel/run_loop.py",
@@ -23,6 +23,7 @@
     "src/e_agent/adapters/postgres/store.py",
     "src/e_agent/adapters/postgres/migrations/0006_*.sql",
     "src/e_agent/contracts/run.py",
+    "src/e_agent/contracts/task.py",
     "src/e_agent/adapters/pydantic_ai/driver.py",
     "pyproject.toml",
     "ui/packages/client/openapi.json",
@@ -34,6 +35,7 @@
     "tests/unit/kernel/conftest.py",
     "tests/unit/adapters/pydantic_ai/**",
     "tests/conformance/test_run_store.py",
+    "tests/unit/adapters/postgres/**",
     "tests/unit/server/**",
     "tests/unit/plugins/erp/simulator/**",
     "tests/replays/**",
