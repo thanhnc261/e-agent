@@ -174,7 +174,8 @@
         "model-chosen connections rejected",
         "replay suite replays the new plan recording; prompt golden passes; full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.9/2026-10-18T11-34-17.432415+00-00-full.json"
     },
     {
       "id": "F-2d-1",
