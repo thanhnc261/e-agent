@@ -15,7 +15,7 @@ from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor
 from e_agent.contracts.context import TaskContext
 from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.outcome import OutcomeReport
-from e_agent.contracts.plan import ActionProposal
+from e_agent.contracts.plan import ActionPlan, ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.task import TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationResult
@@ -68,6 +68,16 @@ class ProposeAction:
 
 
 @dataclass(frozen=True)
+class ProposePlan:
+    """An N-step action plan (ADR 0025, target §6.4.3): validated as a whole, approved once
+    and dispatched step by step. Later steps may hold `LineageRef` placeholders. A proposal,
+    never an approval: the kernel assigns the plan's id and its task definition, and refuses a
+    plan in a run that admits one write (Task 2c.7)."""
+
+    plan: ActionPlan
+
+
+@dataclass(frozen=True)
 class FinalAnswer:
     text: str
 
@@ -77,7 +87,7 @@ class AskClarification:
     question: str
 
 
-DriverStep = RequestReads | ProposeAction | FinalAnswer | AskClarification
+DriverStep = RequestReads | ProposeAction | ProposePlan | FinalAnswer | AskClarification
 
 
 @runtime_checkable
