@@ -15,6 +15,7 @@ from typing import Any
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.context import Budgets, HostContext, Principal, TaskContext
 from e_agent.contracts.events import RunEventType
+from e_agent.contracts.features import Features
 from e_agent.contracts.run import (
     RunRecord,
     RunState,
@@ -70,6 +71,7 @@ class RunCoordinator(
         allow_self_approval: bool = False,
         budgets: Budgets | None = None,
         credentials: CredentialVersionProvider | None = None,
+        features: Features | None = None,
     ) -> None:
         self._store = store
         self._registry = registry
@@ -81,6 +83,7 @@ class RunCoordinator(
         self._approval_ttl = approval_ttl
         self._allow_self_approval = allow_self_approval
         self._budgets = budgets or Budgets()
+        self._features = features or Features()  # profile toggles (ADR 0027); not read yet
         self._runs: dict[str, _Continuation] = {}
         self._active_calls: dict[str, asyncio.Task[Any]] = {}
 

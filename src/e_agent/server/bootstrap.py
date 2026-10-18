@@ -358,6 +358,7 @@ async def build_runtime(
         allow_self_approval=profile.operator.allow_self_approval,
         budgets=profile.budgets,
         credentials=credentials,
+        features=profile.features,
     )
     return Runtime(
         profile,

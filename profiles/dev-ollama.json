@@ -98,5 +98,8 @@
   "budgets": {
     "max_model_tokens": 200000,
     "max_validation_repairs": 4
+  },
+  "features": {
+    "execution_ir": "off"
   }
 }
