@@ -85,7 +85,8 @@
         "notes-domain task definition admitted; a pack without task definitions still loads",
         "check_wheels.py and check_core_only.py pass; full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.2/2026-10-18T03-02-34.102183+00-00-full.json"
     },
     {
       "id": "F-2c-3",

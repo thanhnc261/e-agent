@@ -1,0 +1,35 @@
+{
+  "task": "2c.2",
+  "changed": "Eight ERP task definitions plus a read-only assistant definition, packaged as resources under plugins/erp/domain/tasks/ (shipped in the domain-erp wheel), declared in the pack manifest and built from the Phase 1d task presets (task_id = preset kind, D8). Each definition has a narrowed capability subset recorded in tests/unit/plugins/erp/domain/golden/task_capabilities.json against today's single tool set. Acceptance is disjunctive (every required effect verified, or the required answer verified; AcceptanceSpec docstring); draft-po accepts its verified draft PO or the verified zero-shortage answer. Registry admission refuses an unadmitted capability, a duplicate task_id, a widening budget (model_fields_set, D7) and, in live profiles, a write capability or binding with a defaulted effect declaration; fixture profiles report defaults; a pack without definitions still loads. The registry copies BindingTemplate.idempotency into CapabilityBinding only when declared. ERP and Odoo manifests declare effects; the four Odoo write bindings declare provider_key because the bridge dedupes on a UNIQUE operation reservation (re-send stays off in Phase 2). Pins re-pinned. Commits a6ff19c, 22ca83e. Review: controller C-1 (acceptance read as conjunctive) fixed; Claude review (Codex rate-limited) accept with six Low findings.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2c.2/2026-10-18T03-02-34.102183+00-00-full.json",
+    "harness/state/evidence/gates/2c.2/2026-10-18T03-03-45.065087+00-00-pg.json"
+  ],
+  "open_items": [
+    "Owner: confirm the risk values chosen for the ERP write capabilities (task-2c.2 report).",
+    "Owner: re-pin profiles/live-odoo19-learning.local.json for domain-erp and odoo19 before the live check (2d.2).",
+    "2c.6: a capability bound on several connections is admitted but dropped by tool_specs (R-1); merge only the definition's set budget fields (R-2).",
+    "2c.8: report defaulted effect declarations in readiness and evidence (R-3, ADR 0029 Operations).",
+    "The assistant definition has no preset, so no Phase 2 run reaches it."
+  ],
+  "rulings": [
+    {
+      "ruling": "Acceptance is disjunctive as ADR 0028 and target 1.3 state; draft-po names its PO effect and the zero-shortage answer.",
+      "cost_if_wrong": "An AcceptanceSpec field for explicit alternatives (ADR 0028 amendment)."
+    },
+    {
+      "ruling": "Draft-po with no eligible offer ends ACCEPTANCE_UNMET: the shortage remains, so it is not a verified no-op.",
+      "cost_if_wrong": "A second answer alternative."
+    },
+    {
+      "ruling": "Codex hit its usage limit; a Claude reviewer (opus, fresh context) reviewed instead.",
+      "cost_if_wrong": "Re-run Codex on 2c.2."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "pg gate ran against e_agent_test in e-agent-ledger.",
+      "undo": "None needed."
+    }
+  ]
+}
