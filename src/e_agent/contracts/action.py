@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Self
+
+from pydantic import Field, model_validator
 
 from .common import Record
 from .evidence import ApprovedFact
@@ -67,3 +69,13 @@ class ActionRecord(Record):
     state: ActionState
     revision: int
     supersedes_action_id: str | None = None
+    plan_id: str | None = None
+    """The action plan this action's plan step belongs to (target §6.4); null before Phase 2."""
+    step_index: int | None = Field(default=None, ge=0)
+    """The plan step's position in its plan; set together with ``plan_id``."""
+
+    @model_validator(mode="after")
+    def _check_plan_link(self) -> Self:
+        if (self.plan_id is None) != (self.step_index is None):
+            raise ValueError("plan_id and step_index are set together or not at all")
+        return self

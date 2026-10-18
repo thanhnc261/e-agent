@@ -397,23 +397,22 @@ class StepStatus(StrEnum):
     STARTED = "started"; SUCCEEDED = "succeeded"; FAILED = "failed"
     BLOCKED = "blocked"; UNKNOWN = "unknown"; SKIPPED = "skipped"
 
-class StepRecord(BaseModel):          # e_agent.contracts.step (proposed)
-    model_config = ConfigDict(extra="forbid", frozen=True)
+class StepRecord(Record):             # e_agent.contracts.step; Record: extra="forbid", frozen
     schema_version: Literal["step.v1"] = "step.v1"
     tenant_id: str
     run_id: str
     step_id: str
-    sequence: int                       # monotonic per run
+    sequence: int                       # monotonic per run, >= 0
     kind: StepKind
     status: StepStatus
-    parent_step_id: str | None          # repair links to the step it repairs
-    action_id: str | None
-    input_refs: tuple[EvidenceRef, ...]  # no raw payloads
-    output_ref: EvidenceRef | None
-    finding_ids: tuple[str, ...]
-    usage: StepUsage                     # tokens, calls, active seconds
-    started_at: datetime
-    finished_at: datetime | None
+    parent_step_id: str | None = None   # repair links to the step it repairs
+    action_id: str | None = None
+    input_refs: tuple[EvidenceRef, ...] = ()  # no raw payloads
+    output_ref: EvidenceRef | None = None
+    finding_ids: tuple[str, ...] = ()
+    usage: StepUsage = StepUsage()      # model_tokens, provider_calls, active_seconds
+    started_at: UtcDatetime
+    finished_at: UtcDatetime | None = None
 ```
 
 **Write path.** Step rows are written in the same short transaction as their `run_events`, under the run row lock. That is the same mechanism as event appends today (`store.py: _append`). There is no second, non-atomic write (MVP §9). Steps can therefore be checked against the event log, but the rows themselves are authoritative.
@@ -1162,9 +1161,9 @@ e-agent/
 ├── src/e_agent/                    all Python product code (PEP 420)          [I]
 │   ├── contracts/                  e_agent.contracts — portable records      [I]
 │   │   ├── action.py run.py events.py evidence.py ...                        [I]
-│   │   ├── step.py                 StepRecord, Finding persistence            [P]
+│   │   ├── step.py                 StepRecord [I], Finding persistence [P]    [I]/[P]
 │   │   ├── context.py              + ContextPolicy, ContextPack               [I]/[P]
-│   │   ├── task.py                 TaskDefinition, AcceptanceSpec             [P]
+│   │   ├── task.py                 TaskDefinition, AcceptanceSpec             [I]
 │   │   └── trigger.py              TriggerSpec                                [P]
 │   ├── sdk/                        e_agent.sdk — ports, manifests            [I]
 │   │   ├── ports.py                AgentDriver, Executor, ScopedReader, ...   [I]

@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Self
+
+from pydantic import model_validator
 
 from .common import Record, UtcDatetime
 
@@ -129,3 +132,12 @@ class RunRecord(Record):
     created_at: UtcDatetime
     reason: str | None = None
     reason_code: ReasonCode | None = None
+    task_id: str | None = None
+    """The task definition the run resolved (ADR 0028, C11); null for free-text runs."""
+    task_version: str | None = None
+
+    @model_validator(mode="after")
+    def _check_task_link(self) -> Self:
+        if (self.task_id is None) != (self.task_version is None):
+            raise ValueError("task_id and task_version are set together or not at all")
+        return self

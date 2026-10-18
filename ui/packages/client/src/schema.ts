@@ -530,6 +530,10 @@ export interface components {
             state: components["schemas"]["RunState"];
             /** Task */
             task: string;
+            /** Task Id */
+            task_id?: string | null;
+            /** Task Version */
+            task_version?: string | null;
             /** Tenant Id */
             tenant_id: string;
         };

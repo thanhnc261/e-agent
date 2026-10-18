@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from e_agent.contracts.capability import CapabilityDescriptor
+from e_agent.contracts.capability import CapabilityDescriptor, Idempotency
 from e_agent.contracts.common import Record
 from pydantic import Field, field_validator
 
@@ -17,6 +17,8 @@ class BindingTemplate(Record):
     binding_id: str
     contract_id: str
     supported_features: frozenset[str] = frozenset()
+    idempotency: Idempotency = Idempotency.NONE
+    """Defaults to `none` (ADR 0029); a defaulted value is absent from ``model_fields_set``."""
 
 
 class PluginManifest(Record):

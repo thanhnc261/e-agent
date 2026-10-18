@@ -753,6 +753,28 @@
             "title": "Task",
             "type": "string"
           },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "task_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Version"
+          },
           "tenant_id": {
             "title": "Tenant Id",
             "type": "string"
