@@ -99,8 +99,9 @@ async def erp_draft_po_run() -> dict[str, Any]:
         profile = load_profile(fixture_profile_path())
         rt = await build_runtime(profile)
         preset = rt.registry.task_presets[profile.driver.task_kind]
+        # The task kind, as the CLI passes it (Task 2c.5): ``off`` ignores it.
         run = await rt.coordinator.start_run(
-            rt.operator, demo_prompt(preset, profile.driver), rt.scope
+            rt.operator, demo_prompt(preset, profile.driver), rt.scope, task_kind=preset.kind
         )
         pres = await rt.coordinator.pending_approval(rt.operator.tenant_id, run.run_id)
         run = await rt.coordinator.decide(

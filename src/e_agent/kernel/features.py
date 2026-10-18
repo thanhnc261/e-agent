@@ -1,25 +1,45 @@
-"""Feature toggle fallback (ADR 0027, target architecture §6.4.8).
+"""Feature toggles in the kernel (ADR 0027, target architecture §6.4.8).
 
-A feature in ``on`` mode may return to the existing path only before the first write
-reservation. The consumer decides when that applies; this helper records the
+Fallback: a feature in ``on`` mode may return to the existing path only before the first
+write reservation. The consumer decides when that applies; `record_fallback` records the
 ``feature.fallback`` event with a typed reason and leaves the run state unchanged,
 because a fallback code never ends a run (ADR 0025).
 
-The event carries no caller text: its message is the fixed one for the reason code, so
-no provider, compiler or model string reaches the ledger or the evidence export
-(PR-25, PR-28).
+Shadow (``execution_ir: shadow``, Task 2c.5, XA-24): after today's validation passes a write
+proposal, `_shadow_plan` compiles it into a 1-step plan, validates it, computes its digest
+and records the comparison with the action digest. It acts on nothing: no driver call, no
+provider read, no budget use, and the run, the action and the approval are today's.
+
+No event here carries caller text: each message is a fixed one, so no provider, compiler,
+validator or model string reaches the ledger or the evidence export (PR-25, PR-28).
 """
 
 from __future__ import annotations
 
 from types import MappingProxyType
 
+from e_agent.contracts.action import ActionRecord
+from e_agent.contracts.common import new_id
 from e_agent.contracts.events import RunEventType
-from e_agent.contracts.features import Features
+from e_agent.contracts.features import FeatureMode, Features
+from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode, RunRecord
+from e_agent.contracts.step import StepKind, StepStatus
+from e_agent.contracts.task import TaskDefinition
+from e_agent.sdk.store import EventSpec
 
-from .continuation import ContinuationMixin
+from .approval import compute_digest
+from .continuation import ContinuationMixin, _Continuation
 from .errors import ErrorCode, KernelError
+from .ir import (
+    SINGLE_STEP_ID,
+    PlanValidationContext,
+    StepDigestContext,
+    compile_proposal,
+    plan_digest_input,
+    validate_plan,
+)
+from .step import finish_step, start_step
 
 FALLBACK_MESSAGES = MappingProxyType(
     {
@@ -30,9 +50,127 @@ FALLBACK_MESSAGES = MappingProxyType(
 )
 """The fallback codes (ADR 0025 names them for ``execution_ir``) and each one's fixed message."""
 
+SHADOW_MESSAGES = MappingProxyType(
+    {
+        "compile": FALLBACK_MESSAGES[ReasonCode.IR_COMPILE_FAILED],
+        "validate": FALLBACK_MESSAGES[ReasonCode.IR_VALIDATION_FAILED],
+    }
+)
+"""Each shadow stage's fixed ``ir.shadow_failed`` message; the event carries no reason code."""
+
+ON_UNAVAILABLE = "execution_ir: on is not available yet; use off or shadow"
+
+
+def _shadow_failed(stage: str, action_id: str) -> EventSpec:
+    return (
+        RunEventType.IR_SHADOW_FAILED,
+        {"stage": stage, "message": SHADOW_MESSAGES[stage]},
+        action_id,
+    )
+
+
+def check_features(features: Features) -> Features:
+    """Refuse a mode that is not built yet: a selectable mode must be complete (ADR 0027).
+    Task 2c.6 removes the ``on`` refusal."""
+    if features.execution_ir is FeatureMode.ON:
+        raise KernelError(ErrorCode.STARTUP_REJECTED, ON_UNAVAILABLE)
+    return features
+
 
 class FeaturesMixin(ContinuationMixin):
     _features: Features
+
+    @property
+    def _ir_shadow(self) -> bool:
+        return self._features.execution_ir is FeatureMode.SHADOW
+
+    def _with_task(self, run: RunRecord, task_kind: str | None) -> RunRecord:
+        """In shadow, the run records the definition its task kind names (D8, ADR 0028).
+        In ``off``, or for a kind that is no admitted definition, the run is unchanged."""
+        if not self._ir_shadow or task_kind is None:
+            return run
+        task = self._registry.task_definitions.get(task_kind)
+        if task is None:
+            return run
+        return run.model_copy(update={"task_id": task.task_id, "task_version": task.version})
+
+    def _run_task(self, run: RunRecord) -> TaskDefinition | None:
+        task = self._registry.task_definitions.get(run.task_id) if run.task_id else None
+        return task if task is not None and task.version == run.task_version else None
+
+    async def _shadow_plan(
+        self,
+        run: RunRecord,
+        cont: _Continuation,
+        proposal: ActionProposal,
+        action: ActionRecord,
+        digest_ctx: StepDigestContext,
+    ) -> list[EventSpec]:
+        """Compile, validate and digest ``proposal`` as a 1-step plan, after today's validation
+        passed it (target §6.4.8). On success the plan, ``ir.plan_compiled`` and the validate
+        step's rows are written in one `put_plan` and nothing is returned. On failure nothing
+        is written: the returned ``ir.shadow_failed`` goes into the caller's next write, so the
+        run revision is today's.
+
+        Only the pure IR calls are guarded; a store error propagates. Exception text and
+        findings never reach a payload."""
+        task = self._run_task(run)
+        if task is None:
+            reason = ReasonCode.IR_TASK_UNRESOLVED
+            message = FALLBACK_MESSAGES[reason]
+            payload = {"reason_code": reason, "message": message}
+            return [(RunEventType.IR_SHADOW_FAILED, payload, action.action_id)]
+        try:
+            plan = compile_proposal(proposal, task, plan_id=new_id("plan"))
+        except Exception:  # a shadow error never reaches the live path
+            return [_shadow_failed("compile", action.action_id)]
+        effects = {
+            cid: self._registry.capabilities[cid].effect
+            for cid in task.capabilities
+            if cid in self._registry.capabilities
+        }
+        limits = PlanValidationContext(
+            effects=effects, max_admitted_writes=cont.ctx.budgets.max_admitted_writes
+        )
+        try:
+            if validate_plan(plan, task, limits):
+                return [_shadow_failed("validate", action.action_id)]
+            canonical = plan_digest_input(
+                plan, {SINGLE_STEP_ID: digest_ctx}, run_operation_id=run.logical_operation_id
+            )
+            digest = compute_digest(canonical)
+        except Exception:  # the digest profile is the validate stage's
+            return [_shadow_failed("validate", action.action_id)]
+        # Next sequence after the run's steps; the store's locked check refuses any race.
+        steps = await self._store.list_steps(run.tenant_id, run.run_id)
+        sequence = steps[-1].sequence + 1 if steps else 0
+        now = self._clock()
+        started = start_step(
+            tenant_id=run.tenant_id,
+            run_id=run.run_id,
+            step_id=f"{plan.plan_id}/{SINGLE_STEP_ID}/validate",
+            sequence=sequence,
+            kind=StepKind.VALIDATE,
+            now=now,
+            action_id=action.action_id,
+            input_refs=digest_ctx.evidence,
+        )
+        finished = finish_step(started, sequence=sequence + 1, status=StepStatus.SUCCEEDED, now=now)
+        compiled = {
+            "plan_id": plan.plan_id,
+            "plan_digest": digest,
+            "step_count": len(plan.steps),
+            "task_id": task.task_id,
+            "task_version": task.version,
+            "digest_matches": digest == action.digest,
+        }
+        await self._store.put_plan(
+            run.tenant_id,
+            run.run_id,
+            plan,
+            [(RunEventType.IR_PLAN_COMPILED, compiled, action.action_id), started, finished],
+        )
+        return []
 
     async def record_fallback(self, run: RunRecord, feature: str, reason: ReasonCode) -> RunRecord:
         """Append ``feature.fallback`` in one transaction and return the updated run.

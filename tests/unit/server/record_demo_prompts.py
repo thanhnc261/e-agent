@@ -47,7 +47,9 @@ class _Captured(Exception):
         self.prompt = prompt
 
 
-async def _start_run(_operator: Any, prompt: str, _scope: Any) -> None:
+async def _start_run(
+    _operator: Any, prompt: str, _scope: Any, *, task_kind: str | None = None
+) -> None:
     raise _Captured(prompt)
 
 

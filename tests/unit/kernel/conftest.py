@@ -27,6 +27,7 @@ from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.connection import ConnectionDescriptor, ConnectionOwnership
 from e_agent.contracts.context import Budgets, Principal, TaskContext
 from e_agent.contracts.evidence import EvidenceRef
+from e_agent.contracts.features import Features
 from e_agent.contracts.outcome import OutcomeCheck, OutcomeReport, OutcomeStatus
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
@@ -320,6 +321,7 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
         connections: list[ConnectionDescriptor] | None = None,
         binding_connections: dict[str, tuple[str, ...]] | None = None,
         allow_self_approval: bool = False,
+        features: Features | None = None,
     ) -> Kernel:
         backend, validator, verifier = NotesBackend(), NotesValidator(), NotesVerifier()
         driver = NotesDriver(texts=list(texts or ["standup notes"]))
@@ -364,6 +366,7 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
             clock=clock,
             budgets=budgets,
             allow_self_approval=allow_self_approval,
+            features=features,
         )
         return Kernel(
             coordinator,

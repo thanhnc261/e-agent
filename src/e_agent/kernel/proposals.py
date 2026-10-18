@@ -23,17 +23,20 @@ from e_agent.sdk.ports import (
     DriverInput,
     ValidationInput,
 )
+from e_agent.sdk.store import EventSpec
 
 from .approval import (
     compute_digest,
     digest_input,
     fact_digest,
 )
-from .continuation import ContinuationMixin, _Continuation, _GatewayReader
+from .continuation import _Continuation, _GatewayReader
 from .errors import ErrorCode, KernelError
+from .features import FeaturesMixin
+from .ir import StepDigestContext
 
 
-class ProposalsMixin(ContinuationMixin):
+class ProposalsMixin(FeaturesMixin):
     # ------------------------------------------------------------- proposals
     async def _handle_proposal(
         self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
@@ -57,6 +60,11 @@ class ProposalsMixin(ContinuationMixin):
             else "none"
         )
         evidence = [cont.observations[r].evidence for r in sorted(cont.observations)]
+        fact_digests = {
+            o.evidence.evidence_id: fact_digest(o.data)
+            for o in cont.observations.values()
+            if o.evidence.revision is None
+        }
         canonical = digest_input(
             tenant_id=ctx.tenant_id,
             requester_id=ctx.principal.principal_id,
@@ -72,11 +80,7 @@ class ProposalsMixin(ContinuationMixin):
             rule_bundle_version=validation.rule_bundle_version,
             policy_version=decision.policy_version,
             credential_version=credential_version,
-            fact_digests={
-                o.evidence.evidence_id: fact_digest(o.data)
-                for o in cont.observations.values()
-                if o.evidence.revision is None
-            },
+            fact_digests=fact_digests,
         )
         try:
             action_digest = compute_digest(canonical)
@@ -176,6 +180,21 @@ class ProposalsMixin(ContinuationMixin):
                 {"status": validation.status, "findings": findings_payload},
             ),
         )
+        shadow: list[EventSpec] = []  # execution IR shadow (ADR 0027); `off` adds nothing
+        if self._ir_shadow:
+            step_ctx = StepDigestContext(
+                tenant_id=ctx.tenant_id,
+                requester_id=ctx.principal.principal_id,
+                binding_id=binding.binding_id,
+                connection_version=connection.version,
+                credential_subject=connection.credential_subject(),
+                credential_version=credential_version,
+                evidence=tuple(evidence),
+                fact_digests=fact_digests,
+                rule_bundle_version=validation.rule_bundle_version,
+                policy_version=decision.policy_version,
+            )
+            shadow = await self._shadow_plan(run, cont, proposal, action, step_ctx)
         cont.pending_action_id = action.action_id
         cont.canonical_proposal = canonical
         cont.last_validation = validation
@@ -201,6 +220,7 @@ class ProposalsMixin(ContinuationMixin):
             run.revision,
             checkpoint,
             [
+                *shadow,
                 (
                     RunEventType.APPROVAL_REQUESTED,
                     {

@@ -105,6 +105,7 @@ async def notes_write_run() -> dict[str, Any]:
         BINDINGS,
         CONN,
         CREATE,
+        NOTES_TASK,
         READ,
         TENANT,
         Clock,
@@ -153,7 +154,10 @@ async def notes_write_run() -> dict[str, Any]:
         )
         requester = principal("alice", {"requester"})
         approver = principal("bob", {"approver"})
-        run = await coordinator.start_run(requester, "write standup note", frozenset({CONN}))
+        # The task kind, as the CLI passes it (Task 2c.5): ``off`` ignores it.
+        run = await coordinator.start_run(
+            requester, "write standup note", frozenset({CONN}), task_kind=NOTES_TASK.task_id
+        )
         pres = await coordinator.pending_approval(TENANT, run.run_id)
         run = await coordinator.decide(
             actor=approver,

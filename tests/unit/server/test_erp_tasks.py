@@ -90,3 +90,57 @@ def test_lost_response_reconciles_without_a_second_write(
     result = _run(capsys, "--task", task, "--fault", "lost-response", "--approve", "--reconcile")
     assert result["run"]["state"] == "SUCCEEDED"
     assert result["provider_diagnostics"]["fixture-erp"]["create_calls"] == 1
+
+
+# -- execution IR shadow through the CLI (Task 2c.5, D8) -------------------------------------
+@pytest.fixture
+def shadow_profile(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The fixture profile with ``execution_ir: shadow``; the CLI passes the preset kind."""
+    from e_agent.contracts.features import FeatureMode, Features
+    from e_agent.server import cli
+
+    real = cli.load_profile
+
+    def load(path: Any) -> Any:
+        profile = real(path)
+        return profile.model_copy(update={"features": Features(execution_ir=FeatureMode.SHADOW)})
+
+    monkeypatch.setattr(cli, "load_profile", load)
+
+
+@pytest.mark.parametrize("task", ["draft-po", "amend-rfq", "quotation", "crm-lead"])
+def test_shadow_compiles_each_erp_write_with_the_action_digest(
+    capsys: pytest.CaptureFixture[str], shadow_profile: None, task: str
+) -> None:
+    result = _run(capsys, "--task", task, "--approve")
+    (compiled,) = _payloads(result, "ir.plan_compiled")
+    (requested,) = _payloads(result, "approval.requested")
+    assert compiled["digest_matches"] is True
+    assert compiled["plan_digest"] == requested["digest"]
+    assert (compiled["task_id"], compiled["step_count"]) == (task, 1)
+    assert not _payloads(result, "ir.shadow_failed")
+    assert result["run"]["state"] == "SUCCEEDED"
+    assert result["run"]["task_id"] == task
+    assert result["provider_diagnostics"]["fixture-erp"]["create_calls"] == 1
+
+
+def test_shadow_compiles_only_the_repaired_proposal(
+    capsys: pytest.CaptureFixture[str], shadow_profile: None
+) -> None:
+    result = _run(
+        capsys, "--task", "quotation", "--driver-mode", "invalid-then-repair", "--approve"
+    )
+    assert [p["status"] for p in _payloads(result, "validation.completed")][:2] == ["FAIL", "PASS"]
+    (compiled,) = _payloads(result, "ir.plan_compiled")
+    assert compiled["digest_matches"] is True
+    assert result["run"]["state"] == "SUCCEEDED"
+
+
+def test_shadow_leaves_read_only_answers_alone(
+    capsys: pytest.CaptureFixture[str], shadow_profile: None
+) -> None:
+    """Answers are not write proposals: no approval digest, so no shadow step."""
+    result = _run(capsys, "--task", "late-orders")
+    types = [e["type"] for e in result["events"]]
+    assert not [t for t in types if t.startswith("ir.")]
+    assert result["run"]["state"] == "SUCCEEDED"

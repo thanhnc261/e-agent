@@ -37,7 +37,7 @@ from .continuation import _Continuation as _Continuation
 from .continuation import _GatewayReader as _GatewayReader
 from .dispatch import DispatchMixin
 from .errors import ErrorCode, KernelError
-from .features import FeaturesMixin
+from .features import FeaturesMixin, check_features
 from .gateway import GatewayMixin
 from .proposals import ProposalsMixin
 from .recovery import RecoveryMixin
@@ -85,7 +85,7 @@ class RunCoordinator(
         self._approval_ttl = approval_ttl
         self._allow_self_approval = allow_self_approval
         self._budgets = budgets or Budgets()
-        self._features = features or Features()  # profile toggles (ADR 0027); not read yet
+        self._features = check_features(features or Features())  # profile toggles (ADR 0027)
         self._runs: dict[str, _Continuation] = {}
         self._active_calls: dict[str, asyncio.Task[Any]] = {}
 
@@ -139,10 +139,14 @@ class RunCoordinator(
         *,
         run_id: str | None = None,
         host_context: HostContext | None = None,
+        task_kind: str | None = None,
     ) -> RunRecord:
+        """``task_kind`` names the run's task definition (D8, ADR 0028); in Phase 2 only the
+        CLI passes it. ``off`` ignores it, and the run record is today's."""
         run, cont, events = self._prepare_run(
             principal, task, resource_scope, run_id=run_id, host_context=host_context
         )
+        run = self._with_task(run, task_kind)
         await self._store.create_run(run, events)
         self._runs[run.run_id] = cont
         run = await self._set_run_state(run, RunState.RUNNING)

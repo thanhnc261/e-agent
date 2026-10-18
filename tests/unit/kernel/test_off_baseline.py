@@ -17,7 +17,7 @@ def _golden() -> dict:  # type: ignore[type-arg]
     return json.loads(GOLDEN.read_text("utf-8"))  # type: ignore[no-any-return]
 
 
-async def test_off_baseline_matches_golden() -> None:
+async def test_off_mode_event_stream_matches_baseline() -> None:
     golden = _golden()
     assert tuple(golden) == RUNS
     assert assert_matches(golden, await record_baseline()) == len(RUNS)

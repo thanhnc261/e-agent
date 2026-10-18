@@ -55,7 +55,8 @@ async def _demo(args: argparse.Namespace) -> int:
     # The task kind was checked against the admitted presets at startup.
     preset = rt.registry.task_presets[args.task or profile.driver.task_kind]
     prompt = args.prompt or demo_prompt(preset, profile.driver)
-    run = await rt.coordinator.start_run(rt.operator, prompt, rt.scope)
+    # The kind names the run's task definition (D8, ADR 0028); only the CLI passes it.
+    run = await rt.coordinator.start_run(rt.operator, prompt, rt.scope, task_kind=preset.kind)
 
     say = (lambda _text="": None) if args.json else _print
     presentation: dict[str, Any] | None = None
