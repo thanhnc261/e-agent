@@ -41,7 +41,10 @@
     "tests/replays/**",
     "docs/plans/2026-10-14-phase2-execution-ir.md",
     "harness/state/**",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "src/e_agent/kernel/registry.py",
+    "tests/unit/kernel/test_registry.py",
+    "src/e_agent/server/bootstrap.py"
   ],
   "acceptance": [
     "test_on_tool_set_equals_task_definition, test_on_read_outside_task_definition_refused and test_driver_offers_only_allowed_tools pass",
@@ -52,5 +55,22 @@
   "gate_set": "full",
   "base_commit": "76d9b8a6a1216c36fd7494a4bd4c1a3063db75d7",
   "created_at": "2026-10-18T06:38:57+00:00",
-  "features_digest": "862337d6137025596725890aa60f5fd9cc545c69951c3ceaeb03c125c81c680a"
+  "features_digest": "862337d6137025596725890aa60f5fd9cc545c69951c3ceaeb03c125c81c680a",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/kernel/registry.py",
+      "reason": "2c.2 R-1: refuse at admission a definition capability that tool_specs cannot offer",
+      "at": "2026-10-18T06:39:27+00:00"
+    },
+    {
+      "glob": "tests/unit/kernel/test_registry.py",
+      "reason": "2c.2 R-1 admission test",
+      "at": "2026-10-18T06:39:27+00:00"
+    },
+    {
+      "glob": "src/e_agent/server/bootstrap.py",
+      "reason": "tool_specs lives in bootstrap; 2c.2 R-1 and the allowed set",
+      "at": "2026-10-18T06:39:27+00:00"
+    }
+  ]
 }
