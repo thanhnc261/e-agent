@@ -1,8 +1,8 @@
 """In-memory RunStore for tests and the fixture walking skeleton.
 
-It implements the same atomicity contract as the PostgreSQL adapter (I05):
-each method applies its state change and events together or not at all.
-Not durable; never use it for live runs.
+It implements the same atomicity contract as the PostgreSQL adapter (I05): each method
+applies its state change and events together or not at all, and an action is stored and
+returned as a copy, never a caller's reference (Codex C-3). Not durable; never for live runs.
 """
 
 from __future__ import annotations
@@ -196,7 +196,7 @@ class InMemoryRunStore:
         async with self._lock:
             self._begin(action.tenant_id, action.run_id, events)
             self._check_action_cas(action, expected_revision)
-            self._actions[(action.tenant_id, action.action_id)] = action
+            self._actions[(action.tenant_id, action.action_id)] = action.model_copy(deep=True)
             self._append(action.tenant_id, action.run_id, events)
             return action
 
@@ -220,7 +220,7 @@ class InMemoryRunStore:
             ):
                 raise ConcurrencyConflict("run changed before approval checkpoint")
             state, driver_state = continuation
-            self._actions[(action.tenant_id, action.action_id)] = action
+            self._actions[(action.tenant_id, action.action_id)] = action.model_copy(deep=True)
             self._runs[(run.tenant_id, run.run_id)] = run
             self._continuations[(run.tenant_id, run.run_id)] = (
                 dict(state),
@@ -230,7 +230,7 @@ class InMemoryRunStore:
 
     async def get_action(self, tenant_id: str, action_id: str) -> ActionRecord:
         try:
-            return self._actions[(tenant_id, action_id)]
+            return self._actions[(tenant_id, action_id)].model_copy(deep=True)
         except KeyError:
             raise NotFound(action_id) from None
 
@@ -253,7 +253,7 @@ class InMemoryRunStore:
             if busy:
                 raise ConnectionBusy(action.connection_id)
             self._reservations[key] = action.action_id
-            self._actions[(action.tenant_id, action.action_id)] = action
+            self._actions[(action.tenant_id, action.action_id)] = action.model_copy(deep=True)
             self._append(action.tenant_id, action.run_id, events)
             return action
 
@@ -271,7 +271,7 @@ class InMemoryRunStore:
                 if expected_revision is None:
                     raise ConcurrencyConflict("approval transition requires a revision")
                 self._check_action_cas(action, expected_revision)
-                self._actions[(action.tenant_id, action.action_id)] = action
+                self._actions[(action.tenant_id, action.action_id)] = action.model_copy(deep=True)
             self._approvals[(approval.tenant_id, approval.action_id)].append(approval)
             self._append(approval.tenant_id, approval.run_id, events)
 
@@ -286,7 +286,7 @@ class InMemoryRunStore:
             self._begin(action.tenant_id, action.run_id, events)
             self._check_action_cas(action, expected_revision)
             self._receipts[(action.tenant_id, action.action_id)].append(receipt)
-            self._actions[(action.tenant_id, action.action_id)] = action
+            self._actions[(action.tenant_id, action.action_id)] = action.model_copy(deep=True)
             self._append(action.tenant_id, action.run_id, events)
             return action
 
@@ -303,7 +303,7 @@ class InMemoryRunStore:
             run = self._runs[(tenant_id, outcome.run_id)]
             if action is not None:
                 self._check_action_cas(action, expected_revision)
-                self._actions[(action.tenant_id, action.action_id)] = action
+                self._actions[(action.tenant_id, action.action_id)] = action.model_copy(deep=True)
             self._outcomes[(run.tenant_id, outcome.run_id)].append(outcome)
             self._append(run.tenant_id, outcome.run_id, events)
 
@@ -337,7 +337,8 @@ class InMemoryRunStore:
         return events if limit is None else events[:limit]
 
     async def list_actions(self, tenant_id: str, run_id: str) -> list[ActionRecord]:
-        return [a for (t, _), a in self._actions.items() if t == tenant_id and a.run_id == run_id]
+        actions = [a for (t, _), a in self._actions.items() if (t, a.run_id) == (tenant_id, run_id)]
+        return [a.model_copy(deep=True) for a in actions]
 
     async def list_receipts(self, tenant_id: str, action_id: str) -> list[ExecutionReceipt]:
         return list(self._receipts[(tenant_id, action_id)])

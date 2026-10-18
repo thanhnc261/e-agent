@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from e_agent.contracts.action import ALLOWED_ACTION_TRANSITIONS, ActionRecord, ActionState
 from e_agent.contracts.approval import ApprovalRecord
+from e_agent.contracts.digest import canonicalize
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
@@ -21,11 +24,13 @@ from e_agent.sdk.ports import (
 from e_agent.sdk.store import ConnectionBusy, DuplicateOperation
 
 from .approval import (
+    compute_digest,
     fact_digest,
 )
 from .continuation import _Continuation
 from .errors import ErrorCode, KernelError
-from .ir_on import IrOnMixin
+from .ir import LineageRejected, substitute_lineage
+from .ir_on import IrOnMixin, _fixed
 
 RECEIPT_STEP = {
     ReceiptStatus.COMMITTED: StepStatus.SUCCEEDED,
@@ -33,6 +38,27 @@ RECEIPT_STEP = {
     ReceiptStatus.UNKNOWN: StepStatus.UNKNOWN,
 }
 """How a receipt ends a linked action's dispatch step (execution IR ``on``)."""
+
+ARGUMENTS_CHANGED = "The action no longer matches what its approval bound."
+"""The fixed message of the ``KERNEL-ARGUMENTS-CHANGED`` finding (Codex C-3)."""
+CHANGED_REASON = "arguments changed since approval"
+
+
+def dispatch_input(approved: dict[str, Any], action: ActionRecord) -> dict[str, Any]:
+    """``approved`` (a digest input, `digest_input`) with every field the action carries
+    taken from ``action`` as it will be dispatched."""
+    return {
+        **approved,
+        "tenant_id": action.tenant_id,
+        "logical_operation_id": action.logical_operation_id,
+        "contract_id": action.contract_id,
+        "binding_id": action.binding_id,
+        "connection_id": action.connection_id,
+        "connection_version": str(action.connection_version),
+        "credential_subject": action.credential_subject,
+        "credential_version": action.credential_version,
+        "arguments": action.arguments,
+    }
 
 
 class DispatchMixin(IrOnMixin):
@@ -87,6 +113,10 @@ class DispatchMixin(IrOnMixin):
                     task=run.task, observations=tuple(cont.observations.values()), findings=(stale,)
                 ),
             )
+        # After `_staleness`, the last call that reaches plugin code. A later step is still
+        # PROPOSED here, so a change blocks it; the check below repeats it last (Codex C-3).
+        if later_step and self._arguments_changed(cont, action, approval):
+            return await self._arguments_refused(cont, action)
         revalidated: list[StepRecord] = []  # a first step's pass, stored with its reservation
         if later_step:  # revalidated with its resolved lineage: approved by the plan digest
             action = await self._transition(
@@ -98,9 +128,14 @@ class DispatchMixin(IrOnMixin):
         else:
             revalidated = await self._step_pair(action, StepKind.VALIDATE, StepStatus.SUCCEEDED)
 
+        dispatch_rows = await self._step_start(action, StepKind.DISPATCH, after=revalidated)
         reserved = action.model_copy(
             update={"state": ActionState.RESERVED, "revision": action.revision + 1}
         )
+        # The last operation before the reservation, on every path (`off` included): the
+        # action exactly as it will be dispatched against what the approval bound.
+        if self._arguments_changed(cont, reserved, approval):
+            return await self._arguments_refused(cont, action)
         try:
             action = await self._store.reserve_operation(
                 reserved,
@@ -112,7 +147,7 @@ class DispatchMixin(IrOnMixin):
                         action.action_id,
                     ),
                     *revalidated,
-                    *await self._step_start(action, StepKind.DISPATCH, after=revalidated),
+                    *dispatch_rows,
                 ],
             )
         except ConnectionBusy:
@@ -179,6 +214,58 @@ class DispatchMixin(IrOnMixin):
         # Only the approval call and a resume claim dispatch, so this call may start a plan's
         # next step once this one is verified (Codex C-1); reconciliation and recovery never do.
         return await self._apply_receipt(cont, action, receipt, may_start_next=True)
+
+    @staticmethod
+    def _arguments_changed(
+        cont: _Continuation, action: ActionRecord, approval: ApprovalRecord
+    ) -> bool:
+        """Whether the digest input of ``action`` as it will be dispatched differs from the
+        approved one: a single action's against ``approval.action_digest``, a plan step's
+        against its approved step input with its lineage substituted from the verified
+        values. Anything that cannot be rebuilt counts as changed (fail closed)."""
+        plan = cont.plan
+        try:
+            if (
+                plan is not None
+                and plan.plan_id == action.plan_id
+                and action.step_index is not None
+            ):
+                approved = plan.inputs[action.step_index]
+                expected = {
+                    **approved,
+                    "arguments": substitute_lineage(approved["arguments"], plan.verified),
+                }
+                return canonicalize(dispatch_input(approved, action)) != canonicalize(expected)
+            rebuilt = dispatch_input(cont.canonical_proposal, action)
+            return compute_digest(rebuilt) != approval.action_digest
+        except (LineageRejected, KeyError, IndexError, ValueError):
+            return True
+
+    async def _arguments_refused(self, cont: _Continuation, action: ActionRecord) -> RunRecord:
+        """Stop before the reservation: the action BLOCKED where its state allows it (a later
+        plan step already VALIDATED has no BLOCKED transition and keeps its state), the
+        fixed ``KERNEL-ARGUMENTS-CHANGED`` finding, and the run FAILED STALE."""
+        finding = _fixed("KERNEL-ARGUMENTS-CHANGED", ARGUMENTS_CHANGED)
+        payload = {
+            "status": "STALE",
+            "reason": CHANGED_REASON,
+            "findings": [finding.model_dump(mode="json")],
+        }
+        before: list[Any] = []
+        if ActionState.BLOCKED in ALLOWED_ACTION_TRANSITIONS[action.state]:
+            await self._transition(
+                action,
+                ActionState.BLOCKED,
+                (RunEventType.VALIDATION_COMPLETED, payload),
+                steps=await self._revalidated(action, StepStatus.BLOCKED),
+            )
+        else:
+            before = [(RunEventType.VALIDATION_COMPLETED, payload, action.action_id)]
+        cont.pending_action_id = None
+        run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
+        return await self._set_run_state(
+            run, RunState.FAILED, CHANGED_REASON, code=ReasonCode.STALE, before=before
+        )
 
     async def _block_if_allowed(self, action: ActionRecord, revalidated: list[StepRecord]) -> None:
         """BLOCKED from an approved action, with the passing revalidation rows its refused

@@ -634,3 +634,19 @@ async def test_action_plan_link_refused_for_unknown_plan(store: Any) -> None:
     assert (await store.put_action(ok, 1, [])).plan_id == "plan_1"
     print(f"plan link refusal cases: {cases}")
     assert cases == 4
+
+
+async def test_stored_actions_are_never_aliased(store: Any) -> None:
+    """An action handed to or returned by the store is a copy: changing its nested
+    arguments afterwards changes nothing stored, as Postgres stores JSON (Codex C-3)."""
+    await store.create_run(_run(), [])
+    action = _action().model_copy(update={"arguments": {"text": "hi", "meta": {"v": "a"}}})
+    await store.put_action(action, None, [])
+    action.arguments["meta"]["v"] = "changed after the write"
+    got = await store.get_action("t1", "act_1")
+    assert got.arguments["meta"]["v"] == "a"
+    got.arguments["meta"]["v"] = "changed after the read"
+    (listed,) = await store.list_actions("t1", "run_1")
+    assert listed.arguments["meta"]["v"] == "a"
+    listed.arguments["meta"]["v"] = "changed after the listing"
+    assert (await store.get_action("t1", "act_1")).arguments["meta"]["v"] == "a"

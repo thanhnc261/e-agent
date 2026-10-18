@@ -18,6 +18,7 @@ from e_agent.contracts.common import Record
 from e_agent.contracts.digest import CanonicalizationError, canonicalize
 from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.plan import (
+    LINEAGE_KEY,
     ActionPlan,
     ActionProposal,
     LineageRef,
@@ -417,6 +418,21 @@ def _clone(value: Any) -> Any:
         return {k: _clone(v) for k, v in value.items()}
     if isinstance(value, list):
         return [_clone(v) for v in value]
+    return value
+
+
+def substitute_lineage(value: Any, verified: Mapping[str, Mapping[str, Any]]) -> Any:
+    """Wire-form arguments (`encode_arguments`) with each ``{"$lineage": {"step", "path"}}``
+    replaced by a copy of the value at its pointer in that step's verified values: what an
+    approved step input binds once its lineage is resolved (Codex C-3). Pure; raises
+    `LineageRejected` or ``KeyError`` when a value is missing."""
+    if isinstance(value, Mapping):
+        body = value.get(LINEAGE_KEY)
+        if set(value) == {LINEAGE_KEY} and isinstance(body, Mapping):
+            return _clone(_pointer_get(verified[str(body["step"])], str(body["path"])))
+        return {k: substitute_lineage(v, verified) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return [substitute_lineage(v, verified) for v in value]
     return value
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from functools import partial
 from typing import Any
 
@@ -439,7 +440,9 @@ class ProposalsMixin(IrOnMixin):
                 results.append(
                     await self._timed(
                         cont,
-                        partial(validator.validate, ctx, item),
+                        # Each validator gets its own copy, never kernel-owned state: what it
+                        # changes cannot reach an approved action (PR-08, PR-16, Codex C-3).
+                        partial(validator.validate, ctx, copy.deepcopy(item)),
                         ctx.budgets.provider_timeout_seconds,
                     )
                 )

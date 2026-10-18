@@ -171,6 +171,38 @@ class NotesPlanDriver:
 
 
 @dataclass
+class MetadataDriver:
+    """Reads on ``connection_id``, then proposes one note carrying nested ``metadata`` on
+    ``propose_on``; answers after the verified result (Task 2c.8b)."""
+
+    connection_id: str = CONN
+    propose_on: str = CONN
+    driver_id: str = "notes-metadata-driver"
+    calls: int = 0
+    seen: list[DriverInput] = field(default_factory=list)
+
+    async def advance(self, ctx: TaskContext, step_input: DriverInput) -> DriverStep:
+        self.calls += 1
+        if step_input.action_result is not None:
+            return FinalAnswer(text="done")
+        if not step_input.observations:
+            read = ReadRequest(
+                request_id="r1",
+                contract_id=READ.contract_id,
+                connection_id=self.connection_id,
+                arguments={},
+            )
+            return RequestReads(reads=(read,))
+        return ProposeAction(
+            proposal=ActionProposal(
+                contract_id=CREATE.contract_id,
+                connection_id=self.propose_on,
+                arguments={"text": "standup notes", "metadata": {"value": "approved"}},
+            )
+        )
+
+
+@dataclass
 class NotesBackend:
     revision: int = 1
     notes: dict[str, dict[str, str]] = field(default_factory=dict)
