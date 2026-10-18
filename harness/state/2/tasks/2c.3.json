@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2c-3"
   ],
-  "context_digest": "d2011178a79964de44f2770fb4d050e42ccceba0137a202033bf72911b26ce49",
+  "context_digest": "4adf342f178f1ec0f6cceabedd88886fdd0319557fe3ed0dfac35aa08c221185",
   "allowed_paths": [
     "src/e_agent/adapters/postgres/migrations/0005_action_plans_and_steps.sql",
     "src/e_agent/sdk/store.py",
