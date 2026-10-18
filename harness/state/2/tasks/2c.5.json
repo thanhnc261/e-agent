@@ -1,0 +1,38 @@
+{
+  "id": "2c.5",
+  "phase": "2",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-2c-5"
+  ],
+  "context_digest": "b295290367f15043c97d86487ab4d25560ab2dd37771623a3287c1fa3dcecf50",
+  "allowed_paths": [
+    "src/e_agent/kernel/coordinator.py",
+    "src/e_agent/kernel/proposals.py",
+    "src/e_agent/kernel/features.py",
+    "src/e_agent/kernel/run_loop.py",
+    "src/e_agent/server/cli.py",
+    "tests/unit/kernel/test_execution_ir_shadow.py",
+    "tests/unit/kernel/test_off_baseline.py",
+    "tests/unit/kernel/record_off_baseline.py",
+    "tests/unit/kernel/golden/**",
+    "tests/unit/kernel/conftest.py",
+    "tests/unit/plugins/erp/simulator/test_off_baseline_erp.py",
+    "tests/unit/plugins/erp/simulator/record_off_baseline_erp.py",
+    "tests/unit/plugins/erp/simulator/golden/**",
+    "tests/unit/server/test_erp_tasks.py",
+    "tests/unit/server/test_task_presets.py",
+    "docs/plans/2026-10-14-phase2-execution-ir.md",
+    "harness/state/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "test_shadow_adds_no_driver_calls_reads_or_budget passes",
+    "test_off_mode_event_stream_matches_baseline passes",
+    "full and pg gates pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "53114bed4f9b110555d15448bb7d36561955438e",
+  "created_at": "2026-10-18T04:39:26+00:00",
+  "features_digest": "88a8af101366c8ce49ba9b626e49ea1f8973528bd726b28a01ce4aef4aaf7588"
+}
