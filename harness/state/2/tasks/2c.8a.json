@@ -35,7 +35,10 @@
     "pyproject.toml",
     "docs/plans/2026-10-14-phase2-execution-ir.md",
     "harness/state/**",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "src/e_agent/server/cli.py",
+    "scripts/release_report.py",
+    "tests/unit/scripts/**"
   ],
   "acceptance": [
     "test_readiness_and_evidence_list_defaulted_declarations passes",
@@ -45,5 +48,22 @@
   "gate_set": "full",
   "base_commit": "a7d0e95c780ecd18e0145698ffcc17b7545dbb92",
   "created_at": "2026-10-18T10:29:25+00:00",
-  "features_digest": "be40f5a28be8c3500fc505f1bed797752b25ddae91763b0544a9576ea63fcfbe"
+  "features_digest": "be40f5a28be8c3500fc505f1bed797752b25ddae91763b0544a9576ea63fcfbe",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/server/cli.py",
+      "reason": "2c.8a review R-3: CLI evidence export and the release report list defaulted declarations (ADR 0029 Operations)",
+      "at": "2026-10-18T11:04:46+00:00"
+    },
+    {
+      "glob": "scripts/release_report.py",
+      "reason": "2c.8a review R-3: CLI evidence export and the release report list defaulted declarations (ADR 0029 Operations)",
+      "at": "2026-10-18T11:04:46+00:00"
+    },
+    {
+      "glob": "tests/unit/scripts/**",
+      "reason": "2c.8a review R-3: CLI evidence export and the release report list defaulted declarations (ADR 0029 Operations)",
+      "at": "2026-10-18T11:04:46+00:00"
+    }
+  ]
 }

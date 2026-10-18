@@ -1,0 +1,45 @@
+{
+  "task": "2c.8a",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "No pg gate evidence for the acceptance line 'full and pg gates pass'",
+      "evidence": "harness/state/evidence/gates/2c.8a/; harness/state/2/tasks/2c.8a.json acceptance[2]"
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "Recovery ending a plan INTERRUPTED before a later step reserves leaves that step's validate row STARTED on a terminal run",
+      "evidence": "src/e_agent/kernel/recovery.py:257-269"
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "CLI evidence export and scripts/release_report.py do not list defaulted declarations (ADR 0029 Operations)",
+      "evidence": "src/e_agent/server/cli.py:117,201; scripts/release_report.py"
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Content and authorization fine; the bundle lists the exporting runtime's current admission report, not the one at admission",
+      "evidence": "src/e_agent/kernel/evidence.py:223-234"
+    },
+    {
+      "id": "R-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "All parked items confirmed by mutation; note the 2c.6 C-1 test rename in the handoff",
+      "evidence": "tests/unit/kernel/test_execution_ir_on_hygiene.py"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}
