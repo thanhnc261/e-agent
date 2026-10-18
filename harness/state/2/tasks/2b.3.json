@@ -1,0 +1,30 @@
+{
+  "id": "2b.3",
+  "phase": "2",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-2b-3"
+  ],
+  "context_digest": "cb98122137b5a06321aecfe4e54e870088eef05c4a75e93fc3309f8b93d91ee3",
+  "allowed_paths": [
+    "src/e_agent/server/api.py",
+    "src/e_agent/kernel/evidence.py",
+    "src/e_agent/server/cli.py",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "tests/unit/server/test_api.py",
+    "tests/unit/kernel/test_evidence.py",
+    "docs/plans/2026-10-14-phase2-execution-ir.md",
+    "harness/state/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "test_ready_reports_features, test_evidence_records_features and test_evidence_v1_keys_unchanged pass",
+    "export_openapi.py --check and pnpm --dir ui gen:check report no drift",
+    "full gate and make e2e pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "0030769933888643a92878187e5cc28d796c773f",
+  "created_at": "2026-10-18T01:49:04+00:00",
+  "features_digest": "8c3a0be7e50e47f3e10b17cb5caf79471423ce79a468659d137aeb4df630a68d"
+}
