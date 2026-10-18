@@ -1,7 +1,8 @@
 {
   "task": "2a.2",
-  "changed": "Owner gate G1 recorded (commit 64ca921, 'docs(adr): accept Phase 2 ADRs 0024, 0025, 0027-0029'): ADRs 0024, 0025, 0027, 0028 and 0029 Accepted (owner, 2026-10-18) in each ADR and the index; target 6.4 status says accepted and stays [P] until implemented; owner decisions D6, D7 and D8 confirmed at their defaults in the plan; the plan's Part 2a boxes ticked; roadmap Phase 2 row: ADRs accepted, current part 2b; stale 'Proposed' mentions of ADRs 0025 and 0028 in target 4.x, C6, C8 and C11 updated.",
+  "changed": "Owner gate G1 recorded (commit 64ca921, 'docs(adr): accept Phase 2 ADRs 0024, 0025, 0027-0029'): ADRs 0024, 0025, 0027, 0028 and 0029 Accepted (owner, 2026-10-18) in each ADR and the index; target 6.4 status says accepted and stays [P] until implemented; owner decisions D6, D7 and D8 confirmed at their defaults in the plan; the plan's Part 2a boxes ticked; roadmap Phase 2 row: ADRs accepted, current part 2b; stale 'Proposed' mentions of ADRs 0025 and 0028 in target 4.x, C6, C8 and C11 updated. Claude review: rework (F1 the plan still called the ADRs Proposed; F2 'D0-D7'), fixed in 56995e5 and accepted on re-check.",
   "evidence_refs": [
+    "harness/state/evidence/gates/2a.2/2026-10-18T00-53-39.124227+00-00-full.json",
     "harness/state/evidence/gates/2a.2/2026-10-18T00-51-00.067907+00-00-full.json"
   ],
   "open_items": [
