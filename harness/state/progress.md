@@ -534,3 +534,8 @@
 - changed: harness/state/2/features.json, harness/state/2/handoffs/2c.5a.json, harness/state/2/reviews/2c.5a-r2.json, harness/state/2/reviews/2c.5a.json, harness/state/evidence/gates/2c.5a/2026-10-18T06-34-09.801243+00-00-full.json, harness/state/evidence/gates/2c.5a/2026-10-18T06-35-20.108925+00-00-pg.json
 - next: 2c.6: on mode, single step (re-create its contract; replace the stale 2c.6.json)
 - open: none
+
+## 2026-10-18T07:28:25.091327+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.6
+- changed: harness/state/evidence/gates/2c.6/2026-10-18T07-18-25.934741+00-00-full.json, harness/state/evidence/gates/2c.6/2026-10-18T07-19-39.643994+00-00-pg.json, src/e_agent/kernel/continuation.py, src/e_agent/kernel/coordinator.py, src/e_agent/kernel/ir_on.py, tests/unit/kernel/test_execution_ir_on.py, tests/unit/kernel/test_recovery.py
+- next: test_on_tool_set_equals_task_definition, test_on_read_outside_task_definition_refused and test_driver_offers_only_allowed_tools pass
+- open: none
