@@ -1,15 +1,18 @@
-"""Record the off-mode golden event stream (Phase 2 Task 2b.1, ADR 0027).
+"""Record the off-mode golden event stream of the notes domain (Task 2b.1, ADR 0027).
 
-Two runs on the kernel as it is before any feature lands: the notes-domain write
-run (the domain-neutral fixture in ``conftest.py``) and the ERP draft-po fixture
-run (simulator plugin). Each records the event types in order, the final run
-state and its transitions, and every action's state and approval digest. ``off`` mode must keep this
-stream exactly; ``test_off_baseline.py`` asserts against it.
+One run on the kernel as it was before any Phase 2 feature landed: the
+notes-domain write run (the domain-neutral fixture in ``conftest.py``). It
+records the event types in order, the final run state and its transitions, and
+every action's state and approval digest. ``off`` mode must keep this stream
+exactly; ``test_off_baseline.py`` asserts against it. The ERP draft-po baseline
+lives with the simulator plugin's tests
+(``tests/unit/plugins/erp/simulator/record_off_baseline_erp.py``), because the
+kernel suite imports no plugin (``tests/conformance/test_kernel_tests_neutral.py``).
 
 Ids come from a deterministic source: ``new_id`` draws its hex from
 ``uuid.uuid4()`` in ``e_agent.contracts.common``, which is replaced by a counter
-for each run, so the digest input (``logical_operation_id``, evidence ids) is
-stable. Both runs use the in-memory store on purpose: a store that calls
+for the run, so the digest input (``logical_operation_id``, evidence ids) is
+stable. The run uses the in-memory store on purpose: a store that calls
 ``new_id`` at other points would shift the counter. Generated ids are then
 normalised to ``<prefix>#<ordinal of first appearance>``.
 
@@ -37,7 +40,7 @@ from e_agent.contracts.events import RunEventType
 from e_agent.kernel.memory_store import InMemoryRunStore
 
 GOLDEN = Path(__file__).parent / "golden" / "off_mode_events.json"
-RUNS = ("notes-write", "erp-draft-po")
+RUNS = ("notes-write",)
 _ID = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*?)_([0-9a-f]{32})\b")
 
 
@@ -159,34 +162,8 @@ async def notes_write_run() -> dict[str, Any]:
         return await _summarise(store, TENANT, run, pres.digest)
 
 
-async def erp_draft_po_run() -> dict[str, Any]:
-    """The ERP draft-po demo on the simulator's fixture profile, approved."""
-    from e_agent.plugins.erp.simulator import fixture_profile_path
-    from e_agent.server.bootstrap import build_runtime
-    from e_agent.server.cli import demo_prompt
-    from e_agent.server.profile import load_profile
-
-    with deterministic_ids():
-        profile = load_profile(fixture_profile_path())
-        rt = await build_runtime(profile)
-        preset = rt.registry.task_presets[profile.driver.task_kind]
-        run = await rt.coordinator.start_run(
-            rt.operator, demo_prompt(preset, profile.driver), rt.scope
-        )
-        pres = await rt.coordinator.pending_approval(rt.operator.tenant_id, run.run_id)
-        run = await rt.coordinator.decide(
-            actor=rt.operator,
-            run_id=run.run_id,
-            action_id=pres.action_id,
-            action_digest=pres.digest,
-            expected_run_revision=pres.run_revision,
-            decision=ApprovalDecision.APPROVED,
-        )
-        return await _summarise(rt.store, rt.operator.tenant_id, run, pres.digest)
-
-
 async def record_baseline() -> dict[str, Any]:
-    return {"notes-write": await notes_write_run(), "erp-draft-po": await erp_draft_po_run()}
+    return {"notes-write": await notes_write_run()}
 
 
 def assert_matches(golden: dict[str, Any], actual: dict[str, Any]) -> int:

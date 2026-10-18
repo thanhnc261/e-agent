@@ -1,4 +1,8 @@
-"""Off mode is exactly today's behaviour: the golden stream recorded before Phase 2 (ADR 0027)."""
+"""Off mode is exactly today's behaviour: the notes-domain golden recorded before Phase 2.
+
+ADR 0027. The ERP draft-po golden is asserted by the simulator plugin's tests
+(``tests/unit/plugins/erp/simulator/test_off_baseline_erp.py``).
+"""
 
 from __future__ import annotations
 
