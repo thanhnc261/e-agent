@@ -23,9 +23,10 @@ NO_READ_CONNECTION = "the connection is not available to this run for the capabi
 the same whatever made it unusable, and never a credential, subject or connection state."""
 
 
-class _ConnectionRefused(KernelError):
+class ConnectionRefused(KernelError):
     """`usable` or `resolve` refused a read's connection. Code and message are the original
-    ones, so the kernel's own reads (verifier, revalidation) raise exactly as before; only
+    ones, so the kernel's own reads (verifier, revalidation) raise the same `KernelError`
+    code and message as before (only the class name differs where one is recorded); only
     `_driver_read` turns it into a rejected read."""
 
 
@@ -48,7 +49,7 @@ class GatewayMixin(IrOnMixin):
             raise KnownNoEffectError(OUTSIDE_TASK, "the capability is not in the run's task")
         try:
             return await self._gateway_read(cont, request, count_budget=True)
-        except _ConnectionRefused:
+        except ConnectionRefused:
             raise KnownNoEffectError(UNUSABLE_CONNECTION, NO_READ_CONNECTION) from None
 
     async def _gateway_read(
@@ -63,14 +64,14 @@ class GatewayMixin(IrOnMixin):
         try:
             self._connections.usable(ctx, request.connection_id)
         except KernelError as exc:
-            raise _ConnectionRefused(exc.code, exc.safe_message) from exc
+            raise ConnectionRefused(exc.code, exc.safe_message) from exc
         decision = self._policy.evaluate(ctx, descriptor, request.connection_id)
         if not decision.permitted:
             raise KernelError(ErrorCode.FORBIDDEN, "read not permitted")
         try:
             binding = self._registry.resolve(request.contract_id, request.connection_id)
         except KernelError as exc:
-            raise _ConnectionRefused(exc.code, exc.safe_message) from exc
+            raise ConnectionRefused(exc.code, exc.safe_message) from exc
         obs = await self._timed(
             cont,
             lambda: self._registry.executor_for(binding).read(ctx, binding, request),
