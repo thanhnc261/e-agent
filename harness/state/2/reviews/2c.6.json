@@ -1,0 +1,24 @@
+{
+  "task": "2c.6",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "C-1",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "A resumed bound run whose definition disappeared or changed version got unrestricted tools (allowed None); an excluded read reached the provider and an excluded write reached approval. Fixed: the admitted definition is snapshotted in the continuation and used for the whole run; a bound run without a snapshot gets an empty tool set.",
+      "evidence": "src/e_agent/kernel/ir_on.py; src/e_agent/kernel/continuation.py; tests/unit/kernel/test_execution_ir_on.py test_on_resumed_run_keeps_admitted_tool_set_when_definition_removed, ..._version_changes, test_on_bound_run_without_snapshot_fails_closed"
+    },
+    {
+      "id": "C-2",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "ACCEPTANCE_UNMET recorded no acceptance finding (ADR 0028). Fixed: KERNEL-ACCEPTANCE finding with a fixed message in the terminal batch, live and recovery.",
+      "evidence": "tests/unit/kernel/test_execution_ir_on.py test_on_acceptance_unmet_records_acceptance_finding; tests/unit/kernel/test_recovery.py"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}

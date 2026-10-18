@@ -135,7 +135,8 @@
         "test_model_cannot_mark_plan_verified passes; replay suite and prompt golden pass",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.6/2026-10-18T07-34-29.292677+00-00-full.json"
     },
     {
       "id": "F-2c-7",

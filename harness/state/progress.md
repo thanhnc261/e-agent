@@ -539,3 +539,8 @@
 - changed: harness/state/evidence/gates/2c.6/2026-10-18T07-18-25.934741+00-00-full.json, harness/state/evidence/gates/2c.6/2026-10-18T07-19-39.643994+00-00-pg.json, src/e_agent/kernel/continuation.py, src/e_agent/kernel/coordinator.py, src/e_agent/kernel/ir_on.py, tests/unit/kernel/test_execution_ir_on.py, tests/unit/kernel/test_recovery.py
 - next: test_on_tool_set_equals_task_definition, test_on_read_outside_task_definition_refused and test_driver_offers_only_allowed_tools pass
 - open: none
+
+## 2026-10-18T07:45:38.954436+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.6
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.6.json, harness/state/2/reviews/2c.6-r2.json, harness/state/2/reviews/2c.6.json, harness/state/evidence/gates/2c.6/2026-10-18T07-18-25.934741+00-00-full.json, harness/state/evidence/gates/2c.6/2026-10-18T07-19-39.643994+00-00-pg.json, harness/state/evidence/gates/2c.6/2026-10-18T07-34-29.292677+00-00-full.json, harness/state/evidence/gates/2c.6/2026-10-18T07-35-40.344858+00-00-pg.json
+- next: 2c.7: multi-step plans, approval and dispatch (first commit carries the 2c.6 parked items into the 2c.8 plan section)
+- open: none

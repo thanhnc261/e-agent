@@ -1,0 +1,43 @@
+{
+  "task": "2c.6",
+  "changed": "execution_ir on, single-step plans. DriverInput.allowed_capabilities narrows the driver's tools per run; the gateway refuses a driver read and ir_on refuses a proposal outside the set (verifier host reads stay unnarrowed). The admitted TaskDefinition is snapshotted in the continuation at admission and used for the whole run (tool set, TTL, budgets, plan compile, acceptance); a bound run without a snapshot gets an empty tool set. A validated proposal compiles to a 1-step plan, stored with put_plan; the action carries plan_id/step_index; approval digest and presentation equal off; step records for validate, approval_wait, dispatch and verify. Fallback before the first reservation with fixed codes (an API run falls back once at admission). Run-end acceptance: ReasonCode.ACCEPTANCE_UNMET with a KERNEL-ACCEPTANCE finding, on the live finish and in recovery. Stores refuse an action whose plan_id names no plan of its run. In on, build_runtime refuses startup for a definition capability tool_specs cannot offer. The Coordinator's on-guard is removed. ui-core i18n for the new reason code.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2c.6/2026-10-18T07-34-29.292677+00-00-full.json",
+    "harness/state/evidence/gates/2c.6/2026-10-18T07-35-40.344858+00-00-pg.json"
+  ],
+  "open_items": [
+    "2c.8: step rows for staleness revalidation, approval-wait cancel in recovery and the verifier-missing path; message.final vs the skipped acknowledgement when acceptance is unmet; fold the ACCEPTANCE_UNMET transition events into transitions.py; fail fast for a bound run without a snapshot (review R-2); never merge budgets from the snapshot (review R-1).",
+    "on refuses startup for a profile whose bindings span two connections (answers inherit every connection); kernel routing for answers is later work.",
+    "Codex re-check of 2c.6 after its usage limit resets (18:10), with the 2c.7+ batch.",
+    "Owner: re-pin domain-erp and odoo19 in the local live profile before 2d.2; branch protection.",
+    "Postgres on/shadow/recovery/store tests: 128 passed on 6725018 (controller, HP-6); ui 174 passed."
+  ],
+  "rulings": [
+    {
+      "ruling": "The admitted definition is snapshotted at admission and used for the whole run (Codex C-1, ADR 0028).",
+      "cost_if_wrong": "Continuation grows by one definition."
+    },
+    {
+      "ruling": "In on, startup is refused for a definition capability tool_specs cannot offer (2c.2 R-1).",
+      "cost_if_wrong": "on unusable on multi-connection profiles until kernel routing exists."
+    },
+    {
+      "ruling": "Acceptance stays checked after a pre-reservation fallback when a definition resolved; it fails closed.",
+      "cost_if_wrong": "A fallback run fails ACCEPTANCE_UNMET where off would succeed."
+    },
+    {
+      "ruling": "Recovery runs the same acceptance check as the live finish.",
+      "cost_if_wrong": "None."
+    },
+    {
+      "ruling": "Codex hit its usage limit for the re-review; a Claude reviewer (opus) re-ran Codex's reproductions; Codex re-checks before the phase closes.",
+      "cost_if_wrong": "Rework later."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "pg gate and Postgres tests ran against e_agent_test in e-agent-ledger.",
+      "undo": "None needed."
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "task": "2c.6",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Latent: the snapshot's Budgets lose model_fields_set through the JSON round trip, so merged_budgets must never run on the snapshot (it runs only at admission on the registry object today).",
+      "evidence": "src/e_agent/kernel/ir_on.py merged_budgets; src/e_agent/kernel/continuation.py"
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "A bound run without a snapshot fails closed only at the turn budget (BUDGET_EXHAUSTED), spending model turns; fail fast in 2c.8.",
+      "evidence": "src/e_agent/kernel/ir_on.py _allowed; src/e_agent/kernel/run_loop.py"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}
