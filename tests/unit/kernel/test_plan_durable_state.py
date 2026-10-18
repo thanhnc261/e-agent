@@ -310,3 +310,86 @@ async def test_a_non_terminal_plan_run_always_awaits_something(
     final = await _drain(k, run_id)
     assert (final.state, final.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
     assert k.backend.create_calls == 2
+
+
+# -- 2c.8b review (R-2, R-3) ---------------------------------------------------------------
+async def test_reconciling_a_plan_step_writes_no_continuation(make_kernel: MakeKernel) -> None:
+    """R-2: reconciliation proves an ``on`` plan step committed and queues the resume. It
+    writes no plan state: no continuation save, and no continuation attached to any run
+    update, including the ``VERIFYING`` transition before the step is queued (ADR 0025
+    amendment). The claim then verifies the step and finishes the plan without re-sending."""
+    k = _plan_kernel(make_kernel)
+    _fail_at(k, 1, "timeout")
+    run = await _start(k)
+    run = await _decide(k, run.run_id)
+    assert run.state is RunState.NEEDS_RECONCILIATION
+    writes: list[str] = []
+    save, update = k.store.save_continuation, k.store.update_run
+
+    async def counted_save(*args: Any) -> Any:
+        writes.append("save_continuation")
+        return await save(*args)
+
+    async def counted_update(*args: Any, **kwargs: Any) -> Any:
+        if kwargs.get("continuation") is not None:
+            writes.append("update_run+continuation")
+        return await update(*args, **kwargs)
+
+    k.store.save_continuation, k.store.update_run = counted_save, counted_update
+    run = await k.coordinator.reconcile(k.approver, run.run_id)
+    assert writes == []
+    assert run.state is RunState.VERIFYING and await _pending(k, run.run_id)
+    k.store.save_continuation, k.store.update_run = save, update
+    done = await run_resume_work(k.store, k.coordinator)
+    assert (done.state, done.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
+    assert k.backend.create_calls == 2
+
+
+@pytest.mark.parametrize("authority", ["stop", "unknown"])
+async def test_a_failed_claims_recovery_verifies_a_step_but_never_starts_the_next(
+    make_kernel: MakeKernel, authority: str
+) -> None:
+    """R-3: a three-step plan is [VERIFIED, COMMITTED, unstarted] (the process died before
+    step 2's outcome was stored). Recovery after a failed resume claim (``resume=False``,
+    ``NextStep.STOP``) reads step 2 back inline with a working verifier, and must then fail
+    the run INTERRUPTED: it never starts step 3, so nothing is sent. Only ``START`` starts
+    a step: an authority that is none of the three is refused, never treated as START."""
+    k = _plan_kernel(make_kernel, steps=3)
+    record = k.store.record_outcome
+
+    async def die_before_step_two_outcome(
+        tenant: str, outcome: Any, action: Any, *rest: Any
+    ) -> Any:
+        if action is not None and action.step_index == 1:
+            raise Crash
+        return await record(tenant, outcome, action, *rest)
+
+    k.store.record_outcome = die_before_step_two_outcome
+    run = await _start(k)
+    with pytest.raises(Crash):
+        await _decide(k, run.run_id)
+    k.store.record_outcome = record
+    assert [a.state for a in await _actions(k, run.run_id)] == [
+        ActionState.VERIFIED,
+        ActionState.COMMITTED,
+    ]
+    sent = k.backend.create_calls
+    coordinator = _restart_plan(k)
+    if authority == "unknown":
+        real = coordinator._after_step_verified
+
+        async def unknown(cont: Any, action: Any, *, next_step: Any) -> Any:
+            return await real(cont, action, next_step="unknown")
+
+        coordinator._after_step_verified = unknown  # type: ignore[method-assign]
+        with pytest.raises(AssertionError):
+            await coordinator.recover_run(TENANT, run.run_id, resume=False)
+        assert k.backend.create_calls == sent == 2
+        assert len(await _actions(k, run.run_id)) == 2
+        return
+    final = await coordinator.recover_run(TENANT, run.run_id, resume=False)
+    assert (final.state, final.reason_code) == (RunState.FAILED, ReasonCode.INTERRUPTED)
+    assert final.reason == "plan resume failed before step 3 reserved"
+    assert k.backend.create_calls == sent == 2
+    assert len(await _actions(k, run.run_id)) == 2
+    assert not await _pending(k, run.run_id)

@@ -38,7 +38,7 @@ A 1-step plan is today's proposal.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, assert_never
 
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.approval import ApprovalRecord
@@ -331,7 +331,7 @@ class PlanFlowMixin(ProposalsMixin):
         recorded before a crash) starts the next step as it is. ``QUEUE`` (recovery,
         reconciliation) never sends a write: it queues the resume (`_queue_resume`). ``STOP``
         (after a failed resume claim: at most once) and a process outside ``on`` fail the run
-        ``INTERRUPTED``."""
+        ``INTERRUPTED``. Any other value is refused, never treated as ``START`` (review R-3)."""
         run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
         plan = cont.plan
         if plan is None or not self._ir_on or action.step_index is None:
@@ -345,6 +345,8 @@ class PlanFlowMixin(ProposalsMixin):
             )
         if next_step is NextStep.QUEUE:
             return await self._queue_resume(run, action)
+        if next_step is not NextStep.START:  # never reach the next step's write by default
+            assert_never(next_step)
         plan.current = action.step_index  # the verified action, persisted with its state
         if run.state is not RunState.RUNNING:
             if run.state is not RunState.VERIFYING:

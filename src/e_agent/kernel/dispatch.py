@@ -375,5 +375,12 @@ class DispatchMixin(IrOnMixin):
             return await self._set_run_state(
                 run, RunState.FAILED, "provider rejected the write", code=ReasonCode.PROVIDER_ERROR
             )
-        run = await self._set_run_state(run, RunState.VERIFYING)
+        # A plan step queued for its resume attaches no plan state (ADR 0025 amendment).
+        queued = (
+            next_step is NextStep.QUEUE
+            and self._ir_on
+            and cont.plan is not None
+            and cont.plan.plan_id == action.plan_id
+        )
+        run = await self._set_run_state(run, RunState.VERIFYING, snapshot=not queued)
         return await self._verify(cont, action, receipt, next_step=next_step)
