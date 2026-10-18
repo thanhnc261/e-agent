@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2b-2"
   ],
-  "context_digest": "061060ed4abd8c97ec557b5721b6202c3d148ed72f5a2ed0b3969485c2cbc389",
+  "context_digest": "cb98122137b5a06321aecfe4e54e870088eef05c4a75e93fc3309f8b93d91ee3",
   "allowed_paths": [
     "src/e_agent/contracts/events.py",
     "src/e_agent/contracts/run.py",
