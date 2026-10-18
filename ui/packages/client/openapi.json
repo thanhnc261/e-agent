@@ -645,6 +645,7 @@
           "interrupted",
           "cancelled",
           "acceptance_unmet",
+          "plan_lineage_rejected",
           "ir_task_unresolved",
           "ir_compile_failed",
           "ir_validation_failed"

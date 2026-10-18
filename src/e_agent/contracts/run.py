@@ -44,6 +44,9 @@ class ReasonCode(StrEnum):
     CANCELLED = "cancelled"
     ACCEPTANCE_UNMET = "acceptance_unmet"
     """The run ended without meeting its task definition's acceptance spec (ADR 0028)."""
+    PLAN_LINEAGE_REJECTED = "plan_lineage_rejected"
+    """A plan step's lineage placeholder had no value of its declared type in the earlier
+    step's verified read-back, so the plan stopped before that step reserved (ADR 0025)."""
     # Fallback codes (ADR 0025, ADR 0027): carried only by `feature.fallback` and, for an
     # unresolved task, by `ir.shadow_failed`. They never end a run.
     IR_TASK_UNRESOLVED = "ir_task_unresolved"
@@ -56,8 +59,8 @@ TERMINAL_RUN_STATES = frozenset({RunState.SUCCEEDED, RunState.FAILED, RunState.C
 # Allowed run transitions (ADR 0018). Self-transitions carry a new reason or repair;
 # terminal states are final. Every pair was observed in the kernel, server and conformance
 # suites or is tied to a coordinator call site or crash-recovery rule (MVP design §9) named in
-# its comment. Two pairs are marked "defensive": no current call site reaches them, and they
-# are kept for the recovery rule that marks an effect UNKNOWN regardless of run state. Other
+# its comment. One pair is marked "defensive": no current call site reaches it, and it is
+# kept for the recovery rule that marks an effect UNKNOWN regardless of run state. Other
 # pairs no code path reaches are deliberately absent.
 ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
     RunState.CREATED: frozenset(
@@ -71,8 +74,7 @@ ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
         {
             RunState.WAITING_INPUT,
             RunState.WAITING_APPROVAL,  # approval checkpoint
-            # defensive: no current call site; kept for the recovery rule that marks an effect
-            # UNKNOWN regardless of run state
+            # plan (ADR 0025): a later plan step's receipt is UNKNOWN; the remaining steps wait
             RunState.NEEDS_RECONCILIATION,
             RunState.SUCCEEDED,  # verified structured answer
             RunState.FAILED,

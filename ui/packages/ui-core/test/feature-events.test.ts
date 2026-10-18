@@ -60,4 +60,20 @@ describe("feature and execution-plan events", () => {
       expect(label.trim().length).toBeGreaterThan(0);
     }
   });
+
+  it("labels the plan_lineage_rejected reason code and keeps its terminal events supported", () => {
+    // ADR 0025: a plan step's lineage value was not in the earlier step's verified read-back.
+    const failed = { from: "RUNNING", to: "FAILED", reason: "lineage rejected", reason_code: "plan_lineage_rejected" };
+    const v = reduceRunView(base, {
+      type: "events",
+      events: [ev(1, "run.state_changed", failed), ev(2, "run.terminal", { state: "FAILED", reason_code: "plan_lineage_rejected" })],
+    });
+    expect(v.unsupportedEvents).toBe(0);
+    expect(selectTimeline(v).map((item) => item.supported)).toEqual([true, true]);
+    for (const locale of ["en", "vi"] as const) {
+      const label = translate(locale, "reason.plan_lineage_rejected");
+      expect(label).not.toBe("reason.plan_lineage_rejected");
+      expect(label.trim().length).toBeGreaterThan(0);
+    }
+  });
 });
