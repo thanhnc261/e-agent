@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2c-2"
   ],
-  "context_digest": "6ef8f7fdeda75bd5373ca8b934427cc7362e6308927cb32fd3760f77e19eb5e0",
+  "context_digest": "93b55b8feac3c3bcf7e5b2042bf8975f5ea20e0492cb824763ea15ebc7d82242",
   "allowed_paths": [
     "src/e_agent/plugins/erp/domain/**",
     "src/e_agent/plugins/erp/odoo/e_agent_plugin.json",
