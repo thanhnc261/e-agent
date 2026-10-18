@@ -46,7 +46,9 @@
     "dists/*/pyproject.toml",
     "docs/plans/2026-10-14-phase2-execution-ir.md",
     "harness/state/**",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "src/e_agent/contracts/outcome.py",
+    "src/e_agent/plugins/erp/domain/**"
   ],
   "acceptance": [
     "test_plan_approved_once_dispatches_steps_in_order passes with the VERIFYING to RUNNING pair added in this task",
@@ -57,5 +59,17 @@
   "gate_set": "full",
   "base_commit": "e6849b1b6112c9ffd8de248263e7661abbae1628",
   "created_at": "2026-10-18T07:47:08+00:00",
-  "features_digest": "6ee7546789b37476e32e79de0fcb1a69bde99b0214c4f8987e169926d7ceda15"
+  "features_digest": "6ee7546789b37476e32e79de0fcb1a69bde99b0214c4f8987e169926d7ceda15",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/contracts/outcome.py",
+      "reason": "lineage copies from a verified outcome; verifiers may need to report verified values (ADR 0025)",
+      "at": "2026-10-18T07:47:43+00:00"
+    },
+    {
+      "glob": "src/e_agent/plugins/erp/domain/**",
+      "reason": "lineage copies from a verified outcome; verifiers may need to report verified values (ADR 0025)",
+      "at": "2026-10-18T07:47:44+00:00"
+    }
+  ]
 }
