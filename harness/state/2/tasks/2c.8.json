@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2c-8"
   ],
-  "context_digest": "67a14a4f1b2d1f5f19c386810942349e157884fdd9bdbb04a5a90739d44f0f34",
+  "context_digest": "fe3dbd6efc31e70eafb3ab8ac3324475dc64d306b83c8065ee8a1b0b191232bc",
   "allowed_paths": [
     "src/e_agent/contracts/run.py",
     "src/e_agent/contracts/outcome.py",
@@ -41,7 +41,8 @@
     "pyproject.toml",
     "docs/plans/2026-10-14-phase2-execution-ir.md",
     "harness/state/**",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "src/e_agent/kernel/plan_*.py"
   ],
   "acceptance": [
     "test_no_fallback_after_first_reservation passes",
@@ -52,5 +53,12 @@
   "gate_set": "full",
   "base_commit": "7e9525d1d3ab2ae02affea686a585e5271518712",
   "created_at": "2026-10-18T09:14:09+00:00",
-  "features_digest": "595fcf08022a03b6a9fcce37714d654ba458c1936f8ee5284e3d1c849ba38be8"
+  "features_digest": "595fcf08022a03b6a9fcce37714d654ba458c1936f8ee5284e3d1c849ba38be8",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/kernel/plan_*.py",
+      "reason": "2c.8 resume and reconciliation; plan_flow.py and ir_on.py are above 400 lines against the 500-line gate",
+      "at": "2026-10-18T09:16:47+00:00"
+    }
+  ]
 }

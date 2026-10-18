@@ -207,6 +207,17 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/2c.5a/2026-10-18T06-34-09.801243+00-00-full.json"
+    },
+    {
+      "id": "F-2c-8a",
+      "category": "kernel",
+      "description": "Task 2c.8a: hygiene parked from 2c.2, 2c.6 and 2c.7 (defaulted declarations in readiness and evidence, step rows, acceptance transitions, snapshot fail-fast)",
+      "steps": [
+        "test_readiness_and_evidence_list_defaulted_declarations passes",
+        "test_every_stage_writes_a_step_row and test_bound_run_without_snapshot_fails_fast pass",
+        "full and pg gates pass"
+      ],
+      "passes": false
     }
   ]
 }

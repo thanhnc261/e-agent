@@ -316,20 +316,30 @@ Added 2026-10-18 after the Codex batch review of 2c.2–2c.5 (C-1, C-2), before 
 
 ### Task 2c.8: plan failure semantics
 
+Split on 2026-10-18 (controller ruling, as 2c.5a was): the hygiene items moved to Task 2c.8a, so each diff stays one review unit.
+
 **Files:** `src/e_agent/contracts/run.py` (reason code `PLAN_LINEAGE_REJECTED`; step outcomes keep today's codes, ADR 0025; the run pairs arrive in 2c.7), `src/e_agent/kernel/transitions.py`, `src/e_agent/kernel/dispatch.py`, `src/e_agent/kernel/recovery.py`, `src/e_agent/kernel/evidence.py` (`plan` and `steps` sections), `tests/unit/kernel/test_action_plan_failures.py`, `tests/unit/kernel/test_recovery.py`.
 
 - [ ] Failing tests: `test_no_fallback_after_first_reservation`; `test_step_failure_keeps_verified_steps_and_reports_remainder`; `test_unknown_step_blocks_remaining_steps` (run goes to reconciliation; no replay, ENG-TRUST-5); `test_connection_busy_on_step_two_stops_plan`; `test_lineage_value_outside_verified_outcome_stops_plan`; `test_recovery_resumes_plan_without_replaying_committed_steps`; `test_evidence_lists_plan_and_steps`; `test_unknown_step_not_resent_even_with_provider_key` (re-send stays off in Phase 2, ADR 0029); `test_step_reason_codes_independent_of_plan_length` (a provider error on step 2 classifies like one on a 1-step run).
-- [ ] Also failing, from the 2c.2 review: `test_readiness_and_evidence_list_defaulted_declarations` (R-3: `/health/ready` and the evidence bundle list the admission report's defaulted effect declarations, ADR 0029 Operations); its files are `src/e_agent/server/api.py` and `tests/unit/server/`.
-- [ ] Also, parked from 2c.6: step rows for staleness revalidation, an approval-wait cancel in recovery and the verifier-missing path (`test_every_stage_writes_a_step_row`); one transition helper for the `ACCEPTANCE_UNMET` batch instead of copied events; `message.final` consistent with the skipped acknowledgement when acceptance is unmet; a bound run without a snapshot fails at once rather than at the turn budget (`test_bound_run_without_snapshot_fails_fast`, review R-2); budgets are never merged from the snapshot (`model_fields_set` does not survive the JSON round trip, review R-1).
+- [ ] Resume and reconciliation rules: a resumed step passes every guard the live path applies before a reservation (approval TTL, `step_matches_input`, fact, rule and policy staleness, domain validation of resolved lineage values, lineage only from verified read-back), with a test that a resumed step whose approval expired or whose stored step changed stops before reserving; resume applies only when the latest action is VERIFIED and a later step is unstarted (the 2c.7 `_succeed` guard it replaces); a latest step in UNKNOWN never resumes and goes to reconciliation. A test that already passes at the base is reported as passing, not forced red (PR-29).
 - [ ] Also, carried from 2c.7, where these were interim choices:
   - a lineage rejection ends `PLAN_LINEAGE_REJECTED` rather than `VALIDATION_FAILED` (`test_lineage_value_outside_verified_outcome_stops_plan`);
   - recovery in the middle of a plan resumes it rather than ending it `INTERRUPTED` (`test_recovery_resumes_plan_without_replaying_committed_steps`);
-  - an end-to-end test that the plan write budget counts writes made earlier in the run, once a driver turn may follow a verified write; until then, record why it is unreachable (2c.7 review R2-3).
   An answer step in a multi-step plan stays refused (`KERNEL-PLAN-ANSWER-STEP`); answers are not compiled to plans.
 - [ ] Run `uv run pytest -q tests/unit/kernel/test_action_plan_failures.py tests/unit/kernel/test_recovery.py`; expected: the new tests fail. Recovery reuses the existing supervised sweeper; no new background task or TID251 exemption (ENG-ARCH-7).
 - [ ] Implement.
 - [ ] Run the same command; expected: pass. Run the `pg` gate; expected: pass.
 - [ ] Commit `feat(kernel): action plan partial failure and reconciliation`.
+
+### Task 2c.8a: hygiene parked from 2c.2, 2c.6 and 2c.7
+
+**Files:** `src/e_agent/server/api.py`, `src/e_agent/kernel/evidence.py`, `src/e_agent/kernel/transitions.py`, `src/e_agent/kernel/ir_on.py`, `src/e_agent/kernel/continuation.py`, `src/e_agent/kernel/coordinator.py`, `tests/unit/kernel/`, `tests/unit/server/`.
+
+- [ ] Failing, from the 2c.2 review: `test_readiness_and_evidence_list_defaulted_declarations` (R-3: `/health/ready` and the evidence bundle list the admission report's defaulted effect declarations, ADR 0029 Operations); its files are `src/e_agent/server/api.py` and `tests/unit/server/`.
+- [ ] Parked from 2c.6: step rows for staleness revalidation, an approval-wait cancel in recovery and the verifier-missing path (`test_every_stage_writes_a_step_row`); one transition helper for the `ACCEPTANCE_UNMET` batch instead of copied events; `message.final` consistent with the skipped acknowledgement when acceptance is unmet; a bound run without a snapshot fails at once rather than at the turn budget (`test_bound_run_without_snapshot_fails_fast`, review R-2); budgets are never merged from the snapshot (`model_fields_set` does not survive the JSON round trip, review R-1).
+- [ ] From 2c.7: an end-to-end test that the plan write budget counts writes made earlier in the run, once a driver turn may follow a verified write; until then, record why it is unreachable (2c.7 review R2-3).
+- [ ] Run `uv run pytest -q tests/unit/kernel tests/unit/server`; expected: the new tests fail first, then pass. Run the `pg` gate; expected: pass.
+- [ ] Commit `fix(kernel): parked step rows, acceptance transitions and readiness of defaulted declarations`.
 
 ### Task 2c.9: driver emits IR
 
