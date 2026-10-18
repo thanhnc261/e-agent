@@ -1,0 +1,45 @@
+{
+  "task": "2c.8b",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "An inconclusive inline read-back after a takeover claim lets startup recovery queue a second resume, against the accepted 'at most once'; safe (read only, every guard re-applies); the owner ruled 2026-10-18 to keep the re-drive and amend the ADR",
+      "evidence": "docs/adr/0025-execution-ir.md:47; src/e_agent/kernel/recovery.py:139-141,166; plan_flow.py:341-347"
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "reconcile -> _apply_receipt -> _set_run_state(VERIFYING) attaches the continuation (snapshot=True) before queueing a resume, against the ADR text",
+      "evidence": "src/e_agent/kernel/dispatch.py:379; recovery.py:31,55; continuation.py:306-315"
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Dropping the STOP branch in _after_step_verified (falls through to START, a write) is killed only by server tests; a kernel test is owed and non-START should be rejected explicitly",
+      "evidence": "src/e_agent/kernel/plan_flow.py:341-353"
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The VERIFYING + COMMITTED + no-pending-work window lasts until the next startup recovery; say so in the ADR and the handoff",
+      "evidence": "src/e_agent/kernel/verification.py:93-98,119-125"
+    },
+    {
+      "id": "R-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "C2-1, C2-2 and C-1..C-3 verified clean by mutation",
+      "evidence": "src/e_agent/kernel/coordinator.py:90-91; dispatch.py:137-140"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}
