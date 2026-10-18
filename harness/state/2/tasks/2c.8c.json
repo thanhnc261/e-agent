@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2c-8c"
   ],
-  "context_digest": "6d6e705bbeaf4dfd0d90ec904084a607b0a4ab0c68de56e17966841f38858802",
+  "context_digest": "6f9577338dc55e9fa52573cc7c1aa35ea037be795471efd312ed87d88bd8638f",
   "allowed_paths": [
     "src/e_agent/kernel/gateway.py",
     "src/e_agent/kernel/run_loop.py",

@@ -397,6 +397,14 @@ Added 2026-10-18 (controller ruling): an open item from 2c.8b. A driver read, or
 
 - [ ] Run `eng-verify` levels 1–3 on a clean tree; expected: `full` pass, `pg` and Postgres store conformance pass, `make e2e` pass. Record each result.
 - [ ] Phase review with `eng-review` (reviewer subagent) against this plan and the ENG rules; fix findings as `2.R<n>` tasks.
+- [ ] Before the phase review: Codex accepts its final check of 2c.8b and 2c.8c, and the whole-branch review findings are fixed or ruled.
+- [ ] Regenerate `evals/reports/fixture-release.json` so it carries `defaulted_declarations` (2c.8a). The report stays labelled as fixture evidence, not live qualification (PR-29).
+- [ ] The handoff states these limits plainly:
+  - The plan replay recording is authored, not captured. No live model has been shown to emit a plan (ADR 0010).
+  - The ERP two-step scenario shows lineage only; the simulator echoes the copied value.
+  - A plan run left VERIFYING by an inconclusive verification waits for the next startup recovery.
+  - Step statuses are only in the evidence bundle.
+  - The live profile is to refuse `max_admitted_writes > 1`, so live multi-step writes wait for Phase 5.
 - [ ] Write the handoff with `eng-handoff`: what changed, each verification level with its output, rulings, changes outside the repository, what remains (UI plan approval, live multi-step writes, Phase 3 items) (ENG-DOC-2).
 - [ ] Commit `docs: Phase 2 handoff and roadmap status`.
 
