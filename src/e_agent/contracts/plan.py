@@ -126,6 +126,11 @@ class ActionPlan(Record):
 
     @model_validator(mode="after")
     def _check_structure(self) -> Self:
+        self._check_rules()
+        return self
+
+    def _check_rules(self) -> None:
+        """The plan's structural rules; `plan_to_wire` re-applies them to a built plan."""
         if not self.steps:
             raise ValueError("a plan needs at least one step")
         for step in self.steps:
@@ -150,7 +155,6 @@ class ActionPlan(Record):
                         f"step {step.step_id!r} depends on later step {dependency!r}; "
                         "step order must be a topological order"
                     )
-        return self
 
     def _check_acyclic(self) -> None:
         graph = {step.step_id: step.depends_on for step in self.steps}
@@ -171,7 +175,7 @@ def plan_to_wire(plan: ActionPlan) -> dict[str, Any]:
     For the run stores only; read it back with `plan_from_wire`. The plan's rules are
     re-applied first, so a literal `$lineage` set on a built plan's mutable arguments, or a
     `model_construct`-built plan, cannot come back from the store as a placeholder."""
-    plan._check_structure()
+    plan._check_rules()
     return plan.model_dump(mode="json")
 
 
