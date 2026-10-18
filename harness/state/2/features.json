@@ -193,6 +193,17 @@
         "results recorded in the handoff, labelled live"
       ],
       "passes": false
+    },
+    {
+      "id": "F-2c-5a",
+      "category": "kernel",
+      "description": "Codex batch review fixes: the plan wire form keeps the digest profile, and draft-po acceptance needs a verified zero-shortage answer.",
+      "steps": [
+        "test_plan_to_wire_refuses_a_bytes_lineage_key and the put_plan profile conformance case pass on both stores",
+        "test_draft_po_acceptance_answer_is_zero_shortage and test_answer_condition_reads_the_verifier_check_not_model_arguments pass",
+        "full and pg gates pass; off goldens unchanged"
+      ],
+      "passes": false
     }
   ]
 }
