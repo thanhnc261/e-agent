@@ -231,7 +231,8 @@
         "each new guard is killed by its mutant",
         "full and pg gates pass; Codex accepts"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.8b/2026-10-18T12-51-52.554041+00-00-full.json"
     }
   ]
 }

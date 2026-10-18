@@ -579,3 +579,8 @@
 - changed: src/e_agent/kernel/approval_flow.py, src/e_agent/kernel/continuation.py, src/e_agent/kernel/coordinator.py, src/e_agent/kernel/dispatch.py, src/e_agent/kernel/plan_flow.py, src/e_agent/kernel/recovery.py, src/e_agent/kernel/verification.py, tests/unit/kernel/test_plan_durable_state.py
 - next: the Codex C-1, C-2 and C-3 reproductions are tests that pass
 - open: none
+
+## 2026-10-18T12:54:29.256423+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.8b
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.8b.json, harness/state/2/reviews/2c.8b-r2.json, harness/state/evidence/gates/2c.8b/2026-10-18T12-51-52.554041+00-00-full.json, harness/state/evidence/gates/2c.8b/2026-10-18T12-53-10.204600+00-00-pg.json
+- next: Codex final check of 2c.8b after 23:11; then 2d.1 phase verification
+- open: none
