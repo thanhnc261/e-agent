@@ -48,6 +48,8 @@ export function presentation(
       { rule_id: "PR-001", rule_version: "1", status: "PASS", message: "satisfied", evidence_ids: [] },
       { rule_id: "PR-004", rule_version: "1", status: "PASS", message: "satisfied", evidence_ids: [] },
     ],
+    plan_steps: [],
+    irreversible_steps: [],
     ...overrides,
   };
 }

@@ -49,7 +49,8 @@
     "docs/handoffs/**",
     "src/e_agent/contracts/outcome.py",
     "src/e_agent/plugins/erp/domain/**",
-    "src/e_agent/kernel/plan_flow.py"
+    "src/e_agent/kernel/plan_flow.py",
+    "ui/packages/ui-conformance/src/mock-api.ts"
   ],
   "acceptance": [
     "test_plan_approved_once_dispatches_steps_in_order passes with the VERIFYING to RUNNING pair added in this task",
@@ -76,6 +77,11 @@
       "glob": "src/e_agent/kernel/plan_flow.py",
       "reason": "2c.7 multi-step plan flow; proposals.py and ir_on.py near the 500-line gate",
       "at": "2026-10-18T08:15:56+00:00"
+    },
+    {
+      "glob": "ui/packages/ui-conformance/src/mock-api.ts",
+      "reason": "2c.7 presentation fields plan_steps and irreversible_steps are required in the generated schema; the conformance mock must carry them",
+      "at": "2026-10-18T08:29:18+00:00"
     }
   ]
 }
