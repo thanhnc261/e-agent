@@ -186,7 +186,8 @@
         "phase review findings closed",
         "handoff validates with e-agent-harness handoff"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2d.1/2026-10-18T15-32-03.258128+00-00-full.json"
     },
     {
       "id": "F-2d-2",
