@@ -165,10 +165,10 @@ async def test_one_failing_run_does_not_stop_recovery_of_the_others(
     fresh = restart(k)
     real = fresh._recover_run
 
-    async def flaky(run: Any) -> Any:
+    async def flaky(run: Any, **kw: Any) -> Any:
         if run.run_id == first:
             raise RuntimeError("corrupt continuation")
-        return await real(run)
+        return await real(run, **kw)
 
     fresh._recover_run = flaky  # type: ignore[method-assign]
     with caplog.at_level("WARNING"):
@@ -187,7 +187,7 @@ async def test_cancellation_is_not_swallowed_by_the_per_run_guard(make_kernel: M
     await _crash_two_runs(k)
     fresh = restart(k)
 
-    async def cancelled(run: Any) -> Any:
+    async def cancelled(run: Any, **_kw: Any) -> Any:
         raise asyncio.CancelledError
 
     fresh._recover_run = cancelled  # type: ignore[method-assign]
@@ -574,7 +574,8 @@ async def test_recovery_only_enqueues_one_resume(make_kernel: MakeKernel, point:
     claim = await k.store.claim_work("probe")
     assert claim is not None and claim.kind == "resume" and claim.run_id == run_id
     (first,) = await k.store.list_actions(TENANT, run_id)
-    assert claim.payload == {"action_id": first.action_id}
+    run = await k.store.get_run(TENANT, run_id)  # the key: the step at the run's revision
+    assert claim.payload == {"action_id": first.action_id, "run_revision": str(run.revision)}
     async with k.store.work_scope(claim):
         await k.store.finish_work(claim)
     assert await k.store.claim_work("probe") is None  # exactly one item was queued
@@ -681,21 +682,23 @@ async def test_crash_after_a_later_step_exists_ends_interrupted_before_it_reserv
     assert [s["status"] for s in bundle["plan"]["steps"]] == ["verified", "unstarted"]
 
 
-async def test_racing_recoveries_queue_one_resume(make_kernel: MakeKernel) -> None:
+@pytest.mark.parametrize("point", PLAN_CRASH_POINTS)
+async def test_racing_recoveries_queue_one_resume(make_kernel: MakeKernel, point: str) -> None:
     """Two processes recover the same ledger and the second one passes `has_pending_work`
     before the first one's enqueue is visible (2c.8 review R2-2): the resume item is keyed
-    by the verified step, so exactly one item exists and only one resume can run."""
+    by the step and the run revision it is queued at (Codex C2-2), the same for both
+    processes, so exactly one item exists and only one resume can run."""
     k = _plan_kernel(make_kernel)
-    run_id = await _crash_between_steps(k, "record_outcome")
+    run_id = await _crash_between_steps(k, point)
     [first_pass] = await _restart_plan(k).recover()
-    assert first_pass.state is RunState.VERIFYING
+    assert first_pass.state in {RunState.VERIFYING, RunState.RUNNING}
 
     async def not_visible_yet(*_a: Any) -> bool:
         return False
 
     k.store.has_pending_work = not_visible_yet  # the second process races the first
     [second_pass] = await _restart_plan(k).recover()
-    assert second_pass.state is RunState.VERIFYING
+    assert second_pass.state is first_pass.state
     claim = await k.store.claim_work("probe")
     assert claim is not None and claim.kind == "resume" and claim.run_id == run_id
     async with k.store.work_scope(claim):

@@ -89,7 +89,6 @@ class RunCoordinator(
         self._features = features or Features()  # profile toggles (ADR 0027)
         self._runs: dict[str, _Continuation] = {}
         self._active_calls: dict[str, asyncio.Task[Any]] = {}
-        self._resume_disabled: set[str] = set()
 
     # ------------------------------------------------------------------ runs
     def _prepare_run(

@@ -20,7 +20,7 @@ from e_agent.sdk.ports import (
 )
 from e_agent.sdk.store import EventSpec
 
-from .continuation import _Continuation, _GatewayReader
+from .continuation import NextStep, _Continuation, _GatewayReader
 from .ir_on import IrOnMixin
 
 OUTCOME_STEP = {
@@ -44,20 +44,16 @@ class VerificationMixin(IrOnMixin):
         action: ActionRecord,
         receipt: ExecutionReceipt,
         *,
-        may_start_next: bool,
+        next_step: NextStep,
     ) -> RunRecord:
         """The independent read-back of a committed ``action``. A multi-step plan's step in
-        ``on`` is verified only by a call with ``may_start_next`` (the approval call or a
-        resume claim); reconciliation and recovery queue the fenced resume instead and write
-        no plan state (Codex C-2, option (b)), unless a failed resume disabled it."""
+        ``on`` is verified by the approval call or a resume claim (``NextStep.START``), or by
+        recovery after a failed resume (``STOP``); reconciliation and startup recovery
+        (``QUEUE``) queue the fenced resume instead and write no plan state (Codex C-2,
+        option (b))."""
         ctx = cont.ctx
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
-        if (
-            not may_start_next
-            and self._ir_on
-            and self._plan_step(cont, action)
-            and ctx.run_id not in self._resume_disabled
-        ):
+        if next_step is NextStep.QUEUE and self._ir_on and self._plan_step(cont, action):
             return await self._queue_resume(run, action)
         verifier = self._registry.verifier_for(action.contract_id)
         if verifier is None:  # the verify stage ends UNKNOWN, as an unavailable verifier's
@@ -155,7 +151,7 @@ class VerificationMixin(IrOnMixin):
             )
         if plan is not None and (action.step_index or 0) + 1 < len(plan.step_ids):
             # Steps remain (ADR 0025): the call's own authority decides (Codex C-1).
-            return await self._after_step_verified(cont, action, may_start_next=may_start_next)
+            return await self._after_step_verified(cont, action, next_step=next_step)
         return await self._finish_verified(
             cont, receipt.external_refs, "The approved action was independently verified."
         )

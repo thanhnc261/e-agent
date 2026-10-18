@@ -14,7 +14,7 @@ from e_agent.contracts.run import (
 )
 from e_agent.contracts.step import StepRecord, StepStatus
 
-from .continuation import LOG, _Continuation
+from .continuation import LOG, NextStep, _Continuation
 from .errors import ErrorCode, KernelError
 from .ir_on import IrOnMixin
 
@@ -52,7 +52,7 @@ class RecoveryMixin(IrOnMixin):
         )
         if found is None:
             return await self._store.get_run(operator.tenant_id, run_id)  # stays unresolved
-        return await self._apply_receipt(cont, action, found, may_start_next=False)
+        return await self._apply_receipt(cont, action, found, next_step=NextStep.QUEUE)
 
     async def cancel(self, actor: Principal, run_id: str) -> RunRecord:
         run = await self._store.get_run(actor.tenant_id, run_id)
@@ -112,7 +112,7 @@ class RecoveryMixin(IrOnMixin):
             if await self._store.has_pending_work(run.tenant_id, run.run_id):
                 continue
             try:
-                result = await self._recover_run(run)
+                result = await self._recover_run(run, next_step=NextStep.QUEUE)
             except Exception as exc:  # one bad run must not block the rest of recovery
                 LOG.warning(
                     "startup recovery skipped run %s/%s (%s)",
@@ -136,13 +136,9 @@ class RecoveryMixin(IrOnMixin):
         if run.state in TERMINAL_RUN_STATES:
             return run
         self._runs.pop(run_id, None)  # the in-memory continuation may be mid-mutation
-        if resume:
-            return await self._recover_run(run) or run
-        self._resume_disabled.add(run_id)
-        try:
-            return await self._recover_run(run) or run
-        finally:
-            self._resume_disabled.discard(run_id)
+        # This call's own authority, never shared state (Codex C2-1).
+        next_step = NextStep.QUEUE if resume else NextStep.STOP
+        return await self._recover_run(run, next_step=next_step) or run
 
     async def resume_plan(self, tenant_id: str, run_id: str) -> RunRecord:
         """Executed under a ``resume`` work claim (ADR 0025 amendment). Re-check under the
@@ -167,10 +163,10 @@ class RecoveryMixin(IrOnMixin):
         ]
         if committed:  # recovery left it for this claim to verify (Codex C-2, option (b))
             receipts = await self._store.list_receipts(tenant_id, committed[0].action_id)
-            return await self._verify(cont, committed[0], receipts[-1], may_start_next=True)
+            return await self._verify(cont, committed[0], receipts[-1], next_step=NextStep.START)
         resumed = None
         if latest is not None:  # the claim's authority to start the next step (Codex C-1)
-            resumed = await self._resume_plan(cont, latest, actions, may_start_next=True)
+            resumed = await self._resume_plan(cont, latest, actions, next_step=NextStep.START)
         if resumed is not None:
             return resumed
         return await self.recover_run(tenant_id, run_id, resume=False)
@@ -191,7 +187,9 @@ class RecoveryMixin(IrOnMixin):
         )
         return actions, next((a for a in actions if a.action_id == latest_id), None)
 
-    async def _recover_run(self, run: RunRecord) -> RunRecord | None:
+    async def _recover_run(self, run: RunRecord, *, next_step: NextStep) -> RunRecord | None:
+        """The crash rules for one run; ``next_step`` is ``QUEUE``, or ``STOP`` after a failed
+        resume claim."""
         actions, latest = await self._latest_action(run)
         try:
             cont = await self._load_cont(run.tenant_id, run.run_id)
@@ -213,7 +211,7 @@ class RecoveryMixin(IrOnMixin):
                 started_at=now,
                 finished_at=now,
             )
-            return await self._apply_receipt(cont, action, receipt, may_start_next=False)
+            return await self._apply_receipt(cont, action, receipt, next_step=next_step)
         elif undispatched:
             for action in undispatched:  # a reserved step's open dispatch row ends with it
                 steps = await self._close_open(action, StepStatus.BLOCKED)
@@ -229,7 +227,7 @@ class RecoveryMixin(IrOnMixin):
             )
         elif committed and cont is not None:
             receipts = await self._store.list_receipts(run.tenant_id, committed[0].action_id)
-            return await self._verify(cont, committed[0], receipts[-1], may_start_next=False)
+            return await self._verify(cont, committed[0], receipts[-1], next_step=next_step)
         elif any(a.state is ActionState.UNKNOWN for a in actions):
             return await self._set_run_state(
                 run,
@@ -247,7 +245,7 @@ class RecoveryMixin(IrOnMixin):
             }
         ):
             if cont is not None:  # an `on` plan with a step left queues its resume
-                resumed = await self._resume_plan(cont, latest, actions, may_start_next=False)
+                resumed = await self._resume_plan(cont, latest, actions, next_step=next_step)
                 if resumed is not None:
                     return resumed
                 cont.pending_action_id = None
@@ -268,7 +266,7 @@ class RecoveryMixin(IrOnMixin):
                 step = latest.step_index + 1
                 reason = (
                     f"plan resume failed before step {step} reserved"
-                    if run.run_id in self._resume_disabled
+                    if next_step is NextStep.STOP
                     else f"interrupted before plan step {step} reserved"
                 )
                 closed = await self._close_open(latest, StepStatus.FAILED)  # its validate row

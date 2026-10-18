@@ -7,6 +7,7 @@ Both stores run through `run_store` (ENG-STORE-1).
 """
 
 import asyncio
+import contextlib
 import copy
 from collections.abc import Callable
 from typing import Any
@@ -14,7 +15,9 @@ from typing import Any
 import pytest
 from e_agent.contracts.action import ActionState
 from e_agent.contracts.features import FeatureMode, Features
-from e_agent.contracts.run import ReasonCode, RunState
+from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode, RunState
+from e_agent.kernel.errors import KernelError
+from e_agent.sdk.store import ConcurrencyConflict
 
 from .conftest import (
     NOTES_TASK,
@@ -25,6 +28,9 @@ from .conftest import (
 from .test_action_plan_failures import (
     _actions,
     _decide,
+    _fail_at,
+    _plan_kernel,
+    _start,
     _step_statuses,
 )
 from .test_recovery import PLAN_CRASH_POINTS, Crash, _crash_between_steps, _restart_plan
@@ -160,3 +166,147 @@ def _recovery_plan_kernel(make_kernel: MakeKernel) -> Kernel:
     from .test_recovery import _plan_kernel as recovery_kernel
 
     return recovery_kernel(make_kernel)
+
+
+# -- Codex round 2 (C2-1, C2-2) ------------------------------------------------------------
+async def test_a_resume_disabled_recovery_never_disables_a_concurrent_resume(
+    make_kernel: MakeKernel,
+) -> None:
+    """C2-1: ``recover_run(resume=False)`` for run X is paused mid-call while a fenced resume
+    claim for X runs in the same coordinator. The disabling is the paused call's own, not
+    shared state: the resume proceeds and the plan succeeds, step 1 sent once."""
+    k = _recovery_plan_kernel(make_kernel)
+    run_id = await _crash_between_steps(k, "_after_step_verified")
+    coordinator = _restart_plan(k)
+    await coordinator.recover()  # queues the resume
+    list_actions = k.store.list_actions
+    paused, gate = asyncio.Event(), asyncio.Event()
+
+    async def held(*args: Any) -> Any:
+        if not paused.is_set():
+            paused.set()
+            await gate.wait()
+        return await list_actions(*args)
+
+    k.store.list_actions = held
+    stuck = asyncio.create_task(coordinator.recover_run(TENANT, run_id, resume=False))
+    await paused.wait()
+    done = await run_resume_work(k.store, coordinator)
+    gate.set()
+    with contextlib.suppress(ConcurrencyConflict, KernelError):
+        await stuck  # its view of the run is stale by now: refused, never a write
+    k.store.list_actions = list_actions
+    assert (done.state, done.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
+    assert (await k.store.get_run(TENANT, run_id)).state is RunState.SUCCEEDED
+    assert k.backend.create_calls == 2
+
+
+async def test_a_step_its_claim_left_unverified_is_queued_again(make_kernel: MakeKernel) -> None:
+    """C2-2: step 2's receipt is UNKNOWN; reconciliation proves the effect and queues the
+    resume; the claim cannot verify it (the verifier is down), so the run is VERIFYING with
+    step 2 COMMITTED, as any inconclusive verification leaves a run. Startup recovery must
+    queue a new resume item: the earlier item for the same action is DONE, and a key derived
+    from the action alone made the enqueue a silent no-op, stranding the run. Step 2 is
+    verified, never re-sent."""
+    k = _plan_kernel(make_kernel)
+    _fail_at(k, 1, "timeout")
+    run = await _start(k)
+    run = await _decide(k, run.run_id)
+    assert run.state is RunState.NEEDS_RECONCILIATION
+    verify = k.verifier.verify
+    k.verifier.verify = _verifier_down  # type: ignore[method-assign]
+    run = await k.coordinator.reconcile(k.approver, run.run_id)
+    assert run.state is RunState.VERIFYING and await _pending(k, run.run_id)
+    run = await run_resume_work(k.store, k.coordinator)
+    assert run.state is RunState.VERIFYING  # verification pending (ReasonCode)
+    assert [a.state for a in await _actions(k, run.run_id)] == [
+        ActionState.VERIFIED,
+        ActionState.COMMITTED,
+    ]
+    k.verifier.verify = verify  # type: ignore[method-assign]
+    coordinator = _restart_plan(k)
+    await coordinator.recover()
+    assert await _pending(k, run.run_id)  # not stranded
+    done = await run_resume_work(k.store, coordinator)
+    assert (done.state, done.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
+    assert k.backend.create_calls == 2
+
+
+async def _verifier_down(*_a: Any) -> Any:
+    raise RuntimeError("verifier down")
+
+
+async def _pending(k: Kernel, run_id: str) -> bool:
+    return bool(await k.store.has_pending_work(TENANT, run_id))
+
+
+AWAITING = {RunState.WAITING_APPROVAL, RunState.NEEDS_RECONCILIATION}
+"""Non-terminal states that wait for a person: an approver, or an operator's reconcile."""
+
+
+async def _awaits_something(k: Kernel, run_id: str) -> None:
+    """The liveness invariant of an ``on`` plan run: once startup recovery has run, a run
+    that is not terminal has pending work, a pending approval, or awaits reconciliation."""
+    run = await k.store.get_run(TENANT, run_id)
+    if run.state in TERMINAL_RUN_STATES or run.state in AWAITING:
+        return
+    assert await _pending(k, run_id), (run.state, run.reason)
+
+
+async def _drain(k: Kernel, run_id: str) -> Any:
+    """Run every queued item as the worker would, recovering at startup between them, and
+    check the invariant after each; returns the final run."""
+    for _ in range(10):
+        await _restart_plan(k).recover()
+        await _awaits_something(k, run_id)
+        claim = await k.store.claim_work("drain")
+        if claim is None:
+            break
+        async with k.store.work_scope(claim):
+            await _restart_plan(k).resume_plan(claim.tenant_id, claim.run_id)
+            await k.store.finish_work(claim)
+    return await k.store.get_run(TENANT, run_id)
+
+
+LIVENESS = [
+    *(f"crash:{point}" for point in PLAN_CRASH_POINTS),
+    "verify-down-in-approval-call",
+    "verify-down-in-claim",
+    "reconciled",
+]
+
+
+@pytest.mark.parametrize("scenario", LIVENESS)
+async def test_a_non_terminal_plan_run_always_awaits_something(
+    make_kernel: MakeKernel, scenario: str
+) -> None:
+    """C2-2's invariant over the paths that leave an ``on`` plan run non-terminal: a crash
+    between the steps, a verification left inconclusive in the approval call or in a resume
+    claim, and a reconciled UNKNOWN step. After startup recovery each has pending work, a
+    pending approval or awaits reconciliation; draining the work finishes the plan without
+    re-sending a step."""
+    if scenario.startswith("crash:"):
+        k = _recovery_plan_kernel(make_kernel)
+        run_id = await _crash_between_steps(k, scenario.removeprefix("crash:"))
+    else:
+        k = _plan_kernel(make_kernel)
+        verify = k.verifier.verify
+        if scenario == "verify-down-in-approval-call":
+            k.verifier.verify = _verifier_down  # type: ignore[method-assign]
+        else:
+            _fail_at(k, 1, "timeout")
+        run = await _start(k)
+        run_id = run.run_id
+        run = await _decide(k, run_id)
+        if scenario != "verify-down-in-approval-call":
+            await _awaits_something(k, run_id)  # NEEDS_RECONCILIATION
+            if scenario == "verify-down-in-claim":
+                k.verifier.verify = _verifier_down  # type: ignore[method-assign]
+            await k.coordinator.reconcile(k.approver, run_id)
+            await _awaits_something(k, run_id)
+            if scenario == "verify-down-in-claim":
+                await run_resume_work(k.store, k.coordinator)
+        k.verifier.verify = verify  # type: ignore[method-assign]
+    final = await _drain(k, run_id)
+    assert (final.state, final.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
+    assert k.backend.create_calls == 2

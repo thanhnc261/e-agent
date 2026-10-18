@@ -31,9 +31,9 @@ A 1-step plan is today's proposal.
   step. The worker's claim re-checks the run and continues through
   `_resume_plan` and `_after_step_verified`, so the next step passes every guard of the live
   path before it reserves. The authority to start a later step travels with the call
-  (``may_start_next``, Codex C-1): only the approval call (`decide`) and a resume claim
-  (`resume_plan`) pass it; no coordinator-wide state grants it and no background task is
-  added.
+  (`NextStep`, Codex C-1, C2-1): only the approval call (`decide`) and a resume claim
+  (`resume_plan`) pass ``START``; no coordinator-wide state grants or withholds it and no
+  background task is added.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ from e_agent.contracts.validation import Finding, ValidationResult, ValidationSt
 from e_agent.sdk.ports import DriverInput, PolicyDecision
 
 from .approval import compute_digest, fact_digest
-from .continuation import _Continuation, _PlanState
+from .continuation import NextStep, _Continuation, _PlanState
 from .errors import ErrorCode, KernelError
 from .ir import (
     LINEAGE_MESSAGES,
@@ -323,27 +323,27 @@ class PlanFlowMixin(ProposalsMixin):
 
     # -- dispatch --------------------------------------------------------------------------
     async def _after_step_verified(
-        self, cont: _Continuation, action: ActionRecord, *, may_start_next: bool
+        self, cont: _Continuation, action: ActionRecord, *, next_step: NextStep
     ) -> RunRecord:
-        """Step ``action.step_index`` is VERIFIED and steps remain. With ``may_start_next``
-        (the approval call or a resume claim, never a flag another call can see):
-        ``VERIFYING -> RUNNING`` and the next step; a run re-verified before VERIFYING was
-        recorded records it first, and a run already RUNNING (the pair recorded before a
-        crash) starts the next step as it is. Without it (recovery, reconciliation) it never
-        sends a write: it queues the resume (`_queue_resume`). Outside ``on`` the rest of the
-        plan cannot run, so the run fails ``INTERRUPTED``."""
+        """Step ``action.step_index`` is VERIFIED and steps remain. ``START`` (the approval
+        call or a resume claim): ``VERIFYING -> RUNNING`` and the next step; a run re-verified
+        before VERIFYING was recorded records it first, and a run already RUNNING (the pair
+        recorded before a crash) starts the next step as it is. ``QUEUE`` (recovery,
+        reconciliation) never sends a write: it queues the resume (`_queue_resume`). ``STOP``
+        (after a failed resume claim: at most once) and a process outside ``on`` fail the run
+        ``INTERRUPTED``."""
         run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
         plan = cont.plan
         if plan is None or not self._ir_on or action.step_index is None:
             return await self._set_run_state(
                 run, RunState.FAILED, PLAN_INTERRUPTED, code=ReasonCode.INTERRUPTED
             )
-        if cont.ctx.run_id in self._resume_disabled:  # a failed resume claim: at most once
+        if next_step is NextStep.STOP:  # a failed resume claim: at most once
             reason = f"plan resume failed before step {action.step_index + 2} reserved"
             return await self._set_run_state(
                 run, RunState.FAILED, reason, code=ReasonCode.INTERRUPTED
             )
-        if not may_start_next:
+        if next_step is NextStep.QUEUE:
             return await self._queue_resume(run, action)
         plan.current = action.step_index  # the verified action, persisted with its state
         if run.state is not RunState.RUNNING:
@@ -358,7 +358,7 @@ class PlanFlowMixin(ProposalsMixin):
         latest: ActionRecord,
         actions: list[ActionRecord],
         *,
-        may_start_next: bool,
+        next_step: NextStep,
     ) -> RunRecord | None:
         """Recovery of a plan whose latest action is VERIFIED with a later step unstarted:
         the next step starts through `_after_step_verified`, so it passes every guard of the
@@ -389,19 +389,22 @@ class PlanFlowMixin(ProposalsMixin):
         ):
             return None  # a later step started, or an earlier one is not verified
         cont.pending_action_id = None
-        return await self._after_step_verified(cont, latest, may_start_next=may_start_next)
+        return await self._after_step_verified(cont, latest, next_step=next_step)
 
     async def _queue_resume(self, run: RunRecord, action: ActionRecord) -> RunRecord:
         """Enqueue the one fenced ``resume`` work item for a plan whose step ``action`` is
-        VERIFIED or COMMITTED, keyed by that action as ``expire`` is keyed by its approval,
-        so a repeated recovery queues nothing new (ADR 0025 amendment). The run is left
+        VERIFIED or COMMITTED, keyed by that action and the run revision it is queued at, so
+        a repeated or racing recovery of the same state queues nothing new (ADR 0025
+        amendment), and a run a finished claim left needing another one (a verification it
+        left inconclusive) gets a new item rather than a no-op against the DONE one
+        (Codex C2-2). The run is left
         VERIFYING (or RUNNING), which is what the claim re-checks. It writes no plan state:
         no continuation save and no continuation with the run update, so a delayed recovery
         can never overwrite a fenced worker's newer plan state (Codex C-2, option (b))."""
         run = await self._store.get_run(run.tenant_id, run.run_id)
         if run.state not in {RunState.RUNNING, RunState.VERIFYING}:
             run = await self._set_run_state(run, RunState.VERIFYING, snapshot=False)
-        payload = {"action_id": action.action_id}
+        payload = {"action_id": action.action_id, "run_revision": str(run.revision)}
         await self._store.enqueue_work(
             run.tenant_id, run.run_id, "resume", payload, digest(payload)
         )

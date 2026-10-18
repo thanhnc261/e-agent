@@ -27,7 +27,7 @@ from .approval import (
     compute_digest,
     fact_digest,
 )
-from .continuation import _Continuation
+from .continuation import NextStep, _Continuation
 from .errors import ErrorCode, KernelError
 from .ir import LineageRejected, substitute_lineage
 from .ir_on import IrOnMixin, _fixed
@@ -213,7 +213,7 @@ class DispatchMixin(IrOnMixin):
             )
         # Only the approval call and a resume claim dispatch, so this call may start a plan's
         # next step once this one is verified (Codex C-1); reconciliation and recovery never do.
-        return await self._apply_receipt(cont, action, receipt, may_start_next=True)
+        return await self._apply_receipt(cont, action, receipt, next_step=NextStep.START)
 
     @staticmethod
     def _arguments_changed(
@@ -336,9 +336,9 @@ class DispatchMixin(IrOnMixin):
         action: ActionRecord,
         receipt: ExecutionReceipt,
         *,
-        may_start_next: bool,
+        next_step: NextStep,
     ) -> RunRecord:
-        """Record ``receipt`` and verify a committed write. ``may_start_next`` is the call's
+        """Record ``receipt`` and verify a committed write. ``next_step`` is the call's
         authority to start a plan's next step after this one verifies (`_after_step_verified`)."""
         ctx = cont.ctx
         target = {
@@ -376,4 +376,4 @@ class DispatchMixin(IrOnMixin):
                 run, RunState.FAILED, "provider rejected the write", code=ReasonCode.PROVIDER_ERROR
             )
         run = await self._set_run_state(run, RunState.VERIFYING)
-        return await self._verify(cont, action, receipt, may_start_next=may_start_next)
+        return await self._verify(cont, action, receipt, next_step=next_step)

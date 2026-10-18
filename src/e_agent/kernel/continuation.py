@@ -14,6 +14,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime, timedelta
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 from e_agent.contracts.action import ActionRecord, ActionState
@@ -54,6 +55,19 @@ LOG = logging.getLogger("e_agent.kernel.coordinator")
 
 
 CONTINUATION_SCHEMA = "kernel-continuation-v1"
+
+
+class NextStep(StrEnum):
+    """What a call may do once a multi-step plan's step is verified with steps left: its own
+    authority, passed down the call chain, never state another call can see (Codex C-1,
+    C2-1)."""
+
+    START = "start"
+    """The approval call or a fenced resume claim: start the next step."""
+    QUEUE = "queue"
+    """Reconciliation or startup recovery: queue the fenced resume, never send a write."""
+    STOP = "stop"
+    """Recovery after a failed resume claim: queue nothing; the plan fails closed."""
 
 
 class _PlanState(BaseModel):
@@ -147,8 +161,6 @@ class ContinuationMixin:
     _budgets: Budgets
     _runs: dict[str, _Continuation]
     _active_calls: dict[str, asyncio.Task[Any]]
-    _resume_disabled: set[str]
-    """Runs recovered after a failed ``resume`` claim: they never queue another resume."""
 
     if TYPE_CHECKING:
 
@@ -168,7 +180,7 @@ class ContinuationMixin:
             raise NotImplementedError
 
         async def _after_step_verified(
-            self, cont: _Continuation, action: ActionRecord, *, may_start_next: bool
+            self, cont: _Continuation, action: ActionRecord, *, next_step: NextStep
         ) -> RunRecord:
             raise NotImplementedError
 
@@ -181,7 +193,7 @@ class ContinuationMixin:
             latest: ActionRecord,
             actions: list[ActionRecord],
             *,
-            may_start_next: bool,
+            next_step: NextStep,
         ) -> RunRecord | None:
             raise NotImplementedError
 
@@ -251,7 +263,7 @@ class ContinuationMixin:
             action: ActionRecord,
             receipt: ExecutionReceipt,
             *,
-            may_start_next: bool,
+            next_step: NextStep,
         ) -> RunRecord:
             raise NotImplementedError
 
@@ -261,7 +273,7 @@ class ContinuationMixin:
             action: ActionRecord,
             receipt: ExecutionReceipt,
             *,
-            may_start_next: bool,
+            next_step: NextStep,
         ) -> RunRecord:
             raise NotImplementedError
 
