@@ -1,6 +1,6 @@
 # ADR 0028: Task definitions with acceptance specs as domain-pack resources
 
-Date: 2026-10-14. Status: Proposed. Refines ADRs 0017, 0019; [target architecture](../design/target-architecture.md) §1.3, §6.4.1, §7.2 rule 1, §17 C11.
+Date: 2026-10-14. Status: Accepted (owner, 2026-10-18, gate G1 of the Phase 2 plan). Refines ADRs 0017, 0019; [target architecture](../design/target-architecture.md) §1.3, §6.4.1, §7.2 rule 1, §17 C11.
 
 ## Context
 

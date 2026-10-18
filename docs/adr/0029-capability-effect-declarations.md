@@ -1,6 +1,6 @@
 # ADR 0029: Capability effect declarations: risk, reversibility, idempotency
 
-Date: 2026-10-14. Status: Proposed. Refines ADRs 0002, 0003, 0005; MVP design §9; [target architecture](../design/target-architecture.md) §6.4.2.
+Date: 2026-10-14. Status: Accepted (owner, 2026-10-18, gate G1 of the Phase 2 plan). Refines ADRs 0002, 0003, 0005; MVP design §9; [target architecture](../design/target-architecture.md) §6.4.2.
 
 ## Context
 

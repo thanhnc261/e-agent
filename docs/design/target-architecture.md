@@ -320,7 +320,7 @@ The market evidence is that topology, not framework, dominates cost: about 2.1×
 
 ### 5.2 Run state machine (transition table implemented)
 
-*Merged: the transition table is in MVP §7; ADR 0025 (Proposed) would widen it (ADR 0018, accepted 2026-10-14). The MVP design is authoritative for this part.*
+*Merged: the transition table is in MVP §7; ADR 0025 (accepted 2026-10-18) widens it in Phase 2 (ADR 0018, accepted 2026-10-14). The MVP design is authoritative for this part.*
 
 ```mermaid
 stateDiagram-v2
@@ -548,7 +548,7 @@ Repair limits come from the task definition and the profile (MVP §10 defaults).
 
 ### 6.4 Execution IR [P]
 
-Status: proposed for roadmap Phase 2 ([plan](../plans/2026-10-14-phase2-execution-ir.md)); decided by ADRs [0027](../adr/0027-feature-toggles.md) (toggles), [0028](../adr/0028-task-definitions.md) (task definitions), [0029](../adr/0029-capability-effect-declarations.md) (effect declarations), [0025](../adr/0025-execution-ir.md) (plans, digest, dispatch, failure) and [0024](../adr/0024-plan-approval-model.md) (approval model). Closes DR-01 of the [design principles review](../reviews/2026-10-14-design-principles-review.md) and XA-01 of the [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md).
+Status: designed for roadmap Phase 2 and accepted by the owner on 2026-10-18 (gate G1); `[P]` until implemented ([plan](../plans/2026-10-14-phase2-execution-ir.md)); decided by ADRs [0027](../adr/0027-feature-toggles.md) (toggles), [0028](../adr/0028-task-definitions.md) (task definitions), [0029](../adr/0029-capability-effect-declarations.md) (effect declarations), [0025](../adr/0025-execution-ir.md) (plans, digest, dispatch, failure) and [0024](../adr/0024-plan-approval-model.md) (approval model). Closes DR-01 of the [design principles review](../reviews/2026-10-14-design-principles-review.md) and XA-01 of the [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md).
 
 The execution IR states a run's work in a form the kernel can check. It has three layers: a **task definition** says what the run may do and when it is done; an **action plan** says what the driver proposes to do; **step records** say what happened. Driver output stays a proposal. The kernel compiles, validates, approves, reserves, dispatches and verifies (ENG-TRUST-1, ENG-TRUST-2).
 
@@ -1278,12 +1278,12 @@ Paths are relative to `src/e_agent/`.
 | C3 | Connection-level write admission rule + durable writer lease (TTL > provider timeout) — admission rule merged into MVP §9 (ADR 0020, accepted), lease pending | ADR 0003, 0014; MVP §9 |
 | C4 | API and worker process roles | HLD §4 |
 | C5 | HTTP framework stays FastAPI; revisit trigger | — |
-| C6 | Run transition table; no graph runtime in the kernel; LangGraph only as a driver adapter — table merged into MVP §7 (ADR 0018, accepted); widened by ADR 0025 (Proposed) | ADR 0004; MVP §7 |
+| C6 | Run transition table; no graph runtime in the kernel; LangGraph only as a driver adapter — table merged into MVP §7 (ADR 0018, accepted); widened by ADR 0025 (accepted 2026-10-18) | ADR 0004; MVP §7 |
 | C7 | Swappable-runtime boundary: trust anchor vs ports (§4) | HLD §6 |
-| C8 | Step records and progress ledger as kernel projections; plan updates are proposals; `KERNEL-REPEAT` finding for repeated blocked proposals (§6) — step records and action plans: ADR 0025 (Proposed, §6.4); ledger and `KERNEL-REPEAT` stay Phase 3 | MVP §4, §7 |
+| C8 | Step records and progress ledger as kernel projections; plan updates are proposals; `KERNEL-REPEAT` finding for repeated blocked proposals (§6) — step records and action plans: ADR 0025 (accepted 2026-10-18, §6.4); ledger and `KERNEL-REPEAT` stay Phase 3 | MVP §4, §7 |
 | C9 | ContextAssembler ownership split and context rules (§7) | ADR 0004 |
 | C10 | Memory model, promotion path and `MemoryStore` port (§8) | HLD §7 |
-| C11 | Task definitions with acceptance specs (AR-01) as the unit of specialization; per-task approval TTL; skill and task-definition versions recorded per run (§13) — ADR 0028 (Proposed, §6.4.1) | ADR 0017 |
+| C11 | Task definitions with acceptance specs (AR-01) as the unit of specialization; per-task approval TTL; skill and task-definition versions recorded per run (§13) — ADR 0028 (accepted 2026-10-18, §6.4.1) | ADR 0017 |
 | C12 | MCP as a capability binding type (§10.2) | ADR 0012, 0013 |
 | C13 | Event-triggered runs: service principal, idempotency, approval unchanged; approval reachability: expiry sweeper, approver notification/inbox, scope limited to no-approval tasks until both exist (§11.2) — sweeper merged into MVP §10 (ADR 0019, accepted) | MVP §10, §12; ADR 0017 |
 | C14 | Knowledge service and projection selection when triggered (§9) | HLD §7 |

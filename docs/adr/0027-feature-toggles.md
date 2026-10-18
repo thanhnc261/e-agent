@@ -1,6 +1,6 @@
 # ADR 0027: Feature toggles with shadow comparison and pre-reservation fallback
 
-Date: 2026-10-14. Status: Proposed. Refines roadmap rule 3 and ENG-TOGGLE-1..3; [target architecture](../design/target-architecture.md) §6.4.8.
+Date: 2026-10-14. Status: Accepted (owner, 2026-10-18, gate G1 of the Phase 2 plan). Refines roadmap rule 3 and ENG-TOGGLE-1..3; [target architecture](../design/target-architecture.md) §6.4.8.
 
 ## Context
 

@@ -1,6 +1,6 @@
 # ADR 0025: Execution IR: action plans, lineage, plan digest, step dispatch and partial failure
 
-Date: 2026-10-14. Status: Proposed. Refines ADRs 0003, 0004, 0006, 0014, 0018, 0020; MVP design §7, §9; [target architecture](../design/target-architecture.md) §5.4, §6.4.3–§6.4.7, §17 C8.
+Date: 2026-10-14. Status: Accepted (owner, 2026-10-18, gate G1 of the Phase 2 plan). Refines ADRs 0003, 0004, 0006, 0014, 0018, 0020; MVP design §7, §9; [target architecture](../design/target-architecture.md) §5.4, §6.4.3–§6.4.7, §17 C8.
 
 ## Context
 

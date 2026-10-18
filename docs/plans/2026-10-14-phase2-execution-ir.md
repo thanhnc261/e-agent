@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** Draft 2026-10-14, amended 2026-10-17 after a staleness review against the checkout at the Hygiene phase's close (findings P2R-1 to P2R-19, folded in below). **Approved by the owner 2026-10-18**, with the defaults of decisions D0–D7, after the Hygiene merge (PR #4, `6f7ec70`). Part 2a's documents were drafted on 2026-10-14 from the approved [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) (target §6.4, ADRs 0024, 0025, 0027–0029, threats T20–T22, all Proposed); owner gate G1 still applies.
+**Status:** Draft 2026-10-14, amended 2026-10-17 after a staleness review against the checkout at the Hygiene phase's close (findings P2R-1 to P2R-19, folded in below). **Approved by the owner 2026-10-18**, with the defaults of decisions D0–D7, after the Hygiene merge (PR #4, `6f7ec70`). Gate G1 passed 2026-10-18: the owner accepted ADRs 0024, 0025, 0027, 0028, 0029 and target §6.4 and confirmed D6, D7 and D8 at their defaults. Part 2a's documents were drafted on 2026-10-14 from the approved [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) (target §6.4, ADRs 0024, 0025, 0027–0029, threats T20–T22, all Proposed); owner gate G1 still applies.
 
 **Goal:** the kernel executes a typed execution IR (TaskDefinition → ActionPlan → StepRecord) behind `features.execution_ir: off | shadow | on`, falling back to today's single-action loop before any write is reserved.
 
@@ -95,9 +95,9 @@ All five Phase 2 ADRs were written in `6aaab54` and are Proposed; 2a.1 reconcile
 | D3 | Approval surface for multi-step plans | Phase 2: fixtures, CLI and API only, with the live guard (with D8, a multi-step plan starts only from the CLI; its approval may still come through the API); UI plan approval is an `ag-*` thread with Phase 5 writes |
 | D4 | ADRs 0018 and 0020 (DR-06) | **Done:** accepted 2026-10-14 with 0019, 0021, 0022 |
 | D5 | Evidence bundle | Additive keys (`features`, `plan`, `steps`) under `e-agent-evidence-v1`; existing keys unchanged |
-| D6 | How a run's tool set reaches the driver (amendment 2026-10-17, P2R-3). The API builds one runtime and one driver for every task kind, so a tool set fixed at driver construction cannot differ per run. The alternative is to build a driver per run | `DriverInput.allowed_capabilities` (additive SDK port field, same `sdk_api` minor bump as `ProposePlan`), set by the run loop on every turn; the kernel refuses any read or proposal outside it, and the driver's filter only shapes what the model sees (Task 2c.6; recorded in ADR 0028 by Task 2a.1) |
-| D7 | Per-task `approval_ttl` and budget narrowing (ADR 0028; amendment 2026-10-17, P2R-10). The alternative is to defer both at G1 and keep the global TTL and profile budgets in Phase 2 | Implemented in Phase 2: admission refuses a widening budget (Task 2c.2), and runs use the definition's TTL and narrowed budgets (Task 2c.6) |
-| D8 | How a run names its task definition in Phase 2 (added by Task 2a.1, confirmed at G1). The API does not use the profile's `driver.task_kind`: it is the runtime's one default kind (used to build the scripted driver), so applying it to every free-text API run would bind runs to a definition the requester never chose. The alternative is to add an optional task id to `CreateRun` in Phase 2 | A definition's `task_id` is its preset kind; only the CLI passes it (`start_run` task kind, Task 2c.5); API and UI runs carry free text, resolve no definition, and with `shadow` record `ir.shadow_failed` (`IR_TASK_UNRESOLVED`), with `on` fall back with `IR_TASK_UNRESOLVED`; the `TaskTemplate` projection and a task id on `CreateRun` come after Phase 2 (ADR 0028) |
+| D6 | How a run's tool set reaches the driver (amendment 2026-10-17, P2R-3). The API builds one runtime and one driver for every task kind, so a tool set fixed at driver construction cannot differ per run. The alternative is to build a driver per run | `DriverInput.allowed_capabilities` (additive SDK port field, same `sdk_api` minor bump as `ProposePlan`), set by the run loop on every turn; the kernel refuses any read or proposal outside it, and the driver's filter only shapes what the model sees (Task 2c.6; recorded in ADR 0028 by Task 2a.1) **Confirmed by the owner 2026-10-18 (G1).** |
+| D7 | Per-task `approval_ttl` and budget narrowing (ADR 0028; amendment 2026-10-17, P2R-10). The alternative is to defer both at G1 and keep the global TTL and profile budgets in Phase 2 | Implemented in Phase 2: admission refuses a widening budget (Task 2c.2), and runs use the definition's TTL and narrowed budgets (Task 2c.6) **Confirmed by the owner 2026-10-18 (G1).** |
+| D8 | How a run names its task definition in Phase 2 (added by Task 2a.1, confirmed at G1). The API does not use the profile's `driver.task_kind`: it is the runtime's one default kind (used to build the scripted driver), so applying it to every free-text API run would bind runs to a definition the requester never chose. The alternative is to add an optional task id to `CreateRun` in Phase 2 | A definition's `task_id` is its preset kind; only the CLI passes it (`start_run` task kind, Task 2c.5); API and UI runs carry free text, resolve no definition, and with `shadow` record `ir.shadow_failed` (`IR_TASK_UNRESOLVED`), with `on` fall back with `IR_TASK_UNRESOLVED`; the `TaskTemplate` projection and a task id on `CreateRun` come after Phase 2 (ADR 0028) **Confirmed by the owner 2026-10-18 (G1).** |
 
 ## Toggles and fallback
 
@@ -155,22 +155,22 @@ The documents exist (commit `6aaab54`): target §6.4, threats T20–T22, ADRs 00
 
 **Interfaces:** consumes the five ADRs and §6.4; produces the shapes 2b and 2c implement.
 
-- [ ] Compare each ADR's contract shapes with Tasks 2b.1–2c.9 and amend this plan or the ADR in the same commit where they differ (ENG-PLAN-3). Known differences to settle:
+- [x] Compare each ADR's contract shapes with Tasks 2b.1–2c.9 and amend this plan or the ADR in the same commit where they differ (ENG-PLAN-3). Known differences to settle:
   - ADR 0028 names the run's tool set but not how it reaches a driver built once per runtime. Record this plan's mechanism (Task 2c.6): `DriverInput.allowed_capabilities`, set by the run loop from the admitted definition, with the kernel refusing any read or proposal outside it. It is an additive SDK port change, in the same `sdk_api` minor bump as `ProposePlan` (ADR 0025).
   - Lineage: `LineageRef(step_id, path)` with the one copy-from-verified-outcome rule (§6.4.3), and no `PlannedStep.lineage` field; the plan's tasks use that shape.
   - ADR 0025's gate line and this plan's Gate table name the same sets.
-- [ ] Fix the stale code references (ENG-DOC-1): ADR 0027 `server/profile.py:70-81` (the `Profile` record is now further down), ADR 0028 `bootstrap.py:106-133` (now `tool_specs`, 100-127), and ADR 0029 `adapters/odoo/executor.py:340-347` (now `plugins/erp/odoo/executor.py`). Cite functions rather than line numbers where they can be.
-- [ ] Run `uv run python scripts/repo_move.py check`; expected: no broken links.
-- [ ] Commit `docs(adr): reconcile Phase 2 ADRs with the plan`.
+- [x] Fix the stale code references (ENG-DOC-1): ADR 0027 `server/profile.py:70-81` (the `Profile` record is now further down), ADR 0028 `bootstrap.py:106-133` (now `tool_specs`, 100-127), and ADR 0029 `adapters/odoo/executor.py:340-347` (now `plugins/erp/odoo/executor.py`). Cite functions rather than line numbers where they can be.
+- [x] Run `uv run python scripts/repo_move.py check`; expected: no broken links.
+- [x] Commit `docs(adr): reconcile Phase 2 ADRs with the plan`.
 
 ### Task 2a.2: owner acceptance (gate G1)
 
 **Files:** the five ADRs (status lines), `docs/adr/README.md` (status column), `docs/design/target-architecture.md` (§6.4 tag once accepted), this plan's status line.
 
-- [ ] The owner accepts or amends ADRs 0024, 0025, 0027, 0028, 0029 and §6.4. Record each status as Accepted with the date, or record the amendment and repeat 2a.1 for it.
-- [ ] The owner confirms owner decisions D6, D7 and D8 (or picks an alternative); record the answer in the Owner decisions table.
-- [ ] Run `uv run python scripts/repo_move.py check`; expected: no broken links.
-- [ ] Commit `docs(adr): accept Phase 2 ADRs 0024, 0025, 0027-0029`.
+- [x] The owner accepts or amends ADRs 0024, 0025, 0027, 0028, 0029 and §6.4. Record each status as Accepted with the date, or record the amendment and repeat 2a.1 for it.
+- [x] The owner confirms owner decisions D6, D7 and D8 (or picks an alternative); record the answer in the Owner decisions table.
+- [x] Run `uv run python scripts/repo_move.py check`; expected: no broken links.
+- [x] Commit `docs(adr): accept Phase 2 ADRs 0024, 0025, 0027-0029`.
 
 **Owner gate G1:** 2b starts after 0027 is accepted; 2c starts after 0024, 0025, 0028 and 0029 are accepted.
 
