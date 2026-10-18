@@ -22,7 +22,9 @@
     "src/e_agent/plugins/erp/simulator/fixture_profile.json",
     "docs/plans/2026-10-14-phase2-execution-ir.md",
     "harness/state/**",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "tests/conformance/test_kernel_tests_neutral.py",
+    "tests/unit/plugins/erp/simulator/**"
   ],
   "acceptance": [
     "off_mode_events.json baseline committed before any other change, with deterministic ids, and test_off_baseline_fails_on_empty_golden passes",
@@ -33,5 +35,17 @@
   "gate_set": "full",
   "base_commit": "30f0e01ae2016dd8a1c8c1f535e08a6c54fdde89",
   "created_at": "2026-10-18T00:56:09+00:00",
-  "features_digest": "429b58e61af3b9f1062d66434bfeb6659d9f84b35c51a3bf62f8f49c67f4ff37"
+  "features_digest": "429b58e61af3b9f1062d66434bfeb6659d9f84b35c51a3bf62f8f49c67f4ff37",
+  "scope_changes": [
+    {
+      "glob": "tests/conformance/test_kernel_tests_neutral.py",
+      "reason": "controller finding C-1: the ERP off baseline leaves tests/unit/kernel (neutrality invariant) and a conformance test pins it",
+      "at": "2026-10-18T01:11:17+00:00"
+    },
+    {
+      "glob": "tests/unit/plugins/erp/simulator/**",
+      "reason": "controller finding C-1: the ERP off baseline moves next to the simulator plugin tests",
+      "at": "2026-10-18T01:11:26+00:00"
+    }
+  ]
 }
