@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2c-1"
   ],
-  "context_digest": "cb98122137b5a06321aecfe4e54e870088eef05c4a75e93fc3309f8b93d91ee3",
+  "context_digest": "6ef8f7fdeda75bd5373ca8b934427cc7362e6308927cb32fd3760f77e19eb5e0",
   "allowed_paths": [
     "src/e_agent/contracts/task.py",
     "src/e_agent/contracts/plan.py",
