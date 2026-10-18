@@ -42,11 +42,14 @@ class DispatchMixin(IrOnMixin):
     ) -> RunRecord:
         ctx = cont.ctx
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
+        # A plan step after the first: created PROPOSED by `_start_step`, its validate step
+        # open, approved by the plan digest. Derived from the plan, not the action state.
+        later_step = cont.plan is not None and (action.step_index or 0) > 0
         try:
             stale_reason = await self._staleness(cont, action)
         except TimeoutError:
-            steps = await self._step_finish(action, StepKind.VALIDATE, StepStatus.FAILED)
-            if steps:  # a plan's later step: its open validate row ends with the block
+            if later_step:  # its open validate row ends with the block
+                steps = await self._step_finish(action, StepKind.VALIDATE, StepStatus.FAILED)
                 timeout = {"status": "STALE", "reason": "revalidation deadline"}
                 event = (RunEventType.VALIDATION_COMPLETED, timeout)
                 await self._transition_with_steps(action, ActionState.BLOCKED, event, steps)
@@ -57,7 +60,6 @@ class DispatchMixin(IrOnMixin):
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)  # reads advanced revision
         if stale_reason is None and self._clock() > approval.expires_at:
             stale_reason = "approval expired before dispatch"
-        later_step = action.state is ActionState.PROPOSED  # a plan step after the first
         if stale_reason is not None:
             await self._transition_with_steps(
                 action,

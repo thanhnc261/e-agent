@@ -38,6 +38,11 @@ from .ir import StepDigestContext
 from .ir_on import IrOnMixin
 from .verification import outcome_payload
 
+EVIDENCE_BUNDLE, NO_VALIDATOR_BUNDLE, ERROR_BUNDLE = "kernel-evidence-v1", "none", "error"
+SENTINEL_BUNDLES = frozenset({EVIDENCE_BUNDLE, NO_VALIDATOR_BUNDLE, ERROR_BUNDLE})
+"""The rule bundle versions `_validate` reports when no domain rule ran: incomplete
+evidence, no validator, a validator that raised. None is a real bundle to bind."""
+
 
 class ProposalsMixin(IrOnMixin):
     # ------------------------------------------------------------- proposals
@@ -409,7 +414,7 @@ class ProposalsMixin(IrOnMixin):
                         message="proposal evidence is incomplete",
                     ),
                 ),
-                rule_bundle_version="kernel-evidence-v1",
+                rule_bundle_version=EVIDENCE_BUNDLE,
                 validator_id="kernel",
             )
         validators = self._registry.validators_for(proposal.contract_id)
@@ -424,7 +429,7 @@ class ProposalsMixin(IrOnMixin):
                         message="no validator registered for capability",
                     ),
                 ),
-                rule_bundle_version="none",
+                rule_bundle_version=NO_VALIDATOR_BUNDLE,
                 validator_id="kernel",
             )
         item = ValidationInput(proposal=proposal, observations=tuple(cont.observations.values()))
@@ -450,7 +455,7 @@ class ProposalsMixin(IrOnMixin):
                                 message=type(exc).__name__,
                             ),
                         ),
-                        rule_bundle_version="error",
+                        rule_bundle_version=ERROR_BUNDLE,
                         validator_id=validator.validator_id,
                     )
                 )

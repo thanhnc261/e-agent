@@ -297,6 +297,24 @@ class LineageRejected(ValueError):
         self.kind = kind
 
 
+def step_matches_input(step: PlannedStep, approved: Mapping[str, Any]) -> bool:
+    """Whether a stored plan step is still the step its approved digest input bound: the
+    same contract, connection and expected effects, and the same wire-form arguments
+    (`encode_arguments`, before lineage resolution), compared canonically (2c.7 R-3)."""
+    proposal = step.proposal
+    try:
+        rebuilt = {
+            "contract_id": proposal.contract_id,
+            "connection_id": proposal.connection_id,
+            "expected_effects": list(proposal.expected_effects),
+            "arguments": encode_arguments(proposal.arguments),
+        }
+        bound = {key: approved.get(key) for key in rebuilt}
+        return canonicalize(rebuilt) == canonicalize(bound)
+    except ValueError:  # outside the digest profile: it cannot be the approved step
+        return False
+
+
 def has_placeholders(proposal: ActionProposal) -> bool:
     return any(True for _ in lineage_refs(proposal.arguments))
 

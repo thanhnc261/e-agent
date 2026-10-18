@@ -55,15 +55,18 @@ from .ir import (
     lineage_type_findings,
     plan_digest_input,
     resolve_lineage,
+    step_matches_input,
     validate_plan,
 )
 from .ir_on import OUTSIDE_SET, PLAN_INTERRUPTED, _fixed
-from .proposals import ProposalsMixin
+from .proposals import SENTINEL_BUNDLES, ProposalsMixin
 
 PLAN_UNSUPPORTED = "This run does not execute multi-step plans; propose one action."
 ONE_WRITE = "This run admits one write; propose one action instead of a plan."
 ANSWER_STEP = "A multi-step plan holds write steps only; propose an answer on its own."
 PLAN_ARGS = "The plan's arguments are outside the digest profile."
+UNVALIDATABLE = "A plan step with a lineage placeholder could not be validated; propose again."
+STEP_CHANGED = "A plan step no longer matches the step its approval bound."
 """The fixed messages of the plan refusals (no model text)."""
 
 
@@ -162,7 +165,13 @@ class PlanFlowMixin(ProposalsMixin):
                 wire = proposal.model_copy(
                     update={"arguments": encode_arguments(proposal.arguments)}
                 )
-                rules = (await self._validate(ctx, cont, wire, binding)).rule_bundle_version
+                wire_check = await self._validate(ctx, cont, wire, binding)
+                rules = wire_check.rule_bundle_version
+                if wire_check.status is ValidationStatus.ERROR or (
+                    SENTINEL_BUNDLES & set(rules.split("+"))
+                ):  # no real rule bundle to bind: never a sentinel in a digest
+                    unvalidatable = _fixed("KERNEL-PLAN-STEP-UNVALIDATABLE", UNVALIDATABLE)
+                    return await self._repair_finding(run, cont, (unvalidatable,))
             else:
                 validation = await self._validate(ctx, cont, proposal, binding)
                 if validation.blocks_write:
@@ -331,12 +340,21 @@ class PlanFlowMixin(ProposalsMixin):
         plan = await self._store.get_plan(ctx.tenant_id, state.plan_id)
         step = plan.steps[index]
         state.current = index
+        if step.step_id != state.step_ids[index] or not step_matches_input(
+            step, state.inputs[index]
+        ):  # the stored plan is no longer the approved one: fail closed, never re-approve
+            changed = _fixed("KERNEL-PLAN-STEP-CHANGED", STEP_CHANGED)
+            return await self._plan_stopped(cont, changed, "plan step changed since approval")
         descriptor = self._registry.descriptor(step.proposal.contract_id)
         schema = self._registry.input_schemas.get(descriptor.input_schema_id)
         try:
             arguments, resolved = resolve_lineage(step, state.verified, schema)
         except LineageRejected as exc:
-            return await self._lineage_rejected(cont, exc)
+            rejected = _fixed("KERNEL-PLAN-LINEAGE", LINEAGE_MESSAGES[exc.kind])
+            # VALIDATION_FAILED until Task 2c.8 adds ``PLAN_LINEAGE_REJECTED``.
+            return await self._plan_stopped(
+                cont, rejected, "lineage rejected", ReasonCode.VALIDATION_FAILED
+            )
         approval = await self._plan_approval(cont)
         action = self._plan_action(
             cont, plan, index, arguments, state.inputs[index], approval.action_digest
@@ -356,11 +374,17 @@ class PlanFlowMixin(ProposalsMixin):
         cont.last_action_id = cont.pending_action_id = action.action_id
         return await self._dispatch(cont, action, approval)
 
-    async def _lineage_rejected(self, cont: _Continuation, exc: LineageRejected) -> RunRecord:
-        """A placeholder without a verified value of its declared type stops the plan before
-        the step reserves. The code is VALIDATION_FAILED until Task 2c.8 adds
-        ``PLAN_LINEAGE_REJECTED``; the finding is fixed (no model or provider text)."""
-        finding = _fixed("KERNEL-PLAN-LINEAGE", LINEAGE_MESSAGES[exc.kind])
+    async def _plan_stopped(
+        self,
+        cont: _Continuation,
+        finding: Finding,
+        reason: str,
+        code: ReasonCode = ReasonCode.STALE,
+    ) -> RunRecord:
+        """Stop the plan before a later step's action exists, so before it reserves: the
+        fixed finding in ``validation.completed``, then FAILED. A placeholder without a
+        verified value of its declared type is ``KERNEL-PLAN-LINEAGE``; a stored step that
+        no longer matches its approved input is ``KERNEL-PLAN-STEP-CHANGED`` (STALE)."""
         run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
         run = await self._store.update_run(
             run.model_copy(update={"revision": run.revision + 1}),
@@ -374,9 +398,7 @@ class PlanFlowMixin(ProposalsMixin):
             ],
         )
         cont.pending_action_id = None
-        return await self._set_run_state(
-            run, RunState.FAILED, "lineage rejected", code=ReasonCode.VALIDATION_FAILED
-        )
+        return await self._set_run_state(run, RunState.FAILED, reason, code=code)
 
     async def _plan_approval(self, cont: _Continuation) -> ApprovalRecord:
         """The plan's one approval, recorded on its first step's action."""
