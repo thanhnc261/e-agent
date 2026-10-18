@@ -78,6 +78,8 @@ no longer in ``on``, or a run recovery cannot resume (`PlanFlowMixin._resume_pla
 
 NO_CONNECTION = "The proposed connection is not available to this run for the capability."
 """The fixed message of the ``KERNEL-CONNECTION`` repair finding (2c.9, no model text)."""
+NO_VERIFIER = "No independent verifier is available for the proposed answer."
+"""The fixed message of the ``KERNEL-VERIFIER`` finding (2c.8c review P-1)."""
 
 ACCEPTANCE_MESSAGES = MappingProxyType(
     {
@@ -201,6 +203,19 @@ class IrOnMixin(FeaturesMixin):
         binding for its capability: the fixed ``KERNEL-CONNECTION`` repair finding, never an
         exception that strands the run (2c.9). The kernel never picks another connection."""
         return await self._repair_finding(run, cont, (_fixed("KERNEL-CONNECTION", NO_CONNECTION),))
+
+    async def _no_verifier(self, run: RunRecord) -> RunRecord:
+        """An answer whose capability has no verifier: FAILED ``VERIFICATION_FAILED`` with the
+        fixed ``KERNEL-VERIFIER`` finding in the same write, before any action exists."""
+        finding = _fixed("KERNEL-VERIFIER", NO_VERIFIER).model_dump(mode="json")
+        payload = {"status": "FAIL", "findings": [finding]}
+        return await self._set_run_state(
+            run,
+            RunState.FAILED,
+            "no verifier for answer",
+            code=ReasonCode.VERIFICATION_FAILED,
+            before=[(RunEventType.VALIDATION_COMPLETED, payload, None)],
+        )
 
     def _kept(self, report: OutcomeReport) -> OutcomeReport:
         """The report as the kernel stores it: read-back values only in ``on``, where lineage

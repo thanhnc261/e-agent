@@ -284,10 +284,13 @@ class ProposalsMixin(IrOnMixin):
         """Structured answers: no approval or dispatch; the domain verifier recomputes
         the answer from fresh, independent reads."""
         ctx = cont.ctx
-        connection = self._connections.usable(ctx, proposal.connection_id)
+        try:  # as a write proposal: a repair finding, never an exception (2c.8c)
+            connection = self._connections.usable(ctx, proposal.connection_id)
+        except KernelError:
+            return await self._connection_refused(run, cont)
         verifier = self._registry.verifier_for(proposal.contract_id)
-        if verifier is None:
-            raise KernelError(ErrorCode.DEPENDENCY_UNAVAILABLE, "no verifier for answer")
+        if verifier is None:  # it can never be verified: fail, never claim it (review P-1)
+            return await self._no_verifier(run)
         try:
             action_digest = compute_digest(
                 {"contract_id": proposal.contract_id, "arguments": dict(proposal.arguments)}

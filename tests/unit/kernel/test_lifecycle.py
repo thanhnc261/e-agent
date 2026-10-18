@@ -8,8 +8,9 @@ from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.connection import ConnectionDescriptor, ConnectionOwnership
 from e_agent.contracts.context import Budgets
 from e_agent.contracts.events import RunEventType
-from e_agent.contracts.run import ReasonCode, RunState
+from e_agent.contracts.run import ReasonCode, RunRecord, RunState
 from e_agent.kernel.errors import ErrorCode, KernelError
+from e_agent.kernel.gateway import UNUSABLE_CONNECTION
 
 from .conftest import CONN, TENANT, Kernel, principal
 
@@ -245,20 +246,27 @@ async def test_verification_mismatch_never_reports_verified(make_kernel: MakeKer
     )
 
 
+async def _refused_reads(k: Kernel, run: RunRecord) -> None:
+    """Since 2c.8c a read on a connection the run cannot use is refused to the driver with
+    one fixed code, before any provider call; the driver keeps asking and its budget ends
+    the run FAILED. Before, FORBIDDEN was raised out of the driver turn and the run was
+    left RUNNING until startup recovery."""
+    assert (run.state, run.reason_code) == (RunState.FAILED, ReasonCode.BUDGET_EXHAUSTED)
+    assert k.backend.read_calls == 0 and k.backend.create_calls == 0
+    events = await k.store.list_events(run.tenant_id, run.run_id)
+    codes = {e.payload["code"] for e in events if e.type is RunEventType.READ_REJECTED}
+    assert codes == {UNUSABLE_CONNECTION}
+
+
 async def test_out_of_scope_connection_is_forbidden(make_kernel: MakeKernel) -> None:
     k = make_kernel()
-    with pytest.raises(KernelError) as err:
-        await k.coordinator.start_run(k.requester, "x", frozenset())
-    assert err.value.code is ErrorCode.FORBIDDEN
-    assert k.backend.create_calls == 0
+    await _refused_reads(k, await k.coordinator.start_run(k.requester, "x", frozenset()))
 
 
 async def test_other_tenant_cannot_use_connection(make_kernel: MakeKernel) -> None:
     k = make_kernel()
     intruder = principal("mallory", {"requester"}, tenant="tenant-b")
-    with pytest.raises(KernelError) as err:
-        await k.coordinator.start_run(intruder, "x", k.scope)
-    assert err.value.code is ErrorCode.FORBIDDEN
+    await _refused_reads(k, await k.coordinator.start_run(intruder, "x", k.scope))
 
 
 async def test_user_delegated_connection_only_for_its_owner(make_kernel: MakeKernel) -> None:
@@ -272,9 +280,7 @@ async def test_user_delegated_connection_only_for_its_owner(make_kernel: MakeKer
         provider_subject="carol@notes",
     )
     k = make_kernel(connections=[delegated])
-    with pytest.raises(KernelError) as err:
-        await _start(k)  # alice requests with carol's connection
-    assert err.value.code is ErrorCode.FORBIDDEN
+    await _refused_reads(k, await _start(k))  # alice requests with carol's connection
     carol = principal("carol", {"requester"})
     run = await k.coordinator.start_run(carol, "x", k.scope)
     assert run.state is RunState.WAITING_APPROVAL

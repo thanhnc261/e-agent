@@ -17,6 +17,16 @@ from .ir_on import IrOnMixin
 
 OUTSIDE_TASK = "OUTSIDE_TASK_DEFINITION"
 """Rejection code of a driver read outside the run's tool set (execution IR ``on``, D6)."""
+UNUSABLE_CONNECTION = "CONNECTION_NOT_AVAILABLE"
+NO_READ_CONNECTION = "the connection is not available to this run for the capability"
+"""The fixed code and message of a driver read on a connection the run cannot use (2c.8c):
+the same whatever made it unusable, and never a credential, subject or connection state."""
+
+
+class _ConnectionRefused(KernelError):
+    """`usable` or `resolve` refused a read's connection. Code and message are the original
+    ones, so the kernel's own reads (verifier, revalidation) raise exactly as before; only
+    `_driver_read` turns it into a rejected read."""
 
 
 class GatewayMixin(IrOnMixin):
@@ -27,11 +37,19 @@ class GatewayMixin(IrOnMixin):
         """A read the driver asked for. In ``on`` the kernel refuses a capability outside the
         run's tool set before any provider call; the refusal is a rejected read the driver is
         told about (ADR 0022). Verifier and revalidation reads are the kernel's own and go
-        straight through `_gateway_read`: a verifier may read a host-only capability."""
+        straight through `_gateway_read`: a verifier may read a host-only capability.
+
+        A connection the run cannot use (absent, out of scope, inactive, another user's, or
+        without a binding for the capability) is refused the same way, in every mode, with one
+        fixed message and before any provider call (2c.8c); the driver can recover within its
+        budgets, and the run never leaves its turn on an exception."""
         allowed = self._allowed(run, cont)
         if allowed is not None and request.contract_id not in allowed:
             raise KnownNoEffectError(OUTSIDE_TASK, "the capability is not in the run's task")
-        return await self._gateway_read(cont, request, count_budget=True)
+        try:
+            return await self._gateway_read(cont, request, count_budget=True)
+        except _ConnectionRefused:
+            raise KnownNoEffectError(UNUSABLE_CONNECTION, NO_READ_CONNECTION) from None
 
     async def _gateway_read(
         self, cont: _Continuation, request: ReadRequest, *, count_budget: bool
@@ -42,11 +60,17 @@ class GatewayMixin(IrOnMixin):
         descriptor = self._registry.descriptor(request.contract_id)
         if descriptor.effect is not EffectKind.READ:
             raise KernelError(ErrorCode.INVALID_REQUEST, "write capability requested as a read")
-        self._connections.usable(ctx, request.connection_id)
+        try:
+            self._connections.usable(ctx, request.connection_id)
+        except KernelError as exc:
+            raise _ConnectionRefused(exc.code, exc.safe_message) from exc
         decision = self._policy.evaluate(ctx, descriptor, request.connection_id)
         if not decision.permitted:
             raise KernelError(ErrorCode.FORBIDDEN, "read not permitted")
-        binding = self._registry.resolve(request.contract_id, request.connection_id)
+        try:
+            binding = self._registry.resolve(request.contract_id, request.connection_id)
+        except KernelError as exc:
+            raise _ConnectionRefused(exc.code, exc.safe_message) from exc
         obs = await self._timed(
             cont,
             lambda: self._registry.executor_for(binding).read(ctx, binding, request),

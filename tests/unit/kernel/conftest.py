@@ -90,6 +90,15 @@ NOTES_TASK = TaskDefinition(
 TENANT = "tenant-a"
 CONN = "conn-notes"
 
+# -- an opt-in structured answer (Task 2c.8c): verified by a fresh read of the notes -------
+SUMMARY = CapabilityDescriptor(
+    contract_id="notes.summary.answer.v1",
+    effect=EffectKind.ANSWER,
+    input_schema_id="s",
+    output_schema_id="s",
+)
+"""The notes answer: ``count`` must equal the number of notes a fresh read sees."""
+
 # -- the two-step notes plan (Task 2c.7, ADR 0025): genericity without ERP -----------------
 PIN = CapabilityDescriptor(
     contract_id="notes.note.pin.v1",
@@ -349,6 +358,39 @@ class NotesVerifier:
         )
 
 
+class NotesAnswerVerifier:
+    """Recomputes the notes answer from a fresh, independent read (`make_kernel(with_answer)`)."""
+
+    verifier_id = "notes-answer-verifier"
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def supports(self, contract_id: str) -> bool:
+        return contract_id == SUMMARY.contract_id
+
+    async def verify(
+        self,
+        ctx: TaskContext,
+        action: ActionRecord,
+        receipt: ExecutionReceipt | None,
+        reader: ScopedReader,
+    ) -> OutcomeReport:
+        self.calls += 1
+        obs = await reader.read(READ.contract_id, {})
+        expected, observed = str(obs.data["count"]), str(action.arguments.get("count"))
+        ok = expected == observed
+        return OutcomeReport(
+            run_id=ctx.run_id,
+            action_id=action.action_id,
+            status=OutcomeStatus.VERIFIED if ok else OutcomeStatus.FAILED,
+            checks=(OutcomeCheck(name="count", passed=ok, expected=expected, observed=observed),),
+            verifier_id=self.verifier_id,
+            verifier_version="1",
+            reported_at=utc_now(),
+        )
+
+
 @dataclass
 class NotesDriver:
     texts: list[str]
@@ -444,10 +486,16 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
         driver: Any = None,
         input_schemas: dict[str, dict[str, Any]] | None = None,
         with_pin: bool = False,
+        with_answer: bool = False,
+        answer_verifier: bool = True,
     ) -> Kernel:
         backend, validator, verifier = NotesBackend(), NotesValidator(), NotesVerifier()
         driver = driver or NotesDriver(texts=list(texts or ["standup notes"]))
         capabilities = (READ, CREATE, PIN) if with_pin else (READ, CREATE)
+        verifiers: tuple[Any, ...] = (verifier,)
+        if with_answer:  # the answer needs no binding; its verifier is optional (2c.8c)
+            capabilities = (*capabilities, SUMMARY)
+            verifiers = (verifier, NotesAnswerVerifier()) if answer_verifier else verifiers
         bindings = (*BINDINGS, PIN_BINDING) if with_pin else BINDINGS
         registry = PluginRegistry(binding_connections or {b.binding_id: (CONN,) for b in bindings})
         registry.register(
@@ -462,7 +510,7 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
                 capabilities=capabilities,
                 validators=(validator,),
                 executors=(backend,),
-                verifiers=(verifier,),
+                verifiers=verifiers,
                 task_definitions=(task,),
                 input_schemas=input_schemas or {},
             ),
