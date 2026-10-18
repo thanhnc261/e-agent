@@ -31,7 +31,16 @@ from e_agent.kernel.coordinator import RunCoordinator
 from e_agent.kernel.policy import DefaultPolicy
 from e_agent.sdk.ports import AskClarification, DriverInput, ProposePlan
 
-from .conftest import NOTES_TASK, TENANT, Kernel, NotesDriver, two_step_plan
+from .conftest import (
+    NOTE_INPUT,
+    NOTES_TASK,
+    PLAN_BUDGETS,
+    TENANT,
+    Kernel,
+    NotesDriver,
+    NotesPlanDriver,
+    two_step_plan,
+)
 
 MakeKernel = Callable[..., Kernel]
 ON = Features(execution_ir=FeatureMode.ON)
@@ -86,9 +95,10 @@ def _open(steps: list[StepRecord]) -> set[str]:
     return {step_id for step_id, status in last.items() if status is StepStatus.STARTED}
 
 
-async def _first_action(k: Kernel, run_id: str) -> str:
+async def _proposed(k: Kernel, run_id: str) -> list[str]:
+    """The run's actions in proposal order."""
     events = await k.store.list_events(TENANT, run_id)
-    return next(str(e.action_id) for e in events if e.type is RunEventType.PROPOSAL_CREATED)
+    return [str(e.action_id) for e in events if e.type is RunEventType.PROPOSAL_CREATED]
 
 
 async def _passing(k: Kernel) -> tuple[Any, list[tuple[StepKind, StepStatus]]]:
@@ -137,16 +147,7 @@ async def _reserved_then_crash(k: Kernel) -> tuple[Any, list[tuple[StepKind, Ste
     with pytest.raises(Crash):
         await _decide(k.coordinator, k, run.run_id)
     k.store.put_action = original
-    fresh = RunCoordinator(
-        store=k.store,
-        registry=k.coordinator._registry,
-        connections=k.connections,
-        policy=DefaultPolicy(),
-        driver=NotesDriver(texts=[]),
-        clock=k.clock,
-        features=k.coordinator._features,
-    )
-    (run,) = await fresh.recover()
+    (run,) = await _restart(k).recover()
     assert (run.state, run.reason_code) == (RunState.FAILED, ReasonCode.INTERRUPTED)
     assert k.backend.create_calls == 0
     return run, [*APPROVED, (V, S), (V, OK), (D, S), (D, BLOCKED)]
@@ -160,6 +161,72 @@ async def _no_verifier(k: Kernel) -> tuple[Any, list[tuple[StepKind, StepStatus]
     return run, [*APPROVED, (V, S), (V, OK), (D, S), (D, OK), (VF, S), (VF, UNKNOWN)]
 
 
+def _restart(k: Kernel) -> RunCoordinator:
+    """A new process: same durable store and registry, fresh coordinator and driver."""
+    return RunCoordinator(
+        store=k.store,
+        registry=k.coordinator._registry,
+        connections=k.connections,
+        policy=DefaultPolicy(),
+        driver=NotesDriver(texts=[]),
+        clock=k.clock,
+        features=k.coordinator._features,
+    )
+
+
+async def _worker_lost(*_args: Any) -> Any:
+    raise RuntimeError("worker lost")
+
+
+async def _step_two_interrupted(k: Kernel) -> tuple[Any, list[tuple[StepKind, StepStatus]]]:
+    """The process dies after step 2's action is stored, before it reserves; recovery
+    ends the plan INTERRUPTED and step 2's open validate row ends with it (2c.8a R-2)."""
+    run = await _start(k)
+    original = k.store.put_action
+
+    async def die_at_step_two(action: Any, expected: Any, events: Any) -> Any:
+        stored = await original(action, expected, events)
+        if action.step_index == 1:
+            raise Crash  # stored PROPOSED with its validate row open, then the process dies
+        return stored
+
+    k.store.put_action = die_at_step_two
+    with pytest.raises(Crash):
+        await _decide(k.coordinator, k, run.run_id)
+    k.store.put_action = original
+    (run,) = await _restart(k).recover()
+    assert (run.state, run.reason_code) == (RunState.FAILED, ReasonCode.INTERRUPTED)
+    assert run.reason == "interrupted before plan step 2 reserved"
+    assert k.backend.create_calls == 1
+    return run, [(V, S), (V, FAILED)]
+
+
+async def _resume_failed(k: Kernel) -> tuple[Any, list[tuple[StepKind, StepStatus]]]:
+    """The resume claim stores step 2's action and then fails before it reserves; the
+    worker's crash rules, with resume disabled, end the plan INTERRUPTED (2c.8a R-2)."""
+    run = await _start(k)
+    k.coordinator._after_step_verified = _worker_lost  # type: ignore[method-assign]
+    with pytest.raises(RuntimeError):
+        await _decide(k.coordinator, k, run.run_id)
+    coordinator = _restart(k)
+    (queued,) = await coordinator.recover()
+    assert queued.state is RunState.VERIFYING
+    claim = await k.store.claim_work("worker-test")
+    assert claim is not None and claim.kind == "resume"
+    coordinator._dispatch = _worker_lost  # type: ignore[method-assign]
+    with pytest.raises(RuntimeError):
+        async with k.store.work_scope(claim):
+            await coordinator.resume_plan(TENANT, run.run_id)
+    del coordinator._dispatch
+    async with k.store.work_scope(claim):  # the worker's `_mark_failed`
+        run = await coordinator.recover_run(TENANT, run.run_id, resume=False)
+        await k.store.finish_work(claim)
+    assert (run.state, run.reason_code) == (RunState.FAILED, ReasonCode.INTERRUPTED)
+    assert run.reason == "plan resume failed before step 2 reserved"
+    assert k.backend.create_calls == 1
+    return run, [(V, S), (V, FAILED)]
+
+
 SCENARIOS = {
     "revalidation passes": _passing,
     "revalidation stale": _stale,
@@ -168,16 +235,33 @@ SCENARIOS = {
     "reservation blocked by recovery": _reserved_then_crash,
     "verifier missing": _no_verifier,
 }
+PLAN_SCENARIOS = {
+    "plan step interrupted before it reserved": _step_two_interrupted,
+    "plan resume failed before the step reserved": _resume_failed,
+}
+"""Two-step plans, whose subject is step 2's action; `off` cannot run a plan at all."""
 
 
-@pytest.mark.parametrize("scenario", SCENARIOS)
+@pytest.mark.parametrize("scenario", [*SCENARIOS, *PLAN_SCENARIOS])
 async def test_every_stage_writes_a_step_row(make_kernel: MakeKernel, scenario: str) -> None:
-    """The first action's rows end with the stage named by the scenario, and a finished run
-    leaves no step row open (2c.6 parked items)."""
-    k = make_kernel(["first", "second"], features=ON)
-    run, expected = await SCENARIOS[scenario](k)
+    """The subject action's rows end with the stage named by the scenario, and a finished
+    run leaves no step row open (2c.6 parked items, 2c.8a review R-2). The subject is the
+    first action, or a plan's step 2."""
+    if scenario in PLAN_SCENARIOS:
+        k = make_kernel(
+            features=ON,
+            budgets=PLAN_BUDGETS,
+            driver=NotesPlanDriver(),
+            input_schemas={"c": NOTE_INPUT, "p": NOTE_INPUT},
+        )
+        run, expected = await PLAN_SCENARIOS[scenario](k)
+        subject = (await _proposed(k, run.run_id))[1]
+    else:
+        k = make_kernel(["first", "second"], features=ON)
+        run, expected = await SCENARIOS[scenario](k)
+        subject = (await _proposed(k, run.run_id))[0]
     rows = await _rows(k, run.run_id)
-    assert rows[await _first_action(k, run.run_id)] == expected
+    assert rows[subject] == expected
     steps = await k.store.list_steps(TENANT, run.run_id)
     assert [s.sequence for s in steps] == list(range(len(steps)))
     if run.state in TERMINAL_RUN_STATES:

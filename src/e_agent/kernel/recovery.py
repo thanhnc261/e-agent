@@ -12,7 +12,7 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
-from e_agent.contracts.step import StepStatus
+from e_agent.contracts.step import StepRecord, StepStatus
 
 from .continuation import LOG, _Continuation
 from .errors import ErrorCode, KernelError
@@ -256,6 +256,7 @@ class RecoveryMixin(IrOnMixin):
             )
         elif run.state in {RunState.RUNNING, RunState.CREATED}:
             reason = "interrupted during driver turn"
+            closed: list[StepRecord] = []
             if latest is not None and latest.plan_id is not None and latest.step_index:
                 # A later plan step's action exists, never reserved: fail closed, send nothing.
                 step = latest.step_index + 1
@@ -264,7 +265,8 @@ class RecoveryMixin(IrOnMixin):
                     if run.run_id in self._resume_disabled
                     else f"interrupted before plan step {step} reserved"
                 )
+                closed = await self._close_open(latest, StepStatus.FAILED)  # its validate row
             return await self._set_run_state(
-                run, RunState.FAILED, reason, code=ReasonCode.INTERRUPTED
+                run, RunState.FAILED, reason, code=ReasonCode.INTERRUPTED, before=closed
             )
         return None
