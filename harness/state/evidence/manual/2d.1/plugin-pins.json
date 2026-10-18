@@ -1,0 +1,37 @@
+{
+  "built_at": "ad54b43",
+  "builds": {
+    "fixture-erp": [
+      {
+        "wheel": "e_agent_adapter_erp_simulator-0.1.0-py3-none-any.whl",
+        "build": "wheels",
+        "artifact_sha256": "3ad0cc7c03979179afdd9eb3f560c084ce492a4424d0851532e66ad31a16b50c"
+      }
+    ],
+    "odoo19": [
+      {
+        "wheel": "e_agent_adapter_odoo-0.1.0-py3-none-any.whl",
+        "build": "wheels",
+        "artifact_sha256": "5976460ec47f273d9136c526c1e51dcc1af06988bc4331778ef62cd5d76c09e0"
+      },
+      {
+        "wheel": "e_agent_adapter_odoo-0.1.0-py3-none-any.whl",
+        "build": "wheels2",
+        "artifact_sha256": "5976460ec47f273d9136c526c1e51dcc1af06988bc4331778ef62cd5d76c09e0"
+      }
+    ],
+    "domain-erp": [
+      {
+        "wheel": "e_agent_domain_erp-0.1.0-py3-none-any.whl",
+        "build": "wheels",
+        "artifact_sha256": "c4e89bfb124105487861d86d454c04eff5384711e472239dc70a0a7a8e89050e"
+      },
+      {
+        "wheel": "e_agent_domain_erp-0.1.0-py3-none-any.whl",
+        "build": "wheels2",
+        "artifact_sha256": "c4e89bfb124105487861d86d454c04eff5384711e472239dc70a0a7a8e89050e"
+      }
+    ]
+  },
+  "note": "Two separate uv builds (--package <dist> --wheel) at ad54b43; scripts/plugin_inventory.py on each wheel. Non-secret pins for the owner's re-pin."
+}

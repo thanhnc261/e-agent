@@ -28,7 +28,7 @@
 | 2c.9 | `57269ed`, `87f4407` | Drivers emit action plans; the authored recording `tests/replays/erp-authored-plan-calls/` |
 | 2c.8b | `056c143`, `89beea7`, `8bc4a5b`, `4cef608`, `886a1fb`, `5af09cf`, `20c56af`, `dbd1689` | Codex C-1 to C-3 and C2-1, C2-2: call-scoped authority to start a later step; durable step state, and recovery writes no plan state; argument integrity before every reservation; resume items keyed by step and run revision; ADR 0025 resume amendment accepted by the owner |
 | 2c.8c | `8d76782`, `81c20ac`, `f9b2d8d`, `5cb733f`, `a87f63e`, `e9610b2` | Reads and answers on an unusable connection, and proposals of an unknown kind, fail closed; a step's approved inputs are bound to the approval digest (P-1, P-3, P-5) |
-| 2d.1 | `35ff36a`, `7531592`, `f390d98` | Docs: README toggle and demo, roadmap, target §6.4 (P-2), ADR 0025 store port note (P-6), wider `pg` gate (P-4), regenerated fixture release report |
+| 2d.1 | `35ff36a`, `7531592`, `f390d98`, `1ea45e9` | The plan's 2d.1 checklist (`35ff36a`); README toggle and demo, roadmap status, target §6.4 (P-2), ADR 0025 store port note (P-6), wider `pg` gate (P-4), regenerated fixture release report (`7531592`); the README recipe runs under `uv` (`f390d98`); this handoff and the bookkeeping (`1ea45e9`) |
 
 Task-level detail, rulings and evidence: `harness/state/2/handoffs/*.json` and `harness/state/2/reviews/*.json`. The plan and the SDD ledger carry every ruling with its cost if wrong.
 
@@ -51,7 +51,8 @@ uv run python scripts/check_core_only.py        -> core-only check passed in 10.
 
 # pg  harness/state/evidence/gates/2d.1/2026-10-18T15-33-22.012579+00-00-pg.json  (commit f390d98, clean_tree=True)
 E_AGENT_TEST_STORE=postgres uv run pytest -q tests/unit/kernel tests/conformance tests/unit/adapters/postgres -> 813 passed in 59.66s
-  (E_AGENT_TEST_PG_DSN on database e_agent_test in e-agent-ledger; E_AGENT_PG_DSN unset)
+  (the harness requires E_AGENT_TEST_PG_DSN and refuses it when it names the same database as E_AGENT_PG_DSN,
+   harness/context.toml distinct_databases; the run used database e_agent_test in e-agent-ledger)
 
 # e2e  harness/state/evidence/gates/2d.1/2026-10-18T15-36-01.274698+00-00-e2e.json  (commit f390d98, clean_tree=True)
 make e2e -> 150 passed, 4 skipped (1.3m)
@@ -60,9 +61,9 @@ make e2e -> 150 passed, 4 skipped (1.3m)
 uv run python scripts/check_core_only.py -> core-only check passed in 7.4s
 ```
 
-The `pg` set now includes `tests/conformance` and `tests/unit/adapters/postgres` (P-4); during the phase they ran by hand outside the gate (HP-6), as each task handoff records.
+The `pg` set now includes `tests/conformance` and `tests/unit/adapters/postgres` (P-4); during the phase the controller ran them by hand outside the gate (HP-6), as the HP-6 notes in the task handoffs record.
 
-`scripts/check_wheels.py` has no gate set (HP-6). It passed by hand on `f390d98`: every wheel installs and imports from its own dependency closure, installed plugin bytes match the trusted wheel inventories before activation, and the installed demo and the ERP-04 to 08 demos complete outside the repository.
+`scripts/check_wheels.py` has no gate set (HP-6). It passed by hand on `f390d98` and again on the bookkeeping head, whose code is the same (`harness/state/evidence/manual/2d.1/check-wheels.txt`): every wheel installs and imports from its own dependency closure, installed plugin bytes match the trusted wheel inventories before activation, and the installed demo and the ERP-04 to 08 demos complete outside the repository.
 
 Also on the fixture:
 - `scripts/release_report.py`: 21/21 cases passed; `evals/reports/fixture-release.json` now carries `defaulted_declarations` (four `fixture-erp` bindings with a defaulted `idempotency`). It is labelled `environment: fixture` and is not live qualification.
@@ -88,7 +89,7 @@ The whole-phase review ran in a fresh Claude context on the branch head after 2c
 | P-7 | Low | One test was renamed: `test_on_refuses_startup_for_capability_bound_on_two_connections` (`tests/unit/server/test_execution_ir_on_erp.py:145`) | Noted here |
 | P-8 | Low | Coverage note: some areas were unverified in the reviewer's frozen copy | Covered by the gate runs below |
 
-**Codex final check of 2c.8b, 2c.8c and the 2d.1 docs** (`harness/state/2/reviews/2d.1-codex-final.json`; Codex session `01a14fc9-dbbc-74c3-9b58-eb9f216b73e3`, on `5d39921..ad54b43`): `{"task": "2d.1", "verdict": "accept", "findings": [], "reviewer": {"provider": "codex", "fresh_context": true}}`. Codex re-checked its earlier findings and reported each fixed:
+**Codex final check of 2c.8b, 2c.8c and the 2d.1 docs** (`harness/state/2/reviews/2d.1-codex-final.json`; Codex session `01a14fc9-dbbc-74c3-9b58-eb9f216b73e3`, on `5d39921..ad54b43`): `{"task": "2d.1", "verdict": "accept", "findings": [], "reviewer": {"provider": "codex", "fresh_context": true}}`. Codex re-checked its earlier findings and reported each fixed. The details below are Codex's own report, recorded verbatim in `harness/state/evidence/manual/2d.1/codex-final-report.json`; they are model output, not gate evidence:
 
 - C-1: concurrent reconciliation sends no later write; the fenced resume claim completes the plan.
 - C-2: resume queuing writes no continuation, and completion is read from durable actions.
@@ -98,7 +99,7 @@ The whole-phase review ran in a fresh Claude context on the branch head after 2c
 - 2c.8c: refusals on an unusable connection or of an unknown capability fail closed, and the worker strands no work.
 - `off`: unchanged on the tested success paths (notes and ERP event-stream goldens, approval digests, recovery tests, recorded-model replays).
 
-Limits of that check, as Codex stated them: it ran the memory store only (34 focused tests, 563 kernel, worker and memory-store conformance tests, 17 ERP golden and replay tests); seven `test_registry.py` cases could not set up in its sandbox, which forbids temporary files, and are not evidence either way; it ran no Postgres or live checks. The Postgres and full-suite results above cover those levels.
+Limits of that check, as Codex reported them: it ran the memory store only (34 focused tests, 563 kernel, worker and memory-store conformance tests, 17 ERP golden and replay tests); seven `test_registry.py` cases could not set up in its sandbox, which forbids temporary files, and are not evidence either way; it ran no Postgres or live checks. The Postgres and full-suite results above cover those levels.
 
 ## Rulings
 
@@ -125,7 +126,7 @@ Limits of that check, as Codex stated them: it ran the memory store only (34 foc
 
 ## Plugin pins for the owner's re-pin
 
-Wheels built twice at `ad54b43`, with the same result, version 0.1.0 (`scripts/plugin_inventory.py`). `f390d98` changed only `README.md`, which is in no plugin wheel. The pins change only if a later commit touches `src/e_agent/plugins/erp/**`.
+Wheels built twice at `ad54b43` with the same result, version 0.1.0; each pin is `scripts/plugin_inventory.py` on the built wheel (`harness/state/evidence/manual/2d.1/plugin-pins.json`). Regenerating them before the re-pin is cheap: `uv build --package e-agent-domain-erp --wheel` (and `e-agent-adapter-odoo`), then `uv run python scripts/plugin_inventory.py <wheel>`. `f390d98` changed only `README.md`, which is in no plugin wheel. The pins change only if a later commit touches `src/e_agent/plugins/erp/**`.
 
 | Plugin | `artifact_sha256` |
 |---|---|
@@ -138,7 +139,13 @@ The live profile does not enable `fixture-erp`, so only the first two go into `p
 ## Open items for the owner
 
 1. Re-pin `domain-erp` and `odoo19` in `profiles/live-odoo19-learning.local.json` with the pins above (`draft-po.json` and the ERP capability declarations changed).
-2. Run the live check 2d.2 on `odoo19-learning` through the `live-sandbox` skill, as the plan's "Live check" section states: `/health/ready` reports `features.execution_ir` for each mode used; Task 3 ("Draft a purchase order for any shortage from the approved supplier") once each with `off`, `shadow` and `on`, through the CLI (`--task <kind>`), since API and UI runs resolve no task definition in Phase 2 (D8); Task 1 with `on`; each evidence bundle contains `features`, and the `on` runs also `plan` and `steps`. Before the `on` legs, check one possible surprise: `on` refuses startup when a capability is bound on two connections (2c.6), and the agent could not read the live profile to check its bindings.
+2. Run the live check 2d.2 on `odoo19-learning` through the `live-sandbox` skill, as the plan's "Live check" section states (the results go into this handoff, labelled live and separate from the fixture results):
+   - `/health/ready` reports `features.execution_ir` for each mode used.
+   - Task 3 ("Draft a purchase order for any shortage from the approved supplier") through the CLI (`--task <kind>`), because API and UI runs resolve no task definition in Phase 2 (D8), once each with `off`, `shadow` and `on`. Expected: `off` matches the pre-phase behaviour; `shadow` records `ir.plan_compiled` with the step digest equal to the action digest and the same outcome as `off`; `on` runs a 1-step plan through approval, reservation, dispatch and read-back verification, with step records for each stage.
+   - Task 1 (read-only shortage question) with `on`: the tool set equals the task definition's capabilities, and the answer passes the acceptance check.
+   - The evidence bundle of each run contains `features`; the `on` runs also `plan` and `steps`.
+   - It may not touch `odoo-bench` or any container outside `odoo19-learning-*` and `e-agent-ledger`, live business data, or multi-step writes (the live guard refuses them).
+   - Before the `on` legs, check one possible surprise: `on` refuses startup when a capability is bound on two connections (2c.6), and the agent could not read the live profile to check its bindings.
 3. Branch protection on `main` (PR-39).
 4. Merge PR #6 when 2d.2 passes. At merge, §6.4 of the target architecture becomes merged and its `[P]` tag and the ADR index anchor change together.
 5. What remains after Phase 2: plan approval in the UI (the API and UI show the plan's presentation fields but resolve no task definition, D8), live multi-step writes (Phase 5) and the Phase 3 items in the roadmap.

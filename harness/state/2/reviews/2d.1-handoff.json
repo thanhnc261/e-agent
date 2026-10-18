@@ -1,0 +1,12 @@
+{
+  "task": "2d.1",
+  "verdict": "accept",
+  "findings": [
+    {"id": "H-1", "severity": "Medium", "category": "docs", "summary": "The plugin pins had no committed source; now recorded in harness/state/evidence/manual/2d.1/plugin-pins.json, with the regeneration commands in the handoff."},
+    {"id": "H-2", "severity": "Low", "category": "docs", "summary": "The by-hand check_wheels pass and the pg DSN note were untraceable; check_wheels output recorded, the DSN note now cites the harness distinct_databases rule."},
+    {"id": "H-3", "severity": "Low", "category": "docs", "summary": "The Codex re-check details were untraceable; Codex's report is recorded verbatim and labelled model output."},
+    {"id": "H-4", "severity": "Low", "category": "docs", "summary": "The live-check open item dropped the plan's expected results and limits; now restated in full."},
+    {"id": "H-5", "severity": "Low", "category": "docs", "summary": "The 2d.1 commit row misattributed 35ff36a and omitted 1ea45e9; corrected."}
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}
