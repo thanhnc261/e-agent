@@ -19,7 +19,8 @@
     "docs/plans/2026-10-14-phase2-execution-ir.md",
     "harness/state/**",
     "docs/handoffs/**",
-    "pyproject.toml"
+    "pyproject.toml",
+    "docs/adr/0027-feature-toggles.md"
   ],
   "acceptance": [
     "test_record_fallback_appends_event_with_reason passes on memory and postgres",
@@ -35,6 +36,11 @@
       "glob": "pyproject.toml",
       "reason": "new kernel module e_agent.kernel.features must join the 'Only the facade module imports e_agent.kernel.coordinator' import-linter contract's source_modules (tests/unit/kernel/test_structure.py requires every kernel module listed); tightens, not loosens",
       "at": "2026-10-18T01:25:08+00:00"
+    },
+    {
+      "glob": "docs/adr/0027-feature-toggles.md",
+      "reason": "review 2b.2 R-1: feature.fallback carries a fixed message per code, not a free-text detail",
+      "at": "2026-10-18T01:35:43+00:00"
     }
   ]
 }
