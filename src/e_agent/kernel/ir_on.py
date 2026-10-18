@@ -405,16 +405,24 @@ class IrOnMixin(FeaturesMixin):
         final: str | None = None,
     ) -> RunRecord:
         """End the run SUCCEEDED, or FAILED with ``ACCEPTANCE_UNMET`` in ``on`` when the
-        admitted definition's acceptance spec is not met. A multi-step plan with a step never
-        started cannot succeed: recovery resumes such a plan first (`_resume_plan`), and one
-        it cannot resume fails ``INTERRUPTED`` here. ``final`` is the driver's closing text,
-        recorded as ``message.final`` in its own write only when the run succeeds, as a
-        verified finish skips its acknowledgement when acceptance is unmet."""
+        admitted definition's acceptance spec is not met. A multi-step plan succeeds only when
+        the store holds a VERIFIED action for each of its steps: recovery resumes a plan with
+        a step left first (`_resume_plan`), and one it cannot resume fails ``INTERRUPTED``.
+        ``final`` is the driver's closing text, recorded as ``message.final`` in its own write
+        only when the run succeeds, as a verified finish skips its acknowledgement when
+        acceptance is unmet."""
         plan = cont.plan if cont is not None else None
-        if plan is not None and len(plan.action_ids) < len(plan.step_ids):
-            return await self._set_run_state(
-                run, RunState.FAILED, PLAN_INTERRUPTED, code=ReasonCode.INTERRUPTED
-            )
+        if plan is not None:  # the durable actions decide, never the snapshot (Codex C-2)
+            actions = await self._store.list_actions(run.tenant_id, run.run_id)
+            verified = {
+                a.step_index
+                for a in actions
+                if a.plan_id == plan.plan_id and a.state is ActionState.VERIFIED
+            }
+            if verified != set(range(len(plan.step_ids))):
+                return await self._set_run_state(
+                    run, RunState.FAILED, PLAN_INTERRUPTED, code=ReasonCode.INTERRUPTED
+                )
         gap = await self._acceptance_gap(run, cont)
         if gap is not None:
             return await self._fail_unmet(run, gap)

@@ -101,10 +101,11 @@ class RecoveryMixin(IrOnMixin):
         - APPROVED/RESERVED without dispatch: blocked; a new approval is required.
         - COMMITTED while VERIFYING: re-run the independent read-back.
         - RUNNING with no pending effect: the driver turn was lost -> FAILED.
-        - A multi-step plan (execution IR ``on``) whose latest action is VERIFIED with a
-          later step unstarted: enqueue one fenced ``resume`` work item; the worker resumes
-          the plan under its claim (`resume_plan`, ADR 0025 amendment). Committed steps are
-          never replayed.
+        - A multi-step plan (execution IR ``on``) with a COMMITTED step, or whose latest
+          action is VERIFIED with a later step unstarted: enqueue one fenced ``resume`` work
+          item and write no plan state; the worker verifies and resumes the plan under its
+          claim (`resume_plan`, ADR 0025 amendment, Codex C-2). Committed steps are never
+          replayed.
         """
         recovered: list[RunRecord] = []
         for run in await self._store.list_unfinished_runs():
@@ -146,7 +147,8 @@ class RecoveryMixin(IrOnMixin):
     async def resume_plan(self, tenant_id: str, run_id: str) -> RunRecord:
         """Executed under a ``resume`` work claim (ADR 0025 amendment). Re-check under the
         claim that the run is RUNNING or VERIFYING with plan state, else drop the item; then
-        continue the plan as a live finish does, through every pre-reservation guard. A plan
+        verify a COMMITTED step recovery left for the claim, or continue the plan as a live
+        finish does, through every pre-reservation guard. A plan
         that can no longer resume gets the crash rules with resume disabled, which never
         send a write and never queue another resume."""
         run = await self._store.get_run(tenant_id, run_id)
@@ -159,6 +161,13 @@ class RecoveryMixin(IrOnMixin):
         if cont.plan is None:
             return run
         actions, latest = await self._latest_action(run)
+        plan_id = cont.plan.plan_id
+        committed = [
+            a for a in actions if a.plan_id == plan_id and a.state is ActionState.COMMITTED
+        ]
+        if committed:  # recovery left it for this claim to verify (Codex C-2, option (b))
+            receipts = await self._store.list_receipts(tenant_id, committed[0].action_id)
+            return await self._verify(cont, committed[0], receipts[-1], may_start_next=True)
         resumed = None
         if latest is not None:  # the claim's authority to start the next step (Codex C-1)
             resumed = await self._resume_plan(cont, latest, actions, may_start_next=True)

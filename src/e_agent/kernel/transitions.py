@@ -55,9 +55,11 @@ class TransitionsMixin(ContinuationMixin):
         *,
         code: ReasonCode | None = None,
         before: EventBatch = (),
+        snapshot: bool = True,
     ) -> RunRecord:
         """Move ``run`` to ``state``; ``before`` is recorded ahead of the transition events,
-        in the same write."""
+        in the same write, with the continuation unless ``snapshot`` is False (a recovery
+        that queues a plan's resume writes no plan state, Codex C-2)."""
         self._check_run_transition(run, state)
         events: list[EventSpec | StepRecord] = [
             *before,
@@ -87,7 +89,7 @@ class TransitionsMixin(ContinuationMixin):
             updated,
             run.revision,
             events,
-            continuation=self._snapshot(run.run_id),
+            continuation=self._snapshot(run.run_id) if snapshot else None,
         )
 
     async def _transition(

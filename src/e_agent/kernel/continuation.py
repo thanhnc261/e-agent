@@ -58,7 +58,9 @@ CONTINUATION_SCHEMA = "kernel-continuation-v1"
 
 class _PlanState(BaseModel):
     """The multi-step plan a run is executing (Task 2c.7, ADR 0025); persisted with the
-    continuation, so the approved inputs and the verified values survive a restart."""
+    continuation, so the approved inputs and the verified values survive a restart. Which
+    steps started, and which are verified, is read from the durable actions (Codex C-2),
+    never from this snapshot."""
 
     plan_id: str
     step_ids: tuple[str, ...]
@@ -67,8 +69,6 @@ class _PlanState(BaseModel):
     revalidation compares a step against before its reservation."""
     current: int = 0
     """The index of the step in flight."""
-    action_ids: list[str] = Field(default_factory=list)
-    """The action of each started step; the first holds the plan's one approval."""
     approval_id: str | None = None
     verified: dict[str, dict[str, Any]] = Field(default_factory=dict)
     """Step id to the values its verifier read back (`OutcomeReport.verified_values`), set
@@ -172,6 +172,9 @@ class ContinuationMixin:
         ) -> RunRecord:
             raise NotImplementedError
 
+        async def _queue_resume(self, run: RunRecord, action: ActionRecord) -> RunRecord:
+            raise NotImplementedError
+
         async def _resume_plan(
             self,
             cont: _Continuation,
@@ -195,6 +198,7 @@ class ContinuationMixin:
             *,
             code: ReasonCode | None = None,
             before: EventBatch = (),
+            snapshot: bool = True,
         ) -> RunRecord:
             raise NotImplementedError
 

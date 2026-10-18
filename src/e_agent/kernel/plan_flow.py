@@ -25,9 +25,10 @@ A 1-step plan is today's proposal.
   the earlier steps staying committed and verified; an UNKNOWN step stops the remainder and
   the run goes to reconciliation, never to a re-send (ENG-TRUST-5).
 - **Resume** (Task 2c.8, ADR 0025 amendment): recovery and reconciliation never send a
-  write. A step they verify, or a plan they find with its latest action VERIFIED and a later
-  step unstarted, enqueues one fenced ``resume`` work item (`_queue_resume`), de-duplicated
-  like ``expire``. The worker's claim re-checks the run and continues through
+  write and write no plan state (Codex C-2). A step they find COMMITTED, or a plan they find
+  with its latest action VERIFIED and a later step unstarted, enqueues one fenced ``resume``
+  work item (`_queue_resume`), de-duplicated like ``expire``; the claim verifies a COMMITTED
+  step. The worker's claim re-checks the run and continues through
   `_resume_plan` and `_after_step_verified`, so the next step passes every guard of the live
   path before it reserves. The authority to start a later step travels with the call
   (``may_start_next``, Codex C-1): only the approval call (`decide`) and a resume claim
@@ -253,7 +254,6 @@ class PlanFlowMixin(ProposalsMixin):
             plan_id=plan.plan_id,
             step_ids=tuple(step.step_id for step in plan.steps),
             inputs=inputs,
-            action_ids=[action.action_id],
         )
         await self._store.put_action(action, None, [self._proposal_event(action)])
         cont.last_action_id = action.action_id
@@ -385,19 +385,19 @@ class PlanFlowMixin(ProposalsMixin):
             a.state is not ActionState.VERIFIED for a in started
         ):
             return None  # a later step started, or an earlier one is not verified
-        state.action_ids = [a.action_id for a in started]  # the store's, not the snapshot's
         cont.pending_action_id = None
         return await self._after_step_verified(cont, latest, may_start_next=may_start_next)
 
     async def _queue_resume(self, run: RunRecord, action: ActionRecord) -> RunRecord:
         """Enqueue the one fenced ``resume`` work item for a plan whose step ``action`` is
-        VERIFIED, keyed by that action as ``expire`` is keyed by its approval, so a repeated
-        recovery queues nothing new (ADR 0025 amendment). The run is left VERIFYING (or
-        RUNNING) with its continuation stored, which is what the claim re-checks."""
+        VERIFIED or COMMITTED, keyed by that action as ``expire`` is keyed by its approval,
+        so a repeated recovery queues nothing new (ADR 0025 amendment). The run is left
+        VERIFYING (or RUNNING), which is what the claim re-checks. It writes no plan state:
+        no continuation save and no continuation with the run update, so a delayed recovery
+        can never overwrite a fenced worker's newer plan state (Codex C-2, option (b))."""
+        run = await self._store.get_run(run.tenant_id, run.run_id)
         if run.state not in {RunState.RUNNING, RunState.VERIFYING}:
-            run = await self._set_run_state(run, RunState.VERIFYING)  # re-verified before it
-        else:
-            await self._persist(run.run_id)
+            run = await self._set_run_state(run, RunState.VERIFYING, snapshot=False)
         payload = {"action_id": action.action_id}
         await self._store.enqueue_work(
             run.tenant_id, run.run_id, "resume", payload, digest(payload)
@@ -431,7 +431,6 @@ class PlanFlowMixin(ProposalsMixin):
         action = self._plan_action(
             cont, plan, index, arguments, state.inputs[index], approval.action_digest
         )
-        state.action_ids.append(action.action_id)
         events: list[Any] = [self._proposal_event(action)]
         if resolved:
             lineage = {
@@ -474,10 +473,14 @@ class PlanFlowMixin(ProposalsMixin):
         return await self._set_run_state(run, RunState.FAILED, reason, code=code)
 
     async def _plan_approval(self, cont: _Continuation) -> ApprovalRecord:
-        """The plan's one approval, recorded on its first step's action."""
+        """The plan's one approval, recorded on its first step's durable action."""
         state = cont.plan
         assert state is not None
-        for approval in await self._store.list_approvals(cont.ctx.tenant_id, state.action_ids[0]):
-            if approval.approval_id == state.approval_id:
-                return approval
+        ctx = cont.ctx
+        for first in await self._store.list_actions(ctx.tenant_id, ctx.run_id):
+            if first.plan_id != state.plan_id or first.step_index != 0:
+                continue
+            for approval in await self._store.list_approvals(ctx.tenant_id, first.action_id):
+                if approval.approval_id == state.approval_id:
+                    return approval
         raise KernelError(ErrorCode.CONFLICT, "the plan's approval is unavailable")

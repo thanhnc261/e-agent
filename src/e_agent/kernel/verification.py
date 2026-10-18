@@ -46,9 +46,20 @@ class VerificationMixin(IrOnMixin):
         *,
         may_start_next: bool,
     ) -> RunRecord:
+        """The independent read-back of a committed ``action``. A multi-step plan's step in
+        ``on`` is verified only by a call with ``may_start_next`` (the approval call or a
+        resume claim); reconciliation and recovery queue the fenced resume instead and write
+        no plan state (Codex C-2, option (b)), unless a failed resume disabled it."""
         ctx = cont.ctx
-        verifier = self._registry.verifier_for(action.contract_id)
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
+        if (
+            not may_start_next
+            and self._ir_on
+            and self._plan_step(cont, action)
+            and ctx.run_id not in self._resume_disabled
+        ):
+            return await self._queue_resume(run, action)
+        verifier = self._registry.verifier_for(action.contract_id)
         if verifier is None:  # the verify stage ends UNKNOWN, as an unavailable verifier's
             return await self._set_run_state(
                 run,
@@ -101,7 +112,7 @@ class VerificationMixin(IrOnMixin):
             *await self._step_pair(action, StepKind.VERIFY, OUTCOME_STEP[report.status])
         ]
         outcome = (RunEventType.OUTCOME_REPORTED, outcome_payload(report), action.action_id)
-        plan = cont.plan if cont.plan is not None and cont.plan.plan_id == action.plan_id else None
+        plan = cont.plan if self._plan_step(cont, action) else None
         if plan is not None and report.status is OutcomeStatus.VERIFIED:
             assert action.step_index is not None
             step_id = plan.step_ids[action.step_index]
@@ -148,6 +159,11 @@ class VerificationMixin(IrOnMixin):
         return await self._finish_verified(
             cont, receipt.external_refs, "The approved action was independently verified."
         )
+
+    @staticmethod
+    def _plan_step(cont: _Continuation, action: ActionRecord) -> bool:
+        """Whether ``action`` is a step of the multi-step plan the run is executing."""
+        return cont.plan is not None and cont.plan.plan_id == action.plan_id
 
     async def _finish_verified(
         self,
