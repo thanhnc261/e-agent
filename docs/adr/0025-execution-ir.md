@@ -33,7 +33,7 @@ A run admits one write today (`Budgets.max_admitted_writes = 1`). Phase 5 needs 
 - **Reason codes:**
   - codes do not depend on plan length: a step's outcome uses today's codes (`EFFECT_UNKNOWN`, `PROVIDER_ERROR`, `VERIFICATION_FAILED`, `STALE`, `CONNECTION_BUSY`, …) and today's `classify` groups, and the step is identified by `plan_id` and `step_index`;
   - one new run-outcome code, `PLAN_LINEAGE_REJECTED`, classified blocked-by-design (with `ACCEPTANCE_UNMET` from ADR 0028, classified failed);
-  - the fallback codes `IR_TASK_UNRESOLVED`, `IR_COMPILE_FAILED` and `IR_VALIDATION_FAILED` (ADR 0027) are `ReasonCode` members carried only by `feature.fallback` events; they never end a run.
+  - the fallback codes `IR_TASK_UNRESOLVED`, `IR_COMPILE_FAILED` and `IR_VALIDATION_FAILED` (ADR 0027) are `ReasonCode` members carried only by `feature.fallback` events, and `IR_TASK_UNRESOLVED` also by `ir.shadow_failed` (ADR 0028); they never end a run.
 - **Partial failure** follows target §6.4.6:
   - committed steps are never replayed (ENG-TRUST-5);
   - an `UNKNOWN` step stops the remainder and goes to reconciliation;
