@@ -21,13 +21,29 @@ UNUSABLE_CONNECTION = "CONNECTION_NOT_AVAILABLE"
 NO_READ_CONNECTION = "the connection is not available to this run for the capability"
 """The fixed code and message of a driver read on a connection the run cannot use (2c.8c):
 the same whatever made it unusable, and never a credential, subject or connection state."""
+READ_NOT_PERMITTED = "READ_NOT_PERMITTED"
+UNKNOWN_CAPABILITY = "UNKNOWN_CAPABILITY"
+NOT_A_READ = "NOT_A_READ_CAPABILITY"
+READ_REFUSALS = {
+    UNUSABLE_CONNECTION: NO_READ_CONNECTION,
+    READ_NOT_PERMITTED: "the read is not permitted for this run",
+    UNKNOWN_CAPABILITY: "the capability is not available",
+    NOT_A_READ: "the capability is not a read",
+}
+"""The fixed message of each driver read refusal code (2c.8c round 2): none names a role,
+credential, subject, connection state or policy detail."""
 
 
-class ConnectionRefused(KernelError):
-    """`usable` or `resolve` refused a read's connection. Code and message are the original
-    ones, so the kernel's own reads (verifier, revalidation) raise the same `KernelError`
-    code and message as before (only the class name differs where one is recorded); only
-    `_driver_read` turns it into a rejected read."""
+class ReadRefused(KernelError):
+    """The gateway refused a read before any provider call, for the cause ``refusal`` (a
+    `READ_REFUSALS` code). Code and message are the original `KernelError`'s, so the kernel's
+    own reads (verifier, revalidation) raise the same code and message as before (only the
+    class name differs where one is recorded); only `_driver_read` turns it into a rejected
+    read with the fixed message."""
+
+    def __init__(self, refusal: str, code: ErrorCode, safe_message: str) -> None:
+        super().__init__(code, safe_message)
+        self.refusal = refusal
 
 
 class GatewayMixin(IrOnMixin):
@@ -41,16 +57,18 @@ class GatewayMixin(IrOnMixin):
         straight through `_gateway_read`: a verifier may read a host-only capability.
 
         A connection the run cannot use (absent, out of scope, inactive, another user's, or
-        without a binding for the capability) is refused the same way, in every mode, with one
-        fixed message and before any provider call (2c.8c); the driver can recover within its
-        budgets, and the run never leaves its turn on an exception."""
+        without a binding for the capability), a read the policy refuses, an unknown
+        capability and a capability that is not a read are refused the same way, in every
+        mode, with a fixed code per cause and its fixed message, before any provider call
+        (2c.8c); the driver can recover within its budgets, and the run never leaves its turn
+        on an exception. A refusal is never a fallback: the read is not made (PR-26)."""
         allowed = self._allowed(run, cont)
         if allowed is not None and request.contract_id not in allowed:
             raise KnownNoEffectError(OUTSIDE_TASK, "the capability is not in the run's task")
         try:
             return await self._gateway_read(cont, request, count_budget=True)
-        except ConnectionRefused:
-            raise KnownNoEffectError(UNUSABLE_CONNECTION, NO_READ_CONNECTION) from None
+        except ReadRefused as exc:
+            raise KnownNoEffectError(exc.refusal, READ_REFUSALS[exc.refusal]) from None
 
     async def _gateway_read(
         self, cont: _Continuation, request: ReadRequest, *, count_budget: bool
@@ -58,20 +76,24 @@ class GatewayMixin(IrOnMixin):
         ctx = cont.ctx
         if count_budget and cont.read_calls >= ctx.budgets.max_read_calls:
             raise KernelError(ErrorCode.DEPENDENCY_UNAVAILABLE, "read call budget exhausted")
-        descriptor = self._registry.descriptor(request.contract_id)
+        try:
+            descriptor = self._registry.descriptor(request.contract_id)
+        except KernelError as exc:
+            raise ReadRefused(UNKNOWN_CAPABILITY, exc.code, exc.safe_message) from exc
         if descriptor.effect is not EffectKind.READ:
-            raise KernelError(ErrorCode.INVALID_REQUEST, "write capability requested as a read")
+            message = "write capability requested as a read"
+            raise ReadRefused(NOT_A_READ, ErrorCode.INVALID_REQUEST, message)
         try:
             self._connections.usable(ctx, request.connection_id)
         except KernelError as exc:
-            raise ConnectionRefused(exc.code, exc.safe_message) from exc
+            raise ReadRefused(UNUSABLE_CONNECTION, exc.code, exc.safe_message) from exc
         decision = self._policy.evaluate(ctx, descriptor, request.connection_id)
         if not decision.permitted:
-            raise KernelError(ErrorCode.FORBIDDEN, "read not permitted")
+            raise ReadRefused(READ_NOT_PERMITTED, ErrorCode.FORBIDDEN, "read not permitted")
         try:
             binding = self._registry.resolve(request.contract_id, request.connection_id)
         except KernelError as exc:
-            raise ConnectionRefused(exc.code, exc.safe_message) from exc
+            raise ReadRefused(UNUSABLE_CONNECTION, exc.code, exc.safe_message) from exc
         obs = await self._timed(
             cont,
             lambda: self._registry.executor_for(binding).read(ctx, binding, request),

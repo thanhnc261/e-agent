@@ -34,15 +34,17 @@ from .approval import (
     fact_digest,
 )
 from .continuation import _Continuation, _GatewayReader
-from .errors import ErrorCode, KernelError
+from .errors import KernelError
 from .ir import StepDigestContext
-from .ir_on import IrOnMixin
+from .ir_on import IrOnMixin, _fixed
 from .verification import outcome_payload
 
 EVIDENCE_BUNDLE, NO_VALIDATOR_BUNDLE, ERROR_BUNDLE = "kernel-evidence-v1", "none", "error"
 SENTINEL_BUNDLES = frozenset({EVIDENCE_BUNDLE, NO_VALIDATOR_BUNDLE, ERROR_BUNDLE})
 """The rule bundle versions `_validate` reports when no domain rule ran: incomplete
 evidence, no validator, a validator that raised. None is a real bundle to bind."""
+PROPOSAL_KIND = "The proposed capability is not a write or an answer this run can use."
+"""The fixed message of the ``KERNEL-PROPOSAL-KIND`` repair finding (2c.8c round 2)."""
 
 
 class ProposalsMixin(IrOnMixin):
@@ -54,11 +56,12 @@ class ProposalsMixin(IrOnMixin):
         refused = await self._outside_task_set(run, cont, proposal)  # `on` only (D6)
         if refused is not None:
             return refused
-        descriptor = self._registry.descriptor(proposal.contract_id)
-        if descriptor.effect is EffectKind.ANSWER:
+        descriptor = self._registry.capabilities.get(proposal.contract_id)
+        if descriptor is not None and descriptor.effect is EffectKind.ANSWER:
             return await self._handle_answer(run, cont, proposal)
-        if descriptor.effect is not EffectKind.WRITE:
-            raise KernelError(ErrorCode.INVALID_REQUEST, "proposals are for write capabilities")
+        if descriptor is None or descriptor.effect is not EffectKind.WRITE:  # 2c.8c round 2
+            kind = _fixed("KERNEL-PROPOSAL-KIND", PROPOSAL_KIND)
+            return await self._repair_finding(run, cont, (kind,))
         if cont.writes >= ctx.budgets.max_admitted_writes:
             return await self._exhausted(run, "admitted writes")
         try:
