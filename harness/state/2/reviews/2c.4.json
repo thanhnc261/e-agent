@@ -1,0 +1,38 @@
+{
+  "task": "2c.4",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "The 2+-step digest input took arguments from the lossy JSON-mode dump: set order varied per process, and Decimal/str, int/str keys and NaN/inf/None collided. Fixed: Python arguments with only placeholders encoded; canonicalize refuses what the 1-step path refuses.",
+      "evidence": "src/e_agent/kernel/ir.py _digest_arguments; tests/unit/kernel/test_ir.py test_multi_step_digest_refuses_what_the_one_step_path_refuses, test_multi_step_digest_is_stable_across_hash_seeds"
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "validate_plan passed arguments outside the digest profile. Fixed: KERNEL-ARGS per step; docstring names the caller's per-step domain validation.",
+      "evidence": "tests/unit/kernel/test_ir.py test_validate_reports_arguments_outside_the_digest_profile"
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "KERNEL-PLAN-READ-STEP was not in the design. Fixed: recorded in target 6.4.3 and ADR 0025 Validation.",
+      "evidence": "docs/design/target-architecture.md 6.4.3; docs/adr/0025-execution-ir.md"
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "StepDigestContext.evidence contract undocumented. Fixed: docstring; end-to-end equality is 2c.6's test_on_single_step_approval_presentation_unchanged.",
+      "evidence": "src/e_agent/kernel/ir.py StepDigestContext"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

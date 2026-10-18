@@ -110,7 +110,8 @@
         "validation is pure",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.4/2026-10-18T04-36-30.687982+00-00-full.json"
     },
     {
       "id": "F-2c-5",
