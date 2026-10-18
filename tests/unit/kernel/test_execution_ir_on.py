@@ -20,6 +20,7 @@ from e_agent.contracts.context import Budgets
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.outcome import OutcomeCheck, OutcomeReport, OutcomeStatus
+from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.contracts.step import StepKind, StepStatus
 from e_agent.contracts.task import (
@@ -35,7 +36,15 @@ from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.evidence import classify
 from e_agent.kernel.features import FALLBACK_MESSAGES
 from e_agent.kernel.gateway import OUTSIDE_TASK
-from e_agent.sdk.ports import DriverInput, FinalAnswer, RequestReads
+from e_agent.sdk.ports import (
+    AskClarification,
+    DriverInput,
+    DriverStep,
+    FinalAnswer,
+    ProposeAction,
+    ReadRequest,
+    RequestReads,
+)
 
 from .conftest import CREATE, NOTES_TASK, READ, TENANT, Kernel
 from .record_off_baseline import deterministic_ids
@@ -525,26 +534,274 @@ async def test_on_validation_error_before_reservation_falls_back(
     assert SENTINEL not in stored
 
 
-async def test_on_linked_definition_gone_at_proposal_falls_back(make_kernel: MakeKernel) -> None:
-    """A linked run whose definition is no longer admitted when it proposes (a resumed run
-    after a redeploy) falls back for that proposal (`IR_TASK_UNRESOLVED`) before any
-    reservation. Its acceptance cannot be checked at run end, so the run fails closed."""
-    k = make_kernel(features=ON)
-    advance = k.driver.advance
+# -- the admitted definition is the run's for its whole life (Codex C-1, ADR 0028) -------
+PRE_2C6_CONTINUATION_KEYS = {
+    "ctx",
+    "reads",
+    "observations",
+    "findings",
+    "turns",
+    "read_calls",
+    "read_errors",
+    "repairs",
+    "writes",
+    "pending_action_id",
+    "last_action_id",
+    "canonical_proposal",
+    "last_validation",
+    "approval_requested_at",
+    "active_seconds",
+    "surface_digest",
+}
+"""The stored continuation's keys before Task 2c.6: `off` and `shadow` keep exactly these."""
 
-    async def drop_definition(ctx: Any, step_input: DriverInput) -> Any:
-        if step_input.observations:
-            k.coordinator._registry.task_definitions.pop(NOTES_TASK.task_id, None)
+
+async def _stored_continuation(k: Kernel, run_id: str) -> dict[str, Any]:
+    stored = await k.store.load_continuation(TENANT, run_id)
+    assert stored is not None
+    return stored[0]["data"]  # type: ignore[no-any-return]
+
+
+async def test_off_and_shadow_continuation_json_unchanged(make_kernel: MakeKernel) -> None:
+    for mode in (OFF, Features(execution_ir=FeatureMode.SHADOW)):
+        k = make_kernel(features=mode)
+        run = await _start(k)
+        assert set(await _stored_continuation(k, run.run_id)) == PRE_2C6_CONTINUATION_KEYS
+        await _approve(k, run.run_id)
+        assert set(await _stored_continuation(k, run.run_id)) == PRE_2C6_CONTINUATION_KEYS
+        await _reset(k.store)
+
+
+async def test_on_snapshot_saved_at_admission_on_both_paths(make_kernel: MakeKernel) -> None:
+    k = make_kernel(features=ON)
+    run_id, _ = await k.coordinator.admit_run(
+        k.requester,
+        "write standup note",
+        k.scope,
+        run_id="run-admitted",
+        idempotency_key="k",
+        request_digest="d",
+        task_kind=NOTES_TASK.task_id,
+    )
+    # `create_run_idempotent` stores it with the run, before any work starts.
+    assert (await _stored_continuation(k, run_id))["task"] == NOTES_TASK.model_dump(mode="json")
+    k.driver.advance = _asking(k.driver.advance)  # type: ignore[method-assign]
+    run = await _start(k)
+    assert run.state is RunState.WAITING_INPUT
+    # `start_run` stores it with the RUNNING transition, before the first driver turn.
+    data = await _stored_continuation(k, run.run_id)
+    assert data["task"] == NOTES_TASK.model_dump(mode="json")
+
+
+def _asking(advance: Any) -> Any:
+    """The driver asks one question before doing anything else."""
+    asked: set[str] = set()
+
+    async def wrapped(ctx: Any, step_input: DriverInput) -> Any:
+        if ctx.run_id not in asked:
+            asked.add(ctx.run_id)
+            return AskClarification(question="which note?")
         return await advance(ctx, step_input)
 
-    k.driver.advance = drop_definition  # type: ignore[method-assign]
+    return wrapped
+
+
+class _AfterInput:
+    """Asks first; after the user's answer repeats ``step`` (Codex's reproduction)."""
+
+    driver_id = "after-input"
+
+    def __init__(self, step: DriverStep) -> None:
+        self.step = step
+        self.tool_sets: list[tuple[str, ...] | None] = []
+
+    async def advance(self, ctx: Any, step_input: DriverInput) -> DriverStep:
+        self.tool_sets.append(step_input.allowed_capabilities)
+        if len(self.tool_sets) == 1:
+            return AskClarification(question="which note?")
+        return self.step
+
+
+EXCLUDED_READ = RequestReads(
+    reads=(
+        ReadRequest(
+            request_id="r1", contract_id=READ.contract_id, connection_id="conn-notes", arguments={}
+        ),
+    )
+)
+EXCLUDED_WRITE = ProposeAction(
+    proposal=ActionProposal(
+        contract_id=CREATE.contract_id, connection_id="conn-notes", arguments={"text": "x"}
+    )
+)
+WRITE_ONLY = _task(capabilities=(CREATE.contract_id,))
+READ_ONLY = _task(capabilities=(READ.contract_id,), acceptance=AcceptanceSpec())
+
+
+async def _resume_after(k: Kernel, driver: _AfterInput, change: Callable[[], None]) -> Any:
+    """Run to WAITING_INPUT, drop the cached continuation, change the registry, resume."""
+    k.coordinator._driver = driver
     run = await _start(k)
+    assert run.state is RunState.WAITING_INPUT
+    k.coordinator.release_continuation(run.run_id)
+    change()
+    return await k.coordinator.resume_input(k.requester, run.run_id, "the standup", run.revision)
+
+
+def _assert_excluded_read_refused_after_resume(k: Kernel, run: Any, events: list[Any]) -> None:
+    assert k.backend.read_calls == 0
+    assert not [e for e in events if e.type is RunEventType.READ_RECORDED]
+    rejected = [e for e in events if e.type is RunEventType.READ_REJECTED]
+    assert rejected and all(e.payload["code"] == OUTSIDE_TASK for e in rejected)
+    assert run.state is RunState.FAILED
+
+
+async def _assert_excluded_write_refused_after_resume(k: Kernel, run: Any) -> None:
+    assert run.state is RunState.FAILED and run.reason_code is ReasonCode.VALIDATION_FAILED
+    assert await k.store.list_actions(TENANT, run.run_id) == []
+    assert not await _of(k, run.run_id, RunEventType.APPROVAL_REQUESTED)
+
+
+async def test_on_resumed_run_keeps_admitted_tool_set_when_definition_removed(
+    make_kernel: MakeKernel,
+) -> None:
+    def remove(k: Kernel) -> Callable[[], None]:
+        return lambda: k.coordinator._registry.task_definitions.pop(NOTES_TASK.task_id)
+
+    k = make_kernel(features=ON, task=WRITE_ONLY)
+    driver = _AfterInput(EXCLUDED_READ)
+    run = await _resume_after(k, driver, remove(k))
+    _assert_excluded_read_refused_after_resume(
+        k, run, await k.store.list_events(TENANT, run.run_id)
+    )
+    assert set(driver.tool_sets) == {WRITE_ONLY.capabilities}
+    await _reset(k.store)
+
+    k = make_kernel(features=ON, task=READ_ONLY)
+    driver = _AfterInput(EXCLUDED_WRITE)
+    run = await _resume_after(k, driver, remove(k))
+    await _assert_excluded_write_refused_after_resume(k, run)
+    assert set(driver.tool_sets) == {READ_ONLY.capabilities}
+
+
+async def test_on_resumed_run_keeps_admitted_tool_set_when_definition_version_changes(
+    make_kernel: MakeKernel,
+) -> None:
+    """A redeploy that widens the definition under a new version does not widen a running
+    run: its tool set, TTL and acceptance are the admitted version's."""
+
+    def widen(k: Kernel) -> Callable[[], None]:
+        def change() -> None:
+            k.coordinator._registry.task_definitions[NOTES_TASK.task_id] = NOTES_TASK.model_copy(
+                update={"version": "2"}
+            )
+
+        return change
+
+    k = make_kernel(features=ON, task=WRITE_ONLY)
+    driver = _AfterInput(EXCLUDED_READ)
+    run = await _resume_after(k, driver, widen(k))
+    _assert_excluded_read_refused_after_resume(
+        k, run, await k.store.list_events(TENANT, run.run_id)
+    )
+    assert set(driver.tool_sets) == {WRITE_ONLY.capabilities}
+    await _reset(k.store)
+
+    k = make_kernel(features=ON, task=READ_ONLY)
+    driver = _AfterInput(EXCLUDED_WRITE)
+    run = await _resume_after(k, driver, widen(k))
+    await _assert_excluded_write_refused_after_resume(k, run)
+
+
+async def test_on_resumed_run_with_unchanged_snapshot_still_works(make_kernel: MakeKernel) -> None:
+    """The snapshot, not the registry, carries a resumed run to its normal end."""
+    k = make_kernel(features=ON)
+    k.driver.advance = _asking(k.driver.advance)  # type: ignore[method-assign]
+    run = await _start(k)
+    k.coordinator.release_continuation(run.run_id)
+    k.coordinator._registry.task_definitions.pop(NOTES_TASK.task_id)
+    run = await k.coordinator.resume_input(k.requester, run.run_id, "standup", run.revision)
     assert run.state is RunState.WAITING_APPROVAL
-    events = await k.store.list_events(TENANT, run.run_id)
-    assert _fallbacks(events) == [(_payload(ReasonCode.IR_TASK_UNRESOLVED), None)]
-    assert not await _of(k, run.run_id, RunEventType.IR_PLAN_COMPILED)
+    pres = await k.coordinator.pending_approval(TENANT, run.run_id)
+    assert pres.expires_at == k.clock() + timedelta(minutes=15)
     run = await _approve(k, run.run_id)
+    assert (run.state, run.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
     (action,) = await k.store.list_actions(TENANT, run.run_id)
-    assert action.state is ActionState.VERIFIED and action.plan_id is None
-    assert await k.store.list_steps(TENANT, run.run_id) == []
-    assert (run.state, run.reason_code) == (RunState.FAILED, ReasonCode.ACCEPTANCE_UNMET)
+    assert action.plan_id is not None
+
+
+async def test_on_bound_run_without_snapshot_fails_closed(make_kernel: MakeKernel) -> None:
+    """A bound run (task_id set) whose stored continuation has no readable snapshot is offered
+    no tools; every read is refused and every proposal is a finding, never today's set."""
+    for step, check in ((EXCLUDED_READ, "read"), (EXCLUDED_WRITE, "write")):
+        k = make_kernel(features=ON)
+        driver = _AfterInput(step)
+        k.coordinator._driver = driver
+        run = await _start(k)
+        state, driver_state = await k.store.load_continuation(TENANT, run.run_id)  # type: ignore[misc]
+        state["data"].pop("task")
+        await k.store.save_continuation(TENANT, run.run_id, state, driver_state)
+        k.coordinator.release_continuation(run.run_id)
+        run = await k.coordinator.resume_input(k.requester, run.run_id, "standup", run.revision)
+        assert driver.tool_sets[0] == NOTES_TASK.capabilities  # admitted with a snapshot
+        assert set(driver.tool_sets[1:]) == {()}  # the empty set, never None
+        if check == "read":
+            events = await k.store.list_events(TENANT, run.run_id)
+            _assert_excluded_read_refused_after_resume(k, run, events)
+        else:
+            await _assert_excluded_write_refused_after_resume(k, run)
+        await _reset(k.store)
+
+
+# -- acceptance finding (Codex C-2, ADR 0028) --------------------------------------------
+async def test_on_acceptance_unmet_records_acceptance_finding(make_kernel: MakeKernel) -> None:
+    twice = AcceptanceSpec(
+        required_effects=(RequiredEffect(contract_id=CREATE.contract_id, min_verified=2),)
+    )
+    k = make_kernel(features=ON, task=_task(acceptance=twice))
+    run = await _start(k)
+    run = await _approve(k, run.run_id)
+    assert run.reason_code is ReasonCode.ACCEPTANCE_UNMET
+    events = await k.store.list_events(TENANT, run.run_id)
+    finding, changed, terminal = events[-3:]
+    assert finding.type is RunEventType.VALIDATION_COMPLETED
+    assert finding.payload == {
+        "status": "FAIL",
+        "findings": [
+            {
+                "rule_id": "KERNEL-ACCEPTANCE",
+                "rule_version": "1",
+                "status": "FAIL",
+                "message": ir_on_module.ACCEPTANCE_MESSAGES["effects"],
+                "expected": None,
+                "observed": None,
+                "evidence_ids": [],
+            }
+        ],
+    }
+    assert (changed.type, terminal.type) == (
+        RunEventType.RUN_STATE_CHANGED,
+        RunEventType.RUN_TERMINAL,
+    )
+    assert changed.payload == {
+        "from": RunState.VERIFYING,
+        "to": RunState.FAILED,
+        "reason": "acceptance unmet",
+        "reason_code": ReasonCode.ACCEPTANCE_UNMET,
+    }
+    # One write: the finding and the terminal transition share the run revision step.
+    assert run.revision == (await k.store.get_run(TENANT, run.run_id)).revision
+
+
+def test_acceptance_messages_name_each_alternative() -> None:
+    """Fixed messages, one per unmet alternative; no model text can reach them."""
+    effects = (RequiredEffect(contract_id=WRITE),)
+    cases = [
+        (AcceptanceSpec(required_effects=effects), "effects"),
+        (AcceptanceSpec(required_answer=ANSWER), "answer"),
+        (AcceptanceSpec(required_effects=effects, required_answer=ANSWER), "either"),
+        (None, "unavailable"),
+    ]
+    for spec, key in cases:
+        assert ir_on_module.acceptance_gap(spec) == ir_on_module.ACCEPTANCE_MESSAGES[key]
+    assert len(set(ir_on_module.ACCEPTANCE_MESSAGES.values())) == len(cases)

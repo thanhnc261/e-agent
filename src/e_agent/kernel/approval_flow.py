@@ -52,7 +52,7 @@ class ApprovalFlowMixin(IrOnMixin):
             run_revision=run.revision,
             canonical_proposal=cont.canonical_proposal,
             findings=cont.last_validation.findings if cont.last_validation else (),
-            expires_at=cont.approval_requested_at + self._ttl_for(run),
+            expires_at=cont.approval_requested_at + self._ttl_for(run, cont),
         )
 
     async def _expire_pending(self, cont: _Continuation, action: ActionRecord) -> RunRecord:
@@ -83,7 +83,7 @@ class ApprovalFlowMixin(IrOnMixin):
             return False
         if cont.pending_action_id is None or cont.approval_requested_at is None:
             return False
-        if now <= cont.approval_requested_at + self._ttl_for(run):
+        if now <= cont.approval_requested_at + self._ttl_for(run, cont):
             return False
         payload = {
             "action_id": cont.pending_action_id,
@@ -126,7 +126,7 @@ class ApprovalFlowMixin(IrOnMixin):
         cont = await self._load_cont(tenant_id, run_id)
         if cont.pending_action_id != action_id or cont.approval_requested_at is None:
             return run
-        if self._clock() <= cont.approval_requested_at + self._ttl_for(run):
+        if self._clock() <= cont.approval_requested_at + self._ttl_for(run, cont):
             return run
         action = await self._store.get_action(tenant_id, action_id)
         return await self._expire_pending(cont, action)
@@ -169,7 +169,7 @@ class ApprovalFlowMixin(IrOnMixin):
             )
             raise KernelError(ErrorCode.APPROVAL_STALE, "capabilities changed; start a new run")
         now = self._clock()
-        ttl = self._ttl_for(run)
+        ttl = self._ttl_for(run, cont)
         assert cont.approval_requested_at is not None
         if now > cont.approval_requested_at + ttl:
             await self._expire_pending(cont, action)

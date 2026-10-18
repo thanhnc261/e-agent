@@ -126,8 +126,9 @@ class VerificationMixin(IrOnMixin):
         """Finish a verified write or repeated answer without executing acknowledgement tools."""
         ctx = cont.ctx
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
-        if await self._acceptance_unmet(run):  # `on`: no acknowledgement for an unmet task
-            return await self._fail_unmet(run)
+        gap = await self._acceptance_gap(run, cont)
+        if gap is not None:  # `on`: no acknowledgement for an unmet task
+            return await self._fail_unmet(run, gap)
         final: Any = FinalAnswer(text=fallback)
         try:
             if acknowledge and (
@@ -140,6 +141,7 @@ class VerificationMixin(IrOnMixin):
                         ctx,
                         self._with_tools(
                             run,
+                            cont,
                             DriverInput(
                                 task=run.task,
                                 observations=tuple(cont.observations.values()),

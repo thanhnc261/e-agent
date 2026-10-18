@@ -192,7 +192,7 @@ class RecoveryMixin(IrOnMixin):
             if cont is not None:
                 cont.pending_action_id = None
             # The live finish path's acceptance check (`on`, ADR 0028); `off` is today's.
-            return await self._succeed(run, "outcome verified", ReasonCode.VERIFIED)
+            return await self._succeed(run, cont, "outcome verified", ReasonCode.VERIFIED)
         elif latest is not None and latest.state is ActionState.VERIFICATION_FAILED:
             return await self._set_run_state(
                 run,

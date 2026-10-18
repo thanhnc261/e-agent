@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 from e_agent.contracts.action import ActionState
 from e_agent.contracts.approval import ApprovalDecision
+from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.contracts.task import AcceptanceSpec, RequiredEffect
@@ -319,6 +320,14 @@ async def test_recovery_checks_acceptance_before_success(
     await _crash_after(k, run.run_id, boundary)
     [recovered] = await restart(k, ON).recover()
     assert (recovered.state, recovered.reason_code) == (state, code)
+    findings = [
+        f["rule_id"]
+        for e in await k.store.list_events(TENANT, run.run_id)
+        if e.type is RunEventType.VALIDATION_COMPLETED
+        for f in e.payload["findings"]
+    ]
+    # The unmet run records the kernel's acceptance finding on recovery too (Codex C-2).
+    assert ("KERNEL-ACCEPTANCE" in findings) is (code is ReasonCode.ACCEPTANCE_UNMET)
     assert k.backend.create_calls == 1
     assert [a.state for a in await k.store.list_actions(TENANT, run.run_id)] == [
         ActionState.VERIFIED

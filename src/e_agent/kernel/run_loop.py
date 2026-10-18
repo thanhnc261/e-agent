@@ -42,7 +42,7 @@ class RunLoopMixin(GatewayMixin):
             try:
                 step = await self._timed(
                     cont,
-                    partial(self._driver.advance, ctx, self._with_tools(run, step_input)),
+                    partial(self._driver.advance, ctx, self._with_tools(run, cont, step_input)),
                     ctx.budgets.model_timeout_seconds,
                 )
             except DriverBudgetExceeded:
@@ -202,7 +202,7 @@ class RunLoopMixin(GatewayMixin):
                     [(RunEventType.MESSAGE_FINAL, {"text": step.text}, None)],
                 )
                 if cont.pending_action_id is None:
-                    return await self._succeed(run, "answered", ReasonCode.ANSWERED)
+                    return await self._succeed(run, cont, "answered", ReasonCode.ANSWERED)
                 return run
             raise KernelError(ErrorCode.INVALID_REQUEST, "driver returned an unknown step")
 

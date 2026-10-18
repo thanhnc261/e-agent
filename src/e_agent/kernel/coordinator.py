@@ -113,7 +113,9 @@ class RunCoordinator(
             created_at=self._clock(),
         )
         run, admitted = self._admit_task(run, task_kind)  # execution IR (ADR 0027, ADR 0028)
-        definition = self._on_task(run)  # `on` only: the definition narrows the budgets (D7)
+        # `on` only: the admitted definition narrows the budgets (D7) and is snapshotted into
+        # the continuation, which the run uses for its whole life (Codex C-1).
+        definition = self._run_task(run) if self._ir_on else None
         ctx = TaskContext(
             run_id=run_id,
             tenant_id=principal.tenant_id,
@@ -134,7 +136,9 @@ class RunCoordinator(
                 "resolved_hints": [h.model_dump() for h in resolved],
                 "dropped_hints": dropped,
             }
-        cont = _Continuation(ctx=ctx, surface_digest=self._registry.surface_digest())
+        cont = _Continuation(
+            ctx=ctx, surface_digest=self._registry.surface_digest(), task=definition
+        )
         return run, cont, [(RunEventType.RUN_CREATED, created, None), *admitted]
 
     async def start_run(
@@ -172,9 +176,16 @@ class RunCoordinator(
         idempotency_key: str,
         request_digest: str,
         host_context: HostContext | None = None,
+        task_kind: str | None = None,
     ) -> tuple[str, bool]:
+        """``task_kind`` as in `start_run`; the API passes none in Phase 2 (D8)."""
         run, cont, events = self._prepare_run(
-            principal, task, resource_scope, run_id=run_id, host_context=host_context
+            principal,
+            task,
+            resource_scope,
+            run_id=run_id,
+            host_context=host_context,
+            task_kind=task_kind,
         )
         claimed, previous_digest = await self._store.create_run_idempotent(
             run,

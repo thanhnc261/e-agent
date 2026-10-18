@@ -28,7 +28,7 @@ class GatewayMixin(IrOnMixin):
         run's tool set before any provider call; the refusal is a rejected read the driver is
         told about (ADR 0022). Verifier and revalidation reads are the kernel's own and go
         straight through `_gateway_read`: a verifier may read a host-only capability."""
-        allowed = self._allowed(run)
+        allowed = self._allowed(run, cont)
         if allowed is not None and request.contract_id not in allowed:
             raise KnownNoEffectError(OUTSIDE_TASK, "the capability is not in the run's task")
         return await self._gateway_read(cont, request, count_budget=True)

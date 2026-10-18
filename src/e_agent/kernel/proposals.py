@@ -233,7 +233,9 @@ class ProposalsMixin(IrOnMixin):
                     RunEventType.APPROVAL_REQUESTED,
                     {
                         "digest": action.digest,
-                        "expires_at": (cont.approval_requested_at + self._ttl_for(run)).isoformat(),
+                        "expires_at": (
+                            cont.approval_requested_at + self._ttl_for(run, cont)
+                        ).isoformat(),
                     },
                     action.action_id,
                 ),

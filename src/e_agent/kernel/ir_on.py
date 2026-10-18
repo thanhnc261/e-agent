@@ -14,8 +14,12 @@ A run in ``on`` that resolved its task definition at admission executes the IR:
   ``step_index`` 0) in the approval write;
 - each stage of a linked action writes step records in the batch of its own events
   (`_step_start`, `_step_finish`, `_step_pair`);
-- at run end the acceptance spec is checked (`_acceptance_unmet`, through `_succeed` or
-  `_fail_unmet` on the live finish paths and on recovery); unmet ends ``ACCEPTANCE_UNMET``.
+- the admitted definition is snapshotted into the run's continuation and used for the whole
+  run, whatever the registry later holds; a bound run without a readable snapshot fails
+  closed with an empty tool set (Codex C-1);
+- at run end the acceptance spec is checked (`_acceptance_gap`, through `_succeed` or
+  `_fail_unmet` on the live finish paths and on recovery); unmet ends ``ACCEPTANCE_UNMET``
+  with a ``KERNEL-ACCEPTANCE`` finding in the same write (Codex C-2).
 
 Fallback (ENG-TOGGLE-2): before the first reservation, an unresolved definition, a compile
 failure or a validation failure records ``feature.fallback`` with a fixed message and the
@@ -30,6 +34,7 @@ import dataclasses
 from collections import Counter
 from collections.abc import Iterable
 from datetime import timedelta
+from types import MappingProxyType
 from typing import Any
 
 from e_agent.contracts.action import ALLOWED_ACTION_TRANSITIONS, ActionRecord, ActionState
@@ -42,7 +47,7 @@ from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.run import ReasonCode, RunRecord, RunState
 from e_agent.contracts.step import StepKind, StepRecord, StepStatus
-from e_agent.contracts.task import TaskDefinition, acceptance_met
+from e_agent.contracts.task import AcceptanceSpec, TaskDefinition, acceptance_met
 from e_agent.contracts.validation import Finding, ValidationStatus
 from e_agent.sdk.ports import DriverInput
 from e_agent.sdk.store import EventBatch
@@ -67,6 +72,28 @@ OUTSIDE_SET = "The proposed capability is not in the run's task definition."
 """The fixed message of the ``KERNEL-PLAN-CAPABILITY`` repair finding (no model text)."""
 
 
+ACCEPTANCE_MESSAGES = MappingProxyType(
+    {
+        "effects": "The run ended without the required verified effects.",
+        "answer": "The run ended without the required verified answer.",
+        "either": "The run ended with neither the required verified effects "
+        "nor the required verified answer.",
+        "unavailable": "The run's admitted task definition is unavailable, "
+        "so its acceptance cannot be met.",
+    }
+)
+"""The fixed messages of the ``KERNEL-ACCEPTANCE`` finding, by the alternative left unmet."""
+
+
+def acceptance_gap(spec: AcceptanceSpec | None) -> str:
+    """The fixed message naming the alternative an unmet ``spec`` left unmet (no model text)."""
+    if spec is None:
+        return ACCEPTANCE_MESSAGES["unavailable"]
+    if spec.required_effects and spec.required_answer is not None:
+        return ACCEPTANCE_MESSAGES["either"]
+    return ACCEPTANCE_MESSAGES["effects" if spec.required_effects else "answer"]
+
+
 def merged_budgets(profile: Budgets, task: TaskDefinition) -> Budgets:
     """The profile's budgets with only the fields the definition sets merged over them
     (2c.2 review R-2); admission already refused a definition that widens one (D7)."""
@@ -82,24 +109,36 @@ class IrOnMixin(FeaturesMixin):
     def _ir_on(self) -> bool:
         return self._features.execution_ir is FeatureMode.ON
 
-    def _on_task(self, run: RunRecord) -> TaskDefinition | None:
-        """The definition the run executes in ``on``; None in ``off`` and ``shadow`` (shadow
-        narrows nothing) and for a run that resolved none."""
-        return self._run_task(run) if self._ir_on else None
+    def _on_task(self, run: RunRecord, cont: _Continuation | None) -> TaskDefinition | None:
+        """The definition a bound run executes in ``on``: the snapshot admitted into its
+        continuation, never a fresh registry lookup (ADR 0028, Codex C-1). None in ``off`` and
+        ``shadow`` (shadow narrows nothing), for a run that resolved none, and for a bound run
+        whose snapshot is missing or names another definition."""
+        if not self._ir_on or run.task_id is None or cont is None or cont.task is None:
+            return None
+        task = cont.task
+        return task if (task.task_id, task.version) == (run.task_id, run.task_version) else None
 
-    def _allowed(self, run: RunRecord) -> tuple[str, ...] | None:
-        task = self._on_task(run)
-        return None if task is None else task.capabilities
+    def _allowed(self, run: RunRecord, cont: _Continuation | None) -> tuple[str, ...] | None:
+        """The run's tool set in ``on``: the snapshot's capabilities. A bound run without a
+        readable snapshot fails closed with the empty set; None (today's tools) is only for a
+        run that never resolved a definition."""
+        if not self._ir_on or run.task_id is None:
+            return None
+        task = self._on_task(run, cont)
+        return () if task is None else task.capabilities
 
-    def _with_tools(self, run: RunRecord, step_input: DriverInput) -> DriverInput:
+    def _with_tools(
+        self, run: RunRecord, cont: _Continuation, step_input: DriverInput
+    ) -> DriverInput:
         """The driver input for one turn, carrying the run's tool set in ``on`` (D6)."""
-        allowed = self._allowed(run)
+        allowed = self._allowed(run, cont)
         if allowed is None:
             return step_input
         return dataclasses.replace(step_input, allowed_capabilities=allowed)
 
-    def _ttl_for(self, run: RunRecord) -> timedelta:
-        task = self._on_task(run)
+    def _ttl_for(self, run: RunRecord, cont: _Continuation) -> timedelta:
+        task = self._on_task(run, cont)
         if task is None or task.approval_ttl is None:
             return self._approval_ttl
         return task.approval_ttl
@@ -110,7 +149,7 @@ class IrOnMixin(FeaturesMixin):
     ) -> RunRecord | DriverInput | None:
         """A proposal outside the run's tool set is a repair finding, never a fallback: the
         fallback path would widen the set. None when the proposal is inside it."""
-        allowed = self._allowed(run)
+        allowed = self._allowed(run, cont)
         if allowed is None or proposal.contract_id in allowed:
             return None
         finding = Finding(
@@ -149,10 +188,9 @@ class IrOnMixin(FeaturesMixin):
         unlinked and no rows, so the proposal continues on today's path."""
         if run.task_id is None:
             return action, []  # unresolved at admission, recorded there once; runs as `off`
-        task = self._on_task(run)
-        if task is None:  # the linked definition is no longer admitted (a resumed run)
-            await self._fall_back(run, ReasonCode.IR_TASK_UNRESOLVED)
-            return action, []
+        task = self._on_task(run, cont)
+        if task is None:  # defensive: `_outside_task_set` already refused every proposal
+            raise KernelError(ErrorCode.CONFLICT, "the run's admitted definition is unavailable")
         try:
             plan = compile_proposal(proposal, task, plan_id=new_id("plan"))
         except Exception:  # an IR error never reaches the run; today's path continues
@@ -278,16 +316,17 @@ class IrOnMixin(FeaturesMixin):
         return await self._store.put_action(updated, action.revision, batch)
 
     # -- acceptance ------------------------------------------------------------------------
-    async def _acceptance_unmet(self, run: RunRecord) -> bool:
-        """Whether a run in ``on`` that resolved a definition ends without meeting its
-        acceptance spec (ADR 0028). Read from the kernel's own records: VERIFIED actions and
-        the verifier's reports, never model output (ENG-TRUST-1). A linked definition that is
-        no longer admitted cannot be checked, so the run fails closed."""
+    async def _acceptance_gap(self, run: RunRecord, cont: _Continuation | None) -> str | None:
+        """The fixed ``KERNEL-ACCEPTANCE`` message when a bound run in ``on`` ends without
+        meeting its admitted definition's acceptance spec (ADR 0028), else None. Read from
+        the kernel's own records: VERIFIED actions and the verifier's reports, never model
+        output (ENG-TRUST-1). A bound run without its snapshot cannot be checked, so it fails
+        closed. ``off``, ``shadow`` and an unbound run read nothing and return None."""
         if not self._ir_on or run.task_id is None:
-            return False
-        task = self._run_task(run)
+            return None
+        task = self._on_task(run, cont)
         if task is None:
-            return True
+            return acceptance_gap(None)
         actions = await self._store.list_actions(run.tenant_id, run.run_id)
         verified = [a for a in actions if a.state is ActionState.VERIFIED]
         counts = Counter(a.contract_id for a in verified)
@@ -302,17 +341,58 @@ class IrOnMixin(FeaturesMixin):
                         reports.append(OutcomeReport.model_validate(event.payload))
                     except ValidationError:  # the verifier-unavailable shape is no report
                         continue
-        return not acceptance_met(task.acceptance, counts, reports)
+        if acceptance_met(task.acceptance, counts, reports):
+            return None
+        return acceptance_gap(task.acceptance)
 
-    async def _succeed(self, run: RunRecord, reason: str, code: ReasonCode) -> RunRecord:
+    async def _succeed(
+        self, run: RunRecord, cont: _Continuation | None, reason: str, code: ReasonCode
+    ) -> RunRecord:
         """End the run SUCCEEDED, or FAILED with ``ACCEPTANCE_UNMET`` in ``on`` when the
-        definition's acceptance spec is not met."""
-        if await self._acceptance_unmet(run):
-            return await self._fail_unmet(run)
+        admitted definition's acceptance spec is not met."""
+        gap = await self._acceptance_gap(run, cont)
+        if gap is not None:
+            return await self._fail_unmet(run, gap)
         return await self._set_run_state(run, RunState.SUCCEEDED, reason, code=code)
 
-    async def _fail_unmet(self, run: RunRecord) -> RunRecord:
-        """The one ``ACCEPTANCE_UNMET`` ending, shared by every finish path."""
-        return await self._set_run_state(
-            run, RunState.FAILED, "acceptance unmet", code=ReasonCode.ACCEPTANCE_UNMET
+    async def _fail_unmet(self, run: RunRecord, message: str) -> RunRecord:
+        """The one ``ACCEPTANCE_UNMET`` ending, shared by every finish path: the kernel's
+        acceptance finding (persisted as validation findings are, in ``validation.completed``)
+        and the terminal transition in one write. The transition events are `_set_run_state`'s,
+        which takes no extra events (transitions.py)."""
+        self._check_run_transition(run, RunState.FAILED)
+        finding = Finding(
+            rule_id="KERNEL-ACCEPTANCE",
+            rule_version="1",
+            status=ValidationStatus.FAIL,
+            message=message,
+        )
+        reason, code = "acceptance unmet", ReasonCode.ACCEPTANCE_UNMET
+        events: EventBatch = [
+            (
+                RunEventType.VALIDATION_COMPLETED,
+                {"status": "FAIL", "findings": [finding.model_dump(mode="json")]},
+                None,
+            ),
+            (
+                RunEventType.RUN_STATE_CHANGED,
+                {"from": run.state, "to": RunState.FAILED, "reason": reason, "reason_code": code},
+                None,
+            ),
+            (
+                RunEventType.RUN_TERMINAL,
+                {"state": RunState.FAILED, "reason": reason, "reason_code": code},
+                None,
+            ),
+        ]
+        failed = run.model_copy(
+            update={
+                "state": RunState.FAILED,
+                "revision": run.revision + 1,
+                "reason": reason,
+                "reason_code": code,
+            }
+        )
+        return await self._store.update_run(
+            failed, run.revision, events, continuation=self._snapshot(run.run_id)
         )

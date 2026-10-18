@@ -30,6 +30,7 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
+from e_agent.contracts.task import TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationResult
 from e_agent.sdk.auth import CredentialVersionProvider
 from e_agent.sdk.errors import KnownNoEffectError
@@ -42,7 +43,7 @@ from e_agent.sdk.ports import (
 )
 from e_agent.sdk.store import RunStore
 from e_agent.sdk.tasks import supervised_task
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SerializerFunctionWrapHandler, model_serializer
 
 from .connections import ConnectionCatalog
 from .errors import ErrorCode, KernelError
@@ -75,6 +76,18 @@ class _Continuation(BaseModel):
     approval_requested_at: datetime | None = None
     active_seconds: float = 0
     surface_digest: str = ""  # tool surface at run start; resume is blocked if it changed
+    task: TaskDefinition | None = None
+    """The definition admitted for an execution IR ``on`` run: its tool set, budgets, TTL and
+    acceptance for the whole run, whatever the registry later holds (ADR 0028, Codex C-1)."""
+
+    @model_serializer(mode="wrap")
+    def _omit_unbound_task(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        """Leave ``task`` out when unset, so an ``off`` or ``shadow`` continuation is stored
+        exactly as before Task 2c.6."""
+        data: dict[str, Any] = handler(self)
+        if self.task is None:
+            data.pop("task", None)
+        return data
 
 
 class _GatewayReader:
