@@ -243,7 +243,8 @@
         "test_no_run_left_non_terminal_after_a_forbidden_read passes",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.8c/2026-10-18T15-18-59.026589+00-00-full.json"
     }
   ]
 }
