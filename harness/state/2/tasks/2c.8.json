@@ -48,7 +48,8 @@
     "docs/adr/README.md",
     "src/e_agent/contracts/work.py",
     "src/e_agent/adapters/postgres/migrations/0006_*.sql",
-    "src/e_agent/server/worker.py"
+    "src/e_agent/server/worker.py",
+    "tests/unit/adapters/postgres/test_migrations.py"
   ],
   "acceptance": [
     "test_no_fallback_after_first_reservation passes",
@@ -95,6 +96,11 @@
       "glob": "src/e_agent/server/worker.py",
       "reason": "2c.8 review R-1: plan resume runs under a fenced resume work claim, never inside startup recovery (ADR 0018, MVP §9)",
       "at": "2026-10-18T09:55:29+00:00"
+    },
+    {
+      "glob": "tests/unit/adapters/postgres/test_migrations.py",
+      "reason": "2c.8 migration 0006 (resume work kind) joins the applied-migration list",
+      "at": "2026-10-18T10:05:42+00:00"
     }
   ]
 }

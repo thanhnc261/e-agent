@@ -1,0 +1,38 @@
+{
+  "task": "2c.8",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "Startup recover() dispatches plan steps inline without a work claim or fence; two processes on one ledger can misreport a committed step as OPERATION_RESERVED",
+      "evidence": "src/e_agent/kernel/recovery.py:95,106-110,196-199; src/e_agent/server/api.py:212-215; src/e_agent/kernel/dispatch.py:129-136"
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The contiguity guard in _resume_plan is untested (mutant M3 survived)",
+      "evidence": "src/e_agent/kernel/plan_flow.py:356-363"
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Crash after _start_step put_action leaves step 2 PROPOSED; recovery ends INTERRUPTED with driver-turn text and evidence calls the step unstarted; untested",
+      "evidence": "src/e_agent/kernel/plan_flow.py:404-406; src/e_agent/kernel/recovery.py:210-213; src/e_agent/kernel/evidence.py:53-63"
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "BLOCKED_BY_DESIGN wording says no effect, but a plan refused at a later step has committed earlier steps",
+      "evidence": "src/e_agent/kernel/evidence.py:31-42; docs/design/target-architecture.md:435"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

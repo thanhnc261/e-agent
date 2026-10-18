@@ -24,6 +24,7 @@ async def test_migrations_apply_once_and_are_idempotent() -> None:
         "0003_run_work.sql",
         "0004_run_work_expire.sql",
         "0005_action_plans_and_steps.sql",
+        "0006_run_work_resume.sql",
     ]
     assert await migrate.apply_migrations(dsn) == []
 
