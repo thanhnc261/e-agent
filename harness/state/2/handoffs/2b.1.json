@@ -1,0 +1,28 @@
+{
+  "task": "2b.1",
+  "changed": "contracts/features.py adds FeatureMode (off, shadow, on) and the Features record (execution_ir, default off, extra forbidden); Profile.features defaults to all off; Coordinator accepts features (self._features) and bootstrap passes profile.features; nothing reads it yet. The three committed profiles carry execution_ir off and test_committed_profiles covers all three. Off-mode golden baselines recorded on the unchanged kernel first (5ec6cad) with a deterministic id source: the notes-domain write run in tests/unit/kernel/golden/off_mode_events.json and, after controller finding C-1, the ERP draft-po run in tests/unit/plugins/erp/simulator/golden/off_mode_events_erp.json (split byte-for-byte from 5ec6cad, 5cf44e6). New tests/conformance/test_kernel_tests_neutral.py pins that tests/unit/kernel imports no e_agent.plugins (the conftest invariant had no check); it failed on the old recorder before the move. Plan 2b.1 and 2c.5 amended (ENG-PLAN-3). Commits 5ec6cad, 99b07e3, 5cf44e6, 31772a5. Reviews: Codex accept; controller C-1 fixed; Claude re-review accept (S-1 Low: the neutrality test also bans tests.* imports from outside the kernel suite).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2b.1/2026-10-18T01-16-11.363888+00-00-full.json",
+    "harness/state/evidence/gates/2b.1/2026-10-18T01-17-24.889978+00-00-pg.json"
+  ],
+  "open_items": [
+    "Task 2c.5 extends both off goldens with payload key sets before any 2c.5 change (goldens record types, transitions, states and digests only).",
+    "Next: Task 2b.2 (feature.fallback and the IR event types)."
+  ],
+  "rulings": [
+    {
+      "ruling": "Controller finding C-1 overrides the plan text that put both baseline runs in tests/unit/kernel: the ERP run moves next to the simulator tests and a conformance test pins kernel-test neutrality.",
+      "cost_if_wrong": "One moved test file."
+    },
+    {
+      "ruling": "Goldens without payloads are accepted for 2b.1; payload key sets are added in 2c.5, the task that first changes off-adjacent code.",
+      "cost_if_wrong": "A payload-only off drift goes unseen until 2c.5."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "pg gate ran against the e_agent_test database in the e-agent-ledger container (DSN derived from live.env without printing it).",
+      "undo": "None needed; the suite truncates only e_agent_test."
+    }
+  ]
+}

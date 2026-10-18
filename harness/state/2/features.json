@@ -36,7 +36,8 @@
         "test_committed_profiles_keep_execution_ir_off covers all three committed profiles",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2b.1/2026-10-18T01-16-11.363888+00-00-full.json"
     },
     {
       "id": "F-2b-2",
