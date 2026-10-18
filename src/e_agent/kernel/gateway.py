@@ -4,18 +4,35 @@ from __future__ import annotations
 
 from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.events import RunEventType
+from e_agent.contracts.run import RunRecord
 from e_agent.sdk.errors import KnownNoEffectError
 from e_agent.sdk.ports import (
     Observation,
     ReadRequest,
 )
 
-from .continuation import ContinuationMixin, _Continuation
+from .continuation import _Continuation
 from .errors import ErrorCode, KernelError
+from .ir_on import IrOnMixin
+
+OUTSIDE_TASK = "OUTSIDE_TASK_DEFINITION"
+"""Rejection code of a driver read outside the run's tool set (execution IR ``on``, D6)."""
 
 
-class GatewayMixin(ContinuationMixin):
+class GatewayMixin(IrOnMixin):
     # ---------------------------------------------------------------- reads
+    async def _driver_read(
+        self, run: RunRecord, cont: _Continuation, request: ReadRequest
+    ) -> Observation:
+        """A read the driver asked for. In ``on`` the kernel refuses a capability outside the
+        run's tool set before any provider call; the refusal is a rejected read the driver is
+        told about (ADR 0022). Verifier and revalidation reads are the kernel's own and go
+        straight through `_gateway_read`: a verifier may read a host-only capability."""
+        allowed = self._allowed(run)
+        if allowed is not None and request.contract_id not in allowed:
+            raise KnownNoEffectError(OUTSIDE_TASK, "the capability is not in the run's task")
+        return await self._gateway_read(cont, request, count_budget=True)
+
     async def _gateway_read(
         self, cont: _Continuation, request: ReadRequest, *, count_budget: bool
     ) -> Observation:

@@ -18,17 +18,19 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
+from e_agent.contracts.step import StepKind, StepStatus
 
 from .approval import (
     ApprovalPresentation,
     presentation_for,
 )
-from .continuation import LOG, ContinuationMixin, _Continuation
+from .continuation import LOG, _Continuation
 from .errors import ErrorCode, KernelError
+from .ir_on import IrOnMixin
 from .policy import APPROVER_ROLE
 
 
-class ApprovalFlowMixin(ContinuationMixin):
+class ApprovalFlowMixin(IrOnMixin):
     # ------------------------------------------------------------- approvals
     async def pending_approval(self, tenant_id: str, run_id: str) -> ApprovalPresentation:
         run = await self._store.get_run(tenant_id, run_id)
@@ -50,7 +52,7 @@ class ApprovalFlowMixin(ContinuationMixin):
             run_revision=run.revision,
             canonical_proposal=cont.canonical_proposal,
             findings=cont.last_validation.findings if cont.last_validation else (),
-            expires_at=cont.approval_requested_at + self._approval_ttl,
+            expires_at=cont.approval_requested_at + self._ttl_for(run),
         )
 
     async def _expire_pending(self, cont: _Continuation, action: ActionRecord) -> RunRecord:
@@ -59,10 +61,11 @@ class ApprovalFlowMixin(ContinuationMixin):
         The continuation is persisted by `_set_run_state` together with the run update.
         """
         if action.state is not ActionState.BLOCKED:  # BLOCKED: resuming an interrupted expiry
-            await self._transition(
+            await self._transition_with_steps(
                 action,
                 ActionState.BLOCKED,
                 (RunEventType.APPROVAL_DECIDED, {"decision": "expired"}),
+                await self._step_finish(action, StepKind.APPROVAL_WAIT, StepStatus.FAILED),
             )
         cont.pending_action_id = None
         run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
@@ -80,7 +83,7 @@ class ApprovalFlowMixin(ContinuationMixin):
             return False
         if cont.pending_action_id is None or cont.approval_requested_at is None:
             return False
-        if now <= cont.approval_requested_at + self._approval_ttl:
+        if now <= cont.approval_requested_at + self._ttl_for(run):
             return False
         payload = {
             "action_id": cont.pending_action_id,
@@ -123,7 +126,7 @@ class ApprovalFlowMixin(ContinuationMixin):
         cont = await self._load_cont(tenant_id, run_id)
         if cont.pending_action_id != action_id or cont.approval_requested_at is None:
             return run
-        if self._clock() <= cont.approval_requested_at + self._approval_ttl:
+        if self._clock() <= cont.approval_requested_at + self._ttl_for(run):
             return run
         action = await self._store.get_action(tenant_id, action_id)
         return await self._expire_pending(cont, action)
@@ -153,10 +156,11 @@ class ApprovalFlowMixin(ContinuationMixin):
             raise KernelError(ErrorCode.APPROVAL_STALE, "digest does not match pending action")
         if cont.surface_digest and cont.surface_digest != self._registry.surface_digest():
             # Plugins, schemas or bindings changed since the proposal was made (T17).
-            await self._transition(
+            await self._transition_with_steps(
                 action,
                 ActionState.BLOCKED,
                 (RunEventType.APPROVAL_DECIDED, {"decision": "surface_changed"}),
+                await self._step_finish(action, StepKind.APPROVAL_WAIT, StepStatus.BLOCKED),
             )
             cont.pending_action_id = None
             run = await self._store.get_run(actor.tenant_id, run_id)
@@ -165,8 +169,9 @@ class ApprovalFlowMixin(ContinuationMixin):
             )
             raise KernelError(ErrorCode.APPROVAL_STALE, "capabilities changed; start a new run")
         now = self._clock()
+        ttl = self._ttl_for(run)
         assert cont.approval_requested_at is not None
-        if now > cont.approval_requested_at + self._approval_ttl:
+        if now > cont.approval_requested_at + ttl:
             await self._expire_pending(cont, action)
             raise KernelError(ErrorCode.APPROVAL_STALE, "approval window expired")
 
@@ -180,7 +185,7 @@ class ApprovalFlowMixin(ContinuationMixin):
             decision=decision,
             policy_version=str(cont.canonical_proposal["policy_version"]),
             issued_at=now,
-            expires_at=now + self._approval_ttl,
+            expires_at=now + ttl,
         )
         approved_action = action.model_copy(
             update={
@@ -190,6 +195,9 @@ class ApprovalFlowMixin(ContinuationMixin):
                 "revision": action.revision + 1,
             }
         )
+        waited = (
+            StepStatus.BLOCKED if decision is ApprovalDecision.REJECTED else StepStatus.SUCCEEDED
+        )
         await self._store.record_approval(
             record,
             [
@@ -197,7 +205,8 @@ class ApprovalFlowMixin(ContinuationMixin):
                     RunEventType.APPROVAL_DECIDED,
                     {"decision": decision, "actor_id": actor.principal_id, "digest": action_digest},
                     action_id,
-                )
+                ),
+                *await self._step_finish(action, StepKind.APPROVAL_WAIT, waited),
             ],
             action=approved_action,
             expected_revision=action.revision,

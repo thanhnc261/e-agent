@@ -13,15 +13,24 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
+from e_agent.contracts.step import StepKind, StepStatus
 from e_agent.sdk.ports import (
     DriverInput,
     FinalAnswer,
 )
 
-from .continuation import ContinuationMixin, _Continuation, _GatewayReader
+from .continuation import _Continuation, _GatewayReader
+from .ir_on import IrOnMixin
+
+OUTCOME_STEP = {
+    OutcomeStatus.VERIFIED: StepStatus.SUCCEEDED,
+    OutcomeStatus.FAILED: StepStatus.FAILED,
+    OutcomeStatus.UNKNOWN: StepStatus.UNKNOWN,
+}
+"""How an outcome ends a linked action's verify step (execution IR ``on``)."""
 
 
-class VerificationMixin(ContinuationMixin):
+class VerificationMixin(IrOnMixin):
     async def _verify(
         self, cont: _Continuation, action: ActionRecord, receipt: ExecutionReceipt
     ) -> RunRecord:
@@ -58,7 +67,8 @@ class VerificationMixin(ContinuationMixin):
                         RunEventType.OUTCOME_REPORTED,
                         {"status": "UNKNOWN", "error": type(exc).__name__},
                         action.action_id,
-                    )
+                    ),
+                    *await self._step_pair(action, StepKind.VERIFY, StepStatus.UNKNOWN),
                 ],
             )
             run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
@@ -73,14 +83,10 @@ class VerificationMixin(ContinuationMixin):
             if report.status is OutcomeStatus.VERIFIED
             else ActionState.VERIFICATION_FAILED
         )
+        steps = await self._step_pair(action, StepKind.VERIFY, OUTCOME_STEP[report.status])
+        outcome = (RunEventType.OUTCOME_REPORTED, report.model_dump(mode="json"), action.action_id)
         if report.status is OutcomeStatus.UNKNOWN:
-            await self._store.record_outcome(
-                ctx.tenant_id,
-                report,
-                None,
-                None,
-                [(RunEventType.OUTCOME_REPORTED, report.model_dump(mode="json"), action.action_id)],
-            )
+            await self._store.record_outcome(ctx.tenant_id, report, None, None, [outcome, *steps])
             run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
             return await self._set_run_state(
                 run,
@@ -94,7 +100,7 @@ class VerificationMixin(ContinuationMixin):
             report,
             current.model_copy(update={"state": target, "revision": current.revision + 1}),
             current.revision,
-            [(RunEventType.OUTCOME_REPORTED, report.model_dump(mode="json"), action.action_id)],
+            [outcome, *steps],
         )
         cont.pending_action_id = None
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
@@ -120,6 +126,10 @@ class VerificationMixin(ContinuationMixin):
         """Finish a verified write or repeated answer without executing acknowledgement tools."""
         ctx = cont.ctx
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
+        if await self._acceptance_unmet(run):  # `on`: no acknowledgement for an unmet task
+            return await self._set_run_state(
+                run, RunState.FAILED, "acceptance unmet", code=ReasonCode.ACCEPTANCE_UNMET
+            )
         final: Any = FinalAnswer(text=fallback)
         try:
             if acknowledge and (
@@ -130,13 +140,16 @@ class VerificationMixin(ContinuationMixin):
                     cont,
                     lambda: self._driver.advance(
                         ctx,
-                        DriverInput(
-                            task=run.task,
-                            observations=tuple(cont.observations.values()),
-                            action_result={
-                                "status": "VERIFIED",
-                                "external_refs": list(external_refs),
-                            },
+                        self._with_tools(
+                            run,
+                            DriverInput(
+                                task=run.task,
+                                observations=tuple(cont.observations.values()),
+                                action_result={
+                                    "status": "VERIFIED",
+                                    "external_refs": list(external_refs),
+                                },
+                            ),
                         ),
                     ),
                     ctx.budgets.model_timeout_seconds,

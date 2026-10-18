@@ -12,6 +12,7 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
+from e_agent.contracts.step import StepKind, StepStatus
 from e_agent.contracts.validation import Finding, ValidationStatus
 from e_agent.sdk.errors import KnownNoEffectError
 from e_agent.sdk.ports import (
@@ -22,11 +23,19 @@ from e_agent.sdk.store import ConnectionBusy, DuplicateOperation
 from .approval import (
     fact_digest,
 )
-from .continuation import ContinuationMixin, _Continuation
+from .continuation import _Continuation
 from .errors import ErrorCode, KernelError
+from .ir_on import IrOnMixin
+
+RECEIPT_STEP = {
+    ReceiptStatus.COMMITTED: StepStatus.SUCCEEDED,
+    ReceiptStatus.FAILED: StepStatus.FAILED,
+    ReceiptStatus.UNKNOWN: StepStatus.UNKNOWN,
+}
+"""How a receipt ends a linked action's dispatch step (execution IR ``on``)."""
 
 
-class DispatchMixin(ContinuationMixin):
+class DispatchMixin(IrOnMixin):
     # -------------------------------------------------------------- dispatch
     async def _dispatch(
         self, cont: _Continuation, action: ActionRecord, approval: ApprovalRecord
@@ -82,7 +91,8 @@ class DispatchMixin(ContinuationMixin):
                         RunEventType.ACTION_RESERVED,
                         {"logical_operation_id": action.logical_operation_id},
                         action.action_id,
-                    )
+                    ),
+                    *await self._step_start(action, StepKind.DISPATCH),
                 ],
             )
         except ConnectionBusy:
@@ -223,7 +233,10 @@ class DispatchMixin(ContinuationMixin):
             receipt,
             action.model_copy(update={"state": target, "revision": action.revision + 1}),
             action.revision,
-            [(event_type, receipt.model_dump(mode="json"), action.action_id)],
+            [
+                (event_type, receipt.model_dump(mode="json"), action.action_id),
+                *await self._step_finish(action, StepKind.DISPATCH, RECEIPT_STEP[receipt.status]),
+            ],
         )
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
         if target is ActionState.UNKNOWN:

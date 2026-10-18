@@ -23,11 +23,11 @@ from e_agent.sdk.ports import (
     RequestReads,
 )
 
-from .continuation import ContinuationMixin
 from .errors import ErrorCode, KernelError
+from .gateway import GatewayMixin
 
 
-class RunLoopMixin(ContinuationMixin):
+class RunLoopMixin(GatewayMixin):
     # ---------------------------------------------------------------- driving
     async def _drive(self, run: RunRecord, step_input: DriverInput) -> RunRecord:
         cont = await self._load_cont(run.tenant_id, run.run_id)
@@ -42,7 +42,7 @@ class RunLoopMixin(ContinuationMixin):
             try:
                 step = await self._timed(
                     cont,
-                    partial(self._driver.advance, ctx, step_input),
+                    partial(self._driver.advance, ctx, self._with_tools(run, step_input)),
                     ctx.budgets.model_timeout_seconds,
                 )
             except DriverBudgetExceeded:
@@ -60,7 +60,7 @@ class RunLoopMixin(ContinuationMixin):
                     if cont.read_calls >= ctx.budgets.max_read_calls:
                         return await self._exhausted(run, "read calls")
                     try:
-                        obs = await self._gateway_read(cont, request, count_budget=True)
+                        obs = await self._driver_read(run, cont, request)
                     except TimeoutError:
                         return await self._exhausted(run, "active time or provider deadline")
                     except KnownNoEffectError as exc:
@@ -202,9 +202,7 @@ class RunLoopMixin(ContinuationMixin):
                     [(RunEventType.MESSAGE_FINAL, {"text": step.text}, None)],
                 )
                 if cont.pending_action_id is None:
-                    return await self._set_run_state(
-                        run, RunState.SUCCEEDED, "answered", code=ReasonCode.ANSWERED
-                    )
+                    return await self._succeed(run, "answered", ReasonCode.ANSWERED)
                 return run
             raise KernelError(ErrorCode.INVALID_REQUEST, "driver returned an unknown step")
 

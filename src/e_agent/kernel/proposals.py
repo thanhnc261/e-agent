@@ -18,6 +18,7 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
+from e_agent.contracts.step import StepRecord
 from e_agent.contracts.validation import Finding, ValidationResult, ValidationStatus
 from e_agent.sdk.ports import (
     DriverInput,
@@ -32,16 +33,19 @@ from .approval import (
 )
 from .continuation import _Continuation, _GatewayReader
 from .errors import ErrorCode, KernelError
-from .features import FeaturesMixin
 from .ir import StepDigestContext
+from .ir_on import IrOnMixin
 
 
-class ProposalsMixin(FeaturesMixin):
+class ProposalsMixin(IrOnMixin):
     # ------------------------------------------------------------- proposals
     async def _handle_proposal(
         self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
     ) -> RunRecord | DriverInput:
         ctx = cont.ctx
+        refused = await self._outside_task_set(run, cont, proposal)  # `on` only (D6)
+        if refused is not None:
+            return refused
         descriptor = self._registry.descriptor(proposal.contract_id)
         if descriptor.effect is EffectKind.ANSWER:
             return await self._handle_answer(run, cont, proposal)
@@ -180,8 +184,8 @@ class ProposalsMixin(FeaturesMixin):
                 {"status": validation.status, "findings": findings_payload},
             ),
         )
-        shadow: list[EventSpec] = []  # execution IR shadow (ADR 0027); `off` adds nothing
-        if self._ir_shadow:
+        shadow: list[EventSpec | StepRecord] = []  # execution IR (ADR 0027); `off` adds nothing
+        if self._ir_shadow or self._ir_on:
             step_ctx = StepDigestContext(
                 tenant_id=ctx.tenant_id,
                 requester_id=ctx.principal.principal_id,
@@ -194,7 +198,11 @@ class ProposalsMixin(FeaturesMixin):
                 rule_bundle_version=validation.rule_bundle_version,
                 policy_version=decision.policy_version,
             )
-            shadow = await self._shadow_plan(run, cont, proposal, action, step_ctx)
+            if self._ir_shadow:
+                shadow = list(await self._shadow_plan(run, cont, proposal, action, step_ctx))
+            else:  # `on`: the action is linked to its stored 1-step plan, or falls back
+                action, wait = await self._on_plan(run, cont, proposal, action, step_ctx)
+                shadow = list(wait)
         cont.pending_action_id = action.action_id
         cont.canonical_proposal = canonical
         cont.last_validation = validation
@@ -225,7 +233,7 @@ class ProposalsMixin(FeaturesMixin):
                     RunEventType.APPROVAL_REQUESTED,
                     {
                         "digest": action.digest,
-                        "expires_at": (cont.approval_requested_at + self._approval_ttl).isoformat(),
+                        "expires_at": (cont.approval_requested_at + self._ttl_for(run)).isoformat(),
                     },
                     action.action_id,
                 ),

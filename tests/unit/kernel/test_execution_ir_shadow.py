@@ -24,15 +24,9 @@ from e_agent.contracts.validation import Finding, ValidationStatus
 from e_agent.kernel import continuation as continuation_module
 from e_agent.kernel import features as features_module
 from e_agent.kernel.approval import compute_digest
-from e_agent.kernel.connections import ConnectionCatalog
-from e_agent.kernel.coordinator import RunCoordinator
-from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.features import FALLBACK_MESSAGES, SHADOW_MESSAGES
-from e_agent.kernel.memory_store import InMemoryRunStore
-from e_agent.kernel.policy import DefaultPolicy
-from e_agent.kernel.registry import PluginRegistry
 
-from .conftest import NOTES_TASK, TENANT, Kernel, NotesDriver
+from .conftest import NOTES_TASK, TENANT, Kernel
 from .record_off_baseline import _normalise, deterministic_ids
 
 MakeKernel = Callable[..., Kernel]
@@ -501,7 +495,7 @@ async def test_shadow_digest_mismatch_is_recorded_and_changes_nothing(
     assert off["compare"][0] is RunState.SUCCEEDED
 
 
-# -- off and on --------------------------------------------------------------------------
+# -- off --------------------------------------------------------------------------------
 async def test_off_ignores_the_task_kind(make_kernel: MakeKernel) -> None:
     k = make_kernel(features=OFF)
     run = await _start(k)
@@ -510,17 +504,3 @@ async def test_off_ignores_the_task_kind(make_kernel: MakeKernel) -> None:
     assert (stored.task_id, stored.task_version) == (None, None)
     assert not IR_EVENTS & set(await _types(k, run.run_id))
     assert await k.store.list_steps(TENANT, run.run_id) == []
-
-
-def test_execution_ir_on_refused_until_implemented() -> None:
-    with pytest.raises(KernelError) as caught:
-        RunCoordinator(
-            store=InMemoryRunStore(),
-            registry=PluginRegistry({}),
-            connections=ConnectionCatalog([]),
-            policy=DefaultPolicy(),
-            driver=NotesDriver(texts=[]),
-            features=Features(execution_ir=FeatureMode.ON),
-        )
-    assert caught.value.code is ErrorCode.STARTUP_REJECTED
-    assert "not available yet" in str(caught.value)

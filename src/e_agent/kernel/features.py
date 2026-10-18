@@ -58,7 +58,16 @@ SHADOW_MESSAGES = MappingProxyType(
 )
 """Each shadow stage's fixed ``ir.shadow_failed`` message; the event carries no reason code."""
 
-ON_UNAVAILABLE = "execution_ir: on is not available yet; use off or shadow"
+
+def fallback_event(feature: str, reason: ReasonCode) -> EventSpec:
+    """The ``feature.fallback`` event: a typed reason and its fixed message, no caller text."""
+    if feature not in Features.model_fields:
+        raise KernelError(ErrorCode.INVALID_REQUEST, f"unknown feature {feature!r}")
+    message = FALLBACK_MESSAGES.get(reason)
+    if message is None:
+        raise KernelError(ErrorCode.INVALID_REQUEST, f"{reason} is not a fallback code")
+    payload = {"feature": feature, "reason_code": reason, "message": message}
+    return (RunEventType.FEATURE_FALLBACK, payload, None)
 
 
 def _task_unresolved(action_id: str | None) -> EventSpec:
@@ -75,14 +84,6 @@ def _shadow_failed(stage: str, action_id: str) -> EventSpec:
     )
 
 
-def check_features(features: Features) -> Features:
-    """Refuse a mode that is not built yet: a selectable mode must be complete (ADR 0027).
-    Task 2c.6 removes the ``on`` refusal."""
-    if features.execution_ir is FeatureMode.ON:
-        raise KernelError(ErrorCode.STARTUP_REJECTED, ON_UNAVAILABLE)
-    return features
-
-
 class FeaturesMixin(ContinuationMixin):
     _features: Features
 
@@ -93,14 +94,19 @@ class FeaturesMixin(ContinuationMixin):
     def _admit_task(
         self, run: RunRecord, task_kind: str | None
     ) -> tuple[RunRecord, list[EventSpec]]:
-        """At run creation, in shadow: link the run to the definition its task kind names
-        (D8, ADR 0028), or return the run's one ``ir.shadow_failed`` (`IR_TASK_UNRESOLVED`)
-        for the creating write's batch, when there is no kind (an API or UI run) or the kind
-        names no admitted definition. In ``off`` the run and its batch are today's."""
-        if not self._ir_shadow:
+        """At run creation, in shadow or on: link the run to the definition its task kind
+        names (D8, ADR 0028), or return the run's one unresolved record for the creating
+        write's batch, when there is no kind (an API or UI run) or the kind names no admitted
+        definition: ``ir.shadow_failed`` in shadow, ``feature.fallback`` in on (the run then
+        runs as ``off``), both with `IR_TASK_UNRESOLVED`. In ``off`` the run and its batch are
+        today's."""
+        mode = self._features.execution_ir
+        if mode is FeatureMode.OFF:
             return run, []
         task = self._registry.task_definitions.get(task_kind) if task_kind else None
         if task is None:
+            if mode is FeatureMode.ON:
+                return run, [fallback_event("execution_ir", ReasonCode.IR_TASK_UNRESOLVED)]
             return run, [_task_unresolved(None)]
         linked = run.model_copy(update={"task_id": task.task_id, "task_version": task.version})
         return linked, []
@@ -189,21 +195,9 @@ class FeaturesMixin(ContinuationMixin):
         The run's state, reason and reason code are unchanged; only its revision moves, so
         the caller keeps using the returned record.
         """
-        if feature not in Features.model_fields:
-            raise KernelError(ErrorCode.INVALID_REQUEST, f"unknown feature {feature!r}")
-        message = FALLBACK_MESSAGES.get(reason)
-        if message is None:
-            raise KernelError(ErrorCode.INVALID_REQUEST, f"{reason} is not a fallback code")
+        event = fallback_event(feature, reason)
         if run.state in TERMINAL_RUN_STATES:
             raise KernelError(ErrorCode.CONFLICT, "a finished run cannot fall back")
         return await self._store.update_run(
-            run.model_copy(update={"revision": run.revision + 1}),
-            run.revision,
-            [
-                (
-                    RunEventType.FEATURE_FALLBACK,
-                    {"feature": feature, "reason_code": reason, "message": message},
-                    None,
-                )
-            ],
+            run.model_copy(update={"revision": run.revision + 1}), run.revision, [event]
         )

@@ -17,6 +17,7 @@ from e_agent.adapters.secretstore_local import LocalSecretStore
 from e_agent.adapters.shacl import ShaclPlanValidator
 from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.context import Principal, TaskContext
+from e_agent.contracts.features import FeatureMode
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.coordinator import RunCoordinator
 from e_agent.kernel.credentials import CredentialService
@@ -125,6 +126,32 @@ def tool_specs(registry: PluginRegistry, profile: Profile) -> list[ToolSpec]:
             )
         )
     return specs
+
+
+def check_task_tool_sets(registry: PluginRegistry, profile: Profile) -> None:
+    """In ``execution_ir: on`` a run's tool set is its definition's capabilities (ADR 0028,
+    D6), so every admitted definition's capability must be one `tool_specs` offers. One it
+    leaves out (unbound, or bound on more than one connection) refuses startup with the
+    capabilities named, never a silent drop from the run's tool set (2c.2 review R-1, PR-10).
+    ``off`` and ``shadow`` narrow nothing and are not checked."""
+    if profile.features.execution_ir is not FeatureMode.ON:
+        return
+    offered = {spec.contract_id for spec in tool_specs(registry, profile)}
+    missing = sorted(
+        {
+            contract_id
+            for task in registry.task_definitions.values()
+            for contract_id in task.capabilities
+            if contract_id not in offered
+        }
+    )
+    if missing:
+        raise KernelError(
+            ErrorCode.STARTUP_REJECTED,
+            "execution_ir: on offers each task definition capability to the driver; "
+            f"{', '.join(missing)} cannot be offered (unbound, or bound on more than one "
+            "connection)",
+        )
 
 
 MODEL_ENDPOINTS: dict[str, tuple[str, str]] = {
@@ -318,6 +345,7 @@ async def build_runtime(
     scope = frozenset(c.connection_id for c in profile.connections)
     connection_id = profile.connections[0].connection_id
 
+    check_task_tool_sets(registry, profile)
     task_kind = task_kind or profile.driver.task_kind
     if task_kind not in registry.task_presets:
         known = ", ".join(sorted(registry.task_presets)) or "none"

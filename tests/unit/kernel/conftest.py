@@ -322,6 +322,8 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
         binding_connections: dict[str, tuple[str, ...]] | None = None,
         allow_self_approval: bool = False,
         features: Features | None = None,
+        task: TaskDefinition = NOTES_TASK,
+        approval_ttl: timedelta | None = None,
     ) -> Kernel:
         backend, validator, verifier = NotesBackend(), NotesValidator(), NotesVerifier()
         driver = NotesDriver(texts=list(texts or ["standup notes"]))
@@ -332,14 +334,14 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
             declared_capabilities=(READ, CREATE),
             binding_templates=BINDINGS,
             declared_task_definitions=(
-                TaskDeclaration(task_id=NOTES_TASK.task_id, version=NOTES_TASK.version),
+                TaskDeclaration(task_id=task.task_id, version=task.version),
             ),
             contribution=PluginContribution(
                 capabilities=(READ, CREATE),
                 validators=(validator,),
                 executors=(backend,),
                 verifiers=(verifier,),
-                task_definitions=(NOTES_TASK,),
+                task_definitions=(task,),
             ),
         )
         registry.admit_task_definitions()
@@ -367,6 +369,7 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
             budgets=budgets,
             allow_self_approval=allow_self_approval,
             features=features,
+            **({} if approval_ttl is None else {"approval_ttl": approval_ttl}),
         )
         return Kernel(
             coordinator,

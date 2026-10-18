@@ -37,8 +37,9 @@ from .continuation import _Continuation as _Continuation
 from .continuation import _GatewayReader as _GatewayReader
 from .dispatch import DispatchMixin
 from .errors import ErrorCode, KernelError
-from .features import FeaturesMixin, check_features
+from .features import FeaturesMixin
 from .gateway import GatewayMixin
+from .ir_on import merged_budgets
 from .proposals import ProposalsMixin
 from .recovery import RecoveryMixin
 from .registry import PluginRegistry
@@ -85,7 +86,7 @@ class RunCoordinator(
         self._approval_ttl = approval_ttl
         self._allow_self_approval = allow_self_approval
         self._budgets = budgets or Budgets()
-        self._features = check_features(features or Features())  # profile toggles (ADR 0027)
+        self._features = features or Features()  # profile toggles (ADR 0027)
         self._runs: dict[str, _Continuation] = {}
         self._active_calls: dict[str, asyncio.Task[Any]] = {}
 
@@ -101,13 +102,6 @@ class RunCoordinator(
         task_kind: str | None = None,
     ) -> tuple[RunRecord, _Continuation, list[EventSpec]]:
         run_id = run_id or new_id("run")
-        ctx = TaskContext(
-            run_id=run_id,
-            tenant_id=principal.tenant_id,
-            principal=principal,
-            resource_scope=resource_scope,
-            budgets=self._budgets,
-        )
         run = RunRecord(
             run_id=run_id,
             tenant_id=principal.tenant_id,
@@ -117,6 +111,17 @@ class RunCoordinator(
             revision=1,
             logical_operation_id=new_id("op"),  # host-assigned; survives repairs
             created_at=self._clock(),
+        )
+        run, admitted = self._admit_task(run, task_kind)  # execution IR (ADR 0027, ADR 0028)
+        definition = self._on_task(run)  # `on` only: the definition narrows the budgets (D7)
+        ctx = TaskContext(
+            run_id=run_id,
+            tenant_id=principal.tenant_id,
+            principal=principal,
+            resource_scope=resource_scope,
+            budgets=self._budgets
+            if definition is None
+            else merged_budgets(self._budgets, definition),
         )
         created: dict[str, Any] = {"task": task, "driver": self._driver.driver_id}
         if host_context is not None:
@@ -130,8 +135,7 @@ class RunCoordinator(
                 "dropped_hints": dropped,
             }
         cont = _Continuation(ctx=ctx, surface_digest=self._registry.surface_digest())
-        run, shadow = self._admit_task(run, task_kind)  # execution IR shadow (ADR 0027)
-        return run, cont, [(RunEventType.RUN_CREATED, created, None), *shadow]
+        return run, cont, [(RunEventType.RUN_CREATED, created, None), *admitted]
 
     async def start_run(
         self,
