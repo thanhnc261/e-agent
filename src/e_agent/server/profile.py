@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Literal
@@ -12,6 +11,7 @@ from e_agent.contracts.common import Record
 from e_agent.contracts.connection import ConnectionDescriptor
 from e_agent.contracts.context import Budgets
 from e_agent.kernel.errors import ErrorCode, KernelError
+from e_agent.server.environment import optional_env
 from pydantic import Field, model_validator
 
 
@@ -108,7 +108,7 @@ def load_profile(path: str | Path | None = None) -> Profile:
     An empty path is refused, never replaced by the environment's profile.
     """
     if path is None:
-        path = os.environ.get("E_AGENT_PROFILE")
+        path = optional_env("E_AGENT_PROFILE")
     if not path:
         raise KernelError(
             ErrorCode.STARTUP_REJECTED, "no profile given: pass --profile or set E_AGENT_PROFILE"

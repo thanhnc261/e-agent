@@ -1,0 +1,32 @@
+{
+  "id": "H.2",
+  "phase": "1h",
+  "plan_ref": "docs/plans/2026-10-15-hygiene-gates-config-ci.md",
+  "feature_ids": [
+    "F-HY-2"
+  ],
+  "context_digest": "7a146f9f15e84ae59e353d7c92a4c18164539acd90ba3ba1729f40e4d2db9040",
+  "allowed_paths": [
+    "src/e_agent/server/environment.py",
+    "src/e_agent/server/bootstrap.py",
+    "src/e_agent/server/profile.py",
+    "pyproject.toml",
+    "tests/conformance/test_banned_api.py",
+    "tests/unit/server/**",
+    ".agents/skills/eng-foundations/references/rules.md",
+    "docs/design/principles.md",
+    "docs/plans/2026-10-15-hygiene-gates-config-ci.md",
+    "harness/state/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "test_os_environ_banned_in_product_code: ruff on a scratch src/e_agent module expects TID251",
+    "test_banned_api_allowlist_is_pinned: exactly the two allowed files",
+    "test_missing_dsn_env_reports_variable_name",
+    "full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "097bf48a220c0b824f0405cb7d375f12e753f126",
+  "created_at": "2026-10-17T10:16:12+00:00",
+  "features_digest": "b9778e9490b4fb56ad168fed39fcd394906b5232167919dd26a65db8997cd398"
+}

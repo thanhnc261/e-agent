@@ -1,0 +1,17 @@
+{
+  "task": "H.4",
+  "changed": "Commit 723ae97 records tests/unit/adapters/pydantic_ai/golden/base_instructions.txt byte-exact from the unchanged BASE_INSTRUCTIONS constant (no trailing newline, as the constant). Commit c68e2aa adds test_base_instructions_match_golden (exact comparison; the failure message says to update the golden file in the same commit as an intended prompt change) and test_every_recording_is_replayed in tests/unit/server/test_recorded_model_replays.py (the *.json stems of tests/replays/erp-model-calls equal set(TASKS), non-empty, no duplicate in TASKS). Probe: a scratch zz-probe.json recording made the test fail with \"recordings without a replay test: ['zz-probe']; TASKS without a recording: []\"; the file was removed and never committed. rules.md adds ENG-EVID-5 'Prompts are code' and marks the TASKS silent-pass entry fixed; principles.md PR-31 and PR-32 are [I] and their backlog rows are removed. No product code changed. Full gate passed on c68e2aa. Claude review (harness/state/1h/reviews/H.4.json): accept, one Low note.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H.4/2026-10-17T10-44-36.855544+00-00-full.json"
+  ],
+  "open_items": [
+    "PR-32 is [I] because both tests run in every pytest run (so in the full gate); the golden file pins only BASE_INSTRUCTIONS, tool schemas are covered only through the replays, and nothing requires the suite by path. The owner may prefer [Pa] to keep that visible (review R-1)."
+  ],
+  "rulings": [
+    {
+      "ruling": "PR-32 marked [I]: the practice 'a change to the driver, prompts or tool schemas runs the replay suite' holds because the replays and the golden test run in every full gate.",
+      "cost_if_wrong": "Set PR-32 back to [Pa] and add a backlog row for a path-triggered check."
+    }
+  ],
+  "outside_repo": []
+}

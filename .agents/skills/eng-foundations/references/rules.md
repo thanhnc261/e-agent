@@ -39,6 +39,20 @@ Each rule has one ID, a one-sentence statement, its source, how it is enforced (
 - **Enforcement:** test
 - **Evidence:** `tests/conformance/test_repo_layout.py` passes.
 
+### ENG-ARCH-6 — Typed environment reads
+
+- **Statement:** Product code reads the process environment only through `e_agent.server.environment`, which names a missing variable and never echoes its value; Ruff TID251 bans `os.environ` and `os.getenv` under `src/e_agent`; no file is exempt, and the reads in `server/environment.py` and `adapters/secretstore_local/store.py` carry line-level `# noqa: TID251` exemptions pinned by file and banned API.
+- **Source:** AGENTS.md "Development and verification"; PR-37; adoption review XA-14.
+- **Enforcement:** gate, test
+- **Evidence:** `uv run ruff check .` passes and `test_os_environ_banned_in_product_code` `test_banned_api_allowlist_is_pinned` and `test_allowed_files_still_ban_the_other_api` (`tests/conformance/test_banned_api.py`) pass.
+
+### ENG-ARCH-7 — Supervised background tasks
+
+- **Statement:** Product code starts a background task only through `e_agent.sdk.tasks.supervised_task`, which keeps a reference until the task is done, logs a failure with the task name and exception type (never its message) and still raises it on await; a task its caller awaits and handles passes `log_failure=False`. Ruff TID251 bans `asyncio.create_task` under `src/e_agent`; the one call in that module carries a pinned line-level `# noqa: TID251`.
+- **Source:** AGENTS.md "Development and verification"; PR-38; adoption review XA-15.
+- **Enforcement:** gate, test
+- **Evidence:** `uv run ruff check .` passes; `test_supervised_task_failure_is_logged_and_reraised_on_await` and `test_supervised_task_cancel_is_not_logged_as_failure` (`tests/unit/sdk/test_tasks.py`), `test_timed_call_failure_reaches_the_caller_unlogged` (`tests/unit/kernel/test_timed_logging.py`), `test_create_task_banned_in_product_code`, `test_banned_api_allowlist_is_pinned` and `test_allowed_files_still_ban_the_other_api` (`tests/conformance/test_banned_api.py`) pass.
+
 ## Trust anchor
 
 ### ENG-TRUST-1 — Model output is a proposal
@@ -130,6 +144,25 @@ Each rule has one ID, a one-sentence statement, its source, how it is enforced (
 - **Source:** AGENTS.md "Development and verification".
 - **Enforcement:** command, review
 - **Evidence:** evidence files contain `[REDACTED]` where a secret appeared; the review greps for key material.
+
+### ENG-EVID-4 — Gates fail on empty input
+
+- **Statement:** A gate, report or scan prints how many cases it ran and fails when that number is zero; a vacuous pass is a defect. A new gate gets a test that feeds it empty input.
+- **Source:** AGENTS.md "Development and verification"; PR-31; adoption review XA-04.
+- **Enforcement:** test, review
+- **Evidence:** `test_release_report_fails_on_zero_cases` (`tests/conformance/test_release_report.py`) passes.
+
+**Known silent-pass paths** (finite; add an entry only with the task that fixes it):
+
+- `scripts/release_report.py`: passed 0/0; fixed in Hygiene H.1.
+- The replay `TASKS` constant in `tests/unit/server/test_recorded_model_replays.py`: an empty list passes and an unlisted recording is never replayed; fixed in Hygiene H.4 by `test_every_recording_is_replayed`.
+
+### ENG-EVID-5 — Prompts are code
+
+- **Statement:** A change to the driver, the prompts or the tool schemas keeps the recorded-model replay suite and the prompt golden file green; an intended prompt change updates `tests/unit/adapters/pydantic_ai/golden/base_instructions.txt` in the same commit. A new recording is replayed or the suite fails.
+- **Source:** AGENTS.md "Development and verification"; PR-32; adoption review XA-17.
+- **Enforcement:** test, review
+- **Evidence:** `test_base_instructions_match_golden` (`tests/unit/adapters/pydantic_ai/test_prompt_golden.py`) and `test_every_recording_is_replayed` (`tests/unit/server/test_recorded_model_replays.py`) pass, as does the replay suite.
 
 ## Boundaries
 

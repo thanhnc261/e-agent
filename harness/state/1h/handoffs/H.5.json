@@ -1,0 +1,50 @@
+{
+  "task": "H.5",
+  "changed": "Commit 15eae16 adds a 'security' job to .github/workflows/ci.yml: gitleaks 8.28.0 linux_x64 downloaded from the official release with its SHA-256 hard-coded and checked by sha256sum -c, run over the full history (checkout fetch-depth 0) with --redact, printing the number of commits scanned and failing on zero; pip-audit 2.9.0 through uvx on the 'uv export' requirements and 'pnpm --dir ui audit --prod', each printing the packages audited and failing on zero or on any finding. .gitleaks.toml extends the default rules; README has the local commands; principles.md PR-25 and PR-39 name the job, status [Pa] until the owner's pushed run is green, backlog rows removed. Review (harness/state/1h/reviews/H.5.json) found R-1 (no pipefail: a history with leaks left the step green) and R-2 (allowlist disabled every rule for two whole files). Fix a795734: the job runs with 'defaults: run: shell: bash' (bash -eo pipefail); the allowlist is one condition=AND entry for the old path apps/server/tests/test_pydantic_driver_e2e.py plus an anchored regex for the exact sentinel; probes show a seeded fake ghp_ token fails the step and is reported at the current and the old path, and the real history scans clean. A dated plan note records PR-25/PR-39 staying [Pa]. Full gate passed on 54bcda0. Re-review (harness/state/1h/reviews/H.5-r2.json): accept. LOCAL BASELINE 2026-10-17 (gitleaks 8.28.0 darwin_arm64, checksum verified, --redact): 453 commits at the first run (456 at re-review), 2 raw generic-api-key findings, both at apps/server/tests/test_pydantic_driver_e2e.py line 19 in commits 3ae9aafb and 60a7422c; triage: a readable 28-character sentinel passed to ThinkingPart and asserted absent from the evidence blob (test fixture, not a credential), allowlisted with its reason; no other finding. pip-audit 2.9.0: 72 pinned packages, 0 vulnerabilities. pnpm audit --prod: 28 packages, 0 vulnerabilities. Whole-phase Codex review (harness/state/1h/reviews/1h-final.json): rework, R-1 (pip-audit zero guard counted lines before marker filtering) and R-2 (plan H.2/H.3 text out of date). Fix 96147dc: pip-audit writes JSON and the step counts dependencies without skip_reason, failing on zero (probes: real export 69 audited, exit 0; empty and marker-only inputs 0, exit 1; requests==2.19.0 fails through pip-audit); the plan carries dated amendments for TID251 only, six line-level noqa exemptions and log_failure=False. Full gate passed on 96147dc. A Codex re-review stopped on its usage limit (thread 01a1498d-231b-7860-bf0c-5911fcb1023b; partial: R-1 probes pass); the Claude re-review (harness/state/1h/reviews/1h-final-r2.json) accepts both. Pushed on the owner's instruction (main fast-forwarded; PR #4). First CI run 39032348630: security job green; checks failed only test_repo_move.py, a pre-existing failure also on main (the test relied on the developer's global gitignore). Fix bf0c1a6 (scope amended; Claude review H.5-ci accept). CI run 39032815905 on c24faaa: all five jobs green (https://github.com/thanhnc261/e-agent/actions/runs/39032815905). PR-25 is [I]; PR-39 stays [Pa] pending the owner's branch protection. Final full gate on 625e9fc: 995 passed, 30 skipped. Phase handoff: docs/handoffs/2026-10-17-hygiene-gates.md.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H.5/2026-10-17T12-34-10.513516+00-00-full.json",
+    "harness/state/evidence/gates/H.5/2026-10-17T11-07-41.937096+00-00-full.json",
+    "harness/state/evidence/gates/H.5/2026-10-17T10-58-49.262221+00-00-full.json",
+    "harness/state/evidence/gates/H.5/2026-10-17T10-49-56.353524+00-00-full.json",
+    "harness/state/evidence/gates/H.5/2026-10-17T12-28-58.523199+00-00-full.json"
+  ],
+  "open_items": [
+    "Owner: merge PR #4 and set branch protection so the security job is required (PR-39 then [I]).",
+    "Deferred minor (review R-5): actions/checkout and astral-sh/setup-uv use floating major tags, as the existing jobs do; uvx resolves pip-audit's own dependencies unpinned.",
+    "Making the security job a required check is a branch-protection setting for the owner.",
+    "Plan wording below the dated amendments still says 'two-file allowlist' (lines 14, 47, 104, 126); style only (final re-review, out of scope).",
+    "A dependency pip-audit cannot find on PyPI is skipped without failing when others were audited; the real lock has 0 skipped."
+  ],
+  "rulings": [
+    {
+      "ruling": "Review R-2: the allowlist stays in .gitleaks.toml as one AND entry (old path plus an anchored regex for the exact sentinel), because targetRules did not match in gitleaks 8.28.0 and a path-only entry disabled every rule.",
+      "cost_if_wrong": "Switch to .gitleaksignore fingerprints."
+    },
+    {
+      "ruling": "Review R-4: PR-25 and PR-39 stay [Pa] until the owner's pushed run is green, recorded as a dated plan note.",
+      "cost_if_wrong": "A one-line status flip after the run."
+    },
+    {
+      "ruling": "The baseline is recorded in this handoff, not the task contract, because the contract schema allows no extra fields (review R-3).",
+      "cost_if_wrong": "None; the handoff is committed."
+    },
+    {
+      "ruling": "The CI-only test_repo_move failure was fixed inside H.5 with an amended scope, because PR #4 could not go green otherwise.",
+      "cost_if_wrong": "Split it into its own task contract."
+    },
+    {
+      "ruling": "After the green run PR-25 is [I] and PR-39 stays [Pa], because a required check needs the owner's branch protection.",
+      "cost_if_wrong": "A one-line status flip."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "origin/main fast-forwarded 3ae9aaf..2a6d250, origin/chore/hygiene-gates created and PR #4 opened, on the owner's instruction.",
+      "undo": "Close PR #4 and delete the branch; reverting origin/main needs a force push by the owner."
+    },
+    {
+      "change": "gitleaks 8.28.0 darwin_arm64 release tarball and binary downloaded (checksum verified) into the session scratchpad for the local baseline; pip-audit fetched through uvx; pnpm audit queried the npm registry with the UI lockfile's production dependencies.",
+      "undo": "Delete the scratchpad directories; nothing was installed system-wide."
+    }
+  ]
+}

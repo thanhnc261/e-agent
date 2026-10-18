@@ -429,3 +429,48 @@
 - changed: harness/state/1/features.json, harness/state/1/handoffs/1d.12.json, harness/state/evidence/gates/1d.12/2026-10-17T10-04-24.314510+00-00-live.json
 - next: Phase 1d closed; merge refactor/phase1d-plugin-boundary into local main (owner approved), then start Hygiene on chore/hygiene-gates
 - open: none
+
+## 2026-10-17T10:07:35.592171+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.1
+- changed: no working-tree changes
+- next: implement H.1 in a cleared context: check release_report.py:243 summary first, then test_release_report_fails_on_zero_cases red, fix, rule + silent-pass list
+- open: none
+
+## 2026-10-17T10:15:47.685851+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.1
+- changed: harness/state/1h/features.json, harness/state/1h/handoffs/H.1.json, harness/state/1h/reviews/H.1.json, harness/state/1h/tasks/H.1.json, harness/state/evidence/gates/H.1/2026-10-17T10-13-20.420880+00-00-full.json
+- next: H.1 closed; open H.2 (typed environment reads) with new-task 1h H.2 --feature F-HY-2
+- open: none
+
+## 2026-10-17T10:21:10.584293+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.2
+- changed: harness/state/1h/features.json, harness/state/1h/handoffs/H.2.json, harness/state/1h/reviews/H.2.json, harness/state/1h/tasks/H.2.json, harness/state/evidence/gates/H.2/2026-10-17T10-19-09.439740+00-00-full.json
+- next: H.2 closed; open H.3 (supervised background tasks, kernel change, Codex review)
+- open: none
+
+## 2026-10-17T10:42:49.615717+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.3
+- changed: harness/state/1h/features.json, harness/state/1h/handoffs/H.3.json, harness/state/1h/reviews/H.3-r2.json, harness/state/1h/reviews/H.3.json, harness/state/1h/tasks/H.3.json, harness/state/evidence/gates/H.3/2026-10-17T10-39-32.536749+00-00-full.json
+- next: H.3 closed; open H.4 (prompt golden file; every recording replayed)
+- open: none
+
+## 2026-10-17T10:46:40.876248+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.4
+- changed: harness/state/1h/features.json, harness/state/1h/handoffs/H.4.json, harness/state/1h/reviews/H.4.json, harness/state/1h/tasks/H.4.json, harness/state/evidence/gates/H.4/2026-10-17T10-44-36.855544+00-00-full.json
+- next: H.4 closed; open H.5 (CI secret scan and dependency audit; owner push needed to close)
+- open: none
+
+## 2026-10-17T11:01:11.855910+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.5
+- changed: harness/state/1h/handoffs/H.5.json, harness/state/1h/reviews/H.5-r2.json, harness/state/1h/tasks/H.5.json, harness/state/evidence/gates/H.5/2026-10-17T10-58-49.262221+00-00-full.json
+- next: H.5 waits on the owner's push and a green security job on a PR; then flip F-HY-5, close H.5, write the Hygiene phase handoff and update the roadmap row
+- open: none
+
+## 2026-10-17T11:14:46.660167+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.5
+- changed: harness/state/1h/handoffs/H.5.json, harness/state/1h/reviews/1h-final-r2.json, harness/state/1h/reviews/1h-final.json, harness/state/1h/tasks/H.5.json, harness/state/evidence/gates/H.5/2026-10-17T11-07-41.937096+00-00-full.json
+- next: owner pushes chore/hygiene-gates and opens a PR; security job green -> record run link, flip F-HY-5, close H.5, PR-25/PR-39 to [I], roadmap 1h done
+- open: none
+
+## 2026-10-17T12:36:10.897320+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.5
+- changed: docs/handoffs/2026-10-17-hygiene-gates.md, harness/state/1h/features.json, harness/state/1h/handoffs/H.5.json, harness/state/evidence/gates/H.5/2026-10-17T12-34-10.513516+00-00-full.json
+- next: Hygiene closed; owner merges PR #4; Phase 2 plan awaits owner review
+- open: none
+
+## 2026-10-17T12:36:13.301155+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · H.5
+- changed: no working-tree changes
+- next: local baseline of scanner and audits recorded and triaged in the contract
+- open: none

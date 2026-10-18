@@ -1,0 +1,28 @@
+{
+  "id": "H.4",
+  "phase": "1h",
+  "plan_ref": "docs/plans/2026-10-15-hygiene-gates-config-ci.md",
+  "feature_ids": [
+    "F-HY-4"
+  ],
+  "context_digest": "794a46d062c41ddc67586ea2377d061a51f8fab7e936365af0172b8f1d4e3289",
+  "allowed_paths": [
+    "tests/unit/adapters/pydantic_ai/golden/base_instructions.txt",
+    "tests/unit/adapters/pydantic_ai/test_prompt_golden.py",
+    "tests/unit/server/test_recorded_model_replays.py",
+    ".agents/skills/eng-foundations/references/rules.md",
+    "docs/design/principles.md",
+    "docs/plans/2026-10-15-hygiene-gates-config-ci.md",
+    "harness/state/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "golden file committed from the unchanged constant before any other change",
+    "test_base_instructions_match_golden passes; test_every_recording_is_replayed passes and fails on a scratch recording (probe in the handoff)",
+    "check_agent_skills.py and the full gate pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "5f21b6ce9624baa9ff57bb9a7488825408f71d02",
+  "created_at": "2026-10-17T10:43:04+00:00",
+  "features_digest": "ed64059185d8223ce9749b4642aa1596558e145395dd274d577713b9f4781a58"
+}

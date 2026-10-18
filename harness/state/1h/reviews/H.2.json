@@ -1,0 +1,28 @@
+{
+  "task": "H.2",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Selecting TID251 instead of the whole TID family (brief says add TID) is a justified deviation: TID252 has 51 unrelated findings in plugins/erp/domain/testing, the ban itself is selected and pinned by test_banned_api_allowlist_is_pinned, and no rule is suppressed wholesale. Record it in the handoff.",
+      "evidence": "pyproject.toml select line; tests/conformance/test_banned_api.py:436; ENG-ARCH-6"
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The probe passes --select TID251, so it proves the banned-api entries fire but not that the repo select list enables them; the pin test covers that (asserts TID251 in select) and ruff check . passes with the rule on. Acceptable, no action.",
+      "evidence": "tests/conformance/test_banned_api.py:417,436"
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "close-check currently reports a stale contract digest, missing progress-log entry, missing handoff and F-HY-2 not yet passing. These are controller close-ritual steps (refresh-task, progress, handoff, flip passes), not defects in the diff. Gate evidence dir is untracked until committed.",
+      "evidence": "uv run e-agent-harness close-check output; harness/state/evidence/gates/H.2/"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}

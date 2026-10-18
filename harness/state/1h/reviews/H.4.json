@@ -1,0 +1,14 @@
+{
+  "task": "H.4",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "PR-32 [I] is defensible but slightly generous: the golden file pins only BASE_INSTRUCTIONS (tool schemas and other prompt text are covered only indirectly by the replays), and nothing requires the suite by path; the row's own text says both tests run in every pytest run and so in the full gate, which is true. Suggest [Pa] only if the owner wants the old 'by path' gap kept visible; no change required.",
+      "evidence": "docs/design/principles.md:62 (PR-32 row); legend at line 15; tests/unit/adapters/pydantic_ai/test_prompt_golden.py:14; ENG-EVID-5"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}

@@ -1,0 +1,28 @@
+{
+  "task": "H.3",
+  "changed": "Commit ce76976: src/e_agent/sdk/tasks.py adds supervised_task(coro, *, name, log_failure=True): it keeps a strong reference until done, its done-callback logs a failure with the task name and exception type only (no message or traceback, like the sweeper log), cancellation is not logged, and awaiting re-raises the original exception. server/worker.py (heartbeat), server/api.py (worker, sweeper) and kernel/continuation.py (_timed) use it. Ruff banned-api adds asyncio.create_task under src/e_agent. Codex review (harness/state/1h/reviews/H.3.json) found R-1 (shared TID251 per-file ignores cross-exempted both bans) and R-2 (handled _timed failures added a WARNING line to CLI stderr). Fix 2c5e71d: no TID251 per-file ignore under src/; six reasoned line-level '# noqa: TID251' exemptions (two in server/environment.py, three in adapters/secretstore_local/store.py, one in sdk/tasks.py), pinned exactly by test_banned_api_allowlist_is_pinned with cross-ban tests (test_allowed_files_still_ban_the_other_api); _timed passes log_failure=False because its task is an awaited child the caller handles; tests/unit/kernel/test_timed_logging.py proves a handled lost-response failure logs nothing and reaches NEEDS_RECONCILIATION. The CLI lost-response demo prints nothing on stderr again. Rules ENG-ARCH-6 and ENG-ARCH-7, rows PR-37 and PR-38 updated. Full gate passed on d50809e (993 passed, 30 skipped). Codex re-review (harness/state/1h/reviews/H.3-r2.json): both ADDRESSED, accept.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H.3/2026-10-17T10-39-32.536749+00-00-full.json",
+    "harness/state/evidence/gates/H.3/2026-10-17T10-29-24.783974+00-00-full.json"
+  ],
+  "open_items": [
+    "Only asyncio.create_task is banned; asyncio.ensure_future, loop.create_task and TaskGroup are not (none under src/e_agent today).",
+    "The noqa pin reads source text; a multi-line suppressed call is reported as unidentified, which fails the pin rather than passing.",
+    "tests/unit/kernel/test_timed_logging.py calls the private _timed and _load_cont on purpose."
+  ],
+  "rulings": [
+    {
+      "ruling": "Codex R-1: exemptions are line-level '# noqa: TID251 - <reason>' on exactly the allowed lines, pinned by (file, banned API), instead of the plan's per-file ignores, because per-file ignores are per rule code and cross-exempt both bans.",
+      "cost_if_wrong": "Switch back to per-file ignores and accept the cross-exemption."
+    },
+    {
+      "ruling": "Codex R-2: supervised_task gets log_failure (default True) and _timed passes False, because its task is awaited and its failure is handled by the caller; background sites keep logging.",
+      "cost_if_wrong": "A later structured child-task design replaces the flag."
+    },
+    {
+      "ruling": "The scope was amended for the fix: server/environment.py, adapters/secretstore_local/store.py and tests/unit/kernel/test_timed_logging.py.",
+      "cost_if_wrong": "None; recorded in the contract."
+    }
+  ],
+  "outside_repo": []
+}

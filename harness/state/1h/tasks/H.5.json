@@ -1,0 +1,47 @@
+{
+  "id": "H.5",
+  "phase": "1h",
+  "plan_ref": "docs/plans/2026-10-15-hygiene-gates-config-ci.md",
+  "feature_ids": [
+    "F-HY-5"
+  ],
+  "context_digest": "b8f76512740c7d8b4ad3afc4daeeccf98c67d41ddd5fbd267f8eceb24abcb994",
+  "allowed_paths": [
+    ".github/workflows/ci.yml",
+    ".gitleaks.toml",
+    "README.md",
+    "docs/design/principles.md",
+    "docs/plans/2026-10-15-hygiene-gates-config-ci.md",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "scripts/repo_move.py",
+    "tests/conformance/test_repo_move.py",
+    "docs/roadmap.md"
+  ],
+  "acceptance": [
+    "local baseline of scanner and audits recorded and triaged in the contract",
+    "security job added; README has the local commands",
+    "owner pushes the branch; the security job is green; run link in the handoff"
+  ],
+  "gate_set": "full",
+  "base_commit": "43b3e148410431bd7f7ce5c595c950e7a8055261",
+  "created_at": "2026-10-17T10:47:11+00:00",
+  "features_digest": "2ad2f5474481cf715a1bbaba64fea1f51864285f43659a96c3a152fdbe131993",
+  "scope_changes": [
+    {
+      "glob": "scripts/repo_move.py",
+      "reason": "PR #4 CI: pre-existing test_repo_move failure (untracked __pycache__ counted as leftover without a global gitignore) blocks the green PR",
+      "at": "2026-10-17T12:28:01+00:00"
+    },
+    {
+      "glob": "tests/conformance/test_repo_move.py",
+      "reason": "PR #4 CI: make the scratch repo ignore the developer's global gitignore so the failure reproduces locally",
+      "at": "2026-10-17T12:28:02+00:00"
+    },
+    {
+      "glob": "docs/roadmap.md",
+      "reason": "Hygiene phase close: roadmap 1h row Done",
+      "at": "2026-10-17T12:33:44+00:00"
+    }
+  ]
+}

@@ -82,11 +82,11 @@ No runtime feature is added, so roadmap rule 3 does not apply.
 - `.agents/skills/eng-foundations/references/rules.md`: a new rule "Gates fail on empty input" with a finite **Known silent-pass paths** list. Its first entries are `release_report.py` (fixed here) and the replay `TASKS` constant (fixed in H.4).
 
 **Steps:**
-- [ ] Write the failing test `test_release_report_fails_on_zero_cases`: call the report's summary function with an empty result list and expect exit code 1 and the text `0/0`.
-- [ ] Run `uv run pytest -q tests/conformance/test_release_report.py`. Expected: fails (returns 0). If the summary is not a separate function yet, extract it first without changing output.
-- [ ] Implement.
-- [ ] Run the test and `uv run python scripts/check_agent_skills.py`. Expected: pass.
-- [ ] Commit `fix(scripts): release report fails on zero cases; silent-pass list`.
+- [x] Write the failing test `test_release_report_fails_on_zero_cases`: call the report's summary function with an empty result list and expect exit code 1 and the text `0/0`.
+- [x] Run `uv run pytest -q tests/conformance/test_release_report.py`. Expected: fails (returns 0). If the summary is not a separate function yet, extract it first without changing output.
+- [x] Implement.
+- [x] Run the test and `uv run python scripts/check_agent_skills.py`. Expected: pass.
+- [x] Commit `fix(scripts): release report fails on zero cases; silent-pass list`.
 
 ### Task H.2: typed settings for environment reads (XA-14, PR-37)
 
@@ -96,16 +96,17 @@ No runtime feature is added, so roadmap rule 3 does not apply.
 - `.agents/skills/eng-foundations/references/rules.md`: a rule for typed environment reads, citing AGENTS.md "Development and verification".
 - `pyproject.toml`: add `TID` to Ruff `select`; `[tool.ruff.lint.flake8-tidy-imports.banned-api]` bans `os.environ` and `os.getenv`; per-file ignores allow `src/e_agent/server/environment.py` and `src/e_agent/adapters/secretstore_local/store.py` (the key-encryption key is a legitimate secret source), and exempt `scripts/**`, `tools/**` and `tests/**`.
 - `tests/conformance/test_banned_api.py`
+- **Amendment 2026-10-17 (review ruling; the built form).** `select` adds `TID251` only, not all of `TID`: `TID252` (relative imports) would add 51 unrelated findings. There is no `TID251` per-file ignore under `src/`. The two legitimate readers carry line-level `# noqa: TID251 - <reason>` exemptions instead: two in `server/environment.py`, three in `adapters/secretstore_local/store.py` and (from H.3) one in `sdk/tasks.py`, six in all. `test_banned_api_allowlist_is_pinned` pins those six lines, and `test_allowed_files_still_ban_the_other_api` proves an exempt file still bans the other API. The text above that says "add `TID`" and "per-file ignores allow" is superseded.
 
 **Steps:**
-- [ ] Write the failing tests:
+- [x] Write the failing tests:
   - `test_os_environ_banned_in_product_code`: runs `ruff check` on a scratch module under a temporary `src/e_agent` path that reads `os.environ` and expects `TID251`.
   - `test_banned_api_allowlist_is_pinned`: the per-file ignores for `TID251` under `src/` are exactly the two files above (H.3 adds its helper).
   - `test_missing_dsn_env_reports_variable_name`: a profile whose `dsn_env` is unset fails startup naming the variable.
-- [ ] Run `uv run pytest -q tests/conformance/test_banned_api.py tests/unit/server`. Expected: the ban test fails (no `TID`).
-- [ ] Implement. Run `uv run ruff check .` and fix every finding in `src/` through the helper.
-- [ ] Run the `full` gate. Expected: pass.
-- [ ] Commit `chore: typed environment reads; ban os.environ in product code`.
+- [x] Run `uv run pytest -q tests/conformance/test_banned_api.py tests/unit/server`. Expected: the ban test fails (no `TID`).
+- [x] Implement. Run `uv run ruff check .` and fix every finding in `src/` through the helper.
+- [x] Run the `full` gate. Expected: pass.
+- [x] Commit `chore: typed environment reads; ban os.environ in product code`.
 
 ### Task H.3: supervised background tasks (XA-15, PR-38)
 
@@ -114,18 +115,19 @@ No runtime feature is added, so roadmap rule 3 does not apply.
 - `src/e_agent/server/worker.py:71`, `src/e_agent/server/api.py:215,217`, `src/e_agent/kernel/continuation.py:251`: use the helper.
 - `pyproject.toml`: ban `asyncio.create_task` under `src/e_agent/**`; the helper module is the only allowed caller.
 - `tests/unit/sdk/test_tasks.py`, `tests/conformance/test_banned_api.py`
+- **Amendment 2026-10-17 (review ruling; the built form).** The signature is `supervised_task(coro, *, name, log_failure=True)`. The awaited kernel `_timed` call passes `log_failure=False`, because its caller already reports the failure and a second log line would duplicate it; `tests/unit/kernel/test_timed_logging.py` pins that. The allowlist is the line-level exemption in `sdk/tasks.py` (see H.2), not a per-file ignore, and `test_banned_api_allowlist_is_pinned` covers it.
 - `.agents/skills/eng-foundations/references/rules.md`: a rule for supervised background tasks, citing AGENTS.md "Development and verification".
 
 **Steps:**
-- [ ] Write the failing tests:
+- [x] Write the failing tests:
   - `test_supervised_task_failure_is_logged_and_reraised_on_await`
   - `test_supervised_task_cancel_is_not_logged_as_failure`
   - `test_create_task_banned_in_product_code` (the same probe as H.2)
   - extend `test_banned_api_allowlist_is_pinned` to three files.
-- [ ] Run `uv run pytest -q tests/unit/sdk/test_tasks.py tests/conformance/test_banned_api.py`. Expected: fails (no helper).
-- [ ] Implement and migrate the four call sites.
-- [ ] Run the `full` gate. Expected: pass; the worker and sweeper tests are unchanged.
-- [ ] Commit `chore: supervised background tasks; ban bare create_task`.
+- [x] Run `uv run pytest -q tests/unit/sdk/test_tasks.py tests/conformance/test_banned_api.py`. Expected: fails (no helper).
+- [x] Implement and migrate the four call sites.
+- [x] Run the `full` gate. Expected: pass; the worker and sweeper tests are unchanged.
+- [x] Commit `chore: supervised background tasks; ban bare create_task`.
 
 ### Task H.4: prompts are code; every recording is replayed (XA-17, PR-32)
 
@@ -136,13 +138,13 @@ No runtime feature is added, so roadmap rule 3 does not apply.
 - `.agents/skills/eng-foundations/references/rules.md`: the "Known silent-pass paths" entry for `TASKS` is marked fixed; a rule says a change to the driver, prompts or tool schemas must keep the replay suite and the prompt golden file green, and an intended prompt change updates the golden file in the same commit.
 
 **Steps:**
-- [ ] Record the golden file from the current constant and commit it before any other change.
-- [ ] Write the failing tests:
+- [x] Record the golden file from the current constant and commit it before any other change.
+- [x] Write the failing tests:
   - `test_base_instructions_match_golden`
   - `test_every_recording_is_replayed`: the stems of the `*.json` recordings (the directory also holds a `README.md`) equal `set(TASKS)`, and the set is not empty.
-- [ ] Run the two test files. Expected: the golden test passes on unchanged code; the recording test passes today (8 recordings, 8 tasks, checked 2026-10-15) and fails when a scratch recording is added; record that probe in the handoff.
-- [ ] Run `uv run python scripts/check_agent_skills.py` and the `full` gate. Expected: pass.
-- [ ] Commit `test: prompt golden file; every recorded replay runs`.
+- [x] Run the two test files. Expected: the golden test passes on unchanged code; the recording test passes today (8 recordings, 8 tasks, checked 2026-10-15) and fails when a scratch recording is added; record that probe in the handoff.
+- [x] Run `uv run python scripts/check_agent_skills.py` and the `full` gate. Expected: pass.
+- [x] Commit `test: prompt golden file; every recorded replay runs`.
 
 ### Task H.5: secret scan and dependency audit in CI (XA-16, PR-25, PR-39)
 
@@ -155,17 +157,18 @@ No runtime feature is added, so roadmap rule 3 does not apply.
 - `README.md`: the same commands for a local run.
 
 **Steps:**
-- [ ] Run the scanner and both audits locally first and record the baseline in the task contract. Triage each finding: fix it, or allowlist it with its reason. A real credential in history is reported to the owner at once and is not pushed anywhere.
-- [ ] Add the job.
-- [ ] The owner pushes the branch; the `security` job is green. Record the run link in the handoff.
-- [ ] Commit `ci: secret scan and dependency audit`.
+- [x] Run the scanner and both audits locally first and record the baseline in the task contract. Triage each finding: fix it, or allowlist it with its reason. A real credential in history is reported to the owner at once and is not pushed anywhere.
+- [x] Add the job.
+- [x] The owner pushes the branch; the `security` job is green. Record the run link in the handoff. (2026-10-17: pushed on the owner's instruction; PR #4, [run 39032815905](https://github.com/thanhnc261/e-agent/actions/runs/39032815905), all five jobs green.)
+  - 2026-10-17: PR-25 and PR-39 stay [Pa] in principles.md until the owner's pushed run is green (a deviation from the Design refs' status [I]). After the green run PR-25 is [I]; PR-39 stays [Pa] because its mechanism, a required check, needs the owner's branch protection.
+- [x] Commit `ci: secret scan and dependency audit`.
 
 ---
 
 ### Close
 
-- [ ] Update principles.md: PR-25, PR-31, PR-32, PR-37, PR-38 and PR-39 name their checks; the backlog rows for them are removed.
-- [ ] Write the handoff with `eng-handoff`: each task's check, its probe and the baseline findings from H.5.
+- [x] Update principles.md: PR-25, PR-31, PR-32, PR-37, PR-38 and PR-39 name their checks; the backlog rows for them are removed. (PR-39 stays [Pa]: a required check needs the owner's branch protection.)
+- [x] Write the handoff with `eng-handoff`: each task's check, its probe and the baseline findings from H.5 ([handoff](../handoffs/2026-10-17-hygiene-gates.md)).
 
 ## Self-review
 

@@ -58,19 +58,28 @@ target-version = "py312"
 extend-exclude = ["docs", "research"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "S", "RUF", "SIM", "PT"]
+select = ["E", "F", "W", "I", "B", "UP", "S", "RUF", "SIM", "PT", "TID251"]
 ignore = ["S101"]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["fastapi.Depends", "fastapi.Header"]
 
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"os.environ".msg = "Read configuration through e_agent.server.environment (PR-37)."
+"os.getenv".msg = "Read configuration through e_agent.server.environment (PR-37)."
+"asyncio.create_task".msg = "Start background tasks through e_agent.sdk.tasks.supervised_task (PR-38)."
+
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S", "B", "PT018"]
-"scripts/**" = ["S310", "S603", "S607"]
+# TID251 bans os.environ/os.getenv (PR-37) and asyncio.create_task (PR-38) under src/e_agent;
+# scripts, tools and tests are command-line entry points and stay out of scope. No file under
+# src/ is exempt: the allowed calls carry line-level `# noqa: TID251` comments, pinned (file and
+# banned API) by tests/conformance/test_banned_api.py.
+"**/tests/**" = ["S", "B", "PT018", "TID251"]
+"scripts/**" = ["S310", "S603", "S607", "TID251"]
 "addons/**/__init__.py" = ["F401"]
 "addons/**/__manifest__.py" = ["B018"]
-"tools/harness/**" = ["S603", "S607"]
-".claude/hooks/**" = ["S603", "S607"]
+"tools/harness/**" = ["S603", "S607", "TID251"]
+".claude/hooks/**" = ["S603", "S607", "TID251"]
 "tools/harness/src/e_agent_harness/gate.py" = ["S602", "S603", "S607"]
 
 [tool.mypy]

@@ -220,6 +220,17 @@ async def run_case(case: Case) -> dict[str, Any]:
     }
 
 
+def summarize(results: list[dict[str, Any]], out: str) -> tuple[int, str]:
+    lines = []
+    for r in results:
+        mark = "ok " if r["passed"] else "FAIL"
+        lines.append(f"{mark} {r['task']} {r['case']}: {r['final_state']}\n")
+    passed = sum(r["passed"] for r in results)
+    lines.append(f"{passed}/{len(results)} cases passed -> {out}\n")
+    # Zero cases is a failure, not a pass (PR-31, ENG-EVID-4).
+    return (0 if results and passed == len(results) else 1), "".join(lines)
+
+
 async def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default="evals/reports/fixture-release.json")
@@ -241,11 +252,9 @@ async def main() -> int:
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, ensure_ascii=False)
         fh.write("\n")
-    for r in results:
-        mark = "ok " if r["passed"] else "FAIL"
-        sys.stdout.write(f"{mark} {r['task']} {r['case']}: {r['final_state']}\n")
-    sys.stdout.write(f"{report['passed']}/{report['total']} cases passed -> {args.out}\n")
-    return 0 if report["passed"] == report["total"] else 1
+    code, text = summarize(results, args.out)
+    sys.stdout.write(text)
+    return code
 
 
 if __name__ == "__main__":

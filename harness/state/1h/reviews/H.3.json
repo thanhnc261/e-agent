@@ -1,0 +1,24 @@
+{
+  "task": "H.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "Shared TID251 per-file ignores weaken both bans while the allowlist pin still passes: tasks.py permits environment reads, server/environment.py and adapters/secretstore_local/store.py permit bare asyncio.create_task (Ruff probes). Pin the permitted API/call exceptions and test the cross-ban cases.",
+      "evidence": "pyproject.toml:78 at ce76976; ENG-ARCH-6, ENG-ARCH-7, PR-06; Codex thread 01a1496a-348d-7f83-97c5-cf162be02fe8"
+    },
+    {
+      "id": "R-2",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "Logging handled _timed failures changes CLI stderr: demo --approve --fault lost-response --reconcile --json printed 'background task kernel.call:run_... failed (TimeoutError)' where stderr was empty before. Preserve failure logging without default CLI output; add a regression test.",
+      "evidence": "src/e_agent/sdk/tasks.py:37 at ce76976; ENG-PLAN-3; brief constraint 'CLI output unchanged'"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}

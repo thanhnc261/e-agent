@@ -1,0 +1,22 @@
+{
+  "task": "H.2",
+  "changed": "Commit 3e1bde8 (plan ticks d6d2eb3): src/e_agent/server/environment.py adds require_env (refuses a missing or empty variable with KernelError STARTUP_REJECTED naming the variable, never its value) and optional_env (the old os.environ.get semantics with a default). server/profile.py (E_AGENT_PROFILE) and bootstrap.py (store DSN, base URL with its default, API key) read through it. pyproject.toml selects Ruff TID251 and bans os.environ and os.getenv under src/e_agent, with per-file ignores for server/environment.py and adapters/secretstore_local/store.py only, and scripts/**, tools/** and tests/** exempt. tests/conformance/test_banned_api.py: the ruff probe (environ and getenv) expects TID251 on a scratch src/e_agent module; test_banned_api_allowlist_is_pinned reads pyproject.toml and pins exactly the two files, failing on zero. tests/unit/server adds test_missing_dsn_env_reports_variable_name and helper tests. RED: three failures before the change. rules.md adds ENG-ARCH-6; principles.md PR-37 is [I] and its backlog row is gone. Full gate passed on d6d2eb3. Claude review (harness/state/1h/reviews/H.2.json): accept, three Low notes.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/H.2/2026-10-17T10-19-09.439740+00-00-full.json"
+  ],
+  "open_items": [
+    "Ruff selects TID251 only, not the whole TID family; TID252 (relative parent imports) would add 51 findings in src/e_agent/plugins/erp/domain/testing/* (review R-1).",
+    "The probe passes --select TID251, so the pin test, which asserts TID251 is selected, is what proves the repository config enables the rule (review R-2)."
+  ],
+  "rulings": [
+    {
+      "ruling": "Select TID251 rather than TID: the plan's intent is the banned-api rule; enabling TID252 would add 51 unrelated findings that this task may not fix and must not suppress wholesale.",
+      "cost_if_wrong": "Widen select to TID in a later task after fixing the TID252 findings."
+    },
+    {
+      "ruling": "The controller ticked the H.2 'full gate' and 'Commit' plan boxes in d6d2eb3 before the gate, because a plan edit after the evidence would not be bookkeeping.",
+      "cost_if_wrong": "None; the gate passed on that commit."
+    }
+  ],
+  "outside_repo": []
+}
