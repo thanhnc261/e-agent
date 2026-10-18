@@ -182,7 +182,7 @@ E_AGENT_TEST_PG_DSN=$E_AGENT_PG_DSN E_AGENT_TEST_STORE=postgres uv run pytest -q
 A two-step plan on the fixture simulator. This is a lineage demonstration: two draft POs for one demand, not a procurement scenario.
 
 ```bash
-python3 - <<'PY'
+uv run python - <<'PY'
 import json
 from e_agent.plugins.erp.simulator import fixture_profile_path
 p = json.load(open(fixture_profile_path()))
