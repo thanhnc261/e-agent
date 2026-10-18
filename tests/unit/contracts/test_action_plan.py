@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -5,7 +6,14 @@ import pytest
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor, EffectKind
 from e_agent.contracts.common import Record
-from e_agent.contracts.plan import ActionPlan, ActionProposal, LineageRef, PlannedStep
+from e_agent.contracts.plan import (
+    ActionPlan,
+    ActionProposal,
+    LineageRef,
+    PlannedStep,
+    plan_from_wire,
+    plan_to_wire,
+)
 from e_agent.contracts.run import RunRecord, RunState
 from e_agent.contracts.step import StepKind, StepRecord, StepStatus, StepUsage
 from e_agent.contracts.task import AcceptanceSpec, RequiredEffect, TaskDefinition
@@ -71,24 +79,13 @@ def test_lineage_ref_must_point_to_an_earlier_dependency() -> None:
 
 
 def test_lineage_key_literal_refused() -> None:
-    # A `$lineage` mapping is the placeholder's wire form (2c.3): the parser either turns it
-    # into a `LineageRef` or refuses it, so a literal can never pass as plain data.
-    wire = {"$lineage": {"step": "s1", "path": "/partner_id"}}
-    parsed = _step("s2", "s1", vendor=wire, lines=[{"ok": 1}, {"nested": wire}])
-    ref = LineageRef(step_id="s1", path="/partner_id")
-    assert parsed.proposal.arguments["vendor"] == ref
-    assert parsed.proposal.arguments["lines"][1]["nested"] == ref
-    with pytest.raises(ValidationError, match="not in depends_on"):
-        _step("s2", vendor=wire)
+    literal = {"$lineage": {"step": "s1", "path": "/partner_id"}}
     with pytest.raises(ValidationError, match=r"\$lineage"):
-        _step("s2", "s1", vendor={**wire, "other": 1})
+        _step("s2", "s1", vendor=literal)
     with pytest.raises(ValidationError, match=r"\$lineage"):
-        _step("s2", "s1", lines=[{"ok": 1}, {"nested": {"$lineage": "x"}}])
-    # A top-level argument named `$lineage` is not a placeholder position: refused.
+        _step("s2", "s1", lines=[{"ok": 1}, {"nested": literal}])
     with pytest.raises(ValidationError, match=r"\$lineage"):
         _step("s2", "s1", **{"$lineage": "x"})
-    with pytest.raises(ValidationError, match=r"\$lineage"):
-        _step("s2", "s1", **wire)
 
 
 def test_lineage_ref_has_step_and_path_only() -> None:
@@ -174,14 +171,8 @@ def test_revalidating_mutated_plan_rejects_lineage_literal() -> None:
     plan.steps[1].proposal.arguments["lines"][0]["vendor"] = {
         "$lineage": {"step": "s1", "path": "/partner_id"}
     }
-    # The instance path never parses: the walker refuses the unparsed literal.
     with pytest.raises(ValidationError, match=r"\$lineage"):
         ActionPlan.model_validate(plan)
-    # The dump path parses the wire form, so it holds a placeholder, never a literal.
-    reparsed = ActionPlan.model_validate(plan.model_dump())
-    vendor = reparsed.steps[1].proposal.arguments["lines"][0]["vendor"]
-    assert vendor == LineageRef(step_id="s1", path="/partner_id")
-    plan.steps[1].proposal.arguments["lines"][0]["vendor"] = {"$lineage": {"step": "s1"}}
     with pytest.raises(ValidationError, match=r"\$lineage"):
         ActionPlan.model_validate(plan.model_dump())
 
@@ -225,7 +216,11 @@ def test_model_construct_plan_fails_validation_on_revalidate() -> None:
     )
     with pytest.raises(ValidationError, match="later step 's2'"):
         ActionPlan.model_validate(later)
+    # A dump carries the placeholder's wire form: the store boundary parses it and the order
+    # rule still refuses; plain validation refuses the `$lineage` literal first.
     with pytest.raises(ValidationError, match="later step 's2'"):
+        plan_from_wire(later.model_dump(mode="json"))
+    with pytest.raises(ValidationError, match=r"\$lineage"):
         ActionPlan.model_validate(later.model_dump())
     looping = plan_of(constructed("s1", "s1"))
     with pytest.raises(ValidationError, match="depends on itself"):
@@ -253,7 +248,8 @@ def _lineage_plan() -> ActionPlan:
 
 def test_lineage_wire_form_round_trips() -> None:
     plan = _lineage_plan()
-    dumped = plan.model_dump(mode="json")
+    dumped = plan_to_wire(plan)
+    assert dumped == plan.model_dump(mode="json")
     arguments = dumped["steps"][1]["proposal"]["arguments"]
     assert arguments["vendor"] == _wire("s1", "/partner_id")
     assert arguments["lines"] == [{"ref": _wire("s1", "/partner_id"), "qty": "2"}]
@@ -262,16 +258,16 @@ def test_lineage_wire_form_round_trips() -> None:
     }
     assert LineageRef(step_id="s1", path="/x~1y").model_dump() == _wire("s1", "/x~1y")
     for restored in (
-        ActionPlan.model_validate(dumped),
-        ActionPlan.model_validate(plan.model_dump()),
-        ActionPlan.model_validate_json(plan.model_dump_json()),
+        plan_from_wire(dumped),
+        plan_from_wire(json.loads(plan.model_dump_json())),
     ):
         assert restored == plan
         vendor = restored.steps[1].proposal.arguments["vendor"]
         assert isinstance(vendor, LineageRef)
         assert isinstance(restored.steps[1].proposal.arguments["lines"][0]["ref"], LineageRef)
         assert isinstance(restored.steps[2].proposal.arguments["deep"]["a"][0]["b"], LineageRef)
-    assert LineageRef.model_validate(_wire("s1", "/a")) == LineageRef(step_id="s1", path="/a")
+    # The boundary is a pure function of its input: the dumped mapping is not mutated.
+    assert dumped == plan_to_wire(plan)
 
 
 MALFORMED_WIRE: list[object] = [
@@ -294,16 +290,35 @@ MALFORMED_WIRE: list[object] = [
 @pytest.mark.parametrize("malformed", MALFORMED_WIRE, ids=range(len(MALFORMED_WIRE)))
 def test_lineage_wire_form_rejects_malformed(malformed: object) -> None:
     assert len(MALFORMED_WIRE) == 13
-    dumped = _lineage_plan().model_dump(mode="json")
+    dumped = plan_to_wire(_lineage_plan())
     dumped["steps"][1]["proposal"]["arguments"]["vendor"] = malformed
     with pytest.raises(ValidationError, match=r"\$lineage|JSON pointer"):
-        ActionPlan.model_validate(dumped)
-    nested = _lineage_plan().model_dump(mode="json")
+        plan_from_wire(dumped)
+    nested = plan_to_wire(_lineage_plan())
     nested["steps"][1]["proposal"]["arguments"]["lines"][0]["ref"] = malformed
     with pytest.raises(ValidationError, match=r"\$lineage|JSON pointer"):
-        ActionPlan.model_validate(nested)
-    with pytest.raises(ValidationError, match=r"\$lineage|JSON pointer"):
+        plan_from_wire(nested)
+    with pytest.raises(ValidationError):
         LineageRef.model_validate(malformed)
+
+
+def test_lineage_wire_form_refused_outside_the_store_boundary() -> None:
+    # Model output that writes the wire form must not mint a placeholder (ADR 0025).
+    plan = _lineage_plan()
+    with pytest.raises(ValidationError, match=r"\$lineage"):
+        ActionPlan.model_validate(plan_to_wire(plan))
+    with pytest.raises(ValidationError, match=r"\$lineage"):
+        ActionPlan.model_validate_json(plan.model_dump_json())
+    step = plan_to_wire(plan)["steps"][1]
+    with pytest.raises(ValidationError, match=r"\$lineage"):
+        PlannedStep.model_validate(step)
+    with pytest.raises(ValidationError):
+        LineageRef.model_validate(_wire("s1", "/partner_id"))
+    # A top-level argument named `$lineage` stays a refused literal at the boundary too.
+    literal = plan_to_wire(plan)
+    literal["steps"][1]["proposal"]["arguments"] = _wire("s1", "/partner_id")
+    with pytest.raises(ValidationError, match=r"\$lineage"):
+        plan_from_wire(literal)
 
 
 def test_action_record_plan_fields_default_null() -> None:

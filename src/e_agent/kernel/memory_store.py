@@ -20,7 +20,7 @@ from e_agent.contracts.approval import ApprovalRecord
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.events import RunEvent
 from e_agent.contracts.outcome import OutcomeReport
-from e_agent.contracts.plan import ActionPlan
+from e_agent.contracts.plan import ActionPlan, plan_from_wire, plan_to_wire
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord
 from e_agent.contracts.step import StepRecord
@@ -317,13 +317,13 @@ class InMemoryRunStore:
             key = (tenant_id, plan.plan_id)
             if key in self._plans:
                 raise ConcurrencyConflict(f"plan {plan.plan_id} exists")
-            self._plans[key] = (run_id, plan.model_dump(mode="json"))
+            self._plans[key] = (run_id, plan_to_wire(plan))
             self._append(tenant_id, run_id, events)
 
     async def get_plan(self, tenant_id: str, plan_id: str) -> ActionPlan:
         if (tenant_id, plan_id) not in self._plans:
             raise NotFound(plan_id)
-        return ActionPlan.model_validate(self._plans[(tenant_id, plan_id)][1])
+        return plan_from_wire(self._plans[(tenant_id, plan_id)][1])
 
     # -- queries --------------------------------------------------------------
     async def list_steps(self, tenant_id: str, run_id: str) -> list[StepRecord]:

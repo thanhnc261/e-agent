@@ -17,7 +17,7 @@ from e_agent.contracts.approval import ApprovalRecord
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.events import RunEvent
 from e_agent.contracts.outcome import OutcomeReport
-from e_agent.contracts.plan import ActionPlan
+from e_agent.contracts.plan import ActionPlan, plan_from_wire, plan_to_wire
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord
 from e_agent.contracts.step import StepRecord
@@ -475,7 +475,7 @@ class PostgresRunStore:
                     await conn.execute(
                         "INSERT INTO action_plans (tenant_id, plan_id, run_id, record)"
                         " VALUES (%s, %s, %s, %s)",
-                        (tenant_id, plan.plan_id, run_id, _json(plan)),
+                        (tenant_id, plan.plan_id, run_id, Jsonb(plan_to_wire(plan))),
                     )
             except errors.UniqueViolation as exc:
                 raise ConcurrencyConflict(f"plan {plan.plan_id} exists") from exc
@@ -490,7 +490,7 @@ class PostgresRunStore:
             row = await cur.fetchone()
         if row is None:
             raise NotFound(plan_id)
-        return ActionPlan.model_validate(row[0])
+        return plan_from_wire(row[0])
 
     # -- queries --------------------------------------------------------------
     async def list_steps(self, tenant_id: str, run_id: str) -> list[StepRecord]:
