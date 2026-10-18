@@ -24,7 +24,8 @@
     },
     {
       "binding_id": "odoo19.procurement.po-create",
-      "contract_id": "procurement.purchase-order.create-draft.v1"
+      "contract_id": "procurement.purchase-order.create-draft.v1",
+      "idempotency": "provider_key"
     },
     {
       "binding_id": "odoo19.procurement.po-read",
@@ -36,7 +37,8 @@
     },
     {
       "binding_id": "odoo19.procurement.rfq-amend",
-      "contract_id": "procurement.draft-rfq.amend.v1"
+      "contract_id": "procurement.draft-rfq.amend.v1",
+      "idempotency": "provider_key"
     },
     {
       "binding_id": "odoo19.sales.pricing",
@@ -44,7 +46,8 @@
     },
     {
       "binding_id": "odoo19.sales.quotation-create",
-      "contract_id": "sales.quotation.create-draft.v1"
+      "contract_id": "sales.quotation.create-draft.v1",
+      "idempotency": "provider_key"
     },
     {
       "binding_id": "odoo19.sales.quotation-read",
@@ -64,7 +67,8 @@
     },
     {
       "binding_id": "odoo19.crm.lead-create",
-      "contract_id": "crm.lead.create.v1"
+      "contract_id": "crm.lead.create.v1",
+      "idempotency": "provider_key"
     },
     {
       "binding_id": "odoo19.crm.lead-read",

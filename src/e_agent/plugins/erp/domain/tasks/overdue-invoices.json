@@ -1,0 +1,16 @@
+{
+  "task_id": "overdue-invoices",
+  "version": "1",
+  "title": "ERP-08: report overdue customer invoices",
+  "goal_template": "Report overdue customer invoices as of 2026-10-06.",
+  "capabilities": [
+    "receivables.open-invoices.read.v1",
+    "receivables.overdue-invoices.answer.v1"
+  ],
+  "acceptance": {
+    "required_answer": "receivables.overdue-invoices.answer.v1"
+  },
+  "budgets": {
+    "max_admitted_writes": 0
+  }
+}

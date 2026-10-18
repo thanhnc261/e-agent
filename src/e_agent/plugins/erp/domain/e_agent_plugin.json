@@ -38,7 +38,9 @@
       "effect": "write",
       "input_schema_id": "procurement.DraftPurchaseOrder.v1",
       "output_schema_id": "procurement.DraftPurchaseOrderRef.v1",
-      "description": "Create exactly one draft purchase order; never confirms"
+      "description": "Create exactly one draft purchase order; never confirms",
+      "risk": "write_low",
+      "reversibility": "irreversible"
     },
     {
       "contract_id": "procurement.purchase-order.read.v1",
@@ -74,7 +76,9 @@
       "effect": "write",
       "input_schema_id": "procurement.AmendDraftRfq.v1",
       "output_schema_id": "procurement.DraftPurchaseOrderRef.v1",
-      "description": "Change quantity and/or requested date of one draft RFQ at the revision that was read; never confirms"
+      "description": "Change quantity and/or requested date of one draft RFQ at the revision that was read; never confirms",
+      "risk": "write_high",
+      "reversibility": "irreversible"
     },
     {
       "contract_id": "sales.pricing.read.v1",
@@ -88,7 +92,9 @@
       "effect": "write",
       "input_schema_id": "sales.DraftQuotation.v1",
       "output_schema_id": "sales.QuotationRef.v1",
-      "description": "Create one draft customer quotation; never confirms, emails or delivers"
+      "description": "Create one draft customer quotation; never confirms, emails or delivers",
+      "risk": "write_low",
+      "reversibility": "irreversible"
     },
     {
       "contract_id": "sales.quotation.read.v1",
@@ -131,7 +137,9 @@
       "effect": "write",
       "input_schema_id": "crm.CreateLead.v1",
       "output_schema_id": "crm.LeadRef.v1",
-      "description": "Create one CRM lead; a repeated command never creates a second lead"
+      "description": "Create one CRM lead; a repeated command never creates a second lead",
+      "risk": "write_high",
+      "reversibility": "irreversible"
     },
     {
       "contract_id": "crm.lead.read.v1",
@@ -158,6 +166,44 @@
   ],
   "provides_bindings": [],
   "requires_capabilities": [],
+  "provides_task_definitions": [
+    {
+      "task_id": "draft-po",
+      "version": "1"
+    },
+    {
+      "task_id": "shortage",
+      "version": "1"
+    },
+    {
+      "task_id": "recommend",
+      "version": "1"
+    },
+    {
+      "task_id": "amend-rfq",
+      "version": "1"
+    },
+    {
+      "task_id": "quotation",
+      "version": "1"
+    },
+    {
+      "task_id": "late-orders",
+      "version": "1"
+    },
+    {
+      "task_id": "crm-lead",
+      "version": "1"
+    },
+    {
+      "task_id": "overdue-invoices",
+      "version": "1"
+    },
+    {
+      "task_id": "assistant",
+      "version": "1"
+    }
+  ],
   "settings_schema": {
     "type": "object",
     "additionalProperties": false

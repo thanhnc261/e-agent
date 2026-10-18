@@ -21,6 +21,16 @@ class BindingTemplate(Record):
     """Defaults to `none` (ADR 0029); a defaulted value is absent from ``model_fields_set``."""
 
 
+class TaskDeclaration(Record):
+    """A task definition the pack contributes, named before its code is imported (ADR 0028).
+
+    The registry refuses a contribution whose task definitions differ from these.
+    """
+
+    task_id: str = Field(min_length=1)
+    version: str = Field(min_length=1)
+
+
 class PluginManifest(Record):
     plugin_id: str
     version: str
@@ -30,6 +40,8 @@ class PluginManifest(Record):
     provides_capabilities: tuple[CapabilityDescriptor, ...] = ()
     provides_bindings: tuple[BindingTemplate, ...] = ()
     requires_capabilities: tuple[str, ...] = ()
+    provides_task_definitions: tuple[TaskDeclaration, ...] = ()
+    """Task definitions (ADR 0028); a pack that declares none still loads."""
     settings_schema: dict[str, object] = Field(default_factory=dict)
     connection: dict[str, object] = Field(default_factory=dict)
     """Provider-neutral connection/auth declaration (ADR 0012/0013)."""

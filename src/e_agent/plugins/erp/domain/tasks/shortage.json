@@ -1,0 +1,19 @@
+{
+  "task_id": "shortage",
+  "version": "1",
+  "title": "ERP-01: report the shortage for a demand",
+  "goal_template": "Calculate the shortage of product:widget-a for demand:d-001.",
+  "capabilities": [
+    "procurement.open-demands.read.v1",
+    "procurement.demand.read.v1",
+    "inventory.availability.read.v1",
+    "procurement.offers.read.v1",
+    "procurement.shortage.answer.v1"
+  ],
+  "acceptance": {
+    "required_answer": "procurement.shortage.answer.v1"
+  },
+  "budgets": {
+    "max_admitted_writes": 0
+  }
+}

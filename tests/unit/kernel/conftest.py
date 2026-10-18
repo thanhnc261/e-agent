@@ -15,7 +15,14 @@ from typing import Any
 
 import pytest
 from e_agent.contracts.action import ActionRecord
-from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor, EffectKind
+from e_agent.contracts.capability import (
+    CapabilityBinding,
+    CapabilityDescriptor,
+    EffectKind,
+    Idempotency,
+    Reversibility,
+    Risk,
+)
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.connection import ConnectionDescriptor, ConnectionOwnership
 from e_agent.contracts.context import Budgets, Principal, TaskContext
@@ -23,6 +30,7 @@ from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.outcome import OutcomeCheck, OutcomeReport, OutcomeStatus
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
+from e_agent.contracts.task import AcceptanceSpec, RequiredEffect, TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationResult, ValidationStatus
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.coordinator import RunCoordinator
@@ -30,7 +38,7 @@ from e_agent.kernel.memory_store import InMemoryRunStore
 from e_agent.kernel.policy import DefaultPolicy
 from e_agent.kernel.registry import PluginRegistry
 from e_agent.sdk.errors import KnownNoEffectError
-from e_agent.sdk.manifest import BindingTemplate
+from e_agent.sdk.manifest import BindingTemplate, TaskDeclaration
 from e_agent.sdk.ports import (
     DriverInput,
     DriverStep,
@@ -50,15 +58,32 @@ READ = CapabilityDescriptor(
     input_schema_id="q",
     output_schema_id="n",
 )
+# The notes domain declares its effects explicitly (ADR 0029, DR-08).
 CREATE = CapabilityDescriptor(
     contract_id="notes.note.create.v1",
     effect=EffectKind.WRITE,
     input_schema_id="c",
     output_schema_id="r",
+    risk=Risk.WRITE_LOW,
+    reversibility=Reversibility.IRREVERSIBLE,
 )
 BINDINGS = (
     BindingTemplate(binding_id="notes-mem.read", contract_id=READ.contract_id),
-    BindingTemplate(binding_id="notes-mem.create", contract_id=CREATE.contract_id),
+    # NotesBackend keeps one note per logical operation id.
+    BindingTemplate(
+        binding_id="notes-mem.create",
+        contract_id=CREATE.contract_id,
+        idempotency=Idempotency.PROVIDER_KEY,
+    ),
+)
+# The notes domain's task definition: the core is tested without ERP (ADR 0028, DR-08).
+NOTES_TASK = TaskDefinition(
+    task_id="standup-note",
+    version="1",
+    title="Write a standup note",
+    goal_template="write standup note",
+    capabilities=(READ.contract_id, CREATE.contract_id),
+    acceptance=AcceptanceSpec(required_effects=(RequiredEffect(contract_id=CREATE.contract_id),)),
 )
 TENANT = "tenant-a"
 CONN = "conn-notes"
@@ -304,13 +329,18 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
             plugin_version="0.1.0",
             declared_capabilities=(READ, CREATE),
             binding_templates=BINDINGS,
+            declared_task_definitions=(
+                TaskDeclaration(task_id=NOTES_TASK.task_id, version=NOTES_TASK.version),
+            ),
             contribution=PluginContribution(
                 capabilities=(READ, CREATE),
                 validators=(validator,),
                 executors=(backend,),
                 verifiers=(verifier,),
+                task_definitions=(NOTES_TASK,),
             ),
         )
+        registry.admit_task_definitions()
         catalog = ConnectionCatalog(
             connections
             or [

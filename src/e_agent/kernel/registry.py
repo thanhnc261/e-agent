@@ -11,14 +11,16 @@ import importlib
 import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
-from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor
+from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor, EffectKind
+from e_agent.contracts.context import Budgets
+from e_agent.contracts.task import TaskDefinition
 from e_agent.sdk import SDK_API_VERSION
 from e_agent.sdk.connection import ConnectionSpec
 from e_agent.sdk.discovery import DiscoveredPlugin, DiscoveryError, artifact_digest
 from e_agent.sdk.errors import InvalidPluginSettings
-from e_agent.sdk.manifest import BindingTemplate
+from e_agent.sdk.manifest import BindingTemplate, TaskDeclaration
 from e_agent.sdk.ports import (
     ActionExecutor,
     AgentDriver,
@@ -44,15 +46,33 @@ class EnabledPlugin:
     allow_unverified_fixture: bool = False
 
 
+@dataclass(frozen=True)
+class DefaultedDeclaration:
+    """A write capability or connected write binding that relies on a default effect
+    field (ADR 0029). A fixture profile admits it and lists it here; a live profile
+    refuses it."""
+
+    plugin_id: str
+    subject: Literal["capability", "binding"]
+    subject_id: str
+    """The contract id of a capability, or the binding id of a binding."""
+    fields: tuple[str, ...]
+
+
 @dataclass
 class AdmissionReport:
     admitted: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
+    defaulted_declarations: list[DefaultedDeclaration] = field(default_factory=list)
+    """Effect declarations admitted on their defaults (fixture profiles only)."""
 
 
 def _reject(message: str) -> KernelError:
     return KernelError(ErrorCode.STARTUP_REJECTED, message)
 
+
+_CAPABILITY_EFFECT_FIELDS = frozenset({"risk", "reversibility"})
+_BINDING_EFFECT_FIELDS = frozenset({"idempotency"})
 
 _SETTING_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_.-]{0,63}")
 
@@ -67,8 +87,19 @@ def _settings_rejection(plugin_id: str, exc: InvalidPluginSettings) -> KernelErr
 
 
 class PluginRegistry:
-    def __init__(self, binding_connections: Mapping[str, Iterable[str]]) -> None:
+    def __init__(
+        self,
+        binding_connections: Mapping[str, Iterable[str]],
+        *,
+        environment: Literal["fixture", "live"] = "fixture",
+        budgets: Budgets | None = None,
+    ) -> None:
+        """``environment`` and ``budgets`` are the profile's: a live registry refuses a
+        defaulted write effect declaration (ADR 0029), and a task definition's budgets
+        may only narrow ``budgets`` (ADR 0028, D7). Bootstrap passes both."""
         self._binding_connections = {k: tuple(v) for k, v in binding_connections.items()}
+        self.environment = environment
+        self.budgets = budgets if budgets is not None else Budgets()
         self.capabilities: dict[str, CapabilityDescriptor] = {}
         self.bindings: list[CapabilityBinding] = []
         self._binding_owner: dict[str, str] = {}
@@ -80,6 +111,11 @@ class PluginRegistry:
         self.input_schemas: dict[str, Mapping[str, Any]] = {}
         self.agent_guidance: list[str] = []
         self.task_presets: dict[str, TaskPreset] = {}
+        self.task_definitions: dict[str, TaskDefinition] = {}
+        """Admitted task definitions by ``task_id`` (ADR 0028), filled by
+        ``admit_task_definitions`` once every plugin is registered."""
+        self._staged_tasks: list[TaskDefinition] = []
+        self._task_owner: dict[str, str] = {}
         self.driver_factories: dict[str, DriverFactory] = {}
         self.report = AdmissionReport()
         self._admitted_inventory: dict[str, dict[str, Any]] = {}
@@ -146,6 +182,7 @@ class PluginRegistry:
                 plugin_version=plugin.manifest.version,
                 declared_capabilities=plugin.manifest.provides_capabilities,
                 binding_templates=plugin.manifest.provides_bindings,
+                declared_task_definitions=plugin.manifest.provides_task_definitions,
                 contribution=contribution,
             )
         return self.report
@@ -213,14 +250,20 @@ class PluginRegistry:
         declared_capabilities: Iterable[CapabilityDescriptor],
         binding_templates: Iterable[BindingTemplate],
         contribution: PluginContribution,
+        declared_task_definitions: Iterable[TaskDeclaration] = (),
     ) -> None:
         declared = set(declared_capabilities)
         if set(contribution.capabilities) != declared:
             raise _reject(f"{plugin_id}: registered capabilities differ from manifest")
-        for cap in declared:
+        self._stage_task_definitions(plugin_id, tuple(declared_task_definitions), contribution)
+        for cap in sorted(declared, key=lambda c: c.contract_id):
             existing = self.capabilities.get(cap.contract_id)
             if existing is not None and existing != cap:
                 raise _reject(f"conflicting definitions for {cap.contract_id}")
+            if cap.effect is EffectKind.WRITE:
+                self._check_defaults(
+                    plugin_id, "capability", cap.contract_id, cap, _CAPABILITY_EFFECT_FIELDS
+                )
             self.capabilities[cap.contract_id] = cap
         for template in binding_templates:
             if template.binding_id in self._binding_owner:
@@ -235,7 +278,19 @@ class PluginRegistry:
                     f"lacks required features {missing}"
                 )
             self._binding_owner[template.binding_id] = plugin_id
-            for connection_id in self._binding_connections.get(template.binding_id, ()):
+            connections = self._binding_connections.get(template.binding_id, ())
+            # Only a connected template becomes a binding a run can route to.
+            if connections and self.capabilities[template.contract_id].effect is EffectKind.WRITE:
+                self._check_defaults(
+                    plugin_id, "binding", template.binding_id, template, _BINDING_EFFECT_FIELDS
+                )
+            # Copied only when declared, so a defaulted idempotency stays detectable.
+            declared_effects = (
+                {"idempotency": template.idempotency}
+                if "idempotency" in template.model_fields_set
+                else {}
+            )
+            for connection_id in connections:
                 self.bindings.append(
                     CapabilityBinding(
                         binding_id=template.binding_id,
@@ -244,6 +299,7 @@ class PluginRegistry:
                         plugin_version=plugin_version,
                         connection_id=connection_id,
                         supported_features=template.supported_features,
+                        **declared_effects,
                     )
                 )
         self.validators.extend(contribution.validators)
@@ -268,7 +324,99 @@ class PluginRegistry:
             if kind in self.driver_factories:
                 raise _reject(f"driver kind {kind!r} contributed by two plugins")
             self.driver_factories[kind] = factory
+        self._staged_tasks.extend(contribution.task_definitions)
+        for task in contribution.task_definitions:
+            self._task_owner[task.task_id] = plugin_id
         self.report.admitted.append(plugin_id)
+
+    def _check_defaults(
+        self,
+        plugin_id: str,
+        subject: Literal["capability", "binding"],
+        subject_id: str,
+        record: CapabilityDescriptor | BindingTemplate,
+        effect_fields: frozenset[str],
+    ) -> None:
+        """ADR 0029: a live profile refuses a write that relies on a default effect field;
+        a fixture profile admits it and reports it."""
+        defaulted = tuple(sorted(effect_fields - record.model_fields_set))
+        if not defaulted:
+            return
+        if self.environment == "live":
+            raise _reject(
+                f"{plugin_id}: write {subject} {subject_id} relies on defaulted effect "
+                f"declarations {list(defaulted)}; a live profile requires them declared"
+            )
+        self.report.defaulted_declarations.append(
+            DefaultedDeclaration(plugin_id, subject, subject_id, defaulted)
+        )
+
+    # -- task definitions (ADR 0028) ----------------------------------------------
+    def _stage_task_definitions(
+        self,
+        plugin_id: str,
+        declared: tuple[TaskDeclaration, ...],
+        contribution: PluginContribution,
+    ) -> None:
+        """Checks that need no other plugin: the manifest, duplicate ids and budgets."""
+        tasks = contribution.task_definitions
+        contributed = sorted((t.task_id, t.version) for t in tasks)
+        if contributed != sorted((d.task_id, d.version) for d in declared):
+            raise _reject(f"{plugin_id}: registered task definitions differ from manifest")
+        seen: set[str] = set()
+        for task in tasks:
+            if task.task_id in seen or task.task_id in self._task_owner:
+                raise _reject(f"{plugin_id}: duplicate task id {task.task_id!r}")
+            seen.add(task.task_id)
+            self._check_task_budgets(plugin_id, task)
+
+    def _check_task_budgets(self, plugin_id: str, task: TaskDefinition) -> None:
+        """A definition's budgets only narrow the profile's (D7). ``Budgets`` has
+        defaults, so only the fields the definition sets are compared."""
+        if task.budgets is None:
+            return
+        wider = sorted(
+            name
+            for name in task.budgets.model_fields_set
+            if getattr(task.budgets, name) > getattr(self.budgets, name)
+        )
+        if wider:
+            raise _reject(
+                f"{plugin_id}: task {task.task_id!r} budgets {wider} are wider than the profile's"
+            )
+
+    def admit_task_definitions(self) -> None:
+        """Admit staged task definitions once every plugin is registered (ADR 0028).
+
+        Each capability must be an admitted, agent-visible capability; a read or write
+        also needs an admitted binding (a template mapped to a connection). An answer
+        has no provider binding: it verifies through the run's read connection, as in
+        the run's tool set. The composition root calls this once every plugin is
+        admitted and its connection checks pass; until then a staged definition is
+        not in ``task_definitions``, so no run can resolve it.
+        """
+        bound = {b.contract_id for b in self.bindings}
+        for task in self._staged_tasks:
+            owner = self._task_owner[task.task_id]
+            for contract_id in task.capabilities:
+                cap = self.capabilities.get(contract_id)
+                if cap is None:
+                    raise _reject(
+                        f"{owner}: task {task.task_id!r} names capability {contract_id}, "
+                        "which no admitted plugin declares"
+                    )
+                if not cap.agent_visible:
+                    raise _reject(
+                        f"{owner}: task {task.task_id!r} names host-only capability {contract_id}"
+                    )
+                if cap.effect is not EffectKind.ANSWER and contract_id not in bound:
+                    raise _reject(
+                        f"{owner}: task {task.task_id!r} capability {contract_id} "
+                        "has no admitted binding"
+                    )
+        for task in self._staged_tasks:
+            self.task_definitions[task.task_id] = task
+        self._staged_tasks.clear()
 
     # -- resolution -------------------------------------------------------------
     def descriptor(self, contract_id: str) -> CapabilityDescriptor:

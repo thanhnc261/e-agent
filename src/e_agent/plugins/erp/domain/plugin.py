@@ -1,5 +1,5 @@
-"""Plugin factory. Contributes capability definitions, verifiers, task presets and
-the scripted driver.
+"""Plugin factory. Contributes capability definitions, verifiers, task definitions
+(with the presets projected from them) and the scripted driver.
 
 Validation engines and provider executors are adapters, not part of this pack.
 """
@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from importlib.resources import files
 
+from e_agent.contracts.task import TaskDefinition
 from e_agent.sdk import MANIFEST_FILENAME
 from e_agent.sdk.manifest import PluginManifest
 from e_agent.sdk.ports import (
@@ -118,58 +119,39 @@ TASK_REFS = {
     "as_of": "2026-10-06",
     "demand_ref": "demand:d-001",
 }
-TASK_PRESETS = (
+ASSISTANT_TASK = "assistant"
+"""The general read-only definition for open questions (ADR 0028). It has no preset:
+the scripted driver has no assistant scenario."""
+
+
+def load_manifest() -> PluginManifest:
+    text = files(__package__).joinpath(MANIFEST_FILENAME).read_text("utf-8")
+    return PluginManifest.model_validate(json.loads(text))
+
+
+def load_task_definitions(manifest: PluginManifest | None = None) -> tuple[TaskDefinition, ...]:
+    """The task definitions the manifest declares, read from ``tasks/<task_id>.json``."""
+    declared = (manifest or load_manifest()).provides_task_definitions
+    root = files(__package__).joinpath("tasks")
+    return tuple(
+        TaskDefinition.model_validate(
+            json.loads(root.joinpath(f"{task.task_id}.json").read_text("utf-8"))
+        )
+        for task in declared
+    )
+
+
+TASK_DEFINITIONS = load_task_definitions()
+# One catalogue (Task 2c.2): each preset is its definition's kind, prompt and title (D8).
+TASK_PRESETS = tuple(
     TaskPreset(
-        kind="draft-po",
-        prompt="Restock product:widget-a for demand:d-001 by creating a draft purchase order.",
+        kind=definition.task_id,
+        prompt=definition.goal_template,
         default_refs=TASK_REFS,
-        help="ERP-03: create a draft purchase order",
-    ),
-    TaskPreset(
-        kind="shortage",
-        prompt="Calculate the shortage of product:widget-a for demand:d-001.",
-        default_refs=TASK_REFS,
-        help="ERP-01: report the shortage for a demand",
-    ),
-    TaskPreset(
-        kind="recommend",
-        prompt="Recommend an approved offer for product:widget-a and demand:d-001 within budget.",
-        default_refs=TASK_REFS,
-        help="ERP-02: recommend a supplier offer",
-    ),
-    TaskPreset(
-        kind="amend-rfq",
-        prompt="Amend draft RFQ rfq:po-100 to quantity 15, retaining its current requested date.",
-        default_refs=TASK_REFS,
-        help="ERP-04: amend a draft RFQ",
-    ),
-    TaskPreset(
-        kind="quotation",
-        prompt="Create a draft quotation for customer:acme for product:widget-a, quantity 2.",
-        default_refs=TASK_REFS,
-        help="ERP-05: create a draft quotation",
-    ),
-    TaskPreset(
-        kind="late-orders",
-        prompt="Report late sales orders as of 2026-10-06.",
-        default_refs=TASK_REFS,
-        help="ERP-06: report late sales orders",
-    ),
-    TaskPreset(
-        kind="crm-lead",
-        prompt=(
-            "Create a CRM lead for contact:jane assigned to user:alice in team:direct "
-            "from source:website."
-        ),
-        default_refs=TASK_REFS,
-        help="ERP-07: create a CRM lead",
-    ),
-    TaskPreset(
-        kind="overdue-invoices",
-        prompt="Report overdue customer invoices as of 2026-10-06.",
-        default_refs=TASK_REFS,
-        help="ERP-08: report overdue customer invoices",
-    ),
+        help=definition.title,
+    )
+    for definition in TASK_DEFINITIONS
+    if definition.task_id != ASSISTANT_TASK
 )
 
 
@@ -188,11 +170,6 @@ def scripted_driver(request: DriverRequest) -> AgentDriver:
 
 
 DRIVER_FACTORIES: dict[str, DriverFactory] = {"scripted": scripted_driver}
-
-
-def load_manifest() -> PluginManifest:
-    text = files(__package__).joinpath(MANIFEST_FILENAME).read_text("utf-8")
-    return PluginManifest.model_validate(json.loads(text))
 
 
 def create_plugin(services: PluginServices) -> PluginContribution:
@@ -218,5 +195,6 @@ def create_plugin(services: PluginServices) -> PluginContribution:
         input_schemas=INPUT_SCHEMAS,
         agent_guidance=GUIDANCE,
         task_presets=TASK_PRESETS,
+        task_definitions=load_task_definitions(manifest),
         driver_factories=dict(DRIVER_FACTORIES),
     )

@@ -205,7 +205,11 @@ def admit_plugins(
         raise KernelError(
             ErrorCode.STARTUP_REJECTED, f"settings given for plugins not enabled: {not_enabled}"
         )
-    registry = PluginRegistry(profile.bindings)
+    # The profile's environment and budgets drive the ADR 0029 live refusal of defaulted
+    # write declarations and the ADR 0028 budget narrowing of task definitions.
+    registry = PluginRegistry(
+        profile.bindings, environment=profile.environment, budgets=profile.budgets
+    )
     credentials = CredentialService(catalog, secrets, registry.auth_placements)
     enabled = {
         pid: EnabledPlugin(
@@ -219,6 +223,8 @@ def admit_plugins(
     }
     registry.admit(discovered, enabled, credentials_for=credentials.scoped)
     _check_connection_owners(profile, registry)
+    # Task definitions need the final binding set (ADR 0028).
+    registry.admit_task_definitions()
     return registry, credentials
 
 

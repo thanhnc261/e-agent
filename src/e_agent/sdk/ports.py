@@ -17,6 +17,7 @@ from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt
+from e_agent.contracts.task import TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationResult
 
 # ---- Agent driver -----------------------------------------------------------
@@ -262,6 +263,9 @@ class PluginContribution:
     """ValidationDatasetBuilder instances (see e_agent.sdk.validation)."""
     task_presets: tuple[TaskPreset, ...] = ()
     """Demo tasks the pack offers; a profile's ``driver.task_kind`` names one."""
+    task_definitions: tuple[TaskDefinition, ...] = ()
+    """Task definitions (ADR 0028), as the manifest's ``provides_task_definitions`` names
+    them. A definition's ``task_id`` is its preset's ``kind`` (D8)."""
     driver_factories: Mapping[str, DriverFactory] = field(default_factory=dict)
     """Driver factories keyed by the profile's ``driver.kind`` (ADR 0026)."""
     diagnostics: Callable[[], Mapping[str, Any]] | None = None
