@@ -16,7 +16,8 @@
     "tests/unit/contracts/**",
     "docs/plans/2026-10-14-phase2-execution-ir.md",
     "harness/state/**",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "tests/unit/adapters/postgres/test_migrations.py"
   ],
   "acceptance": [
     "store conformance tests for plans and atomic step commits pass on memory",
@@ -26,5 +27,12 @@
   "gate_set": "full",
   "base_commit": "b8c962bd36d861b50e10da23e9937d288bf298fe",
   "created_at": "2026-10-18T03:27:24+00:00",
-  "features_digest": "eba6ecca38ef1530b5b370600189ef772452dba5ba9888c72c961008c5604b4d"
+  "features_digest": "eba6ecca38ef1530b5b370600189ef772452dba5ba9888c72c961008c5604b4d",
+  "scope_changes": [
+    {
+      "glob": "tests/unit/adapters/postgres/test_migrations.py",
+      "reason": "the migration list test enumerates migration files; 0005 joins it",
+      "at": "2026-10-18T03:30:20+00:00"
+    }
+  ]
 }
