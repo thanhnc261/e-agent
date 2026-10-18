@@ -27,8 +27,10 @@ from e_agent.sdk.ports import (
 )
 
 from .conftest import (
+    CREATE,
     NOTE_INPUT,
     NOTES_TASK,
+    PIN,
     PLAN_BUDGETS,
     TENANT,
     Kernel,
@@ -128,17 +130,35 @@ async def test_resolved_lineage_value_failing_validation_stops_plan(
 
 
 # -- R-2: a placeholder step whose wire form cannot be validated --------------------------
-@pytest.mark.parametrize("failure", ["raises", "error-status"])
+@pytest.mark.parametrize("failure", ["raises", "error-status", "no-validator"])
 async def test_unvalidatable_placeholder_step_refuses_plan_before_approval(
     make_kernel: MakeKernel, failure: str
 ) -> None:
-    """A validator that raises on the follow-up's wire form (the kernel's sentinel bundle
-    ``error``) or reports ERROR leaves no real rule bundle to bind: the plan is refused with
-    a fixed finding before any approval, and no sentinel reaches a digest."""
-    k = _plan_kernel(make_kernel)
+    """The follow-up's wire form leaves no real rule bundle to bind, so the plan is refused
+    with a fixed finding before any approval and no sentinel reaches a digest:
+    - ``raises``: the validator raises; `_validate` reports status ERROR (bundle ``error``),
+      caught by the status check;
+    - ``error-status``: the validator reports ERROR under its real bundle;
+    - ``no-validator``: no validator supports the follow-up's contract; `_validate` reports
+      UNKNOWN with the sentinel bundle ``none``, caught only by the sentinel check (2c.7 R2-1).
+    """
+    plan, task = two_step_plan(), NOTES_TASK
+    if failure == "no-validator":  # the follow-up writes through PIN, which nothing validates
+        follow_up = plan.steps[1]
+        pin = follow_up.proposal.model_copy(update={"contract_id": PIN.contract_id})
+        plan = plan.model_copy(
+            update={"steps": (plan.steps[0], follow_up.model_copy(update={"proposal": pin}))}
+        )
+        task = NOTES_TASK.model_copy(
+            update={"capabilities": (*NOTES_TASK.capabilities, PIN.contract_id)}
+        )
+    k = _plan_kernel(make_kernel, driver=NotesPlanDriver(plan=plan), task=task, with_pin=True)
+    if failure == "no-validator":
+        k.validator.supports = lambda cid: cid == CREATE.contract_id  # type: ignore[method-assign]
+        assert k.coordinator._registry.validators_for(PIN.contract_id) == []
 
     def on_wire_form(item: ValidationInput) -> ValidationResult | None:
-        if not isinstance(item.proposal.arguments.get("parent"), dict):
+        if failure == "no-validator" or not isinstance(item.proposal.arguments.get("parent"), dict):
             return None
         if failure == "raises":
             raise RuntimeError("engine cannot read a placeholder")
@@ -155,13 +175,13 @@ async def test_unvalidatable_placeholder_step_refuses_plan_before_approval(
 
 
 # -- R-3: the stored plan must still be the approved one ----------------------------------
-@pytest.mark.parametrize("change", ["arguments", "contract", "connection", "effects"])
+@pytest.mark.parametrize("change", ["arguments", "contract", "connection", "effects", "step_id"])
 async def test_tampered_stored_plan_stops_before_the_later_step_reserves(
     make_kernel: MakeKernel, change: str
 ) -> None:
     """Step 2 is rebuilt from the stored plan; if it no longer matches the step input the
-    approval bound (contract, connection, expected effects, wire-form arguments), the plan
-    fails closed (STALE) before step 2 reserves."""
+    approval bound (step id, contract, connection, expected effects, wire-form arguments),
+    the plan fails closed (STALE) before step 2 reserves."""
     k = _plan_kernel(make_kernel)
     get_plan = k.store.get_plan
 
@@ -169,6 +189,9 @@ async def test_tampered_stored_plan_stops_before_the_later_step_reserves(
         plan = await get_plan(tenant_id, plan_id)
         step = plan.steps[1]
         proposal = step.proposal
+        if change == "step_id":  # the same proposal under another step's name
+            renamed = step.model_copy(update={"step_id": "renamed"})
+            return plan.model_copy(update={"steps": (plan.steps[0], renamed)})
         update: dict[str, Any] = {
             "arguments": {"arguments": {**proposal.arguments, "text": "rewritten"}},
             "contract": {"contract_id": "notes.pin.v1"},
