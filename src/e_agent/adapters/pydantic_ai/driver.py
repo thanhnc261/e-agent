@@ -368,13 +368,23 @@ class PydanticAiDriver:
                 await self._text_sink.emit(ctx, tail, new_message=first_text)
 
         handler: Any = public_text if self._text_sink is not None else None
+        allowed = step_input.allowed_capabilities  # the run's tool set (D6); None: all tools
+        toolset: Any = (
+            self._toolset
+            if allowed is None
+            else self._toolset.filtered(
+                lambda _ctx, tool: (
+                    tool.name not in self._tools or self._tools[tool.name].contract_id in allowed
+                )
+            )
+        )
         usage = RunUsage()
         try:
             result = await self._agent.run(
                 prompt,
                 message_history=st.messages or None,
                 deferred_tool_results=results,
-                toolsets=[self._toolset],
+                toolsets=[toolset],
                 usage_limits=UsageLimits(
                     request_limit=self._limits.request_limit,
                     total_tokens_limit=max(0, ctx.budgets.max_model_tokens - st.tokens),

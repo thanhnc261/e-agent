@@ -51,6 +51,10 @@ class DriverInput:
     # request_id -> "<code>: <safe_message>" for reads the provider rejected (ADR 0022).
     # An observation for the same request id supersedes an error.
     read_errors: Mapping[str, str] = field(default_factory=dict)
+    # The run's tool set, as contract ids, when its task definition fixes one (D6, ADR 0028):
+    # the driver offers only these tools on this turn. None offers every tool, as today. The
+    # kernel refuses anything outside the set; this field only shapes what the model sees.
+    allowed_capabilities: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True)
