@@ -148,7 +148,8 @@
         "ERP and notes two-step scenarios pass",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.7/2026-10-18T09-10-32.791057+00-00-full.json"
     },
     {
       "id": "F-2c-8",

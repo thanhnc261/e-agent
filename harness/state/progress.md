@@ -554,3 +554,8 @@
 - changed: harness/state/2/tasks/2c.7.json, harness/state/progress.md, pyproject.toml, src/e_agent/contracts/outcome.py, src/e_agent/contracts/run.py, src/e_agent/kernel/approval.py, src/e_agent/kernel/approval_flow.py, src/e_agent/kernel/continuation.py, src/e_agent/kernel/coordinator.py, src/e_agent/kernel/dispatch.py, src/e_agent/kernel/ir.py, src/e_agent/kernel/ir_on.py, src/e_agent/kernel/plan_flow.py, src/e_agent/kernel/proposals.py, src/e_agent/kernel/run_loop.py, src/e_agent/kernel/transitions.py, src/e_agent/kernel/verification.py, src/e_agent/plugins/erp/domain/procurement/verifier.py, src/e_agent/plugins/erp/domain/testing/scripted_tasks.py, src/e_agent/sdk/__init__.py, src/e_agent/sdk/ports.py, src/e_agent/server/bootstrap.py, src/e_agent/server/cli.py, tests/unit/kernel/conftest.py, tests/unit/kernel/test_action_plan_dispatch.py, tests/unit/kernel/test_ir.py, tests/unit/plugins/erp/domain/test_procurement.py, tests/unit/sdk/test_ports.py
 - next: test_plan_approved_once_dispatches_steps_in_order passes with the VERIFYING to RUNNING pair added in this task
 - open: none
+
+## 2026-10-18T09:13:42.760916+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.7
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.7.json, harness/state/2/reviews/2c.7-r3.json, harness/state/evidence/gates/2c.7/2026-10-18T09-10-32.791057+00-00-full.json, harness/state/evidence/gates/2c.7/2026-10-18T09-11-43.001489+00-00-pg.json
+- next: 2c.8: plan failure semantics plus the parked items
+- open: none
