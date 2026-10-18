@@ -1,6 +1,6 @@
 # Authored plan replays
 
-These recordings were written by hand in Task 2c.9 on 2026-10-18. No model produced them, and no live or remote model was called. Each file carries `provenance: "authored"` and claims no model digest, seed or temperature. The captured recordings in `../erp-model-calls` are a different kind and stay separate.
+These recordings were written by hand in Task 2c.9 on 2026-10-18. No model produced them, and no live or remote model was called. Each file carries `provenance: "authored"` and claims no model digest, seed or temperature. Its `pydantic_ai_version` names the message-part format the file is written in, not a capture. The captured recordings in `../erp-model-calls` are a different kind and stay separate.
 
 `draft-po-plan.json` checks the pydantic-ai driver's plan output against the real host in execution IR `on`, with a fixture budget of two writes. Its read calls copy the arguments of the captured `draft-po` recording. It then makes one `propose_plan` call with two draft POs, and the second copies `requested_date` from the first PO's verified read-back through lineage. Two orders for one demand only demonstrate lineage; this is not a procurement scenario.
 
