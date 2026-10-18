@@ -6,11 +6,13 @@ from typing import Any
 import pytest
 from e_agent.contracts.action import ActionState
 from e_agent.contracts.approval import ApprovalDecision
-from e_agent.contracts.run import RunState
+from e_agent.contracts.features import FeatureMode, Features
+from e_agent.contracts.run import ReasonCode, RunState
+from e_agent.contracts.task import AcceptanceSpec, RequiredEffect
 from e_agent.kernel.coordinator import RunCoordinator
 from e_agent.kernel.policy import DefaultPolicy
 
-from .conftest import TENANT, Kernel, NotesDriver
+from .conftest import CREATE, NOTES_TASK, TENANT, Kernel, NotesDriver
 
 pytestmark = pytest.mark.asyncio
 MakeKernel = Callable[..., Kernel]
@@ -20,7 +22,7 @@ class Crash(BaseException):
     """Simulates the process dying (not an Exception, so nothing catches it)."""
 
 
-def restart(k: Kernel) -> RunCoordinator:
+def restart(k: Kernel, features: Features | None = None) -> RunCoordinator:
     """A new process: same durable store, fresh coordinator and driver instances."""
     return RunCoordinator(
         store=k.store,
@@ -29,6 +31,7 @@ def restart(k: Kernel) -> RunCoordinator:
         policy=DefaultPolicy(),
         driver=NotesDriver(texts=[]),
         clock=k.clock,
+        features=features,
     )
 
 
@@ -270,3 +273,65 @@ async def test_waiting_input_run_with_failed_answer_verification_recovers_to_fai
     recovered = await restart(k).recover_run(TENANT, run.run_id)
     assert recovered.state is RunState.FAILED
     assert recovered.reason == "outcome verification failed"
+
+
+# -- execution IR `on`: acceptance at run end (Task 2c.6 fix round 1, ADR 0028) ----------
+ON = Features(execution_ir=FeatureMode.ON)
+# The notes stand-in for a positive-shortage answer: a verified outcome that does not meet
+# the definition's spec (two verified notes required, one written).
+UNMET_TASK = NOTES_TASK.model_copy(
+    update={
+        "acceptance": AcceptanceSpec(
+            required_effects=(RequiredEffect(contract_id=CREATE.contract_id, min_verified=2),)
+        )
+    }
+)
+
+
+async def _crash_after(k: Kernel, run_id: str, boundary: str) -> None:
+    original = getattr(k.store, boundary)
+
+    async def commit_then_die(*args: Any) -> Any:
+        await original(*args)
+        raise Crash
+
+    setattr(k.store, boundary, commit_then_die)
+    with pytest.raises(Crash):
+        await _approve(k.coordinator, k, run_id)
+    setattr(k.store, boundary, original)
+
+
+@pytest.mark.parametrize("boundary", ["record_receipt", "record_outcome"])
+@pytest.mark.parametrize(
+    ("task", "state", "code"),
+    [
+        (UNMET_TASK, RunState.FAILED, ReasonCode.ACCEPTANCE_UNMET),
+        (NOTES_TASK, RunState.SUCCEEDED, ReasonCode.VERIFIED),
+    ],
+)
+async def test_recovery_checks_acceptance_before_success(
+    make_kernel: MakeKernel, boundary: str, task: Any, state: RunState, code: ReasonCode
+) -> None:
+    """A run recovered after its outcome (or receipt) was stored reaches the live path's
+    acceptance decision: SUCCEEDED when the spec is met, ACCEPTANCE_UNMET when it is not."""
+    k = make_kernel(features=ON, task=task)
+    run = await k.coordinator.start_run(k.requester, "x", k.scope, task_kind=task.task_id)
+    await _crash_after(k, run.run_id, boundary)
+    [recovered] = await restart(k, ON).recover()
+    assert (recovered.state, recovered.reason_code) == (state, code)
+    assert k.backend.create_calls == 1
+    assert [a.state for a in await k.store.list_actions(TENANT, run.run_id)] == [
+        ActionState.VERIFIED
+    ]
+
+
+@pytest.mark.parametrize("boundary", ["record_receipt", "record_outcome"])
+async def test_recovery_success_unchanged_in_off(make_kernel: MakeKernel, boundary: str) -> None:
+    """`off` ignores acceptance on recovery, as today, even for a definition it would fail."""
+    k = make_kernel(task=UNMET_TASK)
+    run = await k.coordinator.start_run(k.requester, "x", k.scope, task_kind=UNMET_TASK.task_id)
+    await _crash_after(k, run.run_id, boundary)
+    [recovered] = await restart(k).recover()
+    assert (recovered.state, recovered.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
+    assert recovered.reason == "outcome verified"
+    assert k.backend.create_calls == 1

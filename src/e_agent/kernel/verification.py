@@ -127,9 +127,7 @@ class VerificationMixin(IrOnMixin):
         ctx = cont.ctx
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
         if await self._acceptance_unmet(run):  # `on`: no acknowledgement for an unmet task
-            return await self._set_run_state(
-                run, RunState.FAILED, "acceptance unmet", code=ReasonCode.ACCEPTANCE_UNMET
-            )
+            return await self._fail_unmet(run)
         final: Any = FinalAnswer(text=fallback)
         try:
             if acknowledge and (

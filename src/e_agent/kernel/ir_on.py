@@ -14,7 +14,8 @@ A run in ``on`` that resolved its task definition at admission executes the IR:
   ``step_index`` 0) in the approval write;
 - each stage of a linked action writes step records in the batch of its own events
   (`_step_start`, `_step_finish`, `_step_pair`);
-- at run end the acceptance spec is checked (`_succeed`); unmet ends ``ACCEPTANCE_UNMET``.
+- at run end the acceptance spec is checked (`_acceptance_unmet`, through `_succeed` or
+  `_fail_unmet` on the live finish paths and on recovery); unmet ends ``ACCEPTANCE_UNMET``.
 
 Fallback (ENG-TOGGLE-2): before the first reservation, an unresolved definition, a compile
 failure or a validation failure records ``feature.fallback`` with a fixed message and the
@@ -307,7 +308,11 @@ class IrOnMixin(FeaturesMixin):
         """End the run SUCCEEDED, or FAILED with ``ACCEPTANCE_UNMET`` in ``on`` when the
         definition's acceptance spec is not met."""
         if await self._acceptance_unmet(run):
-            return await self._set_run_state(
-                run, RunState.FAILED, "acceptance unmet", code=ReasonCode.ACCEPTANCE_UNMET
-            )
+            return await self._fail_unmet(run)
         return await self._set_run_state(run, RunState.SUCCEEDED, reason, code=code)
+
+    async def _fail_unmet(self, run: RunRecord) -> RunRecord:
+        """The one ``ACCEPTANCE_UNMET`` ending, shared by every finish path."""
+        return await self._set_run_state(
+            run, RunState.FAILED, "acceptance unmet", code=ReasonCode.ACCEPTANCE_UNMET
+        )

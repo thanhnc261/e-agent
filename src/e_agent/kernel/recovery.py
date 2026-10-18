@@ -13,11 +13,12 @@ from e_agent.contracts.run import (
     RunState,
 )
 
-from .continuation import LOG, ContinuationMixin, _Continuation
+from .continuation import LOG, _Continuation
 from .errors import ErrorCode, KernelError
+from .ir_on import IrOnMixin
 
 
-class RecoveryMixin(ContinuationMixin):
+class RecoveryMixin(IrOnMixin):
     # --------------------------------------------------------- reconciliation
     async def reconcile(self, operator: Principal, run_id: str) -> RunRecord:
         """Read-only reconciliation of UNKNOWN actions. Never re-sends a write."""
@@ -190,9 +191,8 @@ class RecoveryMixin(ContinuationMixin):
         ):
             if cont is not None:
                 cont.pending_action_id = None
-            return await self._set_run_state(
-                run, RunState.SUCCEEDED, "outcome verified", code=ReasonCode.VERIFIED
-            )
+            # The live finish path's acceptance check (`on`, ADR 0028); `off` is today's.
+            return await self._succeed(run, "outcome verified", ReasonCode.VERIFIED)
         elif latest is not None and latest.state is ActionState.VERIFICATION_FAILED:
             return await self._set_run_state(
                 run,
