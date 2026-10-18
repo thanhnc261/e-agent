@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2c-4"
   ],
-  "context_digest": "973cb1cb58911554ba0d025a7e3f91685dd71218e6401cc3b3b82a5bc44610e8",
+  "context_digest": "b295290367f15043c97d86487ab4d25560ab2dd37771623a3287c1fa3dcecf50",
   "allowed_paths": [
     "src/e_agent/kernel/ir.py",
     "src/e_agent/kernel/approval.py",
