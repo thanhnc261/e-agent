@@ -165,8 +165,11 @@ class PlanFlowMixin(ProposalsMixin):
         for step in plan.steps:
             proposal = step.proposal
             descriptor = self._registry.descriptor(proposal.contract_id)
-            connection = self._connections.usable(ctx, proposal.connection_id)
-            binding = self._registry.resolve(proposal.contract_id, proposal.connection_id)
+            try:
+                connection = self._connections.usable(ctx, proposal.connection_id)
+                binding = self._registry.resolve(proposal.contract_id, proposal.connection_id)
+            except KernelError:  # never an exception that strands the run (2c.9)
+                return await self._connection_refused(run, cont)
             decision = self._policy.evaluate(ctx, descriptor, proposal.connection_id)
             if not decision.permitted:
                 return await self._plan_denied(run, decision)

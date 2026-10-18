@@ -61,8 +61,11 @@ class ProposalsMixin(IrOnMixin):
             raise KernelError(ErrorCode.INVALID_REQUEST, "proposals are for write capabilities")
         if cont.writes >= ctx.budgets.max_admitted_writes:
             return await self._exhausted(run, "admitted writes")
-        connection = self._connections.usable(ctx, proposal.connection_id)
-        binding = self._registry.resolve(proposal.contract_id, proposal.connection_id)
+        try:
+            connection = self._connections.usable(ctx, proposal.connection_id)
+            binding = self._registry.resolve(proposal.contract_id, proposal.connection_id)
+        except KernelError:
+            return await self._connection_refused(run, cont)
         decision = self._policy.evaluate(ctx, descriptor, proposal.connection_id)
         validation = await self._validate(ctx, cont, proposal, binding)
 

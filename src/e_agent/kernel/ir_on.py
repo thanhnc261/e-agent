@@ -76,6 +76,9 @@ PLAN_INTERRUPTED = "plan interrupted between steps; the remaining steps were not
 """The fixed reason of a plan that cannot resume between its steps (Task 2c.8): a process
 no longer in ``on``, or a run recovery cannot resume (`PlanFlowMixin._resume_plan`)."""
 
+NO_CONNECTION = "The proposed connection is not available to this run for the capability."
+"""The fixed message of the ``KERNEL-CONNECTION`` repair finding (2c.9, no model text)."""
+
 ACCEPTANCE_MESSAGES = MappingProxyType(
     {
         "effects": "The run ended without the required verified effects.",
@@ -190,6 +193,14 @@ class IrOnMixin(FeaturesMixin):
         return DriverInput(
             task=run.task, observations=tuple(cont.observations.values()), findings=findings
         )
+
+    async def _connection_refused(
+        self, run: RunRecord, cont: _Continuation
+    ) -> RunRecord | DriverInput:
+        """A proposal or plan step on a connection the run cannot use, or one without a
+        binding for its capability: the fixed ``KERNEL-CONNECTION`` repair finding, never an
+        exception that strands the run (2c.9). The kernel never picks another connection."""
+        return await self._repair_finding(run, cont, (_fixed("KERNEL-CONNECTION", NO_CONNECTION),))
 
     def _kept(self, report: OutcomeReport) -> OutcomeReport:
         """The report as the kernel stores it: read-back values only in ``on``, where lineage
