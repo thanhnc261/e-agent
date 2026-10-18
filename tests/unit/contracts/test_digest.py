@@ -45,3 +45,14 @@ def test_non_string_keys_and_unknown_types_rejected() -> None:
 def test_lone_surrogate_rejected() -> None:
     with pytest.raises(CanonicalizationError):
         canonicalize({"a": "\ud800"})
+
+
+def test_plan_vectors_are_shared() -> None:
+    """The plan vectors (ADR 0025) sit in the shared file, so ui-core's loop checks them too;
+    `tests/unit/kernel/test_ir.py` rebuilds each from its plan records."""
+    plan = [v for v in _vectors() if v.get("kind") == "plan"]
+    print(f"plan vectors in the shared file: {len(plan)}")
+    assert len(plan) >= 3
+    for vector in plan:
+        assert vector["canonical"] == canonicalize(vector["input"])
+        assert vector["digest"] == digest(vector["input"])

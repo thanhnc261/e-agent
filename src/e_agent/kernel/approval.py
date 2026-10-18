@@ -72,6 +72,27 @@ def compute_digest(canonical_proposal: dict[str, Any]) -> str:
     return digest(canonical_proposal)
 
 
+PLAN_SCHEMA = "plan.v1"
+"""The plan digest wrapper's schema tag (target §6.4.4)."""
+
+
+def plan_digest_wrapper(
+    steps: Iterable[tuple[str, Iterable[str], dict[str, Any]]],
+) -> dict[str, Any]:
+    """The digest input of a plan with two or more steps (target §6.4.4, ADR 0025).
+
+    ``steps`` are ``(step_id, depends_on, step digest input)`` in step-index order; each step
+    input is a `digest_input` with placeholders in its arguments. A 1-step plan never uses
+    this wrapper: its approval digest is that step's action digest (`kernel/ir.py`)."""
+    return {
+        "plan_schema": PLAN_SCHEMA,
+        "steps": [
+            {"step_id": step_id, "depends_on": sorted(depends_on), "input": step_input}
+            for step_id, depends_on, step_input in steps
+        ],
+    }
+
+
 class MaterialField(Record):
     path: str
     value: str
