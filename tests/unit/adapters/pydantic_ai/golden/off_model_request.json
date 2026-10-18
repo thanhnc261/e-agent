@@ -1,0 +1,542 @@
+{
+  "off-one-write": {
+    "allow_text_output": true,
+    "function_tools": [
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "notes.note.read.v1 tool",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "notes_note_read_v1",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "properties": {
+            "parent": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      },
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "notes.note.create.v1 tool",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "notes_note_create_v1",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "properties": {
+            "parent": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      },
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "notes.note.pin.v1 tool",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "notes_note_pin_v1",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "properties": {
+            "parent": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      },
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "notes.summary.answer.v1 tool",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "notes_summary_answer_v1",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "properties": {
+            "parent": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      },
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "Ask the user for required missing task details. This grants no approval or authority.",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "request_clarification",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "question": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "question"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      }
+    ],
+    "instructions": "You are e-agent, an enterprise assistant that works only through the tools provided. Use read tools to obtain facts; never invent facts or tool results. Resource references are opaque identifiers: copy their complete exact value from tool data or the user, including every prefix before a colon or slash. Never shorten them to display names. To change anything, call exactly one write tool with complete arguments; it is a proposal that a human must approve, and you will receive its result or the rule findings that blocked it. Do not claim an action happened until a tool result says it was verified. Use a structured answer tool when one is provided for the task, before final text; the host must verify the answer. If necessary user details are missing, call request_clarification with one concise question. Answer briefly in the user's language.\n\nDomain guidance: write notes briefly.",
+    "output_tools": []
+  },
+  "off-two-writes": {
+    "allow_text_output": true,
+    "function_tools": [
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "notes.note.read.v1 tool",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "notes_note_read_v1",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "properties": {
+            "parent": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      },
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "notes.note.create.v1 tool",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "notes_note_create_v1",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "properties": {
+            "parent": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      },
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "notes.note.pin.v1 tool",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "notes_note_pin_v1",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "properties": {
+            "parent": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      },
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "notes.summary.answer.v1 tool",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "notes_summary_answer_v1",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "properties": {
+            "parent": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      },
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "Ask the user for required missing task details. This grants no approval or authority.",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "request_clarification",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "question": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "question"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      }
+    ],
+    "instructions": "You are e-agent, an enterprise assistant that works only through the tools provided. Use read tools to obtain facts; never invent facts or tool results. Resource references are opaque identifiers: copy their complete exact value from tool data or the user, including every prefix before a colon or slash. Never shorten them to display names. To change anything, call exactly one write tool with complete arguments; it is a proposal that a human must approve, and you will receive its result or the rule findings that blocked it. Do not claim an action happened until a tool result says it was verified. Use a structured answer tool when one is provided for the task, before final text; the host must verify the answer. If necessary user details are missing, call request_clarification with one concise question. Answer briefly in the user's language.\n\nDomain guidance: write notes briefly.",
+    "output_tools": []
+  },
+  "on-no-write-tool": {
+    "allow_text_output": true,
+    "function_tools": [
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "notes.note.read.v1 tool",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "notes_note_read_v1",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "properties": {
+            "parent": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      },
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "notes.summary.answer.v1 tool",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "notes_summary_answer_v1",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "properties": {
+            "parent": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      },
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "Ask the user for required missing task details. This grants no approval or authority.",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "request_clarification",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "question": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "question"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      }
+    ],
+    "instructions": "You are e-agent, an enterprise assistant that works only through the tools provided. Use read tools to obtain facts; never invent facts or tool results. Resource references are opaque identifiers: copy their complete exact value from tool data or the user, including every prefix before a colon or slash. Never shorten them to display names. To change anything, call exactly one write tool with complete arguments; it is a proposal that a human must approve, and you will receive its result or the rule findings that blocked it. Do not claim an action happened until a tool result says it was verified. Use a structured answer tool when one is provided for the task, before final text; the host must verify the answer. If necessary user details are missing, call request_clarification with one concise question. Answer briefly in the user's language.\n\nDomain guidance: write notes briefly.",
+    "output_tools": []
+  },
+  "on-one-write": {
+    "allow_text_output": true,
+    "function_tools": [
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "notes.note.read.v1 tool",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "notes_note_read_v1",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "properties": {
+            "parent": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      },
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "notes.note.create.v1 tool",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "notes_note_create_v1",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "properties": {
+            "parent": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      },
+      {
+        "capability_id": null,
+        "defer_loading": false,
+        "description": "Ask the user for required missing task details. This grants no approval or authority.",
+        "include_return_schema": null,
+        "kind": "external",
+        "metadata": null,
+        "name": "request_clarification",
+        "outer_typed_dict_key": null,
+        "parameters_json_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "question": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "question"
+          ],
+          "type": "object"
+        },
+        "return_schema": null,
+        "sequential": false,
+        "strict": null,
+        "timeout": null,
+        "tool_kind": null,
+        "toolset_id": null,
+        "unless_native": null,
+        "with_native": null
+      }
+    ],
+    "instructions": "You are e-agent, an enterprise assistant that works only through the tools provided. Use read tools to obtain facts; never invent facts or tool results. Resource references are opaque identifiers: copy their complete exact value from tool data or the user, including every prefix before a colon or slash. Never shorten them to display names. To change anything, call exactly one write tool with complete arguments; it is a proposal that a human must approve, and you will receive its result or the rule findings that blocked it. Do not claim an action happened until a tool result says it was verified. Use a structured answer tool when one is provided for the task, before final text; the host must verify the answer. If necessary user details are missing, call request_clarification with one concise question. Answer briefly in the user's language.\n\nDomain guidance: write notes briefly.",
+    "output_tools": []
+  }
+}

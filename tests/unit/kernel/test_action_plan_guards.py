@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 from e_agent.contracts.action import ActionState
 from e_agent.contracts.approval import ApprovalDecision
+from e_agent.contracts.connection import ConnectionDescriptor, ConnectionOwnership
 from e_agent.contracts.context import TaskContext
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode, Features
@@ -23,11 +24,13 @@ from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.plan import ActionPlan
 from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.contracts.validation import Finding, ValidationResult, ValidationStatus
+from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.sdk.ports import (
     ValidationInput,
 )
 
 from .conftest import (
+    CONN,
     CREATE,
     NOTE_INPUT,
     NOTES_TASK,
@@ -289,3 +292,51 @@ async def test_plan_after_an_earlier_write_is_refused_at_the_budget(
     cont.writes = writes
     findings = k.coordinator._plan_findings(two_step_plan(), NOTES_TASK, cont)
     assert ("KERNEL-PLAN-WRITES" in {f.rule_id for f in findings}) is refused
+
+
+# -- 2c.9: a plan step's connection is never the model's choice ------------------------------
+SECOND_CONN = "conn-model-picked"
+
+
+@pytest.mark.parametrize("in_scope", [False, True])
+async def test_plan_step_on_a_connection_without_binding_is_refused(
+    make_kernel: MakeKernel, in_scope: bool
+) -> None:
+    """The kernel half of PR-11 and PR-12 for plans (the driver half is
+    `tests/unit/adapters/pydantic_ai/test_driver_plan.py::
+    test_plan_with_model_chosen_connection_is_rejected`). A plan step that names a connection
+    other than its capability's binding is refused before any action, approval or
+    reservation exists: one outside the run's scope, and one inside it, usable by the
+    requester, with no binding for the step's capability (`PluginRegistry.resolve`)."""
+    connections = [
+        ConnectionDescriptor(
+            tenant_id=TENANT,
+            connection_id=conn,
+            version=1,
+            integration_id="notes-mem",
+            ownership=ConnectionOwnership.TENANT_SHARED,
+            provider_subject="svc",
+        )
+        for conn in (CONN, SECOND_CONN)
+    ]
+    driver = NotesPlanDriver(plan=two_step_plan(SECOND_CONN))
+    k = _plan_kernel(make_kernel, driver=driver, connections=connections)
+    scope = k.scope | {SECOND_CONN} if in_scope else k.scope
+    with pytest.raises(KernelError) as err:
+        await k.coordinator.start_run(
+            k.requester, "write standup note", scope, task_kind=NOTES_TASK.task_id
+        )
+    assert err.value.code is ErrorCode.FORBIDDEN
+    assert driver.calls == 2  # the read turn, then the plan the kernel refused
+    # As for a single proposal on such a connection, the error propagates and the run stays
+    # unfinished for startup recovery; nothing was proposed for approval.
+    (run,) = await k.store.list_unfinished_runs()
+    assert run.state is RunState.RUNNING
+    assert await k.store.list_actions(TENANT, run.run_id) == []
+    assert not [
+        e
+        for e in await k.store.list_events(TENANT, run.run_id)
+        if e.type in {RunEventType.APPROVAL_REQUESTED, RunEventType.IR_PLAN_COMPILED}
+    ]
+    assert await _reserved(k, run.run_id) == []
+    assert k.backend.create_calls == 0

@@ -1,0 +1,63 @@
+{
+  "provenance": "authored",
+  "kind": "authored-model-parts-fixture-replay",
+  "environment": "synthetic fixture ERP; replay is not live evidence",
+  "note": "Hand-authored in Task 2c.9 (2026-10-18); no model produced these parts. It checks the pydantic-ai driver's plan output against the real host as a fixture, never model capability. The read calls copy the captured draft-po recording's arguments; the plan's second draft PO copies requested_date from the first through lineage, a lineage demonstration and not a procurement scenario.",
+  "task": "draft-po-plan",
+  "task_kind": "draft-po",
+  "prompt": "Restock product:widget-a for demand:d-001 by creating a draft purchase order.",
+  "features": {
+    "execution_ir": "on"
+  },
+  "budgets": {
+    "max_admitted_writes": 2
+  },
+  "pydantic_ai_version": "2.54.0",
+  "expected_contract": "procurement.purchase-order.create-draft.v1",
+  "expected_fixture_writes": 2,
+  "responses": [
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "procurement_demand_read_v1",
+          "args": "{\"demand_ref\":\"demand:d-001\"}",
+          "tool_call_id": "authored-read-1",
+          "part_kind": "tool-call"
+        },
+        {
+          "tool_name": "inventory_availability_read_v1",
+          "args": "{\"product_ref\":\"product:widget-a\"}",
+          "tool_call_id": "authored-read-2",
+          "part_kind": "tool-call"
+        },
+        {
+          "tool_name": "procurement_offers_read_v1",
+          "args": "{\"product_ref\":\"product:widget-a\"}",
+          "tool_call_id": "authored-read-3",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "propose_plan",
+          "args": "{\"steps\":[{\"step_id\":\"first-po\",\"tool\":\"procurement_purchase_order_create_draft_v1\",\"arguments\":{\"demand_ref\":\"demand:d-001\",\"product_ref\":\"product:widget-a\",\"supplier_ref\":\"supplier:approved-co\",\"offer_ref\":\"offer:a\",\"quantity\":\"7\",\"unit\":\"Units\",\"currency\":\"VND\",\"unit_price\":\"100\",\"subtotal\":\"700\",\"requested_date\":\"2026-10-20\"}},{\"step_id\":\"second-po\",\"tool\":\"procurement_purchase_order_create_draft_v1\",\"arguments\":{\"demand_ref\":\"demand:d-001\",\"product_ref\":\"product:widget-a\",\"supplier_ref\":\"supplier:approved-co\",\"offer_ref\":\"offer:a\",\"quantity\":\"7\",\"unit\":\"Units\",\"currency\":\"VND\",\"unit_price\":\"100\",\"subtotal\":\"700\"},\"lineage\":{\"requested_date\":{\"step\":\"first-po\",\"path\":\"/requested_date\"}}}]}",
+          "tool_call_id": "authored-plan-1",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "content": "Both draft purchase orders in the plan were verified.",
+          "part_kind": "text"
+        }
+      ]
+    }
+  ]
+}

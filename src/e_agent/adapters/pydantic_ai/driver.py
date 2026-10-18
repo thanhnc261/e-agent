@@ -9,6 +9,17 @@ framework approval (`requires_approval`) is never used (ADR 0004).
 
 Continuation hygiene: ThinkingPart content is removed from the stored history
 and never leaves the driver (AGENTS.md: no persisted hidden reasoning).
+
+Action plans (Task 2c.9, ADR 0025): a turn offers the deferred ``propose_plan`` tool only
+when the kernel passed the run's tool set (``DriverInput.allowed_capabilities``, set only in
+execution IR ``on`` for a run bound to its task definition) and the run's effective write
+budget (``ctx.budgets.max_admitted_writes``, the value the kernel's plan refusal reads) is
+above one. Every other turn sends the model exactly today's tools and instructions
+(ENG-TOGGLE-1). A plan call becomes `ProposePlan` and nothing more: each step's connection is
+the host's tool spec's, a step that names a connection is refused (PR-11, PR-12), and a
+lineage placeholder is built only from the tool's typed ``lineage`` field, so a literal
+``$lineage`` key in model arguments stays a literal the plan records refuse. The kernel
+validates, approves and dispatches the plan (PR-13).
 """
 
 from __future__ import annotations
@@ -23,7 +34,7 @@ from urllib.parse import SplitResult, urlsplit
 
 from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.context import TaskContext
-from e_agent.contracts.plan import ActionProposal
+from e_agent.contracts.plan import ActionPlan, ActionProposal, LineageRef, PlannedStep
 from e_agent.sdk.errors import DriverBudgetExceeded
 from e_agent.sdk.ports import (
     AskClarification,
@@ -31,10 +42,12 @@ from e_agent.sdk.ports import (
     DriverStep,
     FinalAnswer,
     ProposeAction,
+    ProposePlan,
     ReadRequest,
     RequestReads,
     SafeTextSink,
 )
+from pydantic import ValidationError
 from pydantic_core import to_jsonable_python
 
 import pydantic_ai
@@ -75,6 +88,43 @@ BASE_INSTRUCTIONS = (
     "the host must verify the answer. If necessary user details are missing, call "
     "request_clarification with one concise question. Answer briefly in the user's language."
 )
+
+PLAN_TOOL = "propose_plan"
+PLAN_INSTRUCTIONS = (
+    f"This task may need more than one write. If it does, read the facts first, then call "
+    f"{PLAN_TOOL} once with every write as a step, in the order they must run, instead of "
+    "calling the write tools. A human approves the whole plan once; the host runs each step "
+    "only after the previous one is verified. When a step needs a value from an earlier "
+    "step's verified result, name it under that step's lineage, not in its arguments. Never "
+    "name a connection. For a single write, call its write tool as usual."
+)
+"""Added to the instructions only on a turn that offers the plan tool."""
+_PLAN_STEP_KEYS = frozenset({"step_id", "tool", "arguments", "depends_on", "lineage"})
+_LINEAGE_KEYS = frozenset({"step", "path"})
+CONNECTION_REFUSAL = "the host chooses each step's connection; a plan must not name one"
+PLAN_SHAPE_REFUSAL = (
+    "a plan is a non-empty steps list; each step has a step_id, a tool and an arguments "
+    "object, and optionally depends_on (step ids) and lineage"
+)
+PLAN_TOOL_REFUSAL = "each plan step's tool must be one of the plan's write tools"
+PLAN_LINEAGE_REFUSAL = (
+    "lineage maps an argument name that is not also in arguments to {step, path}: an "
+    "earlier step id and an RFC 6901 JSON pointer into its verified result"
+)
+PLAN_STRUCTURE_REFUSAL = (
+    "the plan's structure is invalid: step ids are unique, each dependency is an earlier "
+    "step, and no argument uses the reserved $lineage key"
+)
+PLAN_REFUSALS = frozenset(
+    {
+        CONNECTION_REFUSAL,
+        PLAN_SHAPE_REFUSAL,
+        PLAN_TOOL_REFUSAL,
+        PLAN_LINEAGE_REFUSAL,
+        PLAN_STRUCTURE_REFUSAL,
+    }
+)
+"""The fixed refusals of a plan call, returned to the model as the call's error."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -378,13 +428,19 @@ class PydanticAiDriver:
                 )
             )
         )
+        plan_tool = self._plan_tool(ctx, allowed)
+        toolsets: list[Any] = [toolset]
+        extra: dict[str, Any] = {}
+        if plan_tool is not None:  # `on`, more than one write: offer the plan (Task 2c.9)
+            toolsets.append(ExternalToolset([plan_tool]))
+            extra["instructions"] = PLAN_INSTRUCTIONS
         usage = RunUsage()
         try:
             result = await self._agent.run(
                 prompt,
                 message_history=st.messages or None,
                 deferred_tool_results=results,
-                toolsets=[toolset],
+                toolsets=toolsets,
                 usage_limits=UsageLimits(
                     request_limit=self._limits.request_limit,
                     total_tokens_limit=max(0, ctx.budgets.max_model_tokens - st.tokens),
@@ -392,6 +448,7 @@ class PydanticAiDriver:
                 usage=usage,
                 event_stream_handler=handler,
                 model_settings=self._settings or None,  # type: ignore[arg-type]
+                **extra,
             )
         except UsageLimitExceeded as exc:
             raise DriverBudgetExceeded("model usage limit") from exc
@@ -402,7 +459,80 @@ class PydanticAiDriver:
         output = result.output
         if isinstance(output, str):
             return FinalAnswer(text=_public_text(output))
-        return self._plan_step(st, output)
+        return self._plan_step(st, output, self._plan_step_tools(ctx, allowed))
+
+    def _plan_step_tools(
+        self, ctx: TaskContext, allowed: tuple[str, ...] | None
+    ) -> tuple[str, ...]:
+        """The write tools a plan step may name on this turn; empty when no plan is offered.
+
+        ``allowed`` is None in ``off`` and ``shadow`` (and for a run without a definition),
+        so the write budget alone never offers a plan."""
+        if allowed is None or ctx.budgets.max_admitted_writes <= 1 or PLAN_TOOL in self._tools:
+            return ()
+        return tuple(
+            sorted(
+                spec.name
+                for spec in self._tools.values()
+                if spec.effect is EffectKind.WRITE and spec.contract_id in allowed
+            )
+        )
+
+    def _plan_tool(
+        self, ctx: TaskContext, allowed: tuple[str, ...] | None
+    ) -> ToolDefinition | None:
+        names = self._plan_step_tools(ctx, allowed)
+        if not names:
+            return None
+        return ToolDefinition(
+            name=PLAN_TOOL,
+            description=(
+                "Propose several writes as one plan that a human approves once. Steps run in "
+                "order, each after the previous one is verified. Each step names a write tool "
+                "and its complete arguments; a value copied from an earlier step's verified "
+                "result goes under lineage as {step, path}. The host chooses connections. "
+                "This grants no approval or authority."
+            ),
+            parameters_json_schema={
+                "type": "object",
+                "properties": {
+                    "steps": {
+                        "type": "array",
+                        "minItems": 2,
+                        "maxItems": ctx.budgets.max_admitted_writes,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "step_id": {"type": "string", "minLength": 1, "maxLength": 64},
+                                "tool": {"type": "string", "enum": list(names)},
+                                "arguments": {"type": "object"},
+                                "depends_on": {"type": "array", "items": {"type": "string"}},
+                                "lineage": {
+                                    "type": "object",
+                                    "description": (
+                                        "Argument name to the earlier step and the JSON "
+                                        "pointer into its verified result to copy."
+                                    ),
+                                    "additionalProperties": {
+                                        "type": "object",
+                                        "properties": {
+                                            "step": {"type": "string"},
+                                            "path": {"type": "string"},
+                                        },
+                                        "required": ["step", "path"],
+                                        "additionalProperties": False,
+                                    },
+                                },
+                            },
+                            "required": ["step_id", "tool", "arguments"],
+                            "additionalProperties": False,
+                        },
+                    }
+                },
+                "required": ["steps"],
+                "additionalProperties": False,
+            },
+        )
 
     def _results_for(self, st: _RunState, step_input: DriverInput) -> DeferredToolResults | None:
         results = DeferredToolResults()
@@ -437,10 +567,19 @@ class PydanticAiDriver:
             results.calls[call_id] = {"error": reason}
         return results if results.calls or results.approvals else None
 
-    def _plan_step(self, st: _RunState, requests: DeferredToolRequests) -> DriverStep:
+    def _plan_step(
+        self,
+        st: _RunState,
+        requests: DeferredToolRequests,
+        plan_tools: tuple[str, ...] = (),
+    ) -> DriverStep:
         reads: list[ReadRequest] = []
-        writes: list[tuple[str, ToolSpec, dict[str, Any]]] = []
+        # A write call (its spec and arguments) or a plan call (spec None, its raw arguments).
+        writes: list[tuple[str, ToolSpec | None, dict[str, Any]]] = []
         for call in requests.calls:
+            if call.tool_name == PLAN_TOOL and plan_tools:
+                writes.append((call.tool_call_id, None, call.args_as_dict()))
+                continue
             if call.tool_name == "request_clarification":
                 question = call.args_as_dict().get("question")
                 if (
@@ -481,6 +620,13 @@ class PydanticAiDriver:
             call_id, spec, args = writes[0]
             for extra_id, _, _ in writes[1:]:
                 st.rejected[extra_id] = "only one write may be proposed at a time"
+            if spec is None:  # the plan call: the turn's one proposal (Task 2c.9)
+                plan = self._plan_from_call(args, plan_tools)
+                if isinstance(plan, str):
+                    st.rejected[call_id] = plan
+                    return AskClarification(question="The model made no usable tool request.")
+                st.pending_write = call_id
+                return ProposePlan(plan=plan)
             st.pending_write = call_id
             return ProposeAction(
                 proposal=ActionProposal(
@@ -492,7 +638,89 @@ class PydanticAiDriver:
             )
         return AskClarification(question="The model made no usable tool request.")
 
+    def _plan_from_call(
+        self, args: Mapping[str, Any], plan_tools: tuple[str, ...]
+    ) -> ActionPlan | str:
+        """The plan a ``propose_plan`` call proposes, or the fixed refusal for the model.
+
+        The checks here only make a refusal precise; the plan records and the kernel are the
+        boundary. Each connection is the host's tool spec's. A placeholder is a `LineageRef`
+        built from the typed ``lineage`` field; argument values pass through as they came, so
+        a literal ``$lineage`` key reaches the records, which refuse it (ADR 0025). The
+        kernel assigns the plan id and the task definition (`ProposePlan`)."""
+        if set(args) != {"steps"}:
+            return _refusal_for_keys(set(args) - {"steps"})
+        raw_steps = args["steps"]
+        if not isinstance(raw_steps, list) or not raw_steps:
+            return PLAN_SHAPE_REFUSAL
+        steps: list[PlannedStep] = []
+        for raw in raw_steps:
+            if not isinstance(raw, dict):
+                return PLAN_SHAPE_REFUSAL
+            if set(raw) - _PLAN_STEP_KEYS:
+                return _refusal_for_keys(set(raw) - _PLAN_STEP_KEYS)
+            step_id, tool, arguments = raw.get("step_id"), raw.get("tool"), raw.get("arguments")
+            depends_on, lineage = raw.get("depends_on", []), raw.get("lineage", {})
+            if not (
+                isinstance(step_id, str)
+                and step_id
+                and isinstance(arguments, dict)
+                and isinstance(depends_on, list)
+                and all(isinstance(item, str) for item in depends_on)
+                and isinstance(lineage, dict)
+            ):
+                return PLAN_SHAPE_REFUSAL
+            spec = self._tools.get(tool) if isinstance(tool, str) else None
+            if spec is None or spec.name not in plan_tools:
+                return PLAN_TOOL_REFUSAL
+            values = self._coerced_args(spec, arguments)
+            sources: list[str] = []
+            for name, ref in lineage.items():
+                if (
+                    name in values
+                    or not isinstance(ref, dict)
+                    or set(ref) != _LINEAGE_KEYS
+                    or not all(isinstance(ref[key], str) for key in _LINEAGE_KEYS)
+                ):
+                    return PLAN_LINEAGE_REFUSAL
+                try:
+                    values[name] = LineageRef(step_id=ref["step"], path=ref["path"])
+                except ValidationError:
+                    return PLAN_LINEAGE_REFUSAL
+                sources.append(ref["step"])
+            try:
+                steps.append(
+                    PlannedStep(
+                        step_id=step_id,
+                        proposal=ActionProposal(
+                            contract_id=spec.contract_id,
+                            connection_id=spec.connection_id,
+                            arguments=values,
+                            expected_effects=(spec.description,),
+                        ),
+                        depends_on=tuple(dict.fromkeys([*depends_on, *sources])),
+                    )
+                )
+            except (ValidationError, ValueError):
+                return PLAN_STRUCTURE_REFUSAL
+        try:
+            return ActionPlan(
+                plan_id="driver-proposed",
+                task_id="driver-proposed",
+                task_version="0",
+                steps=tuple(steps),
+            )
+        except (ValidationError, ValueError):
+            return PLAN_STRUCTURE_REFUSAL
+
     @staticmethod
     def _coerced_args(spec: ToolSpec, args: dict[str, Any]) -> dict[str, Any]:
         props = spec.parameters.get("properties", {})
         return {k: _coerce(v, props.get(k)) for k, v in args.items()}
+
+
+def _refusal_for_keys(keys: set[Any]) -> str:
+    """A key the plan tool does not define: a connection one gets its own refusal."""
+    if any("connection" in str(key).lower() for key in keys):
+        return CONNECTION_REFUSAL
+    return PLAN_SHAPE_REFUSAL
