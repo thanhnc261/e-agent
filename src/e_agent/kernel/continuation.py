@@ -149,6 +149,8 @@ class ContinuationMixin:
     _plan_runs: set[str]
     """Runs whose plan the approval call or a resume claim is dispatching now: only these
     start a later plan step; recovery and reconciliation queue a resume instead."""
+    _resume_disabled: set[str]
+    """Runs recovered after a failed ``resume`` claim: they never queue another resume."""
 
     if TYPE_CHECKING:
 

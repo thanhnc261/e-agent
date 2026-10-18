@@ -141,3 +141,67 @@ async def test_worker_resume_claim_completes_a_crashed_plan() -> None:
     after = await rt.store.get_run(tenant, run.run_id)
     assert after.revision == done.revision
     assert rt.diagnostics()["fixture-erp"]["create_calls"] == 2
+
+
+@pytest.mark.parametrize("failure", ["host-error", "after-action", "takeover"])
+async def test_failed_resume_claim_ends_the_plan_without_another_resume(failure: str) -> None:
+    """A plan resume is attempted at most once (2c.8 review R2-1). The resume claim fails
+    before the second PO's action exists (a host error inside the step start, or a dead
+    owner whose claim is taken over), or after it exists but before it reserved; the
+    worker applies the crash rules with resume
+    disabled, so the run ends FAILED INTERRUPTED, no work stays queued, and a later
+    recovery finds nothing to do. The first PO is never re-sent."""
+    from e_agent.server.api import ApiState
+
+    rt = await build_runtime(_profile(), driver_factory=_plan_driver)
+    state = ApiState(rt)
+    tenant = rt.operator.tenant_id
+    preset = rt.registry.task_presets[DRAFT_PO]
+    run = await rt.coordinator.start_run(
+        rt.operator, demo_prompt(preset, rt.profile.driver), rt.scope, task_kind=DRAFT_PO
+    )
+    pres = await rt.coordinator.pending_approval(tenant, run.run_id)
+
+    async def worker_lost(*_a: Any) -> Any:
+        raise RuntimeError("worker lost")
+
+    rt.coordinator._after_step_verified = worker_lost  # type: ignore[method-assign]
+    with pytest.raises(RuntimeError):
+        await rt.coordinator.decide(
+            actor=rt.operator,
+            run_id=run.run_id,
+            action_id=pres.action_id,
+            action_digest=pres.digest,
+            expected_run_revision=pres.run_revision,
+            decision=ApprovalDecision.APPROVED,
+        )
+    del rt.coordinator._after_step_verified
+    [queued] = await rt.coordinator.recover()
+    assert queued.state is RunState.VERIFYING
+
+    if failure in {"host-error", "after-action"}:
+        target = "_start_step" if failure == "host-error" else "_dispatch"
+        setattr(rt.coordinator, target, worker_lost)
+        claim = await rt.store.claim_work("worker-test")
+        assert claim is not None and claim.kind == "resume" and claim.fence == 1
+        await state._run_work(claim)
+        delattr(rt.coordinator, target)
+    else:
+        assert await rt.store.claim_work("dead-owner", lease_seconds=0) is not None
+        claim = await rt.store.claim_work("worker-test")
+        assert claim is not None and claim.kind == "resume" and claim.fence == 2
+        await state._run_work(claim)
+    await rt.coordinator.recover()
+
+    ended = await rt.store.get_run(tenant, run.run_id)
+    assert (ended.state, ended.reason_code) == (RunState.FAILED, ReasonCode.INTERRUPTED)
+    assert ended.reason == "plan resume failed before step 2 reserved"
+    assert not await rt.store.has_pending_work(tenant, run.run_id)
+    assert await rt.store.claim_work("worker-test") is None
+    actions = await rt.store.list_actions(tenant, run.run_id)
+    assert len(actions) == (2 if failure == "after-action" else 1)
+    if failure == "after-action":  # the second PO's action exists, never reserved or sent
+        second = next(a for a in actions if a.step_index == 1)
+        assert str(second.state) == "PROPOSED"
+        assert await rt.store.list_receipts(tenant, second.action_id) == []
+    assert rt.diagnostics()["fixture-erp"]["create_calls"] == 1

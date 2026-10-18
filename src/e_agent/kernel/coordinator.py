@@ -90,6 +90,7 @@ class RunCoordinator(
         self._runs: dict[str, _Continuation] = {}
         self._active_calls: dict[str, asyncio.Task[Any]] = {}
         self._plan_runs: set[str] = set()
+        self._resume_disabled: set[str] = set()
 
     # ------------------------------------------------------------------ runs
     def _prepare_run(

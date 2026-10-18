@@ -340,6 +340,11 @@ class PlanFlowMixin(ProposalsMixin):
             return await self._set_run_state(
                 run, RunState.FAILED, PLAN_INTERRUPTED, code=ReasonCode.INTERRUPTED
             )
+        if cont.ctx.run_id in self._resume_disabled:  # a failed resume claim: at most once
+            reason = f"plan resume failed before step {action.step_index + 2} reserved"
+            return await self._set_run_state(
+                run, RunState.FAILED, reason, code=ReasonCode.INTERRUPTED
+            )
         if cont.ctx.run_id not in self._plan_runs:
             return await self._queue_resume(run, action)
         plan.current = action.step_index  # the verified action, persisted with its state

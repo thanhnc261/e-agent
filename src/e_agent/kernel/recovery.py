@@ -122,20 +122,30 @@ class RecoveryMixin(IrOnMixin):
                 recovered.append(result)
         return recovered
 
-    async def recover_run(self, tenant_id: str, run_id: str) -> RunRecord:
-        """Apply the crash rules to one run whose host-side work died unexpectedly."""
+    async def recover_run(self, tenant_id: str, run_id: str, *, resume: bool = True) -> RunRecord:
+        """Apply the crash rules to one run whose host-side work died unexpectedly.
+
+        ``resume=False`` is for a failed ``resume`` claim: a plan resume is attempted at most
+        once (2c.8 review R2-1), so no resume is queued again. A plan with nothing reserved
+        for its next step fails INTERRUPTED; a reservation or dispatch gets today's rules."""
         run = await self._store.get_run(tenant_id, run_id)
         if run.state in TERMINAL_RUN_STATES:
             return run
         self._runs.pop(run_id, None)  # the in-memory continuation may be mid-mutation
-        return await self._recover_run(run) or run
+        if resume:
+            return await self._recover_run(run) or run
+        self._resume_disabled.add(run_id)
+        try:
+            return await self._recover_run(run) or run
+        finally:
+            self._resume_disabled.discard(run_id)
 
     async def resume_plan(self, tenant_id: str, run_id: str) -> RunRecord:
         """Executed under a ``resume`` work claim (ADR 0025 amendment). Re-check under the
         claim that the run is RUNNING or VERIFYING with plan state, else drop the item; then
         continue the plan as a live finish does, through every pre-reservation guard. A plan
-        that can no longer resume (a crashed earlier claim started its next step) gets the
-        crash rules, which never send a write."""
+        that can no longer resume gets the crash rules with resume disabled, which never
+        send a write and never queue another resume."""
         run = await self._store.get_run(tenant_id, run_id)
         if run.state not in {RunState.RUNNING, RunState.VERIFYING}:
             return run
@@ -155,7 +165,7 @@ class RecoveryMixin(IrOnMixin):
                 self._plan_runs.discard(run_id)
         if resumed is not None:
             return resumed
-        return await self._recover_run(run) or run
+        return await self.recover_run(tenant_id, run_id, resume=False)
 
     async def _latest_action(
         self, run: RunRecord
@@ -245,7 +255,12 @@ class RecoveryMixin(IrOnMixin):
             reason = "interrupted during driver turn"
             if latest is not None and latest.plan_id is not None and latest.step_index:
                 # A later plan step's action exists, never reserved: fail closed, send nothing.
-                reason = f"interrupted before plan step {latest.step_index + 1} reserved"
+                step = latest.step_index + 1
+                reason = (
+                    f"plan resume failed before step {step} reserved"
+                    if run.run_id in self._resume_disabled
+                    else f"interrupted before plan step {step} reserved"
+                )
             return await self._set_run_state(
                 run, RunState.FAILED, reason, code=ReasonCode.INTERRUPTED
             )

@@ -679,3 +679,26 @@ async def test_crash_after_a_later_step_exists_ends_interrupted_before_it_reserv
         k.store, TENANT, run.run_id, environment="fixture", versions={}, features=ON
     )
     assert [s["status"] for s in bundle["plan"]["steps"]] == ["verified", "unstarted"]
+
+
+async def test_racing_recoveries_queue_one_resume(make_kernel: MakeKernel) -> None:
+    """Two processes recover the same ledger and the second one passes `has_pending_work`
+    before the first one's enqueue is visible (2c.8 review R2-2): the resume item is keyed
+    by the verified step, so exactly one item exists and only one resume can run."""
+    k = _plan_kernel(make_kernel)
+    run_id = await _crash_between_steps(k, "record_outcome")
+    [first_pass] = await _restart_plan(k).recover()
+    assert first_pass.state is RunState.VERIFYING
+
+    async def not_visible_yet(*_a: Any) -> bool:
+        return False
+
+    k.store.has_pending_work = not_visible_yet  # the second process races the first
+    [second_pass] = await _restart_plan(k).recover()
+    assert second_pass.state is RunState.VERIFYING
+    claim = await k.store.claim_work("probe")
+    assert claim is not None and claim.kind == "resume" and claim.run_id == run_id
+    async with k.store.work_scope(claim):
+        await k.store.finish_work(claim)
+    assert await k.store.claim_work("probe") is None  # one item, not two
+    assert k.backend.create_calls == 1

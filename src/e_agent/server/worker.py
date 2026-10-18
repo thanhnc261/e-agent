@@ -100,14 +100,16 @@ class WorkerMixin:
                     actor_label = f"principal:{run.requester_id}"
                 else:
                     actor_label = f"system:worker:{claim.owner}"
-                if claim.kind in {"expire", "resume"}:
-                    # expire_approval re-checks state, pending action and TTL, and resume_plan
-                    # re-checks the run and its plan (applying the crash rules when the plan
-                    # can no longer resume), so replay is safe.
+                if claim.kind == "expire":
+                    # expire_approval re-checks state, pending action and TTL, so replay is safe.
                     untouched = True
                 if claim.fence > 1 and not untouched:
+                    # A resume claim taken over from a dead owner is a failed resume: a plan
+                    # resume is attempted at most once (2c.8 review R2-1).
                     with actor_scope(f"system:worker:{claim.owner}"):
-                        await rt.coordinator.recover_run(claim.tenant_id, claim.run_id)
+                        await rt.coordinator.recover_run(
+                            claim.tenant_id, claim.run_id, resume=claim.kind != "resume"
+                        )
                 else:
                     with actor_scope(actor_label):
                         if claim.kind == "start":
@@ -144,7 +146,7 @@ class WorkerMixin:
             try:
                 async with rt.store.work_scope(claim):
                     with actor_scope(f"system:worker:{claim.owner}"):
-                        await self._mark_failed(claim.run_id)
+                        await self._mark_failed(claim.run_id, resume=claim.kind != "resume")
                     await rt.store.finish_work(claim)
             except Exception:
                 # Leave the claim for lease expiry and another owner to reconcile.
@@ -153,10 +155,11 @@ class WorkerMixin:
             pulse.cancel()
             await asyncio.gather(pulse, return_exceptions=True)
 
-    async def _mark_failed(self, run_id: str) -> None:
-        """Unexpected host error: apply the crash rules, never guess an outcome."""
+    async def _mark_failed(self, run_id: str, *, resume: bool = True) -> None:
+        """Unexpected host error: apply the crash rules, never guess an outcome. After a
+        failed ``resume`` claim no resume is queued again (``resume=False``)."""
         rt = self.runtime
         try:
-            await rt.coordinator.recover_run(rt.operator.tenant_id, run_id)
+            await rt.coordinator.recover_run(rt.operator.tenant_id, run_id, resume=resume)
         except NotFound:
             return
