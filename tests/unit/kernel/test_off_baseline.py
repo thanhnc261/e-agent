@@ -35,3 +35,12 @@ def test_golden_records_digests_and_action_states() -> None:
         assert run["approval_digest"].startswith("jcs-sha256-v1:"), name
         assert [a["state"] for a in run["actions"]] == ["VERIFIED"], name
         assert run["actions"][0]["digest"] == run["approval_digest"], name
+
+
+def test_golden_records_each_events_payload_keys() -> None:
+    """A golden without payload key sets would let a payload-only change pass."""
+    for name, run in _golden().items():
+        keys = run.get("payload_keys")
+        assert keys is not None, name
+        assert len(keys) == len(run["event_types"]), name
+        assert all(isinstance(k, list) and k for k in keys), name

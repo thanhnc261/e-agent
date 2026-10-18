@@ -2,8 +2,10 @@
 
 The simulator's fixture profile, draft-po task, approved: recorded on the kernel
 as it was before any Phase 2 feature landed. It records the event types in
-order, the final run state and its transitions, and every action's state and
-approval digest. ``off`` mode must keep this stream exactly;
+order with each event's payload key set, the final run state and its
+transitions, and every action's state and approval digest (the key sets were
+added in Task 2c.5, recorded on the kernel as Task 2c.4 left it, before any
+shadow change). ``off`` mode must keep this stream exactly;
 ``test_off_baseline_erp.py`` asserts against it. The notes-domain baseline is
 ``tests/unit/kernel/record_off_baseline.py``; the helpers are duplicated here on
 purpose, because the kernel suite imports no plugin and this module shares
@@ -74,6 +76,8 @@ async def _summarise(store: Any, tenant_id: str, run: Any, digest: str) -> dict[
         "run_state": str(run.state),
         "approval_digest": digest,
         "event_types": [str(e.type) for e in events],
+        # Each event's payload key set, so an off-mode change to a payload alone is caught.
+        "payload_keys": [sorted(e.payload) for e in events],
         "run_transitions": [
             str(e.payload.get("to")) for e in events if e.type == RunEventType.RUN_STATE_CHANGED
         ],

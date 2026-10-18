@@ -2,10 +2,12 @@
 
 One run on the kernel as it was before any Phase 2 feature landed: the
 notes-domain write run (the domain-neutral fixture in ``conftest.py``). It
-records the event types in order, the final run state and its transitions, and
-every action's state and approval digest. ``off`` mode must keep this stream
-exactly; ``test_off_baseline.py`` asserts against it. The ERP draft-po baseline
-lives with the simulator plugin's tests
+records the event types in order with each event's payload key set, the final
+run state and its transitions, and every action's state and approval digest
+(the key sets were added in Task 2c.5, recorded on the kernel as Task 2c.4 left
+it, before any shadow change). ``off`` mode must keep this stream exactly;
+``test_off_baseline.py`` asserts against it. The ERP draft-po baseline lives
+with the simulator plugin's tests
 (``tests/unit/plugins/erp/simulator/record_off_baseline_erp.py``), because the
 kernel suite imports no plugin (``tests/conformance/test_kernel_tests_neutral.py``).
 
@@ -73,6 +75,8 @@ async def _summarise(store: Any, tenant_id: str, run: Any, digest: str) -> dict[
         "run_state": str(run.state),
         "approval_digest": digest,
         "event_types": [str(e.type) for e in events],
+        # Each event's payload key set, so an off-mode change to a payload alone is caught.
+        "payload_keys": [sorted(e.payload) for e in events],
         "run_transitions": [
             str(e.payload.get("to")) for e in events if e.type == RunEventType.RUN_STATE_CHANGED
         ],
