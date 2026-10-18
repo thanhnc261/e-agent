@@ -39,7 +39,12 @@ def outcome_payload(report: OutcomeReport) -> dict[str, Any]:
 
 class VerificationMixin(IrOnMixin):
     async def _verify(
-        self, cont: _Continuation, action: ActionRecord, receipt: ExecutionReceipt
+        self,
+        cont: _Continuation,
+        action: ActionRecord,
+        receipt: ExecutionReceipt,
+        *,
+        may_start_next: bool,
     ) -> RunRecord:
         ctx = cont.ctx
         verifier = self._registry.verifier_for(action.contract_id)
@@ -138,7 +143,8 @@ class VerificationMixin(IrOnMixin):
                 code=ReasonCode.VERIFICATION_FAILED,
             )
         if plan is not None and (action.step_index or 0) + 1 < len(plan.step_ids):
-            return await self._after_step_verified(cont, action)  # steps remain (ADR 0025)
+            # Steps remain (ADR 0025): the call's own authority decides (Codex C-1).
+            return await self._after_step_verified(cont, action, may_start_next=may_start_next)
         return await self._finish_verified(
             cont, receipt.external_refs, "The approved action was independently verified."
         )

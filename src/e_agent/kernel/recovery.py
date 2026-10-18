@@ -22,8 +22,9 @@ from .ir_on import IrOnMixin
 class RecoveryMixin(IrOnMixin):
     # --------------------------------------------------------- reconciliation
     async def reconcile(self, operator: Principal, run_id: str) -> RunRecord:
-        """Read-only reconciliation of UNKNOWN actions. Never sends a write. A plan step it
-        proves committed and verified queues the plan's resume (`_after_step_verified`)."""
+        """Read-only reconciliation of UNKNOWN actions. Never sends a write, and has no
+        authority to start a plan's next step: a plan step it proves committed queues the
+        plan's fenced resume (Codex C-1)."""
         run = await self._store.get_run(operator.tenant_id, run_id)
         if run.state is not RunState.NEEDS_RECONCILIATION:
             raise KernelError(ErrorCode.CONFLICT, "run does not need reconciliation")
@@ -51,7 +52,7 @@ class RecoveryMixin(IrOnMixin):
         )
         if found is None:
             return await self._store.get_run(operator.tenant_id, run_id)  # stays unresolved
-        return await self._apply_receipt(cont, action, found)
+        return await self._apply_receipt(cont, action, found, may_start_next=False)
 
     async def cancel(self, actor: Principal, run_id: str) -> RunRecord:
         run = await self._store.get_run(actor.tenant_id, run_id)
@@ -159,12 +160,8 @@ class RecoveryMixin(IrOnMixin):
             return run
         actions, latest = await self._latest_action(run)
         resumed = None
-        if latest is not None:
-            self._plan_runs.add(run_id)
-            try:
-                resumed = await self._resume_plan(cont, latest, actions)
-            finally:
-                self._plan_runs.discard(run_id)
+        if latest is not None:  # the claim's authority to start the next step (Codex C-1)
+            resumed = await self._resume_plan(cont, latest, actions, may_start_next=True)
         if resumed is not None:
             return resumed
         return await self.recover_run(tenant_id, run_id, resume=False)
@@ -207,7 +204,7 @@ class RecoveryMixin(IrOnMixin):
                 started_at=now,
                 finished_at=now,
             )
-            return await self._apply_receipt(cont, action, receipt)
+            return await self._apply_receipt(cont, action, receipt, may_start_next=False)
         elif undispatched:
             for action in undispatched:  # a reserved step's open dispatch row ends with it
                 steps = await self._close_open(action, StepStatus.BLOCKED)
@@ -223,7 +220,7 @@ class RecoveryMixin(IrOnMixin):
             )
         elif committed and cont is not None:
             receipts = await self._store.list_receipts(run.tenant_id, committed[0].action_id)
-            return await self._verify(cont, committed[0], receipts[-1])
+            return await self._verify(cont, committed[0], receipts[-1], may_start_next=False)
         elif any(a.state is ActionState.UNKNOWN for a in actions):
             return await self._set_run_state(
                 run,
@@ -241,7 +238,7 @@ class RecoveryMixin(IrOnMixin):
             }
         ):
             if cont is not None:  # an `on` plan with a step left queues its resume
-                resumed = await self._resume_plan(cont, latest, actions)
+                resumed = await self._resume_plan(cont, latest, actions, may_start_next=False)
                 if resumed is not None:
                     return resumed
                 cont.pending_action_id = None

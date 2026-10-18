@@ -584,7 +584,7 @@ async def test_plan_resumes_after_recovery_reverifies_its_committed_step(
     run = await _start(k)
     apply = k.coordinator._apply_receipt
 
-    async def crash_after_commit(cont: Any, action: Any, receipt: Any) -> Any:
+    async def crash_after_commit(cont: Any, action: Any, receipt: Any, **kw: Any) -> Any:
         if action.step_index == 0:
             await k.store.record_receipt(
                 receipt,
@@ -601,7 +601,7 @@ async def test_plan_resumes_after_recovery_reverifies_its_committed_step(
                 ],
             )
             raise RuntimeError("worker lost after commit")
-        return await apply(cont, action, receipt)
+        return await apply(cont, action, receipt, **kw)
 
     k.coordinator._apply_receipt = crash_after_commit  # type: ignore[method-assign]
     with pytest.raises(RuntimeError):

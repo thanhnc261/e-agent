@@ -176,7 +176,9 @@ class DispatchMixin(IrOnMixin):
                 started_at=started,
                 finished_at=self._clock(),
             )
-        return await self._apply_receipt(cont, action, receipt)
+        # Only the approval call and a resume claim dispatch, so this call may start a plan's
+        # next step once this one is verified (Codex C-1); reconciliation and recovery never do.
+        return await self._apply_receipt(cont, action, receipt, may_start_next=True)
 
     async def _block_if_allowed(self, action: ActionRecord, revalidated: list[StepRecord]) -> None:
         """BLOCKED from an approved action, with the passing revalidation rows its refused
@@ -242,8 +244,15 @@ class DispatchMixin(IrOnMixin):
         return stale_reason
 
     async def _apply_receipt(
-        self, cont: _Continuation, action: ActionRecord, receipt: ExecutionReceipt
+        self,
+        cont: _Continuation,
+        action: ActionRecord,
+        receipt: ExecutionReceipt,
+        *,
+        may_start_next: bool,
     ) -> RunRecord:
+        """Record ``receipt`` and verify a committed write. ``may_start_next`` is the call's
+        authority to start a plan's next step after this one verifies (`_after_step_verified`)."""
         ctx = cont.ctx
         target = {
             ReceiptStatus.COMMITTED: ActionState.COMMITTED,
@@ -280,4 +289,4 @@ class DispatchMixin(IrOnMixin):
                 run, RunState.FAILED, "provider rejected the write", code=ReasonCode.PROVIDER_ERROR
             )
         run = await self._set_run_state(run, RunState.VERIFYING)
-        return await self._verify(cont, action, receipt)
+        return await self._verify(cont, action, receipt, may_start_next=may_start_next)

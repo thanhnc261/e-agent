@@ -231,5 +231,6 @@ class ApprovalFlowMixin(IrOnMixin):
             )
         if cont.plan is not None:  # one approval for the whole plan (ADR 0024)
             cont.plan.approval_id = record.approval_id
-            return await self._run_plan(cont, approved_action, record)
+        # The approval call: the one caller, with a resume claim, whose dispatch may start a
+        # plan's next step (`_dispatch` passes ``may_start_next`` on, Codex C-1).
         return await self._dispatch(cont, approved_action, record)

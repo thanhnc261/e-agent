@@ -147,9 +147,6 @@ class ContinuationMixin:
     _budgets: Budgets
     _runs: dict[str, _Continuation]
     _active_calls: dict[str, asyncio.Task[Any]]
-    _plan_runs: set[str]
-    """Runs whose plan the approval call or a resume claim is dispatching now: only these
-    start a later plan step; recovery and reconciliation queue a resume instead."""
     _resume_disabled: set[str]
     """Runs recovered after a failed ``resume`` claim: they never queue another resume."""
 
@@ -170,18 +167,18 @@ class ContinuationMixin:
         ) -> RunRecord | DriverInput:
             raise NotImplementedError
 
-        async def _run_plan(
-            self, cont: _Continuation, action: ActionRecord, approval: ApprovalRecord
-        ) -> RunRecord:
-            raise NotImplementedError
-
         async def _after_step_verified(
-            self, cont: _Continuation, action: ActionRecord
+            self, cont: _Continuation, action: ActionRecord, *, may_start_next: bool
         ) -> RunRecord:
             raise NotImplementedError
 
         async def _resume_plan(
-            self, cont: _Continuation, latest: ActionRecord, actions: list[ActionRecord]
+            self,
+            cont: _Continuation,
+            latest: ActionRecord,
+            actions: list[ActionRecord],
+            *,
+            may_start_next: bool,
         ) -> RunRecord | None:
             raise NotImplementedError
 
@@ -245,12 +242,22 @@ class ContinuationMixin:
             raise NotImplementedError
 
         async def _verify(
-            self, cont: _Continuation, action: ActionRecord, receipt: ExecutionReceipt
+            self,
+            cont: _Continuation,
+            action: ActionRecord,
+            receipt: ExecutionReceipt,
+            *,
+            may_start_next: bool,
         ) -> RunRecord:
             raise NotImplementedError
 
         async def _apply_receipt(
-            self, cont: _Continuation, action: ActionRecord, receipt: ExecutionReceipt
+            self,
+            cont: _Continuation,
+            action: ActionRecord,
+            receipt: ExecutionReceipt,
+            *,
+            may_start_next: bool,
         ) -> RunRecord:
             raise NotImplementedError
 

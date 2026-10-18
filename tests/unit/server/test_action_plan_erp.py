@@ -106,7 +106,7 @@ async def test_worker_resume_claim_completes_a_crashed_plan() -> None:
     run = await rt.coordinator.start_run(rt.operator, prompt, rt.scope, task_kind=DRAFT_PO)
     pres = await rt.coordinator.pending_approval(tenant, run.run_id)
 
-    async def worker_lost(*_a: Any) -> Any:
+    async def worker_lost(*_a: Any, **_kw: Any) -> Any:
         raise RuntimeError("worker lost between the POs")
 
     rt.coordinator._after_step_verified = worker_lost  # type: ignore[method-assign]
@@ -162,7 +162,7 @@ async def test_failed_resume_claim_ends_the_plan_without_another_resume(failure:
     )
     pres = await rt.coordinator.pending_approval(tenant, run.run_id)
 
-    async def worker_lost(*_a: Any) -> Any:
+    async def worker_lost(*_a: Any, **_kw: Any) -> Any:
         raise RuntimeError("worker lost")
 
     rt.coordinator._after_step_verified = worker_lost  # type: ignore[method-assign]

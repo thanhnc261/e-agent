@@ -390,7 +390,7 @@ async def _crash_between_steps(k: Kernel, point: str) -> str:
     )
     if point.startswith("_"):
 
-        async def die(*_a: Any) -> Any:
+        async def die(*_a: Any, **_kw: Any) -> Any:
             raise Crash
 
         setattr(k.coordinator, point, die)

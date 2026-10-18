@@ -174,7 +174,7 @@ def _restart(k: Kernel) -> RunCoordinator:
     )
 
 
-async def _worker_lost(*_args: Any) -> Any:
+async def _worker_lost(*_args: Any, **_kw: Any) -> Any:
     raise RuntimeError("worker lost")
 
 

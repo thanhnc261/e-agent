@@ -237,7 +237,7 @@ async def test_recovery_between_the_steps_resumes_the_plan(
     k = _plan_kernel(make_kernel)
     target = "_after_step_verified" if left_in is RunState.VERIFYING else "_start_step"
 
-    async def worker_lost(*_a: Any) -> Any:
+    async def worker_lost(*_a: Any, **_kw: Any) -> Any:
         raise RuntimeError("worker lost between plan steps")
 
     run = await _start(k)
