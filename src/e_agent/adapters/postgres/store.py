@@ -17,14 +17,16 @@ from e_agent.contracts.approval import ApprovalRecord
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.events import RunEvent
 from e_agent.contracts.outcome import OutcomeReport
+from e_agent.contracts.plan import ActionPlan
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord
+from e_agent.contracts.step import StepRecord
 from e_agent.contracts.work import WorkClaim
 from e_agent.sdk.store import (
     ConcurrencyConflict,
     ConnectionBusy,
     DuplicateOperation,
-    EventSpec,
+    EventBatch,
     NotFound,
     current_actor,
 )
@@ -64,14 +66,17 @@ class PostgresRunStore:
         async with self._pool.connection() as conn:
             await conn.execute(
                 "TRUNCATE runs, run_events, actions, operation_reservations, approvals,"
-                " receipts, outcome_reports, continuations, api_idempotency, run_work"
+                " receipts, outcome_reports, continuations, api_idempotency, run_work,"
+                " action_plans, run_steps"
             )
 
     # -- helpers --------------------------------------------------------------
     @staticmethod
     async def _append(
-        conn: AsyncConnection[Any], tenant_id: str, run_id: str, events: Sequence[EventSpec]
+        conn: AsyncConnection[Any], tenant_id: str, run_id: str, events: EventBatch
     ) -> None:
+        """Write the batch's events and steps under the run's row lock, in the caller's
+        transaction: a refused step raises and rolls back the whole write."""
         if not events:
             return
         cur = await conn.execute(
@@ -80,6 +85,12 @@ class PostgresRunStore:
         )
         if await cur.fetchone() is None:
             raise NotFound(run_id)
+        steps = [item for item in events if isinstance(item, StepRecord)]
+        if steps:
+            await PostgresRunStore._append_steps(conn, tenant_id, run_id, steps)
+        specs = [item for item in events if not isinstance(item, StepRecord)]
+        if not specs:
+            return
         cur = await conn.execute(
             "SELECT coalesce(max(sequence), 0) FROM run_events"
             " WHERE tenant_id = %s AND run_id = %s",
@@ -87,7 +98,7 @@ class PostgresRunStore:
         )
         row = await cur.fetchone()
         sequence = int(row[0]) if row else 0
-        for event_type, payload, action_id in events:
+        for event_type, payload, action_id in specs:
             sequence += 1
             event = RunEvent(
                 event_id=new_id("evt"),
@@ -109,6 +120,44 @@ class PostgresRunStore:
         await conn.execute("SELECT pg_notify(%s, %s)", (NOTIFY_CHANNEL, f"{tenant_id}/{run_id}"))
 
     @staticmethod
+    async def _append_steps(
+        conn: AsyncConnection[Any], tenant_id: str, run_id: str, steps: Sequence[StepRecord]
+    ) -> None:
+        """Append step state rows; the caller holds the run's row lock."""
+        cur = await conn.execute(
+            "SELECT max(sequence) FROM run_steps WHERE tenant_id = %s AND run_id = %s",
+            (tenant_id, run_id),
+        )
+        row = await cur.fetchone()
+        last = -1 if row is None or row[0] is None else int(row[0])
+        for step in steps:
+            if (step.tenant_id, step.run_id) != (tenant_id, run_id):
+                raise ValueError(f"step {step.step_id} does not belong to run {run_id}")
+            if step.sequence <= last:
+                raise ConcurrencyConflict(
+                    f"step sequence {step.sequence} is not after {last} in run {run_id}"
+                )
+            last = step.sequence
+            try:
+                async with conn.transaction():
+                    await conn.execute(
+                        "INSERT INTO run_steps (tenant_id, run_id, sequence, step_id, kind,"
+                        " status, action_id, record) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                        (
+                            tenant_id,
+                            run_id,
+                            step.sequence,
+                            step.step_id,
+                            step.kind,
+                            step.status,
+                            step.action_id,
+                            _json(step),
+                        ),
+                    )
+            except errors.UniqueViolation as exc:
+                raise ConcurrencyConflict(f"step sequence {step.sequence} exists") from exc
+
+    @staticmethod
     async def _cas_action(
         conn: AsyncConnection[Any], action: ActionRecord, expected: int | None
     ) -> None:
@@ -119,8 +168,8 @@ class PostgresRunStore:
                 async with conn.transaction():
                     await conn.execute(
                         "INSERT INTO actions (tenant_id, action_id, run_id, logical_operation_id,"
-                        " connection_id, state, revision, record)"
-                        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                        " connection_id, state, revision, record, plan_id, step_index)"
+                        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                         (
                             action.tenant_id,
                             action.action_id,
@@ -130,18 +179,22 @@ class PostgresRunStore:
                             action.state,
                             action.revision,
                             _json(action),
+                            action.plan_id,
+                            action.step_index,
                         ),
                     )
             except errors.UniqueViolation as exc:
                 raise ConcurrencyConflict(f"action {action.action_id} exists") from exc
             return
         cur = await conn.execute(
-            "UPDATE actions SET state = %s, revision = %s, record = %s"
-            " WHERE tenant_id = %s AND action_id = %s AND revision = %s",
+            "UPDATE actions SET state = %s, revision = %s, record = %s, plan_id = %s,"
+            " step_index = %s WHERE tenant_id = %s AND action_id = %s AND revision = %s",
             (
                 action.state,
                 action.revision,
                 _json(action),
+                action.plan_id,
+                action.step_index,
                 action.tenant_id,
                 action.action_id,
                 expected,
@@ -151,7 +204,7 @@ class PostgresRunStore:
             raise ConcurrencyConflict(f"action {action.action_id} changed")
 
     # -- runs ---------------------------------------------------------------
-    async def create_run(self, run: RunRecord, events: Sequence[EventSpec]) -> None:
+    async def create_run(self, run: RunRecord, events: EventBatch) -> None:
         async with self._pool.connection() as conn, conn.transaction():
             await self._fence(conn)
             try:
@@ -168,7 +221,7 @@ class PostgresRunStore:
     async def create_run_idempotent(
         self,
         run: RunRecord,
-        events: Sequence[EventSpec],
+        events: EventBatch,
         state: Mapping[str, Any],
         actor_id: str,
         key: str,
@@ -220,7 +273,7 @@ class PostgresRunStore:
         self,
         run: RunRecord,
         expected_revision: int,
-        events: Sequence[EventSpec],
+        events: EventBatch,
         *,
         continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None] | None = None,
         work: tuple[str, Mapping[str, Any], str] | None = None,
@@ -259,7 +312,7 @@ class PostgresRunStore:
 
     # -- actions --------------------------------------------------------------
     async def put_action(
-        self, action: ActionRecord, expected_revision: int | None, events: Sequence[EventSpec]
+        self, action: ActionRecord, expected_revision: int | None, events: EventBatch
     ) -> ActionRecord:
         async with self._pool.connection() as conn, conn.transaction():
             await self._fence(conn)
@@ -274,7 +327,7 @@ class PostgresRunStore:
         run: RunRecord,
         expected_run_revision: int,
         continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None],
-        events: Sequence[EventSpec],
+        events: EventBatch,
     ) -> None:
         if run.revision != expected_run_revision + 1:
             raise ConcurrencyConflict("new revision must be expected + 1")
@@ -310,7 +363,7 @@ class PostgresRunStore:
         return ActionRecord.model_validate(row[0])
 
     async def reserve_operation(
-        self, action: ActionRecord, expected_revision: int, events: Sequence[EventSpec]
+        self, action: ActionRecord, expected_revision: int, events: EventBatch
     ) -> ActionRecord:
         async with self._pool.connection() as conn, conn.transaction():
             await self._fence(conn)
@@ -351,7 +404,7 @@ class PostgresRunStore:
     async def record_approval(
         self,
         approval: ApprovalRecord,
-        events: Sequence[EventSpec],
+        events: EventBatch,
         *,
         action: ActionRecord | None = None,
         expected_revision: int | None = None,
@@ -374,7 +427,7 @@ class PostgresRunStore:
         receipt: ExecutionReceipt,
         action: ActionRecord,
         expected_revision: int,
-        events: Sequence[EventSpec],
+        events: EventBatch,
     ) -> ActionRecord:
         async with self._pool.connection() as conn, conn.transaction():
             await self._fence(conn)
@@ -392,7 +445,7 @@ class PostgresRunStore:
         outcome: OutcomeReport,
         action: ActionRecord | None,
         expected_revision: int | None,
-        events: Sequence[EventSpec],
+        events: EventBatch,
     ) -> None:
         async with self._pool.connection() as conn, conn.transaction():
             await self._fence(conn)
@@ -405,7 +458,48 @@ class PostgresRunStore:
             )
             await self._append(conn, tenant_id, outcome.run_id, events)
 
+    # -- plans ----------------------------------------------------------------
+    async def put_plan(
+        self, tenant_id: str, run_id: str, plan: ActionPlan, events: EventBatch
+    ) -> None:
+        async with self._pool.connection() as conn, conn.transaction():
+            await self._fence(conn)
+            cur = await conn.execute(
+                "SELECT 1 FROM runs WHERE tenant_id = %s AND run_id = %s FOR UPDATE",
+                (tenant_id, run_id),
+            )
+            if await cur.fetchone() is None:
+                raise NotFound(run_id)
+            try:
+                async with conn.transaction():
+                    await conn.execute(
+                        "INSERT INTO action_plans (tenant_id, plan_id, run_id, record)"
+                        " VALUES (%s, %s, %s, %s)",
+                        (tenant_id, plan.plan_id, run_id, _json(plan)),
+                    )
+            except errors.UniqueViolation as exc:
+                raise ConcurrencyConflict(f"plan {plan.plan_id} exists") from exc
+            await self._append(conn, tenant_id, run_id, events)
+
+    async def get_plan(self, tenant_id: str, plan_id: str) -> ActionPlan:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "SELECT record FROM action_plans WHERE tenant_id = %s AND plan_id = %s",
+                (tenant_id, plan_id),
+            )
+            row = await cur.fetchone()
+        if row is None:
+            raise NotFound(plan_id)
+        return ActionPlan.model_validate(row[0])
+
     # -- queries --------------------------------------------------------------
+    async def list_steps(self, tenant_id: str, run_id: str) -> list[StepRecord]:
+        rows = await self._records(
+            "SELECT record FROM run_steps WHERE tenant_id = %s AND run_id = %s ORDER BY sequence",
+            (tenant_id, run_id),
+        )
+        return [StepRecord.model_validate(r) for r in rows]
+
     async def _records(self, sql: str, params: tuple[Any, ...]) -> list[Any]:
         async with self._pool.connection() as conn:
             cur = await conn.execute(sql, params)

@@ -4,6 +4,11 @@ An action plan (ADR 0025, target §6.4.3) is a proposal too. These records check
 only: unique step ids, known and earlier dependencies (so step-index order is topological),
 and lineage placeholders that name a dependency. Policy (capabilities inside the task
 definition, the write budget, domain validation) is the kernel's.
+
+A placeholder's wire form (target §6.4.4) is ``{"$lineage": {"step": <step_id>, "path":
+<pointer>}}``. `LineageRef` serializes to it, and `PlannedStep` parses it back inside proposal
+arguments, so a dumped plan revalidates to equal `LineageRef` instances. A `$lineage` mapping
+the parser does not consume is refused, so a literal never passes as plain data.
 """
 
 from __future__ import annotations
@@ -13,7 +18,7 @@ from collections.abc import Iterator, Mapping
 from graphlib import CycleError, TopologicalSorter
 from typing import Any, Self
 
-from pydantic import model_validator
+from pydantic import model_serializer, model_validator
 
 from .common import Record
 
@@ -46,12 +51,41 @@ class LineageRef(Record):
     path: str
     """RFC 6901 JSON pointer into that step's verified outcome."""
 
+    @model_validator(mode="before")
+    @classmethod
+    def _parse_wire(cls, data: Any) -> Any:
+        if isinstance(data, Mapping) and LINEAGE_KEY in data:
+            return _unwrap_wire(data)
+        return data
+
     @model_validator(mode="after")
     def _check_path(self) -> Self:
         # An after model validator also runs when an existing (e.g. `model_construct`-built)
         # instance is validated; a field validator would not.
         _check_pointer(self.path)
         return self
+
+    @model_serializer(mode="plain")
+    def _to_wire(self) -> dict[str, dict[str, str]]:
+        """The one wire form, also inside `Any`-typed proposal arguments."""
+        return {LINEAGE_KEY: {"step": self.step_id, "path": self.path}}
+
+
+_WIRE_FIELDS = frozenset({"step", "path"})
+
+
+def _unwrap_wire(data: Mapping[Any, Any]) -> dict[str, str]:
+    """Parse the wire form into `LineageRef` fields; refuse any other `$lineage` mapping."""
+    if set(data) != {LINEAGE_KEY}:
+        raise ValueError(f"a {LINEAGE_KEY!r} mapping has no sibling keys")
+    body = data[LINEAGE_KEY]
+    if not isinstance(body, Mapping) or set(body) != _WIRE_FIELDS:
+        raise ValueError(f"a {LINEAGE_KEY!r} body is exactly {{'step', 'path'}}")
+    step, path = body["step"], body["path"]
+    if not isinstance(step, str) or not isinstance(path, str):
+        raise ValueError(f"{LINEAGE_KEY!r} step and path are strings")
+    _check_pointer(path)
+    return {"step_id": step, "path": path}
 
 
 def _check_pointer(path: object) -> None:
@@ -77,6 +111,34 @@ def lineage_refs(value: Any) -> Iterator[LineageRef]:
             yield from lineage_refs(item)
 
 
+def _parse_lineage(value: Any) -> Any:
+    """Rebuild `value` with each wire-form mapping parsed into a `LineageRef`. Containers
+    are rebuilt only when something inside them was parsed; a `$lineage` mapping the
+    parser refuses raises."""
+    if isinstance(value, Mapping):
+        if LINEAGE_KEY in value:
+            return LineageRef.model_validate(value)
+        items = {key: _parse_lineage(item) for key, item in value.items()}
+        changed = any(items[key] is not item for key, item in value.items())
+        return items if changed else value
+    if isinstance(value, list | tuple):
+        parsed = [_parse_lineage(item) for item in value]
+        if all(new is old for new, old in zip(parsed, value, strict=True)):
+            return value
+        return parsed if isinstance(value, list) else tuple(parsed)
+    return value
+
+
+def _parse_arguments(arguments: Any) -> Any:
+    """Parse placeholders in argument values. A top-level `$lineage` argument name is not a
+    placeholder position; it stays for the literal-key refusal in `lineage_refs`."""
+    if not isinstance(arguments, Mapping):
+        return arguments
+    parsed = {key: _parse_lineage(item) for key, item in arguments.items()}
+    changed = any(parsed[key] is not item for key, item in arguments.items())
+    return parsed if changed else arguments
+
+
 class PlannedStep(Record):
     """One proposed capability invocation inside a plan; yields exactly one action."""
 
@@ -84,6 +146,28 @@ class PlannedStep(Record):
     proposal: ActionProposal
     """Its arguments may hold `LineageRef` placeholders."""
     depends_on: tuple[str, ...] = ()
+
+    @model_validator(mode="before")
+    @classmethod
+    def _parse_wire_placeholders(cls, data: Any) -> Any:
+        # Pydantic does not run this for an existing instance, so a literal set on a built
+        # step is never parsed; `lineage_refs` refuses it.
+        if not isinstance(data, Mapping) or "proposal" not in data:
+            return data
+        proposal = data["proposal"]
+        if isinstance(proposal, ActionProposal):
+            arguments = _parse_arguments(proposal.arguments)
+            if arguments is proposal.arguments:
+                return data
+            proposal = proposal.model_copy(update={"arguments": arguments})
+        elif isinstance(proposal, Mapping) and "arguments" in proposal:
+            arguments = _parse_arguments(proposal["arguments"])
+            if arguments is proposal["arguments"]:
+                return data
+            proposal = {**proposal, "arguments": arguments}
+        else:
+            return data
+        return {**data, "proposal": proposal}
 
     @model_validator(mode="after")
     def _check_dependencies(self) -> Self:

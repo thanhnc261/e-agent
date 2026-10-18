@@ -71,13 +71,24 @@ def test_lineage_ref_must_point_to_an_earlier_dependency() -> None:
 
 
 def test_lineage_key_literal_refused() -> None:
-    literal = {"$lineage": {"step": "s1", "path": "/partner_id"}}
+    # A `$lineage` mapping is the placeholder's wire form (2c.3): the parser either turns it
+    # into a `LineageRef` or refuses it, so a literal can never pass as plain data.
+    wire = {"$lineage": {"step": "s1", "path": "/partner_id"}}
+    parsed = _step("s2", "s1", vendor=wire, lines=[{"ok": 1}, {"nested": wire}])
+    ref = LineageRef(step_id="s1", path="/partner_id")
+    assert parsed.proposal.arguments["vendor"] == ref
+    assert parsed.proposal.arguments["lines"][1]["nested"] == ref
+    with pytest.raises(ValidationError, match="not in depends_on"):
+        _step("s2", vendor=wire)
     with pytest.raises(ValidationError, match=r"\$lineage"):
-        _step("s2", "s1", vendor=literal)
+        _step("s2", "s1", vendor={**wire, "other": 1})
     with pytest.raises(ValidationError, match=r"\$lineage"):
-        _step("s2", "s1", lines=[{"ok": 1}, {"nested": literal}])
+        _step("s2", "s1", lines=[{"ok": 1}, {"nested": {"$lineage": "x"}}])
+    # A top-level argument named `$lineage` is not a placeholder position: refused.
     with pytest.raises(ValidationError, match=r"\$lineage"):
         _step("s2", "s1", **{"$lineage": "x"})
+    with pytest.raises(ValidationError, match=r"\$lineage"):
+        _step("s2", "s1", **wire)
 
 
 def test_lineage_ref_has_step_and_path_only() -> None:
@@ -163,8 +174,14 @@ def test_revalidating_mutated_plan_rejects_lineage_literal() -> None:
     plan.steps[1].proposal.arguments["lines"][0]["vendor"] = {
         "$lineage": {"step": "s1", "path": "/partner_id"}
     }
+    # The instance path never parses: the walker refuses the unparsed literal.
     with pytest.raises(ValidationError, match=r"\$lineage"):
         ActionPlan.model_validate(plan)
+    # The dump path parses the wire form, so it holds a placeholder, never a literal.
+    reparsed = ActionPlan.model_validate(plan.model_dump())
+    vendor = reparsed.steps[1].proposal.arguments["lines"][0]["vendor"]
+    assert vendor == LineageRef(step_id="s1", path="/partner_id")
+    plan.steps[1].proposal.arguments["lines"][0]["vendor"] = {"$lineage": {"step": "s1"}}
     with pytest.raises(ValidationError, match=r"\$lineage"):
         ActionPlan.model_validate(plan.model_dump())
 
@@ -213,6 +230,80 @@ def test_model_construct_plan_fails_validation_on_revalidate() -> None:
     looping = plan_of(constructed("s1", "s1"))
     with pytest.raises(ValidationError, match="depends on itself"):
         ActionPlan.model_validate(looping)
+
+
+def _wire(step: str, path: str) -> dict[str, dict[str, str]]:
+    return {"$lineage": {"step": step, "path": path}}
+
+
+def _lineage_plan() -> ActionPlan:
+    vendor = LineageRef(step_id="s1", path="/partner_id")
+    line = LineageRef(step_id="s2", path="/lines/0/id")
+    return ActionPlan(
+        plan_id="plan_1",
+        task_id="purchase_order",
+        task_version="1",
+        steps=(
+            _step("s1", qty="1"),
+            _step("s2", "s1", vendor=vendor, lines=[{"ref": vendor, "qty": "2"}]),
+            _step("s3", "s1", "s2", deep={"a": [{"b": line}]}, vendor=vendor),
+        ),
+    )
+
+
+def test_lineage_wire_form_round_trips() -> None:
+    plan = _lineage_plan()
+    dumped = plan.model_dump(mode="json")
+    arguments = dumped["steps"][1]["proposal"]["arguments"]
+    assert arguments["vendor"] == _wire("s1", "/partner_id")
+    assert arguments["lines"] == [{"ref": _wire("s1", "/partner_id"), "qty": "2"}]
+    assert dumped["steps"][2]["proposal"]["arguments"]["deep"] == {
+        "a": [{"b": _wire("s2", "/lines/0/id")}]
+    }
+    assert LineageRef(step_id="s1", path="/x~1y").model_dump() == _wire("s1", "/x~1y")
+    for restored in (
+        ActionPlan.model_validate(dumped),
+        ActionPlan.model_validate(plan.model_dump()),
+        ActionPlan.model_validate_json(plan.model_dump_json()),
+    ):
+        assert restored == plan
+        vendor = restored.steps[1].proposal.arguments["vendor"]
+        assert isinstance(vendor, LineageRef)
+        assert isinstance(restored.steps[1].proposal.arguments["lines"][0]["ref"], LineageRef)
+        assert isinstance(restored.steps[2].proposal.arguments["deep"]["a"][0]["b"], LineageRef)
+    assert LineageRef.model_validate(_wire("s1", "/a")) == LineageRef(step_id="s1", path="/a")
+
+
+MALFORMED_WIRE: list[object] = [
+    {"$lineage": {"step": "s1", "path": "/a"}, "other": 1},
+    {"$lineage": "s1"},
+    {"$lineage": None},
+    {"$lineage": {}},
+    {"$lineage": {"step": "s1"}},
+    {"$lineage": {"path": "/a"}},
+    {"$lineage": {"step_id": "s1", "path": "/a"}},
+    {"$lineage": {"step": "s1", "path": "/a", "rule": "copy"}},
+    {"$lineage": {"step": 1, "path": "/a"}},
+    {"$lineage": {"step": "s1", "path": 7}},
+    {"$lineage": {"step": "s1", "path": "a"}},
+    {"$lineage": {"step": "s1", "path": "/a~2"}},
+    {"$lineage": {"step": "s1", "path": "\n"}},
+]
+
+
+@pytest.mark.parametrize("malformed", MALFORMED_WIRE, ids=range(len(MALFORMED_WIRE)))
+def test_lineage_wire_form_rejects_malformed(malformed: object) -> None:
+    assert len(MALFORMED_WIRE) == 13
+    dumped = _lineage_plan().model_dump(mode="json")
+    dumped["steps"][1]["proposal"]["arguments"]["vendor"] = malformed
+    with pytest.raises(ValidationError, match=r"\$lineage|JSON pointer"):
+        ActionPlan.model_validate(dumped)
+    nested = _lineage_plan().model_dump(mode="json")
+    nested["steps"][1]["proposal"]["arguments"]["lines"][0]["ref"] = malformed
+    with pytest.raises(ValidationError, match=r"\$lineage|JSON pointer"):
+        ActionPlan.model_validate(nested)
+    with pytest.raises(ValidationError, match=r"\$lineage|JSON pointer"):
+        LineageRef.model_validate(malformed)
 
 
 def test_action_record_plan_fields_default_null() -> None:

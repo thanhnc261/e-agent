@@ -9,7 +9,9 @@ from typing import Any
 import pytest
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.events import RunEventType
+from e_agent.contracts.plan import ActionPlan, ActionProposal, LineageRef, PlannedStep
 from e_agent.contracts.run import RunRecord, RunState
+from e_agent.contracts.step import StepKind, StepRecord, StepStatus
 from e_agent.kernel.memory_store import InMemoryRunStore
 from e_agent.sdk.store import (
     ConcurrencyConflict,
@@ -365,3 +367,182 @@ async def test_busy_row_on_another_connection_or_tenant_does_not_refuse(
     await store.put_action(proposed, None, [])
     reserved = proposed.model_copy(update={"state": ActionState.RESERVED, "revision": 2})
     assert (await store.reserve_operation(reserved, 1, [])).state is ActionState.RESERVED
+
+
+def _step_record(
+    sequence: int,
+    step_id: str = "st_1",
+    status: StepStatus = StepStatus.STARTED,
+    tenant: str = "t1",
+    run_id: str = "run_1",
+) -> StepRecord:
+    return StepRecord(
+        tenant_id=tenant,
+        run_id=run_id,
+        step_id=step_id,
+        sequence=sequence,
+        kind=StepKind.DISPATCH,
+        status=status,
+        started_at=T0,
+    )
+
+
+def _plan(plan_id: str = "plan_1", task_version: str = "1") -> ActionPlan:
+    ref = LineageRef(step_id="s1", path="/partner_id")
+
+    def proposal(**arguments: Any) -> ActionProposal:
+        return ActionProposal(
+            contract_id="notes.note.create.v1", connection_id="c", arguments=arguments
+        )
+
+    return ActionPlan(
+        plan_id=plan_id,
+        task_id="purchase_order",
+        task_version=task_version,
+        steps=(
+            PlannedStep(step_id="s1", proposal=proposal(text="hi")),
+            PlannedStep(
+                step_id="s2",
+                proposal=proposal(vendor=ref, lines=[{"ref": ref, "qty": "1"}]),
+                depends_on=("s1",),
+            ),
+        ),
+    )
+
+
+async def test_put_and_get_plan(store: Any) -> None:
+    await store.create_run(_run(), [EV])
+    plan = _plan()
+    step = _step_record(0)
+    await store.put_plan("t1", "run_1", plan, [EV, step])
+    got = await store.get_plan("t1", "plan_1")
+    assert got == plan
+    assert isinstance(got.steps[1].proposal.arguments["vendor"], LineageRef)
+    assert isinstance(got.steps[1].proposal.arguments["lines"][0]["ref"], LineageRef)
+    assert len(await store.list_events("t1", "run_1")) == 2
+    assert await store.list_steps("t1", "run_1") == [step]
+    # A plan is never overwritten; the refused put leaves no events or steps.
+    with pytest.raises(ConcurrencyConflict):
+        await store.put_plan("t1", "run_1", _plan(task_version="2"), [EV, _step_record(1)])
+    assert await store.get_plan("t1", "plan_1") == plan
+    assert len(await store.list_events("t1", "run_1")) == 2
+    assert await store.list_steps("t1", "run_1") == [step]
+    with pytest.raises(NotFound):
+        await store.put_plan("t1", "run_missing", _plan("plan_2"), [])
+    with pytest.raises(NotFound):
+        await store.get_plan("t1", "plan_2")
+
+
+async def test_steps_commit_with_events_atomically(store: Any) -> None:
+    started = _step_record(0)
+    succeeded = _step_record(1, status=StepStatus.SUCCEEDED)
+    await store.create_run(_run(), [EV, started])
+    first = ({"schema": "s", "turn": 1}, None)
+    await store.update_run(_run(rev=2), 1, [EV, succeeded], continuation=first)
+    # A step-only batch commits too.
+    await store.put_action(_action(), None, [_step_record(2, step_id="st_2")])
+    assert [s.sequence for s in await store.list_steps("t1", "run_1")] == [0, 1, 2]
+    before = await store.list_steps("t1", "run_1")
+    # Valid events, a valid step, then a step whose sequence does not increase.
+    bad_batch = [EV, _step_record(3, step_id="st_3"), EV, _step_record(2, step_id="st_4")]
+    with pytest.raises(ConcurrencyConflict):
+        await store.update_run(
+            _run(rev=3),
+            2,
+            bad_batch,
+            continuation=({"schema": "s", "turn": 2}, {"bad": True}),
+            work=("input", {}, "request-x"),
+        )
+    assert (await store.get_run("t1", "run_1")).revision == 2
+    assert len(await store.list_events("t1", "run_1")) == 2
+    assert await store.list_steps("t1", "run_1") == before
+    assert await store.load_continuation("t1", "run_1") == first
+    assert not await store.has_pending_work("t1", "run_1")
+    with pytest.raises(ConcurrencyConflict):
+        await store.put_action(_action("act_2", op="op_2"), None, [EV, _step_record(1)])
+    with pytest.raises(NotFound):
+        await store.get_action("t1", "act_2")
+    assert len(await store.list_events("t1", "run_1")) == 2
+    assert await store.list_steps("t1", "run_1") == before
+
+
+async def test_step_sequence_is_monotonic_per_run(store: Any) -> None:
+    await store.create_run(_run("run_1"), [EV])
+    await store.create_run(_run("run_2"), [EV])
+    revision = 1
+
+    async def write(*steps: StepRecord, run_id: str = "run_1") -> None:
+        nonlocal revision
+        rev = revision if run_id == "run_1" else 1
+        await store.update_run(_run(run_id, rev=rev + 1), rev, [EV, *steps])
+        if run_id == "run_1":
+            revision += 1
+
+    # A status change appends a new state row with the same step id.
+    await write(_step_record(0, "st_1"), _step_record(1, "st_1", StepStatus.SUCCEEDED))
+    await write(_step_record(5, "st_2"))
+    for refused in (
+        (_step_record(5, "st_3"),),
+        (_step_record(3, "st_3"),),
+        (_step_record(6, "st_3"), _step_record(6, "st_4")),
+        (_step_record(7, "st_3"), _step_record(6, "st_4")),
+    ):
+        with pytest.raises(ConcurrencyConflict):
+            await write(*refused)
+    steps = await store.list_steps("t1", "run_1")
+    assert [(s.step_id, s.sequence, s.status) for s in steps] == [
+        ("st_1", 0, StepStatus.STARTED),
+        ("st_1", 1, StepStatus.SUCCEEDED),
+        ("st_2", 5, StepStatus.STARTED),
+    ]
+    assert (await store.get_run("t1", "run_1")).revision == 3
+    # Sequences are per run: another run starts at 0.
+    await write(_step_record(0, "st_1", run_id="run_2"), run_id="run_2")
+    assert [s.sequence for s in await store.list_steps("t1", "run_2")] == [0]
+
+
+async def test_tenant_scope_on_plans_and_steps(store: Any) -> None:
+    await store.create_run(_run(), [EV])
+    await store.create_run(_run(tenant="t2"), [EV])
+    plan = _plan()
+    await store.put_plan("t1", "run_1", plan, [_step_record(0)])
+    with pytest.raises(NotFound):
+        await store.get_plan("t2", "plan_1")
+    assert await store.list_steps("t2", "run_1") == []
+    # The same plan id in another tenant is a different plan.
+    other = _plan(task_version="2")
+    await store.put_plan("t2", "run_1", other, [_step_record(0, tenant="t2")])
+    assert await store.get_plan("t2", "plan_1") == other
+    assert await store.get_plan("t1", "plan_1") == plan
+    assert [s.tenant_id for s in await store.list_steps("t2", "run_1")] == ["t2"]
+    # A step for another tenant or run is refused in the batch of this run.
+    for foreign in (_step_record(1, tenant="t2"), _step_record(1, run_id="run_2")):
+        with pytest.raises(ValueError, match="step"):
+            await store.update_run(_run(rev=2), 1, [EV, foreign])
+    assert (await store.get_run("t1", "run_1")).revision == 1
+    assert [s.tenant_id for s in await store.list_steps("t1", "run_1")] == ["t1"]
+    with pytest.raises(NotFound):
+        await store.put_plan("t3", "run_1", _plan("plan_3"), [])
+
+
+async def test_existing_rows_have_null_plan_id(store: Any) -> None:
+    await store.create_run(_run(), [EV])
+    await store.put_action(_action(), None, [])
+    linked = _action("act_2", op="op_2").model_copy(update={"plan_id": "plan_1", "step_index": 1})
+    await store.put_action(linked, None, [])
+    moved = linked.model_copy(update={"state": ActionState.VALIDATED, "revision": 2})
+    await store.put_action(moved, 1, [])
+    plain = await store.get_action("t1", "act_1")
+    assert (plain.plan_id, plain.step_index) == (None, None)
+    got = await store.get_action("t1", "act_2")
+    assert (got.plan_id, got.step_index, got.state) == ("plan_1", 1, ActionState.VALIDATED)
+    pool = getattr(store, "_pool", None)
+    if pool is not None:  # Postgres: the indexed columns follow the record.
+        async with pool.connection() as conn:
+            cur = await conn.execute(
+                "SELECT action_id, plan_id, step_index FROM actions"
+                " WHERE tenant_id = %s ORDER BY action_id",
+                ("t1",),
+            )
+            rows = await cur.fetchall()
+        assert rows == [("act_1", None, None), ("act_2", "plan_1", 1)]
