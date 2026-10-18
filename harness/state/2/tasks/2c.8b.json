@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2c-8b"
   ],
-  "context_digest": "150d689a60cc6db7d48c956c5511e38a8470eba40dfb26cf6e0fab6feed177bf",
+  "context_digest": "f31a36bbb7b67aa4a6bc17ed5343a3708815a22db60ed245c3a6d35fa763be3d",
   "allowed_paths": [
     "src/e_agent/kernel/plan_flow.py",
     "src/e_agent/kernel/plan_*.py",
