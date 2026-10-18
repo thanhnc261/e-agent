@@ -24,7 +24,8 @@
     "tests/unit/server/test_task_presets.py",
     "docs/plans/2026-10-14-phase2-execution-ir.md",
     "harness/state/**",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "tests/unit/server/record_demo_prompts.py"
   ],
   "acceptance": [
     "test_shadow_adds_no_driver_calls_reads_or_budget passes",
@@ -34,5 +35,12 @@
   "gate_set": "full",
   "base_commit": "53114bed4f9b110555d15448bb7d36561955438e",
   "created_at": "2026-10-18T04:39:26+00:00",
-  "features_digest": "88a8af101366c8ce49ba9b626e49ea1f8973528bd726b28a01ce4aef4aaf7588"
+  "features_digest": "88a8af101366c8ce49ba9b626e49ea1f8973528bd726b28a01ce4aef4aaf7588",
+  "scope_changes": [
+    {
+      "glob": "tests/unit/server/record_demo_prompts.py",
+      "reason": "its start_run fake must accept the task_kind keyword the CLI now passes",
+      "at": "2026-10-18T04:47:04+00:00"
+    }
+  ]
 }
