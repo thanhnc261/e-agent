@@ -4,7 +4,8 @@
 Each test names the guard it pins: domain validation of the resolved lineage values, a
 placeholder step whose wire form cannot be validated, a stored plan that no longer matches
 its approved step inputs, recovery between the steps, the approval's lifetime, and the write
-budget a plan sees after an earlier write. Both stores run through `run_store`
+budget a plan sees after an earlier write. Recovery between the steps resumes the plan
+(Task 2c.8); the resume guards are pinned in `test_recovery.py`. Both stores run through `run_store`
 (ENG-STORE-1).
 """
 
@@ -220,14 +221,14 @@ async def test_tampered_stored_plan_stops_before_the_later_step_reserves(
     assert k.backend.create_calls == 1
 
 
-# -- R-4a: recovery between the steps -----------------------------------------------------
+# -- R-4a: recovery between the steps (resume since Task 2c.8) ---------------------------
 @pytest.mark.parametrize("left_in", [RunState.VERIFYING, RunState.RUNNING])
-async def test_recovery_with_an_unstarted_step_ends_interrupted(
+async def test_recovery_between_the_steps_resumes_the_plan(
     make_kernel: MakeKernel, left_in: RunState
 ) -> None:
     """The worker dies after step 1 verified and before step 2 started, the run left in
-    VERIFYING or RUNNING: recovery finds the latest action VERIFIED, and a plan with a step
-    never started fails INTERRUPTED, never SUCCEEDED."""
+    VERIFYING or RUNNING: recovery finds the latest action VERIFIED with step 2 unstarted
+    and resumes the plan at step 2 (2c.7 ended it INTERRUPTED); step 1 is not re-sent."""
     k = _plan_kernel(make_kernel)
     target = "_after_step_verified" if left_in is RunState.VERIFYING else "_start_step"
 
@@ -238,11 +239,12 @@ async def test_recovery_with_an_unstarted_step_ends_interrupted(
     setattr(k.coordinator, target, worker_lost)
     with pytest.raises(RuntimeError):
         await _decide(k, run.run_id)
+    delattr(k.coordinator, target)  # the worker that recovers is a healthy one
     assert (await k.store.get_run(TENANT, run.run_id)).state is left_in
     run = await k.coordinator.recover_run(TENANT, run.run_id)
-    assert (run.state, run.reason_code) == (RunState.FAILED, ReasonCode.INTERRUPTED)
-    assert [a.state for a in await _actions(k, run.run_id)] == [ActionState.VERIFIED]
-    assert k.backend.create_calls == 1
+    assert (run.state, run.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
+    assert [a.state for a in await _actions(k, run.run_id)] == [ActionState.VERIFIED] * 2
+    assert k.backend.create_calls == 2
 
 
 # -- R-4b: the approval's lifetime covers every step --------------------------------------

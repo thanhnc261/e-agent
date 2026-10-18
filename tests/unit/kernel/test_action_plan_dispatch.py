@@ -5,7 +5,8 @@ for one approval bound to the plan digest, then dispatches the steps serially in
 order: step N + 1 reserves only after step N is verified, its lineage placeholders resolved
 from step N's verified outcome and its facts and policy revalidated first. The notes fixture
 domain stands in for any domain (no plugin is imported); both stores run through
-`run_store` (ENG-STORE-1). Partial failure and recovery of a plan are Task 2c.8's.
+`run_store` (ENG-STORE-1). Partial failure and recovery of a plan (Task 2c.8) are pinned in
+`test_action_plan_failures.py` and `test_recovery.py`.
 """
 
 import dataclasses
@@ -234,7 +235,7 @@ async def test_lineage_missing_value_stops_plan_before_reservation(
     make_kernel: MakeKernel,
 ) -> None:
     """A pointer the verified outcome does not hold stops the plan before the later step
-    reserves; the earlier step stays committed and verified (2c.8 maps the reason code)."""
+    reserves; the earlier step stays committed and verified (``PLAN_LINEAGE_REJECTED``)."""
     k = _plan_kernel(make_kernel, driver=NotesPlanDriver(plan=two_step_plan(path="/nope")))
     run = await _start(k)
     run = await _decide(k, run.run_id)
@@ -571,12 +572,12 @@ async def test_a_one_step_plan_runs_as_a_single_proposal(make_kernel: MakeKernel
     assert action.logical_operation_id == run.logical_operation_id
 
 
-async def test_plan_never_starts_a_step_outside_the_approval_call(
+async def test_plan_resumes_after_recovery_reverifies_its_committed_step(
     make_kernel: MakeKernel,
 ) -> None:
-    """Recovery never sends a write: a plan whose first step committed and is re-verified
-    by recovery (or reconciliation) stops, failed and interrupted, instead of starting the
-    next step; resuming a plan is Task 2c.8's (ENG-TRUST-5)."""
+    """Recovery never re-sends a write: a plan whose first step committed and is re-verified
+    by recovery goes on with the next step, revalidated before it reserves (Task 2c.8; 2c.7
+    stopped it INTERRUPTED). The committed step is sent once (ENG-TRUST-5)."""
     k = _plan_kernel(make_kernel)
     run = await _start(k)
     apply = k.coordinator._apply_receipt
@@ -605,6 +606,6 @@ async def test_plan_never_starts_a_step_outside_the_approval_call(
         await _decide(k, run.run_id)
     k.coordinator._apply_receipt = apply  # type: ignore[method-assign]
     run = await k.coordinator.recover_run(TENANT, run.run_id)
-    assert (run.state, run.reason_code) == (RunState.FAILED, ReasonCode.INTERRUPTED)
-    assert [a.state for a in await _actions(k, run.run_id)] == [ActionState.VERIFIED]
-    assert k.backend.create_calls == 1
+    assert (run.state, run.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
+    assert [a.state for a in await _actions(k, run.run_id)] == [ActionState.VERIFIED] * 2
+    assert k.backend.create_calls == 2

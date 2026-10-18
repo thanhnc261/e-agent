@@ -21,7 +21,8 @@ from .ir_on import IrOnMixin
 class RecoveryMixin(IrOnMixin):
     # --------------------------------------------------------- reconciliation
     async def reconcile(self, operator: Principal, run_id: str) -> RunRecord:
-        """Read-only reconciliation of UNKNOWN actions. Never re-sends a write."""
+        """Read-only reconciliation of UNKNOWN actions. Never re-sends a write. A plan step
+        it proves committed and verified continues the plan (`_after_step_verified`)."""
         run = await self._store.get_run(operator.tenant_id, run_id)
         if run.state is not RunState.NEEDS_RECONCILIATION:
             raise KernelError(ErrorCode.CONFLICT, "run does not need reconciliation")
@@ -91,12 +92,15 @@ class RecoveryMixin(IrOnMixin):
 
     # --------------------------------------------------------------- recovery
     async def recover(self) -> list[RunRecord]:
-        """Startup recovery (MVP design §9 crash rules). Never sends a write.
+        """Startup recovery (MVP design §9 crash rules). Never re-sends a write.
 
         - DISPATCHING: the call may have executed -> UNKNOWN, reconcile later.
         - APPROVED/RESERVED without dispatch: blocked; a new approval is required.
         - COMMITTED while VERIFYING: re-run the independent read-back.
         - RUNNING with no pending effect: the driver turn was lost -> FAILED.
+        - A multi-step plan (execution IR ``on``) whose latest action is VERIFIED with a
+          later step unstarted resumes at that step, which passes every guard of the live
+          path before it reserves; committed steps are never replayed (ADR 0025, §6.4.6).
         """
         recovered: list[RunRecord] = []
         for run in await self._store.list_unfinished_runs():
@@ -190,6 +194,9 @@ class RecoveryMixin(IrOnMixin):
             }
         ):
             if cont is not None:
+                resumed = await self._resume_plan(cont, latest, actions)  # `on` plans only
+                if resumed is not None:
+                    return resumed
                 cont.pending_action_id = None
             # The live finish path's acceptance check (`on`, ADR 0028); `off` is today's.
             return await self._succeed(run, cont, "outcome verified", ReasonCode.VERIFIED)

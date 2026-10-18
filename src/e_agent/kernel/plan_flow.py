@@ -20,9 +20,15 @@ A 1-step plan is today's proposal.
   is revalidated like an approved action (`_dispatch`: facts, policy, connection,
   credential, rules, approval TTL) before it reserves. A rejection stops the plan; nothing
   committed is replayed and nothing falls back after the first reservation.
-- Outside the approval call (recovery, reconciliation) a verified step never starts the
-  next one: the run fails ``INTERRUPTED``. Resuming a plan and its partial-failure codes are
-  Task 2c.8's.
+- **Partial failure** (Task 2c.8, target §6.4.6): a lineage rejection ends
+  ``PLAN_LINEAGE_REJECTED``; a step's own failure ends with the code it has on a 1-step run,
+  the earlier steps staying committed and verified; an UNKNOWN step stops the remainder and
+  the run goes to reconciliation, never to a re-send (ENG-TRUST-5).
+- **Resume** (Task 2c.8): a step verified outside the approval call (recovery re-verifying
+  a committed step, reconciliation proving an UNKNOWN one) continues the plan the same way,
+  and recovery resumes a plan whose latest action is VERIFIED with a later step unstarted
+  (`_resume_plan`). Either way the next step passes every guard of the live path before it
+  reserves. Recovery runs in the existing recovery calls; no background task is added.
 """
 
 from __future__ import annotations
@@ -309,27 +315,55 @@ class PlanFlowMixin(ProposalsMixin):
         return (RunEventType.PROPOSAL_CREATED, payload, action.action_id)
 
     # -- dispatch --------------------------------------------------------------------------
-    async def _run_plan(
-        self, cont: _Continuation, action: ActionRecord, approval: ApprovalRecord
-    ) -> RunRecord:
-        """Dispatch an approved plan, step after verified step, inside this call."""
-        self._plan_runs.add(cont.ctx.run_id)
-        try:
-            return await self._dispatch(cont, action, approval)
-        finally:
-            self._plan_runs.discard(cont.ctx.run_id)
-
     async def _after_step_verified(self, cont: _Continuation, action: ActionRecord) -> RunRecord:
-        """A step verified and steps remain: ``VERIFYING -> RUNNING`` and the next step, or,
-        outside `_run_plan` (recovery, reconciliation), stop: recovery never sends a write."""
+        """Step ``action.step_index`` is VERIFIED and steps remain: ``VERIFYING -> RUNNING``
+        and the next step, in the approval call, on recovery and after reconciliation alike.
+        A run that recovery re-verified before VERIFYING was recorded records it first; a run
+        already RUNNING (the pair recorded before a crash) starts the next step as it is.
+        Outside ``on`` the rest of the plan cannot run, so the run fails ``INTERRUPTED``."""
         run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
         plan = cont.plan
-        if plan is None or cont.ctx.run_id not in self._plan_runs:
+        if plan is None or not self._ir_on or action.step_index is None:
             return await self._set_run_state(
                 run, RunState.FAILED, PLAN_INTERRUPTED, code=ReasonCode.INTERRUPTED
             )
-        run = await self._set_run_state(run, RunState.RUNNING)
-        return await self._start_step(cont, plan.current + 1)
+        plan.current = action.step_index  # the verified action, persisted with its state
+        if run.state is not RunState.RUNNING:
+            if run.state is not RunState.VERIFYING:
+                run = await self._set_run_state(run, RunState.VERIFYING)
+            run = await self._set_run_state(run, RunState.RUNNING)
+        return await self._start_step(cont, action.step_index + 1)
+
+    async def _resume_plan(
+        self, cont: _Continuation, latest: ActionRecord, actions: list[ActionRecord]
+    ) -> RunRecord | None:
+        """Recovery of a plan whose latest action is VERIFIED with a later step unstarted:
+        the next step starts through `_after_step_verified`, so it passes every guard of the
+        live path before it reserves. None when the run is not that case (a plan's last
+        step, a later step already started, no approval, not ``on``); the caller then ends
+        the run, and `_succeed` never lets a plan with an unstarted step succeed."""
+        state = cont.plan
+        if (
+            not self._ir_on
+            or state is None
+            or state.approval_id is None
+            or latest.plan_id != state.plan_id
+            or latest.state is not ActionState.VERIFIED
+            or latest.step_index is None
+            or latest.step_index + 1 >= len(state.step_ids)
+        ):
+            return None
+        started = sorted(
+            (a for a in actions if a.plan_id == state.plan_id),
+            key=lambda a: a.step_index if a.step_index is not None else -1,
+        )
+        if [a.step_index for a in started] != list(range(latest.step_index + 1)) or any(
+            a.state is not ActionState.VERIFIED for a in started
+        ):
+            return None  # a later step started, or an earlier one is not verified
+        state.action_ids = [a.action_id for a in started]  # the store's, not the snapshot's
+        cont.pending_action_id = None
+        return await self._after_step_verified(cont, latest)
 
     async def _start_step(self, cont: _Continuation, index: int) -> RunRecord:
         """Resolve step ``index``'s lineage from the verified outcomes, record it, create its
@@ -349,11 +383,10 @@ class PlanFlowMixin(ProposalsMixin):
         schema = self._registry.input_schemas.get(descriptor.input_schema_id)
         try:
             arguments, resolved = resolve_lineage(step, state.verified, schema)
-        except LineageRejected as exc:
+        except LineageRejected as exc:  # no verified value of its type (ADR 0025)
             rejected = _fixed("KERNEL-PLAN-LINEAGE", LINEAGE_MESSAGES[exc.kind])
-            # VALIDATION_FAILED until Task 2c.8 adds ``PLAN_LINEAGE_REJECTED``.
             return await self._plan_stopped(
-                cont, rejected, "lineage rejected", ReasonCode.VALIDATION_FAILED
+                cont, rejected, "lineage rejected", ReasonCode.PLAN_LINEAGE_REJECTED
             )
         approval = await self._plan_approval(cont)
         action = self._plan_action(
@@ -383,8 +416,9 @@ class PlanFlowMixin(ProposalsMixin):
     ) -> RunRecord:
         """Stop the plan before a later step's action exists, so before it reserves: the
         fixed finding in ``validation.completed``, then FAILED. A placeholder without a
-        verified value of its declared type is ``KERNEL-PLAN-LINEAGE``; a stored step that
-        no longer matches its approved input is ``KERNEL-PLAN-STEP-CHANGED`` (STALE)."""
+        verified value of its declared type is ``KERNEL-PLAN-LINEAGE``
+        (``PLAN_LINEAGE_REJECTED``); a stored step that no longer matches its approved input
+        is ``KERNEL-PLAN-STEP-CHANGED`` (STALE)."""
         run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
         run = await self._store.update_run(
             run.model_copy(update={"revision": run.revision + 1}),

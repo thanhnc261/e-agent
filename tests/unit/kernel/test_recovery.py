@@ -13,7 +13,16 @@ from e_agent.contracts.task import AcceptanceSpec, RequiredEffect
 from e_agent.kernel.coordinator import RunCoordinator
 from e_agent.kernel.policy import DefaultPolicy
 
-from .conftest import CREATE, NOTES_TASK, TENANT, Kernel, NotesDriver
+from .conftest import (
+    CREATE,
+    NOTE_INPUT,
+    NOTES_TASK,
+    PLAN_BUDGETS,
+    TENANT,
+    Kernel,
+    NotesDriver,
+    NotesPlanDriver,
+)
 
 pytestmark = pytest.mark.asyncio
 MakeKernel = Callable[..., Kernel]
@@ -343,4 +352,192 @@ async def test_recovery_success_unchanged_in_off(make_kernel: MakeKernel, bounda
     [recovered] = await restart(k).recover()
     assert (recovered.state, recovered.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
     assert recovered.reason == "outcome verified"
+    assert k.backend.create_calls == 1
+
+
+# -- execution IR `on`: a multi-step plan resumes after a crash (Task 2c.8, ADR 0025) -----
+PLAN_CRASH_POINTS = ["record_receipt", "record_outcome", "_after_step_verified", "_start_step"]
+
+
+def _plan_kernel(make_kernel: MakeKernel) -> Kernel:
+    return make_kernel(
+        features=ON,
+        budgets=PLAN_BUDGETS,
+        driver=NotesPlanDriver(),
+        input_schemas={"c": NOTE_INPUT, "p": NOTE_INPUT},
+    )
+
+
+def _restart_plan(k: Kernel, features: Features = ON, policy: Any = None) -> RunCoordinator:
+    """A new process for a plan run: same store and registry, fresh coordinator."""
+    return RunCoordinator(
+        store=k.store,
+        registry=k.coordinator._registry,
+        connections=k.connections,
+        policy=policy or DefaultPolicy(),
+        driver=NotesDriver(texts=[]),
+        clock=k.clock,
+        features=features,
+    )
+
+
+async def _crash_between_steps(k: Kernel, point: str) -> str:
+    """Start and approve the two-step notes plan; the process dies at ``point``, after
+    step 1's provider call committed and before step 2 exists. Returns the run id."""
+    run = await k.coordinator.start_run(
+        k.requester, "write standup note", k.scope, task_kind=NOTES_TASK.task_id
+    )
+    if point.startswith("_"):
+
+        async def die(*_a: Any) -> Any:
+            raise Crash
+
+        setattr(k.coordinator, point, die)
+    else:
+        original = getattr(k.store, point)
+
+        async def commit_then_die(*args: Any) -> Any:
+            await original(*args)
+            setattr(k.store, point, original)
+            raise Crash
+
+        setattr(k.store, point, commit_then_die)
+    with pytest.raises(Crash):
+        await _approve(k.coordinator, k, run.run_id)
+    assert [a.step_index for a in await k.store.list_actions(TENANT, run.run_id)] == [0]
+    return run.run_id
+
+
+def _plan_actions(actions: list[Any]) -> list[Any]:
+    return sorted(actions, key=lambda a: a.step_index)
+
+
+@pytest.mark.parametrize("point", PLAN_CRASH_POINTS)
+async def test_recovery_resumes_plan_without_replaying_committed_steps(
+    make_kernel: MakeKernel, point: str
+) -> None:
+    """The process dies between the steps (after step 1's commit, its read-back, the
+    ``VERIFYING -> RUNNING`` pair, or inside step 2's start). A restart's recovery verifies
+    step 1 when its outcome was not stored, then resumes the plan at step 2 after step 2's
+    revalidation; step 1 is never sent again (ENG-TRUST-5, target §6.4.6)."""
+    k = _plan_kernel(make_kernel)
+    run_id = await _crash_between_steps(k, point)
+    assert k.backend.create_calls == 1
+    [recovered] = await _restart_plan(k).recover()
+    assert (recovered.state, recovered.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
+    first, second = _plan_actions(await k.store.list_actions(TENANT, run_id))
+    assert (first.state, second.state) == (ActionState.VERIFIED, ActionState.VERIFIED)
+    assert k.backend.create_calls == 2
+    events = await k.store.list_events(TENANT, run_id)
+    reserved = [e.action_id for e in events if e.type is RunEventType.ACTION_RESERVED]
+    assert reserved == [first.action_id, second.action_id]
+    dispatched = [e.action_id for e in events if e.type is RunEventType.ACTION_DISPATCHING]
+    assert dispatched == [first.action_id, second.action_id]
+    # Step 2's parent is step 1's verified key, read back before the crash or on recovery.
+    (lineage,) = [e for e in events if e.type is RunEventType.IR_LINEAGE_RESOLVED]
+    assert second.arguments["parent"] == first.logical_operation_id
+    assert [v["value"] for v in lineage.payload["values"]] == [first.logical_operation_id]
+
+
+RESUME_GUARDS = [
+    "approval-expired",
+    "step-changed",
+    "rules-changed",
+    "policy-changed",
+    "fact-changed",
+    "validation-blocks",
+    "no-read-back",
+]
+
+
+@pytest.mark.parametrize("guard", RESUME_GUARDS)
+async def test_resumed_step_passes_every_guard_before_reserving(
+    make_kernel: MakeKernel, guard: str
+) -> None:
+    """A resumed step passes every guard the live path applies before its reservation: the
+    approval's lifetime, the stored step against its approved input, rule, policy and fact
+    staleness, domain validation of its resolved values, and lineage only from the verified
+    read-back. Each one stops the plan before step 2 reserves; step 1 stays verified."""
+    from e_agent.contracts.outcome import OutcomeReport
+    from e_agent.contracts.validation import Finding, ValidationResult, ValidationStatus
+
+    k = _plan_kernel(make_kernel)
+    if guard == "no-read-back":
+        verify = k.verifier.verify
+
+        async def no_values(*args: Any) -> OutcomeReport:
+            report = await verify(*args)
+            return report.model_copy(update={"verified_values": None})
+
+        k.verifier.verify = no_values  # type: ignore[method-assign]
+    run_id = await _crash_between_steps(k, "record_outcome")
+    policy: Any = None
+    if guard == "approval-expired":
+        k.clock.advance(minutes=30)  # past the default 15-minute approval
+    elif guard == "step-changed":
+        get_plan = k.store.get_plan
+
+        async def tampered(tenant_id: str, plan_id: str) -> Any:
+            plan = await get_plan(tenant_id, plan_id)
+            step = plan.steps[1]
+            changed = {**step.proposal.arguments, "text": "rewritten"}
+            proposal = step.proposal.model_copy(update={"arguments": changed})
+            steps = (plan.steps[0], step.model_copy(update={"proposal": proposal}))
+            return plan.model_copy(update={"steps": steps})
+
+        k.store.get_plan = tampered
+    elif guard == "rules-changed":
+        k.validator.bundle = "notes@2"
+    elif guard == "policy-changed":
+        import dataclasses
+
+        class Changed(DefaultPolicy):
+            def evaluate(self, ctx: Any, descriptor: Any, connection_id: str) -> Any:
+                decision = super().evaluate(ctx, descriptor, connection_id)
+                return dataclasses.replace(decision, policy_version="changed")
+
+        policy = Changed()
+    elif guard == "fact-changed":
+        k.backend.revision += 1
+    elif guard == "validation-blocks":
+        validate = k.validator.validate
+
+        async def block_resolved(ctx: Any, item: Any) -> ValidationResult:
+            if not isinstance(item.proposal.arguments.get("parent"), str):
+                return await validate(ctx, item)
+            finding = Finding(
+                rule_id="NOTE-002", rule_version="1", status=ValidationStatus.FAIL, message="p"
+            )
+            return ValidationResult(
+                status=ValidationStatus.FAIL,
+                findings=(finding,),
+                rule_bundle_version="notes@1",
+                validator_id="notes-rules",
+            )
+
+        k.validator.validate = block_resolved  # type: ignore[method-assign]
+    [recovered] = await _restart_plan(k, policy=policy).recover()
+    expected = ReasonCode.PLAN_LINEAGE_REJECTED if guard == "no-read-back" else ReasonCode.STALE
+    assert (recovered.state, recovered.reason_code) == (RunState.FAILED, expected)
+    actions = _plan_actions(await k.store.list_actions(TENANT, run_id))
+    assert actions[0].state is ActionState.VERIFIED
+    if guard in {"step-changed", "no-read-back"}:  # stopped before step 2's action exists
+        assert len(actions) == 1
+    else:
+        assert actions[1].state is ActionState.BLOCKED
+    events = await k.store.list_events(TENANT, run_id)
+    reserved = [e.action_id for e in events if e.type is RunEventType.ACTION_RESERVED]
+    assert reserved == [actions[0].action_id]
+    assert k.backend.create_calls == 1
+
+
+async def test_plan_never_resumes_outside_on(make_kernel: MakeKernel) -> None:
+    """A process restarted with ``execution_ir`` no longer ``on`` cannot run the rest of a
+    plan on today's path (no fallback after the first reservation): the run fails
+    ``INTERRUPTED`` and nothing is sent."""
+    k = _plan_kernel(make_kernel)
+    run_id = await _crash_between_steps(k, "record_outcome")
+    [recovered] = await _restart_plan(k, features=Features()).recover()
+    assert (recovered.state, recovered.reason_code) == (RunState.FAILED, ReasonCode.INTERRUPTED)
+    assert [a.state for a in await k.store.list_actions(TENANT, run_id)] == [ActionState.VERIFIED]
     assert k.backend.create_calls == 1

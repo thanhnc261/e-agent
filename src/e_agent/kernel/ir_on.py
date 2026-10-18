@@ -73,7 +73,8 @@ OUTSIDE_SET = "The proposed capability is not in the run's task definition."
 
 
 PLAN_INTERRUPTED = "plan interrupted between steps; the remaining steps were not started"
-"""The fixed reason of a plan stopped between steps outside the approval call (2c.7)."""
+"""The fixed reason of a plan that cannot resume between its steps (Task 2c.8): a process
+no longer in ``on``, or a run recovery cannot resume (`PlanFlowMixin._resume_plan`)."""
 
 ACCEPTANCE_MESSAGES = MappingProxyType(
     {
@@ -382,8 +383,8 @@ class IrOnMixin(FeaturesMixin):
     ) -> RunRecord:
         """End the run SUCCEEDED, or FAILED with ``ACCEPTANCE_UNMET`` in ``on`` when the
         admitted definition's acceptance spec is not met. A multi-step plan with a step never
-        started cannot succeed: it fails ``INTERRUPTED`` (recovery between steps; resuming a
-        plan is Task 2c.8's)."""
+        started cannot succeed: recovery resumes such a plan first (`_resume_plan`), and one
+        it cannot resume fails ``INTERRUPTED`` here."""
         plan = cont.plan if cont is not None else None
         if plan is not None and len(plan.action_ids) < len(plan.step_ids):
             return await self._set_run_state(

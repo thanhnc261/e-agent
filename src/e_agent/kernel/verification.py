@@ -101,6 +101,9 @@ class VerificationMixin(IrOnMixin):
             step_id = plan.step_ids[action.step_index]
             if report.verified_values is not None:  # the one lineage source (ADR 0025)
                 plan.verified[step_id] = dict(report.verified_values)
+                # Stored before the outcome, so a crash after it leaves recovery the values
+                # to resume with; a crash before it leaves the step COMMITTED, re-verified.
+                await self._persist(ctx.run_id)
             verified = {
                 "plan_id": plan.plan_id,
                 "step_id": step_id,
