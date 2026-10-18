@@ -509,3 +509,8 @@
 - changed: harness/state/2/features.json, harness/state/2/handoffs/2c.2.json, harness/state/2/reviews/2c.2.json, harness/state/evidence/gates/2c.2/2026-10-18T03-02-34.102183+00-00-full.json, harness/state/evidence/gates/2c.2/2026-10-18T03-03-45.065087+00-00-pg.json
 - next: 2c.3: store support for plans and steps (first commit amends the plan for 2c.2 R-1..R-3)
 - open: none
+
+## 2026-10-18T03:25:27.903097+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.2
+- changed: no working-tree changes
+- next: test_task_capabilities_match_golden passes with a non-zero case count
+- open: none
