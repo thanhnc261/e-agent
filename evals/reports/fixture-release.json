@@ -5,12 +5,15 @@
   "versions": {
     "distributions": {
       "e-agent-adapter-agent-pydantic": "0.1.0",
+      "e-agent-adapter-erp-simulator": "0.1.0",
       "e-agent-adapter-odoo": "0.1.0",
       "e-agent-adapter-postgres": "0.1.0",
       "e-agent-adapter-secretstore-local": "0.1.0",
       "e-agent-adapter-shacl": "0.1.0",
       "e-agent-contracts": "0.1.0",
       "e-agent-domain-erp": "0.1.0",
+      "e-agent-erp": "0.1.0",
+      "e-agent-harness": "0.1.0",
       "e-agent-kernel": "0.1.0",
       "e-agent-plugin-sdk": "0.1.0",
       "e-agent-server": "0.1.0",
@@ -24,8 +27,43 @@
     "driver": "scripted-erp-driver",
     "driver_versions": {},
     "model": null,
+    "model_provider": null,
     "profile_environment": "fixture"
   },
+  "defaulted_declarations": [
+    {
+      "plugin_id": "fixture-erp",
+      "subject": "binding",
+      "subject_id": "fixture-erp.procurement.po-create",
+      "fields": [
+        "idempotency"
+      ]
+    },
+    {
+      "plugin_id": "fixture-erp",
+      "subject": "binding",
+      "subject_id": "fixture-erp.procurement.rfq-amend",
+      "fields": [
+        "idempotency"
+      ]
+    },
+    {
+      "plugin_id": "fixture-erp",
+      "subject": "binding",
+      "subject_id": "fixture-erp.sales.quotation-create",
+      "fields": [
+        "idempotency"
+      ]
+    },
+    {
+      "plugin_id": "fixture-erp",
+      "subject": "binding",
+      "subject_id": "fixture-erp.crm.lead-create",
+      "fields": [
+        "idempotency"
+      ]
+    }
+  ],
   "passed": 21,
   "total": 21,
   "cases": [
