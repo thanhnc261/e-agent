@@ -1,0 +1,66 @@
+{
+  "task": "2d.1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "P-1",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "An answer proposal or read on an unusable connection (or an answer with no verifier) raises out of start_run; the run is left non-terminal or misclassified INTERRUPTED",
+      "evidence": "src/e_agent/kernel/proposals.py:287-290; gateway.py:45-49; server/worker.py:144-163"
+    },
+    {
+      "id": "P-2",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Target \u00a76.4.6 rows (worker crash between steps, reconciliation) and \u00a76.4 lack the fenced resume work and the VERIFYING-until-startup window; \u00a76.4 still tagged [P]",
+      "evidence": "docs/design/target-architecture.md:548,660-676"
+    },
+    {
+      "id": "P-3",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "A plan step's integrity check compares with cont.plan.inputs from the snapshot; nothing ties those inputs back to approval.action_digest",
+      "evidence": "src/e_agent/kernel/dispatch.py:226-240; plan_flow.py:242-260,438-441"
+    },
+    {
+      "id": "P-4",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "No recorded end-of-phase Postgres evidence for tests/conformance and tests/unit/adapters/postgres; Codex final check pending",
+      "evidence": "harness/state/2/handoffs/2c.8b.json"
+    },
+    {
+      "id": "P-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Comments still say 'a plan resume is attempted at most once' after the ADR replaced that rule",
+      "evidence": "src/e_agent/server/worker.py:107-108; kernel/recovery.py:132-133; plan_flow.py:333,341"
+    },
+    {
+      "id": "P-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The RunStore port gained required methods (put_plan, get_plan, list_steps) and a wider EventBatch; ADR 0025 should name the port change",
+      "evidence": "src/e_agent/sdk/store.py; docs/adr/0025-execution-ir.md:15"
+    },
+    {
+      "id": "P-7",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "One plan test name renamed (test_on_refuses_startup_for_capability_bound_on_two_connections); note in the handoff",
+      "evidence": "tests/unit/server/test_execution_ir_on_erp.py:145"
+    },
+    {
+      "id": "P-8",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Coverage note: lint-imports clean, 1112 passed in the frozen copy (3 environmental); several areas unverified",
+      "evidence": "frozen copy at 3018fc7"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}
