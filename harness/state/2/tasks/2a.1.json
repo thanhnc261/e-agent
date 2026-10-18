@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2a-1"
   ],
-  "context_digest": "82dd41afd5df9c6d2a07bebf81ab42a8803a6c73acae071f87ccc4e06909a2aa",
+  "context_digest": "74b5ee8cfff3243521a87cbc1f274d4d1651d00da439f3c04e7a385725678ce1",
   "allowed_paths": [
     "docs/adr/0024-plan-approval-model.md",
     "docs/adr/0025-execution-ir.md",
