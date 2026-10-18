@@ -653,7 +653,7 @@ class ActionPlan(Record):
   - the approval TTL;
   - lineage: it resolves each placeholder from the verified outcome and checks its type.
 - The resolved values are recorded in a `validate` step record and an `ir.lineage_resolved` event before `reserve_operation`.
-- Any mismatch stops the plan before that step reserves: `STALE`, `APPROVAL_EXPIRED` or `PLAN_LINEAGE_REJECTED`.
+- Any mismatch stops the plan before that step reserves: `PLAN_LINEAGE_REJECTED` for lineage, otherwise `STALE`. An approval that expired after the decision is `STALE` with the reason "approval expired before dispatch", as on the single-action path; `APPROVAL_EXPIRED` stays the code for a decision that arrives after expiry or for the expiry sweeper, so a reason code never depends on plan length.
 - Each step reserves under its own logical operation id, derived from the plan id and step id. The connection-level admission rule (ADR 0020) applies unchanged: a busy connection stops the plan with `CONNECTION_BUSY`.
 - Evidence before writes and atomic local state hold per step (ENG-TRUST-4).
 
@@ -665,7 +665,7 @@ class ActionPlan(Record):
 | A later step dispatched and committed | `RUNNING → VERIFYING` (new pair) | none | verify as today |
 | A later step's receipt is `UNKNOWN` | `RUNNING → NEEDS_RECONCILIATION` (existing defensive pair, now with a call site) | `EFFECT_UNKNOWN`, as today | the remaining steps do not start; no replay |
 | Reconciliation proves the effect and verification passes | `NEEDS_RECONCILIATION → VERIFYING → RUNNING` | none | continue only after a fresh revalidation; an expired approval stops the plan |
-| Step validation, staleness or lineage fails before its reservation | `RUNNING → FAILED` | `STALE`, `APPROVAL_EXPIRED` or `PLAN_LINEAGE_REJECTED` | earlier steps stay committed and verified |
+| Step validation, staleness, approval expiry or lineage fails before its reservation | `RUNNING → FAILED` | `STALE` (expiry included, as on the single-action path) or `PLAN_LINEAGE_REJECTED` | earlier steps stay committed and verified |
 | A step fails with a known no-effect error or fails verification | `→ FAILED` | `PROVIDER_ERROR` or `VERIFICATION_FAILED`, as today | earlier steps stay committed and verified |
 | Acceptance unmet at run end | `VERIFYING → FAILED` or `RUNNING → FAILED` (a run that ends without a write) | `ACCEPTANCE_UNMET` | — |
 | Worker crash between steps | recovery resumes at the first unstarted step after revalidation | — | committed steps are never replayed |

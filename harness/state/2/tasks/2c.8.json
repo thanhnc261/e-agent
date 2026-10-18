@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2c-8"
   ],
-  "context_digest": "fe3dbd6efc31e70eafb3ab8ac3324475dc64d306b83c8065ee8a1b0b191232bc",
+  "context_digest": "59631e7ca15b160eb1f9cb8eff679ca248faa6df087f29e94a6323c6d8d8e5db",
   "allowed_paths": [
     "src/e_agent/contracts/run.py",
     "src/e_agent/contracts/outcome.py",
@@ -42,7 +42,8 @@
     "docs/plans/2026-10-14-phase2-execution-ir.md",
     "harness/state/**",
     "docs/handoffs/**",
-    "src/e_agent/kernel/plan_*.py"
+    "src/e_agent/kernel/plan_*.py",
+    "docs/design/target-architecture.md"
   ],
   "acceptance": [
     "test_no_fallback_after_first_reservation passes",
@@ -59,6 +60,11 @@
       "glob": "src/e_agent/kernel/plan_*.py",
       "reason": "2c.8 resume and reconciliation; plan_flow.py and ir_on.py are above 400 lines against the 500-line gate",
       "at": "2026-10-18T09:16:47+00:00"
+    },
+    {
+      "glob": "docs/design/target-architecture.md",
+      "reason": "2c.8 ruling: an approval that expires between plan steps stops as STALE, as on today's single-action path; design rows §6.4.5 and §6.4.6 named APPROVAL_EXPIRED (ENG-PLAN-3)",
+      "at": "2026-10-18T09:44:53+00:00"
     }
   ]
 }
