@@ -50,7 +50,7 @@
     "full and pg gates pass"
   ],
   "gate_set": "full",
-  "base_commit": "ffbe5696cd742605433e3401cb0e2fd95500dc8c",
-  "created_at": "2026-10-18T05:18:01+00:00",
+  "base_commit": "76d9b8a6a1216c36fd7494a4bd4c1a3063db75d7",
+  "created_at": "2026-10-18T06:38:57+00:00",
   "features_digest": "862337d6137025596725890aa60f5fd9cc545c69951c3ceaeb03c125c81c680a"
 }
