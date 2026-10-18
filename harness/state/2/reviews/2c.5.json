@@ -1,0 +1,38 @@
+{
+  "task": "2c.5",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "An unresolved shadow run ending in an answer or only blocked proposals recorded no ir.shadow_failed, against ADRs 0027/0028. Fixed: start_run and admit_run record IR_TASK_UNRESOLVED once in the creating batch.",
+      "evidence": "tests/unit/server/test_erp_tasks.py::test_shadow_unresolved_answer_run_records_task_unresolved; tests/unit/kernel/test_execution_ir_shadow.py::test_shadow_unresolved_blocked_run_records_task_unresolved"
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "digest_matches False was never tested. Fixed.",
+      "evidence": "tests/unit/kernel/test_execution_ir_shadow.py::test_shadow_digest_mismatch_is_recorded_and_changes_nothing"
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "except Exception wraps only the pure IR calls; accepted as is.",
+      "evidence": "src/e_agent/kernel/features.py"
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The sequence guarantee is the host claim plus the store's locked max(sequence) check, not the run CAS; wording corrected in the ledger and report.",
+      "evidence": "task-2c.5 report, Fix round 1"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

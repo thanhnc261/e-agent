@@ -122,7 +122,8 @@
         "test_off_mode_event_stream_matches_baseline passes",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.5/2026-10-18T05-13-55.206058+00-00-full.json"
     },
     {
       "id": "F-2c-6",
