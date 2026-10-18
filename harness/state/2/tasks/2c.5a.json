@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2c-5a"
   ],
-  "context_digest": "21a1a05dd3a6feede06c91480da922089eaded76d1ee74d1e5f41e3376afcf16",
+  "context_digest": "e1dd1951eea2ca225687e1ddc3a48fa15176d506969709ae2400eaf0f9200cf9",
   "allowed_paths": [
     "src/e_agent/contracts/plan.py",
     "src/e_agent/kernel/ir.py",
