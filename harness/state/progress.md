@@ -574,3 +574,8 @@
 - changed: harness/state/2/features.json, harness/state/2/handoffs/2c.9.json, harness/state/2/reviews/2c.9.json, harness/state/evidence/gates/2c.9/2026-10-18T11-34-17.432415+00-00-full.json, harness/state/evidence/gates/2c.9/2026-10-18T11-35-31.996103+00-00-pg.json
 - next: 2c.8b: Codex C-1 to C-3 fixes
 - open: none
+
+## 2026-10-18T12:25:42.067179+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.8b
+- changed: src/e_agent/kernel/approval_flow.py, src/e_agent/kernel/continuation.py, src/e_agent/kernel/coordinator.py, src/e_agent/kernel/dispatch.py, src/e_agent/kernel/plan_flow.py, src/e_agent/kernel/recovery.py, src/e_agent/kernel/verification.py, tests/unit/kernel/test_plan_durable_state.py
+- next: the Codex C-1, C-2 and C-3 reproductions are tests that pass
+- open: none
