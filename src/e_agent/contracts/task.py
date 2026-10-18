@@ -9,6 +9,7 @@ from pydantic import Field, field_validator, model_validator
 
 from .common import Record
 from .context import Budgets
+from .outcome import OutcomeReport, OutcomeStatus
 
 
 class RequiredEffect(Record):
@@ -18,19 +19,68 @@ class RequiredEffect(Record):
     min_verified: int = Field(default=1, ge=1)
 
 
+class AnswerCondition(Record):
+    """A value the required answer's verifier must have computed (ADR 0028 amendment).
+
+    It names one of the verifier's `OutcomeCheck` entries by ``check``, and ``expected`` is
+    compared with that check's own ``expected``: the value the verifier computed from fresh
+    reads, never the model's arguments or the check's ``observed``."""
+
+    check: str
+    expected: str
+    """Compared as an exact string; a decimal is in its canonical form (`format_decimal`)."""
+
+
 class AcceptanceSpec(Record):
     """What the kernel checks at run end; model output cannot satisfy it (ENG-TRUST-1).
 
     Disjunctive (ADR 0028: "required verified effects, or a required verified answer"):
     with both fields set, the spec is met when every ``required_effects`` entry is
-    verified, or when ``required_answer`` verified, such as a verified no-op (target
-    §1.3: "a verified draft PO or a verified no-op"). With only one field set, only that
-    one counts. With neither set, nothing is required.
+    verified, or when the answer alternative is met (`answer_condition_met`), such as a
+    verified no-op (target §1.3: "a verified draft PO or a verified no-op"). With only one
+    field set, only that one counts. With neither set, nothing is required.
+
+    The answer alternative is the ``required_answer`` outcome VERIFIED and, when
+    ``answer_condition`` is set, the verifier's check of that name computing that value:
+    draft-po's no-op is a verified shortage answer whose verifier computed a shortage of
+    ``"0"``, so an accurate answer reporting a positive shortage does not meet it (ADR 0028
+    amendment, proposed; Codex review C-2). A condition needs a ``required_answer``.
     """
 
     required_effects: tuple[RequiredEffect, ...] = ()
     required_answer: str | None = None
     """An answer contract that must verify."""
+    answer_condition: AnswerCondition | None = None
+    """Narrows the answer alternative to a verified answer whose verifier computed this."""
+
+    @model_validator(mode="after")
+    def _check_condition(self) -> Self:
+        check_answer_condition(self)
+        return self
+
+
+def check_answer_condition(spec: AcceptanceSpec) -> None:
+    """The record's rule, also re-applied at registry admission to a built record."""
+    if spec.answer_condition is not None and spec.required_answer is None:
+        raise ValueError("answer_condition needs a required_answer")
+
+
+def answer_condition_met(spec: AcceptanceSpec, outcome: OutcomeReport) -> bool:
+    """Whether ``outcome`` meets the spec's answer alternative.
+
+    The caller passes the verifier's report for the spec's ``required_answer`` action (a
+    report names no contract). False without a ``required_answer`` or unless the report is
+    VERIFIED. With an ``answer_condition``, at least one check of its name must exist, and
+    every check of that name must have passed with the verifier's own ``expected`` equal to
+    the condition's: ``observed``, the model's claim, is never read. Pure; 2c.6's run-end
+    acceptance check calls it."""
+    if spec.required_answer is None or outcome.status is not OutcomeStatus.VERIFIED:
+        return False
+    condition = spec.answer_condition
+    if condition is None:
+        return True
+    named = [check for check in outcome.checks if check.name == condition.check]
+    return bool(named) and all(c.passed and c.expected == condition.expected for c in named)
 
 
 class TaskDefinition(Record):

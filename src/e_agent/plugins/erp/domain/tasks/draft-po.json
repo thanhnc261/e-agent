@@ -19,6 +19,10 @@
         "min_verified": 1
       }
     ],
-    "required_answer": "procurement.shortage.answer.v1"
+    "required_answer": "procurement.shortage.answer.v1",
+    "answer_condition": {
+      "check": "shortage",
+      "expected": "0"
+    }
   }
 }

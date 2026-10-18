@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -11,6 +12,7 @@ from e_agent.contracts.plan import (
     ActionProposal,
     LineageRef,
     PlannedStep,
+    encode_arguments,
     plan_from_wire,
     plan_to_wire,
 )
@@ -339,6 +341,51 @@ def test_plan_to_wire_refuses_a_literal_set_on_a_built_plan() -> None:
     )
     with pytest.raises(ValueError, match=r"\$lineage"):
         plan_to_wire(built)
+
+
+def test_plan_to_wire_refuses_a_bytes_lineage_key() -> None:
+    # Codex review C-1: a JSON-mode dump coerces a bytes key to `'$lineage'`, so the store
+    # round trip would turn this literal into a trusted placeholder. The wire form keeps the
+    # digest profile, which refuses a non-string key (ADR 0006, ADR 0025).
+    forged = {b"$lineage": {"step": "s1", "path": "/partner_id"}}
+    for place in ("top", "nested", "listed"):
+        plan = _lineage_plan()
+        arguments = plan.steps[1].proposal.arguments
+        if place == "top":
+            arguments["x"] = forged
+        elif place == "nested":
+            arguments["x"] = {"inner": forged}
+        else:
+            arguments["lines"].append(forged)
+        with pytest.raises(ValueError, match="object keys must be strings"):
+            plan_to_wire(plan)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [{"$lineage": {"step": "s1", "path": "/x"}}, {1: "a"}, Decimal("4"), {"x"}, b"4", 4],
+    ids=["literal-lineage", "int-key", "decimal", "set", "bytes", "int"],
+)
+def test_encode_arguments_refuses_values_outside_the_digest_profile(value: object) -> None:
+    refused = r"\$lineage|in the profile|unsupported type|keys must be strings"
+    with pytest.raises(ValueError, match=refused):
+        encode_arguments({"v": value})
+    with pytest.raises(ValueError, match=refused):
+        encode_arguments({"v": [value]})
+
+
+def test_encode_arguments_replaces_only_placeholders() -> None:
+    ref = LineageRef(step_id="s1", path="/id")
+    wire = _wire("s1", "/id")
+    encoded = encode_arguments(
+        {"ref": ref, "nested": {"list": ["x", ref], "tuple": ("t", ref)}, "flag": True, "n": None}
+    )
+    assert encoded == {
+        "ref": wire,
+        "nested": {"list": ["x", wire], "tuple": ["t", wire]},
+        "flag": True,
+        "n": None,
+    }
 
 
 def test_action_record_plan_fields_default_null() -> None:

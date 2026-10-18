@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor, EffectKind
 from e_agent.contracts.context import Budgets
-from e_agent.contracts.task import TaskDefinition
+from e_agent.contracts.task import TaskDefinition, check_answer_condition
 from e_agent.sdk import SDK_API_VERSION
 from e_agent.sdk.connection import ConnectionSpec
 from e_agent.sdk.discovery import DiscoveredPlugin, DiscoveryError, artifact_digest
@@ -358,7 +358,8 @@ class PluginRegistry:
         declared: tuple[TaskDeclaration, ...],
         contribution: PluginContribution,
     ) -> None:
-        """Checks that need no other plugin: the manifest, duplicate ids and budgets."""
+        """Checks that need no other plugin: the manifest, duplicate ids, budgets and the
+        acceptance answer condition."""
         tasks = contribution.task_definitions
         contributed = sorted((t.task_id, t.version) for t in tasks)
         if contributed != sorted((d.task_id, d.version) for d in declared):
@@ -369,6 +370,11 @@ class PluginRegistry:
                 raise _reject(f"{plugin_id}: duplicate task id {task.task_id!r}")
             seen.add(task.task_id)
             self._check_task_budgets(plugin_id, task)
+            try:
+                # The record checks it; a built record skips validation (Codex review C-2).
+                check_answer_condition(task.acceptance)
+            except ValueError as exc:
+                raise _reject(f"{plugin_id}: task {task.task_id!r}: {exc}") from None
 
     def _check_task_budgets(self, plugin_id: str, task: TaskDefinition) -> None:
         """A definition's budgets only narrow the profile's (D7). ``Budgets`` has

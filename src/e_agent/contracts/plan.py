@@ -10,6 +10,10 @@ A placeholder's wire form (target §6.4.4) is ``{"$lineage": {"step": <step_id>,
 records never parse it: a `$lineage` mapping given to `model_validate` is a literal and is
 refused (ADR 0025), so model output cannot mint a placeholder. Only the store boundary turns
 the wire form back into `LineageRef` instances, through `plan_to_wire` and `plan_from_wire`.
+
+`encode_arguments` is the one walk that writes the wire form: the multi-step digest and the
+stored form both use it, and it refuses what the digest profile refuses (ADR 0006), so a
+value a JSON-mode dump would coerce (a bytes key into `$lineage`) never reaches the store.
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ from typing import Any, Self
 from pydantic import model_serializer, model_validator
 
 from .common import Record
+from .digest import canonicalize
 
 LINEAGE_KEY = "$lineage"
 """The digest encoding of a placeholder (target §6.4.4); refused as a literal argument key."""
@@ -178,14 +183,53 @@ def check_plan_rules(plan: ActionPlan) -> None:
     plan._check_rules()
 
 
+def encode_arguments(arguments: Mapping[str, Any]) -> dict[str, Any]:
+    """A step's arguments in wire form: the Python values, with only each placeholder
+    replaced by its wire mapping ``{"$lineage": {"step", "path"}}``.
+
+    Every other value passes through unchanged (a mapping becomes a dict and a sequence a
+    list; a set stays a set), so `canonicalize` refuses exactly what it refuses on the
+    1-step path: a set, a number, a non-string key, bytes. Never a `model_dump`: a JSON-mode
+    dump lists a set in hash order and coerces Decimal, NaN, int keys and bytes to strings
+    or null (2c.4 review R-1), and a bytes key to a `$lineage` key (Codex review C-1).
+
+    Raises ``ValueError`` for a literal `$lineage` key or a placeholder with a bad pointer
+    (`lineage_refs`), and `CanonicalizationError` (a ``ValueError``) for a value outside the
+    digest profile."""
+    for _ in lineage_refs(arguments):
+        pass
+    encoded = {key: _encode_value(value) for key, value in arguments.items()}
+    canonicalize(encoded)
+    return encoded
+
+
+def _encode_value(value: Any) -> Any:
+    if isinstance(value, LineageRef):
+        return value.model_dump(mode="json")
+    if isinstance(value, Mapping):
+        return {key: _encode_value(item) for key, item in value.items()}
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
+        # Any sequence canonicalization walks, so no container hides a value (2c.4 R-5). A
+        # set is walked by `lineage_refs` and left as it is, for `canonicalize` to refuse.
+        return [_encode_value(item) for item in value]
+    return value
+
+
 def plan_to_wire(plan: ActionPlan) -> dict[str, Any]:
-    """A plan's stored form: the JSON-mode dump, with each placeholder in its wire form.
+    """A plan's stored form: its JSON-mode dump, with each step's arguments replaced by
+    `encode_arguments`, so the stored arguments are the ones the digest profile accepted.
 
     For the run stores only; read it back with `plan_from_wire`. The plan's rules are
     re-applied first, so a literal `$lineage` set on a built plan's mutable arguments, or a
-    `model_construct`-built plan, cannot come back from the store as a placeholder."""
+    `model_construct`-built plan, cannot come back from the store as a placeholder. Then a
+    step whose arguments are outside the digest profile is refused (`CanonicalizationError`),
+    so no value a dump would coerce becomes a placeholder on the way back (Codex review C-1)."""
     check_plan_rules(plan)
-    return plan.model_dump(mode="json")
+    arguments = [encode_arguments(step.proposal.arguments) for step in plan.steps]
+    data = plan.model_dump(mode="json")
+    for step, encoded in zip(data["steps"], arguments, strict=True):
+        step["proposal"]["arguments"] = encoded
+    return data
 
 
 def plan_from_wire(data: Mapping[str, Any]) -> ActionPlan:

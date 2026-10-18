@@ -556,9 +556,14 @@ The execution IR states a run's work in a form the kernel can check. It has thre
 #### 6.4.1 Task definitions (ADR 0028)
 
 ```python
+class AnswerCondition(Record):          # ADR 0028 amendment (proposed, Codex review C-2)
+    check: str                         # an OutcomeCheck name of the required answer's verifier
+    expected: str                      # equals that check's `expected` (the verifier's value)
+
 class AcceptanceSpec(Record):           # e_agent.contracts.task (proposed)
     required_effects: tuple[RequiredEffect, ...] = ()   # contract_id + minimum verified count
     required_answer: str | None = None                  # an answer contract that must verify
+    answer_condition: AnswerCondition | None = None     # needs required_answer; narrows it
 
 class TaskDefinition(Record):
     task_id: str                       # unique across admitted packs; the Phase 1d preset's kind
@@ -578,6 +583,7 @@ class TaskDefinition(Record):
 - The run's tool set is fixed at admission: the definition's agent-visible capabilities (§7.2 rule 1). One driver serves every task kind, so the set reaches it per run: the run loop sets `DriverInput.allowed_capabilities` on every turn, the kernel refuses any read or proposal outside it, and the driver's filter only shapes what the model sees (owner decision D6; an additive port field in the same `sdk_api` minor bump as `ProposePlan`).
 - The run records `task_id` and `task_version` on `RunRecord` (C11), and uses the definition's `approval_ttl` and narrowed budgets (D7).
 - The kernel checks the acceptance spec at run end. When it is unmet, the run ends `FAILED` with `ACCEPTANCE_UNMET` and an acceptance finding (§6.1). The model cannot mark its own task as met.
+- The spec is disjunctive: the required effects, or the required answer. An `answer_condition` narrows the answer alternative to a verified answer whose verifier computed a given value, so `draft-po`'s no-op is a verified shortage answer of `"0"`, not any accurate shortage answer (ADR 0028 amendment, proposed; `answer_condition_met` in `contracts/task.py`).
 - A general `assistant` definition with read-only capabilities covers open questions (core plan Phase 2).
 
 #### 6.4.2 Capability effect declarations (ADR 0029)

@@ -10,7 +10,7 @@ shadow path (Task 2c.5) and the `on` path (Task 2c.6).
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Any
 
 from e_agent.contracts.capability import EffectKind
@@ -20,10 +20,9 @@ from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.plan import (
     ActionPlan,
     ActionProposal,
-    LineageRef,
     PlannedStep,
     check_plan_rules,
-    lineage_refs,
+    encode_arguments,
     plan_from_wire,
     plan_to_wire,
 )
@@ -86,6 +85,10 @@ def validate_plan(
         # dump is refused as a literal by `model_validate`, and a plain revalidation of a
         # dump would refuse every plan that holds one (ADR 0025, 2c.3 review R-2).
         plan_from_wire(plan_to_wire(plan))
+    except CanonicalizationError:
+        # `plan_to_wire` re-applied the plan rules, then refused a step's arguments: each
+        # such step is reported below as ``KERNEL-ARGS`` (Codex review C-1).
+        pass
     except ValueError as exc:
         return (_finding("KERNEL-PLAN-STRUCTURE", f"plan structure is invalid: {exc}"),)
     findings: list[Finding] = []
@@ -141,35 +144,10 @@ def validate_plan(
 
 
 # -- digest ------------------------------------------------------------------------------
-def _digest_arguments(arguments: Mapping[str, Any]) -> dict[str, Any]:
-    """A step's arguments for its digest input: the Python values, with only each
-    placeholder replaced by its wire mapping ``{"$lineage": {"step", "path"}}``.
-
-    Every other value passes through unchanged, so `canonicalize` refuses exactly what it
-    refuses on the 1-step path (a set, a number, an int key, bytes). Never a `model_dump`:
-    a JSON-mode dump lists a set in hash order and coerces Decimal, NaN, int keys and bytes
-    to strings or null (2c.4 review R-1). A literal `$lineage` key anywhere, or a
-    placeholder with a bad pointer, raises `ValueError` (`lineage_refs`)."""
-    for _ in lineage_refs(arguments):
-        pass
-    return {key: _encode_placeholders(value) for key, value in arguments.items()}
-
-
-def _encode_placeholders(value: Any) -> Any:
-    if isinstance(value, LineageRef):
-        return value.model_dump(mode="json")
-    if isinstance(value, Mapping):
-        return {key: _encode_placeholders(item) for key, item in value.items()}
-    if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
-        # Any sequence canonicalization walks, so no container hides a value (2c.4 R-5).
-        return [_encode_placeholders(item) for item in value]
-    return value
-
-
 def _profile_finding(step: PlannedStep) -> Finding | None:
     """``KERNEL-ARGS`` when the step's digest arguments are outside the digest profile."""
     try:
-        canonicalize(_digest_arguments(step.proposal.arguments))
+        encode_arguments(step.proposal.arguments)
     except CanonicalizationError as exc:
         return _finding(
             "KERNEL-ARGS",
@@ -250,7 +228,7 @@ def plan_digest_input(
     (`kernel/proposals.py`): the run's logical operation id and the proposal's arguments as
     they are, without the wire form (a 1-step plan cannot hold a placeholder). A plan of two
     or more steps is wrapped (`plan_digest_wrapper`); each step's arguments are its Python
-    values with each placeholder as ``{"$lineage": {"step", "path"}}`` (`_digest_arguments`),
+    values with each placeholder as ``{"$lineage": {"step", "path"}}`` (`encode_arguments`),
     and its logical operation id comes from `step_operation_id`. Run `validate_plan` first:
     this function re-applies the plan rules (`check_plan_rules`) but not task policy."""
     check_plan_rules(plan)
@@ -273,7 +251,7 @@ def plan_digest_input(
                 step,
                 contexts[step.step_id],
                 logical_operation_id=step_operation_id(plan.plan_id, step.step_id),
-                arguments=_digest_arguments(step.proposal.arguments),
+                arguments=encode_arguments(step.proposal.arguments),
             ),
         )
         for step in plan.steps

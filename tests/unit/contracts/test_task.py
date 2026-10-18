@@ -1,8 +1,15 @@
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from e_agent.contracts.context import Budgets
-from e_agent.contracts.task import AcceptanceSpec, RequiredEffect, TaskDefinition
+from e_agent.contracts.outcome import OutcomeCheck, OutcomeReport, OutcomeStatus
+from e_agent.contracts.task import (
+    AcceptanceSpec,
+    AnswerCondition,
+    RequiredEffect,
+    TaskDefinition,
+    answer_condition_met,
+)
 from pydantic import ValidationError
 
 
@@ -63,3 +70,73 @@ def test_task_definition_budgets_and_ttl_are_optional_overrides() -> None:
     assert task.approval_ttl == timedelta(minutes=5)
     with pytest.raises(ValidationError, match="approval_ttl must be positive"):
         _definition(approval_ttl=timedelta(0))
+
+
+ANSWER = "erp.answer.stock.v1"
+ZERO = AnswerCondition(check="shortage", expected="0")
+
+
+def test_answer_condition_requires_required_answer() -> None:
+    with pytest.raises(ValidationError, match="answer_condition needs a required_answer"):
+        AcceptanceSpec(answer_condition=ZERO)
+    with pytest.raises(ValidationError, match="answer_condition needs a required_answer"):
+        AcceptanceSpec.model_validate(
+            {
+                "required_effects": [{"contract_id": "erp.purchase.create.v1"}],
+                "answer_condition": {"check": "shortage", "expected": "0"},
+            }
+        )
+    spec = AcceptanceSpec(required_answer=ANSWER, answer_condition=ZERO)
+    assert spec.answer_condition == ZERO
+    assert AcceptanceSpec().answer_condition is None
+    with pytest.raises(ValidationError):
+        AnswerCondition(check="shortage")  # type: ignore[call-arg]
+    with pytest.raises(ValidationError):
+        AnswerCondition(check="shortage", expected="0", observed="0")  # type: ignore[call-arg]
+
+
+def _report(status: OutcomeStatus, *checks: OutcomeCheck) -> OutcomeReport:
+    return OutcomeReport(
+        run_id="run_1",
+        action_id="act_1",
+        status=status,
+        checks=checks,
+        verifier_id="v",
+        verifier_version="1",
+        reported_at=datetime(2026, 10, 18, tzinfo=UTC),
+    )
+
+
+def _check(
+    expected: str, observed: str, passed: bool = True, name: str = "shortage"
+) -> OutcomeCheck:
+    return OutcomeCheck(name=name, passed=passed, expected=expected, observed=observed)
+
+
+def test_answer_condition_reads_the_verifier_check_not_model_arguments() -> None:
+    """The condition compares the verifier's own ``expected``; the model's claim (the
+    check's ``observed``, the action's arguments) never counts (Codex review C-2)."""
+    spec = AcceptanceSpec(required_answer=ANSWER, answer_condition=ZERO)
+    verified = OutcomeStatus.VERIFIED
+    # The verifier computed 0: met, whatever the model observed.
+    assert answer_condition_met(spec, _report(verified, _check("0", "0")))
+    assert answer_condition_met(spec, _report(verified, _check("0", "7")))
+    # The verifier computed a positive shortage: not met, even when the model claimed 0.
+    assert not answer_condition_met(spec, _report(verified, _check("7", "0")))
+    assert not answer_condition_met(spec, _report(verified, _check("7", "7")))
+    # Exact string equality: no numeric coercion.
+    assert not answer_condition_met(spec, _report(verified, _check("0.0", "0")))
+    # A failing check, a failed report, or no check of that name: not met.
+    assert not answer_condition_met(spec, _report(verified, _check("0", "0", passed=False)))
+    assert not answer_condition_met(spec, _report(OutcomeStatus.FAILED, _check("0", "0")))
+    assert not answer_condition_met(spec, _report(OutcomeStatus.UNKNOWN, _check("0", "0")))
+    assert not answer_condition_met(spec, _report(verified, _check("0", "0", name="available")))
+    assert not answer_condition_met(spec, _report(verified))
+    # Every check of that name must agree.
+    assert not answer_condition_met(spec, _report(verified, _check("0", "0"), _check("7", "7")))
+    # Without a condition the verified answer alone meets the alternative; without a
+    # required answer there is no answer alternative.
+    plain = AcceptanceSpec(required_answer=ANSWER)
+    assert answer_condition_met(plain, _report(verified, _check("7", "7")))
+    assert not answer_condition_met(plain, _report(OutcomeStatus.FAILED, _check("7", "7")))
+    assert not answer_condition_met(AcceptanceSpec(), _report(verified, _check("0", "0")))

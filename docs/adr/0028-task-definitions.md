@@ -32,6 +32,24 @@ Today every run receives every agent-visible capability with exactly one binding
 - Tests and evidence: eight ERP definitions load, and a golden file records today's single tool set and each definition's chosen subset, every subset inside today's set (there is no per-task list today to copy); registry refusals, including a widening budget; a read and a proposal outside the run's set refused; the driver offers only the allowed tools; the definition's TTL replaces the global one; notes-domain definition; acceptance-unmet test. Plugin digests are re-pinned.
 - Operations: the task catalog is unchanged in Phase 2; adding a task is a pack release, not a server change.
 
+## Amendment: an answer condition on the acceptance spec
+
+**Proposed (2026-10-18, Codex review C-2; owner acceptance pending before the phase merges).**
+
+**Context.** `AcceptanceSpec` is disjunctive: the required verified effects, or a required verified answer. `draft-po` names `procurement.shortage.answer.v1` as its `required_answer`, so that the verified no-op of target §1.3 ("a verified draft PO or a verified no-op") counts. That answer also reports real shortages: the `shortage` task uses it, and its verifier (`ShortageAnswerVerifier`) passes any accurate answer. An accurate answer reporting a positive shortage, for example 15, would therefore meet `draft-po`'s acceptance without a purchase order.
+
+**Decision.**
+
+- `AcceptanceSpec` gains `answer_condition: AnswerCondition | None = None`, where `AnswerCondition(check: str, expected: str)` is a frozen record.
+- The answer alternative is met only when the `required_answer` outcome is `VERIFIED` and, when a condition is set, the outcome has a check named `check`, every check of that name passed, and each one's `expected` equals the condition's `expected` exactly. `expected` is the verifier's own computed value; the model's arguments and the check's `observed` are never read. Without a condition, a verified answer alone meets the alternative, as before.
+- A condition without a `required_answer` is a validation error. The record refuses it, and registry admission re-checks it, because a built record skips validation.
+- The evaluation is one pure function, `answer_condition_met` in `contracts/task.py`, which the run-end acceptance check (Task 2c.6) calls.
+- `draft-po` sets `"answer_condition": {"check": "shortage", "expected": "0"}`. The verifier formats its computed shortage with `format_decimal`, which writes zero as `"0"`. The `shortage` task sets no condition, and the verifier is unchanged.
+
+**Alternatives considered.** A separate no-op answer contract for `draft-po`: it would add a capability and a verifier that duplicate the shortage answer, and the model could still choose the shortage answer. Making the acceptance spec conjunctive: it would refuse the verified no-op that target §1.3 requires.
+
+**Consequences.** `contracts/task.py` (`AnswerCondition`, `AcceptanceSpec.answer_condition`, `answer_condition_met`); a registry admission check; `draft-po.json`; the domain-erp artifact digest changes, so a live profile's `artifact_sha256` pin is renewed from a freshly built wheel. Tests: a condition without a required answer is refused by the record and by admission; draft-po's condition is the verifier's `shortage` check with `"0"`, a verified positive-shortage answer leaves it unmet and a verified zero-shortage answer meets it; the condition reads the verifier's `expected`, not the model's claim.
+
 ## Gates
 
 Phase 2 Tasks 2c.1, 2c.2 and 2c.6, gate `full`, plus `pg` for 2c.1 and 2c.6.

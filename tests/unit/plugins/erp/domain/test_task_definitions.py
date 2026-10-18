@@ -3,18 +3,29 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
+import pytest
+from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.capability import EffectKind, Idempotency, Reversibility, Risk
-from e_agent.contracts.context import Budgets
+from e_agent.contracts.common import format_decimal
+from e_agent.contracts.context import Budgets, Principal, TaskContext
+from e_agent.contracts.outcome import OutcomeStatus
+from e_agent.contracts.task import AnswerCondition, answer_condition_met
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.registry import PluginRegistry
 from e_agent.plugins.erp.domain import plugin
+from e_agent.plugins.erp.domain.procurement import SHORTAGE_ANSWER
+from e_agent.plugins.erp.domain.procurement.answers import ShortageAnswerVerifier
 from e_agent.plugins.erp.simulator import fixture_profile_path
+from e_agent.plugins.erp.simulator.fake_erp import FakeErp
+from e_agent.plugins.erp.simulator.scenarios import SCENARIOS
 from e_agent.sdk.discovery import artifact_digest, discover
 from e_agent.sdk.manifest import PluginManifest
+from e_agent.sdk.ports import ReadRequest
 from e_agent.server.bootstrap import admit_plugins, tool_specs
 from e_agent.server.profile import Profile, load_profile
 
@@ -154,6 +165,82 @@ def test_draft_po_acceptance_allows_verified_no_op_answer() -> None:
     ]
     assert acceptance.required_answer == "procurement.shortage.answer.v1"
     assert registry.descriptor(acceptance.required_answer).effect is EffectKind.ANSWER
+
+
+CTX = TaskContext(
+    run_id="run_1",
+    tenant_id="t",
+    principal=Principal(principal_id="p", tenant_id="t", roles=frozenset()),
+    resource_scope=frozenset({"c"}),
+)
+
+
+class _Reader:
+    """The host's scoped reader over the simulator, for the verifier's fresh reads."""
+
+    def __init__(self, erp: FakeErp) -> None:
+        self.erp = erp
+
+    async def read(self, contract_id, arguments):  # type: ignore[no-untyped-def]
+        request = ReadRequest("v", contract_id, "c", arguments)
+        return await self.erp.read(CTX, None, request)  # type: ignore[arg-type]
+
+
+def _shortage_answer(shortage: str, available: str) -> ActionRecord:
+    return ActionRecord(
+        action_id="act_1",
+        tenant_id="t",
+        run_id="run_1",
+        logical_operation_id="op_1",
+        contract_id=SHORTAGE_ANSWER,
+        binding_id="b",
+        connection_id="c",
+        connection_version=1,
+        credential_subject="c@1/s",
+        arguments={
+            "demand_ref": "demand:d-001",
+            "product_ref": "product:widget-a",
+            "demand_quantity": "12",
+            "available": available,
+            "inbound": "0",
+            "shortage": shortage,
+        },
+        digest="d1",
+        state=ActionState.COMMITTED,
+        revision=1,
+    )
+
+
+@pytest.mark.asyncio
+async def test_draft_po_acceptance_answer_is_zero_shortage() -> None:
+    """The no-op alternative is the verified zero-shortage answer only: an accurate answer
+    reporting a positive shortage verifies, yet leaves draft-po unmet (Codex review C-2)."""
+    _, registry = _fixture()
+    acceptance = registry.task_definitions["draft-po"].acceptance
+    assert acceptance.required_answer == SHORTAGE_ANSWER
+    assert acceptance.answer_condition == AnswerCondition(check="shortage", expected="0")
+    # The verifier's `expected` is `format_decimal` of the computed shortage.
+    for zero in (
+        Decimal(12) - Decimal(12) - Decimal(0),
+        max(Decimal(-3), Decimal(0)),
+        Decimal("0E+2"),
+    ):
+        assert format_decimal(zero) == "0"
+    verifier = ShortageAnswerVerifier()
+    none_short = await verifier.verify(
+        CTX, _shortage_answer("0", "12"), None, _Reader(FakeErp(SCENARIOS["zero-shortage"]))
+    )
+    assert none_short.status is OutcomeStatus.VERIFIED
+    assert answer_condition_met(acceptance, none_short)
+    short = await verifier.verify(
+        CTX, _shortage_answer("7", "5"), None, _Reader(FakeErp(SCENARIOS["valid"]))
+    )
+    assert short.status is OutcomeStatus.VERIFIED  # an accurate answer for the shortage task
+    assert not answer_condition_met(acceptance, short)
+    # The shortage task keeps accepting any verified answer, a positive shortage included.
+    shortage_task = registry.task_definitions["shortage"].acceptance
+    assert shortage_task.answer_condition is None
+    assert answer_condition_met(shortage_task, short)
 
 
 def test_erp_write_capabilities_declare_effects() -> None:

@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from e_agent.contracts.capability import CapabilityDescriptor, EffectKind, Idempotency
 from e_agent.contracts.context import Budgets
-from e_agent.contracts.task import TaskDefinition
+from e_agent.contracts.task import AcceptanceSpec, AnswerCondition, TaskDefinition
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.registry import DefaultedDeclaration, EnabledPlugin, PluginRegistry
 from e_agent.sdk.discovery import discover
@@ -404,6 +404,23 @@ def test_registry_refuses_task_naming_a_host_only_capability() -> None:
         ),
     )
     assert hidden.contract_id in _refused(reg.admit_task_definitions)
+
+
+def test_registry_refuses_answer_condition_without_required_answer() -> None:
+    # The record refuses it; a built record skips validation, so admission re-checks it
+    # (Codex review C-2).
+    built = AcceptanceSpec.model_construct(
+        required_effects=NOTES_TASK.acceptance.required_effects,
+        required_answer=None,
+        answer_condition=AnswerCondition(check="shortage", expected="0"),
+    )
+    task = NOTES_TASK.model_copy(update={"acceptance": built})
+    reg = PluginRegistry(BOTH_BOUND)
+    message = _refused(lambda: _register_tasks(reg, task))
+    assert "answer_condition" in message
+    assert NOTES_TASK.task_id in message
+    reg.admit_task_definitions()
+    assert reg.task_definitions == {}
 
 
 def test_registry_refuses_duplicate_task_id() -> None:

@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 from e_agent.contracts.action import ActionRecord, ActionState
+from e_agent.contracts.digest import CanonicalizationError
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.plan import ActionPlan, ActionProposal, LineageRef, PlannedStep
 from e_agent.contracts.run import RunRecord, RunState
@@ -437,6 +438,33 @@ async def test_put_and_get_plan(store: Any) -> None:
         await store.put_plan("t1", "run_missing", _plan("plan_2"), [])
     with pytest.raises(NotFound):
         await store.get_plan("t1", "plan_2")
+
+
+OUTSIDE_PROFILE: dict[str, object] = {
+    # A JSON-mode dump would coerce this key to `'$lineage'`, minting a placeholder on read
+    # (Codex review C-1).
+    "bytes lineage key": {b"$lineage": {"step": "s1", "path": "/partner_id"}},
+    "int key": {1: "a"},
+    "number": 4,
+    "set": {"x", "y"},
+}
+
+
+async def test_put_plan_refuses_arguments_outside_the_digest_profile(store: Any) -> None:
+    await store.create_run(_run(), [EV])
+    cases = 0
+    for name, value in OUTSIDE_PROFILE.items():
+        plan = _plan(f"plan_{cases}")
+        plan.steps[1].proposal.arguments["lines"].append({"x": value})
+        with pytest.raises(CanonicalizationError):
+            await store.put_plan("t1", "run_1", plan, [_step_record(cases)])
+        with pytest.raises(NotFound):
+            await store.get_plan("t1", plan.plan_id)
+        assert len(await store.list_events("t1", "run_1")) == 1, name
+        assert await store.list_steps("t1", "run_1") == [], name
+        cases += 1
+    print(f"put_plan profile cases: {cases}")
+    assert cases == len(OUTSIDE_PROFILE) == 4
 
 
 async def test_steps_commit_with_events_atomically(store: Any) -> None:
