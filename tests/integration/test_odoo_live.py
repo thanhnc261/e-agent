@@ -283,19 +283,23 @@ async def test_lost_response_reconciles_without_a_second_order(
     namespace, refs = seeded
     rt = await build_runtime(_profile(namespace, refs))
     run = await rt.coordinator.start_run(rt.operator, "restock", rt.scope)
-    real_post = httpx.AsyncClient.post
+    # The plugin HTTP helper sends built requests (sdk/http.py), so patch send, not post.
+    real_send = httpx.AsyncClient.send
     dropped = {"n": 0}
 
-    async def drop_after_commit(self: httpx.AsyncClient, url: str, **kw: Any) -> httpx.Response:
-        resp = await real_post(self, url, **kw)
-        if url.endswith("/create_draft_purchase_order") and dropped["n"] == 0:
+    async def drop_after_commit(
+        self: httpx.AsyncClient, request: httpx.Request, **kw: Any
+    ) -> httpx.Response:
+        resp = await real_send(self, request, **kw)
+        if request.url.path.endswith("/create_draft_purchase_order") and dropped["n"] == 0:
             dropped["n"] += 1
-            raise httpx.ReadTimeout("response lost after commit")
+            raise httpx.ReadTimeout("response lost after commit", request=request)
         return resp
 
-    monkeypatch.setattr(httpx.AsyncClient, "post", drop_after_commit)
+    monkeypatch.setattr(httpx.AsyncClient, "send", drop_after_commit)
     run = await _approve(rt, run)
-    assert run.state is RunState.NEEDS_RECONCILIATION
+    assert dropped["n"] == 1, "the create response was never dropped: the patch missed the call"
+    assert run.state is RunState.NEEDS_RECONCILIATION, run.reason
     run = await rt.coordinator.reconcile(rt.operator, run.run_id)
     assert run.state is RunState.SUCCEEDED
     [action] = await rt.store.list_actions(rt.operator.tenant_id, run.run_id)
