@@ -21,7 +21,8 @@
     "docs/handoffs/**",
     "src/e_agent/server/bootstrap.py",
     "tests/unit/server/test_connection_ownership.py",
-    "scripts/check_wheels.py"
+    "scripts/check_wheels.py",
+    "src/e_agent/contracts/task.py"
   ],
   "acceptance": [
     "test_task_capabilities_match_golden passes with a non-zero case count",
@@ -48,6 +49,11 @@
       "glob": "scripts/check_wheels.py",
       "reason": "the installed domain-erp wheel must load its task definitions from tasks/ resources (plan 2c.2 step 4)",
       "at": "2026-10-18T02:39:57+00:00"
+    },
+    {
+      "glob": "src/e_agent/contracts/task.py",
+      "reason": "2c.2 C-1: document disjunctive acceptance semantics (ADR 0028)",
+      "at": "2026-10-18T02:58:22+00:00"
     }
   ]
 }

@@ -139,6 +139,21 @@ def test_write_definitions_require_their_verified_effect() -> None:
         assert registry.descriptor(required.contract_id).effect is EffectKind.WRITE
         assert required.min_verified == 1
         assert definition.budgets is None
+    # Only draft-po has a verified no-op outcome; the other writes require their effect.
+    for task_id in ("amend-rfq", "quotation", "crm-lead"):
+        assert registry.task_definitions[task_id].acceptance.required_answer is None
+
+
+def test_draft_po_acceptance_allows_verified_no_op_answer() -> None:
+    # Target §1.3: "a verified draft PO or a verified no-op". The no-op is the verified
+    # zero-shortage answer the scripted driver gives when nothing is to be ordered.
+    _, registry = _fixture()
+    acceptance = registry.task_definitions["draft-po"].acceptance
+    assert [e.contract_id for e in acceptance.required_effects] == [
+        "procurement.purchase-order.create-draft.v1"
+    ]
+    assert acceptance.required_answer == "procurement.shortage.answer.v1"
+    assert registry.descriptor(acceptance.required_answer).effect is EffectKind.ANSWER
 
 
 def test_erp_write_capabilities_declare_effects() -> None:

@@ -19,7 +19,14 @@ class RequiredEffect(Record):
 
 
 class AcceptanceSpec(Record):
-    """What the kernel checks at run end; model output cannot satisfy it (ENG-TRUST-1)."""
+    """What the kernel checks at run end; model output cannot satisfy it (ENG-TRUST-1).
+
+    Disjunctive (ADR 0028: "required verified effects, or a required verified answer"):
+    with both fields set, the spec is met when every ``required_effects`` entry is
+    verified, or when ``required_answer`` verified, such as a verified no-op (target
+    §1.3: "a verified draft PO or a verified no-op"). With only one field set, only that
+    one counts. With neither set, nothing is required.
+    """
 
     required_effects: tuple[RequiredEffect, ...] = ()
     required_answer: str | None = None
