@@ -100,8 +100,10 @@ class WorkerMixin:
                     actor_label = f"principal:{run.requester_id}"
                 else:
                     actor_label = f"system:worker:{claim.owner}"
-                if claim.kind == "expire":
-                    # expire_approval re-checks state, pending action and TTL, so replay is safe.
+                if claim.kind in {"expire", "resume"}:
+                    # expire_approval re-checks state, pending action and TTL, and resume_plan
+                    # re-checks the run and its plan (applying the crash rules when the plan
+                    # can no longer resume), so replay is safe.
                     untouched = True
                 if claim.fence > 1 and not untouched:
                     with actor_scope(f"system:worker:{claim.owner}"):
@@ -116,6 +118,8 @@ class WorkerMixin:
                             await rt.coordinator.expire_approval(
                                 claim.tenant_id, claim.run_id, claim.payload["action_id"]
                             )
+                        elif claim.kind == "resume":  # a plan after a crash (ADR 0025)
+                            await rt.coordinator.resume_plan(claim.tenant_id, claim.run_id)
                         else:
                             payload = claim.payload
                             await rt.coordinator.decide(

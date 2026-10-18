@@ -231,4 +231,5 @@ class ApprovalFlowMixin(IrOnMixin):
             )
         if cont.plan is not None:  # one approval for the whole plan (ADR 0024)
             cont.plan.approval_id = record.approval_id
+            return await self._run_plan(cont, approved_action, record)
         return await self._dispatch(cont, approved_action, record)

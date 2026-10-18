@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from e_agent.contracts.action import ALLOWED_ACTION_TRANSITIONS, ActionState
+from e_agent.contracts.action import ALLOWED_ACTION_TRANSITIONS, ActionRecord, ActionState
 from e_agent.contracts.context import Principal
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
@@ -21,8 +21,8 @@ from .ir_on import IrOnMixin
 class RecoveryMixin(IrOnMixin):
     # --------------------------------------------------------- reconciliation
     async def reconcile(self, operator: Principal, run_id: str) -> RunRecord:
-        """Read-only reconciliation of UNKNOWN actions. Never re-sends a write. A plan step
-        it proves committed and verified continues the plan (`_after_step_verified`)."""
+        """Read-only reconciliation of UNKNOWN actions. Never sends a write. A plan step it
+        proves committed and verified queues the plan's resume (`_after_step_verified`)."""
         run = await self._store.get_run(operator.tenant_id, run_id)
         if run.state is not RunState.NEEDS_RECONCILIATION:
             raise KernelError(ErrorCode.CONFLICT, "run does not need reconciliation")
@@ -92,15 +92,16 @@ class RecoveryMixin(IrOnMixin):
 
     # --------------------------------------------------------------- recovery
     async def recover(self) -> list[RunRecord]:
-        """Startup recovery (MVP design §9 crash rules). Never re-sends a write.
+        """Startup recovery (MVP design §9 crash rules). Never sends a write.
 
         - DISPATCHING: the call may have executed -> UNKNOWN, reconcile later.
         - APPROVED/RESERVED without dispatch: blocked; a new approval is required.
         - COMMITTED while VERIFYING: re-run the independent read-back.
         - RUNNING with no pending effect: the driver turn was lost -> FAILED.
         - A multi-step plan (execution IR ``on``) whose latest action is VERIFIED with a
-          later step unstarted resumes at that step, which passes every guard of the live
-          path before it reserves; committed steps are never replayed (ADR 0025, §6.4.6).
+          later step unstarted: enqueue one fenced ``resume`` work item; the worker resumes
+          the plan under its claim (`resume_plan`, ADR 0025 amendment). Committed steps are
+          never replayed.
         """
         recovered: list[RunRecord] = []
         for run in await self._store.list_unfinished_runs():
@@ -129,7 +130,37 @@ class RecoveryMixin(IrOnMixin):
         self._runs.pop(run_id, None)  # the in-memory continuation may be mid-mutation
         return await self._recover_run(run) or run
 
-    async def _recover_run(self, run: RunRecord) -> RunRecord | None:
+    async def resume_plan(self, tenant_id: str, run_id: str) -> RunRecord:
+        """Executed under a ``resume`` work claim (ADR 0025 amendment). Re-check under the
+        claim that the run is RUNNING or VERIFYING with plan state, else drop the item; then
+        continue the plan as a live finish does, through every pre-reservation guard. A plan
+        that can no longer resume (a crashed earlier claim started its next step) gets the
+        crash rules, which never send a write."""
+        run = await self._store.get_run(tenant_id, run_id)
+        if run.state not in {RunState.RUNNING, RunState.VERIFYING}:
+            return run
+        try:
+            cont = await self._load_cont(tenant_id, run_id)
+        except KernelError:
+            return run
+        if cont.plan is None:
+            return run
+        actions, latest = await self._latest_action(run)
+        resumed = None
+        if latest is not None:
+            self._plan_runs.add(run_id)
+            try:
+                resumed = await self._resume_plan(cont, latest, actions)
+            finally:
+                self._plan_runs.discard(run_id)
+        if resumed is not None:
+            return resumed
+        return await self._recover_run(run) or run
+
+    async def _latest_action(
+        self, run: RunRecord
+    ) -> tuple[list[ActionRecord], ActionRecord | None]:
+        """The run's actions and the one its last ``proposal.created`` names."""
         actions = await self._store.list_actions(run.tenant_id, run.run_id)
         events = await self._store.list_events(run.tenant_id, run.run_id)
         latest_id = next(
@@ -140,7 +171,10 @@ class RecoveryMixin(IrOnMixin):
             ),
             None,
         )
-        latest = next((action for action in actions if action.action_id == latest_id), None)
+        return actions, next((a for a in actions if a.action_id == latest_id), None)
+
+    async def _recover_run(self, run: RunRecord) -> RunRecord | None:
+        actions, latest = await self._latest_action(run)
         try:
             cont = await self._load_cont(run.tenant_id, run.run_id)
         except KernelError:
@@ -193,8 +227,8 @@ class RecoveryMixin(IrOnMixin):
                 RunState.WAITING_INPUT,
             }
         ):
-            if cont is not None:
-                resumed = await self._resume_plan(cont, latest, actions)  # `on` plans only
+            if cont is not None:  # an `on` plan with a step left queues its resume
+                resumed = await self._resume_plan(cont, latest, actions)
                 if resumed is not None:
                     return resumed
                 cont.pending_action_id = None
@@ -208,7 +242,11 @@ class RecoveryMixin(IrOnMixin):
                 code=ReasonCode.VERIFICATION_FAILED,
             )
         elif run.state in {RunState.RUNNING, RunState.CREATED}:
+            reason = "interrupted during driver turn"
+            if latest is not None and latest.plan_id is not None and latest.step_index:
+                # A later plan step's action exists, never reserved: fail closed, send nothing.
+                reason = f"interrupted before plan step {latest.step_index + 1} reserved"
             return await self._set_run_state(
-                run, RunState.FAILED, "interrupted during driver turn", code=ReasonCode.INTERRUPTED
+                run, RunState.FAILED, reason, code=ReasonCode.INTERRUPTED
             )
         return None

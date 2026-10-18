@@ -36,6 +36,7 @@ from .conftest import (
     TENANT,
     Kernel,
     NotesPlanDriver,
+    run_resume_work,
     two_step_plan,
 )
 
@@ -228,7 +229,8 @@ async def test_recovery_between_the_steps_resumes_the_plan(
 ) -> None:
     """The worker dies after step 1 verified and before step 2 started, the run left in
     VERIFYING or RUNNING: recovery finds the latest action VERIFIED with step 2 unstarted
-    and resumes the plan at step 2 (2c.7 ended it INTERRUPTED); step 1 is not re-sent."""
+    and queues the resume, sending nothing; the resume claim runs step 2 (2c.7 ended it
+    INTERRUPTED). Step 1 is not re-sent."""
     k = _plan_kernel(make_kernel)
     target = "_after_step_verified" if left_in is RunState.VERIFYING else "_start_step"
 
@@ -242,6 +244,8 @@ async def test_recovery_between_the_steps_resumes_the_plan(
     delattr(k.coordinator, target)  # the worker that recovers is a healthy one
     assert (await k.store.get_run(TENANT, run.run_id)).state is left_in
     run = await k.coordinator.recover_run(TENANT, run.run_id)
+    assert run.state is left_in and k.backend.create_calls == 1  # queued only
+    run = await run_resume_work(k.store, k.coordinator)
     assert (run.state, run.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
     assert [a.state for a in await _actions(k, run.run_id)] == [ActionState.VERIFIED] * 2
     assert k.backend.create_calls == 2

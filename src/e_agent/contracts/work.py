@@ -9,7 +9,8 @@ class WorkClaim(Record):
     work_id: str
     tenant_id: str
     run_id: str
-    kind: Literal["start", "decide", "input", "expire"]
+    kind: Literal["start", "decide", "input", "expire", "resume"]
+    """``resume`` continues a multi-step plan after a crash, under the claim (ADR 0025)."""
     payload: dict[str, Any]
     owner: str
     fence: int

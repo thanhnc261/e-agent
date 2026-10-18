@@ -477,3 +477,16 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
         )
 
     return _make
+
+
+async def run_resume_work(
+    store: Any, coordinator: RunCoordinator, owner: str = "resume-test"
+) -> Any:
+    """Claim the one queued ``resume`` item and run it under its claim, as the server
+    worker does (ADR 0025 amendment); afterwards no other work is queued for it."""
+    claim = await store.claim_work(owner)
+    assert claim is not None and claim.kind == "resume", claim
+    async with store.work_scope(claim):
+        run = await coordinator.resume_plan(claim.tenant_id, claim.run_id)
+        await store.finish_work(claim)
+    return run

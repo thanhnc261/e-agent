@@ -24,11 +24,13 @@ A 1-step plan is today's proposal.
   ``PLAN_LINEAGE_REJECTED``; a step's own failure ends with the code it has on a 1-step run,
   the earlier steps staying committed and verified; an UNKNOWN step stops the remainder and
   the run goes to reconciliation, never to a re-send (ENG-TRUST-5).
-- **Resume** (Task 2c.8): a step verified outside the approval call (recovery re-verifying
-  a committed step, reconciliation proving an UNKNOWN one) continues the plan the same way,
-  and recovery resumes a plan whose latest action is VERIFIED with a later step unstarted
-  (`_resume_plan`). Either way the next step passes every guard of the live path before it
-  reserves. Recovery runs in the existing recovery calls; no background task is added.
+- **Resume** (Task 2c.8, ADR 0025 amendment): recovery and reconciliation never send a
+  write. A step they verify, or a plan they find with its latest action VERIFIED and a later
+  step unstarted, enqueues one fenced ``resume`` work item (`_queue_resume`), de-duplicated
+  like ``expire``. The worker's claim re-checks the run and continues through
+  `_resume_plan` and `_after_step_verified`, so the next step passes every guard of the live
+  path before it reserves. Only the approval call (`_run_plan`) and a resume claim
+  (`resume_plan`) start a later step (``_plan_runs``); no background task is added.
 """
 
 from __future__ import annotations
@@ -39,7 +41,7 @@ from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.approval import ApprovalRecord
 from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.common import new_id
-from e_agent.contracts.digest import CanonicalizationError
+from e_agent.contracts.digest import CanonicalizationError, digest
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import ApprovedFact
 from e_agent.contracts.plan import ActionPlan, encode_arguments
@@ -315,11 +317,22 @@ class PlanFlowMixin(ProposalsMixin):
         return (RunEventType.PROPOSAL_CREATED, payload, action.action_id)
 
     # -- dispatch --------------------------------------------------------------------------
+    async def _run_plan(
+        self, cont: _Continuation, action: ActionRecord, approval: ApprovalRecord
+    ) -> RunRecord:
+        """Dispatch an approved plan, step after verified step, inside this call."""
+        self._plan_runs.add(cont.ctx.run_id)
+        try:
+            return await self._dispatch(cont, action, approval)
+        finally:
+            self._plan_runs.discard(cont.ctx.run_id)
+
     async def _after_step_verified(self, cont: _Continuation, action: ActionRecord) -> RunRecord:
-        """Step ``action.step_index`` is VERIFIED and steps remain: ``VERIFYING -> RUNNING``
-        and the next step, in the approval call, on recovery and after reconciliation alike.
-        A run that recovery re-verified before VERIFYING was recorded records it first; a run
-        already RUNNING (the pair recorded before a crash) starts the next step as it is.
+        """Step ``action.step_index`` is VERIFIED and steps remain. In the approval call or a
+        resume claim: ``VERIFYING -> RUNNING`` and the next step; a run re-verified before
+        VERIFYING was recorded records it first, and a run already RUNNING (the pair recorded
+        before a crash) starts the next step as it is. Anywhere else (recovery,
+        reconciliation) it never sends a write: it queues the resume (`_queue_resume`).
         Outside ``on`` the rest of the plan cannot run, so the run fails ``INTERRUPTED``."""
         run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
         plan = cont.plan
@@ -327,6 +340,8 @@ class PlanFlowMixin(ProposalsMixin):
             return await self._set_run_state(
                 run, RunState.FAILED, PLAN_INTERRUPTED, code=ReasonCode.INTERRUPTED
             )
+        if cont.ctx.run_id not in self._plan_runs:
+            return await self._queue_resume(run, action)
         plan.current = action.step_index  # the verified action, persisted with its state
         if run.state is not RunState.RUNNING:
             if run.state is not RunState.VERIFYING:
@@ -357,6 +372,10 @@ class PlanFlowMixin(ProposalsMixin):
             (a for a in actions if a.plan_id == state.plan_id),
             key=lambda a: a.step_index if a.step_index is not None else -1,
         )
+        # Unreachable through the kernel's own writes: an action is stored with its
+        # ``proposal.created`` in one batch, so a later step's action would be ``latest``, and
+        # a step starts only after the one before it is VERIFIED. It guards a ledger whose
+        # action table and event log disagree (test_recovery.py pins it).
         if [a.step_index for a in started] != list(range(latest.step_index + 1)) or any(
             a.state is not ActionState.VERIFIED for a in started
         ):
@@ -364,6 +383,21 @@ class PlanFlowMixin(ProposalsMixin):
         state.action_ids = [a.action_id for a in started]  # the store's, not the snapshot's
         cont.pending_action_id = None
         return await self._after_step_verified(cont, latest)
+
+    async def _queue_resume(self, run: RunRecord, action: ActionRecord) -> RunRecord:
+        """Enqueue the one fenced ``resume`` work item for a plan whose step ``action`` is
+        VERIFIED, keyed by that action as ``expire`` is keyed by its approval, so a repeated
+        recovery queues nothing new (ADR 0025 amendment). The run is left VERIFYING (or
+        RUNNING) with its continuation stored, which is what the claim re-checks."""
+        if run.state not in {RunState.RUNNING, RunState.VERIFYING}:
+            run = await self._set_run_state(run, RunState.VERIFYING)  # re-verified before it
+        else:
+            await self._persist(run.run_id)
+        payload = {"action_id": action.action_id}
+        await self._store.enqueue_work(
+            run.tenant_id, run.run_id, "resume", payload, digest(payload)
+        )
+        return run
 
     async def _start_step(self, cont: _Continuation, index: int) -> RunRecord:
         """Resolve step ``index``'s lineage from the verified outcomes, record it, create its

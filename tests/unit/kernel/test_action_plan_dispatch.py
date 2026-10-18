@@ -45,6 +45,7 @@ from .conftest import (
     TENANT,
     Kernel,
     NotesPlanDriver,
+    run_resume_work,
     two_step_plan,
 )
 
@@ -575,9 +576,10 @@ async def test_a_one_step_plan_runs_as_a_single_proposal(make_kernel: MakeKernel
 async def test_plan_resumes_after_recovery_reverifies_its_committed_step(
     make_kernel: MakeKernel,
 ) -> None:
-    """Recovery never re-sends a write: a plan whose first step committed and is re-verified
-    by recovery goes on with the next step, revalidated before it reserves (Task 2c.8; 2c.7
-    stopped it INTERRUPTED). The committed step is sent once (ENG-TRUST-5)."""
+    """Recovery never sends a write: a plan whose first step committed and is re-verified
+    by recovery queues its resume; the resume claim goes on with the next step, revalidated
+    before it reserves (Task 2c.8; 2c.7 stopped it INTERRUPTED). The committed step is sent
+    once (ENG-TRUST-5)."""
     k = _plan_kernel(make_kernel)
     run = await _start(k)
     apply = k.coordinator._apply_receipt
@@ -606,6 +608,8 @@ async def test_plan_resumes_after_recovery_reverifies_its_committed_step(
         await _decide(k, run.run_id)
     k.coordinator._apply_receipt = apply  # type: ignore[method-assign]
     run = await k.coordinator.recover_run(TENANT, run.run_id)
+    assert run.state is RunState.VERIFYING and k.backend.create_calls == 1  # queued only
+    run = await run_resume_work(k.store, k.coordinator)
     assert (run.state, run.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
     assert [a.state for a in await _actions(k, run.run_id)] == [ActionState.VERIFIED] * 2
     assert k.backend.create_calls == 2

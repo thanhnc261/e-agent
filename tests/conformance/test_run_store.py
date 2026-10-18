@@ -307,6 +307,23 @@ async def test_expire_work_kind_is_accepted_by_the_queue(store: Any) -> None:
     assert await store.claim_work("w2") is None
 
 
+async def test_resume_work_kind_is_accepted_by_the_queue(store: Any) -> None:
+    """A plan resumes after a crash only as fenced ``resume`` work (ADR 0025 amendment,
+    migration 0006); a repeated enqueue of one verified step is one item."""
+    await store.create_run(_run(), [(RunEventType.RUN_CREATED, {}, None)])
+    payload = {"action_id": "act_1"}
+    await store.enqueue_work("t1", "run_1", "resume", payload, "digest-resume-1")
+    await store.enqueue_work("t1", "run_1", "resume", payload, "digest-resume-1")  # idempotent
+    assert await store.has_pending_work("t1", "run_1")
+    claim = await store.claim_work("w1")
+    assert claim is not None and claim.kind == "resume" and claim.payload == payload
+    assert await store.claim_work("w2") is None
+    async with store.work_scope(claim):
+        await store.finish_work(claim)
+    assert not await store.has_pending_work("t1", "run_1")
+    assert await store.claim_work("w2") is None  # one item, not two
+
+
 async def test_list_events_pages_in_sequence_order(store: Any) -> None:
     await store.create_run(_run(), [(RunEventType.RUN_CREATED, {}, None)])
     await store.update_run(

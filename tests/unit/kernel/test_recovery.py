@@ -22,6 +22,7 @@ from .conftest import (
     Kernel,
     NotesDriver,
     NotesPlanDriver,
+    run_resume_work,
 )
 
 pytestmark = pytest.mark.asyncio
@@ -418,12 +419,15 @@ async def test_recovery_resumes_plan_without_replaying_committed_steps(
 ) -> None:
     """The process dies between the steps (after step 1's commit, its read-back, the
     ``VERIFYING -> RUNNING`` pair, or inside step 2's start). A restart's recovery verifies
-    step 1 when its outcome was not stored, then resumes the plan at step 2 after step 2's
-    revalidation; step 1 is never sent again (ENG-TRUST-5, target §6.4.6)."""
+    step 1 when its outcome was not stored and queues the resume; the resume claim runs
+    step 2 after its revalidation. Step 1 is never sent again (ENG-TRUST-5, §6.4.6)."""
     k = _plan_kernel(make_kernel)
     run_id = await _crash_between_steps(k, point)
     assert k.backend.create_calls == 1
-    [recovered] = await _restart_plan(k).recover()
+    coordinator = _restart_plan(k)
+    [queued] = await coordinator.recover()
+    assert queued.state in {RunState.VERIFYING, RunState.RUNNING}
+    recovered = await run_resume_work(k.store, coordinator)
     assert (recovered.state, recovered.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
     first, second = _plan_actions(await k.store.list_actions(TENANT, run_id))
     assert (first.state, second.state) == (ActionState.VERIFIED, ActionState.VERIFIED)
@@ -516,7 +520,9 @@ async def test_resumed_step_passes_every_guard_before_reserving(
             )
 
         k.validator.validate = block_resolved  # type: ignore[method-assign]
-    [recovered] = await _restart_plan(k, policy=policy).recover()
+    coordinator = _restart_plan(k, policy=policy)
+    await coordinator.recover()
+    recovered = await run_resume_work(k.store, coordinator)  # the guards run under the claim
     expected = ReasonCode.PLAN_LINEAGE_REJECTED if guard == "no-read-back" else ReasonCode.STALE
     assert (recovered.state, recovered.reason_code) == (RunState.FAILED, expected)
     actions = _plan_actions(await k.store.list_actions(TENANT, run_id))
@@ -543,3 +549,133 @@ async def test_plan_never_resumes_outside_on(make_kernel: MakeKernel, point: str
     assert (recovered.state, recovered.reason_code) == (RunState.FAILED, ReasonCode.INTERRUPTED)
     assert [a.state for a in await k.store.list_actions(TENANT, run_id)] == [ActionState.VERIFIED]
     assert k.backend.create_calls == 1
+
+
+# -- the resume is fenced work, never a write inside recovery (ADR 0025 amendment, R-1) ----
+@pytest.mark.parametrize("point", PLAN_CRASH_POINTS)
+async def test_recovery_only_enqueues_one_resume(make_kernel: MakeKernel, point: str) -> None:
+    """Startup recovery of a resumable plan makes no provider call and no reservation: it
+    enqueues one ``resume`` item, keyed by the verified step. A second process recovering
+    the same ledger skips the run (`has_pending_work`), so the item is queued once."""
+    k = _plan_kernel(make_kernel)
+    run_id = await _crash_between_steps(k, point)
+    reserved_before = [
+        e
+        for e in await k.store.list_events(TENANT, run_id)
+        if e.type is RunEventType.ACTION_RESERVED
+    ]
+    [queued] = await _restart_plan(k).recover()
+    assert queued.state in {RunState.VERIFYING, RunState.RUNNING}
+    assert k.backend.create_calls == 1
+    events = await k.store.list_events(TENANT, run_id)
+    assert [e for e in events if e.type is RunEventType.ACTION_RESERVED] == reserved_before
+    assert len(await k.store.list_actions(TENANT, run_id)) == 1
+    assert await _restart_plan(k).recover() == []  # the other process: pending work, skipped
+    claim = await k.store.claim_work("probe")
+    assert claim is not None and claim.kind == "resume" and claim.run_id == run_id
+    (first,) = await k.store.list_actions(TENANT, run_id)
+    assert claim.payload == {"action_id": first.action_id}
+    async with k.store.work_scope(claim):
+        await k.store.finish_work(claim)
+    assert await k.store.claim_work("probe") is None  # exactly one item was queued
+    assert k.backend.create_calls == 1
+
+
+async def test_resume_claim_on_a_finished_or_planless_run_does_nothing(
+    make_kernel: MakeKernel,
+) -> None:
+    """A resume claim re-checks the run under the claim: a finished plan run, or a run in
+    VERIFYING without plan state, is left as it is and nothing is sent."""
+    k = _plan_kernel(make_kernel)
+    run = await k.coordinator.start_run(
+        k.requester, "write standup note", k.scope, task_kind=NOTES_TASK.task_id
+    )
+    done = await _approve(k.coordinator, k, run.run_id)
+    assert done.state is RunState.SUCCEEDED
+    payload = {"action_id": "act_any"}
+    await k.store.enqueue_work(TENANT, done.run_id, "resume", payload, "resume-finished")
+    again = await run_resume_work(k.store, _restart_plan(k))
+    assert (again.state, again.revision) == (done.state, done.revision)
+
+    single = make_kernel(features=ON)  # a 1-step run left VERIFYING: no plan state
+    single.verifier.verify = _unavailable  # type: ignore[method-assign]
+    one = await single.coordinator.start_run(single.requester, "x", single.scope)
+    one = await _approve(single.coordinator, single, one.run_id)
+    assert one.state is RunState.VERIFYING
+    await single.store.enqueue_work(TENANT, one.run_id, "resume", payload, "resume-planless")
+    left = await run_resume_work(single.store, _restart_plan(single))
+    assert (left.state, left.revision) == (one.state, one.revision)
+    assert (k.backend.create_calls, single.backend.create_calls) == (2, 1)
+
+
+async def _unavailable(*_a: Any) -> Any:
+    raise RuntimeError("verifier down")
+
+
+async def test_stray_later_step_action_never_lets_the_plan_resume(make_kernel: MakeKernel) -> None:
+    """The contiguity guard of `_resume_plan` (2c.8 review R-2): the kernel never writes a
+    later step's action without its ``proposal.created``, so only a ledger whose action
+    table and event log disagree reaches it. Such a plan is not resumed: no resume is
+    queued, nothing is sent, and the run fails INTERRUPTED."""
+    from e_agent.contracts.common import new_id
+
+    k = _plan_kernel(make_kernel)
+    run_id = await _crash_between_steps(k, "record_outcome")
+    (first,) = await k.store.list_actions(TENANT, run_id)
+    stray = first.model_copy(
+        update={
+            "action_id": new_id("act"),
+            "step_index": 1,
+            "state": ActionState.BLOCKED,
+            "revision": 1,
+            "logical_operation_id": new_id("op"),
+        }
+    )
+    await k.store.put_action(stray, None, [])  # no proposal.created: `latest` stays step 1
+    [recovered] = await _restart_plan(k).recover()
+    assert (recovered.state, recovered.reason_code) == (RunState.FAILED, ReasonCode.INTERRUPTED)
+    assert await k.store.claim_work("probe") is None
+    assert k.backend.create_calls == 1
+
+
+@pytest.mark.parametrize("boundary", ["put_action", "reserve_operation"])
+async def test_crash_after_a_later_step_exists_ends_interrupted_before_it_reserved(
+    make_kernel: MakeKernel, boundary: str
+) -> None:
+    """The process dies inside step 2's start, after its action was stored (PROPOSED) or
+    revalidated (VALIDATED) and before it reserved (2c.8 review R-3). Recovery fails the run
+    closed, INTERRUPTED with a plan-specific reason, and sends nothing; the evidence lists
+    step 2 as unstarted, since no reservation or provider call was made for it."""
+    from e_agent.kernel.evidence import build_evidence
+
+    k = _plan_kernel(make_kernel)
+    run = await k.coordinator.start_run(
+        k.requester, "write standup note", k.scope, task_kind=NOTES_TASK.task_id
+    )
+    original = getattr(k.store, boundary)
+
+    async def die_at_step_two(action: Any, expected: Any, events: Any) -> Any:
+        if action.step_index != 1:
+            return await original(action, expected, events)
+        if boundary == "put_action":
+            await original(action, expected, events)  # stored PROPOSED, then the process dies
+        raise Crash
+
+    setattr(k.store, boundary, die_at_step_two)
+    with pytest.raises(Crash):
+        await _approve(k.coordinator, k, run.run_id)
+    setattr(k.store, boundary, original)
+    [recovered] = await _restart_plan(k).recover()
+    assert (recovered.state, recovered.reason_code) == (RunState.FAILED, ReasonCode.INTERRUPTED)
+    assert recovered.reason == "interrupted before plan step 2 reserved"
+    first, second = _plan_actions(await k.store.list_actions(TENANT, run.run_id))
+    assert first.state is ActionState.VERIFIED
+    assert second.state is (
+        ActionState.PROPOSED if boundary == "put_action" else ActionState.VALIDATED
+    )
+    assert k.backend.create_calls == 1
+    assert await k.store.claim_work("probe") is None
+    bundle = await build_evidence(
+        k.store, TENANT, run.run_id, environment="fixture", versions={}, features=ON
+    )
+    assert [s["status"] for s in bundle["plan"]["steps"]] == ["verified", "unstarted"]

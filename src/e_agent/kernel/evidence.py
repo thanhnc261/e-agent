@@ -28,7 +28,9 @@ EVIDENCE_SCHEMA = "e-agent-evidence-v1"
 EVIDENCE_PAGE = 1000  # events read per store call while exporting (ADR 0018)
 
 
-# A kernel guard refused before any effect. VERIFICATION_FAILED is deliberately absent: it
+# A kernel guard refused the action before it had any effect. For a multi-step plan the
+# refusal is the refused step's: earlier steps may have committed and been verified, and the
+# `plan` section lists them (ADR 0025). VERIFICATION_FAILED is deliberately absent: it
 # follows a COMMITTED receipt (a write happened and the read-back disagreed), so it is `failed`.
 BLOCKED_BY_DESIGN = frozenset(
     {

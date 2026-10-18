@@ -40,6 +40,7 @@ from .conftest import (
     Kernel,
     NotesDriver,
     NotesPlanDriver,
+    run_resume_work,
     two_step_plan,
 )
 
@@ -252,10 +253,11 @@ async def test_unknown_step_blocks_remaining_steps(make_kernel: MakeKernel) -> N
 async def test_reconciled_step_continues_plan_after_revalidation(
     make_kernel: MakeKernel, expired: bool
 ) -> None:
-    """Reconciliation proves step 2's effect and its read-back verifies it: the plan goes on
-    with step 3 only after step 3's revalidation (``NEEDS_RECONCILIATION -> VERIFYING ->
-    RUNNING``, target §6.4.6). An approval that expired meanwhile stops it before step 3
-    reserves; step 2 is never re-sent."""
+    """Reconciliation proves step 2's effect and its read-back verifies it, sending nothing:
+    it queues the plan's resume, and the resume claim goes on with step 3 only after step 3's
+    revalidation (``NEEDS_RECONCILIATION -> VERIFYING -> RUNNING``, target §6.4.6, ADR 0025
+    amendment). An approval that expired meanwhile stops it before step 3 reserves; step 2
+    is never re-sent."""
     k = _plan_kernel(make_kernel, steps=3)
     _fail_at(k, 1, "timeout")
     run = await _start(k)
@@ -264,6 +266,8 @@ async def test_reconciled_step_continues_plan_after_revalidation(
     if expired:
         k.clock.advance(minutes=30)  # past the default 15-minute approval
     run = await k.coordinator.reconcile(k.approver, run.run_id)
+    assert run.state is RunState.VERIFYING and k.backend.create_calls == 2  # queued only
+    run = await run_resume_work(k.store, k.coordinator)
     actions = await _actions(k, run.run_id)
     assert [a.step_index for a in actions] == [0, 1, 2]
     assert actions[1].state is ActionState.VERIFIED

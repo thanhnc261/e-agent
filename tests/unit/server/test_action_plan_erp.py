@@ -8,6 +8,7 @@ fixture profile may raise ``max_admitted_writes`` to 2.
 
 from typing import Any
 
+import pytest
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode, Features
@@ -89,3 +90,54 @@ async def test_erp_two_step_fixture_scenario() -> None:
     assert [(a.plan_id is not None, a.step_index) for a in actions] == [(True, 0), (True, 1)]
     verified = [e.payload["step_id"] for e in events if e.type is RunEventType.IR_STEP_VERIFIED]
     assert verified == [FIRST_PO, SECOND_PO]
+
+
+async def test_worker_resume_claim_completes_a_crashed_plan() -> None:
+    """The worker dies between the two POs. Startup recovery only enqueues a ``resume``
+    item; the server worker claims it, re-checks the run under the fence and creates the
+    second PO (ADR 0025 amendment). A later resume claim on the finished run does nothing."""
+    from e_agent.server.api import ApiState
+
+    rt = await build_runtime(_profile(), driver_factory=_plan_driver)
+    state = ApiState(rt)
+    tenant = rt.operator.tenant_id
+    preset = rt.registry.task_presets[DRAFT_PO]
+    prompt = demo_prompt(preset, rt.profile.driver)
+    run = await rt.coordinator.start_run(rt.operator, prompt, rt.scope, task_kind=DRAFT_PO)
+    pres = await rt.coordinator.pending_approval(tenant, run.run_id)
+
+    async def worker_lost(*_a: Any) -> Any:
+        raise RuntimeError("worker lost between the POs")
+
+    rt.coordinator._after_step_verified = worker_lost  # type: ignore[method-assign]
+    with pytest.raises(RuntimeError):
+        await rt.coordinator.decide(
+            actor=rt.operator,
+            run_id=run.run_id,
+            action_id=pres.action_id,
+            action_digest=pres.digest,
+            expected_run_revision=pres.run_revision,
+            decision=ApprovalDecision.APPROVED,
+        )
+    del rt.coordinator._after_step_verified
+    assert rt.diagnostics()["fixture-erp"]["create_calls"] == 1
+
+    [queued] = await rt.coordinator.recover()
+    assert queued.state is RunState.VERIFYING
+    assert rt.diagnostics()["fixture-erp"]["create_calls"] == 1  # recovery sent nothing
+    claim = await rt.store.claim_work("worker-test")
+    assert claim is not None and claim.kind == "resume"
+    await state._run_work(claim)
+    done = await rt.store.get_run(tenant, run.run_id)
+    assert (done.state, done.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
+    assert rt.diagnostics()["fixture-erp"]["create_calls"] == 2
+    assert await rt.store.claim_work("worker-test") is None
+
+    payload = {"action_id": "act_any"}
+    await rt.store.enqueue_work(tenant, run.run_id, "resume", payload, "late-resume")
+    late = await rt.store.claim_work("worker-test")
+    assert late is not None and late.kind == "resume"
+    await state._run_work(late)
+    after = await rt.store.get_run(tenant, run.run_id)
+    assert after.revision == done.revision
+    assert rt.diagnostics()["fixture-erp"]["create_calls"] == 2

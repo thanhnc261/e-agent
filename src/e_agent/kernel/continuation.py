@@ -146,6 +146,9 @@ class ContinuationMixin:
     _budgets: Budgets
     _runs: dict[str, _Continuation]
     _active_calls: dict[str, asyncio.Task[Any]]
+    _plan_runs: set[str]
+    """Runs whose plan the approval call or a resume claim is dispatching now: only these
+    start a later plan step; recovery and reconciliation queue a resume instead."""
 
     if TYPE_CHECKING:
 
@@ -162,6 +165,11 @@ class ContinuationMixin:
         async def _handle_plan(
             self, run: RunRecord, cont: _Continuation, plan: ActionPlan
         ) -> RunRecord | DriverInput:
+            raise NotImplementedError
+
+        async def _run_plan(
+            self, cont: _Continuation, action: ActionRecord, approval: ApprovalRecord
+        ) -> RunRecord:
             raise NotImplementedError
 
         async def _after_step_verified(
