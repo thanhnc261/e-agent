@@ -489,3 +489,8 @@
 - changed: harness/state/2/features.json, harness/state/2/handoffs/2b.1.json, harness/state/2/reviews/2b.1-r2.json, harness/state/2/reviews/2b.1.json, harness/state/evidence/gates/2b.1/2026-10-18T01-07-24.417468+00-00-full.json, harness/state/evidence/gates/2b.1/2026-10-18T01-08-46.216555+00-00-pg.json, harness/state/evidence/gates/2b.1/2026-10-18T01-16-11.363888+00-00-full.json, harness/state/evidence/gates/2b.1/2026-10-18T01-17-24.889978+00-00-pg.json
 - next: 2b.2: feature.fallback and IR event types
 - open: none
+
+## 2026-10-18T01:48:52.238893+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2b.2
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2b.2.json, harness/state/2/reviews/2b.2-r2.json, harness/state/2/reviews/2b.2-r3.json, harness/state/2/reviews/2b.2.json, harness/state/evidence/gates/2b.2/2026-10-18T01-28-31.253094+00-00-full.json, harness/state/evidence/gates/2b.2/2026-10-18T01-29-40.722067+00-00-pg.json, harness/state/evidence/gates/2b.2/2026-10-18T01-37-59.895662+00-00-full.json, harness/state/evidence/gates/2b.2/2026-10-18T01-39-10.125468+00-00-pg.json
+- next: 2b.3: toggles in readiness and evidence
+- open: none

@@ -48,7 +48,8 @@
         "ui-core feature-events test passes",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2b.2/2026-10-18T01-37-59.895662+00-00-full.json"
     },
     {
       "id": "F-2b-3",

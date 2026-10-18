@@ -1,0 +1,17 @@
+{
+  "task": "2b.2",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "record_fallback persists unrestricted detail verbatim, and evidence export includes it unchanged. An in-memory reproduction confirmed that a synthetic secret survives into the exported event. Passing compiler or validation exception text can therefore persist credentials, provider bodies or hidden reasoning. Use allowlisted detail codes with fixed safe messages, or strictly validated structured fields; a length bound alone cannot prevent disclosure. Add rejection/no-leak tests covering events and evidence on both stores.",
+      "evidence": "src/e_agent/kernel/features.py:32; src/e_agent/kernel/features.py:51; src/e_agent/kernel/evidence.py:123; ENG-EVID-3, ENG-BOUND-3, PR-25, PR-28"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}
