@@ -5,9 +5,9 @@ import { ev, snapshot } from "./fixtures.ts";
 
 // Feature-toggle and execution-plan events (ADR 0025, ADR 0027): known, labelled, no refresh.
 const FEATURE_EVENTS = [
-  ["feature.fallback", { feature: "execution_ir", reason_code: "ir_compile_failed", detail: "x" }],
+  ["feature.fallback", { feature: "execution_ir", reason_code: "ir_compile_failed", message: "The proposal could not be compiled into a plan." }],
   ["ir.plan_compiled", { plan_digest: "jcs-sha256-v1:abc", step_count: 1 }],
-  ["ir.shadow_failed", { reason_code: "ir_task_unresolved", detail: "x" }],
+  ["ir.shadow_failed", { reason_code: "ir_task_unresolved" }],
   ["ir.lineage_resolved", { step_index: 1 }],
   ["ir.step_verified", { step_index: 1 }],
 ] as const;
@@ -37,8 +37,8 @@ describe("feature and execution-plan events", () => {
     const v = reduceRunView(base, {
       type: "events",
       events: [
-        ev(1, "feature.fallback", { feature: "execution_ir", reason_code: "ir_validation_failed", detail: "<b>x</b>" }),
-        ev(2, "ir.shadow_failed", { reason_code: "ir_task_unresolved", detail: "x" }),
+        ev(1, "feature.fallback", { feature: "execution_ir", reason_code: "ir_validation_failed", message: "<b>x</b>" }),
+        ev(2, "ir.shadow_failed", { reason_code: "ir_task_unresolved" }),
         ev(3, "ir.plan_compiled", { plan_digest: "d" }),
       ],
     });
