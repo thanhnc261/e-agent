@@ -153,7 +153,9 @@ class RunStore(Protocol):
         self, tenant_id: str, run_id: str, plan: ActionPlan, events: EventBatch
     ) -> None:
         """Store a plan for an existing run (``NotFound`` otherwise). A plan is never
-        overwritten: a second put of its ``plan_id`` in the tenant is a ``ConcurrencyConflict``."""
+        overwritten: a second put of its ``plan_id`` in the tenant is a ``ConcurrencyConflict``.
+        Arguments outside the digest profile (ADR 0006) raise ``ValueError`` before anything
+        is written (`plan_to_wire`), so a literal can never return as a placeholder."""
         ...
 
     async def get_plan(self, tenant_id: str, plan_id: str) -> ActionPlan:

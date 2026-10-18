@@ -27,7 +27,8 @@
     "ui/packages/client/src/schema.ts",
     "docs/plans/2026-10-14-phase2-execution-ir.md",
     "harness/state/**",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "src/e_agent/sdk/store.py"
   ],
   "acceptance": [
     "test_plan_to_wire_refuses_a_bytes_lineage_key and the put_plan profile conformance case pass on both stores",
@@ -37,5 +38,12 @@
   "gate_set": "full",
   "base_commit": "0088a61dc6200d5f404c19a13e79b37080fe6d79",
   "created_at": "2026-10-18T06:18:06+00:00",
-  "features_digest": "bc0e56159f49bf8abd22285a3caaee60da5bedd3c95416deefd179a28ba54766"
+  "features_digest": "bc0e56159f49bf8abd22285a3caaee60da5bedd3c95416deefd179a28ba54766",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/sdk/store.py",
+      "reason": "put_plan docstring names the digest-profile refusal (2c.5a C-1)",
+      "at": "2026-10-18T06:33:55+00:00"
+    }
+  ]
 }
