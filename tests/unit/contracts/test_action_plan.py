@@ -111,6 +111,53 @@ def test_lineage_ref_path_rejects_trailing_newline() -> None:
             LineageRef(step_id="s1", path=invalid)
 
 
+def test_constructed_lineage_ref_with_bad_path_rejected() -> None:
+    for bad in ("\n", "/bad~2", "relative"):
+        ref = LineageRef.model_construct(step_id="s1", path=bad)
+        with pytest.raises(ValidationError, match="JSON pointer"):
+            LineageRef.model_validate(ref)
+    not_text = LineageRef.model_construct(step_id="s1", path=7)
+    with pytest.raises(ValidationError, match="JSON pointer"):
+        LineageRef.model_validate(not_text)
+    good = LineageRef.model_construct(step_id="s1", path="/a~0b/~1c")
+    assert LineageRef.model_validate(good) is good
+
+
+def _nested(ref: LineageRef) -> tuple[dict[str, list[LineageRef]], ...]:
+    return ({"lines": [ref]},)
+
+
+def test_plan_with_constructed_bad_lineage_ref_rejected() -> None:
+    for bad in ("\n", "/bad~2"):
+        plan = _plan(
+            _step("s1"), _step("s2", "s1", deep=_nested(LineageRef(step_id="s1", path="/id")))
+        )
+        plan.steps[1].proposal.arguments["deep"] = _nested(
+            LineageRef.model_construct(step_id="s1", path=bad)
+        )
+        with pytest.raises(ValidationError, match="JSON pointer"):
+            ActionPlan.model_validate(plan)
+        # A fresh step refuses it too: the walker checks every ref it meets.
+        with pytest.raises(ValidationError, match="JSON pointer"):
+            _step("s2", "s1", deep=_nested(LineageRef.model_construct(step_id="s1", path=bad)))
+
+
+def test_model_construct_plan_with_bad_lineage_ref_rejected() -> None:
+    for bad in ("\n", "/bad~2"):
+        ref = LineageRef.model_construct(step_id="s1", path=bad)
+        steps = (
+            PlannedStep.model_construct(step_id="s1", proposal=_proposal(), depends_on=()),
+            PlannedStep.model_construct(
+                step_id="s2", proposal=_proposal(deep=_nested(ref)), depends_on=("s1",)
+            ),
+        )
+        plan = ActionPlan.model_construct(
+            plan_id="plan_1", task_id="purchase_order", task_version="1", steps=steps
+        )
+        with pytest.raises(ValidationError, match="JSON pointer"):
+            ActionPlan.model_validate(plan)
+
+
 def test_revalidating_mutated_plan_rejects_lineage_literal() -> None:
     plan = _plan(_step("s1"), _step("s2", "s1", lines=[{"ok": 1}]))
     plan.steps[1].proposal.arguments["lines"][0]["vendor"] = {

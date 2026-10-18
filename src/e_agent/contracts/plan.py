@@ -13,7 +13,7 @@ from collections.abc import Iterator, Mapping
 from graphlib import CycleError, TopologicalSorter
 from typing import Any, Self
 
-from pydantic import field_validator, model_validator
+from pydantic import model_validator
 
 from .common import Record
 
@@ -46,17 +46,26 @@ class LineageRef(Record):
     path: str
     """RFC 6901 JSON pointer into that step's verified outcome."""
 
-    @field_validator("path")
-    @classmethod
-    def _check_pointer(cls, value: str) -> str:
-        if _JSON_POINTER.fullmatch(value) is None:
-            raise ValueError(f"path must be an RFC 6901 JSON pointer: {value!r}")
-        return value
+    @model_validator(mode="after")
+    def _check_path(self) -> Self:
+        # An after model validator also runs when an existing (e.g. `model_construct`-built)
+        # instance is validated; a field validator would not.
+        _check_pointer(self.path)
+        return self
+
+
+def _check_pointer(path: object) -> None:
+    """The one RFC 6901 check, applied to every `LineageRef` however it was built."""
+    if not isinstance(path, str) or _JSON_POINTER.fullmatch(path) is None:
+        raise ValueError(f"path must be an RFC 6901 JSON pointer: {path!r}")
 
 
 def lineage_refs(value: Any) -> Iterator[LineageRef]:
-    """Yield every placeholder in ``value``; refuse a literal ``$lineage`` key anywhere."""
+    """Yield every placeholder in ``value``, checking its pointer; refuse a literal
+    ``$lineage`` key anywhere. Arguments are typed `Any`, so pydantic never validates a
+    nested `LineageRef`: this walk is where its pointer is checked."""
     if isinstance(value, LineageRef):
+        _check_pointer(value.path)
         yield value
     elif isinstance(value, Mapping):
         if LINEAGE_KEY in value:
