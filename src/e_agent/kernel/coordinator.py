@@ -98,6 +98,7 @@ class RunCoordinator(
         *,
         run_id: str | None = None,
         host_context: HostContext | None = None,
+        task_kind: str | None = None,
     ) -> tuple[RunRecord, _Continuation, list[EventSpec]]:
         run_id = run_id or new_id("run")
         ctx = TaskContext(
@@ -129,7 +130,8 @@ class RunCoordinator(
                 "dropped_hints": dropped,
             }
         cont = _Continuation(ctx=ctx, surface_digest=self._registry.surface_digest())
-        return run, cont, [(RunEventType.RUN_CREATED, created, None)]
+        run, shadow = self._admit_task(run, task_kind)  # execution IR shadow (ADR 0027)
+        return run, cont, [(RunEventType.RUN_CREATED, created, None), *shadow]
 
     async def start_run(
         self,
@@ -144,9 +146,13 @@ class RunCoordinator(
         """``task_kind`` names the run's task definition (D8, ADR 0028); in Phase 2 only the
         CLI passes it. ``off`` ignores it, and the run record is today's."""
         run, cont, events = self._prepare_run(
-            principal, task, resource_scope, run_id=run_id, host_context=host_context
+            principal,
+            task,
+            resource_scope,
+            run_id=run_id,
+            host_context=host_context,
+            task_kind=task_kind,
         )
-        run = self._with_task(run, task_kind)
         await self._store.create_run(run, events)
         self._runs[run.run_id] = cont
         run = await self._set_run_state(run, RunState.RUNNING)

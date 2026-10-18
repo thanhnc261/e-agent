@@ -61,6 +61,12 @@ SHADOW_MESSAGES = MappingProxyType(
 ON_UNAVAILABLE = "execution_ir: on is not available yet; use off or shadow"
 
 
+def _task_unresolved(action_id: str | None) -> EventSpec:
+    reason = ReasonCode.IR_TASK_UNRESOLVED
+    payload = {"reason_code": reason, "message": FALLBACK_MESSAGES[reason]}
+    return (RunEventType.IR_SHADOW_FAILED, payload, action_id)
+
+
 def _shadow_failed(stage: str, action_id: str) -> EventSpec:
     return (
         RunEventType.IR_SHADOW_FAILED,
@@ -84,15 +90,20 @@ class FeaturesMixin(ContinuationMixin):
     def _ir_shadow(self) -> bool:
         return self._features.execution_ir is FeatureMode.SHADOW
 
-    def _with_task(self, run: RunRecord, task_kind: str | None) -> RunRecord:
-        """In shadow, the run records the definition its task kind names (D8, ADR 0028).
-        In ``off``, or for a kind that is no admitted definition, the run is unchanged."""
-        if not self._ir_shadow or task_kind is None:
-            return run
-        task = self._registry.task_definitions.get(task_kind)
+    def _admit_task(
+        self, run: RunRecord, task_kind: str | None
+    ) -> tuple[RunRecord, list[EventSpec]]:
+        """At run creation, in shadow: link the run to the definition its task kind names
+        (D8, ADR 0028), or return the run's one ``ir.shadow_failed`` (`IR_TASK_UNRESOLVED`)
+        for the creating write's batch, when there is no kind (an API or UI run) or the kind
+        names no admitted definition. In ``off`` the run and its batch are today's."""
+        if not self._ir_shadow:
+            return run, []
+        task = self._registry.task_definitions.get(task_kind) if task_kind else None
         if task is None:
-            return run
-        return run.model_copy(update={"task_id": task.task_id, "task_version": task.version})
+            return run, [_task_unresolved(None)]
+        linked = run.model_copy(update={"task_id": task.task_id, "task_version": task.version})
+        return linked, []
 
     def _run_task(self, run: RunRecord) -> TaskDefinition | None:
         task = self._registry.task_definitions.get(run.task_id) if run.task_id else None
@@ -110,16 +121,16 @@ class FeaturesMixin(ContinuationMixin):
         passed it (target §6.4.8). On success the plan, ``ir.plan_compiled`` and the validate
         step's rows are written in one `put_plan` and nothing is returned. On failure nothing
         is written: the returned ``ir.shadow_failed`` goes into the caller's next write, so the
-        run revision is today's.
+        run revision is today's. A run that resolved no definition at creation recorded that
+        there, once, and its proposals skip this step.
 
         Only the pure IR calls are guarded; a store error propagates. Exception text and
         findings never reach a payload."""
+        if run.task_id is None:
+            return []  # unresolved at creation, recorded there once (`_admit_task`)
         task = self._run_task(run)
-        if task is None:
-            reason = ReasonCode.IR_TASK_UNRESOLVED
-            message = FALLBACK_MESSAGES[reason]
-            payload = {"reason_code": reason, "message": message}
-            return [(RunEventType.IR_SHADOW_FAILED, payload, action.action_id)]
+        if task is None:  # the linked definition is no longer admitted (a resumed run)
+            return [_task_unresolved(action.action_id)]
         try:
             plan = compile_proposal(proposal, task, plan_id=new_id("plan"))
         except Exception:  # a shadow error never reaches the live path

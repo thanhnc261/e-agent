@@ -23,6 +23,7 @@ from e_agent.contracts.step import StepKind, StepRecord, StepStatus
 from e_agent.contracts.validation import Finding, ValidationStatus
 from e_agent.kernel import continuation as continuation_module
 from e_agent.kernel import features as features_module
+from e_agent.kernel.approval import compute_digest
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.coordinator import RunCoordinator
 from e_agent.kernel.errors import ErrorCode, KernelError
@@ -32,7 +33,7 @@ from e_agent.kernel.policy import DefaultPolicy
 from e_agent.kernel.registry import PluginRegistry
 
 from .conftest import NOTES_TASK, TENANT, Kernel, NotesDriver
-from .record_off_baseline import deterministic_ids
+from .record_off_baseline import _normalise, deterministic_ids
 
 MakeKernel = Callable[..., Kernel]
 OFF = Features()
@@ -181,46 +182,97 @@ async def test_shadow_step_sequence_follows_the_runs_existing_steps(
 
 
 # -- failures ----------------------------------------------------------------------------
+def _id_free(pres: Any) -> str:
+    """The presentation with generated ids normalised and the digest dropped, after checking
+    the digest is that of its canonical proposal. The admission event takes an event id, so
+    later generated ids (evidence) shift under the deterministic source; the presentation is
+    otherwise the same."""
+    assert pres.digest == compute_digest(pres.canonical_proposal)
+    return _normalise(json.dumps(pres.model_dump(mode="json", exclude={"digest"})), {})
+
+
+async def _admitted(k: Kernel) -> tuple[Any, Any]:
+    """An API-style run: free text through `admit_run`, no task kind (D8)."""
+    run_id, _ = await k.coordinator.admit_run(
+        k.requester,
+        "write standup note",
+        k.scope,
+        run_id="run-api",
+        idempotency_key="api-key",
+        request_digest="d",
+    )
+    return run_id, await k.coordinator.start_admitted_run(TENANT, run_id)
+
+
+def _assert_unresolved_once(events: list[Any]) -> None:
+    """One `ir.shadow_failed` (`IR_TASK_UNRESOLVED`), at creation, and no other IR record."""
+    failed = [e for e in events if e.type in IR_EVENTS]
+    assert [(e.type, e.payload, e.action_id) for e in failed] == [
+        (
+            RunEventType.IR_SHADOW_FAILED,
+            {
+                "reason_code": "ir_task_unresolved",
+                "message": FALLBACK_MESSAGES[ReasonCode.IR_TASK_UNRESOLVED],
+            },
+            None,
+        )
+    ]
+    assert [e.type for e in events[:2]] == [RunEventType.RUN_CREATED, RunEventType.IR_SHADOW_FAILED]
+    assert events[0].sequence + 1 == events[1].sequence
+
+
 async def test_shadow_without_definition_records_shadow_failed(make_kernel: MakeKernel) -> None:
-    """An API-style run (free text, no task kind) records `IR_TASK_UNRESOLVED` and nothing else."""
+    """An API-style run that reaches approval records `IR_TASK_UNRESOLVED` once, in the
+    creating write, and nothing else; its proposal skips the shadow step."""
     seen = {}
     for name, mode in (("off", OFF), ("shadow", SHADOW)):
         k = make_kernel(features=mode)
         with deterministic_ids():
-            run_id, _ = await k.coordinator.admit_run(
-                k.requester,
-                "write standup note",
-                k.scope,
-                run_id="run-api",
-                idempotency_key="api",
-                request_digest="d",
-            )
-            run = await k.coordinator.start_admitted_run(TENANT, run_id)
-        events = await k.store.list_events(TENANT, run_id)
+            run_id, run = await _admitted(k)
+            presentation = await k.coordinator.pending_approval(TENANT, run_id)
+            stored = await k.store.get_run(TENANT, run_id)
+            done = await _approve(k, run_id)
+        (outcome,) = await _of(k, run_id, RunEventType.OUTCOME_REPORTED)
         seen[name] = {
             "run": run,
-            "presentation": await k.coordinator.pending_approval(TENANT, run_id),
-            "failed": [e for e in events if e.type is RunEventType.IR_SHADOW_FAILED],
-            "types": [e.type for e in events],
+            "presentation": presentation,
+            "events": await k.store.list_events(TENANT, run_id),
             "steps": await k.store.list_steps(TENANT, run_id),
-            "stored": await k.store.get_run(TENANT, run_id),
+            "stored": stored,
+            "end": (done.state, done.reason_code, done.revision, outcome.payload["status"]),
         }
         await _reset(k.store)
     off, shadow = seen["off"], seen["shadow"]
 
-    (failed,) = shadow["failed"]
-    assert failed.payload == {
-        "reason_code": "ir_task_unresolved",
-        "message": FALLBACK_MESSAGES[ReasonCode.IR_TASK_UNRESOLVED],
-    }
-    assert failed.action_id == shadow["presentation"].action_id
-    assert RunEventType.IR_PLAN_COMPILED not in shadow["types"]
+    _assert_unresolved_once(shadow["events"])
     assert shadow["steps"] == []
     assert (shadow["stored"].task_id, shadow["stored"].task_version) == (None, None)
     # Nothing else differs: the stream without the shadow event, the run and the approval.
-    assert _without_ir(shadow["types"]) == off["types"]
+    assert _without_ir([e.type for e in shadow["events"]]) == [e.type for e in off["events"]]
     assert shadow["run"] == off["run"]
-    assert shadow["presentation"] == off["presentation"]
+    assert _id_free(shadow["presentation"]) == _id_free(off["presentation"])
+    assert shadow["presentation"].run_revision == off["presentation"].run_revision
+    assert shadow["end"] == off["end"]
+    assert off["end"][0] is RunState.SUCCEEDED
+
+
+async def test_shadow_unresolved_blocked_run_records_task_unresolved(
+    make_kernel: MakeKernel,
+) -> None:
+    """An API-style run whose every proposal is blocked still records the unresolved task once."""
+    seen = {}
+    for name, mode in (("off", OFF), ("shadow", SHADOW)):
+        k = make_kernel(["", "", ""], features=mode)
+        with deterministic_ids():
+            run_id, run = await _admitted(k)
+        seen[name] = (run, await k.store.list_events(TENANT, run_id))
+        await _reset(k.store)
+    (off_run, off_events), (run, events) = seen["off"], seen["shadow"]
+
+    assert run.state is RunState.FAILED and run.reason_code is ReasonCode.VALIDATION_FAILED
+    _assert_unresolved_once(events)
+    assert run == off_run
+    assert _without_ir([e.type for e in events]) == [e.type for e in off_events]
 
 
 async def test_shadow_with_an_unknown_task_kind_is_unresolved(make_kernel: MakeKernel) -> None:
@@ -230,9 +282,31 @@ async def test_shadow_with_an_unknown_task_kind_is_unresolved(make_kernel: MakeK
     run = await _start(k, task_kind="no-such-task")
     stored = await k.store.get_run(TENANT, run.run_id)
     assert (stored.task_id, stored.task_version) == (None, None)
-    (failed,) = await _of(k, run.run_id, RunEventType.IR_SHADOW_FAILED)
+    _assert_unresolved_once(await k.store.list_events(TENANT, run.run_id))
+    assert await k.store.list_steps(TENANT, run.run_id) == []
+
+
+async def test_shadow_linked_definition_gone_at_proposal_is_unresolved(
+    make_kernel: MakeKernel,
+) -> None:
+    """A linked run whose definition is no longer admitted when it proposes (a resumed run
+    after a redeploy) records `IR_TASK_UNRESOLVED` for that proposal, in the approval write."""
+    k = make_kernel(features=SHADOW)
+    advance = k.driver.advance
+
+    async def drop_definition(ctx: Any, step_input: Any) -> Any:
+        if step_input.observations:
+            k.coordinator._registry.task_definitions.pop(NOTES_TASK.task_id, None)
+        return await advance(ctx, step_input)
+
+    k.driver.advance = drop_definition  # type: ignore[method-assign]
+    run = await _start(k)
+    pres = await k.coordinator.pending_approval(TENANT, run.run_id)
+    (failed,) = [e for e in await k.store.list_events(TENANT, run.run_id) if e.type in IR_EVENTS]
+    assert failed.type is RunEventType.IR_SHADOW_FAILED
     assert failed.payload["reason_code"] == "ir_task_unresolved"
-    assert not await _of(k, run.run_id, RunEventType.IR_PLAN_COMPILED)
+    assert failed.action_id == pres.action_id
+    assert await k.store.list_steps(TENANT, run.run_id) == []
 
 
 def _raise_sentinel(*_a: Any, **_kw: Any) -> Any:
@@ -388,6 +462,43 @@ async def test_shadow_outcome_equals_off(make_kernel: MakeKernel) -> None:
     assert seen["shadow"] == seen["off"]
     assert seen["off"]["state"] is RunState.SUCCEEDED
     assert seen["off"]["presentation"].digest == seen["off"]["action"][1]
+
+
+async def test_shadow_digest_mismatch_is_recorded_and_changes_nothing(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A perturbed shadow digest input is recorded as `digest_matches: false`; the run acts on
+    today's digest regardless, so its approval and outcome equal `off`."""
+    real = features_module.plan_digest_input
+
+    def perturbed(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        return {**real(*args, **kwargs), "perturbed": "yes"}
+
+    seen = {}
+    for name, mode in (("off", OFF), ("shadow", SHADOW)):
+        if mode is SHADOW:
+            monkeypatch.setattr(features_module, "plan_digest_input", perturbed)
+        k = make_kernel(features=mode)
+        with deterministic_ids():
+            run = await _start(k)
+            pres = await k.coordinator.pending_approval(TENANT, run.run_id)
+            compiled = await _of(k, run.run_id, RunEventType.IR_PLAN_COMPILED)
+            run = await _approve(k, run.run_id)
+        (outcome,) = await _of(k, run.run_id, RunEventType.OUTCOME_REPORTED)
+        seen[name] = {
+            "compare": (run.state, run.reason_code, pres, outcome.payload["status"]),
+            "compiled": [c.payload for c in compiled],
+            "stream": _without_ir(await _types(k, run.run_id)),
+        }
+        await _reset(k.store)
+    off, shadow = seen["off"], seen["shadow"]
+
+    (compiled,) = shadow["compiled"]
+    assert compiled["digest_matches"] is False
+    assert compiled["plan_digest"] != off["compare"][2].digest
+    assert shadow["compare"] == off["compare"]
+    assert shadow["stream"] == off["stream"]
+    assert off["compare"][0] is RunState.SUCCEEDED
 
 
 # -- off and on --------------------------------------------------------------------------

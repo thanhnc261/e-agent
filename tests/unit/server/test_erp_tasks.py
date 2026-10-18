@@ -144,3 +144,55 @@ def test_shadow_leaves_read_only_answers_alone(
     types = [e["type"] for e in result["events"]]
     assert not [t for t in types if t.startswith("ir.")]
     assert result["run"]["state"] == "SUCCEEDED"
+
+
+async def test_shadow_unresolved_answer_run_records_task_unresolved() -> None:
+    """An API-style run (free text through `admit_run`, no task kind, D8) that ends in a
+    structured answer records exactly one `ir.shadow_failed` (`IR_TASK_UNRESOLVED`), at
+    creation, and nothing else; its state, revision and outcome equal `off`."""
+    from e_agent.contracts.features import FeatureMode, Features
+    from e_agent.contracts.run import ReasonCode
+    from e_agent.kernel.features import FALLBACK_MESSAGES
+    from e_agent.server.bootstrap import build_runtime
+    from e_agent.server.profile import load_profile
+
+    base = load_profile(fixture_profile_path())
+    seen = {}
+    for mode in (FeatureMode.OFF, FeatureMode.SHADOW):
+        profile = base.model_copy(update={"features": Features(execution_ir=mode)})
+        rt = await build_runtime(profile, task_kind="late-orders")
+        tenant = rt.operator.tenant_id
+        run_id, _ = await rt.coordinator.admit_run(
+            rt.operator,
+            "Which sales orders are late?",
+            rt.scope,
+            run_id="run-api-answer",
+            idempotency_key="api-answer",
+            request_digest="d",
+        )
+        run = await rt.coordinator.start_admitted_run(tenant, run_id)
+        events = await rt.store.list_events(tenant, run_id)
+        seen[mode] = {
+            "end": (run.state, run.reason_code, run.revision),
+            "outcomes": [e.payload["status"] for e in events if e.type == "outcome.reported"],
+            "types": [str(e.type) for e in events if not str(e.type).startswith("ir.")],
+            "ir": [
+                (str(e.type), e.payload, e.action_id) for e in events if e.type.startswith("ir.")
+            ],
+            "steps": await rt.store.list_steps(tenant, run_id),
+        }
+    off, shadow = seen[FeatureMode.OFF], seen[FeatureMode.SHADOW]
+    assert shadow["ir"] == [
+        (
+            "ir.shadow_failed",
+            {
+                "reason_code": "ir_task_unresolved",
+                "message": FALLBACK_MESSAGES[ReasonCode.IR_TASK_UNRESOLVED],
+            },
+            None,
+        )
+    ]
+    assert off["ir"] == [] and shadow["steps"] == []
+    assert off["outcomes"] == ["VERIFIED"]
+    for key in ("end", "outcomes", "types"):
+        assert shadow[key] == off[key], key
