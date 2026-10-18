@@ -9,12 +9,14 @@ A run that executed an action plan (execution IR ``on``, ADR 0025) also carries 
 additive ``plan`` key, the plan its latest linked action belongs to with each step's
 status, and a run with step records carries ``steps``. Neither key appears without that
 data, so an ``off`` bundle is unchanged (ENG-TOGGLE-1). The read-back values a plan's
-lineage copies from stay out of the bundle (PR-26).
+lineage copies from stay out of the bundle (PR-26). An exporter that passes its admission
+report's defaulted effect declarations gets the additive ``defaulted_declarations`` key
+(ADR 0029 Operations).
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from e_agent.contracts.action import ActionRecord, ActionState
@@ -23,6 +25,8 @@ from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.features import Features
 from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode
 from e_agent.sdk.store import RunStore
+
+from .registry import DefaultedDeclaration
 
 EVIDENCE_SCHEMA = "e-agent-evidence-v1"
 EVIDENCE_PAGE = 1000  # events read per store call while exporting (ADR 0018)
@@ -63,6 +67,20 @@ STEP_STATUS = {
 """A plan step's status by its action's state (target §6.4.6). A step with no action, or
 whose action never reached dispatch (proposed, validated, blocked, awaiting approval,
 approved or reserved), is ``unstarted``: no provider call was made for it."""
+
+
+def defaulted_payload(declarations: Sequence[DefaultedDeclaration]) -> list[dict[str, Any]]:
+    """The effect declarations admission accepted on their defaults (ADR 0029 Operations),
+    as `/health/ready` and the evidence bundle list them: names only, never a setting."""
+    return [
+        {
+            "plugin_id": d.plugin_id,
+            "subject": d.subject,
+            "subject_id": d.subject_id,
+            "fields": list(d.fields),
+        }
+        for d in declarations
+    ]
 
 
 def classify(
@@ -149,7 +167,11 @@ async def build_evidence(
     environment: str,
     versions: Mapping[str, Any],
     features: Features,
+    defaulted_declarations: Sequence[DefaultedDeclaration] | None = None,
 ) -> dict[str, Any]:
+    """``defaulted_declarations`` is the exporting runtime's admission report: when given,
+    the bundle lists it, an empty list included (ADR 0029 Operations); when omitted, the
+    bundle has no such key, as before Task 2c.8a."""
     run = await store.get_run(tenant_id, run_id)
     events = await _all_events(store, tenant_id, run_id)
     actions = await store.list_actions(tenant_id, run_id)
@@ -186,6 +208,8 @@ async def build_evidence(
         "outcomes": [e.payload for e in events if e.type == "outcome.reported"],
         "events": [e.model_dump(mode="json") for e in events],
     }
+    if defaulted_declarations is not None:
+        bundle["defaulted_declarations"] = defaulted_payload(defaulted_declarations)
     plan = await _plan_section(store, tenant_id, events, actions)
     if plan is not None:
         bundle["plan"] = plan

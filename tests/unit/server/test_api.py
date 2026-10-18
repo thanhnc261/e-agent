@@ -728,3 +728,39 @@ async def test_discard_on_unknown_key_does_not_grow_the_buffers() -> None:
     bus = PublicTextBus()
     bus.discard("t", "never-streamed")
     assert len(bus.frames) == 0
+
+
+FIXTURE_DEFAULTED = [
+    {
+        "plugin_id": "fixture-erp",
+        "subject": "binding",
+        "subject_id": f"fixture-erp.{name}",
+        "fields": ["idempotency"],
+    }
+    for name in (
+        "procurement.po-create",
+        "procurement.rfq-amend",
+        "sales.quotation-create",
+        "crm.lead-create",
+    )
+]
+"""The fixture profile's four write bindings admitted on a defaulted ``idempotency``."""
+
+
+def test_readiness_and_evidence_list_defaulted_declarations(client: TestClient) -> None:
+    """2c.2 review R-3 (ADR 0029 Operations): `/health/ready` and the evidence bundle list the
+    effect declarations the admission report admitted on their defaults. Names only: plugin,
+    subject and field, never a setting or a secret (PR-25)."""
+    ready = client.get("/health/ready").json()
+    assert ready["defaulted_declarations"] == FIXTURE_DEFAULTED
+    h = _login(client)
+    r = client.post(
+        "/v1/runs",
+        json={"task": "restock widget-a"},
+        headers={**h, "Idempotency-Key": "run-key-defaults"},
+    )
+    run_id = r.json()["run_id"]
+    _wait(client, run_id, {"WAITING_APPROVAL"})
+    evidence = client.get(f"/v1/runs/{run_id}/evidence").json()
+    assert evidence["defaulted_declarations"] == FIXTURE_DEFAULTED
+    print(f"defaulted declarations listed: {len(FIXTURE_DEFAULTED)}")
