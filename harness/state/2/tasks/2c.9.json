@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2c-9"
   ],
-  "context_digest": "22c71d62595b847fb6a4560903e84dc12798344cf16e49a368e7a64f44e9f444",
+  "context_digest": "150d689a60cc6db7d48c956c5511e38a8470eba40dfb26cf6e0fab6feed177bf",
   "allowed_paths": [
     "src/e_agent/adapters/pydantic_ai/**",
     "tests/unit/adapters/pydantic_ai/**",

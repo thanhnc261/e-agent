@@ -12,7 +12,8 @@
     "Postgres: gate pg covers tests/unit/kernel. The controller ran tests/unit/adapters/postgres and tests/conformance on Postgres at de5ae80: 283 passed (HP-6; no evidence file).",
     "2c.8a: readiness and evidence of defaulted declarations, the parked 2c.6 step rows, the ACCEPTANCE_UNMET helper, message.final, snapshot fail-fast, the budget merge, and the 2c.7 end-to-end budget test.",
     "No API or CLI outcome view lists step statuses yet; they are in the evidence bundle only.",
-    "Codex re-check of 2c.6 to 2c.8 before the phase closes."
+    "Codex re-check of 2c.6 to 2c.8 before the phase closes.",
+    "Codex re-check (harness/state/2/reviews/2c.8-codex.json): C-1, C-2 and C-3 are High and reproduced; fixed in 2c.8b before 2d.1."
   ],
   "rulings": [
     {

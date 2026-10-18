@@ -341,6 +341,27 @@ Split on 2026-10-18 (controller ruling, as 2c.5a was): the hygiene items moved t
 - [ ] Run `uv run pytest -q tests/unit/kernel tests/unit/server`; expected: the new tests fail first, then pass. Run the `pg` gate; expected: pass.
 - [ ] Commit `fix(kernel): parked step rows, acceptance transitions and readiness of defaulted declarations`.
 
+### Task 2c.8b: Codex re-check fixes (C-1 to C-3)
+
+Added 2026-10-18 (controller ruling): the Codex re-check of 2c.6–2c.8 (`harness/state/2/reviews/2c.8-codex.json`) found three reproduced High defects. They block 2d.1, the live check and the merge.
+
+**Files:** `src/e_agent/kernel/plan_flow.py`, `src/e_agent/kernel/recovery.py`, `src/e_agent/kernel/continuation.py`, `src/e_agent/kernel/coordinator.py`, `src/e_agent/kernel/dispatch.py`, `src/e_agent/kernel/proposals.py`, `src/e_agent/kernel/ir.py`, `src/e_agent/kernel/ir_on.py`, `src/e_agent/kernel/evidence.py`, `src/e_agent/sdk/store.py`, `src/e_agent/kernel/memory_store.py`, `src/e_agent/adapters/postgres/store.py`, `tests/conformance/`, `tests/unit/kernel/`, `tests/unit/server/`, `docs/adr/0025-execution-ir.md`.
+
+- [ ] **C-1:** authority to start a later step travels with the call; there is no coordinator-wide run-id set. Only the approval call and the fenced resume claim may start the next step. Every other path (verification on the live path, `reconcile()`, `recover*()`) queues fenced resume work instead. Test (Codex's reproduction): step 1 UNKNOWN, the approval task paused after NEEDS_RECONCILIATION is stored, a concurrent `reconcile()`. Expected: one provider write, one resume item, and the run never SUCCEEDED by reconciliation.
+- [ ] **C-2:**
+  - (i) Whether steps remain unstarted is decided from the durable actions in the store, never from the continuation snapshot. This covers `_succeed`, `_resume_plan` and the evidence step classifier.
+  - (ii) An unfenced continuation write is refused when the run has moved past the revision it was built from. Alternatively, recovery writes no plan state at all. The implementer chooses whichever leaves fewer unfenced writes, and records the choice in the ADR 0025 amendment.
+  - Test (Codex's reproduction): a delayed recovery save released after a fenced worker verified step 2. Expected: never 'interrupted, remaining steps not started' for a plan whose actions are all VERIFIED.
+- [ ] **C-3:**
+  - (i) Plugin validators receive a copy of the arguments, never a reference to kernel-owned state (PR-08, PR-16). The memory store does not alias stored dicts, matching Postgres.
+  - (ii) The last operation before `reserve_operation`, on every path, compares the digest input of the action as it will be dispatched with the approved one: `approval.action_digest` for a single action, `state.inputs[index]` for a plan step, with lineage substituted. A mismatch blocks the action and fails the run with STALE and the fixed finding `KERNEL-ARGUMENTS-CHANGED`.
+  - If this path is shared with `off`, the fix applies to `off` too. The happy path stays byte-identical, proved by the off goldens, the payload key sets and the replays.
+  - Test (Codex's reproduction): a validator that mutates nested arguments. Expected: zero provider calls, and the run FAILED with the finding.
+- [ ] Also, found in 2c.9: a proposal or plan step on a connection without a binding raises FORBIDDEN out of `start_run` and leaves the run RUNNING for startup recovery. This happens on the single-action path too, and `test_plan_step_on_a_connection_without_binding_is_refused` pins it. It should fail closed now, as a fixed finding or a terminal state, never as an exception that strands the run.
+- [ ] Each Codex reproduction is the failing test first. If one no longer reproduces at the base, report it and still add the invariant test (PR-29). Each new guard gets a mutation check.
+- [ ] Run the full suite and the `pg` gate; expected: pass. Codex reviews the task.
+- [ ] Commit `fix(kernel): call-scoped plan authority, durable step state and argument integrity before reservation (Codex C-1 to C-3)`.
+
 ### Task 2c.9: driver emits IR
 
 **Files:** (`ProposePlan`, the `sdk_api` bump and the scripted driver's plan output moved to 2c.7, 2026-10-18) `src/e_agent/adapters/pydantic_ai/driver.py` (with `on`, offers plan output when the task definition allows more than one write), `tests/unit/adapters/pydantic_ai/test_driver_plan.py`, `tests/unit/adapters/pydantic_ai/golden/base_instructions.txt` (if the base prompt changes; today it says to call exactly one write tool), a new recording under the replay suite's recordings for a plan output.

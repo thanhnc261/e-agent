@@ -220,6 +220,17 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/2c.8a/2026-10-18T11-11-04.765222+00-00-full.json"
+    },
+    {
+      "id": "F-2c-8b",
+      "category": "kernel",
+      "description": "Task 2c.8b: Codex re-check fixes: call-scoped plan authority, durable step state, argument integrity before reservation",
+      "steps": [
+        "the Codex C-1, C-2 and C-3 reproductions are tests that pass",
+        "each new guard is killed by its mutant",
+        "full and pg gates pass; Codex accepts"
+      ],
+      "passes": false
     }
   ]
 }
