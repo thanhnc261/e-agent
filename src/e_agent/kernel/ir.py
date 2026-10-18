@@ -22,6 +22,7 @@ from e_agent.contracts.plan import (
     ActionProposal,
     LineageRef,
     PlannedStep,
+    check_plan_rules,
     lineage_refs,
     plan_from_wire,
     plan_to_wire,
@@ -250,7 +251,8 @@ def plan_digest_input(
     or more steps is wrapped (`plan_digest_wrapper`); each step's arguments are its Python
     values with each placeholder as ``{"$lineage": {"step", "path"}}`` (`_digest_arguments`),
     and its logical operation id comes from `step_operation_id`. Run `validate_plan` first:
-    this function re-checks placeholders and literal `$lineage` keys, not the plan rules."""
+    this function re-applies the plan rules (`check_plan_rules`) but not task policy."""
+    check_plan_rules(plan)
     missing = [s.step_id for s in plan.steps if s.step_id not in contexts]
     if missing:
         raise ValueError(f"no digest context for steps {missing!r}")

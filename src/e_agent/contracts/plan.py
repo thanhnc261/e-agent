@@ -169,13 +169,21 @@ class ActionPlan(Record):
 _WIRE_FIELDS = frozenset({"step", "path"})
 
 
+def check_plan_rules(plan: ActionPlan) -> None:
+    """Re-apply a plan's structural rules to a built instance; raises ``ValueError``.
+
+    Arguments are a mutable dict inside a frozen record, and `model_construct` skips
+    validation, so the stores and the digest re-check before they rely on a plan."""
+    plan._check_rules()
+
+
 def plan_to_wire(plan: ActionPlan) -> dict[str, Any]:
     """A plan's stored form: the JSON-mode dump, with each placeholder in its wire form.
 
     For the run stores only; read it back with `plan_from_wire`. The plan's rules are
     re-applied first, so a literal `$lineage` set on a built plan's mutable arguments, or a
     `model_construct`-built plan, cannot come back from the store as a placeholder."""
-    plan._check_rules()
+    check_plan_rules(plan)
     return plan.model_dump(mode="json")
 
 

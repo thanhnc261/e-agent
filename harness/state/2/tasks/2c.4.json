@@ -21,7 +21,8 @@
     "docs/handoffs/**",
     "pyproject.toml",
     "docs/design/target-architecture.md",
-    "docs/adr/0025-execution-ir.md"
+    "docs/adr/0025-execution-ir.md",
+    "src/e_agent/contracts/plan.py"
   ],
   "acceptance": [
     "test_one_step_plan_digest_equals_action_digest passes",
@@ -48,6 +49,11 @@
       "glob": "docs/adr/0025-execution-ir.md",
       "reason": "2c.4 review R-3: record the read-step rule in Validation",
       "at": "2026-10-18T04:27:51+00:00"
+    },
+    {
+      "glob": "src/e_agent/contracts/plan.py",
+      "reason": "2c.4 fix: plan_digest_input re-applies the plan rules through a public check",
+      "at": "2026-10-18T04:31:58+00:00"
     }
   ]
 }

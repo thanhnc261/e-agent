@@ -286,6 +286,19 @@ def test_multi_step_digest_refuses_a_forged_literal_placeholder() -> None:
         plan_digest_input(plan, contexts, run_operation_id="op_run")
 
 
+def test_plan_digest_input_reapplies_the_plan_rules() -> None:
+    # A `model_construct`-built plan skips validation; the digest must not bind it.
+    plan, contexts = _two_step_with()
+    later = ActionPlan.model_construct(
+        plan_id=plan.plan_id,
+        task_id=plan.task_id,
+        task_version=plan.task_version,
+        steps=(plan.steps[1], plan.steps[0]),
+    )
+    with pytest.raises(ValueError, match="later step"):
+        plan_digest_input(later, contexts, run_operation_id="op_run")
+
+
 def test_multi_step_digest_is_stable_across_hash_seeds() -> None:
     """A set argument is refused in every process; a JSON-mode dump would list it in hash
     order, so its digest would differ with `PYTHONHASHSEED`."""
