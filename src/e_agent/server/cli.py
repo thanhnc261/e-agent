@@ -121,6 +121,7 @@ async def _demo(args: argparse.Namespace) -> int:
             environment=profile.environment,
             versions=rt.versions,
             features=profile.features,
+            defaulted_declarations=rt.registry.report.defaulted_declarations,  # ADR 0029
         )
         _write_private(args.evidence_out, json.dumps(bundle, ensure_ascii=False, indent=2))
     await _close(rt.store)
@@ -205,6 +206,7 @@ async def _evidence(args: argparse.Namespace) -> int:
             environment=profile.environment,
             versions=rt.versions,
             features=profile.features,
+            defaulted_declarations=rt.registry.report.defaulted_declarations,  # ADR 0029
         )
     finally:
         await _close(rt.store)

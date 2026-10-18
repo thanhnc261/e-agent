@@ -1,10 +1,13 @@
 """End-to-end walking skeleton (I02 exit): fixture driver + fake ERP + real kernel + CLI."""
 
 import json
+from typing import Any
 
 import pytest
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.cli import main
+
+from .test_api import FIXTURE_DEFAULTED
 
 FIXTURE = ("--profile", str(fixture_profile_path()))
 
@@ -125,4 +128,33 @@ def test_evidence_bundle_is_classified_versioned_and_private(capsys, tmp_path) -
     assert bundle["outcomes"][0]["status"] == "VERIFIED"
     assert bundle["approvals"][0]["decision"] == "approved"
     assert "PR-003@1" in bundle["rules_evaluated"]
+    assert bundle["defaulted_declarations"] == FIXTURE_DEFAULTED  # ADR 0029 (2c.8a R-3)
     assert out.stat().st_mode & 0o077 == 0
+
+
+def test_evidence_command_lists_defaulted_declarations(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`e-agent evidence` passes the runtime's admission report to the export (2c.8a R-3).
+    The fixture store keeps no run across processes, so the export itself is recorded."""
+    from e_agent.server import cli
+
+    seen: dict[str, Any] = {}
+
+    async def recording(*_args: Any, **kwargs: Any) -> dict[str, Any]:
+        seen.update(kwargs)
+        return {"schema": "e-agent-evidence-v1"}
+
+    monkeypatch.setattr(cli, "build_evidence", recording)
+    assert main([*FIXTURE, "evidence", "run-x"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"schema": "e-agent-evidence-v1"}
+    listed = [
+        {
+            "plugin_id": d.plugin_id,
+            "subject": d.subject,
+            "subject_id": d.subject_id,
+            "fields": list(d.fields),
+        }
+        for d in seen["defaulted_declarations"]
+    ]
+    assert listed == FIXTURE_DEFAULTED
