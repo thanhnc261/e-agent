@@ -145,7 +145,7 @@ async def test_worker_resume_claim_completes_a_crashed_plan() -> None:
 
 @pytest.mark.parametrize("failure", ["host-error", "after-action", "takeover"])
 async def test_failed_resume_claim_ends_the_plan_without_another_resume(failure: str) -> None:
-    """A plan resume is attempted at most once (2c.8 review R2-1). The resume claim fails
+    """A failed resume claim never enqueues another (ADR 0025 amendment). The resume claim fails
     before the second PO's action exists (a host error inside the step start, or a dead
     owner whose claim is taken over), or after it exists but before it reserved; the
     worker applies the crash rules with resume

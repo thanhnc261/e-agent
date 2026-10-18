@@ -104,8 +104,8 @@ class WorkerMixin:
                     # expire_approval re-checks state, pending action and TTL, so replay is safe.
                     untouched = True
                 if claim.fence > 1 and not untouched:
-                    # A resume claim taken over from a dead owner is a failed resume: a plan
-                    # resume is attempted at most once (2c.8 review R2-1).
+                    # A resume claim taken over from a dead owner is a failed resume, and a
+                    # failed resume claim never enqueues another (ADR 0025 amendment).
                     with actor_scope(f"system:worker:{claim.owner}"):
                         await rt.coordinator.recover_run(
                             claim.tenant_id, claim.run_id, resume=claim.kind != "resume"

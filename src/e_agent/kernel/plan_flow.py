@@ -330,15 +330,15 @@ class PlanFlowMixin(ProposalsMixin):
         before VERIFYING was recorded records it first, and a run already RUNNING (the pair
         recorded before a crash) starts the next step as it is. ``QUEUE`` (recovery,
         reconciliation) never sends a write: it queues the resume (`_queue_resume`). ``STOP``
-        (after a failed resume claim: at most once) and a process outside ``on`` fail the run
-        ``INTERRUPTED``. Any other value is refused, never treated as ``START`` (review R-3)."""
+        (a failed resume claim, which queues no other) and a process outside ``on`` fail the
+        run ``INTERRUPTED``. Any other value is refused, never treated as ``START`` (review R-3)."""
         run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
         plan = cont.plan
         if plan is None or not self._ir_on or action.step_index is None:
             return await self._set_run_state(
                 run, RunState.FAILED, PLAN_INTERRUPTED, code=ReasonCode.INTERRUPTED
             )
-        if next_step is NextStep.STOP:  # a failed resume claim: at most once
+        if next_step is NextStep.STOP:  # a failed resume claim queues no other (ADR 0025)
             reason = f"plan resume failed before step {action.step_index + 2} reserved"
             return await self._set_run_state(
                 run, RunState.FAILED, reason, code=ReasonCode.INTERRUPTED

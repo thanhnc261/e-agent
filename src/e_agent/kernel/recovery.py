@@ -129,9 +129,11 @@ class RecoveryMixin(IrOnMixin):
     async def recover_run(self, tenant_id: str, run_id: str, *, resume: bool = True) -> RunRecord:
         """Apply the crash rules to one run whose host-side work died unexpectedly.
 
-        ``resume=False`` is for a failed ``resume`` claim: a plan resume is attempted at most
-        once (2c.8 review R2-1), so no resume is queued again. A plan with nothing reserved
-        for its next step fails INTERRUPTED; a reservation or dispatch gets today's rules."""
+        ``resume=False`` is for a failed ``resume`` claim, which never enqueues another resume
+        (ADR 0025 amendment: items are keyed by the step and the run revision, and a step whose
+        verification is pending is re-queued by the next startup recovery). A plan with nothing
+        reserved for its next step fails INTERRUPTED; a reservation or dispatch gets today's
+        rules."""
         run = await self._store.get_run(tenant_id, run_id)
         if run.state in TERMINAL_RUN_STATES:
             return run
