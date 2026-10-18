@@ -10,7 +10,7 @@ shadow path (Task 2c.5) and the `on` path (Task 2c.6).
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from e_agent.contracts.capability import EffectKind
@@ -160,7 +160,8 @@ def _encode_placeholders(value: Any) -> Any:
         return value.model_dump(mode="json")
     if isinstance(value, Mapping):
         return {key: _encode_placeholders(item) for key, item in value.items()}
-    if isinstance(value, list | tuple):
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
+        # Any sequence canonicalization walks, so no container hides a value (2c.4 R-5).
         return [_encode_placeholders(item) for item in value]
     return value
 

@@ -13,6 +13,7 @@ import json
 import os
 import subprocess
 import sys
+from collections import deque
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -297,6 +298,15 @@ def test_plan_digest_input_reapplies_the_plan_rules() -> None:
     )
     with pytest.raises(ValueError, match="later step"):
         plan_digest_input(later, contexts, run_operation_id="op_run")
+
+
+def test_multi_step_digest_refuses_a_forged_literal_in_any_sequence() -> None:
+    # A host-built deque is a Sequence canonicalization walks (2c.4 review R-5).
+    plan, contexts = _two_step_with()
+    forged = {"$lineage": {"step": "a", "path": "/secret"}}
+    plan.steps[1].proposal.arguments["x"] = deque([forged])
+    with pytest.raises(ValueError, match=r"\$lineage"):
+        plan_digest_input(plan, contexts, run_operation_id="op_run")
 
 
 def test_multi_step_digest_is_stable_across_hash_seeds() -> None:

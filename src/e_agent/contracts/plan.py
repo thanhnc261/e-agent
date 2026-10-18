@@ -15,7 +15,7 @@ the wire form back into `LineageRef` instances, through `plan_to_wire` and `plan
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence, Set
 from graphlib import CycleError, TopologicalSorter
 from typing import Any, Self
 
@@ -83,7 +83,8 @@ def lineage_refs(value: Any) -> Iterator[LineageRef]:
             raise ValueError(f"argument key {LINEAGE_KEY!r} is reserved for lineage placeholders")
         for item in value.values():
             yield from lineage_refs(item)
-    elif isinstance(value, list | tuple | set | frozenset):
+    elif isinstance(value, Sequence | Set) and not isinstance(value, str | bytes | bytearray):
+        # Every container canonicalization walks (2c.4 review R-5), not only list and tuple.
         for item in value:
             yield from lineage_refs(item)
 
