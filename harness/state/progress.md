@@ -559,3 +559,8 @@
 - changed: harness/state/2/features.json, harness/state/2/handoffs/2c.7.json, harness/state/2/reviews/2c.7-r3.json, harness/state/evidence/gates/2c.7/2026-10-18T09-10-32.791057+00-00-full.json, harness/state/evidence/gates/2c.7/2026-10-18T09-11-43.001489+00-00-pg.json
 - next: 2c.8: plan failure semantics plus the parked items
 - open: none
+
+## 2026-10-18T10:29:12.808122+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.8
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.8.json, harness/state/evidence/gates/2c.8/2026-10-18T10-26-51.248903+00-00-full.json, harness/state/evidence/gates/2c.8/2026-10-18T10-28-02.777802+00-00-pg.json
+- next: 2c.8a: hygiene parked from 2c.2, 2c.6 and 2c.7
+- open: none

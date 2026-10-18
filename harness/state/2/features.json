@@ -161,7 +161,8 @@
         "recovery does not replay committed steps",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.8/2026-10-18T10-26-51.248903+00-00-full.json"
     },
     {
       "id": "F-2c-9",
