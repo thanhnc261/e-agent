@@ -479,3 +479,8 @@
 - changed: harness/state/2/features.json, harness/state/2/handoffs/2a.1.json, harness/state/2/reviews/2a.1-r2.json, harness/state/2/reviews/2a.1.json, harness/state/evidence/gates/2a.1/2026-10-18T00-36-54.544426+00-00-full.json, harness/state/evidence/gates/2a.1/2026-10-18T00-46-02.697690+00-00-full.json
 - next: 2a.2: owner gate G1 accepts ADRs 0024, 0025, 0027-0029 and confirms D6-D8
 - open: none
+
+## 2026-10-18T00:55:21.373904+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2a.2
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2a.2.json, harness/state/2/reviews/2a.2-r2.json, harness/state/2/reviews/2a.2.json, harness/state/evidence/gates/2a.2/2026-10-18T00-51-00.067907+00-00-full.json, harness/state/evidence/gates/2a.2/2026-10-18T00-53-39.124227+00-00-full.json
+- next: 2b.1: Profile.features and the off-mode golden baseline
+- open: none

@@ -1,0 +1,1 @@
+{"task":"2a.2","verdict":"accept","reviewer":{"provider":"claude","fresh_context":true},"findings":[],"resolved":["F1: line 5, line 73 and the ADR table rows now say Accepted 2026-10-18; grep Proposed on the plan returns nothing","F2: line 5 now says D0-D8"],"checked":"Commit 56995e5 touches only the plan. Nothing new is wrong."}
