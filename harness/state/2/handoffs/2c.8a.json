@@ -1,0 +1,34 @@
+{
+  "task": "2c.8a",
+  "changed": "Hygiene parked from 2c.2, 2c.6 and 2c.7.\n- 2c.2 R-3: /health/ready, the API evidence bundle, the CLI evidence export (demo --evidence-out, evidence) and scripts/release_report.py list the admission report's defaulted effect declarations (plugin_id, subject, subject_id, fields). The keys are additive.\n- 2c.6 parked items:\n  - step rows for staleness revalidation (a passing first-step revalidation now writes a validate pair; on runs carry 10 rows instead of 8);\n  - step rows for an approval-wait cancel in recovery, and for the verifier-missing path;\n  - one transition helper for the ACCEPTANCE_UNMET batch;\n  - message.final consistent with the skipped acknowledgement when acceptance is unmet;\n  - a bound run without a snapshot fails at once, as ACCEPTANCE_UNMET with the existing 'unavailable' finding (test_bound_run_without_snapshot_fails_fast; formerly test_on_bound_run_without_snapshot_fails_closed, cited by the 2c.6 C-1 evidence);\n  - budgets are never merged from the snapshot.\n- 2c.7 R2-3: test_no_driver_turn_follows_a_verified_write records why the end-to-end budget case is unreachable.\n- Review R-2: recovery closes a later plan step's validate row as FAILED when it ends a run INTERRUPTED. off is unchanged.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2c.8a/2026-10-18T11-11-04.765222+00-00-full.json",
+    "harness/state/evidence/gates/2c.8a/2026-10-18T11-12-34.738830+00-00-pg.json"
+  ],
+  "open_items": [
+    "evals/reports/fixture-release.json is not regenerated; it gains defaulted_declarations the next time the release report is generated (2d.1).",
+    "Review R-4: the evidence bundle lists the exporting runtime's current admission report, not the report in force at the run's admission (the same as 'versions').",
+    "The end-to-end write-budget test after a verified write stays unreachable until a driver turn may follow a write (a later phase).",
+    "Codex re-check of 2c.6 to 2c.8 is running."
+  ],
+  "rulings": [
+    {
+      "ruling": "The CLI evidence export and the release report were added to scope, so R-3 was fixed rather than parked again.",
+      "cost_if_wrong": "None."
+    },
+    {
+      "ruling": "An interrupted later step's validate row closes as FAILED: a host failure, not a guard refusal.",
+      "cost_if_wrong": "A status rename."
+    },
+    {
+      "ruling": "The implementer's gate pg was refused by its classifier; the controller ran gate pg in its own close ritual, as for every task.",
+      "cost_if_wrong": "None."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "gate pg ran against e_agent_test in e-agent-ledger.",
+      "undo": "None needed."
+    }
+  ]
+}

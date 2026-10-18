@@ -218,7 +218,8 @@
         "test_every_stage_writes_a_step_row and test_bound_run_without_snapshot_fails_fast pass",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.8a/2026-10-18T11-11-04.765222+00-00-full.json"
     }
   ]
 }
