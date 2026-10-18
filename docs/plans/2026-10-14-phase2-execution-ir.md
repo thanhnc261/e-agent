@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** Draft 2026-10-14, amended 2026-10-17 after a staleness review against the checkout at the Hygiene phase's close (findings P2R-1 to P2R-19, folded in below). Awaiting owner review. Not approved; no `new-task` until the owner names it approved. Part 2a's documents were drafted on 2026-10-14 from the approved [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) (target §6.4, ADRs 0024, 0025, 0027–0029, threats T20–T22, all Proposed); owner gate G1 still applies.
+**Status:** Draft 2026-10-14, amended 2026-10-17 after a staleness review against the checkout at the Hygiene phase's close (findings P2R-1 to P2R-19, folded in below). **Approved by the owner 2026-10-18**, with the defaults of decisions D0–D7, after the Hygiene merge (PR #4, `6f7ec70`). Part 2a's documents were drafted on 2026-10-14 from the approved [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) (target §6.4, ADRs 0024, 0025, 0027–0029, threats T20–T22, all Proposed); owner gate G1 still applies.
 
 **Goal:** the kernel executes a typed execution IR (TaskDefinition → ActionPlan → StepRecord) behind `features.execution_ir: off | shadow | on`, falling back to today's single-action loop before any write is reserved.
 
