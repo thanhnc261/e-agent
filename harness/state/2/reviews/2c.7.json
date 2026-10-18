@@ -1,0 +1,45 @@
+{
+  "task": "2c.7",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "No test proves the resolved lineage value is domain-validated before its step reserves; removing the block in dispatch.py _staleness survives the suite",
+      "evidence": "src/e_agent/kernel/dispatch.py:222-235; mutant M10 survived"
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "A validator that raises on the wire form binds the sentinel rule_bundle_version 'error' into the approved digest; plan then always stops STALE with a misleading reason",
+      "evidence": "src/e_agent/kernel/plan_flow.py:159-165; src/e_agent/kernel/proposals.py:439-453"
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "A later step's dispatched action is rebuilt from the stored plan without comparing it to the approved step input",
+      "evidence": "src/e_agent/kernel/plan_flow.py:331-357; src/e_agent/kernel/ir.py:241-262"
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Untested plan guards: INTERRUPTED for an unstarted step on recovery, approval TTL before a later step, write budget counting earlier run writes",
+      "evidence": "src/e_agent/kernel/ir_on.py:387-391; src/e_agent/kernel/dispatch.py:58-59; src/e_agent/kernel/plan_flow.py:123; mutants M5, M19, M14 survived"
+    },
+    {
+      "id": "R-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "_dispatch decides 'later plan step' from action state alone; derive it from cont.plan and step_index",
+      "evidence": "src/e_agent/kernel/dispatch.py:60, 91-97"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}
