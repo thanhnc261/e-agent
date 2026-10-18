@@ -60,7 +60,8 @@
         "export_openapi.py --check and pnpm --dir ui gen:check report no drift",
         "full gate and make e2e pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2b.3/2026-10-18T01-52-38.393062+00-00-full.json"
     },
     {
       "id": "F-2c-1",

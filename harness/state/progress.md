@@ -494,3 +494,8 @@
 - changed: harness/state/2/features.json, harness/state/2/handoffs/2b.2.json, harness/state/2/reviews/2b.2-r2.json, harness/state/2/reviews/2b.2-r3.json, harness/state/2/reviews/2b.2.json, harness/state/evidence/gates/2b.2/2026-10-18T01-28-31.253094+00-00-full.json, harness/state/evidence/gates/2b.2/2026-10-18T01-29-40.722067+00-00-pg.json, harness/state/evidence/gates/2b.2/2026-10-18T01-37-59.895662+00-00-full.json, harness/state/evidence/gates/2b.2/2026-10-18T01-39-10.125468+00-00-pg.json
 - next: 2b.3: toggles in readiness and evidence
 - open: none
+
+## 2026-10-18T01:57:00.290331+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2b.3
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2b.3.json, harness/state/2/reviews/2b.3.json, harness/state/evidence/gates/2b.3/2026-10-18T01-52-38.393062+00-00-full.json, harness/state/evidence/gates/2b.3/2026-10-18T01-53-48.932832+00-00-e2e.json
+- next: 2c.1: IR contracts
+- open: none

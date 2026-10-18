@@ -1,0 +1,18 @@
+{
+  "task": "2b.3",
+  "changed": "/health/ready returns features ({\"execution_ir\": \"<mode>\"}) from the runtime profile; build_evidence takes a required features keyword and adds a features key under e-agent-evidence-v1, existing keys and schema id unchanged (D5, pinned by test_evidence_v1_keys_unchanged); the API evidence route and both CLI evidence paths pass the runtime profile's features (checked by grep: no hard-coded default). No OpenAPI drift (readiness and evidence are untyped mappings). Commits 2e5b56b, 4db0ae0 (scope amended for an existing build_evidence caller in tests). Codex review accept, no findings. Part 2b (toggle infrastructure) is complete.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2b.3/2026-10-18T01-52-38.393062+00-00-full.json",
+    "harness/state/evidence/gates/2b.3/2026-10-18T01-53-48.932832+00-00-e2e.json"
+  ],
+  "open_items": [
+    "Next: Part 2c, Task 2c.1 (IR contracts: TaskDefinition, ActionPlan, StepRecord, effect declarations)."
+  ],
+  "rulings": [
+    {
+      "ruling": "features is a required keyword on build_evidence so no caller can silently report defaults.",
+      "cost_if_wrong": "Make it optional with a default; every caller already passes it."
+    }
+  ],
+  "outside_repo": []
+}
