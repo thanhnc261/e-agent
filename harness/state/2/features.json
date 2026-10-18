@@ -233,6 +233,17 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/2c.8b/2026-10-18T12-51-52.554041+00-00-full.json"
+    },
+    {
+      "id": "F-2c-8c",
+      "category": "kernel",
+      "description": "Task 2c.8c: reads and answers on an unusable connection fail closed and never strand the run",
+      "steps": [
+        "test_read_on_unusable_connection_fails_closed and test_answer_on_unusable_connection_fails_closed pass in off and on",
+        "test_no_run_left_non_terminal_after_a_forbidden_read passes",
+        "full and pg gates pass"
+      ],
+      "passes": false
     }
   ]
 }

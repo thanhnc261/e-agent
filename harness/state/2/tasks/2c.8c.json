@@ -1,0 +1,40 @@
+{
+  "id": "2c.8c",
+  "phase": "2",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-2c-8c"
+  ],
+  "context_digest": "6d6e705bbeaf4dfd0d90ec904084a607b0a4ab0c68de56e17966841f38858802",
+  "allowed_paths": [
+    "src/e_agent/kernel/gateway.py",
+    "src/e_agent/kernel/run_loop.py",
+    "src/e_agent/kernel/proposals.py",
+    "src/e_agent/kernel/ir_on.py",
+    "src/e_agent/kernel/dispatch.py",
+    "src/e_agent/kernel/coordinator.py",
+    "src/e_agent/kernel/recovery.py",
+    "src/e_agent/kernel/plan_flow.py",
+    "src/e_agent/kernel/plan_*.py",
+    "src/e_agent/contracts/run.py",
+    "tests/unit/kernel/**",
+    "tests/unit/server/**",
+    "tests/conformance/**",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "ui/packages/ui-core/src/**",
+    "ui/packages/ui-core/test/**",
+    "docs/plans/2026-10-14-phase2-execution-ir.md",
+    "harness/state/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "test_read_on_unusable_connection_fails_closed and test_answer_on_unusable_connection_fails_closed pass in off and on",
+    "test_no_run_left_non_terminal_after_a_forbidden_read passes",
+    "full and pg gates pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "3018fc720172f4514fb42690815d9a23f14161d4",
+  "created_at": "2026-10-18T14:19:23+00:00",
+  "features_digest": "68500a38bda4caaa3704910bcaf9515c2febe8f72fc617bf85b212a4b89add08"
+}

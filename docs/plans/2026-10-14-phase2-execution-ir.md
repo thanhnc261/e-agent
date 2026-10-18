@@ -362,6 +362,21 @@ Added 2026-10-18 (controller ruling): the Codex re-check of 2c.6–2c.8 (`harnes
 - [ ] Run the full suite and the `pg` gate; expected: pass. Codex reviews the task.
 - [ ] Commit `fix(kernel): call-scoped plan authority, durable step state and argument integrity before reservation (Codex C-1 to C-3)`.
 
+### Task 2c.8c: reads and answers on an unusable connection fail closed
+
+Added 2026-10-18 (controller ruling): an open item from 2c.8b. A driver read, or an answer proposal, on a connection that is unusable (unbound, disabled or not admitted) raises FORBIDDEN out of the driver turn and leaves the run non-terminal until startup recovery. 2c.8b fixed the write path (`KERNEL-CONNECTION`); this task does the same for reads and answers.
+
+**Files:** `src/e_agent/kernel/gateway.py`, `src/e_agent/kernel/run_loop.py`, `src/e_agent/kernel/proposals.py`, `src/e_agent/kernel/ir_on.py`, `tests/unit/kernel/`, `tests/unit/server/`.
+
+- [ ] Failing tests:
+  - `test_read_on_unusable_connection_fails_closed`: the gateway returns a fixed refusal to the driver, or the run ends as a terminal failure; never an exception that strands the run.
+  - `test_answer_on_unusable_connection_fails_closed`.
+  - `test_no_run_left_non_terminal_after_a_forbidden_read`: no pending work and not terminal is a failure.
+  - Each test covers `off` and `on`.
+- [ ] `off` stays byte-identical on the success path; only the failure path changes. Prove it with the off goldens and replays (ENG-TOGGLE-1).
+- [ ] Run the full suite and the `pg` gate; expected: pass. Codex reviews it together with 2c.8b.
+- [ ] Commit `fix(kernel): reads and answers on an unusable connection fail closed`.
+
 ### Task 2c.9: driver emits IR
 
 **Files:** (`ProposePlan`, the `sdk_api` bump and the scripted driver's plan output moved to 2c.7, 2026-10-18) `src/e_agent/adapters/pydantic_ai/driver.py` (with `on`, offers plan output when the task definition allows more than one write), `tests/unit/adapters/pydantic_ai/test_driver_plan.py`, `tests/unit/adapters/pydantic_ai/golden/base_instructions.txt` (if the base prompt changes; today it says to call exactly one write tool), a new recording under the replay suite's recordings for a plan output.
