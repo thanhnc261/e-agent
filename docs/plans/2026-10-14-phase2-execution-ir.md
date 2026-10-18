@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** Draft 2026-10-14, amended 2026-10-17 after a staleness review against the checkout at the Hygiene phase's close (findings P2R-1 to P2R-19, folded in below). **Approved by the owner 2026-10-18**, with the defaults of decisions D0–D7, after the Hygiene merge (PR #4, `6f7ec70`). Gate G1 passed 2026-10-18: the owner accepted ADRs 0024, 0025, 0027, 0028, 0029 and target §6.4 and confirmed D6, D7 and D8 at their defaults. Part 2a's documents were drafted on 2026-10-14 from the approved [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) (target §6.4, ADRs 0024, 0025, 0027–0029, threats T20–T22, all Proposed); owner gate G1 still applies.
+**Status:** Draft 2026-10-14, amended 2026-10-17 after a staleness review against the checkout at the Hygiene phase's close (findings P2R-1 to P2R-19, folded in below). **Approved by the owner 2026-10-18**, with the defaults of decisions D0–D8, after the Hygiene merge (PR #4, `6f7ec70`). Gate G1 passed 2026-10-18: the owner accepted ADRs 0024, 0025, 0027, 0028, 0029 and target §6.4 and confirmed D6, D7 and D8 at their defaults. Part 2a's documents were drafted on 2026-10-14 from the approved [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) (target §6.4, ADRs 0024, 0025, 0027–0029, threats T20–T22); the owner accepted them at gate G1 on 2026-10-18.
 
 **Goal:** the kernel executes a typed execution IR (TaskDefinition → ActionPlan → StepRecord) behind `features.execution_ir: off | shadow | on`, falling back to today's single-action loop before any write is reserved.
 
@@ -70,15 +70,15 @@ Failure modes the happy-path tests do not exercise; each is pinned to the task t
 
 ## ADRs
 
-All five Phase 2 ADRs were written in `6aaab54` and are Proposed; 2a.1 reconciles them with this plan and 2a.2 records the owner's acceptance (0023 stays reserved for conversations; 0026 is the Phase 1d plugin-layout ADR).
+All five Phase 2 ADRs were written in `6aaab54`, reconciled with this plan in 2a.1 and accepted by the owner on 2026-10-18 (2a.2, gate G1) (0023 stays reserved for conversations; 0026 is the Phase 1d plugin-layout ADR).
 
 | ADR | Decision | Status | Effect on this phase |
 |---|---|---|---|
-| [0027](../adr/0027-feature-toggles.md) | Feature toggles: `Profile.features`, modes, shadow comparison, `feature.fallback` with reason codes, readiness and evidence reporting | Written, Proposed | Blocks 2b |
-| [0024](../adr/0024-plan-approval-model.md) | Approval model for multi-step plans: the approver approves the whole plan's digest once; deviation stops the plan; benchmark-only auto-approve for `read`/`write_low` (owner D-3); nothing modified after approval (owner D-4) | Written, Proposed | Blocks 2c.7 |
-| [0025](../adr/0025-execution-ir.md) | Execution IR: ActionPlan, PlannedStep, lineage placeholders and their digest binding, per-step reservation and verification, partial failure, StepRecord (C8 part 1), `execution_ir` mode semantics; widens the ADR 0018 table (`VERIFYING → RUNNING`, `RUNNING → VERIFYING`) | Written, Proposed | Blocks 2c |
-| [0028](../adr/0028-task-definitions.md) | Task definitions (C11): portable `TaskDefinition` and `AcceptanceSpec`, owned by domain packs, tool set fixed at admission and passed per run through `DriverInput.allowed_capabilities` (D6); per-task approval TTL and budget narrowing (D7); `TaskTemplate` becomes a projection after Phase 2 | Written, Proposed | Blocks 2c.2 |
-| [0029](../adr/0029-capability-effect-declarations.md) | Capability effect declarations: `risk`, `reversibility` on contracts, `idempotency` on bindings; conservative defaults refused in live profiles (adoption review XA-01) | Written, Proposed | Blocks 2c.1, 2c.2, 2c.7, 2c.8 |
+| [0027](../adr/0027-feature-toggles.md) | Feature toggles: `Profile.features`, modes, shadow comparison, `feature.fallback` with reason codes, readiness and evidence reporting | Accepted 2026-10-18 | Blocks 2b |
+| [0024](../adr/0024-plan-approval-model.md) | Approval model for multi-step plans: the approver approves the whole plan's digest once; deviation stops the plan; benchmark-only auto-approve for `read`/`write_low` (owner D-3); nothing modified after approval (owner D-4) | Accepted 2026-10-18 | Blocks 2c.7 |
+| [0025](../adr/0025-execution-ir.md) | Execution IR: ActionPlan, PlannedStep, lineage placeholders and their digest binding, per-step reservation and verification, partial failure, StepRecord (C8 part 1), `execution_ir` mode semantics; widens the ADR 0018 table (`VERIFYING → RUNNING`, `RUNNING → VERIFYING`) | Accepted 2026-10-18 | Blocks 2c |
+| [0028](../adr/0028-task-definitions.md) | Task definitions (C11): portable `TaskDefinition` and `AcceptanceSpec`, owned by domain packs, tool set fixed at admission and passed per run through `DriverInput.allowed_capabilities` (D6); per-task approval TTL and budget narrowing (D7); `TaskTemplate` becomes a projection after Phase 2 | Accepted 2026-10-18 | Blocks 2c.2 |
+| [0029](../adr/0029-capability-effect-declarations.md) | Capability effect declarations: `risk`, `reversibility` on contracts, `idempotency` on bindings; conservative defaults refused in live profiles (adoption review XA-01) | Accepted 2026-10-18 | Blocks 2c.1, 2c.2, 2c.7, 2c.8 |
 | 0006 | Approval digest canonicalization | Accepted | Plan digest uses `jcs-sha256-v1`; a 1-step plan's approval digest equals today's action digest |
 | 0003, 0014 | Durability; approval binds versions and facts | Accepted | Per-step evidence before writes; revalidation before each step |
 | 0004 | Agent driver integration | Accepted | `DriverStep` gains `ProposePlan` (SDK port change, covered by 0025) |
