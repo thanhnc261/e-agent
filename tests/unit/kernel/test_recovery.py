@@ -531,12 +531,14 @@ async def test_resumed_step_passes_every_guard_before_reserving(
     assert k.backend.create_calls == 1
 
 
-async def test_plan_never_resumes_outside_on(make_kernel: MakeKernel) -> None:
+@pytest.mark.parametrize("point", ["record_receipt", "record_outcome"])
+async def test_plan_never_resumes_outside_on(make_kernel: MakeKernel, point: str) -> None:
     """A process restarted with ``execution_ir`` no longer ``on`` cannot run the rest of a
     plan on today's path (no fallback after the first reservation): the run fails
-    ``INTERRUPTED`` and nothing is sent."""
+    ``INTERRUPTED`` and nothing is sent, whether recovery re-verifies step 1
+    (`_after_step_verified`) or finds it verified (`_resume_plan`, then `_succeed`)."""
     k = _plan_kernel(make_kernel)
-    run_id = await _crash_between_steps(k, "record_outcome")
+    run_id = await _crash_between_steps(k, point)
     [recovered] = await _restart_plan(k, features=Features()).recover()
     assert (recovered.state, recovered.reason_code) == (RunState.FAILED, ReasonCode.INTERRUPTED)
     assert [a.state for a in await k.store.list_actions(TENANT, run_id)] == [ActionState.VERIFIED]
