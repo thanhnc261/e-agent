@@ -92,6 +92,82 @@ def test_lineage_ref_has_step_and_path_only() -> None:
         LineageRef(step_id="s1", path="/a~2b")
 
 
+def test_lineage_ref_path_is_a_strict_json_pointer() -> None:
+    for valid in ("", "/", "/a", "/a/0", "/a~0b", "/a~1b", "/~0~1", "/line\nbreak", "/ space"):
+        assert LineageRef(step_id="s1", path=valid).path == valid
+    for invalid in ("\n", "/a\n~", "a", "/a~", "/a~2"):
+        with pytest.raises(ValidationError, match="JSON pointer"):
+            LineageRef(step_id="s1", path=invalid)
+    with pytest.raises(ValidationError, match="JSON pointer"):
+        LineageRef.model_validate_json('{"step_id": "s1", "path": "\\n"}')
+    with pytest.raises(ValidationError, match="JSON pointer"):
+        LineageRef.model_validate_json('{"step_id": "s1", "path": "/a\\n~"}')
+
+
+def test_lineage_ref_path_rejects_trailing_newline() -> None:
+    # `re.match` with `$` would accept these: `$` matches before a final newline.
+    for invalid in ("\n", "/a~2\n", "/a~\n"):
+        with pytest.raises(ValidationError, match="JSON pointer"):
+            LineageRef(step_id="s1", path=invalid)
+
+
+def test_revalidating_mutated_plan_rejects_lineage_literal() -> None:
+    plan = _plan(_step("s1"), _step("s2", "s1", lines=[{"ok": 1}]))
+    plan.steps[1].proposal.arguments["lines"][0]["vendor"] = {
+        "$lineage": {"step": "s1", "path": "/partner_id"}
+    }
+    with pytest.raises(ValidationError, match=r"\$lineage"):
+        ActionPlan.model_validate(plan)
+    with pytest.raises(ValidationError, match=r"\$lineage"):
+        ActionPlan.model_validate(plan.model_dump())
+
+
+def test_revalidating_mutated_plan_rejects_unknown_lineage_step() -> None:
+    plan = _plan(_step("s1"), _step("s2", "s1", vendor=LineageRef(step_id="s1", path="/id")))
+    plan.steps[1].proposal.arguments["vendor"] = LineageRef(step_id="missing", path="/id")
+    with pytest.raises(ValidationError, match="lineage step 'missing' is not in depends_on"):
+        ActionPlan.model_validate(plan)
+    later = _plan(_step("s1"), _step("s2", "s1"), _step("s3"))
+    later.steps[1].proposal.arguments["deep"] = ({"x": [LineageRef(step_id="s3", path="")]},)
+    with pytest.raises(ValidationError, match="lineage step 's3' is not in depends_on"):
+        ActionPlan.model_validate(later)
+    hidden = _plan(_step("s1"), _step("s2", "s1"))
+    hidden.steps[1].proposal.arguments["tags"] = frozenset({LineageRef(step_id="s9", path="")})
+    with pytest.raises(ValidationError, match="lineage step 's9' is not in depends_on"):
+        ActionPlan.model_validate(hidden)
+
+
+def test_model_construct_plan_fails_validation_on_revalidate() -> None:
+    def constructed(step_id: str, *depends_on: str, **arguments: Any) -> PlannedStep:
+        return PlannedStep.model_construct(
+            step_id=step_id, proposal=_proposal(**arguments), depends_on=depends_on
+        )
+
+    def plan_of(*steps: PlannedStep) -> ActionPlan:
+        return ActionPlan.model_construct(
+            plan_id="plan_1", task_id="purchase_order", task_version="1", steps=steps
+        )
+
+    literal = plan_of(constructed("s1"), constructed("s2", "s1", v={"$lineage": {}}))
+    with pytest.raises(ValidationError, match=r"\$lineage"):
+        ActionPlan.model_validate(literal.model_dump())
+    with pytest.raises(ValidationError, match=r"\$lineage"):
+        ActionPlan.model_validate(literal)
+    unknown = plan_of(constructed("s1", v=LineageRef(step_id="s0", path="/id")))
+    with pytest.raises(ValidationError, match="lineage step 's0' is not in depends_on"):
+        ActionPlan.model_validate(unknown)
+    later = plan_of(
+        constructed("s1", "s2", v=LineageRef(step_id="s2", path="/id")), constructed("s2")
+    )
+    with pytest.raises(ValidationError, match="later step 's2'"):
+        ActionPlan.model_validate(later)
+    with pytest.raises(ValidationError, match="later step 's2'"):
+        ActionPlan.model_validate(later.model_dump())
+    looping = plan_of(constructed("s1", "s1"))
+    with pytest.raises(ValidationError, match="depends on itself"):
+        ActionPlan.model_validate(looping)
+
+
 def test_action_record_plan_fields_default_null() -> None:
     fields: dict[str, Any] = {
         "action_id": "a1",
