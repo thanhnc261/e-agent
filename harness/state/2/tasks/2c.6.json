@@ -44,7 +44,9 @@
     "docs/handoffs/**",
     "src/e_agent/kernel/registry.py",
     "tests/unit/kernel/test_registry.py",
-    "src/e_agent/server/bootstrap.py"
+    "src/e_agent/server/bootstrap.py",
+    "docs/adr/0028-task-definitions.md",
+    "docs/adr/README.md"
   ],
   "acceptance": [
     "test_on_tool_set_equals_task_definition, test_on_read_outside_task_definition_refused and test_driver_offers_only_allowed_tools pass",
@@ -71,6 +73,16 @@
       "glob": "src/e_agent/server/bootstrap.py",
       "reason": "tool_specs lives in bootstrap; 2c.2 R-1 and the allowed set",
       "at": "2026-10-18T06:39:27+00:00"
+    },
+    {
+      "glob": "docs/adr/0028-task-definitions.md",
+      "reason": "owner accepted the ADR 0028 answer-condition amendment 2026-10-18",
+      "at": "2026-10-18T06:52:53+00:00"
+    },
+    {
+      "glob": "docs/adr/README.md",
+      "reason": "owner accepted the ADR 0028 answer-condition amendment 2026-10-18",
+      "at": "2026-10-18T06:52:53+00:00"
     }
   ]
 }

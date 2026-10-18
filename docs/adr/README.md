@@ -30,7 +30,7 @@ One decision per ADR. Statuses: **Proposed** (recommended, not yet accepted by t
 | [0025](0025-execution-ir.md) | Execution IR: action plans, lineage, plan digest, step dispatch, partial failure; widens the ADR 0018 table | Accepted (2026-10-18) | Phase 2 Tasks 2c.1, 2c.3–2c.9 |
 | [0026](0026-plugin-layout-and-reusable-core.md) | Plugin layout and a reusable core: `plugins/<area>/<package>`, core never imports plugins, plugins are guests on a common SDK, required features enforced, no ERP in the server | Accepted (2026-10-15, amended: common plugin SDK) | Phase 1d (owner gate G1) |
 | [0027](0027-feature-toggles.md) | Feature toggles `off/shadow/on` with shadow comparison and pre-reservation fallback | Accepted (2026-10-18) | Phase 2 Part 2b |
-| [0028](0028-task-definitions.md) | Task definitions with acceptance specs as domain-pack resources | Accepted (2026-10-18); answer-condition amendment Proposed (2026-10-18) | Phase 2 Tasks 2c.1, 2c.2, 2c.6 |
+| [0028](0028-task-definitions.md) | Task definitions with acceptance specs as domain-pack resources | Accepted (2026-10-18), with the answer-condition amendment (accepted 2026-10-18) | Phase 2 Tasks 2c.1, 2c.2, 2c.6 |
 | [0029](0029-capability-effect-declarations.md) | Capability effect declarations: risk, reversibility, idempotency | Accepted (2026-10-18) | Phase 2 Tasks 2c.1, 2c.2, 2c.7, 2c.8 |
 | [0030](0030-data-governance.md) | Data classification, minimization, retention and deletion for run data | Proposed | Startup rule Phase 2/3; minimization Phase 3; markers and export authorization Phase 5; retention and deletion Phase 7 |
 

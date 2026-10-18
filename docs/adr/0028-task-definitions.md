@@ -34,7 +34,7 @@ Today every run receives every agent-visible capability with exactly one binding
 
 ## Amendment: an answer condition on the acceptance spec
 
-**Proposed (2026-10-18, Codex review C-2; owner acceptance pending before the phase merges).**
+**Accepted (owner, 2026-10-18; proposed the same day by Codex review C-2, Task 2c.5a).**
 
 **Context.** `AcceptanceSpec` is disjunctive: the required verified effects, or a required verified answer. `draft-po` names `procurement.shortage.answer.v1` as its `required_answer`, so that the verified no-op of target §1.3 ("a verified draft PO or a verified no-op") counts. That answer also reports real shortages: the `shortage` task uses it, and its verifier (`ShortageAnswerVerifier`) passes any accurate answer. An accurate answer reporting a positive shortage, for example 15, would therefore meet `draft-po`'s acceptance without a purchase order.
 
