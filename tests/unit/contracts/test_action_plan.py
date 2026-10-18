@@ -321,6 +321,26 @@ def test_lineage_wire_form_refused_outside_the_store_boundary() -> None:
         plan_from_wire(literal)
 
 
+def test_plan_to_wire_refuses_a_literal_set_on_a_built_plan() -> None:
+    # Arguments are a mutable dict inside a frozen record (2c.3 review R-1).
+    plan = _lineage_plan()
+    plan.steps[0].proposal.arguments["qty"] = _wire("s1", "/x")
+    with pytest.raises(ValueError, match=r"\$lineage"):
+        plan_to_wire(plan)
+    built = ActionPlan.model_construct(
+        plan_id="plan_1",
+        task_id="purchase_order",
+        task_version="1",
+        steps=(
+            PlannedStep.model_construct(
+                step_id="s1", proposal=_proposal(v=_wire("s1", "/x")), depends_on=()
+            ),
+        ),
+    )
+    with pytest.raises(ValueError, match=r"\$lineage"):
+        plan_to_wire(built)
+
+
 def test_action_record_plan_fields_default_null() -> None:
     fields: dict[str, Any] = {
         "action_id": "a1",

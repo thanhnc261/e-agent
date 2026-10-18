@@ -427,6 +427,12 @@ async def test_put_and_get_plan(store: Any) -> None:
     assert await store.get_plan("t1", "plan_1") == plan
     assert len(await store.list_events("t1", "run_1")) == 2
     assert await store.list_steps("t1", "run_1") == [step]
+    # A refused step in the batch leaves no plan row either (2c.3 review R-3).
+    with pytest.raises(ConcurrencyConflict):
+        await store.put_plan("t1", "run_1", _plan("plan_3"), [EV, _step_record(0, step_id="st_9")])
+    with pytest.raises(NotFound):
+        await store.get_plan("t1", "plan_3")
+    assert len(await store.list_events("t1", "run_1")) == 2
     with pytest.raises(NotFound):
         await store.put_plan("t1", "run_missing", _plan("plan_2"), [])
     with pytest.raises(NotFound):
