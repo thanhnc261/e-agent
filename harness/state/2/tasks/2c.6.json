@@ -49,7 +49,8 @@
     "docs/adr/README.md",
     ".gitleaks.toml",
     "src/e_agent/kernel/recovery.py",
-    "tests/unit/kernel/test_recovery.py"
+    "tests/unit/kernel/test_recovery.py",
+    "src/e_agent/kernel/continuation.py"
   ],
   "acceptance": [
     "test_on_tool_set_equals_task_definition, test_on_read_outside_task_definition_refused and test_driver_offers_only_allowed_tools pass",
@@ -101,6 +102,11 @@
       "glob": "tests/unit/kernel/test_recovery.py",
       "reason": "recovery must not skip the run-end acceptance check (2c.6 concern 1)",
       "at": "2026-10-18T07:15:27+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/continuation.py",
+      "reason": "2c.6 Codex C-1: the admitted definition snapshot lives in the run continuation",
+      "at": "2026-10-18T07:26:00+00:00"
     }
   ]
 }
