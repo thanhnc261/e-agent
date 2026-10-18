@@ -27,6 +27,11 @@ export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
   "budget.exhausted",
   "run.cancel_requested",
   "run.terminal",
+  "feature.fallback",
+  "ir.plan_compiled",
+  "ir.shadow_failed",
+  "ir.lineage_resolved",
+  "ir.step_verified",
 ]);
 
 /** Events after which the snapshot (actions, pending approval) must be re-read. */
@@ -161,6 +166,7 @@ export function selectTimeline(view: RunView): TimelineItem[] {
     else if (supported && type === "approval.decided") detail = String(p["decision"] ?? "");
     else if (supported && (type === "proposal.created" || type === "read.recorded")) detail = String(p["contract_id"] ?? "");
     else if (supported && type === "read.rejected") detail = typeof p["code"] === "string" ? p["code"] : null;
+    else if (supported && (type === "feature.fallback" || type === "ir.shadow_failed")) detail = typeof p["reason_code"] === "string" ? p["reason_code"] : null;
     return {
       sequence: e.sequence,
       type,

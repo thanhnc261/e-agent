@@ -550,7 +550,10 @@
           "provider_error",
           "budget_exhausted",
           "interrupted",
-          "cancelled"
+          "cancelled",
+          "ir_task_unresolved",
+          "ir_compile_failed",
+          "ir_validation_failed"
         ],
         "title": "ReasonCode",
         "type": "string"
@@ -689,7 +692,12 @@
           "message.final",
           "budget.exhausted",
           "run.cancel_requested",
-          "run.terminal"
+          "run.terminal",
+          "feature.fallback",
+          "ir.plan_compiled",
+          "ir.shadow_failed",
+          "ir.lineage_resolved",
+          "ir.step_verified"
         ],
         "title": "RunEventType",
         "type": "string"

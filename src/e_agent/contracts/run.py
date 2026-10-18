@@ -39,6 +39,11 @@ class ReasonCode(StrEnum):
     BUDGET_EXHAUSTED = "budget_exhausted"
     INTERRUPTED = "interrupted"
     CANCELLED = "cancelled"
+    # Fallback codes (ADR 0025, ADR 0027): carried only by `feature.fallback` and, for an
+    # unresolved task, by `ir.shadow_failed`. They never end a run.
+    IR_TASK_UNRESOLVED = "ir_task_unresolved"
+    IR_COMPILE_FAILED = "ir_compile_failed"
+    IR_VALIDATION_FAILED = "ir_validation_failed"
 
 
 TERMINAL_RUN_STATES = frozenset({RunState.SUCCEEDED, RunState.FAILED, RunState.CANCELLED})

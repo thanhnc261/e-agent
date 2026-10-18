@@ -465,7 +465,7 @@ export interface components {
          * @description Typed cause of a run state change (ADR 0018). The human `reason` text stays.
          * @enum {string}
          */
-        ReasonCode: "answered" | "verified" | "verification_pending" | "verification_failed" | "validation_failed" | "policy_denied" | "stale" | "surface_changed" | "approval_rejected" | "approval_expired" | "operation_reserved" | "connection_busy" | "effect_unknown" | "provider_error" | "budget_exhausted" | "interrupted" | "cancelled";
+        ReasonCode: "answered" | "verified" | "verification_pending" | "verification_failed" | "validation_failed" | "policy_denied" | "stale" | "surface_changed" | "approval_rejected" | "approval_expired" | "operation_reserved" | "connection_busy" | "effect_unknown" | "provider_error" | "budget_exhausted" | "interrupted" | "cancelled" | "ir_task_unresolved" | "ir_compile_failed" | "ir_validation_failed";
         /**
          * ResourceHint
          * @description What a host page says the user is looking at. Untrusted; never grants access.
@@ -511,7 +511,7 @@ export interface components {
          * RunEventType
          * @enum {string}
          */
-        RunEventType: "run.created" | "run.state_changed" | "read.recorded" | "read.rejected" | "proposal.created" | "validation.completed" | "approval.requested" | "approval.decided" | "connect.required" | "input.requested" | "input.received" | "action.reserved" | "action.dispatching" | "action.receipt_recorded" | "action.unknown" | "reconciliation.completed" | "outcome.reported" | "message.final" | "budget.exhausted" | "run.cancel_requested" | "run.terminal";
+        RunEventType: "run.created" | "run.state_changed" | "read.recorded" | "read.rejected" | "proposal.created" | "validation.completed" | "approval.requested" | "approval.decided" | "connect.required" | "input.requested" | "input.received" | "action.reserved" | "action.dispatching" | "action.receipt_recorded" | "action.unknown" | "reconciliation.completed" | "outcome.reported" | "message.final" | "budget.exhausted" | "run.cancel_requested" | "run.terminal" | "feature.fallback" | "ir.plan_compiled" | "ir.shadow_failed" | "ir.lineage_resolved" | "ir.step_verified";
         /** RunRecord */
         RunRecord: {
             /** Created At */

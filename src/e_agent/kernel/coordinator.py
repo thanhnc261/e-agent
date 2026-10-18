@@ -37,6 +37,7 @@ from .continuation import _Continuation as _Continuation
 from .continuation import _GatewayReader as _GatewayReader
 from .dispatch import DispatchMixin
 from .errors import ErrorCode, KernelError
+from .features import FeaturesMixin
 from .gateway import GatewayMixin
 from .proposals import ProposalsMixin
 from .recovery import RecoveryMixin
@@ -57,6 +58,7 @@ class RunCoordinator(
     DispatchMixin,
     VerificationMixin,
     RecoveryMixin,
+    FeaturesMixin,
 ):
     def __init__(
         self,

@@ -1,0 +1,47 @@
+import { describe, expect, it } from "vitest";
+import { translate } from "../src/i18n.ts";
+import { emptyRunView, reduceRunView, selectTimeline } from "../src/store.ts";
+import { ev, snapshot } from "./fixtures.ts";
+
+// Feature-toggle and execution-plan events (ADR 0025, ADR 0027): known, labelled, no refresh.
+const FEATURE_EVENTS = [
+  ["feature.fallback", { feature: "execution_ir", reason_code: "ir_compile_failed", detail: "x" }],
+  ["ir.plan_compiled", { plan_digest: "jcs-sha256-v1:abc", step_count: 1 }],
+  ["ir.shadow_failed", { reason_code: "ir_task_unresolved", detail: "x" }],
+  ["ir.lineage_resolved", { step_index: 1 }],
+  ["ir.step_verified", { step_index: 1 }],
+] as const;
+
+describe("feature and execution-plan events", () => {
+  const base = reduceRunView(emptyRunView, { type: "snapshot", snapshot: snapshot("RUNNING", null) });
+
+  it("renders feature and IR events without crashing and with a label", () => {
+    const events = FEATURE_EVENTS.map(([type, payload], i) => ev(i + 1, type, { ...payload }));
+    const v = reduceRunView(base, { type: "events", events });
+    expect(v.unsupportedEvents).toBe(0);
+    expect(v.needsSnapshot).toBe(false);
+    const items = selectTimeline(v);
+    expect(items.map((item) => item.type)).toEqual(FEATURE_EVENTS.map(([type]) => type));
+    for (const item of items) {
+      expect(item.supported).toBe(true);
+      expect(item.labelKey).toBe(`event.${item.type}`);
+      for (const locale of ["en", "vi"] as const) {
+        const label = translate(locale, item.labelKey);
+        expect(label).not.toBe(item.labelKey);
+        expect(label.trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("shows the typed reason of a fallback or shadow failure as its detail", () => {
+    const v = reduceRunView(base, {
+      type: "events",
+      events: [
+        ev(1, "feature.fallback", { feature: "execution_ir", reason_code: "ir_validation_failed", detail: "<b>x</b>" }),
+        ev(2, "ir.shadow_failed", { reason_code: "ir_task_unresolved", detail: "x" }),
+        ev(3, "ir.plan_compiled", { plan_digest: "d" }),
+      ],
+    });
+    expect(selectTimeline(v).map((item) => item.detail)).toEqual(["ir_validation_failed", "ir_task_unresolved", null]);
+  });
+});
