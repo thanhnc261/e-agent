@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2c-8"
   ],
-  "context_digest": "59631e7ca15b160eb1f9cb8eff679ca248faa6df087f29e94a6323c6d8d8e5db",
+  "context_digest": "263ffd9a5400dcd4e35fa5e8c1b717b4b72e39e79fe38436f6b41a398ee1eea2",
   "allowed_paths": [
     "src/e_agent/contracts/run.py",
     "src/e_agent/contracts/outcome.py",
@@ -43,7 +43,12 @@
     "harness/state/**",
     "docs/handoffs/**",
     "src/e_agent/kernel/plan_*.py",
-    "docs/design/target-architecture.md"
+    "docs/design/target-architecture.md",
+    "docs/adr/0025-execution-ir.md",
+    "docs/adr/README.md",
+    "src/e_agent/contracts/work.py",
+    "src/e_agent/adapters/postgres/migrations/0006_*.sql",
+    "src/e_agent/server/worker.py"
   ],
   "acceptance": [
     "test_no_fallback_after_first_reservation passes",
@@ -65,6 +70,31 @@
       "glob": "docs/design/target-architecture.md",
       "reason": "2c.8 ruling: an approval that expires between plan steps stops as STALE, as on today's single-action path; design rows §6.4.5 and §6.4.6 named APPROVAL_EXPIRED (ENG-PLAN-3)",
       "at": "2026-10-18T09:44:53+00:00"
+    },
+    {
+      "glob": "docs/adr/0025-execution-ir.md",
+      "reason": "2c.8 review R-1: plan resume runs under a fenced resume work claim, never inside startup recovery (ADR 0018, MVP §9)",
+      "at": "2026-10-18T09:55:29+00:00"
+    },
+    {
+      "glob": "docs/adr/README.md",
+      "reason": "2c.8 review R-1: plan resume runs under a fenced resume work claim, never inside startup recovery (ADR 0018, MVP §9)",
+      "at": "2026-10-18T09:55:29+00:00"
+    },
+    {
+      "glob": "src/e_agent/contracts/work.py",
+      "reason": "2c.8 review R-1: plan resume runs under a fenced resume work claim, never inside startup recovery (ADR 0018, MVP §9)",
+      "at": "2026-10-18T09:55:29+00:00"
+    },
+    {
+      "glob": "src/e_agent/adapters/postgres/migrations/0006_*.sql",
+      "reason": "2c.8 review R-1: plan resume runs under a fenced resume work claim, never inside startup recovery (ADR 0018, MVP §9)",
+      "at": "2026-10-18T09:55:29+00:00"
+    },
+    {
+      "glob": "src/e_agent/server/worker.py",
+      "reason": "2c.8 review R-1: plan resume runs under a fenced resume work claim, never inside startup recovery (ADR 0018, MVP §9)",
+      "at": "2026-10-18T09:55:29+00:00"
     }
   ]
 }

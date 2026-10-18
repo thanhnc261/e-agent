@@ -41,6 +41,11 @@ A run admits one write today (`Budgets.max_admitted_writes = 1`). Phase 5 needs 
 - **Toggle** `features.execution_ir` (ADR 0027), with the fallback boundary at the first `reserve_operation`.
 - **Live guard:** a profile with `environment: live` refuses `max_admitted_writes > 1` until a UI can present and recompute a multi-step plan (Phase 5).
 
+
+### Amendment: plan resume after a crash (proposed 2026-10-18; the owner accepts before the phase merges)
+
+A plan whose latest step is `VERIFIED` and whose next step is unstarted resumes after a crash, but never inside startup recovery or an operator call. Recovery never sends a write (ADR 0018, MVP §9). It enqueues one fenced `resume` work item, de-duplicated like `expire`, and returns. The worker claims the item under the fence. It re-checks under the claim that the run is `RUNNING` or `VERIFYING` with plan state; otherwise it drops the item. Then it continues the plan through the same path as a live finish, so every pre-reservation guard applies again (approval TTL, the approved step input, fact, rule and policy staleness, domain validation of resolved lineage values). A latest step in `UNKNOWN` never resumes; it goes to reconciliation. The work kinds gain `resume` (`contracts/work.py`, migration `0006`). The 2c.8 review R-1 found that a resume inside unfenced startup recovery could misreport a committed step when two processes start on one ledger.
+
 ## Alternatives considered
 
 - One approval per step: rejected as the default because it multiplies approval prompts for one business intent, and later steps cannot be shown with their final values. See ADR 0024.
