@@ -97,7 +97,8 @@
         "the same pass with E_AGENT_TEST_STORE=postgres",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.3/2026-10-18T03-59-06.601052+00-00-full.json"
     },
     {
       "id": "F-2c-4",

@@ -1,0 +1,39 @@
+{
+  "task": "2c.3",
+  "changed": "Migration 0005 adds action_plans and run_steps tables and nullable plan_id/step_index columns on actions (CHECK set together). RunStore gains put_plan, get_plan and list_steps; every write batch (EventBatch) may carry StepRecords, committed in the same transaction as the events, append-only with a strictly increasing sequence per run. contracts/plan.py defines the $lineage wire form {\"$lineage\": {\"step\", \"path\"}} via LineageRef's serializer and the store-boundary functions plan_to_wire/plan_from_wire; model_validate keeps refusing every literal $lineage key.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2c.3/2026-10-18T03-59-06.601052+00-00-full.json",
+    "harness/state/evidence/gates/2c.3/2026-10-18T04-00-20.898864+00-00-pg.json"
+  ],
+  "open_items": [
+    "2c.4: validate_plan revalidates via plan_from_wire(plan_to_wire(plan)); the digest input uses the same encoding (review R-2).",
+    "2c.6: refuse an action whose plan_id names no stored plan (review R-5); R-1/R-2 from 2c.2 as planned.",
+    "2c.8: R-3 from 2c.2 as planned.",
+    "2c.9: model plans need their own placeholder schema; the wire form is never parsed from model output.",
+    "Postgres conformance (tests/conformance/test_run_store.py, E_AGENT_TEST_STORE=postgres): 58 passed on a732a12, run by the controller outside the gate (HP-6)."
+  ],
+  "rulings": [
+    {
+      "ruling": "Step records are append-only state rows; a status change appends a row with the same step_id and a higher sequence.",
+      "cost_if_wrong": "An update method and a unique step_id in 2c.6."
+    },
+    {
+      "ruling": "Batches are Sequence[EventSpec | StepRecord] on every write method; the memory store validates steps before any mutation.",
+      "cost_if_wrong": "Signature churn in 2c.6."
+    },
+    {
+      "ruling": "The $lineage wire form is parsed only at the store boundary (plan_from_wire), so model output cannot mint a placeholder (ADR 0025:21).",
+      "cost_if_wrong": "2c.9 defines its own placeholder schema for model plans."
+    },
+    {
+      "ruling": "Codex hit its usage limit; a Claude reviewer (opus, fresh context) reviewed instead.",
+      "cost_if_wrong": "Re-run Codex on 2c.3."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "pg gate and Postgres conformance ran against e_agent_test in e-agent-ledger (migration 0005 applied there).",
+      "undo": "None needed."
+    }
+  ]
+}

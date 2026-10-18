@@ -514,3 +514,8 @@
 - changed: no working-tree changes
 - next: test_task_capabilities_match_golden passes with a non-zero case count
 - open: none
+
+## 2026-10-18T04:01:26.506205+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.3
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.3.json, harness/state/2/reviews/2c.3.json, harness/state/evidence/gates/2c.3/2026-10-18T03-59-06.601052+00-00-full.json, harness/state/evidence/gates/2c.3/2026-10-18T04-00-20.898864+00-00-pg.json
+- next: 2c.4: IR compiler, validator and plan digest (validate_plan revalidates via plan_from_wire(plan_to_wire))
+- open: none
