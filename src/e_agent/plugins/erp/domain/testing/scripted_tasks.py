@@ -2,7 +2,9 @@
 
 Mirrors ScriptedProcurementDriver: read first, then propose; ``invalid-then-repair``
 makes the first proposal break one named rule, ``wrong-answer-then-correct``
-makes the first answer fail verification.
+makes the first answer fail verification. ``two-step-plan`` (draft-po, fixture only, Task
+2c.7) proposes a two-step plan: the draft PO, then a second draft PO whose requested date
+is copied through lineage from the first PO as its verifier read it back.
 """
 
 from __future__ import annotations
@@ -14,13 +16,14 @@ from typing import Any
 
 from e_agent.contracts.common import format_decimal
 from e_agent.contracts.context import TaskContext
-from e_agent.contracts.plan import ActionProposal
+from e_agent.contracts.plan import ActionPlan, ActionProposal, LineageRef, PlannedStep
 from e_agent.sdk.ports import (
     DriverInput,
     DriverStep,
     FinalAnswer,
     Observation,
     ProposeAction,
+    ProposePlan,
     ReadRequest,
     RequestReads,
 )
@@ -37,6 +40,34 @@ from ..sales.late_orders import late_orders
 from .scripted_driver import ScriptedProcurementDriver
 
 PROCUREMENT_KINDS = {"draft-po", "shortage", "recommend"}
+TWO_STEP_PLAN = "two-step-plan"
+FIRST_PO, SECOND_PO = "first-po", "second-po"
+
+
+def two_step_po_plan(first: ActionProposal) -> ActionPlan:
+    """The smallest dependent ERP pair the domain supports: two draft POs, the second
+    copying ``requested_date`` from the first's verified read-back. A lineage demonstration
+    for fixtures, not a procurement scenario (two orders for one demand). The kernel assigns
+    the plan id and the task definition."""
+    second = first.model_copy(
+        update={
+            "arguments": {
+                **first.arguments,
+                "requested_date": LineageRef(step_id=FIRST_PO, path="/requested_date"),
+            }
+        }
+    )
+    return ActionPlan(
+        plan_id="scripted",
+        task_id="draft-po",
+        task_version="scripted",
+        steps=(
+            PlannedStep(step_id=FIRST_PO, proposal=first),
+            PlannedStep(step_id=SECOND_PO, proposal=second, depends_on=(FIRST_PO,)),
+        ),
+    )
+
+
 # The domain pack's task presets are the one list of kinds and default refs.
 TASK_KINDS = frozenset(preset.kind for preset in TASK_PRESETS)
 DEFAULT_REFS = dict(TASK_REFS)
@@ -106,7 +137,10 @@ class ScriptedErpDriver:
     async def advance(self, ctx: TaskContext, step_input: DriverInput) -> DriverStep:
         if self.task_kind in PROCUREMENT_KINDS:
             assert self._procurement is not None
-            return await self._procurement.advance(ctx, step_input)
+            proposed = await self._procurement.advance(ctx, step_input)
+            if self.mode == TWO_STEP_PLAN and isinstance(proposed, ProposeAction):
+                return ProposePlan(plan=two_step_po_plan(proposed.proposal))
+            return proposed
         if step_input.action_result is not None:
             refs = ", ".join(step_input.action_result.get("external_refs", []))
             return FinalAnswer(text=f"Done and verified by the host. {refs}".strip())

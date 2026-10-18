@@ -40,7 +40,7 @@ from .errors import ErrorCode, KernelError
 from .features import FeaturesMixin
 from .gateway import GatewayMixin
 from .ir_on import merged_budgets
-from .proposals import ProposalsMixin
+from .plan_flow import PlanFlowMixin
 from .recovery import RecoveryMixin
 from .registry import PluginRegistry
 from .run_loop import RunLoopMixin
@@ -54,7 +54,7 @@ class RunCoordinator(
     TransitionsMixin,
     RunLoopMixin,
     GatewayMixin,
-    ProposalsMixin,
+    PlanFlowMixin,
     ApprovalFlowMixin,
     DispatchMixin,
     VerificationMixin,
@@ -89,6 +89,7 @@ class RunCoordinator(
         self._features = features or Features()  # profile toggles (ADR 0027)
         self._runs: dict[str, _Continuation] = {}
         self._active_calls: dict[str, asyncio.Task[Any]] = {}
+        self._plan_runs: set[str] = set()
 
     # ------------------------------------------------------------------ runs
     def _prepare_run(

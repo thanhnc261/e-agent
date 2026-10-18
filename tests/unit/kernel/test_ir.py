@@ -564,3 +564,56 @@ def test_validate_is_pure() -> None:
     first = validate_plan(plan, _task(), _ctx())
     assert validate_plan(plan, _task(), _ctx()) == first
     assert plan.model_dump(mode="json") == before
+
+
+def test_resolve_lineage_walks_rfc6901_and_checks_declared_types() -> None:
+    """Pure lineage resolution (ADR 0025): `~1`/`~0` escapes and array indices in the
+    pointer, `anyOf` and `$ref` in the schema; a missing value or a wrong type is refused."""
+    from e_agent.contracts.plan import ActionProposal, LineageRef, PlannedStep
+    from e_agent.kernel.ir import LineageRejected, declared_types, resolve_lineage
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "ref": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "line": {"$ref": "#/$defs/Line"},
+        },
+        "$defs": {"Line": {"type": "object", "properties": {"qty": {"type": "integer"}}}},
+    }
+    assert declared_types(schema, ("ref",)) == {"string", "null"}
+    assert declared_types(schema, ("line", "qty")) == {"integer"}
+    assert declared_types(schema, ("other",)) == set()
+    verified = {"a": {"x/y": ["first", {"n~m": "PO/1"}], "count": 3, "flag": True}}
+
+    def step(**arguments: object) -> PlannedStep:
+        return PlannedStep(
+            step_id="b",
+            proposal=ActionProposal(contract_id="d.x.v1", connection_id="c", arguments=arguments),
+            depends_on=("a",),
+        )
+
+    args, resolved = resolve_lineage(
+        step(ref=LineageRef(step_id="a", path="/x~1y/1/n~0m"), line={"qty": 2}), verified, schema
+    )
+    assert args == {"ref": "PO/1", "line": {"qty": 2}}
+    assert resolved == [
+        {"argument": "/ref", "from_step": "a", "path": "/x~1y/1/n~0m", "value": "PO/1"}
+    ]
+    args, _ = resolve_lineage(
+        step(line={"qty": LineageRef(step_id="a", path="/count")}), verified, schema
+    )
+    assert args == {"line": {"qty": 3}}
+    cases = [
+        (step(ref=LineageRef(step_id="a", path="/nope")), "missing"),
+        (step(ref=LineageRef(step_id="a", path="/x~1y/7")), "missing"),
+        (step(ref=LineageRef(step_id="a", path="/count")), "type"),
+        (step(line={"qty": LineageRef(step_id="a", path="/flag")}), "type"),  # bool is no int
+        (step(other=LineageRef(step_id="a", path="/count")), "type"),  # undeclared
+    ]
+    for planned, kind in cases:
+        with pytest.raises(LineageRejected) as caught:
+            resolve_lineage(planned, verified, schema)
+        assert caught.value.kind == kind
+    with pytest.raises(LineageRejected):
+        resolve_lineage(step(ref=LineageRef(step_id="a", path="/count")), {}, schema)
+    assert len(cases) == 5

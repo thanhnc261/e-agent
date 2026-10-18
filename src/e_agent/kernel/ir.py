@@ -10,7 +10,7 @@ shadow path (Task 2c.5) and the `on` path (Task 2c.6).
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from e_agent.contracts.capability import EffectKind
@@ -20,9 +20,11 @@ from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.plan import (
     ActionPlan,
     ActionProposal,
+    LineageRef,
     PlannedStep,
     check_plan_rules,
     encode_arguments,
+    lineage_refs,
     plan_from_wire,
     plan_to_wire,
 )
@@ -266,3 +268,175 @@ def plan_digest(
 ) -> str:
     """The plan's approval digest: `compute_digest` over `plan_digest_input`."""
     return compute_digest(plan_digest_input(plan, contexts, run_operation_id=run_operation_id))
+
+
+# -- lineage (target §6.4.3, §6.4.5) -----------------------------------------------------
+_JSON_TYPES: dict[str, Callable[[Any], bool]] = {
+    "string": lambda v: isinstance(v, str),
+    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    "number": lambda v: isinstance(v, int | float) and not isinstance(v, bool),
+    "boolean": lambda v: isinstance(v, bool),
+    "null": lambda v: v is None,
+    "object": lambda v: isinstance(v, Mapping),
+    "array": lambda v: isinstance(v, list),
+}
+
+LINEAGE_MESSAGES = {
+    "missing": "A lineage placeholder names a value the earlier step's verified outcome "
+    "does not hold.",
+    "type": "A lineage value does not have the type its input schema declares.",
+}
+"""The fixed messages of the run-time ``KERNEL-PLAN-LINEAGE`` finding (no model text)."""
+
+
+class LineageRejected(ValueError):
+    """A placeholder cannot be resolved: ``kind`` is a key of `LINEAGE_MESSAGES`."""
+
+    def __init__(self, kind: str) -> None:
+        super().__init__(LINEAGE_MESSAGES[kind])
+        self.kind = kind
+
+
+def has_placeholders(proposal: ActionProposal) -> bool:
+    return any(True for _ in lineage_refs(proposal.arguments))
+
+
+def _pointer(segments: tuple[str, ...]) -> str:
+    return "".join("/" + s.replace("~", "~0").replace("/", "~1") for s in segments)
+
+
+def _deref(node: Any, root: Mapping[str, Any]) -> Any:
+    """Follow a local ``#/$defs/...`` reference, as pydantic writes them."""
+    ref = node.get("$ref") if isinstance(node, Mapping) else None
+    if isinstance(ref, str) and ref.startswith("#/"):
+        target: Any = root
+        for part in ref[2:].split("/"):
+            target = target.get(part) if isinstance(target, Mapping) else None
+        return target if isinstance(target, Mapping) else {}
+    return node if isinstance(node, Mapping) else {}
+
+
+def _nodes_at(node: Any, segments: tuple[str, ...], root: Mapping[str, Any]) -> list[Any]:
+    node = _deref(node, root)
+    branches = node.get("anyOf") or node.get("oneOf")
+    if isinstance(branches, list):
+        return [n for b in branches for n in _nodes_at(b, segments, root)]
+    if not segments:
+        return [node]
+    head, rest = segments[0], segments[1:]
+    properties = node.get("properties")
+    if isinstance(properties, Mapping) and head in properties:
+        return _nodes_at(properties[head], rest, root)
+    if "items" in node and head.isdigit():
+        return _nodes_at(node["items"], rest, root)
+    return []
+
+
+def declared_types(schema: Mapping[str, Any] | None, segments: tuple[str, ...]) -> set[str]:
+    """The JSON types the input schema declares at an argument location; empty when the
+    schema declares none there (an undeclared argument cannot be type-checked)."""
+    if not schema:
+        return set()
+    types: set[str] = set()
+    for node in _nodes_at(schema, segments, schema):
+        declared = node.get("type")
+        for name in [declared] if isinstance(declared, str) else declared or []:
+            if name in _JSON_TYPES:
+                types.add(name)
+    return types
+
+
+def _placeholders(
+    value: Any, location: tuple[str, ...]
+) -> list[tuple[tuple[str, ...], LineageRef]]:
+    if isinstance(value, LineageRef):
+        return [(location, value)]
+    if isinstance(value, Mapping):
+        return [p for k, v in value.items() for p in _placeholders(v, (*location, str(k)))]
+    if isinstance(value, list | tuple):
+        return [p for i, v in enumerate(value) for p in _placeholders(v, (*location, str(i)))]
+    return []
+
+
+def lineage_type_findings(
+    step: PlannedStep, schema: Mapping[str, Any] | None
+) -> tuple[Finding, ...]:
+    """``KERNEL-PLAN-LINEAGE`` for each placeholder whose argument has no declared type in
+    the consuming step's input schema (target §6.4.3: a placeholder is treated as a value of
+    the type its input schema declares). Pure; checked before approval."""
+    return tuple(
+        _finding(
+            "KERNEL-PLAN-LINEAGE",
+            f"step {step.step_id!r}: argument {_pointer(location)} has no type in its "
+            "input schema, so its lineage value cannot be type-checked",
+        )
+        for location, _ in _placeholders(step.proposal.arguments, ())
+        if not declared_types(schema, location)
+    )
+
+
+def _pointer_get(document: Any, path: str) -> Any:
+    """The value at an RFC 6901 pointer; `LineageRejected` ("missing") when there is none."""
+    for raw in path.split("/")[1:] if path else ():
+        segment = raw.replace("~1", "/").replace("~0", "~")
+        if isinstance(document, Mapping) and segment in document:
+            document = document[segment]
+        elif (
+            isinstance(document, list)
+            and segment.isdigit()
+            and (segment == "0" or not segment.startswith("0"))
+            and int(segment) < len(document)
+        ):
+            document = document[int(segment)]
+        else:
+            raise LineageRejected("missing")
+    return document
+
+
+def _clone(value: Any) -> Any:
+    """A copy of a JSON-mode value, so a resolved argument never aliases a verified one."""
+    if isinstance(value, Mapping):
+        return {k: _clone(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_clone(v) for v in value]
+    return value
+
+
+def resolve_lineage(
+    step: PlannedStep,
+    verified: Mapping[str, Mapping[str, Any]],
+    schema: Mapping[str, Any] | None,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """The step's arguments with each placeholder replaced by the value at its pointer in the
+    named earlier step's verified values (ADR 0025's one rule), and the record of each
+    resolution. ``verified`` maps a step id to its verifier's read-back values, never a
+    receipt or model output. Raises `LineageRejected` for a missing value ("missing") or a
+    value whose JSON type the schema does not declare there ("type"). Pure."""
+    resolved: list[dict[str, Any]] = []
+
+    def walk(value: Any, location: tuple[str, ...]) -> Any:
+        if not _placeholders(value, location):
+            return value
+        if isinstance(value, LineageRef):
+            source = verified.get(value.step_id)
+            if source is None:
+                raise LineageRejected("missing")
+            got = _clone(_pointer_get(source, value.path))
+            types = declared_types(schema, location)
+            if not any(_JSON_TYPES[name](got) for name in types):
+                raise LineageRejected("type")
+            resolved.append(
+                {
+                    "argument": _pointer(location),
+                    "from_step": value.step_id,
+                    "path": value.path,
+                    "value": got,
+                }
+            )
+            return got
+        if isinstance(value, Mapping):
+            return {k: walk(v, (*location, str(k))) for k, v in value.items()}
+        return [walk(v, (*location, str(i))) for i, v in enumerate(value)]
+
+    arguments = {key: walk(value, (key,)) for key, value in step.proposal.arguments.items()}
+    return arguments, resolved

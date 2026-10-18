@@ -72,6 +72,9 @@ OUTSIDE_SET = "The proposed capability is not in the run's task definition."
 """The fixed message of the ``KERNEL-PLAN-CAPABILITY`` repair finding (no model text)."""
 
 
+PLAN_INTERRUPTED = "plan interrupted between steps; the remaining steps were not started"
+"""The fixed reason of a plan stopped between steps outside the approval call (2c.7)."""
+
 ACCEPTANCE_MESSAGES = MappingProxyType(
     {
         "effects": "The run ended without the required verified effects.",
@@ -102,6 +105,10 @@ def merged_budgets(profile: Budgets, task: TaskDefinition) -> Budgets:
     return profile.model_copy(
         update={name: getattr(task.budgets, name) for name in task.budgets.model_fields_set}
     )
+
+
+def _fixed(rule_id: str, message: str) -> Finding:
+    return Finding(rule_id=rule_id, rule_version="1", status=ValidationStatus.FAIL, message=message)
 
 
 class IrOnMixin(FeaturesMixin):
@@ -152,13 +159,17 @@ class IrOnMixin(FeaturesMixin):
         allowed = self._allowed(run, cont)
         if allowed is None or proposal.contract_id in allowed:
             return None
-        finding = Finding(
-            rule_id="KERNEL-PLAN-CAPABILITY",
-            rule_version="1",
-            status=ValidationStatus.FAIL,
-            message=OUTSIDE_SET,
+        return await self._repair_finding(
+            run, cont, (_fixed("KERNEL-PLAN-CAPABILITY", OUTSIDE_SET),)
         )
-        payload = {"status": "FAIL", "findings": [finding.model_dump(mode="json")]}
+
+    async def _repair_finding(
+        self, run: RunRecord, cont: _Continuation, findings: tuple[Finding, ...]
+    ) -> RunRecord | DriverInput:
+        """Kernel findings on a proposal that made no action: recorded in
+        ``validation.completed`` and returned to the driver within ``max_validation_repairs``,
+        as a blocked proposal is; past the budget the run fails ``VALIDATION_FAILED``."""
+        payload = {"status": "FAIL", "findings": [f.model_dump(mode="json") for f in findings]}
         run = await self._store.update_run(
             run.model_copy(update={"revision": run.revision + 1}),
             run.revision,
@@ -171,8 +182,23 @@ class IrOnMixin(FeaturesMixin):
         cont.repairs += 1
         await self._persist(run.run_id)
         return DriverInput(
-            task=run.task, observations=tuple(cont.observations.values()), findings=(finding,)
+            task=run.task, observations=tuple(cont.observations.values()), findings=findings
         )
+
+    def _kept(self, report: OutcomeReport) -> OutcomeReport:
+        """The report as the kernel stores it: read-back values only in ``on``, where lineage
+        and recovery need them; ``off`` and ``shadow`` store exactly what they stored before."""
+        if self._ir_on or report.verified_values is None:
+            return report
+        return report.model_copy(update={"verified_values": None})
+
+    @staticmethod
+    def _approved_input(cont: _Continuation) -> dict[str, Any]:
+        """The approved digest input the action in flight is checked against: the current
+        plan step's for a multi-step plan (Task 2c.7), else the one canonical proposal."""
+        if cont.plan is not None:
+            return cont.plan.inputs[cont.plan.current]
+        return cont.canonical_proposal
 
     async def _on_plan(
         self,
@@ -241,9 +267,15 @@ class IrOnMixin(FeaturesMixin):
         await self.record_fallback(current, FEATURE, reason)
 
     # -- step records ----------------------------------------------------------------------
-    @staticmethod
-    def _step_id(action: ActionRecord, kind: StepKind) -> str:
-        return f"{action.plan_id}/{SINGLE_STEP_ID}/{kind}"
+    def _step_id(self, action: ActionRecord, kind: StepKind) -> str:
+        """``<plan id>/<plan step id>/<kind>``: the plan's own step id for a multi-step plan,
+        `SINGLE_STEP_ID` for a compiled single proposal."""
+        cont = self._runs.get(action.run_id)
+        plan = cont.plan if cont is not None else None
+        step = SINGLE_STEP_ID
+        if plan is not None and plan.plan_id == action.plan_id and action.step_index is not None:
+            step = plan.step_ids[action.step_index]
+        return f"{action.plan_id}/{step}/{kind}"
 
     async def _last_steps(self, action: ActionRecord) -> list[StepRecord]:
         return await self._store.list_steps(action.tenant_id, action.run_id)
@@ -349,7 +381,14 @@ class IrOnMixin(FeaturesMixin):
         self, run: RunRecord, cont: _Continuation | None, reason: str, code: ReasonCode
     ) -> RunRecord:
         """End the run SUCCEEDED, or FAILED with ``ACCEPTANCE_UNMET`` in ``on`` when the
-        admitted definition's acceptance spec is not met."""
+        admitted definition's acceptance spec is not met. A multi-step plan with a step never
+        started cannot succeed: it fails ``INTERRUPTED`` (recovery between steps; resuming a
+        plan is Task 2c.8's)."""
+        plan = cont.plan if cont is not None else None
+        if plan is not None and len(plan.action_ids) < len(plan.step_ids):
+            return await self._set_run_state(
+                run, RunState.FAILED, PLAN_INTERRUPTED, code=ReasonCode.INTERRUPTED
+            )
         gap = await self._acceptance_gap(run, cont)
         if gap is not None:
             return await self._fail_unmet(run, gap)

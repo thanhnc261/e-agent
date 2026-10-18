@@ -23,7 +23,7 @@ from e_agent.contracts.common import new_id
 from e_agent.contracts.context import Budgets, TaskContext
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import Completeness
-from e_agent.contracts.plan import ActionProposal
+from e_agent.contracts.plan import ActionPlan, ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import (
     ReasonCode,
@@ -55,6 +55,25 @@ LOG = logging.getLogger("e_agent.kernel.coordinator")
 CONTINUATION_SCHEMA = "kernel-continuation-v1"
 
 
+class _PlanState(BaseModel):
+    """The multi-step plan a run is executing (Task 2c.7, ADR 0025); persisted with the
+    continuation, so the approved inputs and the verified values survive a restart."""
+
+    plan_id: str
+    step_ids: tuple[str, ...]
+    inputs: tuple[dict[str, Any], ...]
+    """Each step's approved digest input (`plan_digest_input`), in step-index order: what
+    revalidation compares a step against before its reservation."""
+    current: int = 0
+    """The index of the step in flight."""
+    action_ids: list[str] = Field(default_factory=list)
+    """The action of each started step; the first holds the plan's one approval."""
+    approval_id: str | None = None
+    verified: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    """Step id to the values its verifier read back (`OutcomeReport.verified_values`), set
+    only when that step's outcome is VERIFIED: the one source lineage copies from."""
+
+
 class _Continuation(BaseModel):
     """Kernel-side run continuation, persisted through the RunStore at every state
     change so a restarted process can resume (ADR 0003/0004). Contains only
@@ -79,14 +98,17 @@ class _Continuation(BaseModel):
     task: TaskDefinition | None = None
     """The definition admitted for an execution IR ``on`` run: its tool set, budgets, TTL and
     acceptance for the whole run, whatever the registry later holds (ADR 0028, Codex C-1)."""
+    plan: _PlanState | None = None
+    """The multi-step plan in flight (execution IR ``on``, Task 2c.7); None otherwise."""
 
     @model_serializer(mode="wrap")
     def _omit_unbound_task(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        """Leave ``task`` out when unset, so an ``off`` or ``shadow`` continuation is stored
-        exactly as before Task 2c.6."""
+        """Leave ``task`` and ``plan`` out when unset, so an ``off`` or ``shadow``
+        continuation is stored exactly as before Task 2c.6."""
         data: dict[str, Any] = handler(self)
-        if self.task is None:
-            data.pop("task", None)
+        for name in ("task", "plan"):
+            if getattr(self, name) is None:
+                data.pop(name, None)
         return data
 
 
@@ -124,6 +146,8 @@ class ContinuationMixin:
     _budgets: Budgets
     _runs: dict[str, _Continuation]
     _active_calls: dict[str, asyncio.Task[Any]]
+    _plan_runs: set[str]
+    """Runs whose plan the approval call is dispatching now: only these start a next step."""
 
     if TYPE_CHECKING:
 
@@ -135,6 +159,21 @@ class ContinuationMixin:
         async def _handle_proposal(
             self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
         ) -> RunRecord | DriverInput:
+            raise NotImplementedError
+
+        async def _handle_plan(
+            self, run: RunRecord, cont: _Continuation, plan: ActionPlan
+        ) -> RunRecord | DriverInput:
+            raise NotImplementedError
+
+        async def _run_plan(
+            self, cont: _Continuation, action: ActionRecord, approval: ApprovalRecord
+        ) -> RunRecord:
+            raise NotImplementedError
+
+        async def _after_step_verified(
+            self, cont: _Continuation, action: ActionRecord
+        ) -> RunRecord:
             raise NotImplementedError
 
         async def _record_rejected_read(

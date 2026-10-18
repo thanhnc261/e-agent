@@ -45,24 +45,34 @@ class DispatchMixin(IrOnMixin):
         try:
             stale_reason = await self._staleness(cont, action)
         except TimeoutError:
-            await self._transition(action, ActionState.BLOCKED)
+            steps = await self._step_finish(action, StepKind.VALIDATE, StepStatus.FAILED)
+            if steps:  # a plan's later step: its open validate row ends with the block
+                timeout = {"status": "STALE", "reason": "revalidation deadline"}
+                event = (RunEventType.VALIDATION_COMPLETED, timeout)
+                await self._transition_with_steps(action, ActionState.BLOCKED, event, steps)
+            else:
+                await self._transition(action, ActionState.BLOCKED)
             cont.pending_action_id = None
             return await self._exhausted(run, "active time or provider deadline")
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)  # reads advanced revision
         if stale_reason is None and self._clock() > approval.expires_at:
             stale_reason = "approval expired before dispatch"
+        later_step = action.state is ActionState.PROPOSED  # a plan step after the first
         if stale_reason is not None:
-            await self._transition(
+            await self._transition_with_steps(
                 action,
                 ActionState.BLOCKED,
                 (RunEventType.VALIDATION_COMPLETED, {"status": "STALE", "reason": stale_reason}),
+                await self._step_finish(action, StepKind.VALIDATE, StepStatus.BLOCKED),
             )
             cont.pending_action_id = None
-            if cont.repairs >= ctx.budgets.max_validation_repairs:
+            if later_step or cont.repairs >= ctx.budgets.max_validation_repairs:
+                # After the first reservation a plan never repairs: it stops (§6.4.6).
                 return await self._set_run_state(
                     run, RunState.FAILED, stale_reason, code=ReasonCode.STALE
                 )
             cont.repairs += 1
+            cont.plan = None  # the driver proposes again; an unstarted plan is dropped
             run = await self._set_run_state(
                 run, RunState.RUNNING, stale_reason, code=ReasonCode.STALE
             )
@@ -77,6 +87,13 @@ class DispatchMixin(IrOnMixin):
                 DriverInput(
                     task=run.task, observations=tuple(cont.observations.values()), findings=(stale,)
                 ),
+            )
+        if later_step:  # revalidated with its resolved lineage: approved by the plan digest
+            action = await self._transition_with_steps(
+                action,
+                ActionState.VALIDATED,
+                (RunEventType.VALIDATION_COMPLETED, {"status": "PASS", "findings": []}),
+                await self._step_finish(action, StepKind.VALIDATE, StepStatus.SUCCEEDED),
             )
 
         reserved = action.model_copy(
@@ -99,7 +116,7 @@ class DispatchMixin(IrOnMixin):
             # ADR 0020: another action on this connection is RESERVED, DISPATCHING or UNKNOWN.
             # Caught here, before any generic ConcurrencyConflict handler, so it never escapes
             # as an HTTP 409.
-            await self._transition(action, ActionState.BLOCKED)
+            await self._block_if_allowed(action)
             cont.pending_action_id = None
             return await self._set_run_state(
                 run,
@@ -108,7 +125,7 @@ class DispatchMixin(IrOnMixin):
                 code=ReasonCode.CONNECTION_BUSY,
             )
         except DuplicateOperation:
-            await self._transition(action, ActionState.BLOCKED)
+            await self._block_if_allowed(action)
             return await self._set_run_state(
                 run,
                 RunState.FAILED,
@@ -158,8 +175,15 @@ class DispatchMixin(IrOnMixin):
             )
         return await self._apply_receipt(cont, action, receipt)
 
+    async def _block_if_allowed(self, action: ActionRecord) -> None:
+        """BLOCKED from an approved action; a plan's later step is VALIDATED when it reserves
+        and has no BLOCKED transition, so it keeps its state and the run fails (2c.8)."""
+        if ActionState.BLOCKED in ALLOWED_ACTION_TRANSITIONS[action.state]:
+            await self._transition(action, ActionState.BLOCKED)
+
     async def _staleness(self, cont: _Continuation, action: ActionRecord) -> str | None:
         ctx = cont.ctx
+        approved = self._approved_input(cont)
         try:
             connection = self._connections.usable(ctx, action.connection_id)
         except KernelError as exc:
@@ -179,7 +203,7 @@ class DispatchMixin(IrOnMixin):
         decision = self._policy.evaluate(ctx, descriptor, action.connection_id)
         if not decision.permitted:
             return "policy no longer permits the action"
-        if decision.policy_version != cont.canonical_proposal.get("policy_version"):
+        if decision.policy_version != approved.get("policy_version"):
             return "policy changed since approval"
         stale_reason = None
         for request_id, request in cont.reads.items():
@@ -203,13 +227,13 @@ class DispatchMixin(IrOnMixin):
                 contract_id=action.contract_id,
                 connection_id=action.connection_id,
                 arguments=action.arguments,
-                expected_effects=tuple(cont.canonical_proposal.get("expected_effects", [])),
+                expected_effects=tuple(approved.get("expected_effects", [])),
             ),
             binding,
         )
         if validation.blocks_write:
             return "fresh validation blocked the action"
-        if validation.rule_bundle_version != cont.canonical_proposal.get("rule_bundle_version"):
+        if validation.rule_bundle_version != approved.get("rule_bundle_version"):
             return "rules changed since approval"
         return stale_reason
 

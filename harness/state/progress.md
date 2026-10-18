@@ -544,3 +544,13 @@
 - changed: harness/state/2/features.json, harness/state/2/handoffs/2c.6.json, harness/state/2/reviews/2c.6-r2.json, harness/state/2/reviews/2c.6.json, harness/state/evidence/gates/2c.6/2026-10-18T07-18-25.934741+00-00-full.json, harness/state/evidence/gates/2c.6/2026-10-18T07-19-39.643994+00-00-pg.json, harness/state/evidence/gates/2c.6/2026-10-18T07-34-29.292677+00-00-full.json, harness/state/evidence/gates/2c.6/2026-10-18T07-35-40.344858+00-00-pg.json
 - next: 2c.7: multi-step plans, approval and dispatch (first commit carries the 2c.6 parked items into the 2c.8 plan section)
 - open: none
+
+## 2026-10-18T08:15:56.484653+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.7
+- changed: harness/state/2/tasks/2c.7.json, pyproject.toml, src/e_agent/contracts/outcome.py, src/e_agent/contracts/run.py, src/e_agent/kernel/approval.py, src/e_agent/kernel/approval_flow.py, src/e_agent/kernel/continuation.py, src/e_agent/kernel/coordinator.py, src/e_agent/kernel/dispatch.py, src/e_agent/kernel/ir.py, src/e_agent/kernel/ir_on.py, src/e_agent/kernel/proposals.py, src/e_agent/kernel/run_loop.py, src/e_agent/kernel/transitions.py, src/e_agent/kernel/verification.py, src/e_agent/plugins/erp/domain/procurement/verifier.py, src/e_agent/sdk/__init__.py, src/e_agent/sdk/ports.py, tests/unit/kernel/conftest.py, tests/unit/kernel/test_action_plan_dispatch.py, tests/unit/plugins/erp/domain/test_procurement.py, tests/unit/sdk/test_ports.py
+- next: test_plan_approved_once_dispatches_steps_in_order passes with the VERIFYING to RUNNING pair added in this task
+- open: none
+
+## 2026-10-18T08:18:10.385319+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.7
+- changed: harness/state/2/tasks/2c.7.json, harness/state/progress.md, pyproject.toml, src/e_agent/contracts/outcome.py, src/e_agent/contracts/run.py, src/e_agent/kernel/approval.py, src/e_agent/kernel/approval_flow.py, src/e_agent/kernel/continuation.py, src/e_agent/kernel/coordinator.py, src/e_agent/kernel/dispatch.py, src/e_agent/kernel/ir.py, src/e_agent/kernel/ir_on.py, src/e_agent/kernel/plan_flow.py, src/e_agent/kernel/proposals.py, src/e_agent/kernel/run_loop.py, src/e_agent/kernel/transitions.py, src/e_agent/kernel/verification.py, src/e_agent/plugins/erp/domain/procurement/verifier.py, src/e_agent/plugins/erp/domain/testing/scripted_tasks.py, src/e_agent/sdk/__init__.py, src/e_agent/sdk/ports.py, src/e_agent/server/bootstrap.py, src/e_agent/server/cli.py, tests/unit/kernel/conftest.py, tests/unit/kernel/test_action_plan_dispatch.py, tests/unit/kernel/test_ir.py, tests/unit/plugins/erp/domain/test_procurement.py, tests/unit/sdk/test_ports.py
+- next: test_plan_approved_once_dispatches_steps_in_order passes with the VERIFYING to RUNNING pair added in this task
+- open: none

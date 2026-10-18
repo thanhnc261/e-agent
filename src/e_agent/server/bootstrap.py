@@ -325,6 +325,19 @@ def fixture_scenario_check(profile: Profile) -> None:
             )
 
 
+def check_live_write_budget(profile: Profile) -> None:
+    """A live profile admits at most one write per run (ADR 0025, live guard): no UI can yet
+    present and recompute a multi-step plan's digest (Phase 5). A task definition only
+    narrows the profile's budgets (ADR 0028, owner decision D7), so no definition in a live
+    profile can admit more either."""
+    if profile.environment == "live" and profile.budgets.max_admitted_writes > 1:
+        raise KernelError(
+            ErrorCode.STARTUP_REJECTED,
+            "a live profile admits at most one write per run (budgets.max_admitted_writes); "
+            "multi-step plans run in fixture profiles only",
+        )
+
+
 async def build_runtime(
     profile: Profile,
     *,
@@ -334,6 +347,7 @@ async def build_runtime(
     driver_factory: Callable[[PluginRegistry], AgentDriver] | None = None,
     task_kind: str | None = None,
 ) -> Runtime:
+    check_live_write_budget(profile)
     fixture_scenario_check(profile)
     catalog = ConnectionCatalog(profile.connections)
     registry, credentials = admit_plugins(

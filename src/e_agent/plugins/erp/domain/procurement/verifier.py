@@ -53,8 +53,10 @@ class DraftPurchaseOrderVerifier:
                 observed=str(len(orders)),
             ),
         ]
+        values = None
         if len(orders) == 1:
             po = orders[0]
+            values = po.model_dump(mode="json")  # the read-back order, never the arguments
             pairs = {
                 "operation_key": (action.logical_operation_id, po.operation_key),
                 "requested_date": (
@@ -96,4 +98,5 @@ class DraftPurchaseOrderVerifier:
             verifier_version=self.version,
             observed_refs=(obs.evidence.evidence_id,),
             reported_at=utc_now(),
+            verified_values=values,
         )

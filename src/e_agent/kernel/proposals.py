@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import partial
+from typing import Any
 
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.capability import CapabilityBinding, EffectKind
@@ -35,6 +36,7 @@ from .continuation import _Continuation, _GatewayReader
 from .errors import ErrorCode, KernelError
 from .ir import StepDigestContext
 from .ir_on import IrOnMixin
+from .verification import outcome_payload
 
 
 class ProposalsMixin(IrOnMixin):
@@ -203,6 +205,20 @@ class ProposalsMixin(IrOnMixin):
             else:  # `on`: the action is linked to its stored 1-step plan, or falls back
                 action, wait = await self._on_plan(run, cont, proposal, action, step_ctx)
                 shadow = list(wait)
+        return await self._await_approval(run, cont, action, canonical, validation, shadow)
+
+    async def _await_approval(
+        self,
+        run: RunRecord,
+        cont: _Continuation,
+        action: ActionRecord,
+        canonical: dict[str, Any],
+        validation: ValidationResult,
+        extra: list[EventSpec | StepRecord],
+    ) -> RunRecord:
+        """Checkpoint a VALIDATED action as the run's pending approval: the action, the run's
+        WAITING_APPROVAL state, the continuation and ``extra`` with the approval request, in
+        one write. ``canonical`` is the approval digest's input, shown verbatim."""
         cont.pending_action_id = action.action_id
         cont.canonical_proposal = canonical
         cont.last_validation = validation
@@ -228,7 +244,7 @@ class ProposalsMixin(IrOnMixin):
             run.revision,
             checkpoint,
             [
-                *shadow,
+                *extra,
                 (
                     RunEventType.APPROVAL_REQUESTED,
                     {
@@ -328,6 +344,7 @@ class ProposalsMixin(IrOnMixin):
                 verifier_version=type(exc).__name__,
                 reported_at=self._clock(),
             )
+        report = self._kept(report)
         verified = report.status is OutcomeStatus.VERIFIED
         target = ActionState.VERIFIED if verified else ActionState.VERIFICATION_FAILED
         await self._store.record_outcome(
@@ -335,7 +352,7 @@ class ProposalsMixin(IrOnMixin):
             report,
             action.model_copy(update={"state": target, "revision": action.revision + 1}),
             action.revision,
-            [(RunEventType.OUTCOME_REPORTED, report.model_dump(mode="json"), action.action_id)],
+            [(RunEventType.OUTCOME_REPORTED, outcome_payload(report), action.action_id)],
         )
         if verified:
             return DriverInput(

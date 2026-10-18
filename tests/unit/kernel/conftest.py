@@ -29,7 +29,7 @@ from e_agent.contracts.context import Budgets, Principal, TaskContext
 from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.features import Features
 from e_agent.contracts.outcome import OutcomeCheck, OutcomeReport, OutcomeStatus
-from e_agent.contracts.plan import ActionProposal
+from e_agent.contracts.plan import ActionPlan, ActionProposal, LineageRef, PlannedStep
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
 from e_agent.contracts.task import AcceptanceSpec, RequiredEffect, TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationResult, ValidationStatus
@@ -47,6 +47,7 @@ from e_agent.sdk.ports import (
     Observation,
     PluginContribution,
     ProposeAction,
+    ProposePlan,
     ReadRequest,
     RequestReads,
     ScopedReader,
@@ -88,6 +89,85 @@ NOTES_TASK = TaskDefinition(
 )
 TENANT = "tenant-a"
 CONN = "conn-notes"
+
+# -- the two-step notes plan (Task 2c.7, ADR 0025): genericity without ERP -----------------
+PIN = CapabilityDescriptor(
+    contract_id="notes.note.pin.v1",
+    effect=EffectKind.WRITE,
+    input_schema_id="p",
+    output_schema_id="r",
+    risk=Risk.WRITE_HIGH,
+    reversibility=Reversibility.COMPENSABLE,
+    compensating_contract_id="notes.note.unpin.v1",
+)
+"""An opt-in second write, so a plan can mix risks (`make_kernel(with_pin=True)`)."""
+PIN_BINDING = BindingTemplate(binding_id="notes-mem.pin", contract_id=PIN.contract_id)
+NOTE_INPUT = {
+    "type": "object",
+    "properties": {"text": {"type": "string"}, "parent": {"type": "string"}},
+    "required": ["text"],
+}
+"""The create input schema the two-step plan needs: lineage types a placeholder by it."""
+PLAN_BUDGETS = Budgets(max_admitted_writes=2)
+FIRST, FOLLOW_UP = "first", "follow-up"
+
+
+def two_step_plan(connection_id: str = CONN, *, path: str = "/key") -> ActionPlan:
+    """Write a note, then a follow-up note whose ``parent`` is the first note's verified key
+    (`NotesVerifier` reports the read-back note), copied through a lineage placeholder."""
+    return ActionPlan(
+        plan_id="driver-chosen",
+        task_id="driver-chosen",
+        task_version="0",
+        steps=(
+            PlannedStep(
+                step_id=FIRST,
+                proposal=ActionProposal(
+                    contract_id=CREATE.contract_id,
+                    connection_id=connection_id,
+                    arguments={"text": "standup notes"},
+                ),
+            ),
+            PlannedStep(
+                step_id=FOLLOW_UP,
+                proposal=ActionProposal(
+                    contract_id=CREATE.contract_id,
+                    connection_id=connection_id,
+                    arguments={"text": "follow-up", "parent": LineageRef(step_id=FIRST, path=path)},
+                ),
+                depends_on=(FIRST,),
+            ),
+        ),
+    )
+
+
+@dataclass
+class NotesPlanDriver:
+    """Reads, then proposes ``plan`` once; answers after the verified result."""
+
+    plan: ActionPlan = field(default_factory=two_step_plan)
+    connection_id: str = CONN
+    driver_id: str = "notes-plan-driver"
+    calls: int = 0
+    seen: list[DriverInput] = field(default_factory=list)
+
+    async def advance(self, ctx: TaskContext, step_input: DriverInput) -> DriverStep:
+        self.calls += 1
+        self.seen.append(step_input)
+        if step_input.action_result is not None:
+            return FinalAnswer(text="done")
+        if not step_input.observations:
+            return RequestReads(
+                reads=(
+                    ReadRequest(
+                        request_id="r1",
+                        contract_id=READ.contract_id,
+                        connection_id=self.connection_id,
+                        arguments={},
+                    ),
+                )
+            )
+        return ProposePlan(plan=self.plan)
 
 
 @dataclass
@@ -143,7 +223,10 @@ class NotesBackend:
         if self.fail_mode == "timeout-no-commit":
             raise TimeoutError
         key = action.logical_operation_id
-        self.notes.setdefault(key, {"key": key, "text": str(action.arguments["text"])})
+        note = {"key": key, "text": str(action.arguments["text"])}
+        if "parent" in action.arguments:
+            note["parent"] = str(action.arguments["parent"])
+        self.notes.setdefault(key, note)
         if self.fail_mode == "timeout":
             raise TimeoutError
         now = utc_now()
@@ -177,9 +260,10 @@ class NotesValidator:
 
     def __init__(self) -> None:
         self.explode = False
+        self.bundle = "notes@1"
 
     def supports(self, contract_id: str) -> bool:
-        return contract_id == CREATE.contract_id
+        return contract_id in {CREATE.contract_id, PIN.contract_id}
 
     async def validate(self, ctx: TaskContext, item: ValidationInput) -> ValidationResult:
         if self.explode:
@@ -196,7 +280,7 @@ class NotesValidator:
                     message="text must be non-empty",
                 ),
             ),
-            rule_bundle_version="notes@1",
+            rule_bundle_version=self.bundle,
             validator_id=self.validator_id,
         )
 
@@ -229,6 +313,7 @@ class NotesVerifier:
             verifier_id=self.verifier_id,
             verifier_version="1",
             reported_at=utc_now(),
+            verified_values=dict(notes[0]) if len(notes) == 1 else None,  # the read-back
         )
 
 
@@ -282,7 +367,7 @@ class Kernel:
     backend: NotesBackend
     validator: NotesValidator
     verifier: NotesVerifier
-    driver: NotesDriver
+    driver: Any
     connections: ConnectionCatalog
     clock: Clock
     requester: Principal
@@ -324,24 +409,30 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
         features: Features | None = None,
         task: TaskDefinition = NOTES_TASK,
         approval_ttl: timedelta | None = None,
+        driver: Any = None,
+        input_schemas: dict[str, dict[str, Any]] | None = None,
+        with_pin: bool = False,
     ) -> Kernel:
         backend, validator, verifier = NotesBackend(), NotesValidator(), NotesVerifier()
-        driver = NotesDriver(texts=list(texts or ["standup notes"]))
-        registry = PluginRegistry(binding_connections or {b.binding_id: (CONN,) for b in BINDINGS})
+        driver = driver or NotesDriver(texts=list(texts or ["standup notes"]))
+        capabilities = (READ, CREATE, PIN) if with_pin else (READ, CREATE)
+        bindings = (*BINDINGS, PIN_BINDING) if with_pin else BINDINGS
+        registry = PluginRegistry(binding_connections or {b.binding_id: (CONN,) for b in bindings})
         registry.register(
             plugin_id="notes-fixture",
             plugin_version="0.1.0",
-            declared_capabilities=(READ, CREATE),
-            binding_templates=BINDINGS,
+            declared_capabilities=capabilities,
+            binding_templates=bindings,
             declared_task_definitions=(
                 TaskDeclaration(task_id=task.task_id, version=task.version),
             ),
             contribution=PluginContribution(
-                capabilities=(READ, CREATE),
+                capabilities=capabilities,
                 validators=(validator,),
                 executors=(backend,),
                 verifiers=(verifier,),
                 task_definitions=(task,),
+                input_schemas=input_schemas or {},
             ),
         )
         registry.admit_task_definitions()

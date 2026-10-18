@@ -48,7 +48,8 @@
     "harness/state/**",
     "docs/handoffs/**",
     "src/e_agent/contracts/outcome.py",
-    "src/e_agent/plugins/erp/domain/**"
+    "src/e_agent/plugins/erp/domain/**",
+    "src/e_agent/kernel/plan_flow.py"
   ],
   "acceptance": [
     "test_plan_approved_once_dispatches_steps_in_order passes with the VERIFYING to RUNNING pair added in this task",
@@ -70,6 +71,11 @@
       "glob": "src/e_agent/plugins/erp/domain/**",
       "reason": "lineage copies from a verified outcome; verifiers may need to report verified values (ADR 0025)",
       "at": "2026-10-18T07:47:44+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/plan_flow.py",
+      "reason": "2c.7 multi-step plan flow; proposals.py and ir_on.py near the 500-line gate",
+      "at": "2026-10-18T08:15:56+00:00"
     }
   ]
 }

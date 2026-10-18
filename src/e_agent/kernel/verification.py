@@ -13,11 +13,12 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
-from e_agent.contracts.step import StepKind, StepStatus
+from e_agent.contracts.step import StepKind, StepRecord, StepStatus
 from e_agent.sdk.ports import (
     DriverInput,
     FinalAnswer,
 )
+from e_agent.sdk.store import EventSpec
 
 from .continuation import _Continuation, _GatewayReader
 from .ir_on import IrOnMixin
@@ -28,6 +29,12 @@ OUTCOME_STEP = {
     OutcomeStatus.UNKNOWN: StepStatus.UNKNOWN,
 }
 """How an outcome ends a linked action's verify step (execution IR ``on``)."""
+
+
+def outcome_payload(report: OutcomeReport) -> dict[str, Any]:
+    """The ``outcome.reported`` payload: the report without its read-back values, which only
+    the stored outcome and a plan's lineage see, so they never reach an export (PR-26)."""
+    return report.model_dump(mode="json", exclude={"verified_values"})
 
 
 class VerificationMixin(IrOnMixin):
@@ -78,13 +85,28 @@ class VerificationMixin(IrOnMixin):
                 "verification unavailable",
                 code=ReasonCode.VERIFICATION_PENDING,
             )
+        report = self._kept(report)
         target = (
             ActionState.VERIFIED
             if report.status is OutcomeStatus.VERIFIED
             else ActionState.VERIFICATION_FAILED
         )
-        steps = await self._step_pair(action, StepKind.VERIFY, OUTCOME_STEP[report.status])
-        outcome = (RunEventType.OUTCOME_REPORTED, report.model_dump(mode="json"), action.action_id)
+        steps: list[EventSpec | StepRecord] = [
+            *await self._step_pair(action, StepKind.VERIFY, OUTCOME_STEP[report.status])
+        ]
+        outcome = (RunEventType.OUTCOME_REPORTED, outcome_payload(report), action.action_id)
+        plan = cont.plan if cont.plan is not None and cont.plan.plan_id == action.plan_id else None
+        if plan is not None and report.status is OutcomeStatus.VERIFIED:
+            assert action.step_index is not None
+            step_id = plan.step_ids[action.step_index]
+            if report.verified_values is not None:  # the one lineage source (ADR 0025)
+                plan.verified[step_id] = dict(report.verified_values)
+            verified = {
+                "plan_id": plan.plan_id,
+                "step_id": step_id,
+                "step_index": action.step_index,
+            }
+            steps.append((RunEventType.IR_STEP_VERIFIED, verified, action.action_id))
         if report.status is OutcomeStatus.UNKNOWN:
             await self._store.record_outcome(ctx.tenant_id, report, None, None, [outcome, *steps])
             run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
@@ -111,6 +133,8 @@ class VerificationMixin(IrOnMixin):
                 "outcome verification failed",
                 code=ReasonCode.VERIFICATION_FAILED,
             )
+        if plan is not None and (action.step_index or 0) + 1 < len(plan.step_ids):
+            return await self._after_step_verified(cont, action)  # steps remain (ADR 0025)
         return await self._finish_verified(
             cont, receipt.external_refs, "The approved action was independently verified."
         )

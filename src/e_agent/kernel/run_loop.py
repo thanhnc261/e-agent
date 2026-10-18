@@ -20,6 +20,7 @@ from e_agent.sdk.ports import (
     DriverInput,
     FinalAnswer,
     ProposeAction,
+    ProposePlan,
     RequestReads,
 )
 
@@ -89,6 +90,14 @@ class RunLoopMixin(GatewayMixin):
             if isinstance(step, ProposeAction):
                 run = await self._store.get_run(run.tenant_id, run.run_id)
                 outcome = await self._handle_proposal(run, cont, step.proposal)
+                if isinstance(outcome, RunRecord):
+                    return outcome
+                step_input = outcome
+                continue
+
+            if isinstance(step, ProposePlan):  # `on` with more than one write (Task 2c.7)
+                run = await self._store.get_run(run.tenant_id, run.run_id)
+                outcome = await self._handle_plan(run, cont, step.plan)
                 if isinstance(outcome, RunRecord):
                     return outcome
                 step_input = outcome

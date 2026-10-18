@@ -22,6 +22,7 @@ from e_agent.contracts.step import StepKind, StepStatus
 
 from .approval import (
     ApprovalPresentation,
+    plan_presentation,
     presentation_for,
 )
 from .continuation import LOG, _Continuation
@@ -43,7 +44,7 @@ class ApprovalFlowMixin(IrOnMixin):
         if action.supersedes_action_id is not None:
             superseded = await self._store.get_action(tenant_id, action.supersedes_action_id)
             previous = superseded.arguments
-        return presentation_for(
+        presentation = presentation_for(
             action,
             previous_arguments=previous,
             input_schema=self._registry.input_schemas.get(
@@ -53,6 +54,16 @@ class ApprovalFlowMixin(IrOnMixin):
             canonical_proposal=cont.canonical_proposal,
             findings=cont.last_validation.findings if cont.last_validation else (),
             expires_at=cont.approval_requested_at + self._ttl_for(run, cont),
+        )
+        if cont.plan is None:
+            return presentation
+        plan = await self._store.get_plan(tenant_id, cont.plan.plan_id)  # ADR 0024
+        descriptors = {
+            s.proposal.contract_id: self._registry.descriptor(s.proposal.contract_id)
+            for s in plan.steps
+        }
+        return presentation.model_copy(
+            update=plan_presentation(plan, cont.plan.inputs, descriptors)
         )
 
     async def _expire_pending(self, cont: _Continuation, action: ActionRecord) -> RunRecord:
@@ -183,7 +194,8 @@ class ApprovalFlowMixin(IrOnMixin):
             action_digest=action_digest,
             actor_id=actor.principal_id,
             decision=decision,
-            policy_version=str(cont.canonical_proposal["policy_version"]),
+            # a plan's: its first step's, the step this approval is recorded on
+            policy_version=str(self._approved_input(cont)["policy_version"]),
             issued_at=now,
             expires_at=now + ttl,
         )
@@ -217,4 +229,7 @@ class ApprovalFlowMixin(IrOnMixin):
             return await self._set_run_state(
                 run, RunState.FAILED, "rejected by approver", code=ReasonCode.APPROVAL_REJECTED
             )
+        if cont.plan is not None:  # one approval for the whole plan (ADR 0024)
+            cont.plan.approval_id = record.approval_id
+            return await self._run_plan(cont, approved_action, record)
         return await self._dispatch(cont, approved_action, record)

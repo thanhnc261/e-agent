@@ -77,6 +77,7 @@ ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
             RunState.SUCCEEDED,  # verified structured answer
             RunState.FAILED,
             RunState.CANCELLED,
+            RunState.VERIFYING,  # plan only (ADR 0025): a later plan step committed
         }
     ),
     RunState.WAITING_INPUT: frozenset(
@@ -107,6 +108,7 @@ ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
             # UNKNOWN regardless of run state
             RunState.NEEDS_RECONCILIATION,
             RunState.CANCELLED,  # cancel() while verifying with no unresolved dispatch
+            RunState.RUNNING,  # plan only (ADR 0025): a step verified and steps remain
         }
     ),
     RunState.NEEDS_RECONCILIATION: frozenset(
@@ -121,6 +123,13 @@ ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
     RunState.FAILED: frozenset(),
     RunState.CANCELLED: frozenset(),
 }
+
+
+PLAN_STEP_RUN_TRANSITIONS = frozenset(
+    {(RunState.VERIFYING, RunState.RUNNING), (RunState.RUNNING, RunState.VERIFYING)}
+)
+"""The two pairs ADR 0025 adds to the table. They are legal only between the steps of a
+multi-step plan: the kernel refuses them for any other run (`kernel/transitions.py`)."""
 
 
 class RunRecord(Record):

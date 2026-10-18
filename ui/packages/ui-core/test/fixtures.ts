@@ -33,6 +33,8 @@ export async function presentation(
     expected_effects: [],
     material_fields: [{ path: "quantity", value: quantity, changed: false }],
     findings: [],
+    plan_steps: [],
+    irreversible_steps: [],
     ...overrides,
   };
 }
