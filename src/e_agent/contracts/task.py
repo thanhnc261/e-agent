@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from datetime import timedelta
 from typing import Self
 
@@ -81,6 +82,26 @@ def answer_condition_met(spec: AcceptanceSpec, outcome: OutcomeReport) -> bool:
         return True
     named = [check for check in outcome.checks if check.name == condition.check]
     return bool(named) and all(c.passed and c.expected == condition.expected for c in named)
+
+
+def acceptance_met(
+    spec: AcceptanceSpec, verified: Mapping[str, int], answers: Iterable[OutcomeReport]
+) -> bool:
+    """Whether a run met ``spec`` at its end (ADR 0028, target §6.4.1).
+
+    ``verified`` counts the run's VERIFIED actions by contract id, and ``answers`` are the
+    verifier reports of its VERIFIED ``required_answer`` actions; the kernel reads both from
+    its own records, so model output cannot meet the spec (ENG-TRUST-1). Disjunctive, as the
+    spec states: every required effect verified at least ``min_verified`` times, or the
+    answer alternative met (`answer_condition_met`). With neither field set nothing is
+    required. Pure."""
+    if not spec.required_effects and spec.required_answer is None:
+        return True
+    effects = bool(spec.required_effects) and all(
+        verified.get(effect.contract_id, 0) >= effect.min_verified
+        for effect in spec.required_effects
+    )
+    return effects or any(answer_condition_met(spec, report) for report in answers)
 
 
 class TaskDefinition(Record):

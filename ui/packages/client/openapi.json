@@ -551,6 +551,7 @@
           "budget_exhausted",
           "interrupted",
           "cancelled",
+          "acceptance_unmet",
           "ir_task_unresolved",
           "ir_compile_failed",
           "ir_validation_failed"

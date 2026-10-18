@@ -42,6 +42,8 @@ class ReasonCode(StrEnum):
     BUDGET_EXHAUSTED = "budget_exhausted"
     INTERRUPTED = "interrupted"
     CANCELLED = "cancelled"
+    ACCEPTANCE_UNMET = "acceptance_unmet"
+    """The run ended without meeting its task definition's acceptance spec (ADR 0028)."""
     # Fallback codes (ADR 0025, ADR 0027): carried only by `feature.fallback` and, for an
     # unresolved task, by `ir.shadow_failed`. They never end a run.
     IR_TASK_UNRESOLVED = "ir_task_unresolved"

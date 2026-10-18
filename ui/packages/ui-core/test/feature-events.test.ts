@@ -44,4 +44,20 @@ describe("feature and execution-plan events", () => {
     });
     expect(selectTimeline(v).map((item) => item.detail)).toEqual(["ir_validation_failed", "ir_task_unresolved", null]);
   });
+
+  it("labels the acceptance_unmet reason code and keeps its terminal events supported", () => {
+    // ADR 0028: a run that ends without meeting its task definition's acceptance spec.
+    const failed = { from: "VERIFYING", to: "FAILED", reason: "acceptance unmet", reason_code: "acceptance_unmet" };
+    const v = reduceRunView(base, {
+      type: "events",
+      events: [ev(1, "run.state_changed", failed), ev(2, "run.terminal", { state: "FAILED", reason_code: "acceptance_unmet" })],
+    });
+    expect(v.unsupportedEvents).toBe(0);
+    expect(selectTimeline(v).map((item) => item.supported)).toEqual([true, true]);
+    for (const locale of ["en", "vi"] as const) {
+      const label = translate(locale, "reason.acceptance_unmet");
+      expect(label).not.toBe("reason.acceptance_unmet");
+      expect(label.trim().length).toBeGreaterThan(0);
+    }
+  });
 });

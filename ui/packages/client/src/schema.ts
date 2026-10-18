@@ -465,7 +465,7 @@ export interface components {
          * @description Typed cause of a run state change (ADR 0018). The human `reason` text stays.
          * @enum {string}
          */
-        ReasonCode: "answered" | "verified" | "verification_pending" | "verification_failed" | "validation_failed" | "policy_denied" | "stale" | "surface_changed" | "approval_rejected" | "approval_expired" | "operation_reserved" | "connection_busy" | "effect_unknown" | "provider_error" | "budget_exhausted" | "interrupted" | "cancelled" | "ir_task_unresolved" | "ir_compile_failed" | "ir_validation_failed";
+        ReasonCode: "answered" | "verified" | "verification_pending" | "verification_failed" | "validation_failed" | "policy_denied" | "stale" | "surface_changed" | "approval_rejected" | "approval_expired" | "operation_reserved" | "connection_busy" | "effect_unknown" | "provider_error" | "budget_exhausted" | "interrupted" | "cancelled" | "acceptance_unmet" | "ir_task_unresolved" | "ir_compile_failed" | "ir_validation_failed";
         /**
          * ResourceHint
          * @description What a host page says the user is looking at. Untrusted; never grants access.
