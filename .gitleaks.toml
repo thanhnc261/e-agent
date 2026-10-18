@@ -19,3 +19,14 @@ description = "Test fixture sentinel in the old path of the thinking-hygiene tes
 condition = "AND"
 paths = ['''^apps/server/tests/test_pydantic_driver_e2e\.py$''']
 regexes = ['''^HIDDEN\-CHAIN\-OF\-THOUGHT\-7f3a$''']
+
+[[allowlists]]
+# Test fixture: the sentinel `secret` in the 2b.2 fallback test is a synthetic
+# string ("sk-synthetic-" plus hex) that the test passes as caller text and
+# asserts never reaches a feature.fallback event or the evidence bundle
+# (tests/unit/kernel/test_feature_fallback.py). It is not a credential. Both the
+# path and the synthetic shape must match.
+description = "Synthetic caller-text sentinel in the feature.fallback test"
+condition = "AND"
+paths = ['''^tests/unit/kernel/test_feature_fallback\.py$''']
+regexes = ['''^sk\-synthetic\-[0-9a-f]+$''']
