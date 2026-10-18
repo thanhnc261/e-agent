@@ -529,3 +529,8 @@
 - changed: harness/state/2/features.json, harness/state/2/handoffs/2c.5.json, harness/state/2/reviews/2c.5-r2.json, harness/state/2/reviews/2c.5.json, harness/state/evidence/gates/2c.5/2026-10-18T04-59-24.888763+00-00-full.json, harness/state/evidence/gates/2c.5/2026-10-18T05-00-37.877039+00-00-pg.json, harness/state/evidence/gates/2c.5/2026-10-18T05-13-55.206058+00-00-full.json, harness/state/evidence/gates/2c.5/2026-10-18T05-15-08.867996+00-00-pg.json
 - next: Codex batch review of 2c.2-2c.5 (after 13:09), then 2c.6: on mode, single step
 - open: none
+
+## 2026-10-18T06:38:22.185957+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.5a
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.5a.json, harness/state/2/reviews/2c.5a-r2.json, harness/state/2/reviews/2c.5a.json, harness/state/evidence/gates/2c.5a/2026-10-18T06-34-09.801243+00-00-full.json, harness/state/evidence/gates/2c.5a/2026-10-18T06-35-20.108925+00-00-pg.json
+- next: 2c.6: on mode, single step (re-create its contract; replace the stale 2c.6.json)
+- open: none

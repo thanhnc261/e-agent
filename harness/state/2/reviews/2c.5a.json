@@ -1,0 +1,24 @@
+{
+  "task": "2c.5a",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "C-1",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "Codex batch review of a883b1e..ffbe569 (2c.2-2c.5): a bytes $lineage key passed the rule check and plan_to_wire's JSON coercion made it a placeholder on the store round trip. Fixed: one encode-and-canonicalize helper used by plan_to_wire and the digest.",
+      "evidence": "src/e_agent/contracts/plan.py; tests/unit/contracts test_plan_to_wire_refuses_a_bytes_lineage_key; tests/conformance/test_run_store.py test_put_plan_refuses_arguments_outside_the_digest_profile"
+    },
+    {
+      "id": "C-2",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Codex batch review: draft-po acceptance accepted an accurate positive-shortage answer. Fixed: AcceptanceSpec.answer_condition over the verifier's own check; draft-po requires shortage expected 0; ADR 0028 amendment Proposed.",
+      "evidence": "src/e_agent/contracts/task.py answer_condition_met; src/e_agent/plugins/erp/domain/tasks/draft-po.json; docs/adr/0028-task-definitions.md"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}

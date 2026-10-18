@@ -203,7 +203,8 @@
         "test_draft_po_acceptance_answer_is_zero_shortage and test_answer_condition_reads_the_verifier_check_not_model_arguments pass",
         "full and pg gates pass; off goldens unchanged"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.5a/2026-10-18T06-34-09.801243+00-00-full.json"
     }
   ]
 }
