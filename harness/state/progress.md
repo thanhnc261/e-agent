@@ -499,3 +499,8 @@
 - changed: harness/state/2/features.json, harness/state/2/handoffs/2b.3.json, harness/state/2/reviews/2b.3.json, harness/state/evidence/gates/2b.3/2026-10-18T01-52-38.393062+00-00-full.json, harness/state/evidence/gates/2b.3/2026-10-18T01-53-48.932832+00-00-e2e.json
 - next: 2c.1: IR contracts
 - open: none
+
+## 2026-10-18T02:29:24.296981+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.1
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.1.json, harness/state/2/reviews/2c.1-r2.json, harness/state/2/reviews/2c.1-r3.json, harness/state/2/reviews/2c.1.json, harness/state/evidence/gates/2c.1/2026-10-18T02-13-52.983035+00-00-full.json, harness/state/evidence/gates/2c.1/2026-10-18T02-15-03.886313+00-00-pg.json, harness/state/evidence/gates/2c.1/2026-10-18T02-27-44.597694+00-00-full.json, harness/state/evidence/gates/2c.1/2026-10-18T02-28-57.000702+00-00-pg.json
+- next: 2c.2: task definitions for the ERP pack
+- open: none

@@ -72,7 +72,8 @@
         "uv run lint-imports keeps every contract",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.1/2026-10-18T02-27-44.597694+00-00-full.json"
     },
     {
       "id": "F-2c-2",

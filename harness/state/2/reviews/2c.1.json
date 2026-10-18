@@ -1,0 +1,24 @@
+{
+  "task": "2c.1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "ActionPlan.model_validate(existing_plan) reruns graph checks but skips PlannedStep validation. After mutating the still-mutable proposal.arguments to contain a literal $lineage or a LineageRef naming a missing dependency, validation succeeds. An equivalent freshly constructed plan rejects it. Revalidate step-local invariants when validating existing or model_construct-created plans, and add regression tests.",
+      "evidence": "src/e_agent/contracts/plan.py:100; src/e_agent/contracts/plan.py:79; ADR 0025 validation requirements; target architecture 6.4.3-6.4.4"
+    },
+    {
+      "id": "R-2",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "LineageRef accepts a newline-only path, including through JSON validation. The regex uses match() with $, which can match before a final newline, so this invalid nonempty pointer passes as an empty match. Use fullmatch() and test rejection of a newline-only path while preserving valid pointers containing newlines after '/'.",
+      "evidence": "src/e_agent/contracts/plan.py:51; src/e_agent/contracts/plan.py:23; target architecture 6.4.3 requires an RFC 6901 JSON pointer"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}
