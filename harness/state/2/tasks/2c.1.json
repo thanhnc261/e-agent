@@ -1,0 +1,32 @@
+{
+  "id": "2c.1",
+  "phase": "2",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-2c-1"
+  ],
+  "context_digest": "cb98122137b5a06321aecfe4e54e870088eef05c4a75e93fc3309f8b93d91ee3",
+  "allowed_paths": [
+    "src/e_agent/contracts/task.py",
+    "src/e_agent/contracts/plan.py",
+    "src/e_agent/contracts/step.py",
+    "src/e_agent/contracts/action.py",
+    "src/e_agent/contracts/run.py",
+    "src/e_agent/contracts/capability.py",
+    "src/e_agent/sdk/manifest.py",
+    "tests/unit/contracts/**",
+    "docs/design/target-architecture.md",
+    "docs/plans/2026-10-14-phase2-execution-ir.md",
+    "harness/state/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "contract tests for duplicate ids, unknown dependency, cycle and lineage ordering pass",
+    "uv run lint-imports keeps every contract",
+    "full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "2248799ccb469d3d029194a7e3656087b7691ae3",
+  "created_at": "2026-10-18T01:58:52+00:00",
+  "features_digest": "781f9d6c0af16bd83e4f51855fe7c1de5209c706a1b636e16fdd3d066d493129"
+}
