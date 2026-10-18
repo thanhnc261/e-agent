@@ -26,6 +26,7 @@ from e_agent.sdk.store import ConnectionBusy, DuplicateOperation
 from .approval import (
     compute_digest,
     fact_digest,
+    plan_digest_wrapper,
 )
 from .continuation import NextStep, _Continuation
 from .errors import ErrorCode, KernelError
@@ -42,6 +43,9 @@ RECEIPT_STEP = {
 ARGUMENTS_CHANGED = "The action no longer matches what its approval bound."
 """The fixed message of the ``KERNEL-ARGUMENTS-CHANGED`` finding (Codex C-3)."""
 CHANGED_REASON = "arguments changed since approval"
+PLAN_DIGEST_CHANGED = "The plan's approved step inputs no longer match the approved plan digest."
+"""The fixed message of the ``KERNEL-PLAN-DIGEST-MISMATCH`` finding (phase review P-3)."""
+PLAN_CHANGED_REASON = "plan changed since approval"
 
 
 def dispatch_input(approved: dict[str, Any], action: ActionRecord) -> dict[str, Any]:
@@ -115,6 +119,10 @@ class DispatchMixin(IrOnMixin):
             )
         # After `_staleness`, the last call that reaches plugin code. A later step is still
         # PROPOSED here, so a change blocks it; the check below repeats it last (Codex C-3).
+        # A plan step's approved inputs are first tied back to the approval (review P-3).
+        if await self._plan_digest_changed(cont, action, approval):
+            plan_changed = _fixed("KERNEL-PLAN-DIGEST-MISMATCH", PLAN_DIGEST_CHANGED)
+            return await self._arguments_refused(cont, action, plan_changed, PLAN_CHANGED_REASON)
         if later_step and self._arguments_changed(cont, action, approval):
             return await self._arguments_refused(cont, action)
         revalidated: list[StepRecord] = []  # a first step's pass, stored with its reservation
@@ -241,14 +249,46 @@ class DispatchMixin(IrOnMixin):
         except (LineageRejected, KeyError, IndexError, ValueError):
             return True
 
-    async def _arguments_refused(self, cont: _Continuation, action: ActionRecord) -> RunRecord:
+    async def _plan_digest_changed(
+        self, cont: _Continuation, action: ActionRecord, approval: ApprovalRecord
+    ) -> bool:
+        """Whether a multi-step plan step's approved inputs, as the continuation holds them,
+        no longer rebuild the plan digest the approval bound: the ``plan.v1`` wrapper over
+        the step ids, the stored plan's dependencies and those inputs, as `_propose_plan`
+        digested them. False for any other action; anything that cannot be rebuilt counts
+        as changed (fail closed)."""
+        plan = cont.plan
+        if plan is None or plan.plan_id != action.plan_id or action.step_index is None:
+            return False
+        stored = await self._store.get_plan(cont.ctx.tenant_id, plan.plan_id)
+        if not len(stored.steps) == len(plan.step_ids) == len(plan.inputs):
+            return True
+        try:
+            wrapper = plan_digest_wrapper(
+                (step_id, step.depends_on, step_input)
+                for step_id, step, step_input in zip(
+                    plan.step_ids, stored.steps, plan.inputs, strict=True
+                )
+            )
+            return compute_digest(wrapper) != approval.action_digest
+        except ValueError:  # outside the digest profile: it cannot be the approved plan
+            return True
+
+    async def _arguments_refused(
+        self,
+        cont: _Continuation,
+        action: ActionRecord,
+        finding: Finding | None = None,
+        reason: str = CHANGED_REASON,
+    ) -> RunRecord:
         """Stop before the reservation: the action BLOCKED where its state allows it (a later
         plan step already VALIDATED has no BLOCKED transition and keeps its state), the
-        fixed ``KERNEL-ARGUMENTS-CHANGED`` finding, and the run FAILED STALE."""
-        finding = _fixed("KERNEL-ARGUMENTS-CHANGED", ARGUMENTS_CHANGED)
+        fixed ``finding`` (by default ``KERNEL-ARGUMENTS-CHANGED``), and the run FAILED
+        STALE."""
+        finding = finding or _fixed("KERNEL-ARGUMENTS-CHANGED", ARGUMENTS_CHANGED)
         payload = {
             "status": "STALE",
-            "reason": CHANGED_REASON,
+            "reason": reason,
             "findings": [finding.model_dump(mode="json")],
         }
         before: list[Any] = []
@@ -264,7 +304,7 @@ class DispatchMixin(IrOnMixin):
         cont.pending_action_id = None
         run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
         return await self._set_run_state(
-            run, RunState.FAILED, CHANGED_REASON, code=ReasonCode.STALE, before=before
+            run, RunState.FAILED, reason, code=ReasonCode.STALE, before=before
         )
 
     async def _block_if_allowed(self, action: ActionRecord, revalidated: list[StepRecord]) -> None:
