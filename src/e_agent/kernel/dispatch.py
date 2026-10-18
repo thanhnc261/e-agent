@@ -21,7 +21,7 @@ from e_agent.sdk.errors import KnownNoEffectError
 from e_agent.sdk.ports import (
     DriverInput,
 )
-from e_agent.sdk.store import ConnectionBusy, DuplicateOperation
+from e_agent.sdk.store import ConnectionBusy, DuplicateOperation, NotFound
 
 from .approval import (
     compute_digest,
@@ -255,11 +255,19 @@ class DispatchMixin(IrOnMixin):
         """Whether a multi-step plan step's approved inputs, as the continuation holds them,
         no longer rebuild the plan digest the approval bound: the ``plan.v1`` wrapper over
         the step ids, the stored plan's dependencies and those inputs, as `_propose_plan`
-        digested them. False for any other action; anything that cannot be rebuilt counts
-        as changed (fail closed)."""
+        digested them. False for an action outside any plan, and for a 1-step plan's (its
+        approval digest is the action digest, and it never sets the plan state). An action of
+        a multi-step plan whose plan state the continuation does not hold, and anything that
+        cannot be rebuilt, counts as changed (fail closed, 2c.8c review R-2)."""
         plan = cont.plan
-        if plan is None or plan.plan_id != action.plan_id or action.step_index is None:
+        if action.plan_id is None or action.step_index is None:
             return False
+        if plan is None or plan.plan_id != action.plan_id:
+            try:
+                held = await self._store.get_plan(cont.ctx.tenant_id, action.plan_id)
+            except NotFound:
+                return True
+            return len(held.steps) != 1
         stored = await self._store.get_plan(cont.ctx.tenant_id, plan.plan_id)
         if not len(stored.steps) == len(plan.step_ids) == len(plan.inputs):
             return True

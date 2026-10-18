@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.events import RunEventType
+from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.plan import ActionPlan
 from e_agent.contracts.run import ReasonCode, RunState
 
@@ -133,3 +134,58 @@ async def test_untampered_plan_still_runs_both_steps(make_kernel: MakeKernel) ->
     assert (run.state, run.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
     assert k.backend.create_calls == 2
     assert "KERNEL-PLAN-DIGEST-MISMATCH" not in await _rules(k, run_id)
+
+
+# -- 2c.8c review R-2: an action of a multi-step plan without its plan state -----------------
+async def _waiting_plan_action(k: Kernel, task_kind: str = "standup-note") -> tuple[Any, Any]:
+    run = await k.coordinator.start_run(
+        k.requester, "write standup note", k.scope, task_kind=task_kind
+    )
+    assert run.state is RunState.WAITING_APPROVAL
+    (action,) = await k.store.list_actions(TENANT, run.run_id)
+    assert action.plan_id is not None and action.step_index == 0
+    return k.coordinator._runs[run.run_id], action
+
+
+@pytest.mark.parametrize(
+    "held", ["no-plan-state", "another-plan", "later-step-no-plan-state", "unstored-plan"]
+)
+async def test_a_multi_step_action_without_its_plan_state_fails_closed(
+    make_kernel: MakeKernel, held: str
+) -> None:
+    """R-2: the guard cannot rebuild the digest of a multi-step plan's action when the
+    continuation holds no plan state, or another plan's: it counts as changed, never as
+    unchanged. Earlier checks refuse such an action too; this guard must not rely on them."""
+    k = _plan_kernel(make_kernel)
+    cont, action = await _waiting_plan_action(k)
+    assert cont.plan is not None
+    if held == "another-plan":
+        cont = cont.model_copy(update={"plan": cont.plan.model_copy(update={"plan_id": "plan-x"})})
+    else:
+        cont = cont.model_copy(update={"plan": None})
+    if held == "later-step-no-plan-state":
+        action = action.model_copy(update={"step_index": 1})
+    if held == "unstored-plan":  # a plan id the store does not hold
+        action = action.model_copy(update={"plan_id": "plan-unstored"})
+    approval: Any = None  # never read on these paths
+    assert await k.coordinator._plan_digest_changed(cont, action, approval) is True
+
+
+async def test_a_one_step_plan_action_without_plan_state_passes(make_kernel: MakeKernel) -> None:
+    """The control: a 1-step ``on`` plan never sets the plan state, its approval digest is
+    the action digest, so the guard passes it, and the run succeeds."""
+    k = make_kernel(features=Features(execution_ir=FeatureMode.ON))
+    cont, action = await _waiting_plan_action(k)
+    assert cont.plan is None
+    approval: Any = None
+    assert await k.coordinator._plan_digest_changed(cont, action, approval) is False
+    pres = await k.coordinator.pending_approval(TENANT, action.run_id)
+    run = await k.coordinator.decide(
+        actor=k.approver,
+        run_id=action.run_id,
+        action_id=pres.action_id,
+        action_digest=pres.digest,
+        expected_run_revision=pres.run_revision,
+        decision=ApprovalDecision.APPROVED,
+    )
+    assert (run.state, run.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
