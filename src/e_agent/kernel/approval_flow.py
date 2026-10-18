@@ -72,11 +72,11 @@ class ApprovalFlowMixin(IrOnMixin):
         The continuation is persisted by `_set_run_state` together with the run update.
         """
         if action.state is not ActionState.BLOCKED:  # BLOCKED: resuming an interrupted expiry
-            await self._transition_with_steps(
+            await self._transition(
                 action,
                 ActionState.BLOCKED,
                 (RunEventType.APPROVAL_DECIDED, {"decision": "expired"}),
-                await self._step_finish(action, StepKind.APPROVAL_WAIT, StepStatus.FAILED),
+                steps=await self._step_finish(action, StepKind.APPROVAL_WAIT, StepStatus.FAILED),
             )
         cont.pending_action_id = None
         run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
@@ -167,11 +167,11 @@ class ApprovalFlowMixin(IrOnMixin):
             raise KernelError(ErrorCode.APPROVAL_STALE, "digest does not match pending action")
         if cont.surface_digest and cont.surface_digest != self._registry.surface_digest():
             # Plugins, schemas or bindings changed since the proposal was made (T17).
-            await self._transition_with_steps(
+            await self._transition(
                 action,
                 ActionState.BLOCKED,
                 (RunEventType.APPROVAL_DECIDED, {"decision": "surface_changed"}),
-                await self._step_finish(action, StepKind.APPROVAL_WAIT, StepStatus.BLOCKED),
+                steps=await self._step_finish(action, StepKind.APPROVAL_WAIT, StepStatus.BLOCKED),
             )
             cont.pending_action_id = None
             run = await self._store.get_run(actor.tenant_id, run_id)

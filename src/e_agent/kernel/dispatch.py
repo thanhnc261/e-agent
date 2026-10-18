@@ -12,7 +12,7 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
-from e_agent.contracts.step import StepKind, StepStatus
+from e_agent.contracts.step import StepKind, StepRecord, StepStatus
 from e_agent.contracts.validation import Finding, ValidationStatus
 from e_agent.sdk.errors import KnownNoEffectError
 from e_agent.sdk.ports import (
@@ -47,25 +47,22 @@ class DispatchMixin(IrOnMixin):
         later_step = cont.plan is not None and (action.step_index or 0) > 0
         try:
             stale_reason = await self._staleness(cont, action)
-        except TimeoutError:
-            if later_step:  # its open validate row ends with the block
-                steps = await self._step_finish(action, StepKind.VALIDATE, StepStatus.FAILED)
-                timeout = {"status": "STALE", "reason": "revalidation deadline"}
-                event = (RunEventType.VALIDATION_COMPLETED, timeout)
-                await self._transition_with_steps(action, ActionState.BLOCKED, event, steps)
-            else:
-                await self._transition(action, ActionState.BLOCKED)
+        except TimeoutError:  # the revalidation's rows end with the block
+            timeout = {"status": "STALE", "reason": "revalidation deadline"}
+            event = (RunEventType.VALIDATION_COMPLETED, timeout) if later_step else None
+            steps = await self._revalidated(action, StepStatus.FAILED)
+            await self._transition(action, ActionState.BLOCKED, event, steps=steps)
             cont.pending_action_id = None
             return await self._exhausted(run, "active time or provider deadline")
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)  # reads advanced revision
         if stale_reason is None and self._clock() > approval.expires_at:
             stale_reason = "approval expired before dispatch"
         if stale_reason is not None:
-            await self._transition_with_steps(
+            await self._transition(
                 action,
                 ActionState.BLOCKED,
                 (RunEventType.VALIDATION_COMPLETED, {"status": "STALE", "reason": stale_reason}),
-                await self._step_finish(action, StepKind.VALIDATE, StepStatus.BLOCKED),
+                steps=await self._revalidated(action, StepStatus.BLOCKED),
             )
             cont.pending_action_id = None
             if later_step or cont.repairs >= ctx.budgets.max_validation_repairs:
@@ -90,13 +87,16 @@ class DispatchMixin(IrOnMixin):
                     task=run.task, observations=tuple(cont.observations.values()), findings=(stale,)
                 ),
             )
+        revalidated: list[StepRecord] = []  # a first step's pass, stored with its reservation
         if later_step:  # revalidated with its resolved lineage: approved by the plan digest
-            action = await self._transition_with_steps(
+            action = await self._transition(
                 action,
                 ActionState.VALIDATED,
                 (RunEventType.VALIDATION_COMPLETED, {"status": "PASS", "findings": []}),
-                await self._step_finish(action, StepKind.VALIDATE, StepStatus.SUCCEEDED),
+                steps=await self._step_finish(action, StepKind.VALIDATE, StepStatus.SUCCEEDED),
             )
+        else:
+            revalidated = await self._step_pair(action, StepKind.VALIDATE, StepStatus.SUCCEEDED)
 
         reserved = action.model_copy(
             update={"state": ActionState.RESERVED, "revision": action.revision + 1}
@@ -111,14 +111,15 @@ class DispatchMixin(IrOnMixin):
                         {"logical_operation_id": action.logical_operation_id},
                         action.action_id,
                     ),
-                    *await self._step_start(action, StepKind.DISPATCH),
+                    *revalidated,
+                    *await self._step_start(action, StepKind.DISPATCH, after=revalidated),
                 ],
             )
         except ConnectionBusy:
             # ADR 0020: another action on this connection is RESERVED, DISPATCHING or UNKNOWN.
             # Caught here, before any generic ConcurrencyConflict handler, so it never escapes
             # as an HTTP 409.
-            await self._block_if_allowed(action)
+            await self._block_if_allowed(action, revalidated)
             cont.pending_action_id = None
             return await self._set_run_state(
                 run,
@@ -127,7 +128,7 @@ class DispatchMixin(IrOnMixin):
                 code=ReasonCode.CONNECTION_BUSY,
             )
         except DuplicateOperation:
-            await self._block_if_allowed(action)
+            await self._block_if_allowed(action, revalidated)
             return await self._set_run_state(
                 run,
                 RunState.FAILED,
@@ -177,11 +178,12 @@ class DispatchMixin(IrOnMixin):
             )
         return await self._apply_receipt(cont, action, receipt)
 
-    async def _block_if_allowed(self, action: ActionRecord) -> None:
-        """BLOCKED from an approved action; a plan's later step is VALIDATED when it reserves
-        and has no BLOCKED transition, so it keeps its state and the run fails (2c.8)."""
+    async def _block_if_allowed(self, action: ActionRecord, revalidated: list[StepRecord]) -> None:
+        """BLOCKED from an approved action, with the passing revalidation rows its refused
+        reservation did not store; a plan's later step is VALIDATED when it reserves and has
+        no BLOCKED transition, so it keeps its state and the run fails (2c.8)."""
         if ActionState.BLOCKED in ALLOWED_ACTION_TRANSITIONS[action.state]:
-            await self._transition(action, ActionState.BLOCKED)
+            await self._transition(action, ActionState.BLOCKED, steps=revalidated)
 
     async def _staleness(self, cont: _Continuation, action: ActionRecord) -> str | None:
         ctx = cont.ctx

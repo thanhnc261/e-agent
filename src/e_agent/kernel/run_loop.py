@@ -33,6 +33,9 @@ class RunLoopMixin(GatewayMixin):
     async def _drive(self, run: RunRecord, step_input: DriverInput) -> RunRecord:
         cont = await self._load_cont(run.tenant_id, run.run_id)
         ctx = cont.ctx
+        unbound = await self._unbound_snapshot(run, cont)  # `on`: fails before any turn
+        if unbound is not None:
+            return unbound
         while True:
             if cont.turns >= ctx.budgets.max_driver_turns:
                 return await self._exhausted(run, "driver turns")
@@ -205,14 +208,15 @@ class RunLoopMixin(GatewayMixin):
                         findings=(repair_finding,),
                     )
                     continue
-                run = await self._store.update_run(
+                if cont.pending_action_id is None:  # `message.final` only if it succeeds
+                    return await self._succeed(
+                        run, cont, "answered", ReasonCode.ANSWERED, final=step.text
+                    )
+                return await self._store.update_run(
                     run.model_copy(update={"revision": run.revision + 1}),
                     run.revision,
                     [(RunEventType.MESSAGE_FINAL, {"text": step.text}, None)],
                 )
-                if cont.pending_action_id is None:
-                    return await self._succeed(run, cont, "answered", ReasonCode.ANSWERED)
-                return run
             raise KernelError(ErrorCode.INVALID_REQUEST, "driver returned an unknown step")
 
     async def accept_input(

@@ -64,6 +64,7 @@ async def test_on_draft_po_run_verifies_through_host_only_reads_and_records_step
     assert [(s.kind, s.status) for s in steps if s.status is not StepStatus.STARTED] == [
         (StepKind.VALIDATE, StepStatus.SUCCEEDED),
         (StepKind.APPROVAL_WAIT, StepStatus.SUCCEEDED),
+        (StepKind.VALIDATE, StepStatus.SUCCEEDED),  # the dispatch-time revalidation (2c.8a)
         (StepKind.DISPATCH, StepStatus.SUCCEEDED),
         (StepKind.VERIFY, StepStatus.SUCCEEDED),
     ]
@@ -111,6 +112,24 @@ async def test_on_acceptance_unmet_for_positive_shortage_answer(
     assert outcome["status"] == "VERIFIED"
     shortage = [c for c in outcome["checks"] if c["name"] == "shortage"]
     assert len(shortage) == 1 and shortage[0]["passed"] and shortage[0]["expected"] != "0"
+
+
+@pytest.mark.parametrize("mode", [FeatureMode.OFF, FeatureMode.ON])
+async def test_unmet_acceptance_records_no_final_message(mode: FeatureMode) -> None:
+    """The driver's closing text after a verified answer is the run's ``message.final`` only
+    when the run succeeds. A run that ends ``ACCEPTANCE_UNMET`` records none, as the verified
+    write's finish skips its acknowledgement turn when acceptance is unmet (2c.6 parked item);
+    `off` keeps today's final message on the same run."""
+    rt = await build_runtime(_profile(mode), driver_factory=_shortage_driver)
+    run = await _start(rt)
+    events = await rt.store.list_events(rt.operator.tenant_id, run.run_id)
+    finals = [e for e in events if e.type is RunEventType.MESSAGE_FINAL]
+    if mode is FeatureMode.ON:
+        assert run.reason_code is ReasonCode.ACCEPTANCE_UNMET
+        assert finals == []
+    else:
+        assert run.reason_code is ReasonCode.ANSWERED
+        assert len(finals) == 1
 
 
 def _two_connections(profile: Profile) -> Profile:

@@ -13,10 +13,11 @@ A run in ``on`` that resolved its task definition at admission executes the IR:
   approval and its presentation are today's; the action is linked to the plan (``plan_id``,
   ``step_index`` 0) in the approval write;
 - each stage of a linked action writes step records in the batch of its own events
-  (`_step_start`, `_step_finish`, `_step_pair`);
+  (`_step_start`, `_step_finish`, `_step_pair`, `_revalidated`, `_close_open`);
 - the admitted definition is snapshotted into the run's continuation and used for the whole
-  run, whatever the registry later holds; a bound run without a readable snapshot fails
-  closed with an empty tool set (Codex C-1);
+  run, whatever the registry later holds (Codex C-1); a bound run without a readable snapshot
+  fails before its next driver turn (`_unbound_snapshot`, 2c.6 review R-2), and its tool set
+  is empty as a second defence;
 - at run end the acceptance spec is checked (`_acceptance_gap`, through `_succeed` or
   `_fail_unmet` on the live finish paths and on recovery); unmet ends ``ACCEPTANCE_UNMET``
   with a ``KERNEL-ACCEPTANCE`` finding in the same write (Codex C-2).
@@ -32,12 +33,12 @@ from __future__ import annotations
 
 import dataclasses
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import timedelta
 from types import MappingProxyType
 from typing import Any
 
-from e_agent.contracts.action import ALLOWED_ACTION_TRANSITIONS, ActionRecord, ActionState
+from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.common import new_id
 from e_agent.contracts.context import Budgets
 from e_agent.contracts.events import RunEventType
@@ -50,7 +51,6 @@ from e_agent.contracts.step import StepKind, StepRecord, StepStatus
 from e_agent.contracts.task import AcceptanceSpec, TaskDefinition, acceptance_met
 from e_agent.contracts.validation import Finding, ValidationStatus
 from e_agent.sdk.ports import DriverInput
-from e_agent.sdk.store import EventBatch
 from pydantic import ValidationError
 
 from .approval import compute_digest
@@ -100,7 +100,12 @@ def acceptance_gap(spec: AcceptanceSpec | None) -> str:
 
 def merged_budgets(profile: Budgets, task: TaskDefinition) -> Budgets:
     """The profile's budgets with only the fields the definition sets merged over them
-    (2c.2 review R-2); admission already refused a definition that widens one (D7)."""
+    (2c.2 review R-2); admission already refused a definition that widens one (D7).
+
+    Called once, at admission, on the registry's definition. Never on a continuation's
+    snapshot: ``model_fields_set`` does not survive its JSON round trip, so every field would
+    read as set and widen the profile back to the defaults (2c.6 review R-1). A resumed run
+    keeps the merged budgets of its persisted ``TaskContext``."""
     if task.budgets is None:
         return profile
     return profile.model_copy(
@@ -282,13 +287,19 @@ class IrOnMixin(FeaturesMixin):
         return await self._store.list_steps(action.tenant_id, action.run_id)
 
     async def _step_start(
-        self, action: ActionRecord, kind: StepKind, *, input_refs: Iterable[EvidenceRef] = ()
+        self,
+        action: ActionRecord,
+        kind: StepKind,
+        *,
+        input_refs: Iterable[EvidenceRef] = (),
+        after: Sequence[StepRecord] = (),
     ) -> list[StepRecord]:
         """The start row of a linked action's stage; none for an unlinked action (today's
-        path, ``off`` and ``shadow`` included)."""
+        path, ``off`` and ``shadow`` included). ``after`` are rows not yet stored that the
+        same write records first, so the sequence continues past them."""
         if action.plan_id is None:
             return []
-        steps = await self._last_steps(action)
+        steps = [*await self._last_steps(action), *after]
         return [
             start_step(
                 tenant_id=action.tenant_id,
@@ -324,7 +335,7 @@ class IrOnMixin(FeaturesMixin):
         *,
         input_refs: Iterable[EvidenceRef] = (),
     ) -> list[StepRecord]:
-        """Both rows of a stage recorded in one write (validate, verify)."""
+        """Both rows of a stage recorded in one write (validate, revalidate, verify)."""
         started = await self._step_start(action, kind, input_refs=input_refs)
         if not started:
             return []
@@ -332,21 +343,27 @@ class IrOnMixin(FeaturesMixin):
         now = max(self._clock(), row.started_at)
         return [row, finish_step(row, sequence=row.sequence + 1, status=status, now=now)]
 
-    async def _transition_with_steps(
-        self,
-        action: ActionRecord,
-        to: ActionState,
-        event: tuple[RunEventType, dict[str, Any]],
-        steps: list[StepRecord],
-    ) -> ActionRecord:
-        """`_transition` with step rows in its batch; exactly `_transition` without rows."""
-        if not steps:
-            return await self._transition(action, to, event)
-        if to not in ALLOWED_ACTION_TRANSITIONS[action.state]:
-            raise KernelError(ErrorCode.CONFLICT, f"illegal transition {action.state}->{to}")
-        batch: EventBatch = [(event[0], event[1], action.action_id), *steps]
-        updated = action.model_copy(update={"state": to, "revision": action.revision + 1})
-        return await self._store.put_action(updated, action.revision, batch)
+    async def _revalidated(self, action: ActionRecord, status: StepStatus) -> list[StepRecord]:
+        """The rows of a dispatch-time revalidation (target §6.4.5): the end of a later plan
+        step's open validate row, or a validate pair for an approved step whose proposal-time
+        row is already closed."""
+        return await self._step_finish(action, StepKind.VALIDATE, status) or (
+            await self._step_pair(action, StepKind.VALIDATE, status)
+        )
+
+    async def _close_open(self, action: ActionRecord, status: StepStatus) -> list[StepRecord]:
+        """End every open row of a linked action that stops where it is (a cancel, a
+        recovery block), so a finished run leaves no stage started."""
+        if action.plan_id is None:
+            return []
+        steps = await self._last_steps(action)
+        last = {s.step_id: s for s in steps if s.action_id == action.action_id}
+        rows, sequence = [], (steps[-1].sequence + 1 if steps else 0)
+        for row in (r for r in last.values() if r.status is StepStatus.STARTED):
+            now = max(self._clock(), row.started_at)
+            rows.append(finish_step(row, sequence=sequence, status=status, now=now))
+            sequence += 1
+        return rows
 
     # -- acceptance ------------------------------------------------------------------------
     async def _acceptance_gap(self, run: RunRecord, cont: _Continuation | None) -> str | None:
@@ -379,12 +396,20 @@ class IrOnMixin(FeaturesMixin):
         return acceptance_gap(task.acceptance)
 
     async def _succeed(
-        self, run: RunRecord, cont: _Continuation | None, reason: str, code: ReasonCode
+        self,
+        run: RunRecord,
+        cont: _Continuation | None,
+        reason: str,
+        code: ReasonCode,
+        *,
+        final: str | None = None,
     ) -> RunRecord:
         """End the run SUCCEEDED, or FAILED with ``ACCEPTANCE_UNMET`` in ``on`` when the
         admitted definition's acceptance spec is not met. A multi-step plan with a step never
         started cannot succeed: recovery resumes such a plan first (`_resume_plan`), and one
-        it cannot resume fails ``INTERRUPTED`` here."""
+        it cannot resume fails ``INTERRUPTED`` here. ``final`` is the driver's closing text,
+        recorded as ``message.final`` in its own write only when the run succeeds, as a
+        verified finish skips its acknowledgement when acceptance is unmet."""
         plan = cont.plan if cont is not None else None
         if plan is not None and len(plan.action_ids) < len(plan.step_ids):
             return await self._set_run_state(
@@ -393,46 +418,32 @@ class IrOnMixin(FeaturesMixin):
         gap = await self._acceptance_gap(run, cont)
         if gap is not None:
             return await self._fail_unmet(run, gap)
+        if final is not None:
+            run = await self._store.update_run(
+                run.model_copy(update={"revision": run.revision + 1}),
+                run.revision,
+                [(RunEventType.MESSAGE_FINAL, {"text": final}, None)],
+            )
         return await self._set_run_state(run, RunState.SUCCEEDED, reason, code=code)
 
     async def _fail_unmet(self, run: RunRecord, message: str) -> RunRecord:
         """The one ``ACCEPTANCE_UNMET`` ending, shared by every finish path: the kernel's
         acceptance finding (persisted as validation findings are, in ``validation.completed``)
-        and the terminal transition in one write. The transition events are `_set_run_state`'s,
-        which takes no extra events (transitions.py)."""
-        self._check_run_transition(run, RunState.FAILED)
-        finding = Finding(
-            rule_id="KERNEL-ACCEPTANCE",
-            rule_version="1",
-            status=ValidationStatus.FAIL,
-            message=message,
+        ahead of the terminal transition, in one write."""
+        finding = _fixed("KERNEL-ACCEPTANCE", message)
+        payload = {"status": "FAIL", "findings": [finding.model_dump(mode="json")]}
+        return await self._set_run_state(
+            run,
+            RunState.FAILED,
+            "acceptance unmet",
+            code=ReasonCode.ACCEPTANCE_UNMET,
+            before=[(RunEventType.VALIDATION_COMPLETED, payload, None)],
         )
-        reason, code = "acceptance unmet", ReasonCode.ACCEPTANCE_UNMET
-        events: EventBatch = [
-            (
-                RunEventType.VALIDATION_COMPLETED,
-                {"status": "FAIL", "findings": [finding.model_dump(mode="json")]},
-                None,
-            ),
-            (
-                RunEventType.RUN_STATE_CHANGED,
-                {"from": run.state, "to": RunState.FAILED, "reason": reason, "reason_code": code},
-                None,
-            ),
-            (
-                RunEventType.RUN_TERMINAL,
-                {"state": RunState.FAILED, "reason": reason, "reason_code": code},
-                None,
-            ),
-        ]
-        failed = run.model_copy(
-            update={
-                "state": RunState.FAILED,
-                "revision": run.revision + 1,
-                "reason": reason,
-                "reason_code": code,
-            }
-        )
-        return await self._store.update_run(
-            failed, run.revision, events, continuation=self._snapshot(run.run_id)
-        )
+
+    async def _unbound_snapshot(self, run: RunRecord, cont: _Continuation) -> RunRecord | None:
+        """A bound run in ``on`` whose admitted snapshot is unreadable ends at once, before
+        any driver turn, rather than spending turns on an empty tool set (2c.6 review R-2).
+        None for every other run."""
+        if not self._ir_on or run.task_id is None or self._on_task(run, cont) is not None:
+            return None
+        return await self._fail_unmet(run, acceptance_gap(None))

@@ -257,14 +257,14 @@ class PlanFlowMixin(ProposalsMixin):
         cont.last_action_id = action.action_id
         evidence = [cont.observations[r].evidence for r in sorted(cont.observations)]
         findings = [f.model_dump(mode="json") for f in validation.findings]
-        action = await self._transition_with_steps(
+        action = await self._transition(
             action,
             ActionState.VALIDATED,
             (
                 RunEventType.VALIDATION_COMPLETED,
                 {"status": validation.status, "findings": findings},
             ),
-            await self._step_pair(
+            steps=await self._step_pair(
                 action, StepKind.VALIDATE, StepStatus.SUCCEEDED, input_refs=evidence
             ),
         )

@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -30,6 +30,7 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
+from e_agent.contracts.step import StepRecord
 from e_agent.contracts.task import TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationResult
 from e_agent.sdk.auth import CredentialVersionProvider
@@ -41,7 +42,7 @@ from e_agent.sdk.ports import (
     PolicyEvaluator,
     ReadRequest,
 )
-from e_agent.sdk.store import RunStore
+from e_agent.sdk.store import EventBatch, RunStore
 from e_agent.sdk.tasks import supervised_task
 from pydantic import BaseModel, Field, SerializerFunctionWrapHandler, model_serializer
 
@@ -196,6 +197,7 @@ class ContinuationMixin:
             reason: str | None = None,
             *,
             code: ReasonCode | None = None,
+            before: EventBatch = (),
         ) -> RunRecord:
             raise NotImplementedError
 
@@ -210,6 +212,8 @@ class ContinuationMixin:
             action: ActionRecord,
             to: ActionState,
             event: tuple[RunEventType, dict[str, Any]] | None = None,
+            *,
+            steps: Sequence[StepRecord] = (),
         ) -> ActionRecord:
             raise NotImplementedError
 

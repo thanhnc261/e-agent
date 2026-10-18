@@ -289,6 +289,8 @@ async def test_on_single_step_run_records_steps_for_each_stage(make_kernel: Make
         (StepKind.VALIDATE, StepStatus.SUCCEEDED),
         (StepKind.APPROVAL_WAIT, StepStatus.STARTED),
         (StepKind.APPROVAL_WAIT, StepStatus.SUCCEEDED),
+        (StepKind.VALIDATE, StepStatus.STARTED),  # the dispatch-time revalidation (2c.8a)
+        (StepKind.VALIDATE, StepStatus.SUCCEEDED),
         (StepKind.DISPATCH, StepStatus.STARTED),
         (StepKind.DISPATCH, StepStatus.SUCCEEDED),
         (StepKind.VERIFY, StepStatus.STARTED),
@@ -730,10 +732,12 @@ async def test_on_resumed_run_with_unchanged_snapshot_still_works(make_kernel: M
     assert action.plan_id is not None
 
 
-async def test_on_bound_run_without_snapshot_fails_closed(make_kernel: MakeKernel) -> None:
-    """A bound run (task_id set) whose stored continuation has no readable snapshot is offered
-    no tools; every read is refused and every proposal is a finding, never today's set."""
-    for step, check in ((EXCLUDED_READ, "read"), (EXCLUDED_WRITE, "write")):
+async def test_bound_run_without_snapshot_fails_fast(make_kernel: MakeKernel) -> None:
+    """2c.6 review R-2: a bound run (task_id set) whose stored continuation has no readable
+    snapshot fails at once, before any driver turn, instead of spending turns on an empty tool
+    set until the turn budget. It ends ``ACCEPTANCE_UNMET`` with the fixed "unavailable"
+    finding; the empty tool set stays the second defence (Codex C-1)."""
+    for step in (EXCLUDED_READ, EXCLUDED_WRITE):
         k = make_kernel(features=ON)
         driver = _AfterInput(step)
         k.coordinator._driver = driver
@@ -743,13 +747,24 @@ async def test_on_bound_run_without_snapshot_fails_closed(make_kernel: MakeKerne
         await k.store.save_continuation(TENANT, run.run_id, state, driver_state)
         k.coordinator.release_continuation(run.run_id)
         run = await k.coordinator.resume_input(k.requester, run.run_id, "standup", run.revision)
-        assert driver.tool_sets[0] == NOTES_TASK.capabilities  # admitted with a snapshot
-        assert set(driver.tool_sets[1:]) == {()}  # the empty set, never None
-        if check == "read":
-            events = await k.store.list_events(TENANT, run.run_id)
-            _assert_excluded_read_refused_after_resume(k, run, events)
-        else:
-            await _assert_excluded_write_refused_after_resume(k, run)
+        assert driver.tool_sets == [NOTES_TASK.capabilities]  # no turn after the resume
+        assert (run.state, run.reason_code) == (RunState.FAILED, ReasonCode.ACCEPTANCE_UNMET)
+        assert k.backend.read_calls == 0 and k.backend.create_calls == 0
+        events = await k.store.list_events(TENANT, run.run_id)
+        assert not [e for e in events if e.type is RunEventType.READ_REJECTED]
+        assert not [e for e in events if e.type is RunEventType.BUDGET_EXHAUSTED]
+        (finding,) = [
+            f
+            for e in events
+            if e.type is RunEventType.VALIDATION_COMPLETED
+            for f in e.payload["findings"]
+        ]
+        assert (finding["rule_id"], finding["message"]) == (
+            "KERNEL-ACCEPTANCE",
+            ir_on_module.ACCEPTANCE_MESSAGES["unavailable"],
+        )
+        cont = await k.coordinator._load_cont(TENANT, run.run_id)
+        assert k.coordinator._allowed(run, cont) == ()  # never None, today's tools
         await _reset(k.store)
 
 

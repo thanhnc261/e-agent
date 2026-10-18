@@ -44,12 +44,13 @@ class VerificationMixin(IrOnMixin):
         ctx = cont.ctx
         verifier = self._registry.verifier_for(action.contract_id)
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
-        if verifier is None:
+        if verifier is None:  # the verify stage ends UNKNOWN, as an unavailable verifier's
             return await self._set_run_state(
                 run,
                 RunState.VERIFYING,
                 "no verifier registered",
                 code=ReasonCode.VERIFICATION_PENDING,
+                before=await self._step_pair(action, StepKind.VERIFY, StepStatus.UNKNOWN),
             )
         reader = _GatewayReader(self, cont, action.connection_id)
         try:

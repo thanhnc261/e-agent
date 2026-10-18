@@ -1,7 +1,14 @@
-"""Run and action transition enforcement (Phase 1 split of coordinator.py)."""
+"""Run and action transition enforcement (Phase 1 split of coordinator.py).
+
+Each transition is one write. `_set_run_state` takes the records that belong in the same
+write ahead of its own events (an acceptance finding, a stage's step rows), and
+`_transition` takes a stage's step rows after its event; with none, both write exactly what
+they wrote before (ENG-TOGGLE-1).
+"""
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from e_agent.contracts.action import ALLOWED_ACTION_TRANSITIONS, ActionRecord, ActionState
@@ -14,7 +21,8 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
-from e_agent.sdk.store import EventSpec
+from e_agent.contracts.step import StepRecord
+from e_agent.sdk.store import EventBatch, EventSpec
 
 from .continuation import ContinuationMixin
 from .errors import ErrorCode, KernelError
@@ -46,14 +54,18 @@ class TransitionsMixin(ContinuationMixin):
         reason: str | None = None,
         *,
         code: ReasonCode | None = None,
+        before: EventBatch = (),
     ) -> RunRecord:
+        """Move ``run`` to ``state``; ``before`` is recorded ahead of the transition events,
+        in the same write."""
         self._check_run_transition(run, state)
-        events: list[EventSpec] = [
+        events: list[EventSpec | StepRecord] = [
+            *before,
             (
                 RunEventType.RUN_STATE_CHANGED,
                 {"from": run.state, "to": state, "reason": reason, "reason_code": code},
                 None,
-            )
+            ),
         ]
         if state in TERMINAL_RUN_STATES:
             events.append(
@@ -83,11 +95,15 @@ class TransitionsMixin(ContinuationMixin):
         action: ActionRecord,
         to: ActionState,
         event: tuple[RunEventType, dict[str, Any]] | None = None,
+        *,
+        steps: Sequence[StepRecord] = (),
     ) -> ActionRecord:
+        """Move ``action`` to ``to``; ``steps`` are the stage's rows, after its event."""
         if to not in ALLOWED_ACTION_TRANSITIONS[action.state]:
             raise KernelError(ErrorCode.CONFLICT, f"illegal transition {action.state}->{to}")
         updated = action.model_copy(update={"state": to, "revision": action.revision + 1})
-        events: list[EventSpec] = []
+        events: list[EventSpec | StepRecord] = []
         if event is not None:
             events.append((event[0], event[1], action.action_id))
+        events.extend(steps)
         return await self._store.put_action(updated, action.revision, events)

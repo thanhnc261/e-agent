@@ -12,6 +12,7 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
+from e_agent.contracts.step import StepStatus
 
 from .continuation import LOG, _Continuation
 from .errors import ErrorCode, KernelError
@@ -80,7 +81,8 @@ class RecoveryMixin(IrOnMixin):
         if cont and cont.pending_action_id:
             pending = await self._store.get_action(actor.tenant_id, cont.pending_action_id)
             if ActionState.BLOCKED in ALLOWED_ACTION_TRANSITIONS[pending.state]:
-                await self._transition(pending, ActionState.BLOCKED)
+                steps = await self._close_open(pending, StepStatus.BLOCKED)  # the approval wait
+                await self._transition(pending, ActionState.BLOCKED, steps=steps)
             cont.pending_action_id = None
         cancelled = await self._set_run_state(
             run, RunState.CANCELLED, "cancelled before dispatch", code=ReasonCode.CANCELLED
@@ -207,8 +209,9 @@ class RecoveryMixin(IrOnMixin):
             )
             return await self._apply_receipt(cont, action, receipt)
         elif undispatched:
-            for action in undispatched:
-                await self._transition(action, ActionState.BLOCKED)
+            for action in undispatched:  # a reserved step's open dispatch row ends with it
+                steps = await self._close_open(action, StepStatus.BLOCKED)
+                await self._transition(action, ActionState.BLOCKED, steps=steps)
             if cont is not None:
                 cont.pending_action_id = None
             run = await self._store.get_run(run.tenant_id, run.run_id)
