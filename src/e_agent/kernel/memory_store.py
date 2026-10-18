@@ -49,9 +49,7 @@ class InMemoryRunStore:
         self._approvals: dict[tuple[str, str], list[ApprovalRecord]] = defaultdict(list)
         self._receipts: dict[tuple[str, str], list[ExecutionReceipt]] = defaultdict(list)
         self._outcomes: dict[tuple[str, str], list[OutcomeReport]] = defaultdict(list)
-        self._continuations: dict[
-            tuple[str, str], tuple[dict[str, Any], dict[str, Any] | None]
-        ] = {}
+        self._continuations: dict[tuple[str, str], _Stored] = {}
         self._writer_locks: dict[tuple[str, str], asyncio.Lock] = defaultdict(asyncio.Lock)
         self._work: dict[str, dict[str, Any]] = {}
         self._work_claim: ContextVar[WorkClaim | None] = ContextVar(
@@ -105,6 +103,9 @@ class InMemoryRunStore:
             raise ConcurrencyConflict(f"action {action.action_id} changed")
         if action.revision != (0 if expected is None else expected) + 1:
             raise ConcurrencyConflict("new revision must be expected + 1")
+        plan = self._plans.get((action.tenant_id, action.plan_id or ""))
+        if action.plan_id is not None and (plan is None or plan[0] != action.run_id):
+            raise ValueError(f"action {action.action_id}: no plan {action.plan_id} in its run")
 
     # -- runs ---------------------------------------------------------------
     async def create_run(self, run: RunRecord, events: EventBatch) -> None:
@@ -369,9 +370,7 @@ class InMemoryRunStore:
             dict(driver_state) if driver_state is not None else None,
         )
 
-    async def load_continuation(
-        self, tenant_id: str, run_id: str
-    ) -> tuple[dict[str, Any], dict[str, Any] | None] | None:
+    async def load_continuation(self, tenant_id: str, run_id: str) -> _Stored | None:
         return self._continuations.get((tenant_id, run_id))
 
     @asynccontextmanager

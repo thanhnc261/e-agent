@@ -561,6 +561,7 @@ async def test_tenant_scope_on_plans_and_steps(store: Any) -> None:
 
 async def test_existing_rows_have_null_plan_id(store: Any) -> None:
     await store.create_run(_run(), [EV])
+    await store.put_plan("t1", "run_1", _plan(), [])
     await store.put_action(_action(), None, [])
     linked = _action("act_2", op="op_2").model_copy(update={"plan_id": "plan_1", "step_index": 1})
     await store.put_action(linked, None, [])
@@ -580,3 +581,39 @@ async def test_existing_rows_have_null_plan_id(store: Any) -> None:
             )
             rows = await cur.fetchall()
         assert rows == [("act_1", None, None), ("act_2", "plan_1", 1)]
+
+
+async def test_action_plan_link_refused_for_unknown_plan(store: Any) -> None:
+    """An action's ``plan_id`` must name a stored plan of its tenant and run (2c.3 review
+    R-5); a refused write leaves no action and no events. The check is the store's."""
+    await store.create_run(_run(), [EV])
+    await store.create_run(_run("run_2"), [EV])
+    await store.put_plan("t1", "run_2", _plan("plan_other_run"), [])
+    await store.create_run(_run(tenant="t2"), [EV])
+    await store.put_plan("t2", "run_1", _plan("plan_other_tenant"), [])
+    cases = 0
+    for plan_id in ("plan_missing", "plan_other_run", "plan_other_tenant"):
+        linked = _action(f"act_{plan_id}", op=f"op_{plan_id}").model_copy(
+            update={"plan_id": plan_id, "step_index": 0}
+        )
+        with pytest.raises(ValueError, match="plan"):
+            await store.put_action(linked, None, [EV])
+        with pytest.raises(NotFound):
+            await store.get_action("t1", linked.action_id)
+        cases += 1
+    # An update that adds an unknown plan link to an existing action is refused too.
+    await store.put_action(_action(), None, [])
+    moved = _action(rev=2, state=ActionState.VALIDATED).model_copy(
+        update={"plan_id": "plan_missing", "step_index": 0}
+    )
+    with pytest.raises(ValueError, match="plan"):
+        await store.put_action(moved, 1, [EV])
+    cases += 1
+    assert (await store.get_action("t1", "act_1")).revision == 1
+    assert [e.type for e in await store.list_events("t1", "run_1")] == [EV[0]]
+    # A link to the run's own plan is accepted.
+    await store.put_plan("t1", "run_1", _plan(), [])
+    ok = moved.model_copy(update={"plan_id": "plan_1"})
+    assert (await store.put_action(ok, 1, [])).plan_id == "plan_1"
+    print(f"plan link refusal cases: {cases}")
+    assert cases == 4

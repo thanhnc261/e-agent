@@ -163,6 +163,15 @@ class PostgresRunStore:
     ) -> None:
         if action.revision != (0 if expected is None else expected) + 1:
             raise ConcurrencyConflict("new revision must be expected + 1")
+        if action.plan_id is not None:
+            # 2c.3 review R-5: the link names a stored plan of the action's tenant and run.
+            # A plan row is never deleted or rewritten, so a read in this transaction holds.
+            cur = await conn.execute(
+                "SELECT 1 FROM action_plans WHERE tenant_id = %s AND plan_id = %s AND run_id = %s",
+                (action.tenant_id, action.plan_id, action.run_id),
+            )
+            if await cur.fetchone() is None:
+                raise ValueError(f"action {action.action_id}: no plan {action.plan_id} in its run")
         if expected is None:
             try:
                 async with conn.transaction():
