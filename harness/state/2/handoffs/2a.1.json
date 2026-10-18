@@ -1,0 +1,37 @@
+{
+  "task": "2a.1",
+  "changed": "ADRs 0025, 0027, 0028, 0029, the ADR index, target 6.4 and the Phase 2 plan reconciled with each other and the checkout (commits 55e09a2, beb9b3b; statuses stay Proposed). D6 (DriverInput.allowed_capabilities, kernel refusal is the boundary) and D7 (task TTL and budget narrowing in Phase 2) recorded in ADR 0028 and 6.4.1. New owner decision D8: a definition's task_id is its preset kind; only the CLI passes it in Phase 2 (start_run task kind, plumbed in 2c.5); API/UI runs carry free text, so shadow records ir.shadow_failed and on falls back with IR_TASK_UNRESOLVED; the TaskTemplate projection waits until after Phase 2. Run-outcome codes (PLAN_LINEAGE_REJECTED, ACCEPTANCE_UNMET) separated from the IR_* fallback codes; one sdk_api bump 1.0 to 1.1 in 2c.9; gate lines in ADRs 0025, 0027, 0028, 0029 match the plan's Gate table; ADR 0027 OpenAPI consequence corrected; stale code references fixed (Profile, tool_specs, EffectKind, OdooExecutor.execute, digest_input). Review: Claude rework (R-1 High shadow kind source, R-2, R-3, R-4), fixed and accepted in a scoped re-review.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2a.1/2026-10-18T00-46-02.697690+00-00-full.json",
+    "harness/state/evidence/gates/2a.1/2026-10-18T00-36-54.544426+00-00-full.json"
+  ],
+  "open_items": [
+    "Owner gate G1 (Task 2a.2): accept ADRs 0024, 0025, 0027, 0028, 0029 and target 6.4, and confirm D6, D7 and D8.",
+    "Task 2c.1 settles how a definition's budgets narrow: Budgets carries defaults, so compare only fields the definition sets (model_fields_set or an all-optional override record).",
+    "Target 5.4's StepRecord sketch uses BaseModel; plan 2c.1 uses Record. Align 5.4 when 2c.1 lands."
+  ],
+  "rulings": [
+    {
+      "ruling": "The implementer's decision that only CLI runs resolve a task definition in Phase 2 is kept and raised as owner decision D8, because it changes timing, not design.",
+      "cost_if_wrong": "Task 2c.5 or 2c.6 adds an optional task id to CreateRun."
+    },
+    {
+      "ruling": "Kind plumbing moves to Task 2c.5, its first consumer; shadow without a definition records ir.shadow_failed with IR_TASK_UNRESOLVED and nothing else.",
+      "cost_if_wrong": "The API shadow comparison waits for the D8 alternative."
+    },
+    {
+      "ruling": "Shadow writing RunRecord.task_id is recording the new path, not acting on it (ENG-TOGGLE-1).",
+      "cost_if_wrong": "Drop the field write in 2c.5."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "PR #4 (Hygiene) merged to main as 6f7ec70 on the owner's instruction.",
+      "undo": "Revert the merge commit on main."
+    },
+    {
+      "change": "PR #5 fix/odoo-live-workflow pushed and opened (odoo-live workflow parse fix and lost-response live test fix); two odoo-live workflow_dispatch runs on GitHub runners, the second 20 passed.",
+      "undo": "Close PR #5 and delete the branch."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "task": "2a.1",
+  "verdict": "accept",
+  "findings": [
+    {"id": "R-1", "severity": "High", "affects": "contract", "summary": "Addressed. start_run kind plumbing and cli.py moved to Task 2c.5 Files and removed from 2c.6; 2c.6 run_loop resolves from the kind received in 2c.5. Shadow with no definition records ir.shadow_failed with IR_TASK_UNRESOLVED and nothing else, stated consistently in the plan shadow row, target 6.4.1 and 6.4.8, ADR 0027 and ADR 0028; ADR 0025, ADR 0027 and 6.4.6 carve out IR_TASK_UNRESOLVED on ir.shadow_failed. Test test_shadow_without_definition_records_shadow_failed added.", "evidence": "docs/plans/2026-10-14-phase2-execution-ir.md:268-275,278; docs/design/target-architecture.md:577,667,688; docs/adr/0025-execution-ir.md:36; docs/adr/0027-feature-toggles.md; docs/adr/0028-task-definitions.md:13"},
+    {"id": "R-2", "severity": "Medium", "affects": "contract", "summary": "Addressed. Global Constraints now says multi-step plans run through fixtures and the CLI only; D3 notes a multi-step plan starts only from the CLI.", "evidence": "docs/plans/2026-10-14-phase2-execution-ir.md Global Constraints bullet, D3 row"},
+    {"id": "R-3", "severity": "Medium", "affects": "contract", "summary": "Addressed. Row D8 added with default, alternative and the reason the API does not use profile.driver.task_kind; ADR 0028 bullet marked D8; 2a.2 has the owner-confirms D6, D7, D8 step; Live check says shadow and on legs run through the CLI.", "evidence": "docs/plans/2026-10-14-phase2-execution-ir.md D8 row, Live check, Task 2a.2; docs/adr/0028-task-definitions.md:13"},
+    {"id": "R-4", "severity": "Low", "affects": "style", "summary": "Addressed. Plan 2c.6 Interfaces and ADR 0028 Context both cite build_runtime in server/bootstrap.py, called once by server/api.py.", "evidence": "docs/plans/2026-10-14-phase2-execution-ir.md:280; docs/adr/0028-task-definitions.md:7"},
+    {"id": "R-5", "severity": "Low", "affects": "style", "summary": "Note for close: the harness digest is stale after these edits (G-7); run refresh-task before close-check. 2c.5 should confirm that recording RunRecord.task_id in shadow fits 'acts on the existing path' (ruled acceptable).", "evidence": ".superpowers/sdd/2026-10-14-phase2-execution-ir/task-2a.1-report.md Fix round 1 Concern"}
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}

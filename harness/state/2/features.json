@@ -11,7 +11,8 @@
         "stale code references in ADRs 0027, 0028 and 0029 fixed",
         "uv run python scripts/repo_move.py check reports no broken links; full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2a.1/2026-10-18T00-46-02.697690+00-00-full.json"
     },
     {
       "id": "F-2a-2",
