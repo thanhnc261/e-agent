@@ -1,0 +1,24 @@
+{
+  "task": "2c.8b",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "C2-1",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "_resume_disabled is still a coordinator-wide set: a paused recover_run(resume=False) for run X makes a concurrent fenced resume of X fail INTERRUPTED",
+      "evidence": "Codex partial run (usage limit hit before file:line output); src/e_agent/kernel/recovery.py and plan_flow.py _resume_disabled"
+    },
+    {
+      "id": "C2-2",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "Delayed reconciliation leaves a plan whose second write was UNKNOWN in VERIFYING with no pending work (stranded)",
+      "evidence": "Codex partial run reproduced NEEDS_RECONCILIATION -> VERIFYING with no pending work; code path not reported before the usage limit"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}
