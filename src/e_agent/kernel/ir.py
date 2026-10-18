@@ -15,12 +15,14 @@ from typing import Any
 
 from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.common import Record
-from e_agent.contracts.digest import canonicalize
+from e_agent.contracts.digest import CanonicalizationError, canonicalize
 from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.plan import (
     ActionPlan,
     ActionProposal,
+    LineageRef,
     PlannedStep,
+    lineage_refs,
     plan_from_wire,
     plan_to_wire,
 )
@@ -66,15 +68,18 @@ def _finding(rule_id: str, message: str) -> Finding:
 def validate_plan(
     plan: ActionPlan, task: TaskDefinition, ctx: PlanValidationContext
 ) -> tuple[Finding, ...]:
-    """The kernel's policy check of a plan (target §6.4.3); an empty tuple means valid.
+    """The kernel's pure check of a plan (target §6.4.3). An empty tuple means the plan
+    passes its structure rules, the task policy and the digest profile; per-step domain
+    validation and policy are the caller's, through its existing validators (Task 2c.6).
 
     Finding codes: ``KERNEL-PLAN-STRUCTURE`` (the plan's own rules fail when re-applied),
     ``KERNEL-PLAN-TASK`` (the plan names another definition or version),
     ``KERNEL-PLAN-CAPABILITY`` (a step's capability is outside the definition),
     ``KERNEL-PLAN-UNKNOWN-CAPABILITY`` (no resolved effect for it),
     ``KERNEL-PLAN-READ-STEP`` (a plan step proposes a read) and ``KERNEL-PLAN-WRITES``
-    (more write steps than ``max_admitted_writes``). Per-step domain validation and policy
-    stay with the caller's existing validators. Never raises for a bad plan."""
+    (more write steps than ``max_admitted_writes``), and ``KERNEL-ARGS`` (a step's arguments,
+    placeholders in wire form, are outside the digest profile; the code and detail of
+    `kernel/proposals.py`). Never raises for a bad plan."""
     try:
         # Re-apply the plan rules to a built plan through the wire form: a placeholder's
         # dump is refused as a literal by `model_validate`, and a plain revalidation of a
@@ -94,6 +99,9 @@ def validate_plan(
     allowed = set(task.capabilities)
     writes = 0
     for step in plan.steps:
+        profile = _profile_finding(step)
+        if profile is not None:
+            findings.append(profile)
         contract_id = step.proposal.contract_id
         if contract_id not in allowed:
             findings.append(
@@ -132,11 +140,52 @@ def validate_plan(
 
 
 # -- digest ------------------------------------------------------------------------------
+def _digest_arguments(arguments: Mapping[str, Any]) -> dict[str, Any]:
+    """A step's arguments for its digest input: the Python values, with only each
+    placeholder replaced by its wire mapping ``{"$lineage": {"step", "path"}}``.
+
+    Every other value passes through unchanged, so `canonicalize` refuses exactly what it
+    refuses on the 1-step path (a set, a number, an int key, bytes). Never a `model_dump`:
+    a JSON-mode dump lists a set in hash order and coerces Decimal, NaN, int keys and bytes
+    to strings or null (2c.4 review R-1). A literal `$lineage` key anywhere, or a
+    placeholder with a bad pointer, raises `ValueError` (`lineage_refs`)."""
+    for _ in lineage_refs(arguments):
+        pass
+    return {key: _encode_placeholders(value) for key, value in arguments.items()}
+
+
+def _encode_placeholders(value: Any) -> Any:
+    if isinstance(value, LineageRef):
+        return value.model_dump(mode="json")
+    if isinstance(value, Mapping):
+        return {key: _encode_placeholders(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_encode_placeholders(item) for item in value]
+    return value
+
+
+def _profile_finding(step: PlannedStep) -> Finding | None:
+    """``KERNEL-ARGS`` when the step's digest arguments are outside the digest profile."""
+    try:
+        canonicalize(_digest_arguments(step.proposal.arguments))
+    except CanonicalizationError as exc:
+        return _finding(
+            "KERNEL-ARGS",
+            f"step {step.step_id!r}: arguments outside the digest profile: {exc}",
+        )
+    return None
+
+
 class StepDigestContext(Record):
     """What the kernel resolved for one step's digest input (`digest_input`, ADR 0006).
 
     A step after the first binds the evidence and fact digests known when the plan was
-    proposed, which may be none (target §6.4.4)."""
+    proposed, which may be none (target §6.4.4).
+
+    ``evidence`` carries every observation of the run's continuation, as `kernel/proposals.py`
+    builds it today (sorted by evidence id there and in `digest_input`), not only the
+    proposal's ``evidence_ids``; otherwise a 1-step plan's digest would not equal the action
+    digest."""
 
     tenant_id: str
     requester_id: str
@@ -198,9 +247,10 @@ def plan_digest_input(
     A 1-step plan's input is that step's action digest input, byte for byte today's
     (`kernel/proposals.py`): the run's logical operation id and the proposal's arguments as
     they are, without the wire form (a 1-step plan cannot hold a placeholder). A plan of two
-    or more steps is wrapped (`plan_digest_wrapper`); each step's arguments come from
-    `plan_to_wire`, the JSON-mode dump with each placeholder as ``{"$lineage": {"step",
-    "path"}}``, and its logical operation id from `step_operation_id`."""
+    or more steps is wrapped (`plan_digest_wrapper`); each step's arguments are its Python
+    values with each placeholder as ``{"$lineage": {"step", "path"}}`` (`_digest_arguments`),
+    and its logical operation id comes from `step_operation_id`. Run `validate_plan` first:
+    this function re-checks placeholders and literal `$lineage` keys, not the plan rules."""
     missing = [s.step_id for s in plan.steps if s.step_id not in contexts]
     if missing:
         raise ValueError(f"no digest context for steps {missing!r}")
@@ -212,7 +262,6 @@ def plan_digest_input(
             logical_operation_id=run_operation_id,
             arguments=dict(step.proposal.arguments),
         )
-    wire = plan_to_wire(plan)
     return plan_digest_wrapper(
         (
             step.step_id,
@@ -221,10 +270,10 @@ def plan_digest_input(
                 step,
                 contexts[step.step_id],
                 logical_operation_id=step_operation_id(plan.plan_id, step.step_id),
-                arguments=wire["steps"][index]["proposal"]["arguments"],
+                arguments=_digest_arguments(step.proposal.arguments),
             ),
         )
-        for index, step in enumerate(plan.steps)
+        for step in plan.steps
     )
 
 

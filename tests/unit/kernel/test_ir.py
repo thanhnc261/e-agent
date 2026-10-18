@@ -10,9 +10,13 @@ import ast
 import copy
 import inspect
 import json
+import os
+import subprocess
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from decimal import Decimal
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
@@ -21,6 +25,7 @@ from unittest import mock
 import e_agent.kernel.ir as ir
 import pytest
 from e_agent.contracts.capability import EffectKind
+from e_agent.contracts.digest import CanonicalizationError
 from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.plan import (
     ActionPlan,
@@ -224,16 +229,90 @@ def test_one_step_plan_digest_skips_the_lineage_serializer() -> None:
         assert calls == []
 
 
-def test_multi_step_digest_input_takes_set_argument_with_placeholder() -> None:
-    """JSON mode, never Python mode: a `LineageRef` inside a set dumps only in JSON mode."""
-    ref = LineageRef(step_id="a", path="/id")
-    plan = _plan(_step("a"), _step("b", WRITE_B, "a", refs={ref}))
-    built = plan_digest_input(
-        plan, {"a": _step_context(), "b": _step_context()}, run_operation_id="op_run"
+def _two_step_with(**arguments: Any) -> tuple[ActionPlan, dict[str, StepDigestContext]]:
+    plan = _plan(
+        _step("a"),
+        _step("b", WRITE_B, "a", note=LineageRef(step_id="a", path="/id"), **arguments),
     )
-    assert built["steps"][1]["input"]["arguments"] == {
-        "refs": [{"$lineage": {"step": "a", "path": "/id"}}]
+    return plan, {"a": _step_context(), "b": _step_context()}
+
+
+# Values the 1-step path refuses at canonicalization; a JSON-mode dump would coerce each one
+# (a set to a hash-ordered list, Decimal/NaN/inf to strings or null, an int key to a string,
+# bytes to str), so the 2+-step path must refuse them too (2c.4 review R-1).
+NON_PROFILE = {
+    "multi-element set": {"x", "y", "z"},
+    "set holding a placeholder": {LineageRef(step_id="a", path="/id")},
+    "decimal": Decimal("4"),
+    "nan": float("nan"),
+    "inf": float("inf"),
+    "int key": {1: "a"},
+    "bytes": b"4",
+}
+
+
+@pytest.mark.parametrize("value", list(NON_PROFILE.values()), ids=list(NON_PROFILE))
+def test_multi_step_digest_refuses_what_the_one_step_path_refuses(value: object) -> None:
+    with pytest.raises(CanonicalizationError):
+        compute_digest({"arguments": {"v": value}})  # today's 1-step behaviour
+    plan, contexts = _two_step_with(v=value)
+    with pytest.raises(CanonicalizationError):
+        plan_digest(plan, contexts, run_operation_id="op_run")
+
+
+def test_multi_step_digest_input_keeps_python_values_and_encodes_placeholders() -> None:
+    """Only each `LineageRef` is replaced; every other value passes through unchanged."""
+    ref = LineageRef(step_id="a", path="/id")
+    plan, contexts = _two_step_with(
+        nested={"list": ["x", ref], "tuple": ("t", ref)}, flag=True, empty=None
+    )
+    arguments = plan_digest_input(plan, contexts, run_operation_id="op_run")["steps"][1]["input"][
+        "arguments"
+    ]
+    wire = {"$lineage": {"step": "a", "path": "/id"}}
+    assert arguments == {
+        "note": wire,
+        "nested": {"list": ["x", wire], "tuple": ["t", wire]},
+        "flag": True,
+        "empty": None,
     }
+    assert arguments["flag"] is True and arguments["empty"] is None
+
+
+def test_multi_step_digest_refuses_a_forged_literal_placeholder() -> None:
+    plan, contexts = _two_step_with()
+    plan.steps[1].proposal.arguments["forged"] = {"$lineage": {"step": "a", "path": "/x"}}
+    with pytest.raises(ValueError, match=r"\$lineage"):
+        plan_digest_input(plan, contexts, run_operation_id="op_run")
+
+
+def test_multi_step_digest_is_stable_across_hash_seeds() -> None:
+    """A set argument is refused in every process; a JSON-mode dump would list it in hash
+    order, so its digest would differ with `PYTHONHASHSEED`."""
+    script = (
+        "import json, sys\n"
+        "sys.path.insert(0, sys.argv[1])\n"
+        "from test_ir import _two_step_with\n"
+        "from e_agent.contracts.digest import CanonicalizationError\n"
+        "from e_agent.kernel.ir import plan_digest\n"
+        "plan, contexts = _two_step_with(tags={'x', 'y', 'z', 'w', 'v'})\n"
+        "try:\n"
+        "    print(plan_digest(plan, contexts, run_operation_id='op_run'))\n"
+        "except CanonicalizationError:\n"
+        "    print('refused')\n"
+    )
+    here = str(Path(__file__).parent)
+    digests = {
+        subprocess.run(
+            [sys.executable, "-c", script, here],
+            env={**os.environ, "PYTHONHASHSEED": seed},
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        for seed in ("1", "2", "3", "4")
+    }
+    assert digests == {"refused"}
 
 
 def test_multi_step_digest_input_wraps_steps_in_index_order() -> None:
@@ -405,6 +484,20 @@ def test_validate_revalidates_a_built_plan_without_raising() -> None:
         plan_id="p", task_id="notes.capture", task_version="1", steps=()
     )
     assert _codes(validate_plan(unchecked, _task(), _ctx())) == ["KERNEL-PLAN-STRUCTURE"]
+
+
+def test_validate_reports_arguments_outside_the_digest_profile() -> None:
+    one = compile_proposal(_proposal(qty=Decimal("4")), _task(), plan_id="plan_run1")
+    findings = validate_plan(one, _task(), _ctx())
+    assert _codes(findings) == ["KERNEL-ARGS"]
+    assert "arguments outside the digest profile" in findings[0].message
+    plan, _ = _two_step_with(tags={"x", "y"})
+    findings = validate_plan(plan, _task(), _ctx(max_writes=2))
+    assert _codes(findings) == ["KERNEL-ARGS"]
+    assert "'b'" in findings[0].message
+    # Placeholders count as their wire form, which is inside the profile.
+    plan, _ = _two_step_with()
+    assert validate_plan(plan, _task(), _ctx(max_writes=2)) == ()
 
 
 IR_SOURCE = Path(inspect.getfile(ir))
