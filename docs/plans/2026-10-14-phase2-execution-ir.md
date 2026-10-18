@@ -77,7 +77,7 @@ All five Phase 2 ADRs were written in `6aaab54` and are Proposed; 2a.1 reconcile
 | [0027](../adr/0027-feature-toggles.md) | Feature toggles: `Profile.features`, modes, shadow comparison, `feature.fallback` with reason codes, readiness and evidence reporting | Written, Proposed | Blocks 2b |
 | [0024](../adr/0024-plan-approval-model.md) | Approval model for multi-step plans: the approver approves the whole plan's digest once; deviation stops the plan; benchmark-only auto-approve for `read`/`write_low` (owner D-3); nothing modified after approval (owner D-4) | Written, Proposed | Blocks 2c.7 |
 | [0025](../adr/0025-execution-ir.md) | Execution IR: ActionPlan, PlannedStep, lineage placeholders and their digest binding, per-step reservation and verification, partial failure, StepRecord (C8 part 1), `execution_ir` mode semantics; widens the ADR 0018 table (`VERIFYING → RUNNING`, `RUNNING → VERIFYING`) | Written, Proposed | Blocks 2c |
-| [0028](../adr/0028-task-definitions.md) | Task definitions (C11): portable `TaskDefinition` and `AcceptanceSpec`, owned by domain packs, tool set fixed at admission; `TaskTemplate` becomes a projection; per-task approval TTL | Written, Proposed | Blocks 2c.2 |
+| [0028](../adr/0028-task-definitions.md) | Task definitions (C11): portable `TaskDefinition` and `AcceptanceSpec`, owned by domain packs, tool set fixed at admission and passed per run through `DriverInput.allowed_capabilities` (D6); per-task approval TTL and budget narrowing (D7); `TaskTemplate` becomes a projection after Phase 2 | Written, Proposed | Blocks 2c.2 |
 | [0029](../adr/0029-capability-effect-declarations.md) | Capability effect declarations: `risk`, `reversibility` on contracts, `idempotency` on bindings; conservative defaults refused in live profiles (adoption review XA-01) | Written, Proposed | Blocks 2c.1, 2c.2, 2c.7, 2c.8 |
 | 0006 | Approval digest canonicalization | Accepted | Plan digest uses `jcs-sha256-v1`; a 1-step plan's approval digest equals today's action digest |
 | 0003, 0014 | Durability; approval binds versions and facts | Accepted | Per-step evidence before writes; revalidation before each step |
@@ -106,7 +106,7 @@ One toggle, `features.execution_ir`, covers task definitions, action plans and s
 |---|---|
 | `off` | Today's single-action loop. No IR is compiled, no step record is written, no new event appears. |
 | `shadow` | The run acts on the existing path. After the existing proposal handling validates a proposal, the kernel compiles it into a 1-step ActionPlan, resolves the task definition, computes the plan digest and records `ir.plan_compiled` (plan digest, step count, task definition id and version, whether the step digest equals the action digest) and the step records. A compile or validation error records `ir.shadow_failed` and nothing else. No extra driver call, provider read or budget use. |
-| `on` | The run executes the IR. The tool set comes from the task definition at admission. A single `ProposeAction` becomes a 1-step plan; a `ProposePlan` becomes an N-step plan. The plan is validated as a whole, approved once and dispatched step by step. |
+| `on` | The run executes the IR. The tool set comes from the task definition at admission (`DriverInput.allowed_capabilities`, D6). A single `ProposeAction` becomes a 1-step plan; a `ProposePlan` becomes an N-step plan. The plan is validated as a whole, approved once and dispatched step by step. |
 
 The mode table and fallback rule are decided in target §6.4.8 (ADR 0027); this section restates them for the tasks.
 
@@ -124,8 +124,8 @@ The mode table and fallback rule are decided in target §6.4.8 (ADR 0027); this 
 | 2a.1, 2a.2 | `full` (docs only; confirms nothing else moved) |
 | 2b.1, 2b.2 | `full` and `pg` |
 | 2b.3 | `full` and `e2e` |
-| 2c.1, 2c.2, 2c.4, 2c.9 | `full` (2c.1, 2c.4 and 2c.9 also run `pg`, as ADR 0025 asks) |
-| 2c.3, 2c.5, 2c.6, 2c.7, 2c.8 | `full` and `pg` |
+| 2c.2 | `full` |
+| 2c.1, 2c.3–2c.9 | `full` and `pg` (the set ADR 0025 names) |
 | 2d.1 | end-of-phase levels 1–3 |
 | 2d.2 | level 4 (live) |
 
@@ -223,7 +223,7 @@ The documents exist (commit `6aaab54`): target §6.4, threats T20–T22, ADRs 00
 - [ ] Failing tests: `test_task_definition_requires_capabilities_and_acceptance`; `test_action_plan_rejects_duplicate_step_ids`; `test_action_plan_rejects_unknown_dependency`; `test_action_plan_rejects_cycle`; `test_lineage_ref_must_point_to_an_earlier_dependency`; `test_step_record_fields_match_target_5_4`; `test_contract_records_are_frozen`; `test_read_risk_only_on_read_or_answer_effects`; `test_effect_declaration_defaults` (write → `write_high`, `irreversible`; binding → `none`); `test_lineage_key_literal_refused`; `test_lineage_ref_has_step_and_path_only`; `test_action_record_plan_fields_default_null`; `test_run_record_task_fields_default_null`.
 - [ ] Run `uv run pytest -q tests/unit/contracts -k "task or plan or step"`; expected: `ModuleNotFoundError: No module named 'e_agent.contracts.task'`.
 - [ ] Implement; structural validation lives in the records, policy validation stays in the kernel.
-- [ ] Run the same command; expected: pass. Run `uv run lint-imports`; expected: every contract kept.
+- [ ] Run the same command; expected: pass. Run `uv run lint-imports`; expected: every contract kept. Run the `pg` gate; expected: pass.
 - [ ] Commit `feat(contracts): task definition, action plan and step record`.
 
 ### Task 2c.2: task definitions for the ERP pack
@@ -272,11 +272,11 @@ Builds on the Phase 1d task presets (Task 1d.3): each of the eight task definiti
 
 ### Task 2c.6: `on` mode, single step
 
-**Files:** `src/e_agent/sdk/ports.py` (`DriverInput.allowed_capabilities: tuple[str, ...] | None = None`; `None` keeps today's set), `src/e_agent/kernel/run_loop.py` (resolves the run's task definition at admission, records `task_id` and `task_version`, sets `allowed_capabilities` on every turn), `src/e_agent/kernel/gateway.py` (refuses a read outside the set), `src/e_agent/kernel/proposals.py` (`on` path: compile, validate, approve the 1-step plan; a proposal outside the set is a finding), `src/e_agent/kernel/approval_flow.py` (the definition's `approval_ttl` replaces the global TTL for its runs), `src/e_agent/kernel/dispatch.py` (step records around reserve, dispatch, verify), `src/e_agent/kernel/verification.py` (acceptance check at run end), `src/e_agent/contracts/run.py` (`ReasonCode.ACCEPTANCE_UNMET`, classified failed), `src/e_agent/adapters/pydantic_ai/driver.py` (offers only the allowed tools on a turn), `tests/unit/kernel/test_execution_ir_on.py`, `tests/unit/adapters/pydantic_ai/test_driver_tool_filter.py`.
+**Files:** `src/e_agent/sdk/ports.py` (`DriverInput.allowed_capabilities: tuple[str, ...] | None = None`; `None` keeps today's set; additive, and the `sdk_api` minor bump it shares with `ProposePlan` is made in Task 2c.9, ADR 0025), `src/e_agent/kernel/coordinator.py` (`start_run` accepts an optional task kind, the definition's `task_id`; ADR 0028), `src/e_agent/server/cli.py` (passes the preset kind it renders), `src/e_agent/kernel/run_loop.py` (resolves the run's task definition at admission from that kind, records `task_id` and `task_version`, sets `allowed_capabilities` on every turn), `src/e_agent/kernel/gateway.py` (refuses a read outside the set), `src/e_agent/kernel/proposals.py` (`on` path: compile, validate, approve the 1-step plan; a proposal outside the set is a finding), `src/e_agent/kernel/approval_flow.py` (the definition's `approval_ttl` replaces the global TTL for its runs), `src/e_agent/kernel/dispatch.py` (step records around reserve, dispatch, verify), `src/e_agent/kernel/verification.py` (acceptance check at run end), `src/e_agent/contracts/run.py` (`ReasonCode.ACCEPTANCE_UNMET`, classified failed), `src/e_agent/adapters/pydantic_ai/driver.py` (offers only the allowed tools on a turn), `tests/unit/kernel/test_execution_ir_on.py`, `tests/unit/adapters/pydantic_ai/test_driver_tool_filter.py`.
 
 **Interfaces:** the API builds one runtime, and one driver, for every task kind (`build_runtime(profile)` in `server/api.py`), so the tool set is narrowed per run through `DriverInput`, not per driver. The kernel's refusal is the boundary; the driver's filter is what the model sees.
 
-- [ ] Failing tests: `test_on_tool_set_equals_task_definition`; `test_on_read_outside_task_definition_refused`; `test_on_run_records_task_id_and_version`; `test_on_task_approval_ttl_replaces_global`; `test_on_definition_budgets_narrow_profile_budgets`; `test_driver_offers_only_allowed_tools` (FunctionModel; `None` offers today's set); `test_on_single_step_run_records_steps_for_each_stage`; `test_on_single_step_approval_presentation_unchanged` (same `ApprovalPresentation` and digest as `off`); `test_on_acceptance_unmet_fails_run_with_reason` (`ACCEPTANCE_UNMET`, ADR 0028); `test_on_unresolved_task_falls_back_with_reason` (`IR_TASK_UNRESOLVED`, run completes on the old path); `test_on_validation_error_before_reservation_falls_back`; `test_model_cannot_mark_plan_verified` (ENG-TRUST-1).
+- [ ] Failing tests: `test_on_tool_set_equals_task_definition`; `test_on_read_outside_task_definition_refused`; `test_on_run_records_task_id_and_version`; `test_on_task_approval_ttl_replaces_global`; `test_on_definition_budgets_narrow_profile_budgets`; `test_driver_offers_only_allowed_tools` (FunctionModel; `None` offers today's set); `test_on_single_step_run_records_steps_for_each_stage`; `test_on_single_step_approval_presentation_unchanged` (same `ApprovalPresentation` and digest as `off`); `test_on_acceptance_unmet_fails_run_with_reason` (`ACCEPTANCE_UNMET`, ADR 0028); `test_on_unresolved_task_falls_back_with_reason` (`IR_TASK_UNRESOLVED`, run completes on the old path; covers an API run, which names no task kind in Phase 2); `test_on_validation_error_before_reservation_falls_back`; `test_model_cannot_mark_plan_verified` (ENG-TRUST-1).
 - [ ] Run `uv run pytest -q tests/unit/kernel/test_execution_ir_on.py tests/unit/adapters/pydantic_ai/test_driver_tool_filter.py`; expected: fails (`allowed_capabilities` unknown; tool set is today's list; no step records).
 - [ ] Implement.
 - [ ] Run the same command; expected: pass. Run the replay suite and the prompt golden (Global Constraints, ENG-EVID-5); expected: pass with `off`, every recording replayed. Run the `pg` gate; expected: pass.
@@ -304,12 +304,12 @@ Builds on the Phase 1d task presets (Task 1d.3): each of the eight task definiti
 
 ### Task 2c.9: driver emits IR
 
-**Files:** `src/e_agent/sdk/ports.py` (`ProposePlan(plan: ActionPlan)` added to `DriverStep`; `sdk_api` minor bump), plugin manifests' `sdk_api` ranges, `src/e_agent/adapters/pydantic_ai/driver.py` (with `on`, offers plan output when the task definition allows more than one write), `src/e_agent/plugins/erp/domain/testing/scripted_tasks.py` (scripted driver emits `ProposePlan`), `tests/unit/adapters/pydantic_ai/test_driver_plan.py`, `tests/unit/sdk/test_ports.py`, `tests/unit/adapters/pydantic_ai/golden/base_instructions.txt` (if the base prompt changes; today it says to call exactly one write tool), a new recording under the replay suite's recordings for a plan output.
+**Files:** `src/e_agent/sdk/ports.py` (`ProposePlan(plan: ActionPlan)` added to `DriverStep`), `src/e_agent/sdk/__init__.py` (`SDK_API_VERSION` `1.0` → `1.1`, the one minor bump for `ProposePlan` and 2c.6's `allowed_capabilities`, ADR 0025), plugin manifests' `sdk_api` ranges (only if one no longer admits `1.1`), `src/e_agent/adapters/pydantic_ai/driver.py` (with `on`, offers plan output when the task definition allows more than one write), `src/e_agent/plugins/erp/domain/testing/scripted_tasks.py` (scripted driver emits `ProposePlan`), `tests/unit/adapters/pydantic_ai/test_driver_plan.py`, `tests/unit/sdk/test_ports.py`, `tests/unit/adapters/pydantic_ai/golden/base_instructions.txt` (if the base prompt changes; today it says to call exactly one write tool), a new recording under the replay suite's recordings for a plan output.
 
 - [ ] Failing tests: `test_function_model_plan_output_becomes_propose_plan` (pydantic-ai `FunctionModel`, no live model); `test_driver_offers_plan_output_only_when_task_allows_multiple_writes`; `test_driver_off_mode_outputs_unchanged`; `test_plan_with_model_chosen_connection_is_rejected` (model output never selects connections); `test_sdk_api_range_admits_existing_plugins`.
 - [ ] Run `uv run pytest -q tests/unit/adapters/pydantic_ai/test_driver_plan.py tests/unit/sdk/test_ports.py`; expected: `ImportError: cannot import name 'ProposePlan'`.
 - [ ] Implement.
-- [ ] Run the same command and `uv run lint-imports`; expected: pass, every contract kept. Run the replay suite and the prompt golden (ENG-EVID-5); expected: pass, the new plan recording replayed, and `off` recordings unchanged.
+- [ ] Run the same command and `uv run lint-imports`; expected: pass, every contract kept. Run the replay suite and the prompt golden (ENG-EVID-5); expected: pass, the new plan recording replayed, and `off` recordings unchanged. Run the `pg` gate; expected: pass.
 - [ ] Commit `feat(driver): drivers emit action plans`.
 
 ---

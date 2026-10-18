@@ -8,10 +8,11 @@ A run admits one write today (`Budgets.max_admitted_writes = 1`). Phase 5 needs 
 
 ## Decision
 
-- **Records** are as in target §6.4.3: `ActionPlan`, `PlannedStep`, `LineageRef`.
+- **Records** are as in target §6.4.3: `ActionPlan`, `PlannedStep`, `LineageRef(step_id, path)`. A placeholder is a `LineageRef` inside a step's proposal arguments; `PlannedStep` has no separate lineage field.
   - Each plan step yields exactly one `ActionRecord`, which gains nullable `plan_id` and `step_index`.
   - `StepRecord` (target §5.4) records kernel stages and driver turns, links to actions through `action_id`, and is written in the same transaction as its run events.
-- **The driver port** gains `ProposePlan(plan)` in `DriverStep`, with an `sdk_api` minor bump. A single `ProposeAction` compiles to a 1-step plan. A model-chosen connection is refused, as today.
+- **The driver port** gains `ProposePlan(plan)` in `DriverStep`. A single `ProposeAction` compiles to a 1-step plan. A model-chosen connection is refused, as today.
+  - `ProposePlan` and `DriverInput.allowed_capabilities` (the run's tool set, ADR 0028) are both additive and share one `sdk_api` minor bump (`SDK_API_VERSION` `1.0` to `1.1`; the existing `>=1.0,<2.0` manifest ranges still admit). Task 2c.6 adds the field with a `None` default and Task 2c.9 adds `ProposePlan` and makes the bump; nothing is released in between.
 - **Validation:**
   - structure is checked by the records (unique ids; acyclic, known dependencies; lineage names a dependency);
   - policy is checked by a pure kernel function (capabilities inside the task definition; write count at most `max_admitted_writes`; per-step domain validation and policy, with placeholders typed by their input schemas).
@@ -31,7 +32,8 @@ A run admits one write today (`Budgets.max_admitted_writes = 1`). Phase 5 needs 
   - no other pair changes.
 - **Reason codes:**
   - codes do not depend on plan length: a step's outcome uses today's codes (`EFFECT_UNKNOWN`, `PROVIDER_ERROR`, `VERIFICATION_FAILED`, `STALE`, `CONNECTION_BUSY`, …) and today's `classify` groups, and the step is identified by `plan_id` and `step_index`;
-  - one new code, `PLAN_LINEAGE_REJECTED`, classified blocked-by-design (with `ACCEPTANCE_UNMET` from ADR 0028, classified failed).
+  - one new run-outcome code, `PLAN_LINEAGE_REJECTED`, classified blocked-by-design (with `ACCEPTANCE_UNMET` from ADR 0028, classified failed);
+  - the fallback codes `IR_TASK_UNRESOLVED`, `IR_COMPILE_FAILED` and `IR_VALIDATION_FAILED` (ADR 0027) are `ReasonCode` members carried only by `feature.fallback` events; they never end a run.
 - **Partial failure** follows target §6.4.6:
   - committed steps are never replayed (ENG-TRUST-5);
   - an `UNKNOWN` step stops the remainder and goes to reconciliation;
@@ -48,10 +50,10 @@ A run admits one write today (`Budgets.max_admitted_writes = 1`). Phase 5 needs 
 
 ## Consequences
 
-- Code: `contracts/plan.py`, `contracts/step.py`, `contracts/run.py` (pairs, codes); `kernel/ir.py`, `kernel/step.py`, approval, dispatch, transitions, recovery, evidence; `sdk/ports.py`; migration `0005_action_plans_and_steps.sql`; both stores; the driver.
+- Code: `contracts/plan.py`, `contracts/step.py`, `contracts/action.py` (`plan_id`, `step_index`), `contracts/task.py` (ADR 0028), `contracts/run.py` (pairs, codes), `contracts/events.py` (`ir.plan_compiled`, `ir.shadow_failed`, `ir.lineage_resolved`, `ir.step_verified`); `kernel/ir.py`, `kernel/step.py`, approval, dispatch, transitions, recovery, evidence; `sdk/ports.py`; migration `0005_action_plans_and_steps.sql`; both stores; the driver.
 - Tests and evidence: plan digest golden vectors (Python and TypeScript for the 1-step case); 1-step equivalence; lineage resolution and rejection; stale before step 2; `UNKNOWN` blocks the remainder; no fallback after the first reservation; recovery without replay; store conformance on both stores; notes-domain two-step plan.
 - Operations: the evidence bundle gains additive `plan` and `steps` keys; multi-write plans run only in fixture profiles in Phase 2.
 
 ## Gates
 
-Phase 2 Tasks 2c.1, 2c.3, 2c.4, 2c.5, 2c.7, 2c.8 and 2c.9, gates `full` and `pg`; end-of-phase levels 1–4.
+Phase 2 Tasks 2c.1 and 2c.3–2c.9, gates `full` and `pg`; end-of-phase levels 1–4.

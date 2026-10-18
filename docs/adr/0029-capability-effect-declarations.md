@@ -4,12 +4,12 @@ Date: 2026-10-14. Status: Proposed. Refines ADRs 0002, 0003, 0005; MVP design §
 
 ## Context
 
-`CapabilityDescriptor.effect` is `read | write | answer` (`contracts/capability.py:12-16`). Nothing records:
+`CapabilityDescriptor.effect` is `read | write | answer` (the `EffectKind` enum in `contracts/capability.py`). Nothing records:
 - how severe a write is;
 - whether it can be undone;
 - whether its provider deduplicates a repeated call.
 
-AGENTS.md ("never blindly replay a possibly committed write") and MVP §9 ("do not assume standard RPC create is idempotent") state rules that depend on these facts, but nothing declares them. The Odoo bridge enforces an `operation_key` (`adapters/odoo/executor.py:340-347`), and no contract says so.
+AGENTS.md ("never blindly replay a possibly committed write") and MVP §9 ("do not assume standard RPC create is idempotent") state rules that depend on these facts, but nothing declares them. The Odoo bridge enforces an `operation_key` (`OdooExecutor.execute` in `plugins/erp/odoo/executor.py` sends `operation_key=action.logical_operation_id`), and no contract says so.
 
 Several changes need these facts:
 - Phase 2 multi-write plans need them for retry, reconciliation and approval presentation.
@@ -43,4 +43,4 @@ The [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) XA-01, a
 
 ## Gates
 
-Phase 2 Tasks 2c.1 and 2c.2 (fields and declarations), 2c.7 (presentation) and 2c.8 (reconciliation rule), gate `full`, plus `pg` for 2c.7 and 2c.8.
+Phase 2 Tasks 2c.1 and 2c.2 (fields and declarations, including the live refusal at registry admission), 2c.7 (presentation) and 2c.8 (reconciliation rule), gate `full`, plus `pg` for 2c.1, 2c.7 and 2c.8.

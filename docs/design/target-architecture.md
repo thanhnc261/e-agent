@@ -562,21 +562,22 @@ class AcceptanceSpec(Record):           # e_agent.contracts.task (proposed)
     required_answer: str | None = None                  # an answer contract that must verify
 
 class TaskDefinition(Record):
-    task_id: str                       # unique across admitted packs
+    task_id: str                       # unique across admitted packs; the Phase 1d preset's kind
     version: str
     title: str
     goal_template: str                 # the demo prompt of Phase 1d's task presets
     capabilities: tuple[str, ...]      # contract ids; the run's fixed tool set
     acceptance: AcceptanceSpec
     budgets: Budgets | None = None     # narrows the profile budgets, never widens them
-    approval_ttl: timedelta | None = None   # per-task TTL deferred by ADR 0019
+    approval_ttl: timedelta | None = None   # replaces the global TTL (deferred by ADR 0019; Phase 2, D7)
 ```
 
-- Task definitions are domain-pack resources, declared in the pack manifest and admitted by the registry. Every capability must have an admitted binding, and a duplicate `task_id` is refused.
+- Task definitions are domain-pack resources, declared in the pack manifest and admitted by the registry. Every capability must have an admitted binding, a duplicate `task_id` is refused, and so is a `budgets` wider than the profile's (Phase 2 plan, owner decision D7).
 - The Phase 1d "task presets" are the first version of the same resource. Phase 2 extends them into task definitions under the name `TaskDefinition`.
-- The server's `TaskTemplate` (ADR 0017) becomes a projection of an admitted task definition plus the requester's availability.
-- The run's tool set is fixed at admission: the definition's agent-visible capabilities (§7.2 rule 1).
-- The run records `task_id` and `version` (C11).
+- A run names its definition by `task_id`. In Phase 2 the kind reaches the kernel through `start_run` from the CLI (`--task` or the profile's `driver.task_kind`); an API run carries free text only, resolves no definition and, with `on`, falls back with `IR_TASK_UNRESOLVED` (§6.4.8).
+- The server's `TaskTemplate` (ADR 0017) is to become a projection of an admitted task definition plus the requester's availability, with a task id on `CreateRun`. Phase 2 keeps today's catalog (`task_catalog` in `kernel/discovery.py`) unchanged.
+- The run's tool set is fixed at admission: the definition's agent-visible capabilities (§7.2 rule 1). One driver serves every task kind, so the set reaches it per run: the run loop sets `DriverInput.allowed_capabilities` on every turn, the kernel refuses any read or proposal outside it, and the driver's filter only shapes what the model sees (owner decision D6; an additive port field in the same `sdk_api` minor bump as `ProposePlan`).
+- The run records `task_id` and `task_version` on `RunRecord` (C11), and uses the definition's `approval_ttl` and narrowed budgets (D7).
 - The kernel checks the acceptance spec at run end. When it is unmet, the run ends `FAILED` with `ACCEPTANCE_UNMET` and an acceptance finding (§6.1). The model cannot mark its own task as met.
 - A general `assistant` definition with read-only capabilities covers open questions (core plan Phase 2).
 
@@ -596,7 +597,7 @@ Rules:
 - The declarations are not inputs to the approval digest. They come from admitted, digest-pinned artifacts (MVP §6), so they cannot change during a run.
 - The approval presentation shows the highest `risk` and any `irreversible` steps of a plan. This is a presentation annotation under ADR 0015, which allows non-digest metadata on the approval card; the card's digest check (threat T9) is unchanged.
 - Tools that are not mapped to a contract (MCP, Phase 8) are treated as `write_high`, `irreversible`, `none`. A provider's own hints never set these values.
-- Retry rule (ENG-TRUST-5): a write whose outcome is ambiguous goes to reconciliation, as today. A re-send is allowed only when the binding declares `provider_key` and a conformance test proves the provider deduplicates on that key. The Odoo bridge's `operation_key` (`plugins/erp/odoo/executor.py:340-347`) is the first candidate. Re-sending stays off in Phase 2; Phase 2 adds only the declarations and the refusal.
+- Retry rule (ENG-TRUST-5): a write whose outcome is ambiguous goes to reconciliation, as today. A re-send is allowed only when the binding declares `provider_key` and a conformance test proves the provider deduplicates on that key. The Odoo bridge's `operation_key` (sent by `OdooExecutor.execute` in `plugins/erp/odoo/executor.py`) is the first candidate. Re-sending stays off in Phase 2; Phase 2 adds only the declarations and the refusal.
 - Benchmark auto-approve eligibility uses `risk` (ADR 0024).
 - The notes fixture domain declares the same fields (DR-08).
 
@@ -624,13 +625,13 @@ class ActionPlan(Record):
   - every `contract_id` is in the task definition;
   - the plan's write count is at most `max_admitted_writes`;
   - each step passes today's domain validation and policy, with each placeholder treated as a value of the type its input schema declares.
-- **Compilation.** A single `ProposeAction` compiles to a 1-step plan. A `ProposePlan` (a new `DriverStep` variant, with an `sdk_api` minor bump) carries an N-step plan.
+- **Compilation.** A single `ProposeAction` compiles to a 1-step plan. A `ProposePlan` (a new `DriverStep` variant, with an `sdk_api` minor bump shared with `DriverInput.allowed_capabilities`, §6.4.1) carries an N-step plan.
 - **Lineage has one rule: copy from the verified outcome.** The resolved value is the value at `path` in the earlier step's *verified outcome*, the independent read-back (MVP §7–§8). It is never taken from a receipt or from model output. It must match the type its input schema declares. Phase 2 adds no other rule kinds; a new kind needs an ADR.
 
 #### 6.4.4 Plan digest (ADRs 0006, 0025)
 
 - **Placeholder encoding.** Inside a step's digest input, a placeholder is encoded as `{"$lineage": {"step": "<step_id>", "path": "<pointer>"}}`. A literal argument object with the key `$lineage` is refused at validation, so a literal can never imitate a placeholder.
-- **Step digest input.** It is today's `digest_input` (`kernel/approval.py:18-60`) with placeholders in `arguments`. A step N > 1 binds the evidence and fact digests known when the plan was proposed, which may be none.
+- **Step digest input.** It is today's `digest_input` (`kernel/approval.py`) with placeholders in `arguments`. A step N > 1 binds the evidence and fact digests known when the plan was proposed, which may be none.
 - **Plan digest.** It is `jcs-sha256-v1` over `{"plan_schema": "plan.v1", "steps": [{"step_id", "depends_on" (sorted), "input": <step digest input>} …]}` in step-index order.
 - **A 1-step plan's approval digest is that step's action digest**, byte for byte, so the approval UI and `ui-core/src/digest.ts` stay valid. Recomputing an N-step plan digest in the UI is the Phase 5 plan-approval thread (Phase 2 plan, owner decision D3). Until then, a live profile refuses multi-write plans.
 - Approval binds the plan digest once (ADR 0024).
@@ -663,7 +664,7 @@ class ActionPlan(Record):
 | Worker crash between steps | recovery resumes at the first unstarted step after revalidation | — | committed steps are never replayed |
 
 - The outcome and the evidence bundle list each step as `verified`, `committed`, `unknown`, `failed` or `unstarted`.
-- **Reason codes do not depend on plan length.** A step's outcome uses today's codes and today's `classify` groups (ADR 0018), so a provider timeout on step 3 classifies exactly as on a 1-step run. Which step it was comes from `plan_id` and `step_index` on the action and from the step records. Only two codes are new: `PLAN_LINEAGE_REJECTED` (blocked-by-design) and `ACCEPTANCE_UNMET` (failed).
+- **Reason codes do not depend on plan length.** A step's outcome uses today's codes and today's `classify` groups (ADR 0018), so a provider timeout on step 3 classifies exactly as on a 1-step run. Which step it was comes from `plan_id` and `step_index` on the action and from the step records. Only two run-outcome codes are new: `PLAN_LINEAGE_REJECTED` (blocked-by-design) and `ACCEPTANCE_UNMET` (failed). The fallback codes of §6.4.8 are `ReasonCode` members carried only by `feature.fallback` and never end a run.
 - There is no fallback after the first reservation (ENG-TOGGLE-2).
 
 #### 6.4.7 Step records
@@ -680,7 +681,7 @@ class ActionPlan(Record):
   |---|---|
   | `off` | Today's single-action loop. No IR is compiled, no step record is written, no new event appears. |
   | `shadow` | The run acts on the existing path. After today's proposal handling validates a proposal, the kernel compiles it into a 1-step plan, resolves the task definition, computes the plan digest and records `ir.plan_compiled` (plan digest, step count, task definition id and version, whether the step digest equals the action digest) and the step records. A compile or validation error records `ir.shadow_failed` and nothing else. |
-  | `on` | The run executes the IR. The tool set comes from the task definition at admission. A `ProposeAction` becomes a 1-step plan; a `ProposePlan` becomes an N-step plan, validated as a whole, approved once and dispatched step by step. |
+  | `on` | The run executes the IR. The tool set comes from the task definition at admission (`DriverInput.allowed_capabilities`, §6.4.1). A `ProposeAction` becomes a 1-step plan; a `ProposePlan` becomes an N-step plan, validated as a whole, approved once and dispatched step by step. |
 
 - **Fallback boundary:** the first `reserve_operation`. Before it, with `on`, a task-definition, compile or validation failure records `feature.fallback` (`IR_TASK_UNRESOLVED`, `IR_COMPILE_FAILED`, `IR_VALIDATION_FAILED`) and continues on today's path. A multi-step `ProposePlan` cannot run on that path, so it returns to the driver as a repair finding within `max_validation_repairs`. After the boundary there is no fallback (ENG-TOGGLE-2). The Phase 2 plan cites this table.
 - General rule (XA-24): a `shadow` path records a comparison with the live path and acts on nothing. For example, `ir.plan_compiled` records whether the compiled step digest equals the action digest. A shadow path adds no driver call, provider read or budget use.

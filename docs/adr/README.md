@@ -27,7 +27,7 @@ One decision per ADR. Statuses: **Proposed** (recommended, not yet accepted by t
 | [0021](0021-litellm-model-provider.md) | LiteLLM as an explicit, opt-in second model provider; Ollama stays default | Accepted (2026-10-14) | WP1 Task 10 |
 | [0022](0022-conversational-turns-read-feedback-discovery.md) | Rejected reads as feedback, conversational replies, open-demand discovery | Accepted (2026-10-14) | Real-agent plan Tasks 2–4 |
 | [0024](0024-plan-approval-model.md) | Approval model for multi-step plans: approve the plan once; benchmark-only auto-approve for low risk; no modification after approval | Proposed | Phase 2 Task 2c.7; auto-approve with Phase 5 |
-| [0025](0025-execution-ir.md) | Execution IR: action plans, lineage, plan digest, step dispatch, partial failure; widens the ADR 0018 table | Proposed | Phase 2 Part 2c |
+| [0025](0025-execution-ir.md) | Execution IR: action plans, lineage, plan digest, step dispatch, partial failure; widens the ADR 0018 table | Proposed | Phase 2 Tasks 2c.1, 2c.3–2c.9 |
 | [0026](0026-plugin-layout-and-reusable-core.md) | Plugin layout and a reusable core: `plugins/<area>/<package>`, core never imports plugins, plugins are guests on a common SDK, required features enforced, no ERP in the server | Accepted (2026-10-15, amended: common plugin SDK) | Phase 1d (owner gate G1) |
 | [0027](0027-feature-toggles.md) | Feature toggles `off/shadow/on` with shadow comparison and pre-reservation fallback | Proposed | Phase 2 Part 2b |
 | [0028](0028-task-definitions.md) | Task definitions with acceptance specs as domain-pack resources | Proposed | Phase 2 Tasks 2c.1, 2c.2, 2c.6 |
