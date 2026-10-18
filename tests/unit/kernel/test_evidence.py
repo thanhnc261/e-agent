@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.events import RunEvent
+from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.run import ReasonCode
 from e_agent.kernel import evidence
 from e_agent.kernel.evidence import build_evidence, classify
@@ -81,7 +82,35 @@ async def test_evidence_export_pages_without_losing_or_repeating_events(
         run.run_id,
         environment="fixture",
         versions={},
+        features=Features(),
     )
     sequences = [e["sequence"] for e in bundle["events"]]
     assert sequences == [e.sequence for e in full[:count]]
     assert len(set(sequences)) == count
+
+
+_V1_KEYS = {
+    "schema", "generated_at", "environment", "classification", "versions",
+    "rules_evaluated", "run", "actions", "approvals", "receipts", "outcomes", "events",
+}  # fmt: skip
+
+
+async def _bundle(k: Kernel, features: Features) -> dict[str, Any]:
+    run = await k.coordinator.start_run(k.requester, "x", k.scope)
+    return await build_evidence(
+        k.store, TENANT, run.run_id, environment="fixture", versions={}, features=features
+    )
+
+
+async def test_evidence_records_features(make_kernel: Callable[..., Kernel]) -> None:
+    off = await _bundle(make_kernel(), Features())
+    assert off["features"] == {"execution_ir": "off"}
+    shadow = await _bundle(make_kernel(), Features(execution_ir=FeatureMode.SHADOW))
+    assert shadow["features"] == {"execution_ir": "shadow"}
+
+
+async def test_evidence_v1_keys_unchanged(make_kernel: Callable[..., Kernel]) -> None:
+    bundle = await _bundle(make_kernel(), Features())
+    assert bundle["schema"] == "e-agent-evidence-v1"
+    assert set(bundle) >= _V1_KEYS
+    assert set(bundle) - _V1_KEYS == {"features"}

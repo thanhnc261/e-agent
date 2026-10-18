@@ -12,6 +12,7 @@ from collections.abc import Callable
 import pytest
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.events import RunEventType
+from e_agent.contracts.features import Features
 from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.evidence import build_evidence
@@ -138,7 +139,9 @@ async def test_fallback_event_and_evidence_carry_no_caller_text(make_kernel: Mak
         )
     await k.coordinator.record_fallback(run, "execution_ir", ReasonCode.IR_VALIDATION_FAILED)
 
-    bundle = await build_evidence(k.store, TENANT, run.run_id, environment="fixture", versions={})
+    bundle = await build_evidence(
+        k.store, TENANT, run.run_id, environment="fixture", versions={}, features=Features()
+    )
     exported = [e for e in bundle["events"] if e["type"] == "feature.fallback"]
     assert [e["payload"] for e in exported] == [
         {

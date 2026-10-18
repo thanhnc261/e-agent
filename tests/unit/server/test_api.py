@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 import pytest
+from e_agent.contracts.features import FeatureMode, Features
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.api import create_app
 from e_agent.server.bootstrap import build_runtime
@@ -464,6 +465,14 @@ def test_task_catalog_reports_real_availability(client: TestClient) -> None:
 def test_ready_reports_whether_self_approval_is_allowed(client: TestClient) -> None:
     body = client.get("/health/ready").json()
     assert body["self_approval_allowed"] is True  # fixture profile: one local operator
+
+
+def test_ready_reports_features(client: TestClient) -> None:
+    assert client.get("/health/ready").json()["features"] == {"execution_ir": "off"}
+    profile = load_profile(fixture_profile_path())
+    shadow = profile.model_copy(update={"features": Features(execution_ir=FeatureMode.SHADOW)})
+    with TestClient(create_app(lambda: build_runtime(shadow))) as c:
+        assert c.get("/health/ready").json()["features"] == {"execution_ir": "shadow"}
 
 
 def test_ready_reports_self_approval_disallowed_when_the_profile_flag_is_unset() -> None:

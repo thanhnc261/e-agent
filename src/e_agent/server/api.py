@@ -278,6 +278,7 @@ def create_app(
             "plugins": rt.registry.report.admitted,
             "store": rt.profile.store.kind,
             "self_approval_allowed": rt.profile.operator.allow_self_approval,
+            "features": rt.profile.features.model_dump(mode="json"),
         }
 
     # -- local session (loopback only, never production auth) ---------------
@@ -491,6 +492,7 @@ def create_app(
             run_id,
             environment=rt.profile.environment,
             versions=rt.versions,
+            features=rt.profile.features,
         )
 
     # -- member discovery (ADR 0017): read-only projections of admitted metadata ---

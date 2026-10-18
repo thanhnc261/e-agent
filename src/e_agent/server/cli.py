@@ -96,6 +96,7 @@ async def _demo(args: argparse.Namespace) -> int:
             run.run_id,
             environment=profile.environment,
             versions=rt.versions,
+            features=profile.features,
         )
         _write_private(args.evidence_out, json.dumps(bundle, ensure_ascii=False, indent=2))
     await _close(rt.store)
@@ -179,6 +180,7 @@ async def _evidence(args: argparse.Namespace) -> int:
             args.run_id,
             environment=profile.environment,
             versions=rt.versions,
+            features=profile.features,
         )
     finally:
         await _close(rt.store)

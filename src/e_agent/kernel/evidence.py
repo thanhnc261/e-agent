@@ -13,6 +13,7 @@ from typing import Any
 
 from e_agent.contracts.common import utc_now
 from e_agent.contracts.events import RunEvent
+from e_agent.contracts.features import Features
 from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode
 from e_agent.sdk.store import RunStore
 
@@ -86,6 +87,7 @@ async def build_evidence(
     *,
     environment: str,
     versions: Mapping[str, Any],
+    features: Features,
 ) -> dict[str, Any]:
     run = await store.get_run(tenant_id, run_id)
     events = await _all_events(store, tenant_id, run_id)
@@ -114,6 +116,7 @@ async def build_evidence(
         "environment": environment,
         "classification": classify(run.state, run.reason, environment, run.reason_code),
         "versions": dict(versions),
+        "features": features.model_dump(mode="json"),
         "rules_evaluated": rule_bundles,
         "run": run.model_dump(mode="json"),
         "actions": [a.model_dump(mode="json") for a in actions],
