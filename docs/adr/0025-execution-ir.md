@@ -15,7 +15,7 @@ A run admits one write today (`Budgets.max_admitted_writes = 1`). Phase 5 needs 
   - `ProposePlan` and `DriverInput.allowed_capabilities` (the run's tool set, ADR 0028) are both additive and share one `sdk_api` minor bump (`SDK_API_VERSION` `1.0` to `1.1`; the existing `>=1.0,<2.0` manifest ranges still admit). Task 2c.6 adds the field with a `None` default and Task 2c.9 adds `ProposePlan` and makes the bump; nothing is released in between.
 - **Validation:**
   - structure is checked by the records (unique ids; acyclic, known dependencies; lineage names a dependency);
-  - policy is checked by a pure kernel function (capabilities inside the task definition; write count at most `max_admitted_writes`; per-step domain validation and policy, with placeholders typed by their input schemas).
+  - policy is checked by a pure kernel function (capabilities inside the task definition; write count at most `max_admitted_writes`; every step a write or an answer, never a read (amended 2026-10-18 by review finding 2c.4 R-3); arguments inside the digest profile; per-step domain validation and policy, with placeholders typed by their input schemas).
 - **Lineage** has one rule: copy the value at a JSON pointer from the earlier step's **verified outcome**, never from a receipt or from model output, and check its type. A new rule kind needs a new ADR.
 - **Digest** (refines ADR 0006):
   - a placeholder is encoded as `{"$lineage": {"step", "path"}}`, and a literal `$lineage` key is refused;

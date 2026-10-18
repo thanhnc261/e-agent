@@ -623,6 +623,8 @@ class ActionPlan(Record):
 - **Policy** is checked by the kernel, and the check is pure (no store or driver access):
   - every `contract_id` is in the task definition;
   - the plan's write count is at most `max_admitted_writes`;
+  - every step is a write or an answer: a read is not a plan step, because reads go through the gateway when the driver asks (finding `KERNEL-PLAN-READ-STEP`, added 2026-10-18 by review finding 2c.4 R-3);
+  - every step's arguments, with placeholders in their wire form, are inside the digest profile (ADR 0006); a value the profile refuses is a `KERNEL-ARGS` finding, as on today's 1-step path;
   - each step passes today's domain validation and policy, with each placeholder treated as a value of the type its input schema declares.
 - **Compilation.** A single `ProposeAction` compiles to a 1-step plan. A `ProposePlan` (a new `DriverStep` variant, with an `sdk_api` minor bump shared with `DriverInput.allowed_capabilities`, §6.4.1) carries an N-step plan.
 - **Lineage has one rule: copy from the verified outcome.** The resolved value is the value at `path` in the earlier step's *verified outcome*, the independent read-back (MVP §7–§8). It is never taken from a receipt or from model output. It must match the type its input schema declares. Phase 2 adds no other rule kinds; a new kind needs an ADR.

@@ -19,7 +19,9 @@
     "docs/roadmap.md",
     "harness/state/**",
     "docs/handoffs/**",
-    "pyproject.toml"
+    "pyproject.toml",
+    "docs/design/target-architecture.md",
+    "docs/adr/0025-execution-ir.md"
   ],
   "acceptance": [
     "test_one_step_plan_digest_equals_action_digest passes",
@@ -36,6 +38,16 @@
       "glob": "pyproject.toml",
       "reason": "the facade import contract must list every kernel module (test_structure); ir and step join it, tightening the contract",
       "at": "2026-10-18T04:17:58+00:00"
+    },
+    {
+      "glob": "docs/design/target-architecture.md",
+      "reason": "2c.4 review R-3: record the read-step rule in 6.4.3",
+      "at": "2026-10-18T04:27:51+00:00"
+    },
+    {
+      "glob": "docs/adr/0025-execution-ir.md",
+      "reason": "2c.4 review R-3: record the read-step rule in Validation",
+      "at": "2026-10-18T04:27:51+00:00"
     }
   ]
 }
