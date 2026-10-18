@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-2b-1"
   ],
-  "context_digest": "2b11667f2afe47d4391685c21f77f4a482456c213044bf2194aae7f59431f02f",
+  "context_digest": "061060ed4abd8c97ec557b5721b6202c3d148ed72f5a2ed0b3969485c2cbc389",
   "allowed_paths": [
     "src/e_agent/contracts/features.py",
     "src/e_agent/server/profile.py",
