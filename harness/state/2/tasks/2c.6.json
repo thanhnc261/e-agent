@@ -47,7 +47,9 @@
     "src/e_agent/server/bootstrap.py",
     "docs/adr/0028-task-definitions.md",
     "docs/adr/README.md",
-    ".gitleaks.toml"
+    ".gitleaks.toml",
+    "src/e_agent/kernel/recovery.py",
+    "tests/unit/kernel/test_recovery.py"
   ],
   "acceptance": [
     "test_on_tool_set_equals_task_definition, test_on_read_outside_task_definition_refused and test_driver_offers_only_allowed_tools pass",
@@ -89,6 +91,16 @@
       "glob": ".gitleaks.toml",
       "reason": "allowlist the synthetic sentinel in the 2b.2 fallback test (CI secret scan on PR #6)",
       "at": "2026-10-18T07:07:56+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/recovery.py",
+      "reason": "recovery must not skip the run-end acceptance check (2c.6 concern 1)",
+      "at": "2026-10-18T07:15:27+00:00"
+    },
+    {
+      "glob": "tests/unit/kernel/test_recovery.py",
+      "reason": "recovery must not skip the run-end acceptance check (2c.6 concern 1)",
+      "at": "2026-10-18T07:15:27+00:00"
     }
   ]
 }
