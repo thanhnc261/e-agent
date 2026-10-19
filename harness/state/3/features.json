@@ -182,7 +182,8 @@
         "a read-only question ends grounded without a bespoke contract; grounded never reported as verified",
         "free text labelled unverified; full and pg pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3e.2/2026-10-19T18-28-16.825817+00-00-full.json"
     },
     {
       "id": "F-3e-3",

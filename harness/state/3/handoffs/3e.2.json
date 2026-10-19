@@ -1,0 +1,31 @@
+{
+  "task": "3e.2",
+  "changed": "Generic grounded answer grounded.answer.v1 (ADR 0033 §3): new kernel/grounded_answer.py; admitted only when the run is pinned grounded_answers on, its offered tools hold no typed answer, and the run is unbound or its task sets AcceptanceSpec.grounded_answer (valid only with no required effects or answer; omitted when false). The kernel branches before _outside_task_set and the capability lookup; the registry refuses a plugin capability declaring the id (PR-09). At least one citation, checked by 3e.1's check_citations with the ClassView rule; an unresolved citation is a KERNEL-CITATION repair; a non-admitted call is KERNEL-GROUNDED-ANSWER in on and today's path in off/shadow; a check failure fails closed (no typed verifier to fall back to). No ActionRecord; message.final gains contract_id and at-rest citations; ReasonCode.GROUNDED ends SUCCEEDED, never verified (PR-19): the release report counts it apart, the evidence bundle's grounded section (gated on reason_code) labels free text unverified, and every UI surface (outcome panel, run badge and tone, overview, timeline, task history, reference-vanilla header) shows 'grounded, not verified'. GROUNDED_ANSWER id in contracts/task.py (import cycle). ERP read-only task open-pos (five read capabilities, grounded_answer true); it is a preset for the live driver, and the scripted fixture driver refuses it at runtime build. Commits 51872b0, 7726ad2, 861394d, c5db618, 8002b77, 5a60a42's parent; reviews harness/state/3/reviews/3e.2-r1.json, 3e.2-r2.json.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3e.2/2026-10-19T18-28-16.825817+00-00-full.json",
+    "harness/state/evidence/gates/3e.2/2026-10-19T18-29-35.686952+00-00-pg.json"
+  ],
+  "open_items": [
+    "Live check 3g.2: no agent-visible read lists purchase orders, so open-pos answers from draft-rfq, demands, offers and availability reads; a real open-POs read needs a capability and Odoo binding (owner decision). The run needs execution_ir on + grounded_answers on + --task open-pos; the domain-erp artifact digest changed, so a pinned live profile needs artifact_sha256 renewed.",
+    "R1-6: explain.py does not render a grounded outcome (ADR 0033 §6); carry to 3e.3/3e.4.",
+    "R2-3: the AcceptanceSpec wrap serializer collapses its serialization JSON schema to an open object; unused today, a defect if task definitions reach a schema export.",
+    "R2-4: the CLI shows the scripted refusal of open-pos as an uncaught ValueError (exit 1), not STARTUP_REJECTED.",
+    "open-pos is special-cased in the ERP catalog golden check and BASELINE_PROMPTS rather than added to the goldens (additive change if the owner wants it).",
+    "The UI wording 'Completed · grounded, not verified' (en, vi) has not had an ag-* review."
+  ],
+  "rulings": [
+    {
+      "ruling": "The UI mislabel is a PR-19 correctness fix (labels and tone only, no layout), done without an ag-* stage.",
+      "cost_if_wrong": "a wording change after an ag-* review"
+    },
+    {
+      "ruling": "open-pos stays a preset; the scripted driver refuses unscripted kinds at runtime build, so --task open-pos works with the live driver with no server change.",
+      "cost_if_wrong": "a server --task change later"
+    },
+    {
+      "ruling": "open-pos uses existing reads; the open-POs capability gap goes to the owner before 3g.2.",
+      "cost_if_wrong": "the live check question is reworded or a capability task is added"
+    }
+  ],
+  "outside_repo": []
+}
