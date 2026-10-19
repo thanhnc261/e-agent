@@ -2,6 +2,7 @@
   "task": "2d.2",
   "changed": "Phase 2 live check on odoo19-learning (2026-10-19), recorded in docs/handoffs/2026-10-18-phase2-execution-ir.md (Level 4, labelled live).\n- Readiness reports features.execution_ir in off, shadow and on; on starts (no capability on two connections).\n- Task 3 with a seeded shortage of 7: off creates and verifies draft PO P00033; shadow records ir.plan_compiled with digest_matches true and verifies P00034; on (second try) runs a 1-step plan with plan and step records and verifies P00035. On try 1 the model proposed no PO and the run failed acceptance_unmet.\n- Task 1 with on is answered and verified.\n- Before the reseed, the model's invented 2-unit PO was blocked by PR-002 and its wrong answers failed verification; no write was sent.\n- Target 6.4 tagged [I] with its anchor updated; roadmap Phase 2 done.",
   "evidence_refs": [
+    "harness/state/evidence/gates/2d.2/2026-10-19T00-22-45.359971+00-00-live.json",
     "harness/state/evidence/gates/2d.2/2026-10-19T00-14-14.458871+00-00-live.json",
     "harness/state/evidence/gates/2d.2/2026-10-19T00-11-22.739575+00-00-live.json",
     "harness/state/evidence/live/2d.2-task3-off-seeded.json",
