@@ -5,8 +5,8 @@
   "note": "Fixture evidence (scripted driver, fake ERP): the release-report corpus run with context_assembler off and on. Not live model or live ERP evidence, and no qualified model took part. The scripted driver proposes the same thing whatever its context, so equal outcomes show the on path keeps the host safety path, not that typed state helps a model. The report makes no claim beyond this corpus.",
   "design": "evals/ablation/context-history-vs-typed.md",
   "corpus": "scripts/release_report.py CASES",
-  "metrics_note": "repairs.rate is (validation_repairs + answer_repairs) / proposals: how often the kernel sent a driver proposal or answer back to the driver. A validation repair is a failed validation of a driver proposal; a dispatch revalidation (STALE), a later plan step, a plain-text turn and a finish check are not. The refusal that ended the run went back to no one: it is counted in terminal_refusals, not in the rate (D3-31). model_tokens is what the run's events record of the driver's token use ('unknown' when they record none, never 0). context is null when context_assembler is off. In shadow it holds the context.compared columns: pack_tokens and unbounded_tokens are the kernel estimator's sums over the run's driver turns, not model-reported tokens. In on it holds the context.assembled columns: the pack's estimated tokens, its drops and the turns that fell back to the driver's history. repeat is null unless kernel_repeat is shadow; a disagreement is a write proposal the repeat rule would have short-circuited whose validation then gave other findings. grounding is null unless grounded_answers is shadow; it sums the citation and rationale-ref counts of the run's grounding.compared events, and grounding_unresolved is every unresolved or mismatched citation and unresolved rationale ref.",
-  "token_note": "pack_tokens_estimate is the kernel estimator's sum over a run's driver turns (estimate_tokens, ADR 0032), an estimate, not model-reported tokens. The off arm records no pack, so its estimate is 'unknown', never 0; model_tokens is 'unknown' in both arms because the scripted driver reports no token use. This run cannot compare token cost between the arms.",
+  "metrics_note": "repairs.rate is repairs / attempts. A repair is exactly what the kernel's cont.repairs counts: a refusal it returned to the driver within max_validation_repairs, that is a failed proposal validation, a first-step dispatch STALE it returned, a plain-text KERNEL-VERIFICATION turn, a KERNEL-* refusal of an attempt that made no action, or a failed answer verification (repairs.kinds). A refusal that ended the run is in terminal_refusals, never in the rate: one under a FAILED record with reason code validation_failed, verification_failed or policy_denied, as the kernel's budget test or policy denial decides it. A finish check (KERNEL-ACCEPTANCE) and a later plan step are not refusals of an attempt. attempts is one per driver proposal.created plus one per counted refusal with no action id, so the rate is at most 1 (D3-31, review 3f.2 R1). model_tokens is what the run's events record of the driver's token use ('unknown' when they record none, never 0). context is null when context_assembler is off. In shadow it holds the context.compared columns: pack_tokens and unbounded_tokens are the kernel estimator's sums over the run's driver turns, not model-reported tokens. In on it holds the context.assembled columns: the packs built (one per driver call, acknowledgement turns included), their estimated tokens and drops, and the calls that fell back to the driver's history. repeat is null unless kernel_repeat is shadow; a disagreement is a write proposal the repeat rule would have short-circuited whose validation then gave other findings. grounding is null unless grounded_answers is shadow; it sums the citation and rationale-ref counts of the run's grounding.compared events, and grounding_unresolved is every unresolved or mismatched citation and unresolved rationale ref.",
+  "token_note": "pack_tokens_estimate is the kernel estimator's sum over a run's packs (estimate_tokens, ADR 0032), an estimate, not model-reported tokens. The off arm records no pack, so its estimate is 'unknown', never 0; model_tokens is 'unknown' in both arms because the scripted driver reports no token use. This run cannot compare token cost between the arms.",
   "drop_note": "dropped, masked and omitted_observations count the on arm's drop log (context.assembled). The off arm keeps no drop log, so they are 'unknown' there.",
   "other_toggles": {
     "kernel_repeat": "off",
@@ -22,14 +22,20 @@
         "failed": 4,
         "verified": 17
       },
-      "proposals": 34,
-      "validation_repairs": 10,
-      "answer_repairs": 3,
+      "attempts": 34,
+      "repairs": 13,
+      "repair_kinds": {
+        "validation": 10,
+        "no_action": 0,
+        "plain_text": 0,
+        "stale": 0,
+        "answer": 3
+      },
       "terminal_refusals": 3,
       "repair_rate": 0.3824,
       "provider_write_calls": 10,
       "model_tokens": "unknown",
-      "context_turns": "unknown",
+      "packs": "unknown",
       "fallbacks": "unknown",
       "context_failures": "unknown",
       "pack_tokens_estimate": "unknown",
@@ -46,14 +52,20 @@
         "failed": 4,
         "verified": 17
       },
-      "proposals": 34,
-      "validation_repairs": 10,
-      "answer_repairs": 3,
+      "attempts": 34,
+      "repairs": 13,
+      "repair_kinds": {
+        "validation": 10,
+        "no_action": 0,
+        "plain_text": 0,
+        "stale": 0,
+        "answer": 3
+      },
       "terminal_refusals": 3,
       "repair_rate": 0.3824,
       "provider_write_calls": 10,
       "model_tokens": "unknown",
-      "context_turns": 72,
+      "packs": 72,
       "fallbacks": 0,
       "context_failures": 0,
       "pack_tokens_estimate": 53216,
@@ -112,11 +124,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -130,14 +148,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 3,
+          "packs": 3,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 2213,
@@ -164,11 +188,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 0,
-          "answer_repairs": 1,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 1
+          }
         },
         "context": null
       },
@@ -183,14 +213,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 0,
-          "answer_repairs": 1,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 1
+          }
         },
         "context": {
-          "turns": 4,
+          "packs": 4,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 3575,
@@ -216,11 +252,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -234,14 +276,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 3,
+          "packs": 3,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 2280,
@@ -267,11 +315,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -285,14 +339,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 3,
+          "packs": 3,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 2549,
@@ -318,11 +378,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 1,
-          "answer_repairs": 0,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 1,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -336,14 +402,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 1,
-          "answer_repairs": 0,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 1,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 4,
+          "packs": 4,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 3870,
@@ -367,11 +439,17 @@
         "end": "failed",
         "passed": true,
         "repairs": {
-          "proposals": 3,
-          "validation_repairs": 2,
-          "answer_repairs": 0,
+          "attempts": 3,
+          "repairs": 2,
           "terminal_refusals": 1,
-          "rate": 0.6667
+          "rate": 0.6667,
+          "kinds": {
+            "validation": 2,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -383,14 +461,20 @@
         "end": "failed",
         "passed": true,
         "repairs": {
-          "proposals": 3,
-          "validation_repairs": 2,
-          "answer_repairs": 0,
+          "attempts": 3,
+          "repairs": 2,
           "terminal_refusals": 1,
-          "rate": 0.6667
+          "rate": 0.6667,
+          "kinds": {
+            "validation": 2,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 4,
+          "packs": 4,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 3741,
@@ -414,11 +498,17 @@
         "end": "failed",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -430,14 +520,20 @@
         "end": "failed",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 2,
+          "packs": 2,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 1179,
@@ -463,11 +559,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -481,14 +583,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 3,
+          "packs": 3,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 2605,
@@ -514,11 +622,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -532,14 +646,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 3,
+          "packs": 3,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 1820,
@@ -565,11 +685,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 1,
-          "answer_repairs": 0,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 1,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -583,14 +709,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 1,
-          "answer_repairs": 0,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 1,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 4,
+          "packs": 4,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 2822,
@@ -614,11 +746,17 @@
         "end": "failed",
         "passed": true,
         "repairs": {
-          "proposals": 3,
-          "validation_repairs": 2,
-          "answer_repairs": 0,
+          "attempts": 3,
+          "repairs": 2,
           "terminal_refusals": 1,
-          "rate": 0.6667
+          "rate": 0.6667,
+          "kinds": {
+            "validation": 2,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -630,14 +768,20 @@
         "end": "failed",
         "passed": true,
         "repairs": {
-          "proposals": 3,
-          "validation_repairs": 2,
-          "answer_repairs": 0,
+          "attempts": 3,
+          "repairs": 2,
           "terminal_refusals": 1,
-          "rate": 0.6667
+          "rate": 0.6667,
+          "kinds": {
+            "validation": 2,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 4,
+          "packs": 4,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 2717,
@@ -663,11 +807,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -681,14 +831,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 3,
+          "packs": 3,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 1773,
@@ -714,11 +870,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 1,
-          "answer_repairs": 0,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 1,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -732,14 +894,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 1,
-          "answer_repairs": 0,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 1,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 4,
+          "packs": 4,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 2837,
@@ -763,11 +931,17 @@
         "end": "failed",
         "passed": true,
         "repairs": {
-          "proposals": 3,
-          "validation_repairs": 2,
-          "answer_repairs": 0,
+          "attempts": 3,
+          "repairs": 2,
           "terminal_refusals": 1,
-          "rate": 0.6667
+          "rate": 0.6667,
+          "kinds": {
+            "validation": 2,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -779,14 +953,20 @@
         "end": "failed",
         "passed": true,
         "repairs": {
-          "proposals": 3,
-          "validation_repairs": 2,
-          "answer_repairs": 0,
+          "attempts": 3,
+          "repairs": 2,
           "terminal_refusals": 1,
-          "rate": 0.6667
+          "rate": 0.6667,
+          "kinds": {
+            "validation": 2,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 4,
+          "packs": 4,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 2645,
@@ -812,11 +992,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -830,14 +1016,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 3,
+          "packs": 3,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 1739,
@@ -864,11 +1056,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 0,
-          "answer_repairs": 1,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 1
+          }
         },
         "context": null
       },
@@ -883,14 +1081,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 0,
-          "answer_repairs": 1,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 1
+          }
         },
         "context": {
-          "turns": 4,
+          "packs": 4,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 2774,
@@ -916,11 +1120,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -934,14 +1144,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 3,
+          "packs": 3,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 2091,
@@ -967,11 +1183,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 1,
-          "answer_repairs": 0,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 1,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -985,14 +1207,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 1,
-          "answer_repairs": 0,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 1,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 4,
+          "packs": 4,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 3214,
@@ -1018,11 +1246,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -1036,14 +1270,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 3,
+          "packs": 3,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 2152,
@@ -1069,11 +1309,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": null
       },
@@ -1087,14 +1333,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 1,
-          "validation_repairs": 0,
-          "answer_repairs": 0,
+          "attempts": 1,
+          "repairs": 0,
           "terminal_refusals": 0,
-          "rate": 0.0
+          "rate": 0.0,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 0
+          }
         },
         "context": {
-          "turns": 3,
+          "packs": 3,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 1779,
@@ -1121,11 +1373,17 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 0,
-          "answer_repairs": 1,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 1
+          }
         },
         "context": null
       },
@@ -1140,14 +1398,20 @@
         "end": "verified",
         "passed": true,
         "repairs": {
-          "proposals": 2,
-          "validation_repairs": 0,
-          "answer_repairs": 1,
+          "attempts": 2,
+          "repairs": 1,
           "terminal_refusals": 0,
-          "rate": 0.5
+          "rate": 0.5,
+          "kinds": {
+            "validation": 0,
+            "no_action": 0,
+            "plain_text": 0,
+            "stale": 0,
+            "answer": 1
+          }
         },
         "context": {
-          "turns": 4,
+          "packs": 4,
           "fallbacks": 0,
           "failures": 0,
           "pack_tokens": 2841,

@@ -3,6 +3,7 @@
 import importlib.util
 import sys
 from pathlib import Path
+from typing import Any
 
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.bootstrap import build_runtime
@@ -32,6 +33,7 @@ async def test_release_report_lists_defaulted_declarations() -> None:
 
 # -- Task 3d.3: repairs, token use and the context columns (ADR 0032 §7) --------------------
 BASELINE = REPO / "evals" / "reports" / "phase3-baseline.json"
+NO_REPAIRS = {"validation": 0, "no_action": 0, "plain_text": 0, "stale": 0, "answer": 0}
 
 
 async def test_release_report_context_columns_only_in_shadow() -> None:
@@ -48,11 +50,11 @@ async def test_release_report_context_columns_only_in_shadow() -> None:
         off["repairs"]
         == shadow["repairs"]
         == {
-            "proposals": 2,
-            "validation_repairs": 1,
-            "answer_repairs": 0,
+            "attempts": 2,
+            "repairs": 1,
             "terminal_refusals": 0,
             "rate": 0.5,
+            "kinds": {**NO_REPAIRS, "validation": 1},
         }
     )
     context = shadow["context"]
@@ -84,91 +86,194 @@ def test_repair_metrics_count_answer_checks_and_never_divide_by_zero() -> None:
         event(1, created, {"kind": "answer"}, "a1"),
         event(2, outcome, {"status": "FAILED"}, "a1"),
         event(3, created, {}, "w1"),
-        event(4, RunEventType.VALIDATION_COMPLETED, {"status": "FAIL"}),
+        event(4, RunEventType.VALIDATION_COMPLETED, {"status": "FAIL"}, "w1"),
         event(5, created, {}, "w2"),
         event(6, outcome, {"status": "FAILED"}, "w2"),  # a failed write is no repair
     ]
     assert rr.repair_metrics(events) == {
-        "proposals": 3,
-        "validation_repairs": 1,
-        "answer_repairs": 1,
+        "attempts": 3,
+        "repairs": 2,
         "terminal_refusals": 0,
         "rate": 0.6667,
+        "kinds": {**NO_REPAIRS, "validation": 1, "answer": 1},
     }
     assert rr.repair_metrics([])["rate"] is None
     assert rr.context_columns(events) is None
 
 
-def test_repair_metrics_count_proposal_validation_repairs_only() -> None:
-    """D3-31: a repair is a proposal or answer the kernel refused and sent back to the
-    driver, as its ``cont.repairs`` counts (``kernel/proposals.py``). Not repairs: a dispatch
-    revalidation (``STALE``), a later plan step (``step_index > 0``, or the no-action-id
-    ``KERNEL-PLAN-STEP-CHANGED`` / ``KERNEL-PLAN-LINEAGE`` stop), a plain-text turn
-    (``KERNEL-VERIFICATION``, ADR 0031 ``repair_turns``), a finish check
-    (``KERNEL-ACCEPTANCE``), a status-less event, and the refusal that ended the run, which
-    is counted apart as ``terminal_refusals``. Later plan steps are no driver proposals."""
+def _event(seq: int, kind: Any, payload: dict, action: str | None = None) -> Any:
     from datetime import UTC, datetime
 
-    from e_agent.contracts.events import RunEvent, RunEventType
+    from e_agent.contracts.events import RunEvent
 
-    def event(seq: int, kind: RunEventType, payload: dict, action: str | None = None) -> RunEvent:
-        return RunEvent(
-            event_id=f"e{seq}",
-            tenant_id="t",
-            run_id="r",
-            sequence=seq,
-            type=kind,
-            occurred_at=datetime(2026, 10, 20, tzinfo=UTC),
-            action_id=action,
-            payload=payload,
-        )
+    return RunEvent(
+        event_id=f"e{seq}",
+        tenant_id="t",
+        run_id="r",
+        sequence=seq,
+        type=kind,
+        occurred_at=datetime(2026, 10, 20, tzinfo=UTC),
+        action_id=action,
+        payload=payload,
+    )
+
+
+def _run(*specs: tuple[Any, dict] | tuple[Any, dict, str]) -> list[Any]:
+    return [_event(seq, *spec) for seq, spec in enumerate(specs, start=1)]
+
+
+def _kernel(rule_id: str) -> dict:
+    return {"status": "FAIL", "findings": [{"rule_id": rule_id, "status": "FAIL"}]}
+
+
+def _failed(code: str) -> tuple[Any, dict]:
+    from e_agent.contracts.events import RunEventType
+
+    return (RunEventType.RUN_STATE_CHANGED, {"to": "FAILED", "reason_code": code})
+
+
+def test_repair_metrics_match_kernel_repairs() -> None:
+    """D3-31, review 3f.2 R1-2: a repair is exactly what ``cont.repairs`` counts, a refusal
+    returned to the driver. Counted: a failed proposal validation, a first-step dispatch
+    STALE the kernel returned (RUNNING, ``stale``), a plain-text ``KERNEL-VERIFICATION``
+    turn, a no-action ``KERNEL-*`` refusal and a failed answer check. Not counted: a later
+    plan step (``step_index > 0``, ``KERNEL-PLAN-STEP-CHANGED``, ``KERNEL-PLAN-LINEAGE``),
+    the ``KERNEL-ACCEPTANCE`` ending, a status-less event, and the refusal that ended the
+    run, which is a terminal refusal."""
+    from e_agent.contracts.events import RunEventType
 
     created, validated = RunEventType.PROPOSAL_CREATED, RunEventType.VALIDATION_COMPLETED
     state, outcome = RunEventType.RUN_STATE_CHANGED, RunEventType.OUTCOME_REPORTED
-
-    def kernel(rule_id: str) -> dict:
-        return {"status": "FAIL", "findings": [{"rule_id": rule_id, "status": "FAIL"}]}
-
-    events = [
-        event(1, created, {"step_index": None}, "w1"),
-        event(2, validated, {"status": "FAIL", "findings": []}, "w1"),  # a repair
-        event(3, created, {"step_index": 0}, "w2"),
-        event(4, validated, {"status": "PASS", "findings": []}, "w2"),
-        event(5, validated, {"status": "STALE", "reason": "revision moved"}, "w2"),
-        event(6, state, {"to": "RUNNING"}),
-        event(7, created, {"step_index": 0}, "p0"),
-        event(8, validated, {"status": "PASS", "findings": []}, "p0"),
-        event(9, created, {"step_index": 1}, "p1"),  # a later plan step, kernel-made
-        event(10, validated, {"status": "FAIL", "findings": []}, "p1"),
-        event(11, validated, kernel("KERNEL-PLAN-STEP-CHANGED")),
-        event(12, validated, kernel("KERNEL-PLAN-LINEAGE")),
-        event(13, validated, kernel("KERNEL-VERIFICATION")),
-        event(14, validated, kernel("KERNEL-ACCEPTANCE")),
-        event(15, validated, {"findings": []}),  # no status: not a failed validation
-        event(16, validated, kernel("KERNEL-ARGS")),  # a proposal that made no action
-        event(17, created, {"kind": "answer"}, "a1"),
-        event(18, outcome, {"status": "FAILED"}, "a1"),  # an answer repair
-        event(19, created, {}, "w3"),
-        event(20, validated, {"status": "FAIL", "findings": []}, "w3"),  # ends the run
-        event(21, state, {"to": "FAILED", "reason_code": "validation_failed"}),
-    ]
-    assert rr.repair_metrics(events) == {
-        "proposals": 5,
-        "validation_repairs": 2,
-        "answer_repairs": 1,
+    events = _run(
+        (created, {"step_index": None}, "w1"),
+        (validated, {"status": "FAIL", "findings": []}, "w1"),  # validation repair
+        (created, {"step_index": 0}, "w2"),
+        (validated, {"status": "PASS", "findings": []}, "w2"),
+        (validated, {"status": "STALE", "reason": "revision moved"}, "w2"),
+        (state, {"to": "RUNNING", "reason_code": "stale"}),  # the STALE went back
+        (created, {"step_index": 0}, "p0"),
+        (validated, {"status": "PASS", "findings": []}, "p0"),
+        (created, {"step_index": 1}, "p1"),  # a later plan step, kernel-made
+        (validated, {"status": "FAIL", "findings": []}, "p1"),
+        (validated, {"status": "STALE", "reason": "deadline"}, "p1"),
+        (validated, _kernel("KERNEL-PLAN-STEP-CHANGED")),
+        (validated, _kernel("KERNEL-PLAN-LINEAGE")),
+        (validated, _kernel("KERNEL-VERIFICATION")),  # plain-text repair, an attempt
+        (validated, _kernel("KERNEL-ACCEPTANCE")),
+        (validated, {"findings": []}),  # no status: no refusal
+        (validated, _kernel("KERNEL-ARGS")),  # no-action repair, an attempt (event 16)
+        (created, {"kind": "answer"}, "a1"),
+        (outcome, {"status": "FAILED"}, "a1"),  # answer repair
+        (created, {}, "w3"),
+        (validated, {"status": "FAIL", "findings": []}, "w3"),  # the budget is spent
+        _failed("validation_failed"),
+    )
+    assert rr.repair_metrics(events, max_repairs=5) == {
+        "attempts": 7,
+        "repairs": 5,
         "terminal_refusals": 1,
-        "rate": 0.6,
+        "rate": 0.7143,
+        "kinds": {"validation": 1, "no_action": 1, "plain_text": 1, "stale": 1, "answer": 1},
     }
-    # a terminal answer check: the next kernel record is the FAILED state change
-    ended = [
-        event(1, created, {"kind": "answer"}, "a1"),
-        event(2, outcome, {"status": "FAILED"}, "a1"),
-        event(3, state, {"to": "FAILED", "reason_code": "verification_failed"}),
+    # a STALE that failed the run went back to no one, and is no terminal refusal either
+    stale = _run(
+        (created, {}, "w1"),
+        (validated, {"status": "PASS", "findings": []}, "w1"),
+        (validated, {"status": "STALE", "reason": "revision moved"}, "w1"),
+        _failed("stale"),
+    )
+    assert rr.repair_metrics(stale) == {
+        "attempts": 1,
+        "repairs": 0,
+        "terminal_refusals": 0,
+        "rate": 0.0,
+        "kinds": NO_REPAIRS,
+    }
+    print(f"repair metrics over {len(events) + len(stale)} synthetic events")
+
+
+def test_repair_metrics_terminal_only_by_reason_code() -> None:
+    """Review 3f.2 R1-1: a refusal is terminal only when the run's FAILED record has
+    ``validation_failed``, ``verification_failed`` or ``policy_denied``, and the kernel's
+    own test (policy denial, or the budget spent) held at it; never by adjacency."""
+    from e_agent.contracts.events import RunEventType
+
+    created, validated = RunEventType.PROPOSAL_CREATED, RunEventType.VALIDATION_COMPLETED
+    outcome = RunEventType.OUTCOME_REPORTED
+    blocked = (validated, {"status": "FAIL", "findings": []}, "w1")
+    # returned, then the next turn exhausted a budget: a repair, even with no budget left
+    exhausted = _run(
+        (created, {}, "w1"),
+        blocked,
+        (RunEventType.BUDGET_EXHAUSTED, {"budget": "max_driver_turns"}),
+        _failed("budget_exhausted"),
+    )
+    for budget in (0, 2):
+        metrics = rr.repair_metrics(exhausted, max_repairs=budget)
+        assert (metrics["repairs"], metrics["terminal_refusals"]) == (1, 0)
+    # a policy denial is terminal within the budget, whatever its validation status
+    for status in ("FAIL", "PASS"):
+        denied = _run(
+            (created, {}, "w1"),
+            (validated, {"status": status, "findings": [], "policy_reasons": ["r"]}, "w1"),
+            _failed("policy_denied"),
+        )
+        metrics = rr.repair_metrics(denied)
+        assert (metrics["repairs"], metrics["terminal_refusals"]) == (0, 1)
+    plan_denied = _run(
+        (validated, {"status": "FAIL", "findings": [], "policy_reasons": ["r"]}),
+        _failed("policy_denied"),
+    )
+    metrics = rr.repair_metrics(plan_denied)
+    assert (metrics["attempts"], metrics["repairs"], metrics["terminal_refusals"]) == (1, 0, 1)
+    # two answer repairs, then a plain-text reply past the budget ends the run with no
+    # event of its own: both answers went back, so neither is terminal
+    answers = _run(
+        (created, {"kind": "answer"}, "a1"),
+        (outcome, {"status": "FAILED"}, "a1"),
+        (created, {"kind": "answer"}, "a2"),
+        (outcome, {"status": "FAILED"}, "a2"),
+        _failed("verification_failed"),
+    )
+    metrics = rr.repair_metrics(answers)
+    assert (metrics["repairs"], metrics["terminal_refusals"]) == (2, 0)
+    # a third failed answer past the budget is the terminal one
+    third = [
+        *answers[:-1],
+        _event(5, created, {"kind": "answer"}, "a3"),
+        _event(6, outcome, {"status": "FAILED"}, "a3"),
+        _event(7, *_failed("verification_failed")),
     ]
-    metrics = rr.repair_metrics(ended)
-    assert (metrics["answer_repairs"], metrics["terminal_refusals"]) == (0, 1)
-    assert metrics["rate"] == 0.0
-    print(f"repair metrics over {len(events) + len(ended)} synthetic events")
+    metrics = rr.repair_metrics(third)
+    assert (metrics["attempts"], metrics["repairs"], metrics["terminal_refusals"]) == (3, 2, 1)
+    no_verifier = _run((validated, _kernel("KERNEL-VERIFIER")), _failed("verification_failed"))
+    metrics = rr.repair_metrics(no_verifier)
+    assert (metrics["attempts"], metrics["repairs"], metrics["terminal_refusals"]) == (1, 0, 1)
+
+
+def test_repair_rate_is_at_most_one() -> None:
+    """Review 3f.2 R1-3: one attempt per driver proposal plus one per counted no-action
+    refusal, so every repair has its own attempt. Event 16's case, refusals of attempts that
+    made no action, now has a denominator."""
+    from e_agent.contracts.events import RunEventType
+
+    created, validated = RunEventType.PROPOSAL_CREATED, RunEventType.VALIDATION_COMPLETED
+    state = RunEventType.RUN_STATE_CHANGED
+    no_action = _run(
+        (validated, _kernel("KERNEL-ARGS")),
+        (validated, _kernel("KERNEL-CONNECTION")),
+        (validated, _kernel("KERNEL-VERIFICATION")),
+    )
+    stale_after_pass = _run(
+        (created, {}, "w1"),
+        (validated, {"status": "PASS", "findings": []}, "w1"),
+        (validated, {"status": "STALE", "reason": "moved"}, "w1"),
+        (state, {"to": "RUNNING", "reason_code": "stale"}),
+    )
+    runs = [no_action, stale_after_pass]
+    rates = [rr.repair_metrics(events, max_repairs=9)["rate"] for events in runs]
+    assert rates == [1.0, 1.0]
+    assert all(rate is not None and rate <= 1 for rate in rates)
 
 
 def test_phase3_baseline_is_off_fixture_evidence() -> None:
@@ -182,7 +287,7 @@ def test_phase3_baseline_is_off_fixture_evidence() -> None:
     assert len(cases) == report["total"] == len(rr.CASES) > 0
     assert report["passed"] == report["total"]
     assert all(c["context"] is None for c in cases)
-    assert all(c["repairs"]["proposals"] > 0 for c in cases)
+    assert all(c["repairs"]["attempts"] > 0 for c in cases)
     assert all(c["model_tokens"] == "unknown" for c in cases)
     assert report["repair_rate"] is not None
     print(f"phase3 baseline: {len(cases)} cases, repair rate {report['repair_rate']}")

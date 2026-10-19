@@ -5,7 +5,7 @@
   "context_assembler": "off",
   "kernel_repeat": "off",
   "grounded_answers": "off",
-  "metrics_note": "repairs.rate is (validation_repairs + answer_repairs) / proposals: how often the kernel sent a driver proposal or answer back to the driver. A validation repair is a failed validation of a driver proposal; a dispatch revalidation (STALE), a later plan step, a plain-text turn and a finish check are not. The refusal that ended the run went back to no one: it is counted in terminal_refusals, not in the rate (D3-31). model_tokens is what the run's events record of the driver's token use ('unknown' when they record none, never 0). context is null when context_assembler is off. In shadow it holds the context.compared columns: pack_tokens and unbounded_tokens are the kernel estimator's sums over the run's driver turns, not model-reported tokens. In on it holds the context.assembled columns: the pack's estimated tokens, its drops and the turns that fell back to the driver's history. repeat is null unless kernel_repeat is shadow; a disagreement is a write proposal the repeat rule would have short-circuited whose validation then gave other findings. grounding is null unless grounded_answers is shadow; it sums the citation and rationale-ref counts of the run's grounding.compared events, and grounding_unresolved is every unresolved or mismatched citation and unresolved rationale ref.",
+  "metrics_note": "repairs.rate is repairs / attempts. A repair is exactly what the kernel's cont.repairs counts: a refusal it returned to the driver within max_validation_repairs, that is a failed proposal validation, a first-step dispatch STALE it returned, a plain-text KERNEL-VERIFICATION turn, a KERNEL-* refusal of an attempt that made no action, or a failed answer verification (repairs.kinds). A refusal that ended the run is in terminal_refusals, never in the rate: one under a FAILED record with reason code validation_failed, verification_failed or policy_denied, as the kernel's budget test or policy denial decides it. A finish check (KERNEL-ACCEPTANCE) and a later plan step are not refusals of an attempt. attempts is one per driver proposal.created plus one per counted refusal with no action id, so the rate is at most 1 (D3-31, review 3f.2 R1). model_tokens is what the run's events record of the driver's token use ('unknown' when they record none, never 0). context is null when context_assembler is off. In shadow it holds the context.compared columns: pack_tokens and unbounded_tokens are the kernel estimator's sums over the run's driver turns, not model-reported tokens. In on it holds the context.assembled columns: the packs built (one per driver call, acknowledgement turns included), their estimated tokens and drops, and the calls that fell back to the driver's history. repeat is null unless kernel_repeat is shadow; a disagreement is a write proposal the repeat rule would have short-circuited whose validation then gave other findings. grounding is null unless grounded_answers is shadow; it sums the citation and rationale-ref counts of the run's grounding.compared events, and grounding_unresolved is every unresolved or mismatched citation and unresolved rationale ref.",
   "repair_rate": 0.3824,
   "repeat_disagreements": null,
   "grounding_unresolved": null,
@@ -92,11 +92,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 0,
       "repairs": {
-        "proposals": 1,
-        "validation_repairs": 0,
-        "answer_repairs": 0,
+        "attempts": 1,
+        "repairs": 0,
         "terminal_refusals": 0,
-        "rate": 0.0
+        "rate": 0.0,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -125,11 +131,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 0,
       "repairs": {
-        "proposals": 2,
-        "validation_repairs": 0,
-        "answer_repairs": 1,
+        "attempts": 2,
+        "repairs": 1,
         "terminal_refusals": 0,
-        "rate": 0.5
+        "rate": 0.5,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 1
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -157,11 +169,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 0,
       "repairs": {
-        "proposals": 1,
-        "validation_repairs": 0,
-        "answer_repairs": 0,
+        "attempts": 1,
+        "repairs": 0,
         "terminal_refusals": 0,
-        "rate": 0.0
+        "rate": 0.0,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -189,11 +207,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 1,
       "repairs": {
-        "proposals": 1,
-        "validation_repairs": 0,
-        "answer_repairs": 0,
+        "attempts": 1,
+        "repairs": 0,
         "terminal_refusals": 0,
-        "rate": 0.0
+        "rate": 0.0,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -223,11 +247,17 @@
       ],
       "provider_write_calls": 1,
       "repairs": {
-        "proposals": 2,
-        "validation_repairs": 1,
-        "answer_repairs": 0,
+        "attempts": 2,
+        "repairs": 1,
         "terminal_refusals": 0,
-        "rate": 0.5
+        "rate": 0.5,
+        "kinds": {
+          "validation": 1,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -255,11 +285,17 @@
       ],
       "provider_write_calls": 0,
       "repairs": {
-        "proposals": 3,
-        "validation_repairs": 2,
-        "answer_repairs": 0,
+        "attempts": 3,
+        "repairs": 2,
         "terminal_refusals": 1,
-        "rate": 0.6667
+        "rate": 0.6667,
+        "kinds": {
+          "validation": 2,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -285,11 +321,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 0,
       "repairs": {
-        "proposals": 1,
-        "validation_repairs": 0,
-        "answer_repairs": 0,
+        "attempts": 1,
+        "repairs": 0,
         "terminal_refusals": 0,
-        "rate": 0.0
+        "rate": 0.0,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -317,11 +359,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 1,
       "repairs": {
-        "proposals": 1,
-        "validation_repairs": 0,
-        "answer_repairs": 0,
+        "attempts": 1,
+        "repairs": 0,
         "terminal_refusals": 0,
-        "rate": 0.0
+        "rate": 0.0,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -349,11 +397,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 1,
       "repairs": {
-        "proposals": 1,
-        "validation_repairs": 0,
-        "answer_repairs": 0,
+        "attempts": 1,
+        "repairs": 0,
         "terminal_refusals": 0,
-        "rate": 0.0
+        "rate": 0.0,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -383,11 +437,17 @@
       ],
       "provider_write_calls": 1,
       "repairs": {
-        "proposals": 2,
-        "validation_repairs": 1,
-        "answer_repairs": 0,
+        "attempts": 2,
+        "repairs": 1,
         "terminal_refusals": 0,
-        "rate": 0.5
+        "rate": 0.5,
+        "kinds": {
+          "validation": 1,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -415,11 +475,17 @@
       ],
       "provider_write_calls": 0,
       "repairs": {
-        "proposals": 3,
-        "validation_repairs": 2,
-        "answer_repairs": 0,
+        "attempts": 3,
+        "repairs": 2,
         "terminal_refusals": 1,
-        "rate": 0.6667
+        "rate": 0.6667,
+        "kinds": {
+          "validation": 2,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -447,11 +513,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 1,
       "repairs": {
-        "proposals": 1,
-        "validation_repairs": 0,
-        "answer_repairs": 0,
+        "attempts": 1,
+        "repairs": 0,
         "terminal_refusals": 0,
-        "rate": 0.0
+        "rate": 0.0,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -481,11 +553,17 @@
       ],
       "provider_write_calls": 1,
       "repairs": {
-        "proposals": 2,
-        "validation_repairs": 1,
-        "answer_repairs": 0,
+        "attempts": 2,
+        "repairs": 1,
         "terminal_refusals": 0,
-        "rate": 0.5
+        "rate": 0.5,
+        "kinds": {
+          "validation": 1,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -513,11 +591,17 @@
       ],
       "provider_write_calls": 0,
       "repairs": {
-        "proposals": 3,
-        "validation_repairs": 2,
-        "answer_repairs": 0,
+        "attempts": 3,
+        "repairs": 2,
         "terminal_refusals": 1,
-        "rate": 0.6667
+        "rate": 0.6667,
+        "kinds": {
+          "validation": 2,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -545,11 +629,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 0,
       "repairs": {
-        "proposals": 1,
-        "validation_repairs": 0,
-        "answer_repairs": 0,
+        "attempts": 1,
+        "repairs": 0,
         "terminal_refusals": 0,
-        "rate": 0.0
+        "rate": 0.0,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -578,11 +668,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 0,
       "repairs": {
-        "proposals": 2,
-        "validation_repairs": 0,
-        "answer_repairs": 1,
+        "attempts": 2,
+        "repairs": 1,
         "terminal_refusals": 0,
-        "rate": 0.5
+        "rate": 0.5,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 1
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -610,11 +706,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 1,
       "repairs": {
-        "proposals": 1,
-        "validation_repairs": 0,
-        "answer_repairs": 0,
+        "attempts": 1,
+        "repairs": 0,
         "terminal_refusals": 0,
-        "rate": 0.0
+        "rate": 0.0,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -644,11 +746,17 @@
       ],
       "provider_write_calls": 1,
       "repairs": {
-        "proposals": 2,
-        "validation_repairs": 1,
-        "answer_repairs": 0,
+        "attempts": 2,
+        "repairs": 1,
         "terminal_refusals": 0,
-        "rate": 0.5
+        "rate": 0.5,
+        "kinds": {
+          "validation": 1,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -676,11 +784,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 1,
       "repairs": {
-        "proposals": 1,
-        "validation_repairs": 0,
-        "answer_repairs": 0,
+        "attempts": 1,
+        "repairs": 0,
         "terminal_refusals": 0,
-        "rate": 0.0
+        "rate": 0.0,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -708,11 +822,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 0,
       "repairs": {
-        "proposals": 1,
-        "validation_repairs": 0,
-        "answer_repairs": 0,
+        "attempts": 1,
+        "repairs": 0,
         "terminal_refusals": 0,
-        "rate": 0.0
+        "rate": 0.0,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 0
+        }
       },
       "model_tokens": "unknown",
       "context": null,
@@ -741,11 +861,17 @@
       "first_blocked_rules": [],
       "provider_write_calls": 0,
       "repairs": {
-        "proposals": 2,
-        "validation_repairs": 0,
-        "answer_repairs": 1,
+        "attempts": 2,
+        "repairs": 1,
         "terminal_refusals": 0,
-        "rate": 0.5
+        "rate": 0.5,
+        "kinds": {
+          "validation": 0,
+          "no_action": 0,
+          "plain_text": 0,
+          "stale": 0,
+          "answer": 1
+        }
       },
       "model_tokens": "unknown",
       "context": null,

@@ -758,7 +758,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 
 **Files:** `evals/ablation/context-history-vs-typed.md` (new: design, hypotheses, metrics), `scripts/context_ablation.py` (new: runs the fixture corpus with `context_assembler` `off` and `on`), `evals/reports/phase3-context-ablation.json` (fixture evidence).
 
-**Interfaces:** consumes `context.compared`, the release-report metrics (3d.3) and the baseline.
+**Interfaces:** consumes `context.assembled` (the `on` arm), the release-report metrics (3d.3) and the baseline.
 
 - [ ] Write the design from research 03 §8 (chat history against typed state): hypotheses, metrics (outcome, repair rate, token cost, dropped evidence) and the corpus.
 - [ ] Failing test `tests/unit/scripts/test_context_ablation.py::test_ablation_runs_both_arms`; asserts the case count per arm and fails on zero.

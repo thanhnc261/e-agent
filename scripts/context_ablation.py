@@ -51,7 +51,7 @@ NOTE = (
     "a model. The report makes no claim beyond this corpus."
 )
 COST_NOTE = (
-    "pack_tokens_estimate is the kernel estimator's sum over a run's driver turns "
+    "pack_tokens_estimate is the kernel estimator's sum over a run's packs "
     "(estimate_tokens, ADR 0032), an estimate, not model-reported tokens. The off arm "
     "records no pack, so its estimate is 'unknown', never 0; model_tokens is 'unknown' in "
     "both arms because the scripted driver reports no token use. This run cannot compare "
@@ -76,8 +76,8 @@ def _sum(values: list[Any]) -> int | str:
 def arm_summary(arm: str, results: list[dict[str, Any]]) -> dict[str, Any]:
     """An arm's totals, from release_report's per-case metrics."""
     repairs = [r["repairs"] for r in results]
-    proposals = sum(r["proposals"] for r in repairs)
-    sent_back = sum(r["validation_repairs"] + r["answer_repairs"] for r in repairs)
+    attempts = sum(r["attempts"] for r in repairs)
+    sent_back = sum(r["repairs"] for r in repairs)
     contexts = [r["context"] for r in results if r["context"] is not None]
     on = ARMS[arm] is FeatureMode.ON
 
@@ -90,14 +90,14 @@ def arm_summary(arm: str, results: list[dict[str, Any]]) -> dict[str, Any]:
         "cases": len(results),
         "passed": sum(r["passed"] for r in results),
         "ends": dict(sorted(Counter(rr.end_class(r) for r in results).items())),
-        "proposals": proposals,
-        "validation_repairs": sum(r["validation_repairs"] for r in repairs),
-        "answer_repairs": sum(r["answer_repairs"] for r in repairs),
+        "attempts": attempts,
+        "repairs": sent_back,
+        "repair_kinds": {k: sum(r["kinds"][k] for r in repairs) for k in rr.REPAIR_KINDS},
         "terminal_refusals": sum(r["terminal_refusals"] for r in repairs),
-        "repair_rate": round(sent_back / proposals, 4) if proposals else None,
+        "repair_rate": round(sent_back / attempts, 4) if attempts else None,
         "provider_write_calls": sum(r["provider_write_calls"] for r in results),
         "model_tokens": _sum([r["model_tokens"] for r in results]),
-        "context_turns": context("turns"),
+        "packs": context("packs"),
         "fallbacks": context("fallbacks"),
         "context_failures": context("failures"),
         "pack_tokens_estimate": context("pack_tokens"),

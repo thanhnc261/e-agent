@@ -35,6 +35,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from e_agent.contracts.approval import ApprovalDecision
+from e_agent.contracts.context import Budgets
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.features import FeatureMode
 from e_agent.contracts.run import ReasonCode, RunState
@@ -185,22 +186,28 @@ CASES = [
 
 
 METRICS_NOTE = (
-    "repairs.rate is (validation_repairs + answer_repairs) / proposals: how often the kernel "
-    "sent a driver proposal or answer back to the driver. A validation repair is a failed "
-    "validation of a driver proposal; a dispatch revalidation (STALE), a later plan step, a "
-    "plain-text turn and a finish check are not. The refusal that ended the run went back to "
-    "no one: it is counted in terminal_refusals, not in the rate (D3-31). model_tokens is "
-    "what the run's events record of the driver's token use ('unknown' when they record none,"
-    " never 0). context is null when context_assembler is off. In shadow it holds the "
-    "context.compared columns: pack_tokens and unbounded_tokens are the kernel estimator's "
-    "sums over the run's driver turns, not model-reported tokens. In on it holds the "
-    "context.assembled columns: the pack's estimated tokens, its drops and the turns that "
-    "fell back to the driver's history. repeat is null unless kernel_repeat is shadow; a "
-    "disagreement is a write proposal the repeat rule would have short-circuited whose "
-    "validation then gave other findings. grounding is null unless grounded_answers is "
-    "shadow; it sums the citation and rationale-ref counts of the run's grounding.compared "
-    "events, and grounding_unresolved is every unresolved or mismatched citation and "
-    "unresolved rationale ref."
+    "repairs.rate is repairs / attempts. A repair is exactly what the kernel's cont.repairs "
+    "counts: a refusal it returned to the driver within max_validation_repairs, that is a "
+    "failed proposal validation, a first-step dispatch STALE it returned, a plain-text "
+    "KERNEL-VERIFICATION turn, a KERNEL-* refusal of an attempt that made no action, or a "
+    "failed answer verification (repairs.kinds). A refusal that ended the run is in "
+    "terminal_refusals, never in the rate: one under a FAILED record with reason code "
+    "validation_failed, verification_failed or policy_denied, as the kernel's budget test or "
+    "policy denial decides it. A finish check (KERNEL-ACCEPTANCE) and a later plan step are "
+    "not refusals of an attempt. attempts is one per driver proposal.created plus one per "
+    "counted refusal with no action id, so the rate is at most 1 (D3-31, review 3f.2 R1). "
+    "model_tokens is what the run's events record of the driver's token use ('unknown' when "
+    "they record none, never 0). context is null when context_assembler is off. In shadow it "
+    "holds the context.compared columns: pack_tokens and unbounded_tokens are the kernel "
+    "estimator's sums over the run's driver turns, not model-reported tokens. In on it holds "
+    "the context.assembled columns: the packs built (one per driver call, acknowledgement "
+    "turns included), their estimated tokens and drops, and the calls that fell back to the "
+    "driver's history. repeat is null unless kernel_repeat is shadow; a disagreement is a "
+    "write proposal the repeat rule would have short-circuited whose validation then gave "
+    "other findings. grounding is null unless grounded_answers is shadow; it sums the "
+    "citation and rationale-ref counts of the run's grounding.compared events, and "
+    "grounding_unresolved is every unresolved or mismatched citation and unresolved rationale"
+    " ref."
 )
 
 
@@ -220,59 +227,110 @@ def fixture_profile(
     return profile.model_copy(update={"features": features})
 
 
-NOT_PROPOSAL_FINDINGS = frozenset(
+NOT_REFUSALS = frozenset(
     {
         "KERNEL-PLAN-STEP-CHANGED",  # a later plan step stopped before its action exists
         "KERNEL-PLAN-LINEAGE",
-        "KERNEL-VERIFICATION",  # a plain-text turn (ADR 0031 ``repair_turns``), no proposal
-        "KERNEL-ACCEPTANCE",  # a finish check, no proposal
+        "KERNEL-ACCEPTANCE",  # the ACCEPTANCE_UNMET ending, never returned to the driver
     }
 )
-"""The kernel findings whose no-action-id ``validation.completed`` validates no proposal."""
+"""Kernel findings whose no-action-id ``validation.completed`` is no refusal of an attempt."""
 
-_KERNEL_RECORDS = frozenset(
-    {
-        RunEventType.PROPOSAL_CREATED,
-        RunEventType.VALIDATION_COMPLETED,
-        RunEventType.OUTCOME_REPORTED,
-        RunEventType.RUN_STATE_CHANGED,
-    }
-)
+PLAIN_TEXT = "KERNEL-VERIFICATION"
+"""A plain-text turn's repair (``kernel/run_loop.py``). Past the budget the kernel fails the
+run without writing it, so every one that is written went back to the driver."""
+NO_VERIFIER = "KERNEL-VERIFIER"
+"""An answer without a verifier: written with the run's FAILED record, never returned."""
+
+TERMINAL_CODES = {
+    "validation": frozenset({ReasonCode.VALIDATION_FAILED, ReasonCode.POLICY_DENIED}),
+    "no_action": frozenset({ReasonCode.VALIDATION_FAILED, ReasonCode.POLICY_DENIED}),
+    "answer": frozenset({ReasonCode.VERIFICATION_FAILED}),
+    "no_verifier": frozenset({ReasonCode.VERIFICATION_FAILED}),
+}
+"""The FAILED reason codes that can end the run at a refusal of each kind. A refusal is
+terminal only when the run's FAILED record carries one of them (review R1-1): any other
+ending (``budget_exhausted``, a timeout, a refused route) came after a returned refusal."""
+
+REPAIR_KINDS = ("validation", "no_action", "plain_text", "stale", "answer")
 
 
-def _ends_run(events: list[RunEvent], index: int) -> bool:
-    """Whether the refusal at ``index`` ended the run: the kernel's next record after it is
-    the FAILED state change, so nothing went back to the driver (``kernel/proposals.py``
-    fails the run past ``max_validation_repairs`` without counting a repair)."""
-    after = (e for e in events[index + 1 :] if e.type in _KERNEL_RECORDS)
-    following = next(after, None)
+def _refusal_kind(event: RunEvent, later_steps: set[str], answers: set[str]) -> str | None:
+    """The kind of kernel refusal ``event`` records, or None when it records none.
+
+    - ``validation``: a failed validation of a driver proposal (``kernel/proposals.py``);
+    - ``stale``: a first-step dispatch revalidation that found the facts stale
+      (``kernel/dispatch.py``); a later plan step's is no refusal of a driver attempt;
+    - ``no_action``: a kernel finding on an attempt that made no action (``KERNEL-ARGS``,
+      ``KERNEL-CONNECTION``, ``KERNEL-GROUNDED-ANSWER`` …, ``_repair_finding``), or a plan
+      the policy denied;
+    - ``plain_text``: the ``KERNEL-VERIFICATION`` turn; ``no_verifier``: ``KERNEL-VERIFIER``;
+    - ``answer``: a failed verification of a driver answer (``kernel/grounding.py``).
+    """
+    if event.type is RunEventType.OUTCOME_REPORTED:
+        failed = event.payload.get("status") == "FAILED"
+        return "answer" if failed and event.action_id in answers else None
+    if event.type is not RunEventType.VALIDATION_COMPLETED:
+        return None
+    status = event.payload.get("status")
+    if status in (None, "PASS") or event.action_id in later_steps:
+        return None
+    if status == "STALE":
+        return "stale" if event.action_id is not None else None
+    if event.action_id is not None:
+        return "validation"
+    findings = event.payload.get("findings")
+    rule_ids = {f.get("rule_id") for f in findings if isinstance(f, dict)} if findings else set()
+    if rule_ids & NOT_REFUSALS:
+        return None
+    if PLAIN_TEXT in rule_ids:
+        return "plain_text"
+    return "no_verifier" if NO_VERIFIER in rule_ids else "no_action"
+
+
+def _returned_stale(events: list[RunEvent], index: int) -> bool:
+    """Whether the STALE refusal at ``index`` went back to the driver: the kernel's next run
+    state change is to RUNNING with reason code ``stale`` (``kernel/dispatch.py``). A STALE
+    past the budget, or one that ends a plan, fails the run instead."""
+    changes = (e for e in events[index + 1 :] if e.type is RunEventType.RUN_STATE_CHANGED)
+    change = next(changes, None)
     return (
-        following is not None
-        and following.type is RunEventType.RUN_STATE_CHANGED
-        and following.payload.get("to") == RunState.FAILED
+        change is not None
+        and change.payload.get("to") == RunState.RUNNING
+        and change.payload.get("reason_code") == ReasonCode.STALE
     )
 
 
-def _proposal_validation_failed(event: RunEvent, later_steps: set[str]) -> bool:
-    """A failed validation of a driver's proposal (D3-31): ``status`` present and not
-    ``PASS``, as `BudgetsUsed.failed_validations` counts, but not a dispatch revalidation
-    (``STALE``), not a later plan step, and not a kernel check that validates no proposal."""
-    if event.type is not RunEventType.VALIDATION_COMPLETED:
-        return False
-    status = event.payload.get("status")
-    if status in (None, "PASS", "STALE") or event.action_id in later_steps:
-        return False
-    if event.action_id is not None:
-        return True
-    findings = event.payload.get("findings")
-    rule_ids = {f.get("rule_id") for f in findings if isinstance(f, dict)} if findings else set()
-    return not rule_ids & NOT_PROPOSAL_FINDINGS
+def _failed_code(events: list[RunEvent]) -> str | None:
+    """The reason code of the run's FAILED record, or None when the run did not fail."""
+    failed = [
+        e
+        for e in events
+        if e.type is RunEventType.RUN_STATE_CHANGED and e.payload.get("to") == RunState.FAILED
+    ]
+    return failed[-1].payload.get("reason_code") if failed else None
 
 
-def repair_metrics(events: list[RunEvent]) -> dict[str, Any]:
-    """Driver proposals, the kernel's repairs of them, and the repair rate (METRICS_NOTE).
-    A repair is a refusal the kernel sent back to the driver, as ``cont.repairs`` counts; the
-    refusal that ended the run is counted apart, in ``terminal_refusals`` (D3-31)."""
+def repair_metrics(
+    events: list[RunEvent], max_repairs: int = Budgets().max_validation_repairs
+) -> dict[str, Any]:
+    """Attempts, the kernel's repairs of them, and the repair rate (METRICS_NOTE, D3-31).
+
+    A repair is exactly what the kernel's ``cont.repairs`` counts: a refusal returned to
+    the driver within ``max_validation_repairs`` (``max_repairs``, the run's budget). That is
+    a ``validation``, ``no_action``, ``plain_text``, ``answer`` or returned ``stale`` refusal
+    (`_refusal_kind`). A refusal is terminal, counted in ``terminal_refusals`` and never as a
+    repair, when the run's FAILED record has a code `TERMINAL_CODES` allows for its kind and
+    either the policy denied it (the run's last ``validation.completed`` under
+    ``policy_denied``, ``kernel/proposals.py``), it is ``KERNEL-VERIFIER``, or the repairs
+    before it had used the budget, which is the kernel's own test.
+
+    The denominator counts one attempt per driver ``proposal.created`` (a later plan step is
+    kernel-made, so it is none) and one per counted refusal with no action id (``no_action``,
+    ``plain_text``, ``no_verifier``). Every repair maps to its own attempt: a validation,
+    answer or STALE refusal to its proposal, a no-action refusal to itself. A STALE refusal
+    follows a passing validation, which no other refusal of that proposal can, and blocks
+    the action, so it can repeat for none. The rate is therefore at most 1."""
     created = [e for e in events if e.type is RunEventType.PROPOSAL_CREATED]
     later_steps = {
         e.action_id
@@ -281,31 +339,33 @@ def repair_metrics(events: list[RunEvent]) -> dict[str, Any]:
     }
     answers = {e.action_id for e in created if e.payload.get("kind") == "answer"}
     proposals = sum(e.action_id not in later_steps for e in created)
-    validation_repairs = answer_repairs = terminal = 0
+    code = _failed_code(events)
+    validations = [i for i, e in enumerate(events) if e.type is RunEventType.VALIDATION_COMPLETED]
+    denied_at = validations[-1] if validations and code == ReasonCode.POLICY_DENIED else None
+    kinds = dict.fromkeys(REPAIR_KINDS, 0)
+    no_action = terminal = 0
     for index, e in enumerate(events):
-        if _proposal_validation_failed(e, later_steps):
-            kind = "validation"
-        elif (
-            e.type is RunEventType.OUTCOME_REPORTED
-            and e.payload.get("status") == "FAILED"
-            and e.action_id in answers
-        ):
-            kind = "answer"
-        else:
-            continue
-        if _ends_run(events, index):
+        if index == denied_at:  # a policy denial is terminal, whatever its status
             terminal += 1
-        elif kind == "validation":
-            validation_repairs += 1
-        else:
-            answer_repairs += 1
-    repairs = validation_repairs + answer_repairs
+            no_action += e.action_id is None
+            continue
+        kind = _refusal_kind(e, later_steps, answers)
+        if kind is None or (kind == "stale" and not _returned_stale(events, index)):
+            continue
+        no_action += kind in ("no_action", "plain_text", "no_verifier")
+        allowed = code in TERMINAL_CODES.get(kind, frozenset())
+        if allowed and (kind == "no_verifier" or sum(kinds.values()) >= max_repairs):
+            terminal += 1
+        elif kind != "no_verifier":
+            kinds[kind] += 1
+    repairs = sum(kinds.values())
+    attempts = proposals + no_action
     return {
-        "proposals": proposals,
-        "validation_repairs": validation_repairs,
-        "answer_repairs": answer_repairs,
+        "attempts": attempts,
+        "repairs": repairs,
         "terminal_refusals": terminal,
-        "rate": round(repairs / proposals, 4) if proposals else None,
+        "rate": round(repairs / attempts, 4) if attempts else None,
+        "kinds": kinds,
     }
 
 
@@ -343,15 +403,16 @@ def context_columns(events: list[RunEvent]) -> dict[str, Any] | None:
 def assembled_columns(events: list[RunEvent]) -> dict[str, Any] | None:
     """The ``context.assembled`` columns of a ``context_assembler: on`` run (ADR 0032 §7,
     Task 3d.5); None when the run recorded none. ``on`` builds one pack per turn, so there is
-    no unbounded pack and no driver token delta to compare: only the pack's estimates, its
-    drops and the turns that fell back to the driver's history. Counts only (PR-26)."""
+    no unbounded pack and no driver token delta to compare: only the packs built (one per
+    driver call, acknowledgement turns included), their estimates and drops, and the calls
+    that fell back to the driver's history. Counts only (PR-26)."""
     assembled = [e.payload for e in events if e.type is RunEventType.CONTEXT_ASSEMBLED]
     failed = [e for e in events if e.type is RunEventType.CONTEXT_FAILED]
     if not assembled and not failed:
         return None
     packs = [p for p in assembled if p.get("fallback") is not True]
     return {
-        "turns": len(assembled),
+        "packs": len(packs),  # one per driver call, the post-write acknowledgement's included
         "fallbacks": len(assembled) - len(packs),
         "failures": len(failed),
         "pack_tokens": sum(sum(p["pack_tokens"].values()) for p in packs),
@@ -416,8 +477,9 @@ async def run_case(
     kernel_repeat: FeatureMode = FeatureMode.OFF,
     grounded_answers: FeatureMode = FeatureMode.OFF,
 ) -> dict[str, Any]:
+    profile = fixture_profile(context_assembler, kernel_repeat, grounded_answers)
     rt = await build_runtime(
-        fixture_profile(context_assembler, kernel_repeat, grounded_answers),
+        profile,
         driver_mode=case.mode,
         plugin_settings={
             "fixture-erp": {
@@ -466,7 +528,8 @@ async def run_case(
         "outcomes": list(outcomes),
         "first_blocked_rules": sorted(blocked[0]) if blocked else [],
         "provider_write_calls": writes,
-        "repairs": repair_metrics(events),
+        # the profile's budget: execution_ir `on` may narrow it per task; the corpus runs `off`
+        "repairs": repair_metrics(events, profile.budgets.max_validation_repairs),
         "model_tokens": project_progress(events, []).budgets_used.model_tokens,
         "context": context_columns(events) or assembled_columns(events),
         "repeat": repeat_columns(events),
@@ -497,12 +560,8 @@ def build_report(
     """The release report: the case results, the runtime's versions, and the write effects
     its admission accepted on their defaults, which release evidence lists (ADR 0029
     Operations)."""
-    proposals = sum(r.get("repairs", {}).get("proposals", 0) for r in results)
-    repairs = sum(
-        r["repairs"]["validation_repairs"] + r["repairs"]["answer_repairs"]
-        for r in results
-        if "repairs" in r
-    )
+    attempts = sum(r.get("repairs", {}).get("attempts", 0) for r in results)
+    repairs = sum(r["repairs"]["repairs"] for r in results if "repairs" in r)
     repeats = [r["repeat"] for r in results if r.get("repeat") is not None]
     grounding = [r["grounding"] for r in results if r.get("grounding") is not None]
     return {
@@ -516,7 +575,7 @@ def build_report(
         "kernel_repeat": kernel_repeat.value,
         "grounded_answers": grounded_answers.value,
         "metrics_note": METRICS_NOTE,
-        "repair_rate": round(repairs / proposals, 4) if proposals else None,
+        "repair_rate": round(repairs / attempts, 4) if attempts else None,
         "repeat_disagreements": sum(r["disagreements"] for r in repeats) if repeats else None,
         "grounding_unresolved": sum(map(unresolved_refs, grounding)) if grounding else None,
         "ends": dict(sorted(Counter(end_class(r) for r in results).items())),

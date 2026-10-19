@@ -25,7 +25,7 @@ async def test_ablation_runs_both_arms() -> None:
     counts = {arm: len(results) for arm, results in arms.items()}
     assert counts == {"off": len(cases), "on": len(cases)} and len(cases) > 0
     assert all(r["context"] is None for r in arms["off"])
-    assert all(r["context"] is not None and r["context"]["turns"] > 0 for r in arms["on"])
+    assert all(r["context"] is not None and r["context"]["packs"] > 0 for r in arms["on"])
     assert all(r["context"]["fallbacks"] == 0 for r in arms["on"])
     report = await ca.build_ablation(arms)
     assert {arm: report["arms"][arm]["cases"] for arm in ("off", "on")} == counts
