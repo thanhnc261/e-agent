@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-3d-1"
   ],
-  "context_digest": "82ae1cf56dce82c281e23bb2af6f2f76901281231bed9d8fbef62803d08bb5cc",
+  "context_digest": "09ee523dfff934513e62f4dd91da33134455e36d648aba26aa3f3c82be1c1a17",
   "allowed_paths": [
     "src/e_agent/contracts/context_pack.py",
     "src/e_agent/contracts/__init__.py",
