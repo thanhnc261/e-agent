@@ -52,7 +52,7 @@ from typing import Any
 from e_agent.contracts import data_classes as dc
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.common import new_id
-from e_agent.contracts.context_pack import masked_marker
+from e_agent.contracts.context_pack import DroppedReason, masked_marker
 from e_agent.contracts.data_classes import parse_pointer
 from e_agent.contracts.digest import CanonicalizationError, digest
 from e_agent.contracts.events import RunEventType
@@ -149,7 +149,9 @@ def _value_at(data: Any, pointer: str) -> Any:
     return _MISSING if tokens is None else _follow(data, tokens)[0]
 
 
-MARKERS = frozenset(masked_marker(c) for c in dc.DataClass)
+MARKERS = frozenset(masked_marker(c) for c in dc.DataClass if c is not dc.DataClass.SECRET)
+"""The markers the class walk writes: a secret is never masked, only removed
+(`ContextPolicy` refuses any other action for it)."""
 
 
 def _holds_marker(value: Any) -> bool:
@@ -166,13 +168,15 @@ class ClassView:
     """Observation data as the context pack's class walk renders it to the model, for a run
     pinned ``context_assembler: on`` (review R1-1, PR-26): the same `Walker`, class
     declarations and route row as `assemble`, so masking and secret removal apply, never
-    the per-turn size bound. A masked value, a removed key, or a container holding either,
-    is no value: the check is never an oracle on what the pack withheld."""
+    the per-turn size bound. A value at or above any class-walk removal (a masked value, a
+    removed secret, an unnamed key left out, all logged as ``class_route`` drops) is no
+    value, so a reduced container never resolves: the check is never an oracle on what the
+    pack withheld, nor grounds a claim the provider data contradicts (R1-1, R2-1)."""
 
     def __init__(self, classes: ClassLookup, route: Mapping[str, Any]) -> None:
         self._classes = classes
         self._rules = ON_POLICY.class_rules[context_route(route)]
-        self._walked: dict[int, tuple[Walker, dict[str, Any]]] = {}
+        self._walked: dict[int, tuple[Walker, dict[str, Any], set[tuple[str, ...]]]] = {}
 
     def value_at(self, observation: Observation, pointer: str) -> Any:
         tokens = _tokens(pointer)
@@ -181,12 +185,26 @@ class ClassView:
         if id(observation) not in self._walked:
             index = dc.ClassIndex(self._classes(observation.contract_id))
             walker = Walker(index, self._rules, observation.evidence.evidence_id)
-            self._walked[id(observation)] = (walker, walker.root(observation.data))
-        walker, rendered = self._walked[id(observation)]
+            rendered = walker.root(observation.data)
+            removed = _removals(walker, observation.evidence.evidence_id)
+            self._walked[id(observation)] = (walker, rendered, removed)
+        walker, rendered, removed = self._walked[id(observation)]
         value, at = _follow(rendered, tokens, walker.positions)
-        if value is _MISSING or any(p[: len(at)] == at for p in walker.mask_pointers):
+        if value is _MISSING or any(p[: len(at)] == at for p in removed):
             return _MISSING
         return value
+
+
+def _removals(walker: Walker, evidence_id: str) -> set[tuple[str, ...]]:
+    """The original pointers of the walk's class removals: each ``class_route`` drop names
+    a masked or removed value, or the parent of the unnamed keys it left out."""
+    removed = {tuple(p) for p in walker.mask_pointers}
+    prefix = f"{evidence_id}#"
+    for drop in walker.drops:
+        if drop.reason is DroppedReason.CLASS_ROUTE and drop.ref.startswith(prefix):
+            tokens = _tokens(drop.ref[len(prefix) :])
+            removed.add(() if tokens is None else tokens)  # unreadable: the whole data
+    return removed
 
 
 @dataclass(frozen=True)
@@ -328,10 +346,10 @@ class GroundingMixin(RepeatMixin):
         continues today's path; in ``on`` a citation that does not resolve returns its
         ``KERNEL-CITATION`` repair, and a check that cannot run after a reservation returns
         the closed run."""
-        mode = self._run_modes(cont).grounded_answers
+        modes = self._run_modes(cont)
+        mode = modes.grounded_answers
         if mode is FeatureMode.OFF:
             return GroundingProbe(FeatureMode.OFF)  # dropped, never stored
-        modes = self._run_modes(cont)
         try:
             view = None
             if modes.context_assembler is FeatureMode.ON:  # what the pack showed (R1-1)

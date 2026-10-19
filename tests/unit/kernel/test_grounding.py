@@ -803,3 +803,49 @@ async def test_class_walk_failure_takes_the_failure_path(
     assert fallback.payload["reason_code"] == ReasonCode.GROUNDING_CHECK_FAILED
     assert SENTINEL not in json.dumps([e.payload for e in events])
     assert _verifier(k).calls == 1
+
+
+# -- fix round 2 (R2-1): a container the class walk removed something from is no value ---
+REMOVAL_DATA = {
+    "s": ["a", "b"],
+    "box": {"visible": "v", "token": "x"},
+    "open": {"named": "n", "extra": "e"},
+}
+REMOVAL_CLASSES = {
+    "/output/s/items": DataClass.SECRET,
+    "/output/box/visible": DataClass.INTERNAL,
+    "/output/box/token": DataClass.SECRET,
+    "/output/open/named": DataClass.INTERNAL,
+}
+"""Secret list members, a box's secret key, and an unnamed key the hosted-undeclared row
+leaves out (``open/extra``): each removal leaves a reduced container behind."""
+
+
+def _removal_verdicts(cited: list[tuple[str, Any]]) -> list[grounding.CitationStatus]:
+    obs = _observation(dict(REMOVAL_DATA))
+    view = grounding.ClassView(lambda _cid: REMOVAL_CLASSES, HOSTED_UNDECLARED)
+    citations = [Citation(evidence_id="ev-1", pointer=p, value=v) for p, v in cited]
+    return [v.status for v in grounding.check_citations([obs], citations, view).verdicts]
+
+
+def test_list_that_lost_secret_members_is_unresolved() -> None:
+    assert _removal_verdicts([("/s", []), ("/s", ["a", "b"])]) == [U, U]
+
+
+def test_box_that_lost_a_secret_key_is_unresolved() -> None:
+    assert _removal_verdicts([("/box", {"visible": "v"}), ("/box/token", "x")]) == [U, U]
+
+
+def test_box_that_lost_an_unnamed_key_is_unresolved() -> None:
+    assert _removal_verdicts([("/open", {"named": "n"}), ("", {})]) == [U, U]
+
+
+def test_value_beside_a_removal_still_resolves() -> None:
+    cited = [("/box/visible", "v"), ("/open/named", "n"), ("/box/visible", "w")]
+    assert _removal_verdicts(cited) == [R, R, M]
+
+
+def test_markers_are_the_ones_the_walker_writes() -> None:
+    """A secret is never masked, only removed (`ContextPolicy`), so its marker is not one."""
+    assert masked_marker(DataClass.SECRET) not in grounding.MARKERS
+    assert MARKER in grounding.MARKERS
