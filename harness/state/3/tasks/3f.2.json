@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-3f-2"
   ],
-  "context_digest": "856429048caeb2c7226d3e4ba5cab9c778b886e562c6132233cf5604b5210020",
+  "context_digest": "690bb360923b18e64e647b808bc96a83513b6d801eff457fbd378d922f6ed021",
   "allowed_paths": [
     "evals/ablation/**",
     "scripts/context_ablation.py",
