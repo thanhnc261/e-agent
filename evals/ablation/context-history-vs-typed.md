@@ -39,7 +39,7 @@ Every metric comes from the release report's runner and metrics (`scripts/releas
 | Metric | Definition | Source | This run |
 |---|---|---|---|
 | Outcome | Final state, reason code, outcome reports and provider write calls per case. The `ends` counts are `verified`, `grounded` and the final states (PR-19) | `run_case`, `end_class` | Both arms |
-| Repair rate | repairs / attempts. A repair is exactly what the kernel's `cont.repairs` counts: a refusal it returned to the driver within `max_validation_repairs`. That is a failed proposal validation, a first-step dispatch `STALE` it returned, a plain-text `KERNEL-VERIFICATION` turn, a `KERNEL-*` refusal of an attempt that made no action, or a failed answer verification. A refusal that ended the run (FAILED with `validation_failed`, `verification_failed` or `policy_denied`) is counted apart as `terminal_refusals`. A finish check (`KERNEL-ACCEPTANCE`) and a later plan step are not refusals of an attempt. Attempts are one per driver `proposal.created` plus one per counted no-action refusal, so the rate is at most 1 (D3-31) | `repair_metrics` | Both arms |
+| Repair rate | repairs / attempts: numerator is the kernel's repair counter; denominator is accepted + repaired + terminally refused attempts. The counter is `cont.repairs`, read from the run's stored continuation at run end: the refusals the kernel returned to the driver within its repair budget. Accepted attempts are the kernel's success records: a first-step driver proposal its validation left `VALIDATED` and no verification failed, an answer that verified, and a `GROUNDED` end. A run that FAILED `validation_failed` or `verification_failed` has one terminal refusal; `policy_denied` is reported apart and is neither a repair nor a terminal refusal. The rate is at most 1 (D3-31) | `kernel_repairs`, `repair_metrics` | Both arms |
 | Token cost | `model_tokens`: what the driver reported. `pack_tokens_estimate`: the kernel estimator's sum over a run's packs, one per driver call with acknowledgement turns included (`estimate_tokens`). It is an estimate, not model-reported tokens | `project_progress`, `context.assembled` | `model_tokens` is `unknown` in both arms; the estimate exists in B only |
 | Dropped evidence | Drops in the packs' drop logs, by kind; masked values (`class_route`); observations omitted from the pack | `context.assembled` (`assembled_columns`) | B only. A keeps no drop log, so these are `unknown` there |
 | Parity | Cases whose outcome and repairs are equal in both arms | the report's `paired` block | Both arms |
@@ -84,8 +84,10 @@ The run is recorded in [`phase3-context-ablation.json`](../reports/phase3-contex
 | Cases passed | 21/21 | 21/21 |
 | Ends | 17 verified, 4 failed | 17 verified, 4 failed |
 | Attempts | 34 | 34 |
-| Repairs (validation / answer; no STALE, plain-text or no-action repairs) | 13 (10 / 3) | 13 (10 / 3) |
+| Repairs (the kernel's counter) | 13 | 13 |
+| Accepted attempts | 18 | 18 |
 | Terminal refusals | 3 | 3 |
+| Policy denials | 0 | 0 |
 | Repair rate | 0.3824 | 0.3824 |
 | Provider write calls | 10 | 10 |
 | `model_tokens` | unknown | unknown |

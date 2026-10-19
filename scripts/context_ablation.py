@@ -76,8 +76,6 @@ def _sum(values: list[Any]) -> int | str:
 def arm_summary(arm: str, results: list[dict[str, Any]]) -> dict[str, Any]:
     """An arm's totals, from release_report's per-case metrics."""
     repairs = [r["repairs"] for r in results]
-    attempts = sum(r["attempts"] for r in repairs)
-    sent_back = sum(r["repairs"] for r in repairs)
     contexts = [r["context"] for r in results if r["context"] is not None]
     on = ARMS[arm] is FeatureMode.ON
 
@@ -90,11 +88,12 @@ def arm_summary(arm: str, results: list[dict[str, Any]]) -> dict[str, Any]:
         "cases": len(results),
         "passed": sum(r["passed"] for r in results),
         "ends": dict(sorted(Counter(rr.end_class(r) for r in results).items())),
-        "attempts": attempts,
-        "repairs": sent_back,
-        "repair_kinds": {k: sum(r["kinds"][k] for r in repairs) for k in rr.REPAIR_KINDS},
+        "attempts": _sum([r["attempts"] for r in repairs]),
+        "repairs": _sum([r["repairs"] for r in repairs]),
+        "accepted": sum(r["accepted"] for r in repairs),
         "terminal_refusals": sum(r["terminal_refusals"] for r in repairs),
-        "repair_rate": round(sent_back / attempts, 4) if attempts else None,
+        "policy_denied": sum(r["policy_denied"] for r in repairs),
+        "repair_rate": rr.overall_rate(results),
         "provider_write_calls": sum(r["provider_write_calls"] for r in results),
         "model_tokens": _sum([r["model_tokens"] for r in results]),
         "packs": context("packs"),

@@ -5,7 +5,7 @@
   "context_assembler": "off",
   "kernel_repeat": "off",
   "grounded_answers": "off",
-  "metrics_note": "repairs.rate is repairs / attempts. A repair is exactly what the kernel's cont.repairs counts: a refusal it returned to the driver within max_validation_repairs, that is a failed proposal validation, a first-step dispatch STALE it returned, a plain-text KERNEL-VERIFICATION turn, a KERNEL-* refusal of an attempt that made no action, or a failed answer verification (repairs.kinds). A refusal that ended the run is in terminal_refusals, never in the rate: one under a FAILED record with reason code validation_failed, verification_failed or policy_denied, as the kernel's budget test or policy denial decides it. A finish check (KERNEL-ACCEPTANCE) and a later plan step are not refusals of an attempt. attempts is one per driver proposal.created plus one per counted refusal with no action id, so the rate is at most 1 (D3-31, review 3f.2 R1). model_tokens is what the run's events record of the driver's token use ('unknown' when they record none, never 0). context is null when context_assembler is off. In shadow it holds the context.compared columns: pack_tokens and unbounded_tokens are the kernel estimator's sums over the run's driver turns, not model-reported tokens. In on it holds the context.assembled columns: the packs built (one per driver call, acknowledgement turns included), their estimated tokens and drops, and the calls that fell back to the driver's history. repeat is null unless kernel_repeat is shadow; a disagreement is a write proposal the repeat rule would have short-circuited whose validation then gave other findings. grounding is null unless grounded_answers is shadow; it sums the citation and rationale-ref counts of the run's grounding.compared events, and grounding_unresolved is every unresolved or mismatched citation and unresolved rationale ref.",
+  "metrics_note": "repairs.rate is repairs / attempts: numerator is the kernel's repair counter; denominator is accepted + repaired + terminally refused attempts, so the rate is at most 1. repairs is cont.repairs read from the run's stored continuation at run end, the refusals the kernel returned to the driver within its repair budget, never derived from the events ('unknown' when the run stored none). accepted counts the kernel's success records: a first-step driver proposal its validation left VALIDATED and no verification failed, an answer that verified, and a GROUNDED end. terminal_refusals is 1 for a run that FAILED validation_failed or verification_failed; policy_denied is 1 for a run that FAILED policy_denied, and it is neither a repair nor a terminal refusal (D3-31, review 3f.2 R2). model_tokens is what the run's events record of the driver's token use ('unknown' when they record none, never 0). context is null when context_assembler is off. In shadow it holds the context.compared columns: pack_tokens and unbounded_tokens are the kernel estimator's sums over the run's driver turns, not model-reported tokens. In on it holds the context.assembled columns: the packs built (one per driver call, acknowledgement turns included), their estimated tokens and drops, and the calls that fell back to the driver's history. repeat is null unless kernel_repeat is shadow; a disagreement is a write proposal the repeat rule would have short-circuited whose validation then gave other findings. grounding is null unless grounded_answers is shadow; it sums the citation and rationale-ref counts of the run's grounding.compared events, and grounding_unresolved is every unresolved or mismatched citation and unresolved rationale ref.",
   "repair_rate": 0.3824,
   "repeat_disagreements": null,
   "grounding_unresolved": null,
@@ -94,15 +94,10 @@
       "repairs": {
         "attempts": 1,
         "repairs": 0,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.0,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.0
       },
       "model_tokens": "unknown",
       "context": null,
@@ -133,15 +128,10 @@
       "repairs": {
         "attempts": 2,
         "repairs": 1,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.5,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 1
-        }
+        "policy_denied": 0,
+        "rate": 0.5
       },
       "model_tokens": "unknown",
       "context": null,
@@ -171,15 +161,10 @@
       "repairs": {
         "attempts": 1,
         "repairs": 0,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.0,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.0
       },
       "model_tokens": "unknown",
       "context": null,
@@ -209,15 +194,10 @@
       "repairs": {
         "attempts": 1,
         "repairs": 0,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.0,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.0
       },
       "model_tokens": "unknown",
       "context": null,
@@ -249,15 +229,10 @@
       "repairs": {
         "attempts": 2,
         "repairs": 1,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.5,
-        "kinds": {
-          "validation": 1,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.5
       },
       "model_tokens": "unknown",
       "context": null,
@@ -287,15 +262,10 @@
       "repairs": {
         "attempts": 3,
         "repairs": 2,
+        "accepted": 0,
         "terminal_refusals": 1,
-        "rate": 0.6667,
-        "kinds": {
-          "validation": 2,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.6667
       },
       "model_tokens": "unknown",
       "context": null,
@@ -323,15 +293,10 @@
       "repairs": {
         "attempts": 1,
         "repairs": 0,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.0,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.0
       },
       "model_tokens": "unknown",
       "context": null,
@@ -361,15 +326,10 @@
       "repairs": {
         "attempts": 1,
         "repairs": 0,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.0,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.0
       },
       "model_tokens": "unknown",
       "context": null,
@@ -399,15 +359,10 @@
       "repairs": {
         "attempts": 1,
         "repairs": 0,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.0,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.0
       },
       "model_tokens": "unknown",
       "context": null,
@@ -439,15 +394,10 @@
       "repairs": {
         "attempts": 2,
         "repairs": 1,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.5,
-        "kinds": {
-          "validation": 1,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.5
       },
       "model_tokens": "unknown",
       "context": null,
@@ -477,15 +427,10 @@
       "repairs": {
         "attempts": 3,
         "repairs": 2,
+        "accepted": 0,
         "terminal_refusals": 1,
-        "rate": 0.6667,
-        "kinds": {
-          "validation": 2,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.6667
       },
       "model_tokens": "unknown",
       "context": null,
@@ -515,15 +460,10 @@
       "repairs": {
         "attempts": 1,
         "repairs": 0,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.0,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.0
       },
       "model_tokens": "unknown",
       "context": null,
@@ -555,15 +495,10 @@
       "repairs": {
         "attempts": 2,
         "repairs": 1,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.5,
-        "kinds": {
-          "validation": 1,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.5
       },
       "model_tokens": "unknown",
       "context": null,
@@ -593,15 +528,10 @@
       "repairs": {
         "attempts": 3,
         "repairs": 2,
+        "accepted": 0,
         "terminal_refusals": 1,
-        "rate": 0.6667,
-        "kinds": {
-          "validation": 2,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.6667
       },
       "model_tokens": "unknown",
       "context": null,
@@ -631,15 +561,10 @@
       "repairs": {
         "attempts": 1,
         "repairs": 0,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.0,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.0
       },
       "model_tokens": "unknown",
       "context": null,
@@ -670,15 +595,10 @@
       "repairs": {
         "attempts": 2,
         "repairs": 1,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.5,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 1
-        }
+        "policy_denied": 0,
+        "rate": 0.5
       },
       "model_tokens": "unknown",
       "context": null,
@@ -708,15 +628,10 @@
       "repairs": {
         "attempts": 1,
         "repairs": 0,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.0,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.0
       },
       "model_tokens": "unknown",
       "context": null,
@@ -748,15 +663,10 @@
       "repairs": {
         "attempts": 2,
         "repairs": 1,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.5,
-        "kinds": {
-          "validation": 1,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.5
       },
       "model_tokens": "unknown",
       "context": null,
@@ -786,15 +696,10 @@
       "repairs": {
         "attempts": 1,
         "repairs": 0,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.0,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.0
       },
       "model_tokens": "unknown",
       "context": null,
@@ -824,15 +729,10 @@
       "repairs": {
         "attempts": 1,
         "repairs": 0,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.0,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 0
-        }
+        "policy_denied": 0,
+        "rate": 0.0
       },
       "model_tokens": "unknown",
       "context": null,
@@ -863,15 +763,10 @@
       "repairs": {
         "attempts": 2,
         "repairs": 1,
+        "accepted": 1,
         "terminal_refusals": 0,
-        "rate": 0.5,
-        "kinds": {
-          "validation": 0,
-          "no_action": 0,
-          "plain_text": 0,
-          "stale": 0,
-          "answer": 1
-        }
+        "policy_denied": 0,
+        "rate": 0.5
       },
       "model_tokens": "unknown",
       "context": null,
