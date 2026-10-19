@@ -171,7 +171,8 @@
         "citation tests pass on both stores, including another run's evidence and value not stored",
         "off action records unchanged; full and pg pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3e.1/2026-10-19T17-32-33.749841+00-00-full.json"
     },
     {
       "id": "F-3e-2",

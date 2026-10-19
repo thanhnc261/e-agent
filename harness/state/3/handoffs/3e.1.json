@@ -1,0 +1,31 @@
+{
+  "task": "3e.1",
+  "changed": "Checked citations on typed answers (ADR 0033 §1-2) behind grounded_answers off|shadow|on: contracts/grounding.py Citation(evidence_id, pointer, value); ActionProposal.citations (omitted when empty, outside the approval digest, dropped by plan_to_wire); new kernel/grounding.py with check_citations (resolves against this run's continuation observations only, RFC 6901 pointers, ADR 0006 canonical value digests) and GroundingMixin; _handle_answer moved unchanged from proposals.py to grounding.py plus the probe. off: citations dropped, records and events unchanged. shadow: grounding.compared / grounding.shadow_failed with counts and per-citation verdicts. on: KERNEL-CITATION repair within the repair budget; check failure -> feature.fallback GROUNDING_CHECK_FAILED before a reservation, GROUNDING_UNAVAILABLE fail-closed after. At rest a citation is evidence id, pointer and value digest only (PR-26). Review fixes: with context_assembler on, citations resolve only against the class-walked view the model was shown; a masked value, a removed secret or unnamed key, a container that lost a member, or a cited marker is UNRESOLVED like a nonexistent key (R1-1, R2-1). Commits 3ce4e36, 6eba333, 46bb146; reviews harness/state/3/reviews/3e.1-r1.json (rework), 3e.1-r2.json (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3e.1/2026-10-19T17-32-33.749841+00-00-full.json",
+    "harness/state/evidence/gates/3e.1/2026-10-19T17-33-55.130111+00-00-pg.json"
+  ],
+  "open_items": [
+    "R1-2 carried to 3e.4: in shadow, a typed answer that repeats a verified answer loses grounding.compared and at-rest citations (_finish_verified in kernel/verification.py returns before put_action); 3e.4's test_grounding_shadow_agrees_with_on must exclude or count this path.",
+    "Real shadow consumer (test_grounding_shadow_agrees_with_on) and release-report grounding counts land in 3e.4 per plan.",
+    "ProposePlan step citations still reach validators (never stored); carried to 3e.3 (plan_flow).",
+    "ADR 0033 §1 wording: with context_assembler on, 'the value at the pointer' means the class-walked view; owner amendment at phase end. Value digest is unsalted as ADR 0033 specifies (short values guessable offline from stored digests).",
+    "Stale refs: docs/design/target-architecture.md:548 and :1199 still place _handle_answer in kernel/proposals.py.",
+    "No kernel test for shadow grounding with context_assembler on (R2-3 nit)."
+  ],
+  "rulings": [
+    {
+      "ruling": "With context_assembler pinned on, a citation resolves only against the class-walked view (no budget/bound drops); masked, removed, reduced-container and marker citations are UNRESOLVED like a nonexistent key; off keeps the raw comparison since the driver sends raw data.",
+      "cost_if_wrong": "a legitimate citation on a masked value costs one repair, never a leak"
+    },
+    {
+      "ruling": "The grounding shadow consumer is 3e.4's test per plan lines 198 and 727.",
+      "cost_if_wrong": "shadow unconsumed until 3e.4; no committed profile enables it"
+    },
+    {
+      "ruling": "Unsalted value digest kept as ADR 0033 specifies.",
+      "cost_if_wrong": "an ADR amendment to salt per run"
+    }
+  ],
+  "outside_repo": []
+}
