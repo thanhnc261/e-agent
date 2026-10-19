@@ -32,6 +32,7 @@ from .continuation import NextStep, _Continuation
 from .errors import ErrorCode, KernelError
 from .ir import LineageRejected, substitute_lineage
 from .ir_on import IrOnMixin, _fixed
+from .reconstruct import ACTION_STATE_KEY
 
 RECEIPT_STEP = {
     ReceiptStatus.COMMITTED: StepStatus.SUCCEEDED,
@@ -83,7 +84,11 @@ class DispatchMixin(IrOnMixin):
             steps = await self._revalidated(action, StepStatus.FAILED)
             await self._transition(action, ActionState.BLOCKED, event, steps=steps)
             cont.pending_action_id = None
-            return await self._exhausted(run, "active time or provider deadline")
+            # a first step's block has no event: the state change records it (ADR 0031 §3)
+            blocked = () if later_step else (action.action_id,)
+            return await self._exhausted(
+                run, "active time or provider deadline", blocked_action_ids=blocked
+            )
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)  # reads advanced revision
         if stale_reason is None and self._clock() > approval.expires_at:
             stale_reason = "approval expired before dispatch"
@@ -162,21 +167,23 @@ class DispatchMixin(IrOnMixin):
             # ADR 0020: another action on this connection is RESERVED, DISPATCHING or UNKNOWN.
             # Caught here, before any generic ConcurrencyConflict handler, so it never escapes
             # as an HTTP 409.
-            await self._block_if_allowed(action, revalidated)
+            refused = await self._block_if_allowed(action, revalidated)
             cont.pending_action_id = None
             return await self._set_run_state(
                 run,
                 RunState.FAILED,
                 "connection has an unresolved write; reconcile it first",
                 code=ReasonCode.CONNECTION_BUSY,
+                blocked_action_ids=refused,
             )
         except DuplicateOperation:
-            await self._block_if_allowed(action, revalidated)
+            refused = await self._block_if_allowed(action, revalidated)
             return await self._set_run_state(
                 run,
                 RunState.FAILED,
                 "operation already reserved",
                 code=ReasonCode.OPERATION_RESERVED,
+                blocked_action_ids=refused,
             )
         cont.writes += 1
         action = await self._transition(
@@ -307,20 +314,26 @@ class DispatchMixin(IrOnMixin):
                 (RunEventType.VALIDATION_COMPLETED, payload),
                 steps=await self._revalidated(action, StepStatus.BLOCKED),
             )
-        else:
-            before = [(RunEventType.VALIDATION_COMPLETED, payload, action.action_id)]
+        else:  # the action keeps its state (ADR 0031 §3)
+            unchanged = {**payload, ACTION_STATE_KEY: None}
+            before = [(RunEventType.VALIDATION_COMPLETED, unchanged, action.action_id)]
         cont.pending_action_id = None
         run = await self._store.get_run(cont.ctx.tenant_id, cont.ctx.run_id)
         return await self._set_run_state(
             run, RunState.FAILED, reason, code=ReasonCode.STALE, before=before
         )
 
-    async def _block_if_allowed(self, action: ActionRecord, revalidated: list[StepRecord]) -> None:
+    async def _block_if_allowed(
+        self, action: ActionRecord, revalidated: list[StepRecord]
+    ) -> tuple[str, ...]:
         """BLOCKED from an approved action, with the passing revalidation rows its refused
         reservation did not store; a plan's later step is VALIDATED when it reserves and has
-        no BLOCKED transition, so it keeps its state and the run fails (2c.8)."""
-        if ActionState.BLOCKED in ALLOWED_ACTION_TRANSITIONS[action.state]:
-            await self._transition(action, ActionState.BLOCKED, steps=revalidated)
+        no BLOCKED transition, so it keeps its state and the run fails (2c.8). The id of the
+        action it blocked, for the run's state change (ADR 0031 §3), or none."""
+        if ActionState.BLOCKED not in ALLOWED_ACTION_TRANSITIONS[action.state]:
+            return ()
+        await self._transition(action, ActionState.BLOCKED, steps=revalidated)
+        return (action.action_id,)
 
     async def _staleness(self, cont: _Continuation, action: ActionRecord) -> str | None:
         ctx = cont.ctx

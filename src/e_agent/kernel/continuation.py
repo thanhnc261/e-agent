@@ -215,13 +215,16 @@ class ContinuationMixin:
             code: ReasonCode | None = None,
             before: EventBatch = (),
             snapshot: bool = True,
+            blocked_action_ids: Sequence[str] = (),
         ) -> RunRecord:
             raise NotImplementedError
 
         def _check_run_transition(self, run: RunRecord, to: RunState) -> None:
             raise NotImplementedError
 
-        async def _exhausted(self, run: RunRecord, what: str) -> RunRecord:
+        async def _exhausted(
+            self, run: RunRecord, what: str, *, blocked_action_ids: Sequence[str] = ()
+        ) -> RunRecord:
             raise NotImplementedError
 
         async def _transition(

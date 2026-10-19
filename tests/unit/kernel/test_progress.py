@@ -98,8 +98,8 @@ async def test_progress_of_a_verified_answer_run(make_kernel: MakeKernel) -> Non
 
     assert ledger.run_id == run.run_id
     assert ledger.goal == "count the notes"
-    # off: no definition is linked and the events do not say so: unknown, not "none"
-    assert (ledger.task_ref, ledger.task_ref_state) == (None, TaskRefState.UNKNOWN)
+    # off links no definition, and since Task 3c.2 `run.created` says so (ADR 0031 §3)
+    assert (ledger.task_ref, ledger.task_ref_state) == (None, TaskRefState.NONE)
     events = await k.store.list_events(TENANT, run.run_id)
     recorded = [e for e in events if e.type is RunEventType.READ_RECORDED]
     assert [(f.evidence_id, f.contract_id, f.revision) for f in ledger.facts] == [
@@ -307,6 +307,15 @@ def test_run_created_keys_decide_the_task_ref() -> None:
         [],
     )
     assert (known.task_ref, known.task_ref_state) == ("a@2", TaskRefState.KNOWN)
+
+
+def test_a_pre_key_run_created_leaves_the_task_ref_unknown() -> None:
+    """A ``run.created`` written before Task 3c.2 has no ``task_id`` key: it does not say the
+    run had no definition, so the ref is unknown, never "none" (ADR 0031 §3, PR-24)."""
+    ledger = project_progress(
+        [_event(1, RunEventType.RUN_CREATED, {"task": "t", "driver": "d"})], []
+    )
+    assert (ledger.task_ref, ledger.task_ref_state) == (None, TaskRefState.UNKNOWN)
 
 
 def test_driver_turn_steps_give_turns_and_tokens() -> None:

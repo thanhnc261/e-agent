@@ -32,6 +32,7 @@ from e_agent.contracts.step import StepKind, StepStatus
 from e_agent.kernel.approval import compute_digest
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.ir import step_operation_id
+from e_agent.kernel.reconstruct import ACTION_STATE_KEY, without_reconstruction_keys
 from e_agent.sdk.ports import DriverInput
 
 from .conftest import (
@@ -229,7 +230,9 @@ async def test_lineage_value_resolved_and_recorded_before_reservation(
     }
     for outcome in (e for e in events if e.type is RunEventType.OUTCOME_REPORTED):
         assert "verified_values" not in outcome.payload
-        OutcomeReport.model_validate(outcome.payload)
+        # the report, plus the action state ADR 0031 §3 adds
+        OutcomeReport.model_validate(without_reconstruction_keys(outcome.type, outcome.payload))
+        assert outcome.payload[ACTION_STATE_KEY] == ActionState.VERIFIED
 
 
 async def test_lineage_missing_value_stops_plan_before_reservation(

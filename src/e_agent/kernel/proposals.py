@@ -37,6 +37,7 @@ from .continuation import _Continuation, _GatewayReader
 from .errors import KernelError
 from .ir import StepDigestContext
 from .ir_on import IrOnMixin, _fixed
+from .reconstruct import proposal_keys
 from .verification import outcome_payload
 
 EVIDENCE_BUNDLE, NO_VALIDATOR_BUNDLE, ERROR_BUNDLE = "kernel-evidence-v1", "none", "error"
@@ -150,6 +151,7 @@ class ProposalsMixin(IrOnMixin):
                         "contract_id": action.contract_id,
                         "arguments": action.arguments,
                         "supersedes": previous,
+                        **proposal_keys(action),  # ADR 0031 §3
                     },
                     action.action_id,
                 )
@@ -264,6 +266,8 @@ class ProposalsMixin(IrOnMixin):
                         "expires_at": (
                             cont.approval_requested_at + self._ttl_for(run, cont)
                         ).isoformat(),
+                        "plan_id": action.plan_id,  # the stored link (ADR 0031 §3)
+                        "step_index": action.step_index,
                     },
                     action.action_id,
                 ),
@@ -339,6 +343,7 @@ class ProposalsMixin(IrOnMixin):
                         "arguments": action.arguments,
                         "kind": "answer",
                         "supersedes": cont.last_action_id,
+                        **proposal_keys(action),
                     },
                     action.action_id,
                 )
@@ -367,7 +372,7 @@ class ProposalsMixin(IrOnMixin):
             report,
             action.model_copy(update={"state": target, "revision": action.revision + 1}),
             action.revision,
-            [(RunEventType.OUTCOME_REPORTED, outcome_payload(report), action.action_id)],
+            [(RunEventType.OUTCOME_REPORTED, outcome_payload(report, target), action.action_id)],
         )
         if verified:
             return DriverInput(

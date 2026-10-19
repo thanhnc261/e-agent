@@ -6,7 +6,13 @@ records the event types in order with each event's payload key set, the final
 run state and its transitions, and every action's state and approval digest
 (the key sets were added in Task 2c.5, recorded on the kernel as Task 2c.4 left
 it, before any shadow change). ``off`` mode must keep this stream exactly;
-``test_off_baseline.py`` asserts against it. The ERP draft-po baseline lives
+``test_off_baseline.py`` asserts against it.
+
+Task 3c.2 (ADR 0031 §4, plan D7) adds payload keys reconstruction needs. The Phase 2
+golden above stays frozen and ``test_off_baseline.py`` compares the projection of the
+current stream onto its keys (`phase2_projection`); the current stream is recorded beside
+it as ``off_mode_events_v3.json``, which ``test_off_projection.py`` asserts and proves the
+frozen golden a projection of. The ERP draft-po baseline lives
 with the simulator plugin's tests
 (``tests/unit/plugins/erp/simulator/record_off_baseline_erp.py``), because the
 kernel suite imports no plugin (``tests/conformance/test_kernel_tests_neutral.py``).
@@ -19,7 +25,8 @@ stable. The run uses the in-memory store on purpose: a store that calls
 normalised to ``<prefix>#<ordinal of first appearance>``.
 
 Re-record only for a change the plan names:
-``uv run python tests/unit/kernel/record_off_baseline.py``.
+``uv run python tests/unit/kernel/record_off_baseline.py``. It writes the v3 golden only;
+the Phase 2 golden is never re-recorded.
 """
 
 from __future__ import annotations
@@ -40,8 +47,11 @@ from e_agent.contracts import common
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.events import RunEventType
 from e_agent.kernel.memory_store import InMemoryRunStore
+from e_agent.kernel.reconstruct import without_reconstruction_keys
 
 GOLDEN = Path(__file__).parent / "golden" / "off_mode_events.json"
+"""The Phase 2 golden: frozen (ADR 0031 §4)."""
+GOLDEN_V3 = Path(__file__).parent / "golden" / "off_mode_events_v3.json"
 RUNS = ("notes-write",)
 _ID = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*?)_([0-9a-f]{32})\b")
 
@@ -186,11 +196,39 @@ def assert_matches(golden: dict[str, Any], actual: dict[str, Any]) -> int:
     return len(cases)
 
 
+def phase2_keys(event_type: str, keys: list[str]) -> list[str]:
+    """An event's payload keys without the ones ADR 0031 §3 adds."""
+    return list(without_reconstruction_keys(event_type, dict.fromkeys(keys)))
+
+
+def phase2_projection(baseline: dict[str, Any]) -> dict[str, Any]:
+    """``baseline`` (current runs) projected onto the Phase 2 golden's keys (plan D7): each
+    event's §3 keys dropped, and an ``accept_input`` transition shown as Phase 2 recorded it
+    (its event had no ``to``). Nothing else changes."""
+    projected = {}
+    for name, run in baseline.items():
+        transitions, index = list(run["run_transitions"]), 0
+        for event_type, keys in zip(run["event_types"], run["payload_keys"], strict=True):
+            if event_type == RunEventType.RUN_STATE_CHANGED:
+                if "state" in keys:
+                    transitions[index] = "None"
+                index += 1
+        projected[name] = {
+            **run,
+            "payload_keys": [
+                phase2_keys(t, k)
+                for t, k in zip(run["event_types"], run["payload_keys"], strict=True)
+            ],
+            "run_transitions": transitions,
+        }
+    return projected
+
+
 def main() -> None:
     baseline = asyncio.run(record_baseline())
-    GOLDEN.parent.mkdir(exist_ok=True)
-    GOLDEN.write_text(json.dumps(baseline, indent=2, ensure_ascii=False) + "\n", "utf-8")
-    print(f"wrote {GOLDEN} ({len(baseline)} runs)")
+    GOLDEN_V3.parent.mkdir(exist_ok=True)
+    GOLDEN_V3.write_text(json.dumps(baseline, indent=2, ensure_ascii=False) + "\n", "utf-8")
+    print(f"wrote {GOLDEN_V3} ({len(baseline)} runs)")
 
 
 if __name__ == "__main__":

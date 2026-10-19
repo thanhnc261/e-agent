@@ -79,14 +79,20 @@ class RecoveryMixin(IrOnMixin):
             cont: _Continuation | None = await self._load_cont(actor.tenant_id, run_id)
         except KernelError:
             cont = None
+        blocked: list[str] = []  # event-less: the state change records them (ADR 0031 §3)
         if cont and cont.pending_action_id:
             pending = await self._store.get_action(actor.tenant_id, cont.pending_action_id)
             if ActionState.BLOCKED in ALLOWED_ACTION_TRANSITIONS[pending.state]:
                 steps = await self._close_open(pending, StepStatus.BLOCKED)  # the approval wait
                 await self._transition(pending, ActionState.BLOCKED, steps=steps)
+                blocked.append(pending.action_id)
             cont.pending_action_id = None
         cancelled = await self._set_run_state(
-            run, RunState.CANCELLED, "cancelled before dispatch", code=ReasonCode.CANCELLED
+            run,
+            RunState.CANCELLED,
+            "cancelled before dispatch",
+            code=ReasonCode.CANCELLED,
+            blocked_action_ids=blocked,
         )
         active = self._active_calls.get(run_id)
         if active is not None:
@@ -226,6 +232,8 @@ class RecoveryMixin(IrOnMixin):
                 RunState.FAILED,
                 "interrupted before dispatch; approve a new run",
                 code=ReasonCode.INTERRUPTED,
+                # event-less, every one of them: the state change records them (ADR 0031 §3)
+                blocked_action_ids=[a.action_id for a in undispatched],
             )
         elif committed and cont is not None:
             receipts = await self._store.list_receipts(run.tenant_id, committed[0].action_id)

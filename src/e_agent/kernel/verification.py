@@ -24,6 +24,7 @@ from e_agent.sdk.store import EventSpec
 from .continuation import NextStep, _Continuation, _GatewayReader
 from .features import RouteRefused, context_failed_event
 from .ir_on import IrOnMixin
+from .reconstruct import ACTION_STATE_KEY
 
 OUTCOME_STEP = {
     OutcomeStatus.VERIFIED: StepStatus.SUCCEEDED,
@@ -33,10 +34,12 @@ OUTCOME_STEP = {
 """How an outcome ends a linked action's verify step (execution IR ``on``)."""
 
 
-def outcome_payload(report: OutcomeReport) -> dict[str, Any]:
+def outcome_payload(report: OutcomeReport, action_state: ActionState | None) -> dict[str, Any]:
     """The ``outcome.reported`` payload: the report without its read-back values, which only
-    the stored outcome and a plan's lineage see, so they never reach an export (PR-26)."""
-    return report.model_dump(mode="json", exclude={"verified_values"})
+    the stored outcome and a plan's lineage see, so they never reach an export (PR-26), and
+    the state the write leaves the action in, null when unchanged (ADR 0031 §3)."""
+    payload = report.model_dump(mode="json", exclude={"verified_values"})
+    return {**payload, ACTION_STATE_KEY: action_state}
 
 
 class VerificationMixin(IrOnMixin):
@@ -87,7 +90,8 @@ class VerificationMixin(IrOnMixin):
                 [
                     (
                         RunEventType.OUTCOME_REPORTED,
-                        {"status": "UNKNOWN", "error": type(exc).__name__},
+                        # the action is unchanged (ADR 0031 §3)
+                        {"status": "UNKNOWN", "error": type(exc).__name__, ACTION_STATE_KEY: None},
                         action.action_id,
                     ),
                     *await self._step_pair(action, StepKind.VERIFY, StepStatus.UNKNOWN),
@@ -109,7 +113,9 @@ class VerificationMixin(IrOnMixin):
         steps: list[EventSpec | StepRecord] = [
             *await self._step_pair(action, StepKind.VERIFY, OUTCOME_STEP[report.status])
         ]
-        outcome = (RunEventType.OUTCOME_REPORTED, outcome_payload(report), action.action_id)
+        unchanged = report.status is OutcomeStatus.UNKNOWN  # recorded without the action
+        payload = outcome_payload(report, None if unchanged else target)
+        outcome = (RunEventType.OUTCOME_REPORTED, payload, action.action_id)
         plan = cont.plan if self._plan_step(cont, action) else None
         if plan is not None and report.status is OutcomeStatus.VERIFIED:
             assert action.step_index is not None

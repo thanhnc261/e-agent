@@ -71,6 +71,7 @@ from .ir import (
 )
 from .ir_on import OUTSIDE_SET, PLAN_INTERRUPTED, _fixed
 from .proposals import SENTINEL_BUNDLES, ProposalsMixin
+from .reconstruct import proposal_keys
 
 PLAN_UNSUPPORTED = "This run does not execute multi-step plans; propose one action."
 ONE_WRITE = "This run admits one write; propose one action instead of a plan."
@@ -318,6 +319,7 @@ class PlanFlowMixin(ProposalsMixin):
             "contract_id": action.contract_id,
             "arguments": action.arguments,
             "supersedes": action.supersedes_action_id,
+            **proposal_keys(action),  # ADR 0031 §3
         }
         return (RunEventType.PROPOSAL_CREATED, payload, action.action_id)
 

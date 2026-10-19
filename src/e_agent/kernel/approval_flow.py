@@ -29,6 +29,7 @@ from .continuation import LOG, _Continuation
 from .errors import ErrorCode, KernelError
 from .ir_on import IrOnMixin
 from .policy import APPROVER_ROLE
+from .reconstruct import approval_keys
 
 
 class ApprovalFlowMixin(IrOnMixin):
@@ -215,7 +216,12 @@ class ApprovalFlowMixin(IrOnMixin):
             [
                 (
                     RunEventType.APPROVAL_DECIDED,
-                    {"decision": decision, "actor_id": actor.principal_id, "digest": action_digest},
+                    {
+                        "decision": decision,
+                        "actor_id": actor.principal_id,
+                        "digest": action_digest,
+                        **approval_keys(record),  # ADR 0031 §3
+                    },
                     action_id,
                 ),
                 *await self._step_finish(action, StepKind.APPROVAL_WAIT, waited),

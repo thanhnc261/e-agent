@@ -41,6 +41,7 @@ from .features import LOCAL_ROUTE, FeaturesMixin
 from .gateway import GatewayMixin
 from .ir_on import merged_budgets
 from .plan_flow import PlanFlowMixin
+from .reconstruct import run_created_keys
 from .recovery import RecoveryMixin
 from .registry import PluginRegistry
 from .run_loop import RunLoopMixin
@@ -131,7 +132,11 @@ class RunCoordinator(
             if definition is None
             else merged_budgets(self._budgets, definition),
         )
-        created: dict[str, Any] = {"task": task, "driver": self._driver.driver_id}
+        created: dict[str, Any] = {
+            "task": task,
+            "driver": self._driver.driver_id,
+            **run_created_keys(run),  # ADR 0031 §3, from the run as `_admit_task` linked it
+        }
         if host_context is not None:
             resolved, dropped = self._connections.resolve_hints(ctx, host_context.resource_hints)
             # Recorded as untrusted context; selection text is never persisted.

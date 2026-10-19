@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import partial
 
 from e_agent.contracts.action import ActionState
@@ -257,7 +258,18 @@ class RunLoopMixin(GatewayMixin):
                     {"input": text, "expected_revision": expected_revision},
                     None,
                 ),
-                (RunEventType.RUN_STATE_CHANGED, {"state": RunState.RUNNING}, None),
+                (
+                    RunEventType.RUN_STATE_CHANGED,
+                    # `state` is the Phase 2 key; the rest are ADR 0031 §3's
+                    {
+                        "state": RunState.RUNNING,
+                        "from": run.state,
+                        "to": RunState.RUNNING,
+                        "reason": None,
+                        "reason_code": None,
+                    },
+                    None,
+                ),
             ],
             continuation=self._snapshot(run_id),
             work=("input", {}, digest({"revision": str(expected_revision), "input": text}))
@@ -295,7 +307,10 @@ class RunLoopMixin(GatewayMixin):
         await self.accept_input(actor, run_id, text, expected_revision)
         return await self.continue_input(actor.tenant_id, run_id)
 
-    async def _exhausted(self, run: RunRecord, what: str) -> RunRecord:
+    async def _exhausted(
+        self, run: RunRecord, what: str, *, blocked_action_ids: Sequence[str] = ()
+    ) -> RunRecord:
+        """FAILED ``BUDGET_EXHAUSTED``; ``blocked_action_ids`` as in `_set_run_state`."""
         run = await self._store.get_run(run.tenant_id, run.run_id)
         run = await self._store.update_run(
             run.model_copy(update={"revision": run.revision + 1}),
@@ -303,5 +318,9 @@ class RunLoopMixin(GatewayMixin):
             [(RunEventType.BUDGET_EXHAUSTED, {"budget": what}, None)],
         )
         return await self._set_run_state(
-            run, RunState.FAILED, f"budget exhausted: {what}", code=ReasonCode.BUDGET_EXHAUSTED
+            run,
+            RunState.FAILED,
+            f"budget exhausted: {what}",
+            code=ReasonCode.BUDGET_EXHAUSTED,
+            blocked_action_ids=blocked_action_ids,
         )

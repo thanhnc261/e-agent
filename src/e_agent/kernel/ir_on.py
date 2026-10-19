@@ -68,6 +68,7 @@ from .ir import (
     plan_digest_input,
     validate_plan,
 )
+from .reconstruct import without_reconstruction_keys
 from .step import finish_step, start_step
 
 FEATURE = "execution_ir"
@@ -419,7 +420,8 @@ class IrOnMixin(FeaturesMixin):
             for event in await self._store.list_events(run.tenant_id, run.run_id):
                 if event.type is RunEventType.OUTCOME_REPORTED and event.action_id in answer_ids:
                     try:
-                        reports.append(OutcomeReport.model_validate(event.payload))
+                        report = without_reconstruction_keys(event.type, event.payload)
+                        reports.append(OutcomeReport.model_validate(report))
                     except ValidationError:  # the verifier-unavailable shape is no report
                         continue
         if acceptance_met(task.acceptance, counts, reports):
