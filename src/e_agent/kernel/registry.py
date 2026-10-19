@@ -100,6 +100,7 @@ class PluginRegistry:
         may only narrow ``budgets`` (ADR 0028, D7). Bootstrap passes both."""
         self._binding_connections = {k: tuple(v) for k, v in binding_connections.items()}
         self.environment = environment
+        self._classes: dict[str, Mapping[str, dc.DataClass]] = {}  # frozen at admission
         self.budgets = budgets if budgets is not None else Budgets()
         self.capabilities: dict[str, CapabilityDescriptor] = {}
         self.bindings: list[CapabilityBinding] = []
@@ -268,6 +269,7 @@ class PluginRegistry:
                     plugin_id, "capability", cap.contract_id, cap, _CAPABILITY_EFFECT_FIELDS
                 )
             self.capabilities[cap.contract_id] = cap
+            self._classes[cap.contract_id] = dc.frozen_classes(cap.data_classes)
         for template in binding_templates:
             if template.binding_id in self._binding_owner:
                 raise _reject(f"duplicate binding id {template.binding_id!r}")
@@ -375,7 +377,7 @@ class PluginRegistry:
     def data_class(self, contract_id: str, instance_path: str) -> dc.DataClass:
         """The most restrictive class declared on the path or an ancestor, ``personal``
         when none; string work, no schema walk. Task 3d.2's assembler reads it."""
-        return dc.class_for(self.descriptor(contract_id).data_classes, instance_path)
+        return dc.class_for(self._classes[self.descriptor(contract_id).contract_id], instance_path)
 
     def unmarked_properties(self) -> dict[str, dict[str, int | None]]:
         """Unmarked leaves per capability and side; None: no schema, or an unsupported one."""

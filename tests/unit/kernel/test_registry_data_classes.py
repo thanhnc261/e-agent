@@ -52,6 +52,21 @@ def test_unmarked_property_counts_as_personal() -> None:
     assert err.value.code is ErrorCode.INVALID_REQUEST
 
 
+def test_post_admission_mutation_does_not_reach_lookup() -> None:
+    """Review C3-14: lookup reads a frozen copy taken at admission, so a plugin that
+    edits its own mapping afterwards cannot lower a class or store an unchecked key."""
+    classes = dict(CLASSED_READ.data_classes)
+    read = CLASSED_READ.model_copy(update={"data_classes": classes})
+    reg = _register(read)
+    rid = read.contract_id
+    assert reg.data_class(rid, "/output/topic") is DataClass.INTERNAL
+    classes["/output/topic"] = DataClass.PUBLIC
+    classes["/output/notes/0/key"] = DataClass.PUBLIC  # a numeric-index key admission refuses
+    del classes["/output/notes/items/key"]
+    assert reg.data_class(rid, "/output/topic") is DataClass.INTERNAL
+    assert reg.data_class(rid, "/output/notes/0/key") is DataClass.INTERNAL
+
+
 def test_registry_counts_unmarked_properties_per_capability() -> None:
     counts = _register().unmarked_properties()
     print(f"capabilities counted: {len(counts)}")

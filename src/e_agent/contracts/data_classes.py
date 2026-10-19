@@ -27,6 +27,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from enum import StrEnum
+from types import MappingProxyType
 from typing import Any
 
 from .common import Record
@@ -214,6 +215,12 @@ def declared_class(classes: Mapping[str, DataClass], path: str) -> DataClass | N
     return most_restrictive(
         by_tokens[tokens[:end]] for end in range(1, len(tokens) + 1) if tokens[:end] in by_tokens
     )
+
+
+def frozen_classes(classes: Mapping[str, DataClass]) -> Mapping[str, DataClass]:
+    """A validated, immutable copy taken at admission (review C3-14): a later change to
+    the plugin's own mapping never reaches lookup."""
+    return MappingProxyType({check_class_key(k): DataClass(v) for k, v in dict(classes).items()})
 
 
 def class_for(classes: Mapping[str, DataClass], path: str) -> DataClass:
