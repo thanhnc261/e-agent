@@ -136,6 +136,7 @@ source_modules = [
     "e_agent.kernel.dispatch",
     "e_agent.kernel.errors",
     "e_agent.kernel.evidence",
+    "e_agent.kernel.explain",
     "e_agent.kernel.features",
     "e_agent.kernel.gateway",
     "e_agent.kernel.ir",

@@ -1,5 +1,6 @@
 """Evidence classification reads typed reason codes first (ADR 0018)."""
 
+import json
 from collections.abc import Callable
 from typing import Any
 
@@ -10,6 +11,9 @@ from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.run import ReasonCode
 from e_agent.kernel import evidence
 from e_agent.kernel.evidence import build_evidence, classify
+from e_agent.kernel.explain import explain
+from e_agent.kernel.progress import project_progress
+from e_agent.kernel.reconstruct import reconstruct
 
 from .conftest import TENANT, Kernel
 
@@ -119,7 +123,34 @@ async def test_evidence_v1_keys_unchanged(make_kernel: Callable[..., Kernel]) ->
     bundle = await _bundle(make_kernel(), Features())
     assert bundle["schema"] == "e-agent-evidence-v1"
     assert set(bundle) >= _V1_KEYS
-    assert set(bundle) - _V1_KEYS == {"features"}
+    assert set(bundle) - _V1_KEYS == {"features", "explanation"}
+
+
+async def test_evidence_bundle_has_explanation(make_kernel: Callable[..., Kernel]) -> None:
+    """The additive ``explanation`` key is the projection of the exported events and steps
+    (ADR 0033 §6), and it holds none of the proposal's arguments."""
+    k = make_kernel(["SENTINEL-note-text"])
+    run = await k.coordinator.start_run(k.requester, "x", k.scope)
+    pres = await k.coordinator.pending_approval(TENANT, run.run_id)
+    await k.coordinator.decide(
+        actor=k.approver,
+        run_id=run.run_id,
+        action_id=pres.action_id,
+        action_digest=pres.digest,
+        expected_run_revision=pres.run_revision,
+        decision=ApprovalDecision.APPROVED,
+    )
+    bundle = await build_evidence(
+        k.store, TENANT, run.run_id, environment="fixture", versions={}, features=Features()
+    )
+    events = await k.store.list_events(TENANT, run.run_id)
+    steps = await k.store.list_steps(TENANT, run.run_id)
+    expected = explain(project_progress(events, steps), reconstruct(events))
+    assert bundle["explanation"] == expected.model_dump(mode="json")
+    assert bundle["explanation"]["completeness"] == "known"
+    assert [p["digest"] for p in bundle["explanation"]["proposals"]] == [pres.digest]
+    assert "SENTINEL-note-text" in json.dumps(bundle["events"])  # the events hold it
+    assert "SENTINEL-note-text" not in json.dumps(bundle["explanation"])
 
 
 async def test_evidence_reports_the_route_only_when_given(

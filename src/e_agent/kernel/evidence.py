@@ -13,7 +13,9 @@ lineage copies from stay out of the bundle (PR-26). An exporter that passes its 
 report's defaulted effect declarations gets the additive ``defaulted_declarations`` key
 (ADR 0029 Operations). A run that pinned a Phase 3 mode carries the additive ``modes`` key,
 the pin read from its kernel continuation (ADR 0032 §8, §13); an all-``off`` run pins
-nothing, so its bundle has no such key. Nothing else of the continuation is exported.
+nothing, so its bundle has no such key. Nothing else of the continuation is exported. Every
+bundle carries the additive ``explanation`` key, the projection of its events and steps
+(ADR 0033 §6): ids, versions, digests and statuses, no observation values or model text.
 """
 
 from __future__ import annotations
@@ -24,10 +26,14 @@ from typing import Any
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.common import utc_now
 from e_agent.contracts.events import RunEvent, RunEventType
+from e_agent.contracts.explain import Explanation
 from e_agent.contracts.features import Features, RunModes
 from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode
 from e_agent.sdk.store import RunStore
 
+from .explain import explain
+from .progress import project_progress
+from .reconstruct import reconstruct
 from .registry import DefaultedDeclaration
 
 EVIDENCE_SCHEMA = "e-agent-evidence-v1"
@@ -241,4 +247,16 @@ async def build_evidence(
     steps = await store.list_steps(tenant_id, run_id)
     if steps:
         bundle["steps"] = [s.model_dump(mode="json") for s in steps]
+    bundle["explanation"] = explain(
+        project_progress(events, steps), reconstruct(events)
+    ).model_dump(mode="json")
     return bundle
+
+
+async def run_explanation(store: RunStore, tenant_id: str, run_id: str) -> Explanation:
+    """The explanation of one run in the tenant (ADR 0033 §6): its events read page by page
+    and its steps, projected without a model call. A run outside the tenant is not found."""
+    await store.get_run(tenant_id, run_id)
+    events = await _all_events(store, tenant_id, run_id)
+    steps = await store.list_steps(tenant_id, run_id)
+    return explain(project_progress(events, steps), reconstruct(events))

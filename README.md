@@ -130,6 +130,7 @@ uv run e-agent demo --task late-orders                            # ERP-06 verif
 uv run e-agent demo --task crm-lead --approve                     # ERP-07 lead
 uv run e-agent demo --task overdue-invoices                       # ERP-08 verified answer
 uv run e-agent plugins                    # discovered plugins (metadata only)
+uv run e-agent explain <run_id>           # a stored run's explanation (ids, versions, digests; no model call; durable-store profile)
 
 # Local model + fixture ERP qualification; pin existing weights/context explicitly
 ollama create e-agent-mvp-qwen3-coder-20261007 -f profiles/ollama-mvp.Modelfile
