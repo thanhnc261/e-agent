@@ -321,6 +321,33 @@ async def test_validator_error_block_is_not_a_repeat(make_kernel: MakeKernel) ->
     assert "blocked" not in await _stored(k, run.run_id)
 
 
+async def test_validator_error_status_block_is_not_a_repeat(make_kernel: MakeKernel) -> None:
+    """A validator that returns ERROR, with its own bundle and without raising, has not
+    judged the facts either: its block is not kept (review R1-1)."""
+    k = make_kernel(["standup notes", "standup notes"], features=ON)
+    real = k.validator.validate
+    calls: list[int] = []
+
+    async def erroring_first(ctx: TaskContext, item: Any) -> Any:
+        calls.append(1)
+        result = await real(ctx, item)
+        if len(calls) > 1:
+            return result
+        engine = Finding(
+            rule_id="NOTE-ENGINE", rule_version="1", status=ValidationStatus.ERROR, message="m"
+        )
+        return result.model_copy(update={"status": ValidationStatus.ERROR, "findings": (engine,)})
+
+    k.validator.validate = erroring_first  # type: ignore[method-assign]
+    run = await _start(k)
+
+    assert run.state is RunState.WAITING_APPROVAL, run.reason
+    assert len(calls) == 2
+    validations = _of(await _events(k, run.run_id), RunEventType.VALIDATION_COMPLETED)
+    assert [_rules(e)[0] for e in validations] == ["NOTE-ENGINE", "NOTE-001"]
+    assert "blocked" not in await _stored(k, run.run_id)
+
+
 async def test_changed_surface_revalidates(make_kernel: MakeKernel) -> None:
     """A registry surface that is no longer the run's may hold other validators: the same
     proposal is validated again."""

@@ -160,8 +160,9 @@ class _Continuation(BaseModel):
     @model_serializer(mode="wrap")
     def _omit_unbound_task(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
         """Leave ``task``, ``plan``, ``modes`` and ``context_boundary`` out when unset, and
-        ``blocked`` when empty, so an ``off`` or ``shadow`` continuation is stored exactly as
-        before Task 2c.6, 3b.2 and 3d.6."""
+        ``blocked`` when empty, so an ``off`` continuation is stored exactly as before Task
+        2c.6, 3b.2 and 3d.6. A run pinned ``kernel_repeat`` ``shadow`` or ``on`` keeps a
+        non-empty ``blocked`` once a proposal is blocked."""
         data: dict[str, Any] = handler(self)
         for name in ("task", "plan", "modes", "context_boundary"):
             if getattr(self, name) is None:

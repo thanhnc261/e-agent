@@ -201,11 +201,16 @@ class RepeatMixin(IrOnMixin):
         self, cont: _Continuation, action: ActionRecord, validation: ValidationResult
     ) -> None:
         """Keep a validation-blocked proposal for the check, when the run is not pinned
-        ``off``; never one outside the digest profile or blocked by a validator that raised."""
+        ``off``; never one outside the digest profile, or one a validator that raised or
+        returned ERROR blocked: it has not judged the facts (review R1-1)."""
         if self._run_modes(cont).kernel_repeat is FeatureMode.OFF:
             return
         bundles = validation.rule_bundle_version.split("+")
-        if action.digest == INVALID_DIGEST or ERROR_BUNDLE in bundles:
+        if (
+            action.digest == INVALID_DIGEST
+            or ERROR_BUNDLE in bundles
+            or validation.status is ValidationStatus.ERROR
+        ):
             return
         revision = BlockedRevision(
             action_id=action.action_id,
