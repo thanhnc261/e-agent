@@ -451,6 +451,9 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 - [ ] Implement.
 - [ ] Run the same command on both stores; expected: pass.
 - [ ] Commit `feat(kernel): deterministic explanation projection (Q5, ADR 0033)`.
+- Rulings from review (2026-10-19), recorded so code and design agree (PR-35):
+  - CQ06: findings' `expected` and `observed` stay out of the explanation; `observed` is read data and ADR 0033 §6 holds no observation values (PR-26). The bundle's events keep them. Explained findings carry rule id, version and status, without the validator message (C3-28, C3-29).
+  - CQ07: the driver id comes from `run.created` through the reconstruction, and the evaluated rule refs (PASS included) from the ledger (C3-26, C3-27). `rule_bundle_version` is in no event payload, only inside the approval digest, so the explanation does not name it; recording it needs an ADR 0031 §3 key, which is the owner's decision (C3-27).
 
 ## Part 3d: context assembly
 
