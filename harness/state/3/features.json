@@ -45,7 +45,8 @@
         "a run pinned off fails closed with ROUTE_BOUNDARY_UNMET on an undeclared hosted route",
         "off baselines and both off model-request goldens unchanged; full and pg pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3b.2/2026-10-19T07-24-17.308812+00-00-full.json"
     },
     {
       "id": "F-3b-3",

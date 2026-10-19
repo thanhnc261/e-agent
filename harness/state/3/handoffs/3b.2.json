@@ -1,0 +1,29 @@
+{
+  "task": "3b.2",
+  "changed": "ERP off model-request golden pinned alone first (58a5663). Then (ba3819b): features context_assembler, kernel_repeat, grounded_answers (default off, committed profiles off); eight reason codes with fixed messages; context.failed event; RunModes pinned per run in the continuation, omitted when all off; per-call route check in _with_tools (FeaturesMixin._check_route) for both driver call sites, failing closed with ROUTE_BOUNDARY_UNMET or going to reconciliation, skipping the acknowledgement turn; fallback_event refuses a code of another feature; readiness and the bundle report four toggles and a run's pinned modes; startup still refuses a hosted route with context_assembler on (moved from 3b.1). Reviews: Codex accept; Claude focused review accept (harness/state/3/reviews/3b.2.json).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3b.2/2026-10-19T07-24-17.308812+00-00-full.json",
+    "harness/state/evidence/gates/3b.2/2026-10-19T07-25-31.463028+00-00-pg.json"
+  ],
+  "open_items": [
+    "3d.5 must lift the startup refusal for context_assembler on only together with masking: a run pinned on passes the per-call check today but nothing masks (unreachable through bootstrap).",
+    "The restore rendering-marker check (DRIVER_STATE_MISMATCH handler) lands in 3d.4/3d.5; only the code exists now.",
+    "Low: harden the call-site scan against aliases (C2-1); re-recording tests/replays/erp-model-calls/draft-po.json breaks the ERP golden."
+  ],
+  "rulings": [
+    {
+      "ruling": "The route check lives in FeaturesMixin._check_route, called first in _with_tools, to keep ir_on.py under the 500-line limit.",
+      "cost_if_wrong": "None; one call site, covered by the conformance scan."
+    },
+    {
+      "ruling": "cont.turns counting a refused turn is accepted (review C2-3).",
+      "cost_if_wrong": "A stored turn count one high on a failed run; no budget or event effect."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "Postgres test database e_agent_test used by the pg gate and the pinning tests.",
+      "undo": "none needed; test data only"
+    }
+  ]
+}

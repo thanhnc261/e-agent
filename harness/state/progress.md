@@ -639,3 +639,8 @@
 - changed: harness/state/3/features.json, harness/state/3/handoffs/3b.1.json, harness/state/evidence/gates/3b.1/2026-10-19T06-54-11.575839+00-00-full.json
 - next: Task 3b.2: Phase 3 toggles, per-run pinning, ERP off golden
 - open: none
+
+## 2026-10-19T07:32:06.563304+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3b.2
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3b.2.json, harness/state/3/reviews/3b.2-codex.json, harness/state/3/reviews/3b.2.json, harness/state/evidence/gates/3b.2/2026-10-19T07-24-17.308812+00-00-full.json, harness/state/evidence/gates/3b.2/2026-10-19T07-25-31.463028+00-00-pg.json
+- next: Task 3b.3: data classes on capability declarations and stored records
+- open: none
