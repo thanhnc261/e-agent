@@ -8,7 +8,10 @@ RFC 6901 ``pointer`` exists in that observation's ``data``, and the value there 
 cited value: equal ``jcs-sha256-v1`` digests (ADR 0006), with every JSON number written as
 its canonical decimal string first, as the context pack renders it (``number_text``). A
 pointer that names nothing, or is not RFC 6901, is unresolved. The check makes no provider
-read and no model call.
+read and no model call. In a run pinned ``context_assembler: on`` it reads the data as the
+pack's class walk shows it to the model (`ClassView`): a masked value or a removed key is
+unresolved, exactly like a key that does not exist, and a cited marker never resolves, so
+the check is no oracle on what the pack withheld (review R1-1, PR-26).
 
 **The answer path** (`_handle_answer`, per the run's pinned mode, `_run_modes`):
 
@@ -46,8 +49,10 @@ from enum import StrEnum
 from types import MappingProxyType
 from typing import Any
 
+from e_agent.contracts import data_classes as dc
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.common import new_id
+from e_agent.contracts.context_pack import masked_marker
 from e_agent.contracts.data_classes import parse_pointer
 from e_agent.contracts.digest import CanonicalizationError, digest
 from e_agent.contracts.events import RunEventType
@@ -61,7 +66,9 @@ from e_agent.sdk.ports import DriverInput, Observation
 from e_agent.sdk.store import EventSpec
 
 from .approval import compute_digest
-from .context_walk import _plain
+from .context import ClassLookup, context_route
+from .context_on import ON_POLICY
+from .context_walk import Walker, _plain
 from .continuation import _Continuation, _GatewayReader
 from .errors import KernelError
 from .reconstruct import proposal_keys
@@ -103,27 +110,83 @@ def value_digest(value: Any) -> str:
     return digest(_plain(value))
 
 
-def _value_at(data: Any, pointer: str) -> Any:
-    """The value at an RFC 6901 pointer, or ``_MISSING``."""
+def _tokens(pointer: str) -> tuple[str, ...] | None:
+    """The pointer's reference tokens, or None when it is not RFC 6901."""
     if pointer == "":
-        return data
+        return ()
     try:
-        tokens = parse_pointer(pointer)
+        return parse_pointer(pointer)
     except ValueError:
-        return _MISSING
-    node = data
+        return None
+
+
+def _follow(
+    node: Any, tokens: tuple[str, ...], positions: Mapping[int, list[int]] | None = None
+) -> tuple[Any, tuple[str, ...]]:
+    """The value at ``tokens`` (``_MISSING`` when there is none) and its pointer in the
+    original data: ``positions`` maps a rendered list to its members' original indices."""
+    original: list[str] = []
     for token in tokens:
         if isinstance(node, Mapping):
             if token not in node:
-                return _MISSING
+                return _MISSING, ()
             node = node[token]
+            original.append(token)
         elif isinstance(node, list | tuple):
             if not _INDEX.fullmatch(token) or int(token) >= len(node):
-                return _MISSING
-            node = node[int(token)]
+                return _MISSING, ()
+            index, at = int(token), (positions or {}).get(id(node))
+            original.append(str(at[index] if at else index))
+            node = node[index]
         else:
+            return _MISSING, ()
+    return node, tuple(original)
+
+
+def _value_at(data: Any, pointer: str) -> Any:
+    """The value at an RFC 6901 pointer in raw data, or ``_MISSING``."""
+    tokens = _tokens(pointer)
+    return _MISSING if tokens is None else _follow(data, tokens)[0]
+
+
+MARKERS = frozenset(masked_marker(c) for c in dc.DataClass)
+
+
+def _holds_marker(value: Any) -> bool:
+    if isinstance(value, str):
+        return value in MARKERS
+    if isinstance(value, Mapping):
+        return any(_holds_marker(v) for v in value.values())
+    if isinstance(value, list | tuple):
+        return any(_holds_marker(v) for v in value)
+    return False
+
+
+class ClassView:
+    """Observation data as the context pack's class walk renders it to the model, for a run
+    pinned ``context_assembler: on`` (review R1-1, PR-26): the same `Walker`, class
+    declarations and route row as `assemble`, so masking and secret removal apply, never
+    the per-turn size bound. A masked value, a removed key, or a container holding either,
+    is no value: the check is never an oracle on what the pack withheld."""
+
+    def __init__(self, classes: ClassLookup, route: Mapping[str, Any]) -> None:
+        self._classes = classes
+        self._rules = ON_POLICY.class_rules[context_route(route)]
+        self._walked: dict[int, tuple[Walker, dict[str, Any]]] = {}
+
+    def value_at(self, observation: Observation, pointer: str) -> Any:
+        tokens = _tokens(pointer)
+        if tokens is None:
             return _MISSING
-    return node
+        if id(observation) not in self._walked:
+            index = dc.ClassIndex(self._classes(observation.contract_id))
+            walker = Walker(index, self._rules, observation.evidence.evidence_id)
+            self._walked[id(observation)] = (walker, walker.root(observation.data))
+        walker, rendered = self._walked[id(observation)]
+        value, at = _follow(rendered, tokens, walker.positions)
+        if value is _MISSING or any(p[: len(at)] == at for p in walker.mask_pointers):
+            return _MISSING
+        return value
 
 
 @dataclass(frozen=True)
@@ -182,7 +245,9 @@ class GroundingResult:
         )
 
 
-def _verdict(by_id: Mapping[str, list[Observation]], citation: Citation) -> CitationVerdict:
+def _verdict(
+    by_id: Mapping[str, list[Observation]], citation: Citation, view: ClassView | None
+) -> CitationVerdict:
     def verdict(status: CitationStatus, cited: str) -> CitationVerdict:
         return CitationVerdict(citation.evidence_id, citation.pointer, cited, status)
 
@@ -190,7 +255,13 @@ def _verdict(by_id: Mapping[str, list[Observation]], citation: Citation) -> Cita
         cited = value_digest(citation.value)
     except (KernelError, CanonicalizationError):
         return verdict(CitationStatus.MISMATCHED, INVALID_DIGEST)  # equals no stored value
-    found = [_value_at(o.data, citation.pointer) for o in by_id.get(citation.evidence_id, ())]
+    if view is not None and _holds_marker(citation.value):
+        return verdict(CitationStatus.UNRESOLVED, cited)  # a marker is not evidence
+    sources = by_id.get(citation.evidence_id, ())
+    if view is None:
+        found = [_value_at(o.data, citation.pointer) for o in sources]
+    else:
+        found = [view.value_at(o, citation.pointer) for o in sources]
     found = [value for value in found if value is not _MISSING]
     if not found:
         return verdict(CitationStatus.UNRESOLVED, cited)
@@ -204,15 +275,19 @@ def _verdict(by_id: Mapping[str, list[Observation]], citation: Citation) -> Cita
 
 
 def check_citations(
-    observations: Iterable[Observation], citations: Iterable[Citation]
+    observations: Iterable[Observation],
+    citations: Iterable[Citation],
+    view: ClassView | None = None,
 ) -> GroundingResult:
     """Each citation's verdict against ``observations``: the caller passes this run's
     continuation observations, so evidence of another run never resolves (Review Focus 5).
-    Pure: no provider read, no model call."""
+    With a ``view`` (pinned ``context_assembler: on``) values are those the class walk
+    shows the model; without one, the raw data the driver was given. Pure: no provider
+    read, no model call. A walk that raises propagates: the check cannot run."""
     by_id: dict[str, list[Observation]] = {}
     for observation in observations:
         by_id.setdefault(observation.evidence.evidence_id, []).append(observation)
-    return GroundingResult(tuple(_verdict(by_id, c) for c in citations))
+    return GroundingResult(tuple(_verdict(by_id, c, view) for c in citations))
 
 
 @dataclass(frozen=True)
@@ -256,8 +331,12 @@ class GroundingMixin(RepeatMixin):
         mode = self._run_modes(cont).grounded_answers
         if mode is FeatureMode.OFF:
             return GroundingProbe(FeatureMode.OFF)  # dropped, never stored
+        modes = self._run_modes(cont)
         try:
-            result = check_citations(cont.observations.values(), citations)
+            view = None
+            if modes.context_assembler is FeatureMode.ON:  # what the pack showed (R1-1)
+                view = ClassView(self._registry.data_classes, self._route)
+            result = check_citations(cont.observations.values(), citations, view)
         except Exception:  # no exception text reaches an event (PR-25, PR-28)
             if mode is FeatureMode.SHADOW:
                 return GroundingProbe(mode, failed=True)

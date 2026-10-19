@@ -16,6 +16,7 @@ both stores through the ``run_store`` fixture (ENG-STORE-1).
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -26,6 +27,8 @@ from e_agent.contracts.action import ActionState
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.common import utc_now
 from e_agent.contracts.context import Budgets, TaskContext
+from e_agent.contracts.context_pack import masked_marker
+from e_agent.contracts.data_classes import DataClass
 from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.evidence import EvidenceRef
@@ -47,7 +50,7 @@ from e_agent.sdk.ports import (
 )
 
 from .conftest import CONN, CREATE, READ, SUMMARY, TENANT, Kernel
-from .test_mode_pinning import OFF_CONTINUATION_KEYS
+from .test_mode_pinning import HOSTED_UNDECLARED, LOCAL, OFF_CONTINUATION_KEYS
 
 MakeKernel = Callable[..., Kernel]
 ON = Features(grounded_answers=FeatureMode.ON)
@@ -632,3 +635,171 @@ async def test_write_proposal_citations_are_dropped(make_kernel: MakeKernel) -> 
         assert SENTINEL not in json.dumps([e.payload for e in events])
         assert not GROUNDING_EVENTS & {e.type for e in events}
     assert seen == [(), (), ()]
+
+
+# -- fix round 1 (R1-1): with `context_assembler: on`, only what the model was shown -------
+CLASSED_DATA = {
+    "topic": "standup",
+    "count": "0",
+    "owner": "alice",
+    "token": "s3cret",
+    "notes": [{"key": "k1"}, {"key": "k2"}],
+}
+CLASSES = {
+    "/output/topic": DataClass.INTERNAL,
+    "/output/count": DataClass.INTERNAL,
+    "/output/owner": DataClass.PERSONAL,
+    "/output/token": DataClass.SECRET,
+    "/output/notes/items/key": DataClass.INTERNAL,
+}
+"""On a hosted, undeclared route the pack masks ``owner`` and removes ``token``."""
+PINNED_ON = Features(context_assembler=FeatureMode.ON, grounded_answers=FeatureMode.ON)
+MARKER = masked_marker(DataClass.PERSONAL)
+
+
+def _view(route: dict[str, Any] = HOSTED_UNDECLARED) -> Any:
+    return grounding.ClassView(lambda _cid: CLASSES, route)
+
+
+def _verdicts(cited: list[tuple[str, Any]], view: Any) -> list[grounding.CitationStatus]:
+    obs = _observation(dict(CLASSED_DATA))
+    citations = [Citation(evidence_id="ev-1", pointer=p, value=v) for p, v in cited]
+    return [v.status for v in grounding.check_citations([obs], citations, view).verdicts]
+
+
+U, R, M = (
+    grounding.CitationStatus.UNRESOLVED,
+    grounding.CitationStatus.RESOLVED,
+    grounding.CitationStatus.MISMATCHED,
+)
+
+
+def test_masked_pointer_is_unresolved_never_mismatched() -> None:
+    """A masked value is not evidence: the right value and a wrong guess get the same
+    verdict, so the check is no oracle on what the pack withheld (PR-26)."""
+    assert _verdicts([("/owner", "alice"), ("/owner", "bob")], _view()) == [U, U]
+    # a container holding a masked value is no evidence either
+    assert _verdicts([("", dict(CLASSED_DATA))], _view()) == [U]
+
+
+def test_secret_removed_pointer_is_like_a_missing_key() -> None:
+    assert _verdicts(
+        [("/token", "s3cret"), ("/token", "guess"), ("/nonexistent", "s3cret")], _view()
+    ) == [U, U, U]
+
+
+def test_visible_value_still_resolves_or_mismatches() -> None:
+    cited = [("/topic", "standup"), ("/topic", "retro"), ("/notes/1/key", "k2")]
+    assert _verdicts(cited, _view()) == [R, M, R]
+    # on a local route nothing personal is masked; a secret is still removed
+    assert _verdicts([("/owner", "alice"), ("/token", "s3cret")], _view(LOCAL)) == [R, U]
+
+
+def test_marker_as_cited_value_is_unresolved() -> None:
+    """Citing the marker itself, alone or inside a container, never resolves."""
+    cited = [("/owner", MARKER), ("/notes/0", {"key": MARKER})]
+    assert _verdicts(cited, _view()) == [U, U]
+
+
+def test_raw_check_without_view_is_unchanged() -> None:
+    """``context_assembler`` not ``on``: the driver sent the raw data, compared as before."""
+    cited = [("/owner", "alice"), ("/owner", "bob"), ("/token", "s3cret"), ("/x", "1")]
+    assert _verdicts(cited, None) == [R, M, R, U]
+
+
+def _classed(
+    make_kernel: MakeKernel,
+    monkeypatch: pytest.MonkeyPatch,
+    cite: Cite,
+    features: Features,
+    route: dict[str, Any],
+) -> Kernel:
+    k = _kernel(make_kernel, cite, features, route=route)
+    monkeypatch.setattr(k.coordinator._registry, "data_classes", lambda _cid: CLASSES)
+    real = k.backend.read
+
+    async def read(ctx: TaskContext, binding: Any, request: ReadRequest) -> Observation:
+        obs = await real(ctx, binding, request)
+        return dataclasses.replace(obs, data=dict(CLASSED_DATA))
+
+    monkeypatch.setattr(k.backend, "read", read)
+    return k
+
+
+async def test_masked_and_removed_citations_give_one_finding_text(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """In a run pinned ``context_assembler: on`` on a hosted route, a masked pointer, a
+    removed secret and a nonexistent key give the same ``KERNEL-CITATION`` text, and no
+    finding names a data class or a value. The visible repair is verified."""
+    pointers = ["/owner", "/token", "/nonexistent"]
+
+    def cite(obs: Observation, attempt: int) -> tuple[Citation, ...]:
+        eid = obs.evidence.evidence_id
+        if attempt > 1:
+            return (Citation(evidence_id=eid, pointer="/count", value="0"),)
+        values = ["alice", "s3cret", "alice"]
+        return tuple(
+            Citation(evidence_id=eid, pointer=p, value=v)
+            for p, v in zip(pointers, values, strict=True)
+        )
+
+    k = _classed(make_kernel, monkeypatch, cite, PINNED_ON, HOSTED_UNDECLARED)
+
+    run = await _start(k)
+
+    assert run.state is RunState.SUCCEEDED, run.reason
+    validation = _of(await _events(k, run.run_id), RunEventType.VALIDATION_COMPLETED)[0]
+    findings = validation.payload["findings"]
+    assert [f["observed"] for f in findings] == pointers
+    unresolved = grounding.CITATION_MESSAGES[grounding.CitationStatus.UNRESOLVED]
+    assert {f["message"] for f in findings} == {unresolved}
+    text = json.dumps(findings)
+    for leaked in ("personal", "secret", "masked", "alice", "s3cret"):
+        assert leaked not in text, leaked
+    assert _verifier(k).calls == 1
+
+
+async def test_context_assembler_off_with_grounded_on_is_unchanged(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without the pack the model saw the raw values: they resolve as before."""
+
+    def cite(obs: Observation, attempt: int) -> tuple[Citation, ...]:
+        eid = obs.evidence.evidence_id
+        return (
+            Citation(evidence_id=eid, pointer="/owner", value="alice"),
+            Citation(evidence_id=eid, pointer="/token", value="s3cret"),
+        )
+
+    k = _classed(make_kernel, monkeypatch, cite, ON, LOCAL)
+
+    run = await _start(k)
+
+    assert run.state is RunState.SUCCEEDED, run.reason
+    events = await _events(k, run.run_id)
+    assert "KERNEL-CITATION" not in str([e.payload for e in events])
+    created = _of(events, RunEventType.PROPOSAL_CREATED)[0]
+    assert [c["pointer"] for c in created.payload["citations"]] == ["/owner", "/token"]
+
+
+async def test_class_walk_failure_takes_the_failure_path(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A walk that cannot run is a check that cannot run: before a reservation it falls
+    back with ``GROUNDING_CHECK_FAILED`` and the verifier decides."""
+
+    def broken(*_: Any, **__: Any) -> Any:
+        raise RuntimeError(SENTINEL)
+
+    k = _classed(make_kernel, monkeypatch, _own(("/count", "0")), PINNED_ON, HOSTED_UNDECLARED)
+    monkeypatch.setattr(grounding, "Walker", broken)
+
+    run = await _start(k)
+
+    assert (run.state, run.reason_code) == (RunState.SUCCEEDED, ReasonCode.ANSWERED)
+    events = await _events(k, run.run_id)
+    (fallback,) = _of(events, RunEventType.FEATURE_FALLBACK)
+    assert fallback.payload["reason_code"] == ReasonCode.GROUNDING_CHECK_FAILED
+    assert SENTINEL not in json.dumps([e.payload for e in events])
+    assert _verifier(k).calls == 1
