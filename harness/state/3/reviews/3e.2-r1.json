@@ -1,0 +1,66 @@
+{
+  "task": "3e.2",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R1-1",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "UI maps every SUCCEEDED run to verified ('Completed · verified'), so a GROUNDED run would be shown verified (PR-19).",
+      "evidence": "ui/packages/ui-core/src/selectors/outcome.ts:48; ui/packages/ui-core/src/i18n.ts:153, :420."
+    },
+    {
+      "id": "R1-2",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "open-pos is a CLI preset and scripted task kind with no scripted scenario: starting it on the fixture profile raises AttributeError and leaves the run RUNNING; qualify_model --task open-pos raises KeyError.",
+      "evidence": "plugin.py:172-180; testing/scripted_tasks.py:72; scripts/qualify_model.py:247, :295."
+    },
+    {
+      "id": "R1-3",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "Grounded message.final is written before _succeed's gates; the bundle's grounded section keys on that event alone, not reason_code GROUNDED.",
+      "evidence": "kernel/grounded_answer.py:115-121; kernel/ir_on.py:457-468; kernel/evidence.py:203-214."
+    },
+    {
+      "id": "R1-4",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "grounded.answer.v1 is not reserved in the registry; a plugin capability with that id would be silently taken over in a run pinned on (PR-09).",
+      "evidence": "kernel/proposals.py:81-82; kernel/registry.py."
+    },
+    {
+      "id": "R1-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "AcceptanceSpec.grounded_answer is always serialized, false included, so it appears in the on context pack's TASK layer.",
+      "evidence": "contracts/task.py:61; kernel/context.py:151."
+    },
+    {
+      "id": "R1-6",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "explain.py does not render a grounded outcome yet (ADR 0033 §6).",
+      "evidence": "kernel/explain.py:136-150."
+    },
+    {
+      "id": "R1-7",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "test_eight_task_definitions_load_from_resources now loads 10; GROUNDED_ANSWER in contracts is acceptable under PR-02.",
+      "evidence": "tests/unit/plugins/erp/domain/test_task_definitions.py:78."
+    },
+    {
+      "id": "R1-8",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "not reviewed: Postgres run, gate evidence, OpenAPI regeneration, pnpm checks.",
+      "evidence": "memory store 65 passed; other admission, citation and gate checks found sound."
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}

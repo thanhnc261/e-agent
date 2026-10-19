@@ -32,7 +32,14 @@
     "docs/plans/2026-10-19-phase3-cognition-context.md",
     "harness/state/**",
     ".superpowers/sdd/**",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "ui/packages/ui-core/src/selectors/outcome.ts",
+    "ui/packages/ui-core/src/i18n.ts",
+    "ui/packages/ui-core/test/**",
+    "src/e_agent/plugins/erp/domain/plugin.py",
+    "src/e_agent/plugins/erp/domain/testing/scripted_tasks.py",
+    "scripts/qualify_model.py",
+    "src/e_agent/kernel/registry.py"
   ],
   "acceptance": [
     "a read-only question ends grounded without a bespoke contract; grounded never reported as verified",
@@ -41,5 +48,42 @@
   "gate_set": "full",
   "base_commit": "ecfb8a52c2d5722f9c63ccd573afd774aec9b953",
   "created_at": "2026-10-19T17:38:08+00:00",
-  "features_digest": "e71b1dda8890a28e038a9f3c12dc3a296ca9c49667b6c2d627fe04481d83942c"
+  "features_digest": "e71b1dda8890a28e038a9f3c12dc3a296ca9c49667b6c2d627fe04481d83942c",
+  "scope_changes": [
+    {
+      "glob": "ui/packages/ui-core/src/selectors/outcome.ts",
+      "reason": "review 3e.2 R1-1 (PR-19): UI maps every SUCCEEDED to verified; a GROUNDED run must not show verified",
+      "at": "2026-10-19T18:08:31+00:00"
+    },
+    {
+      "glob": "ui/packages/ui-core/src/i18n.ts",
+      "reason": "review 3e.2 R1-1 (PR-19): UI maps every SUCCEEDED to verified; a GROUNDED run must not show verified",
+      "at": "2026-10-19T18:08:31+00:00"
+    },
+    {
+      "glob": "ui/packages/ui-core/test/**",
+      "reason": "review 3e.2 R1-1 (PR-19): UI maps every SUCCEEDED to verified; a GROUNDED run must not show verified",
+      "at": "2026-10-19T18:08:31+00:00"
+    },
+    {
+      "glob": "src/e_agent/plugins/erp/domain/plugin.py",
+      "reason": "review 3e.2 R1-2: open-pos preset crashes the scripted fixture driver and qualify_model",
+      "at": "2026-10-19T18:08:31+00:00"
+    },
+    {
+      "glob": "src/e_agent/plugins/erp/domain/testing/scripted_tasks.py",
+      "reason": "review 3e.2 R1-2: open-pos preset crashes the scripted fixture driver and qualify_model",
+      "at": "2026-10-19T18:08:31+00:00"
+    },
+    {
+      "glob": "scripts/qualify_model.py",
+      "reason": "review 3e.2 R1-2: open-pos preset crashes the scripted fixture driver and qualify_model",
+      "at": "2026-10-19T18:08:31+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/registry.py",
+      "reason": "review 3e.2 R1-4 (PR-09): reserve grounded.answer.v1 so no plugin capability can declare it",
+      "at": "2026-10-19T18:08:31+00:00"
+    }
+  ]
 }
