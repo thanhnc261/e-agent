@@ -215,7 +215,8 @@
         "test_every_driver_passes_conformance passes for both drivers, prints its count and fails on zero",
         "full and pg pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3f.1/2026-10-19T21-17-39.359886+00-00-full.json"
     },
     {
       "id": "F-3f-2",
