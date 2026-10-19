@@ -15,9 +15,10 @@ can raise, as any other event write of the turn would.
 
 The sources of `assemble`'s per-turn arguments (plan ruling D3-16), none of them new state:
 
-- ``observation_turns``: each ``context.compared`` or ``context.shadow_failed`` event marks
-  the end of its driver turn, and the reads that turn requested are recorded after it, so a
-  read's turn is the latest marker before its first ``read.recorded`` event
+- ``observation_turns``: each ``context.compared`` or ``context.shadow_failed`` event (and,
+  for a run pinned ``on``, ``context.assembled``) marks the end of its driver turn, and the
+  reads that turn requested are recorded after it, so a read's turn is the latest marker
+  before its first ``read.recorded`` event
   (`observation_turns`). A read with no marker before it has an unknown age and is never
   cleared. The re-read before dispatch keeps the request id, and the first turn stays.
 - ``referenced_evidence``: the evidence ids every ``proposal.created`` event bound (the
@@ -44,7 +45,9 @@ from e_agent.contracts.context_pack import (
 )
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.features import FeatureMode
+from e_agent.contracts.progress import ProgressLedger
 from e_agent.contracts.run import RunRecord
+from e_agent.contracts.task import TaskDefinition
 from e_agent.sdk.ports import DriverInput, Observation
 from e_agent.sdk.store import EventSpec
 
@@ -66,7 +69,13 @@ UNBOUNDED_POLICY = ContextPolicy(
 """The same inputs with no bound, budget or clearing (and no turn, so nothing is old). The
 route's class rule still applies: masking is the route's, not a bound."""
 
-TURN_MARKERS = frozenset({RunEventType.CONTEXT_COMPARED, RunEventType.CONTEXT_SHADOW_FAILED})
+TURN_MARKERS = frozenset(
+    {
+        RunEventType.CONTEXT_COMPARED,
+        RunEventType.CONTEXT_SHADOW_FAILED,
+        RunEventType.CONTEXT_ASSEMBLED,  # `on` (Task 3d.5)
+    }
+)
 
 
 def observation_turns(events: Iterable[RunEvent], request_ids: Collection[str]) -> dict[str, int]:
@@ -148,6 +157,19 @@ def compared_payload(
 
 
 @dataclass(frozen=True)
+class PackInputs:
+    """A turn's `assemble` arguments derived from the run's own records (plan ruling D3-16),
+    shared by ``shadow`` and ``on``."""
+
+    events: tuple[RunEvent, ...]
+    ledger: ProgressLedger
+    observation_turns: Mapping[str, int]
+    referenced: frozenset[str]
+    task: TaskDefinition | None
+    tool_set: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ShadowTurn:
     """One turn's shadow work, carried from before the driver call to after it."""
 
@@ -162,6 +184,21 @@ class ShadowTurn:
 
 
 class ContextShadowMixin(IrOnMixin):
+    async def _pack_inputs(self, run: RunRecord, cont: _Continuation) -> PackInputs:
+        """The run's records a turn's pack is built from: its events and steps (the ledger,
+        each observation's turn, the referenced evidence), its task and its tool set."""
+        events = await self._store.list_events(run.tenant_id, run.run_id)
+        steps = await self._store.list_steps(run.tenant_id, run.run_id)
+        allowed = self._allowed(run, cont)
+        return PackInputs(
+            events=tuple(events),
+            ledger=project_progress(events, steps),
+            observation_turns=observation_turns(events, cont.observations.keys()),
+            referenced=referenced_evidence(events, cont.observations),
+            task=cont.task if cont.task is not None else self._run_task(run),
+            tool_set=tuple(self._registry.capabilities) if allowed is None else allowed,
+        )
+
     def _driver_tokens(self, run_id: str) -> int | None:
         """The driver's own count, or None when it reports none (unknown, not zero)."""
         tokens_used = getattr(self._driver, "tokens_used", None)
@@ -183,37 +220,30 @@ class ContextShadowMixin(IrOnMixin):
         ack = acknowledgement
         try:  # a shadow error, a store read's included, never reaches the live path
             before = self._driver_tokens(run.run_id)
-            events = await self._store.list_events(run.tenant_id, run.run_id)
-            steps = await self._store.list_steps(run.tenant_id, run.run_id)
-            ledger = project_progress(events, steps)
-            turns = observation_turns(events, cont.observations.keys())
-            referenced = referenced_evidence(events, cont.observations)
-            task = cont.task if cont.task is not None else self._run_task(run)
-            allowed = self._allowed(run, cont)
-            tool_set = tuple(self._registry.capabilities) if allowed is None else allowed
+            inputs = await self._pack_inputs(run, cont)
         except Exception:
             return ShadowTurn(turn, before, failed="inputs", acknowledgement=ack)
         observations = tuple(cont.observations.values())
         errors: Mapping[str, str] = dict(cont.read_errors)
-        common: dict[str, Any] = {"task": task, "tool_set": tool_set}
+        common: dict[str, Any] = {"task": inputs.task, "tool_set": inputs.tool_set}
         try:
             pack = assemble(
                 SHADOW_POLICY,
-                ledger,
+                inputs.ledger,
                 observations,
                 errors,
                 step_input.findings,
                 self._registry.data_classes,
                 self._route,
                 turn=turn,
-                observation_turns=turns,
+                observation_turns=inputs.observation_turns,
                 deferred_pending=cont.pending_action_id is not None,
-                referenced_evidence=referenced,
+                referenced_evidence=inputs.referenced,
                 **common,
             )
             unbounded = assemble(
                 UNBOUNDED_POLICY,
-                ledger,
+                inputs.ledger,
                 observations,
                 errors,
                 step_input.findings,

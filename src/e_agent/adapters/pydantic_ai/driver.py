@@ -55,7 +55,7 @@ from e_agent.contracts.context_pack import (
     tool_return_text,
 )
 from e_agent.contracts.plan import ActionPlan, ActionProposal, LineageRef, PlannedStep
-from e_agent.sdk.errors import DriverBudgetExceeded
+from e_agent.sdk.errors import ContextNotRendered, DriverBudgetExceeded
 from e_agent.sdk.ports import (
     AskClarification,
     DriverInput,
@@ -671,7 +671,8 @@ class PydanticAiDriver:
         Only the content of a tool return changes: every call, return, tool name and call id
         stays, so the provider sees each pair and a resume still matches its deferred calls
         (target §7.4 rule 3). A cleared stub is not applied while a write is pending (rule 4):
-        that return keeps the content it had."""
+        that return keeps the content it had. The write's result ends the wait, so a turn
+        that carries ``action_result`` applies every stub (review D3-40)."""
         returns = self._pack_returns(step_input, pack)
         cleared = {
             d.ref
@@ -679,7 +680,7 @@ class PydanticAiDriver:
             if d.kind is DroppedKind.OBSERVATION and d.reason is DroppedReason.CLEARED
         }
         evidence = {o.request_id: o.evidence.evidence_id for o in step_input.observations}
-        pending = st.pending_write is not None
+        pending = st.pending_write is not None and step_input.action_result is None
         history: list[ModelMessage] = []
         for message in st.messages:
             if isinstance(message, ModelRequest):
@@ -747,7 +748,7 @@ class PydanticAiDriver:
             if call_id in returns:
                 results.calls[call_id] = returns[call_id]
             elif call_id in observed:
-                raise ValueError("the context pack does not render a pending read's observation")
+                raise ContextNotRendered  # never Observation.data (D3-42)
             elif call_id in step_input.read_errors:
                 results.calls[call_id] = {"error": PACK_READ_ERROR, "read_error": call_id}
             else:

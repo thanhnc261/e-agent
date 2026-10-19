@@ -15,7 +15,12 @@ from e_agent.contracts.run import (
     RunState,
 )
 from e_agent.contracts.validation import Finding, ValidationStatus
-from e_agent.sdk.errors import AUTH_REQUIRED, DriverBudgetExceeded, KnownNoEffectError
+from e_agent.sdk.errors import (
+    AUTH_REQUIRED,
+    ContextNotRendered,
+    DriverBudgetExceeded,
+    KnownNoEffectError,
+)
 from e_agent.sdk.ports import (
     AskClarification,
     DriverInput,
@@ -25,13 +30,13 @@ from e_agent.sdk.ports import (
     RequestReads,
 )
 
-from .context_shadow import ContextShadowMixin
+from .context_on import ContextOnMixin, ContextUnavailable
 from .errors import ErrorCode, KernelError
 from .features import RouteRefused
 from .gateway import GatewayMixin
 
 
-class RunLoopMixin(GatewayMixin, ContextShadowMixin):
+class RunLoopMixin(GatewayMixin, ContextOnMixin):
     # ---------------------------------------------------------------- driving
     async def _drive(self, run: RunRecord, step_input: DriverInput) -> RunRecord:
         cont = await self._load_cont(run.tenant_id, run.run_id)
@@ -48,19 +53,23 @@ class RunLoopMixin(GatewayMixin, ContextShadowMixin):
                 return await self._exhausted(run, "model tokens")
             shadow = await self._context_shadow(run, cont, step_input)  # pinned shadow only
             try:
+                run, turn_input = await self._context_input(run, cont, step_input)  # pinned on
                 step = await self._timed(
                     cont,
-                    partial(self._driver.advance, ctx, self._with_tools(run, cont, step_input)),
+                    partial(self._driver.advance, ctx, self._with_tools(run, cont, turn_input)),
                     ctx.budgets.model_timeout_seconds,
                 )
-            except RouteRefused:  # no model call on this route (ADR 0032 §9, T23)
-                return await self._route_unmet(run)
+            except RouteRefused:  # no model call on this route (ADR 0032 §9, T23, D3-41)
+                return await self._end_closed(run, ReasonCode.ROUTE_BOUNDARY_UNMET)
+            except (ContextUnavailable, ContextNotRendered):  # no fallback (ADR 0032 §7)
+                return await self._end_closed(run, ReasonCode.CONTEXT_UNAVAILABLE)
             except DriverBudgetExceeded:
                 return await self._exhausted(run, "model usage")
             except TimeoutError:
                 return await self._exhausted(run, "active time or model deadline")
             if shadow is not None:  # ADR 0032 §7: recorded after the turn, before its step
                 run = await self._record_context_shadow(run, shadow)
+            run = await self._record_context_assembled(run, cont, turn_input)  # `on` marker
 
             if (
                 getattr(self._driver, "tokens_used", lambda _: 0)(ctx.run_id)

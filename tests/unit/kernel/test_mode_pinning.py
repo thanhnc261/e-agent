@@ -188,20 +188,28 @@ async def test_absent_pin_means_off(make_kernel: MakeKernel) -> None:
 
 # -------------------------------------------------------------------------- route check
 @pytest.mark.parametrize(
-    ("route", "pinned_on", "refused"),
+    ("route", "pinned_on", "refused", "start_route"),
     [
-        (HOSTED_UNDECLARED, False, True),
-        (HOSTED_DECLARED, False, False),
-        (LOCAL, False, False),
-        (HOSTED_UNDECLARED, True, False),  # masked by the pack (ADR 0032 §9, Task 3d.5)
+        (HOSTED_UNDECLARED, False, True, None),
+        (HOSTED_DECLARED, False, False, None),
+        (LOCAL, False, False, None),
+        # masked by the pack (ADR 0032 §9, Task 3d.5), when the run's first call was on the
+        # same route; from a local first call it is a stricter route (review D3-41)
+        (HOSTED_UNDECLARED, True, False, HOSTED_UNDECLARED),
+        (HOSTED_UNDECLARED, True, True, None),
     ],
 )
 async def test_route_check_reads_the_pin_and_the_route(
-    make_kernel: MakeKernel, route: dict[str, Any], pinned_on: bool, refused: bool
+    make_kernel: MakeKernel,
+    route: dict[str, Any],
+    pinned_on: bool,
+    refused: bool,
+    start_route: dict[str, Any] | None,
 ) -> None:
     started = make_kernel(
         driver=ClarifyDriver(),
         features=Features(context_assembler=FeatureMode.ON) if pinned_on else None,
+        route=start_route,
     )
     run = await started.coordinator.start_run(
         started.requester, "write standup note", started.scope

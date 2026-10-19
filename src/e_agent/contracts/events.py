@@ -45,6 +45,9 @@ class RunEventType(StrEnum):
     # compared with the same inputs unbounded, or the stage at which building it failed.
     CONTEXT_COMPARED = "context.compared"
     CONTEXT_SHADOW_FAILED = "context.shadow_failed"
+    # `context_assembler: on` (Task 3d.5): the pack a driver turn was given, by digest and
+    # counts, for ADR 0032 §13's record; it marks the turn as `context.compared` does.
+    CONTEXT_ASSEMBLED = "context.assembled"
 
 
 class RunEvent(Record):

@@ -226,10 +226,12 @@ def route_base_url(cfg: DriverConfig) -> str:
 
 
 def check_route_boundary(profile: Profile) -> RouteBoundary:
-    """Startup rule (ADR 0030): a route that is not ``local`` needs ``data_processing``.
-
-    Until masking lands (Task 3d.5) no feature toggle exempts it. Messages name the setting,
-    never its value.
+    """Startup rule (ADR 0030): a route that is not ``local`` needs ``data_processing``,
+    unless ``features.context_assembler`` is ``on``: every run that profile prepares is
+    pinned ``on``, so what it sends the route is the masked pack (ADR 0032 §5, §9; Task
+    3d.5). A run pinned otherwise that resumes on the route makes no model call (the per-call
+    route check). ``local_only`` refuses a hosted route whatever the toggle says. Messages
+    name the setting, never its value.
     """
     cfg = profile.driver
     base_url = route_base_url(cfg) if cfg.kind == "pydantic-ai" else None
@@ -241,7 +243,8 @@ def check_route_boundary(profile: Profile) -> RouteBoundary:
                 "local_only is set but the model route is not local; "
                 "use a local route or unset local_only",
             )
-        if profile.data_processing is None:
+        masked = profile.features.context_assembler is FeatureMode.ON
+        if profile.data_processing is None and not masked:
             raise KernelError(
                 ErrorCode.STARTUP_REJECTED,
                 "the model route is not local and the profile has no data_processing "

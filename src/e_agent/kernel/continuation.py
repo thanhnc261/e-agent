@@ -15,16 +15,17 @@ import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.approval import ApprovalRecord
 from e_agent.contracts.capability import CapabilityBinding
 from e_agent.contracts.common import new_id
 from e_agent.contracts.context import Budgets, TaskContext
+from e_agent.contracts.context_pack import ContextRoute
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import Completeness
-from e_agent.contracts.features import RunModes
+from e_agent.contracts.features import FeatureMode, RunModes
 from e_agent.contracts.plan import ActionPlan, ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import (
@@ -36,7 +37,7 @@ from e_agent.contracts.step import StepRecord
 from e_agent.contracts.task import TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationResult
 from e_agent.sdk.auth import CredentialVersionProvider
-from e_agent.sdk.errors import KnownNoEffectError
+from e_agent.sdk.errors import DriverStateMismatch, KnownNoEffectError
 from e_agent.sdk.ports import (
     AgentDriver,
     DriverInput,
@@ -56,6 +57,9 @@ LOG = logging.getLogger("e_agent.kernel.coordinator")
 
 
 CONTINUATION_SCHEMA = "kernel-continuation-v1"
+
+KNOWN_RENDERINGS = frozenset({"pack"})
+"""The driver snapshot ``rendering`` markers the kernel knows (ADR 0032 §6, §8)."""
 
 
 class NextStep(StrEnum):
@@ -119,16 +123,32 @@ class _Continuation(BaseModel):
     modes: RunModes | None = None
     """The Phase 3 modes pinned when the run was prepared (ADR 0032 §8); None, and left out
     of the stored continuation, when every mode is ``off``."""
+    context_boundary: ContextRoute | None = None
+    """For a run pinned ``context_assembler: on``, the loosest route boundary any model call
+    of it has used (set by the first call, review D3-41): its driver history may hold values
+    only that route may see, so a call on a stricter one is refused. None, and left out of
+    the stored continuation, for every other run."""
 
     @model_serializer(mode="wrap")
     def _omit_unbound_task(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        """Leave ``task``, ``plan`` and ``modes`` out when unset, so an ``off`` or ``shadow``
-        continuation is stored exactly as before Task 2c.6 and Task 3b.2."""
+        """Leave ``task``, ``plan``, ``modes`` and ``context_boundary`` out when unset, so an
+        ``off`` or ``shadow`` continuation is stored exactly as before Task 2c.6 and 3b.2."""
         data: dict[str, Any] = handler(self)
-        for name in ("task", "plan", "modes"):
+        for name in ("task", "plan", "modes", "context_boundary"):
             if getattr(self, name) is None:
                 data.pop(name, None)
         return data
+
+
+def rendering_mismatch(cont: _Continuation, driver_state: Mapping[str, Any]) -> bool:
+    """The restore check (ADR 0032 §8): a ``rendering`` marker on a run not pinned
+    ``context_assembler: on``, or a marker the kernel does not know. A pinned-``on`` run
+    without the marker is valid (no pack turn yet, or every turn so far fell back)."""
+    marker = driver_state.get("rendering")
+    if marker is None:
+        return False
+    pinned_on = cont.modes is not None and cont.modes.context_assembler is FeatureMode.ON
+    return marker not in KNOWN_RENDERINGS or not pinned_on
 
 
 class _GatewayReader:
@@ -199,6 +219,9 @@ class ContinuationMixin:
             *,
             next_step: NextStep,
         ) -> RunRecord | None:
+            raise NotImplementedError
+
+        async def _driver_state_mismatch(self, tenant_id: str, run_id: str) -> NoReturn:
             raise NotImplementedError
 
         async def _record_rejected_read(
@@ -309,7 +332,12 @@ class ContinuationMixin:
         cont, driver_state = await self._read_cont(tenant_id, run_id)
         restore = getattr(self._driver, "restore", None)
         if driver_state is not None and restore is not None:
-            restore(run_id, driver_state)
+            try:  # the typed refusal: the kernel's marker check, or the driver's own (D8)
+                if rendering_mismatch(cont, driver_state):
+                    raise DriverStateMismatch
+                restore(run_id, driver_state)
+            except DriverStateMismatch:  # nothing restored or cached; the run fails closed
+                await self._driver_state_mismatch(tenant_id, run_id)
         self._runs[run_id] = cont
         return cont
 

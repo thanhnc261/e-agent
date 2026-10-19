@@ -96,7 +96,7 @@ async def test_hosted_route_without_data_processing_fails_startup(
     assert err.value.code is ErrorCode.STARTUP_REJECTED
     assert "data_processing" in str(err.value)
     assert "secret-host" not in str(err.value)  # names the setting, never its value
-    # no toggle exempts the rule until masking lands (Task 3d.5)
+    # only `context_assembler: on` exempts the rule (Task 3d.5, below)
     # the adapter only dials loopback, where a LiteLLM proxy is hosted:unknown unless declared
     monkeypatch.delenv("E_AGENT_LITELLM_URL", raising=False)
     declared = _profile(provider="litellm").model_copy(update={"data_processing": DECLARATION})
@@ -104,17 +104,38 @@ async def test_hosted_route_without_data_processing_fails_startup(
     assert runtime.route is not None and runtime.route.boundary == "hosted:unknown"
 
 
-async def test_hosted_route_refused_at_startup_even_with_context_assembler_on(
+async def test_on_exempts_undeclared_hosted_route_at_startup(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """ADR 0030's ``on`` exemption waits for masking (Task 3d.5): until then ``on`` changes
-    nothing at startup (review ruling B1-2)."""
-    monkeypatch.setenv("E_AGENT_OLLAMA_URL", "http://secret-host.example.com:11434/v1")
-    on = Features(context_assembler=FeatureMode.ON)
+    """ADR 0030's ``on`` exemption, added with the masking it relies on (Task 3d.5): with
+    ``context_assembler: on`` an undeclared hosted route starts, and the kernel gets its
+    facts, so every run it prepares is pinned ``on`` and sends only the masked pack. ``off``
+    and ``shadow`` are still refused, and ``local_only`` refuses whatever the toggle says."""
+    monkeypatch.delenv("E_AGENT_LITELLM_URL", raising=False)  # loopback: hosted:unknown
+    hosted = _profile(provider="litellm")
+    assert hosted.data_processing is None
+    checked = 0
+    for mode in (FeatureMode.OFF, FeatureMode.SHADOW):
+        features = Features(context_assembler=mode)
+        with pytest.raises(KernelError) as err:
+            await build_runtime(hosted.model_copy(update={"features": features}))
+        assert err.value.code is ErrorCode.STARTUP_REJECTED
+        assert "data_processing" in str(err.value)
+        checked += 1
+    on = hosted.model_copy(update={"features": Features(context_assembler=FeatureMode.ON)})
+    runtime = await build_runtime(on)
+    assert runtime.route is not None
+    assert (runtime.route.boundary, runtime.route.basis) == ("hosted:unknown", "default")
+    assert runtime.coordinator._route == runtime.route_facts()
+    assert runtime.coordinator._route["data_processing_declared"] is False
+    pin = runtime.coordinator._pin_modes()
+    assert pin is not None and pin.context_assembler is FeatureMode.ON
+    checked += 1
     with pytest.raises(KernelError) as err:
-        await build_runtime(_profile(provider="ollama").model_copy(update={"features": on}))
-    assert err.value.code is ErrorCode.STARTUP_REJECTED
-    assert "data_processing" in str(err.value) and "secret-host" not in str(err.value)
+        await build_runtime(on.model_copy(update={"local_only": True}))
+    assert "local_only" in str(err.value)
+    checked += 1
+    assert checked == 4
 
 
 async def test_runtime_hands_the_route_facts_to_the_kernel(

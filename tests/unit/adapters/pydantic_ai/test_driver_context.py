@@ -25,6 +25,7 @@ from e_agent.contracts.context_pack import (
     tool_return_text,
 )
 from e_agent.kernel.context import INSTRUCTIONS
+from e_agent.sdk.errors import ContextNotRendered
 from e_agent.sdk.ports import DriverInput, FinalAnswer, ProposeAction, RequestReads
 from pydantic_ai import (
     ModelMessage,
@@ -309,11 +310,14 @@ async def test_clearing_keeps_call_return_pairs() -> None:
 
 async def test_no_clearing_with_pending_deferred_call() -> None:
     """While a write is pending (the kernel's ``pending_action_id``), the driver clears
-    nothing, even when a pack asks for it (§7.4 rule 4)."""
+    nothing, even when a pack asks for it (§7.4 rule 4). The write's result ends the wait:
+    the acknowledgement turn, which carries ``action_result``, applies the stub, so it never
+    shows an earlier turn's rendering (review D3-40)."""
     script = Script(
         [
             ModelResponse(parts=[call(READ, {"note_ref": "note:1"}, "c1")]),
             ModelResponse(parts=[call(WRITE, {"text": "standup"}, "w1")]),
+            ModelResponse(parts=[call(WRITE, {"text": "short"}, "w2")]),
             ModelResponse(parts=[TextPart("done")]),
         ]
     )
@@ -330,6 +334,16 @@ async def test_no_clearing_with_pending_deferred_call() -> None:
     assert json.loads(tool_return_text(asks_to_clear.observations[0]))["data"] == {
         "omitted": "cleared"
     }
+    blocked = (finding(),)
+    step = await driver.advance(
+        run,
+        DriverInput(task=TASK, observations=(note,), findings=blocked, context=asks_to_clear),
+    )
+    assert isinstance(step, ProposeAction)
+    sent = script.requests[2]
+    assert _returns(sent)["c1"].content == tool_return_text(before.observations[0])
+    assert _call_ids(sent) == ["c1", "w1"] and _return_ids(sent) == ["c1", "w1"]
+
     step = await driver.advance(
         run,
         DriverInput(
@@ -340,10 +354,11 @@ async def test_no_clearing_with_pending_deferred_call() -> None:
         ),
     )
     assert isinstance(step, FinalAnswer)
-    sent = script.requests[2]
-    assert _returns(sent)["c1"].content == tool_return_text(before.observations[0])
-    assert _call_ids(sent) == ["c1", "w1"] and _return_ids(sent) == ["c1", "w1"]
-    assert _returns(sent)["w1"].content == {"status": "VERIFIED"}
+    acknowledged = script.requests[3]
+    assert _returns(acknowledged)["c1"].content == tool_return_text(asks_to_clear.observations[0])
+    assert _call_ids(acknowledged) == ["c1", "w1", "w2"]
+    assert _return_ids(acknowledged) == ["c1", "w1", "w2"]
+    assert _returns(acknowledged)["w2"].content == {"status": "VERIFIED"}
 
 
 async def test_pending_read_without_a_rendering_fails_closed() -> None:
@@ -353,7 +368,7 @@ async def test_pending_read_without_a_rendering_fails_closed() -> None:
     run = ctx("run_missing")
     await driver.advance(run, DriverInput(task=TASK, context=pack()))
     note = observation("c1", NOTE)
-    with pytest.raises(ValueError, match="context pack"):
+    with pytest.raises(ContextNotRendered):  # typed (D3-42), never a plain ValueError
         await driver.advance(run, DriverInput(task=TASK, observations=(note,), context=pack()))
     assert len(script.requests) == 1
 

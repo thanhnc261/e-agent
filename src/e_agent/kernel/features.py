@@ -24,10 +24,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any
+from typing import Any, NoReturn
 
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.common import new_id
+from e_agent.contracts.context_pack import ContextRoute
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode, Features, RunModes
 from e_agent.contracts.plan import ActionProposal
@@ -37,6 +38,7 @@ from e_agent.contracts.task import TaskDefinition
 from e_agent.sdk.store import EventSpec
 
 from .approval import compute_digest
+from .context import context_route
 from .continuation import ContinuationMixin, _Continuation
 from .errors import ErrorCode, KernelError
 from .ir import (
@@ -127,6 +129,12 @@ UNRESOLVED_RESERVATION = frozenset(
 """Action states of a write reservation not yet resolved by a decisive outcome (ADR 0032 §8)."""
 
 
+ROUTE_STRICTNESS = MappingProxyType(
+    {ContextRoute.LOCAL: 0, ContextRoute.HOSTED_DECLARED: 1, ContextRoute.HOSTED_UNDECLARED: 2}
+)
+"""How much each class-rule row masks (ADR 0032 §5): a higher row masks more."""
+
+
 class RouteRefused(Exception):
     """`_with_tools` refused a model call on the current route (ADR 0032 §9); never escapes
     the kernel's two driver call sites."""
@@ -209,24 +217,46 @@ class FeaturesMixin(ContinuationMixin):
         """The per-call route check (ADR 0032 §9, T23), run by `_with_tools` before every
         model call: the route is not pinned, so a run that resumes after a restart on a route
         that may not receive unmasked data makes no model call unless it is pinned
-        ``context_assembler: on``."""
-        pinned_on = self._run_modes(cont).context_assembler is FeatureMode.ON
-        if not pinned_on and not unmasked_allowed(self._route):
-            raise RouteRefused
+        ``context_assembler: on``.
 
-    async def _route_unmet(self, run: RunRecord) -> RunRecord:
-        """End a run whose model call the route check refused (ADR 0032 §9, §10): FAILED, or
-        NEEDS_RECONCILIATION when a write reservation is unresolved, both with
-        ``ROUTE_BOUNDARY_UNMET`` through an existing pair of the table."""
+        A run pinned ``on`` keeps the loosest boundary a call of it has used
+        (``context_boundary``, set by its first call): its driver history holds the model's
+        own text and arguments and any fallback turn's unmasked returns, masked only for that
+        route, so a call on a stricter route is refused (review D3-41). Off and shadow runs
+        record nothing."""
+        if self._run_modes(cont).context_assembler is not FeatureMode.ON:
+            if not unmasked_allowed(self._route):
+                raise RouteRefused
+            return
+        route = context_route(self._route)
+        seen = cont.context_boundary
+        if seen is not None and ROUTE_STRICTNESS[route] > ROUTE_STRICTNESS[seen]:
+            raise RouteRefused
+        if seen is None or ROUTE_STRICTNESS[route] < ROUTE_STRICTNESS[seen]:
+            cont.context_boundary = route
+
+    async def _end_closed(self, run: RunRecord, code: ReasonCode) -> RunRecord:
+        """End a run with a Phase 3 terminal code (ADR 0032 §10): FAILED, or
+        NEEDS_RECONCILIATION when a write reservation is unresolved, through an existing pair
+        of the table, with the code's fixed message."""
         run = await self._store.get_run(run.tenant_id, run.run_id)
         actions = await self._store.list_actions(run.tenant_id, run.run_id)
         unresolved = any(a.state in UNRESOLVED_RESERVATION for a in actions)
         return await self._set_run_state(
             run,
             RunState.NEEDS_RECONCILIATION if unresolved else RunState.FAILED,
-            TERMINAL_MESSAGES[ReasonCode.ROUTE_BOUNDARY_UNMET],
-            code=ReasonCode.ROUTE_BOUNDARY_UNMET,
+            TERMINAL_MESSAGES[code],
+            code=code,
         )
+
+    async def _driver_state_mismatch(self, tenant_id: str, run_id: str) -> NoReturn:
+        """`_load_cont`'s handler for a refused driver state (ADR 0032 §8, D8): nothing is
+        restored, the run ends ``DRIVER_STATE_MISMATCH`` (reconciliation while a write is
+        unresolved) unless it already ended, and the caller gets a conflict."""
+        run = await self._store.get_run(tenant_id, run_id)
+        if run.state not in TERMINAL_RUN_STATES:  # not cached, so no continuation is written
+            await self._end_closed(run, ReasonCode.DRIVER_STATE_MISMATCH)
+        raise KernelError(ErrorCode.CONFLICT, TERMINAL_MESSAGES[ReasonCode.DRIVER_STATE_MISMATCH])
 
     @staticmethod
     def _run_modes(cont: _Continuation) -> RunModes:

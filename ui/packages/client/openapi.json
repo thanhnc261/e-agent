@@ -823,7 +823,8 @@
           "ir.step_verified",
           "context.failed",
           "context.compared",
-          "context.shadow_failed"
+          "context.shadow_failed",
+          "context.assembled"
         ],
         "title": "RunEventType",
         "type": "string"

@@ -15,13 +15,14 @@ from e_agent.contracts.run import (
     RunState,
 )
 from e_agent.contracts.step import StepKind, StepRecord, StepStatus
+from e_agent.sdk.errors import ContextNotRendered
 from e_agent.sdk.ports import (
     DriverInput,
     FinalAnswer,
 )
 from e_agent.sdk.store import EventSpec
 
-from .context_shadow import ContextShadowMixin
+from .context_on import ContextOnMixin, ContextUnavailable
 from .continuation import NextStep, _Continuation, _GatewayReader
 from .features import RouteRefused, context_failed_event
 from .reconstruct import ACTION_STATE_KEY
@@ -42,7 +43,7 @@ def outcome_payload(report: OutcomeReport, action_state: ActionState | None) -> 
     return {**payload, ACTION_STATE_KEY: action_state}
 
 
-class VerificationMixin(ContextShadowMixin):
+class VerificationMixin(ContextOnMixin):
     async def _verify(
         self,
         cont: _Continuation,
@@ -196,23 +197,33 @@ class VerificationMixin(ContextShadowMixin):
             else None
         )
         answered = False
+        turn_input = ack_input
         try:
             if acknowledge and (
                 getattr(self._driver, "tokens_used", lambda _: 0)(ctx.run_id)
                 < ctx.budgets.max_model_tokens
             ):
+                run, turn_input = await self._context_input(
+                    run, cont, ack_input, acknowledgement=True
+                )  # pinned on: the pack, or skipped below (ADR 0032 §7)
                 final = await self._timed(
                     cont,
-                    partial(self._driver.advance, ctx, self._with_tools(run, cont, ack_input)),
+                    partial(self._driver.advance, ctx, self._with_tools(run, cont, turn_input)),
                     ctx.budgets.model_timeout_seconds,
                 )
                 answered = True
-        except RouteRefused:  # skipped, recorded; the run keeps its outcome (ADR 0032 §9)
+        except (RouteRefused, ContextUnavailable, ContextNotRendered) as exc:
+            # skipped, recorded; the run keeps its outcome (ADR 0032 §7, §9)
+            code = (
+                ReasonCode.ROUTE_BOUNDARY_UNMET
+                if isinstance(exc, RouteRefused)
+                else ReasonCode.CONTEXT_UNAVAILABLE
+            )
             run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
             run = await self._store.update_run(
                 run.model_copy(update={"revision": run.revision + 1}),
                 run.revision,
-                [context_failed_event(ReasonCode.ROUTE_BOUNDARY_UNMET)],
+                [context_failed_event(code)],
             )
         except Exception as exc:
             run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
@@ -229,6 +240,8 @@ class VerificationMixin(ContextShadowMixin):
             )
         if shadow is not None and answered:
             run = await self._record_context_shadow(run, shadow)
+        if answered:  # `on` only: the call carried a pack
+            run = await self._record_context_assembled(run, cont, turn_input, acknowledgement=True)
         if not isinstance(final, FinalAnswer):
             final = FinalAnswer(text=fallback)
         if isinstance(final, FinalAnswer):

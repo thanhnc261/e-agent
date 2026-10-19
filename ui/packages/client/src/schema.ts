@@ -571,7 +571,7 @@ export interface components {
          * RunEventType
          * @enum {string}
          */
-        RunEventType: "run.created" | "run.state_changed" | "read.recorded" | "read.rejected" | "proposal.created" | "validation.completed" | "approval.requested" | "approval.decided" | "connect.required" | "input.requested" | "input.received" | "action.reserved" | "action.dispatching" | "action.receipt_recorded" | "action.unknown" | "reconciliation.completed" | "outcome.reported" | "message.final" | "budget.exhausted" | "run.cancel_requested" | "run.terminal" | "feature.fallback" | "ir.plan_compiled" | "ir.shadow_failed" | "ir.lineage_resolved" | "ir.step_verified" | "context.failed" | "context.compared" | "context.shadow_failed";
+        RunEventType: "run.created" | "run.state_changed" | "read.recorded" | "read.rejected" | "proposal.created" | "validation.completed" | "approval.requested" | "approval.decided" | "connect.required" | "input.requested" | "input.received" | "action.reserved" | "action.dispatching" | "action.receipt_recorded" | "action.unknown" | "reconciliation.completed" | "outcome.reported" | "message.final" | "budget.exhausted" | "run.cancel_requested" | "run.terminal" | "feature.fallback" | "ir.plan_compiled" | "ir.shadow_failed" | "ir.lineage_resolved" | "ir.step_verified" | "context.failed" | "context.compared" | "context.shadow_failed" | "context.assembled";
         /** RunRecord */
         RunRecord: {
             /** Created At */
