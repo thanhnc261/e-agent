@@ -38,7 +38,6 @@ from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.kernel import context_on
 from e_agent.kernel.continuation import _Continuation
-from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.evidence import build_evidence, classify
 from e_agent.kernel.features import FALLBACK_MESSAGES, TERMINAL_MESSAGES
 from e_agent.sdk.errors import ContextNotRendered
@@ -541,26 +540,28 @@ async def test_restore_rendering_mismatch_fails_closed(
 
     driver = StatefulDriver()
     restarted = make_kernel(features=features, driver=driver)
-    with pytest.raises(KernelError) as err:  # the handler's conflict, not a ValueError
-        await restarted.coordinator.resume_input(
-            restarted.requester, run.run_id, "the standup", run.revision
-        )
-    assert err.value.code is ErrorCode.CONFLICT
+    # the input is accepted without restoring; the first driver turn fails closed (D3-60)
+    returned = await restarted.coordinator.resume_input(
+        restarted.requester, run.run_id, "the standup", run.revision
+    )
     assert (driver.restored, driver.calls) == ([], 0)
     run = await restarted.store.get_run(TENANT, run.run_id)
+    assert returned == run
     assert (run.state, run.reason_code, run.reason) == (
         RunState.FAILED,
         ReasonCode.DRIVER_STATE_MISMATCH,
         MISMATCH,
     )
     assert classify(run.state, run.reason, "fixture", run.reason_code) == "fixture:failed"
-    # the stored continuation is left as it was: nothing restored, nothing rewritten
+    # the stored continuation is left as it was: nothing restored, the driver state verbatim
     assert await restarted.store.load_continuation(TENANT, run.run_id) == stored_before
 
 
 async def test_restore_rendering_mismatch_with_unresolved_reservation_reconciles(
     make_kernel: MakeKernel,
 ) -> None:
+    """Reconciliation is kernel-only: it never restores, so a mismatched snapshot cannot
+    strand it (review D3-60, PR-18). The acknowledgement turn after it is skipped."""
     started = make_kernel(driver=StatefulDriver(notes=True, marker="pack"))
     run = await started.coordinator.start_run(
         started.requester, "write standup note", started.scope
@@ -569,22 +570,23 @@ async def test_restore_rendering_mismatch_with_unresolved_reservation_reconciles
     started.backend.fail_mode = "timeout"
     run = await _approve(started, run.run_id)
     assert run.state is RunState.NEEDS_RECONCILIATION
+    stored = await started.store.load_continuation(TENANT, run.run_id)
 
     driver = StatefulDriver(notes=True)
     restarted = make_kernel(driver=driver)
-    with pytest.raises(KernelError) as err:
-        await restarted.coordinator.reconcile(restarted.approver, run.run_id)
-    assert err.value.code is ErrorCode.CONFLICT
-    run = await restarted.store.get_run(TENANT, run.run_id)
-    assert (run.state, run.reason_code, run.reason) == (
-        RunState.NEEDS_RECONCILIATION,
-        ReasonCode.DRIVER_STATE_MISMATCH,
-        MISMATCH,
-    )
+    restarted.backend.notes.update(started.backend.notes)  # the provider's committed note
+    run = await restarted.coordinator.reconcile(restarted.approver, run.run_id)
+    assert (run.state, run.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
     assert (driver.restored, driver.calls) == ([], 0)
     actions = await restarted.store.list_actions(TENANT, run.run_id)
-    assert [a.state for a in actions] == [ActionState.UNKNOWN]
+    assert [a.state for a in actions] == [ActionState.VERIFIED]
     assert (started.backend.create_calls, restarted.backend.create_calls) == (1, 0)
+    failed = [
+        e for e in await _events(restarted, run.run_id) if e.type is RunEventType.CONTEXT_FAILED
+    ]
+    assert [e.payload["reason_code"] for e in failed] == [ReasonCode.DRIVER_STATE_MISMATCH]
+    after = await restarted.store.load_continuation(TENANT, run.run_id)
+    assert stored is not None and after is not None and after[1] == stored[1]
 
 
 async def test_pinned_on_run_without_marker_restores(make_kernel: MakeKernel) -> None:

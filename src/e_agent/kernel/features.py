@@ -96,8 +96,15 @@ TERMINAL_MESSAGES = MappingProxyType(
 run state change it ends, and of ``context.failed``. No message names a route or setting
 value."""
 
-CONTEXT_FAILED_CODES = frozenset({ReasonCode.CONTEXT_UNAVAILABLE, ReasonCode.ROUTE_BOUNDARY_UNMET})
-"""The codes ``context.failed`` carries for a skipped acknowledgement turn (ADR 0032 §11)."""
+CONTEXT_FAILED_CODES = frozenset(
+    {
+        ReasonCode.CONTEXT_UNAVAILABLE,
+        ReasonCode.ROUTE_BOUNDARY_UNMET,
+        ReasonCode.DRIVER_STATE_MISMATCH,
+    }
+)
+"""The codes ``context.failed`` carries for a skipped acknowledgement turn (ADR 0032 §8,
+§11)."""
 
 SHADOW_MESSAGES = MappingProxyType(
     {

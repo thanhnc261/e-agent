@@ -15,7 +15,7 @@ import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any
 
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.approval import ApprovalRecord
@@ -47,7 +47,13 @@ from e_agent.sdk.ports import (
 )
 from e_agent.sdk.store import EventBatch, RunStore
 from e_agent.sdk.tasks import supervised_task
-from pydantic import BaseModel, Field, SerializerFunctionWrapHandler, model_serializer
+from pydantic import (
+    BaseModel,
+    Field,
+    PrivateAttr,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 
 from .connections import ConnectionCatalog
 from .errors import ErrorCode, KernelError
@@ -60,15 +66,6 @@ CONTINUATION_SCHEMA = "kernel-continuation-v1"
 
 KNOWN_RENDERINGS = frozenset({"pack"})
 """The driver snapshot ``rendering`` markers the kernel knows (ADR 0032 §6, §8)."""
-
-
-class DriverStateConflict(KernelError):
-    """`_load_cont` refused a run's driver state (ADR 0032 §8, D8) and its handler already
-    ended the run: a caller that catches it re-reads the run and writes nothing more on the
-    record it held (review D3-50)."""
-
-    def __init__(self, message: str) -> None:
-        super().__init__(ErrorCode.CONFLICT, message)
 
 
 class NextStep(StrEnum):
@@ -137,6 +134,10 @@ class _Continuation(BaseModel):
     of it has used (set by the first call, review D3-41): its driver history may hold values
     only that route may see, so a call on a stricter one is refused. None, and left out of
     the stored continuation, for every other run."""
+    _unrestored: dict[str, Any] | None = PrivateAttr(default=None)
+    """The stored driver state this entry was loaded with, until a driver turn restores it
+    (`_restore_for_turn`, review D3-60): never serialized, and written back verbatim by
+    `_snapshot` meanwhile, so a kernel-only load leaves the stored driver state as it was."""
 
     @model_serializer(mode="wrap")
     def _omit_unbound_task(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -230,7 +231,7 @@ class ContinuationMixin:
         ) -> RunRecord | None:
             raise NotImplementedError
 
-        async def _driver_state_mismatch(self, tenant_id: str, run_id: str) -> NoReturn:
+        async def _driver_state_mismatch(self, run: RunRecord) -> RunRecord:
             raise NotImplementedError
 
         async def _record_rejected_read(
@@ -335,27 +336,45 @@ class ContinuationMixin:
         return (await self._read_cont(tenant_id, run_id))[0]
 
     async def _load_cont(self, tenant_id: str, run_id: str) -> _Continuation:
+        """The kernel continuation, cached; driver state is not restored here (ADR 0032 §8,
+        review D3-60). Kernel-only operations (reconcile, the crash rules, cancel, approval
+        reads and decisions) never touch the driver; a driver turn restores through
+        `_restore_for_turn` first."""
         cont = self._runs.get(run_id)
         if cont is not None:
             return cont
         cont, driver_state = await self._read_cont(tenant_id, run_id)
-        restore = getattr(self._driver, "restore", None)
-        if driver_state is not None and restore is not None:
-            try:  # the typed refusal: the kernel's marker check, or the driver's own (D8)
-                if rendering_mismatch(cont, driver_state):
-                    raise DriverStateMismatch
-                restore(run_id, driver_state)
-            except DriverStateMismatch:  # nothing restored or cached; the run fails closed
-                await self._driver_state_mismatch(tenant_id, run_id)
+        if getattr(self._driver, "restore", None) is not None:
+            cont._unrestored = driver_state
         self._runs[run_id] = cont
         return cont
+
+    def _restore_for_turn(self, cont: _Continuation) -> bool:
+        """Restore the driver state a load left pending, once per load, before the run's next
+        driver turn (`_drive`, the acknowledgement turn). False on the typed refusal (D8): the
+        kernel's ``rendering`` marker check, or the driver's own; nothing is restored, and the
+        stored driver state stays as it was."""
+        driver_state = cont._unrestored
+        restore = getattr(self._driver, "restore", None)
+        if driver_state is None or restore is None:
+            return True
+        try:
+            if rendering_mismatch(cont, driver_state):
+                raise DriverStateMismatch
+            restore(cont.ctx.run_id, driver_state)
+        except DriverStateMismatch:
+            return False
+        cont._unrestored = None
+        return True
 
     def _snapshot(self, run_id: str) -> tuple[dict[str, Any], dict[str, Any] | None] | None:
         cont = self._runs.get(run_id)
         if cont is None:
             return None
         snapshot = getattr(self._driver, "snapshot", None)
-        driver_state = snapshot(run_id) if snapshot is not None else None
+        driver_state = cont._unrestored  # not restored yet: the stored state, verbatim
+        if driver_state is None and snapshot is not None:
+            driver_state = snapshot(run_id)
         return ({"schema": CONTINUATION_SCHEMA, "data": cont.model_dump(mode="json")}, driver_state)
 
     async def _persist(self, run_id: str) -> None:

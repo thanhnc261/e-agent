@@ -44,6 +44,8 @@ class RunLoopMixin(GatewayMixin, ContextOnMixin):
         unbound = await self._unbound_snapshot(run, cont)  # `on`: fails before any turn
         if unbound is not None:
             return unbound
+        if not self._restore_for_turn(cont):  # before any read of driver state (D8, D3-60)
+            return await self._driver_state_mismatch(run)
         while True:
             if cont.turns >= ctx.budgets.max_driver_turns:
                 return await self._exhausted(run, "driver turns")

@@ -15,7 +15,7 @@ from e_agent.contracts.run import (
     RunState,
 )
 from e_agent.contracts.step import StepKind, StepRecord, StepStatus
-from e_agent.sdk.errors import ContextNotRendered
+from e_agent.sdk.errors import ContextNotRendered, DriverStateMismatch
 from e_agent.sdk.ports import (
     DriverInput,
     FinalAnswer,
@@ -190,15 +190,19 @@ class VerificationMixin(ContextOnMixin):
             observations=tuple(cont.observations.values()),
             action_result={"status": "VERIFIED", "external_refs": list(external_refs)},
         )
+        # before any read of driver state; a refusal skips the turn below (D8, D3-60)
+        restored = not acknowledge or self._restore_for_turn(cont)
         # pinned shadow only, above the final-response guard (ADR 0032 §7, review D3-30)
         shadow = (
             await self._context_shadow(run, cont, ack_input, acknowledgement=True)
-            if acknowledge
+            if acknowledge and restored
             else None
         )
         answered = False
         turn_input = ack_input
         try:
+            if not restored:
+                raise DriverStateMismatch
             if acknowledge and (
                 getattr(self._driver, "tokens_used", lambda _: 0)(ctx.run_id)
                 < ctx.budgets.max_model_tokens
@@ -212,11 +216,13 @@ class VerificationMixin(ContextOnMixin):
                     ctx.budgets.model_timeout_seconds,
                 )
                 answered = True
-        except (RouteRefused, ContextUnavailable, ContextNotRendered) as exc:
-            # skipped, recorded; the run keeps its outcome (ADR 0032 §7, §9)
+        except (RouteRefused, ContextUnavailable, ContextNotRendered, DriverStateMismatch) as exc:
+            # skipped, recorded; the run keeps its outcome (ADR 0032 §7, §8, §9)
             code = (
                 ReasonCode.ROUTE_BOUNDARY_UNMET
                 if isinstance(exc, RouteRefused)
+                else ReasonCode.DRIVER_STATE_MISMATCH
+                if isinstance(exc, DriverStateMismatch)
                 else ReasonCode.CONTEXT_UNAVAILABLE
             )
             run = await self._store.get_run(ctx.tenant_id, ctx.run_id)

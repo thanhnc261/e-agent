@@ -1,11 +1,13 @@
-"""A restore mismatch (ADR 0032 §8, D8) found by recovery or cancel stops that caller, and
-the run's events reconstruct to its stored rows (review D3-50, ADR 0031 §2-§3).
+"""A driver-state mismatch (ADR 0032 §8, D8) is found only before a driver turn; kernel-only
+operations load the continuation without restoring it (reviews D3-50, D3-60, D3-61).
 
-`_load_cont`'s handler ends the run itself: it blocks every action still waiting for
-approval or dispatch in the same kernel call, recorded on the state change
-(``blocked_action_ids``), and raises `DriverStateConflict`. Recovery logs and skips the run;
-cancel returns the run as the handler left it. Neither writes anything more on the run
-record it held. Both stores, through the kernel suite's ``run_store`` fixture.
+Every case starts a run whose stored driver snapshot carries the ``pack`` rendering marker
+on a run not pinned ``on``: any restore of it is refused. Reconciliation, the crash rules,
+cancel and the approval read then work as for any run and never restore; the first run-loop
+turn fails the run closed; an acknowledgement turn is skipped and the run keeps its
+verified outcome. The stored driver state is written back unchanged, and the run's events
+reconstruct to its stored rows after each case (ADR 0031 §2-§3). Both stores, through the
+kernel suite's ``run_store`` fixture.
 """
 
 from __future__ import annotations
@@ -16,9 +18,10 @@ from typing import Any
 import pytest
 from e_agent.contracts.action import ActionState
 from e_agent.contracts.events import RunEventType
-from e_agent.contracts.run import ReasonCode, RunState
-from e_agent.kernel.continuation import DriverStateConflict
+from e_agent.contracts.run import ReasonCode, RunRecord, RunState
+from e_agent.kernel.coordinator import RunCoordinator
 from e_agent.kernel.features import TERMINAL_MESSAGES
+from e_agent.kernel.policy import DefaultPolicy
 from e_agent.kernel.reconstruct import BLOCKED_KEY, reconstruct
 
 from tests.conformance.test_reconstruction import _approve, _assert_equal, _rows
@@ -37,89 +40,182 @@ class Crash(BaseException):
     """A process dying mid-call."""
 
 
-def _restarted(make_kernel: MakeKernel) -> tuple[Kernel, StatefulDriver]:
+def _restart(k: Kernel) -> tuple[RunCoordinator, StatefulDriver]:
+    """A new process on the same store and backend, with a driver holding no run."""
     driver = StatefulDriver(notes=True)
-    return make_kernel(driver=driver), driver
+    fresh = RunCoordinator(
+        store=k.store,
+        registry=k.coordinator._registry,
+        connections=k.connections,
+        policy=DefaultPolicy(),
+        driver=driver,
+        clock=k.clock,
+    )
+    return fresh, driver
 
 
-async def _check(k: Kernel, run_id: str, blocked: list[str]) -> None:
+async def _waiting_approval(make_kernel: MakeKernel) -> tuple[Kernel, RunRecord]:
+    k = make_kernel(driver=StatefulDriver(notes=True, marker="pack"))  # pinned off
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+    assert run.state is RunState.WAITING_APPROVAL
+    return k, run
+
+
+async def _driver_state(k: Kernel, run_id: str) -> dict[str, Any] | None:
+    stored = await k.store.load_continuation(TENANT, run_id)
+    assert stored is not None
+    return stored[1]
+
+
+async def _reconstructs(k: Kernel, run_id: str, name: str) -> Any:
     rows = await _rows(k.store, await k.store.get_run(TENANT, run_id))
-    assert (rows.run.state, rows.run.reason_code, rows.run.reason) == (
+    _assert_equal(name, reconstruct(rows.events), rows)
+    return rows
+
+
+def _skipped_acknowledgement(rows: Any) -> None:
+    """The run kept its verified outcome; its acknowledgement turn was skipped (§8)."""
+    assert (rows.run.state, rows.run.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
+    assert [a.state for a in rows.actions.values()] == [ActionState.VERIFIED]
+    failed = [e.payload for e in rows.events if e.type is RunEventType.CONTEXT_FAILED]
+    assert failed == [
+        {
+            "reason_code": ReasonCode.DRIVER_STATE_MISMATCH,
+            "message": MISMATCH,
+            "turn": "acknowledgement",
+        }
+    ]
+
+
+async def test_reconcile_resolves_a_mismatched_run(make_kernel: MakeKernel) -> None:
+    k, run = await _waiting_approval(make_kernel)
+    k.backend.fail_mode = "timeout"  # committed, then the response was lost
+    assert (await _approve(k, run.run_id)).state is RunState.NEEDS_RECONCILIATION
+    k.backend.fail_mode = None
+    stored = await _driver_state(k, run.run_id)
+    assert stored is not None and stored["rendering"] == "pack"
+
+    fresh, driver = _restart(k)
+    reconciled = await fresh.reconcile(k.approver, run.run_id)
+    assert reconciled.state is RunState.SUCCEEDED
+    assert (driver.restored, driver.calls) == ([], 0)
+    assert k.backend.create_calls == 1, "reconciliation never re-sends a write"
+    assert await _driver_state(k, run.run_id) == stored
+    _skipped_acknowledgement(await _reconstructs(k, run.run_id, "reconcile"))
+
+
+async def test_recovery_moves_a_dispatching_action_to_unknown(make_kernel: MakeKernel) -> None:
+    k, run = await _waiting_approval(make_kernel)
+    original = k.backend.execute
+
+    async def commit_then_die(*args: Any) -> Any:
+        await original(*args)
+        raise Crash
+
+    k.backend.execute = commit_then_die  # type: ignore[method-assign]
+    try:
+        with pytest.raises(Crash):
+            await _approve(k, run.run_id)
+    finally:
+        k.backend.execute = original  # type: ignore[method-assign]
+    [action] = await k.store.list_actions(TENANT, run.run_id)
+    assert action.state is ActionState.DISPATCHING
+    stored = await _driver_state(k, run.run_id)
+
+    fresh, driver = _restart(k)
+    [recovered] = await fresh.recover()
+    assert (recovered.state, recovered.reason_code) == (
+        RunState.NEEDS_RECONCILIATION,
+        ReasonCode.EFFECT_UNKNOWN,
+    )
+    rows = await _reconstructs(k, run.run_id, "recovery dispatching")
+    assert [a.state for a in rows.actions.values()] == [ActionState.UNKNOWN]
+    assert await _driver_state(k, run.run_id) == stored
+
+    assert (await fresh.reconcile(k.approver, run.run_id)).state is RunState.SUCCEEDED
+    assert (driver.restored, driver.calls) == ([], 0)
+    assert k.backend.create_calls == 1
+    _skipped_acknowledgement(await _reconstructs(k, run.run_id, "recovery reconciled"))
+
+
+async def test_recovery_verifies_a_committed_action(make_kernel: MakeKernel) -> None:
+    k, run = await _waiting_approval(make_kernel)
+    original = k.store.record_receipt
+
+    async def commit_then_die(*args: Any) -> Any:
+        await original(*args)
+        raise Crash
+
+    k.store.record_receipt = commit_then_die  # type: ignore[method-assign]
+    try:
+        with pytest.raises(Crash):
+            await _approve(k, run.run_id)
+    finally:
+        k.store.record_receipt = original  # type: ignore[method-assign]
+    [action] = await k.store.list_actions(TENANT, run.run_id)
+    assert action.state is ActionState.COMMITTED
+    stored = await _driver_state(k, run.run_id)
+
+    fresh, driver = _restart(k)
+    [recovered] = await fresh.recover()
+    assert recovered.state is RunState.SUCCEEDED
+    assert (driver.restored, driver.calls) == ([], 0)
+    assert k.backend.create_calls == 1
+    assert await _driver_state(k, run.run_id) == stored
+    _skipped_acknowledgement(await _reconstructs(k, run.run_id, "recovery committed"))
+
+
+async def test_the_approval_read_and_cancel_leave_the_d8_path_alone(
+    make_kernel: MakeKernel,
+) -> None:
+    k, run = await _waiting_approval(make_kernel)
+    before = await _rows(k.store, run)
+    stored = await k.store.load_continuation(TENANT, run.run_id)
+
+    fresh, driver = _restart(k)
+    presentation = await fresh.pending_approval(TENANT, run.run_id)  # a read: nothing changes
+    after = await _rows(k.store, run)
+    assert presentation.action_id in before.actions
+    assert (after.run, after.events) == (before.run, before.events)
+    assert await k.store.load_continuation(TENANT, run.run_id) == stored
+
+    cancelled = await fresh.cancel(k.requester, run.run_id)
+    assert (cancelled.state, cancelled.reason_code) == (RunState.CANCELLED, ReasonCode.CANCELLED)
+    assert (driver.restored, driver.calls) == ([], 0)
+    assert await _driver_state(k, run.run_id) == stored[1]  # type: ignore[index]
+    rows = await _reconstructs(k, run.run_id, "cancel")
+    assert [a.state for a in rows.actions.values()] == [ActionState.BLOCKED]
+
+
+async def test_the_first_driver_turn_fails_closed(make_kernel: MakeKernel) -> None:
+    k = make_kernel(driver=StatefulDriver(marker="pack"))  # pinned off; asks a question
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+    assert run.state is RunState.WAITING_INPUT
+    stored = await _driver_state(k, run.run_id)
+
+    fresh, driver = _restart(k)
+    ended = await fresh.resume_input(k.requester, run.run_id, "the standup", run.revision)
+    assert (ended.state, ended.reason_code, ended.reason) == (
         RunState.FAILED,
         ReasonCode.DRIVER_STATE_MISMATCH,
         MISMATCH,
     )
+    assert (driver.restored, driver.calls) == ([], 0)
+    assert await _driver_state(k, run.run_id) == stored
+    await _reconstructs(k, run.run_id, "driver turn")
+
+
+async def test_the_handler_blocks_every_blockable_action(make_kernel: MakeKernel) -> None:
+    """The handler's shape with an action still waiting (review D3-62): the action is
+    blocked in the same kernel call and recorded on the state change (ADR 0031 §3)."""
+    k, run = await _waiting_approval(make_kernel)
+    [action] = await k.store.list_actions(TENANT, run.run_id)
+    fresh, _ = _restart(k)
+    await fresh._load_cont(TENANT, run.run_id)
+    ended = await fresh._driver_state_mismatch(run)
+    assert (ended.state, ended.reason_code) == (RunState.FAILED, ReasonCode.DRIVER_STATE_MISMATCH)
+    rows = await _reconstructs(k, run.run_id, "handler")
     assert [a.state for a in rows.actions.values()] == [ActionState.BLOCKED]
     changes = [e.payload for e in rows.events if e.type is RunEventType.RUN_STATE_CHANGED]
-    failed = [c for c in changes if c["to"] == RunState.FAILED]
-    assert len(failed) == 1, "a second state change on the stale record"
-    assert failed[0][BLOCKED_KEY] == blocked
-    assert failed[0]["reason_code"] == ReasonCode.DRIVER_STATE_MISMATCH
-    _assert_equal("restore mismatch", reconstruct(rows.events), rows)
-
-
-async def test_recovery_with_an_approved_action_stops_on_a_restore_mismatch(
-    make_kernel: MakeKernel, caplog: pytest.LogCaptureFixture
-) -> None:
-    started = make_kernel(driver=StatefulDriver(notes=True, marker="pack"))  # pinned off
-    run = await started.coordinator.start_run(
-        started.requester, "write standup note", started.scope
-    )
-    assert run.state is RunState.WAITING_APPROVAL
-    original = started.store.reserve_operation
-
-    async def die(*_args: Any, **_kwargs: Any) -> Any:
-        raise Crash
-
-    started.store.reserve_operation = die
-    try:
-        with pytest.raises(Crash):
-            await _approve(started, run.run_id)
-    finally:
-        started.store.reserve_operation = original
-    [action] = await started.store.list_actions(TENANT, run.run_id)
-    assert action.state is ActionState.APPROVED
-
-    restarted, driver = _restarted(make_kernel)
-    recovered = await restarted.coordinator.recover()
-    assert run.run_id not in {r.run_id for r in recovered}  # logged and skipped
-    assert "startup recovery skipped run" in caplog.text
-    assert (driver.restored, driver.calls) == ([], 0)
-    await _check(restarted, run.run_id, [action.action_id])
-    assert started.backend.create_calls + restarted.backend.create_calls == 0
-    # the run has ended: a later recovery leaves it alone
-    again = await restarted.coordinator.recover_run(TENANT, run.run_id)
-    assert again.state is RunState.FAILED
-    await _check(restarted, run.run_id, [action.action_id])
-
-
-async def test_cancel_stops_on_a_restore_mismatch(make_kernel: MakeKernel) -> None:
-    started = make_kernel(driver=StatefulDriver(notes=True, marker="pack"))  # pinned off
-    run = await started.coordinator.start_run(
-        started.requester, "write standup note", started.scope
-    )
-    assert run.state is RunState.WAITING_APPROVAL
-    [action] = await started.store.list_actions(TENANT, run.run_id)
-    assert action.state is ActionState.AWAITING_APPROVAL
-
-    restarted, driver = _restarted(make_kernel)
-    cancelled = await restarted.coordinator.cancel(restarted.requester, run.run_id)
-    assert (cancelled.state, cancelled.reason_code) == (
-        RunState.FAILED,
-        ReasonCode.DRIVER_STATE_MISMATCH,
-    )
-    assert cancelled == await restarted.store.get_run(TENANT, run.run_id)
-    assert (driver.restored, driver.calls) == ([], 0)
-    await _check(restarted, run.run_id, [action.action_id])
-
-
-async def test_the_handler_conflict_is_typed(make_kernel: MakeKernel) -> None:
-    started = make_kernel(driver=StatefulDriver(marker="pack"))
-    run = await started.coordinator.start_run(
-        started.requester, "write standup note", started.scope
-    )
-    restarted = make_kernel(driver=StatefulDriver())
-    with pytest.raises(DriverStateConflict):
-        await restarted.coordinator.resume_input(
-            restarted.requester, run.run_id, "the standup", run.revision
-        )
+    [failed] = [c for c in changes if c["to"] == RunState.FAILED]
+    assert failed[BLOCKED_KEY] == [action.action_id]
