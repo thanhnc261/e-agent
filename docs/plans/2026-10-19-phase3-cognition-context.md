@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** Draft 2026-10-19, written after Phase 2 merged (PR #6, `3ec2d70`); revised the same day after a fresh-context plan review (verdict "rework", findings P3-1 to P3-19 in `harness/state/3/reviews/3-plan.json`). Awaiting owner review. No task starts before the owner approves this plan and accepts the ADRs at gate G2 (Task 3a.2). Every open choice in the decisions table has a recommended default.
+**Status:** Approved by the owner on 2026-10-19 ("Approved"), with every recommended default in the decisions table (D1–D10). Written after Phase 2 merged (PR #6, `3ec2d70`) and revised the same day after a fresh-context plan review and a scoped re-review (findings P3-1 to P3-19 and P3-R1 to P3-R4 in `harness/state/3/reviews/3-plan.json`). Part 3a may start. Runtime work (3b onward) waits for the owner to accept ADRs 0031–0033 and ADR 0030's Phase 3 parts at gate G2 (Task 3a.2).
 
 **Goal:** the kernel decides what reaches the model: a budgeted, minimized, fenced context pack built from a progress ledger. Answers carry citations, which the kernel checks against this run's recorded evidence. Every proposal can carry a checked rationale. Any run can be reconstructed and explained from `run_events` alone. The new runtime paths sit behind toggles. Before a write is reserved, they fall back to today's driver history. After a reservation they fail closed (ADR 0027).
 
