@@ -42,6 +42,12 @@ describe("run status keeps working, sending, recorded and unconfirmed apart", ()
     expect(runStatusKey(undefined)).toBe("status.idle");
   });
 
+  it("never labels a grounded run verified (PR-19)", () => {
+    expect(runStatusKey("SUCCEEDED", [], false, "grounded")).toBe("status.SUCCEEDED.grounded");
+    expect(runStatusKey("SUCCEEDED", [], false, "verified")).toBe("status.SUCCEEDED");
+    expect(runStatusKey("FAILED", [], false, "grounded")).toBe("status.FAILED");
+  });
+
   it("names a waiting reply as the user's turn, never as a needed answer", () => {
     expect(runStatusKey("WAITING_INPUT", [], true)).toBe("status.WAITING_INPUT.reply");
     expect(runStatusKey("WAITING_INPUT", [], false)).toBe("status.WAITING_INPUT");

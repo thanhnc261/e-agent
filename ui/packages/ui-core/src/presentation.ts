@@ -65,6 +65,7 @@ export function runStatusKey(
   state: string | undefined,
   actions: readonly { state: string }[] = [],
   replyPending = false,
+  reasonCode?: string | null,
 ): string {
   if (state === "WAITING_INPUT" && replyPending) return "status.WAITING_INPUT.reply";
   if (state && IN_FLIGHT.has(state)) {
@@ -73,7 +74,7 @@ export function runStatusKey(
     if (states.has("DISPATCHING")) return "status.phase.DISPATCHING";
     if (state === "RUNNING" && states.has("COMMITTED")) return "status.phase.COMMITTED";
   }
-  return statusKey(state);
+  return resultStatusKey(state, reasonCode);
 }
 
 export function actionStatusKey(state: string): string {

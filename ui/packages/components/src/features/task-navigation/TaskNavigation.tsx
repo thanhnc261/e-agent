@@ -1,5 +1,5 @@
 /** Session task switcher. Switching is local navigation and never stops server work. */
-import { statusKey } from "@e-agent/ui-core";
+import { resultStatusKey } from "@e-agent/ui-core";
 import { useController, useI18n, useRunState, useSurface } from "@e-agent/ui-react";
 import { ActionButton } from "../../primitives/ActionButton.tsx";
 
@@ -47,7 +47,7 @@ export function TaskNavigation({
                   data-testid="history-task"
                 >
                   <span>{h.task}</span>
-                  <small>{t(statusKey(h.state))}</small>
+                  <small>{t(resultStatusKey(h.state, h.reasonCode))}</small>
                 </ActionButton>
               </li>
             ))}

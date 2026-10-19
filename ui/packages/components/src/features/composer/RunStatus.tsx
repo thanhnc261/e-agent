@@ -15,7 +15,7 @@ export function RunStatus() {
   const controller = useController();
   const { view } = useRunState();
   if (!run) return null;
-  const status = runStatusKey(run.state, actions, selectPendingReply(view));
+  const status = runStatusKey(run.state, actions, selectPendingReply(view), run.reason_code);
   // Stopping cannot change an effect that may already have happened, so an
   // unresolved outcome offers a check (in the result) instead of Stop.
   const stoppable = !TERMINAL_STATES.has(run.state) && run.state !== "NEEDS_RECONCILIATION";
