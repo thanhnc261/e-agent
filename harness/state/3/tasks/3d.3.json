@@ -1,0 +1,38 @@
+{
+  "id": "3d.3",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3d-3"
+  ],
+  "context_digest": "74d61d0dd230b77fc0472eb368d18b5d7560ebd2715d60256063d7378a79a897",
+  "allowed_paths": [
+    "src/e_agent/contracts/events.py",
+    "src/e_agent/kernel/run_loop.py",
+    "src/e_agent/kernel/features.py",
+    "src/e_agent/kernel/context.py",
+    "src/e_agent/kernel/context_*.py",
+    "src/e_agent/kernel/continuation.py",
+    "src/e_agent/kernel/coordinator.py",
+    "scripts/release_report.py",
+    "evals/reports/phase3-baseline.json",
+    "tests/unit/kernel/**",
+    "tests/unit/server/**",
+    "tests/unit/scripts/**",
+    "tests/conformance/**",
+    "pyproject.toml",
+    "docs/plans/2026-10-19-phase3-cognition-context.md",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "context.compared recorded per turn with no added model call, read or budget",
+    "replay consumer passes with its count; phase3-baseline.json recorded",
+    "off goldens unchanged; full and pg pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "cc82936f04806e7958671299363b56d38bb3c4f7",
+  "created_at": "2026-10-19T12:41:08+00:00",
+  "features_digest": "8e180161e2c84eb69db3ae76232b562fb3720d7aef7465812374a7c3f8ae5c88"
+}
