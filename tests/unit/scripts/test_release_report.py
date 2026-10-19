@@ -112,3 +112,49 @@ def test_phase3_baseline_is_off_fixture_evidence() -> None:
     assert all(c["model_tokens"] == "unknown" for c in cases)
     assert report["repair_rate"] is not None
     print(f"phase3 baseline: {len(cases)} cases, repair rate {report['repair_rate']}")
+
+
+# -- Task 3d.6: the repeat columns and the disagreement count (ADR 0031 §5) -----------------
+def test_repeat_columns_count_disagreements() -> None:
+    from datetime import UTC, datetime
+
+    from e_agent.contracts.events import RunEvent, RunEventType
+
+    def event(seq: int, kind: RunEventType, payload: dict) -> RunEvent:
+        return RunEvent(
+            event_id=f"e{seq}",
+            tenant_id="t",
+            run_id="r",
+            sequence=seq,
+            type=kind,
+            occurred_at=datetime(2026, 10, 19, tzinfo=UTC),
+            payload=payload,
+        )
+
+    compared, failed = RunEventType.REPEAT_COMPARED, RunEventType.REPEAT_SHADOW_FAILED
+    events = [
+        event(1, compared, {"would_repeat": False, "repeat_of": None, "same_findings": None}),
+        event(2, compared, {"would_repeat": True, "repeat_of": "a1", "same_findings": True}),
+        event(3, compared, {"would_repeat": True, "repeat_of": "a1", "same_findings": False}),
+        event(4, failed, {"stage": "check", "message": "m"}),
+    ]
+    assert rr.repeat_columns(events) == {
+        "compared": 3,
+        "would_repeat": 2,
+        "disagreements": 1,
+        "shadow_failures": 1,
+    }
+    assert rr.repeat_columns(events[:0]) is None
+
+
+async def test_release_report_repeat_disagreements_only_in_shadow() -> None:
+    from e_agent.contracts.features import FeatureMode
+
+    rt = await build_runtime(load_profile(fixture_profile_path()))
+    plain = {"passed": True, "task": "ERP-01", "case": "a", "final_state": "SUCCEEDED"}
+    assert rr.build_report(rt, [{**plain, "repeat": None}])["repeat_disagreements"] is None
+    columns = {"compared": 2, "would_repeat": 1, "disagreements": 1, "shadow_failures": 0}
+    report = rr.build_report(rt, [{**plain, "repeat": columns}], kernel_repeat=FeatureMode.SHADOW)
+    assert (report["kernel_repeat"], report["repeat_disagreements"]) == ("shadow", 1)
+    off = await rr.run_case(rr.CASES[4])  # ERP-03 blocked by PR-003, then repaired
+    assert off["passed"] and off["repeat"] is None

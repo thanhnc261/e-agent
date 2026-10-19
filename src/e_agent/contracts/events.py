@@ -48,6 +48,11 @@ class RunEventType(StrEnum):
     # `context_assembler: on` (Task 3d.5): the pack a driver turn was given, by digest and
     # counts, for ADR 0032 §13's record; it marks the turn as `context.compared` does.
     CONTEXT_ASSEMBLED = "context.assembled"
+    # `kernel_repeat: shadow` (ADR 0031 §5, Task 3d.6): whether the repeat rule would have
+    # short-circuited a write proposal and whether validation then gave the same findings,
+    # or the stage at which the comparison failed.
+    REPEAT_COMPARED = "repeat.compared"
+    REPEAT_SHADOW_FAILED = "repeat.shadow_failed"
 
 
 class RunEvent(Record):

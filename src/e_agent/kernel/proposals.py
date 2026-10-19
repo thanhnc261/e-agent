@@ -37,15 +37,18 @@ from .context import KERNEL_RULE_PREFIX
 from .continuation import _Continuation, _GatewayReader
 from .errors import KernelError
 from .ir import StepDigestContext
-from .ir_on import IrOnMixin, _fixed
+from .ir_on import _fixed
 from .reconstruct import proposal_keys
+from .repeat import (
+    ERROR_BUNDLE,
+    EVIDENCE_BUNDLE,
+    INVALID_DIGEST,
+    NO_VALIDATOR_BUNDLE,
+    RepeatMixin,
+    RepeatProbe,
+)
 from .verification import outcome_payload
 
-EVIDENCE_BUNDLE, NO_VALIDATOR_BUNDLE, ERROR_BUNDLE = "kernel-evidence-v1", "none", "error"
-SENTINEL_BUNDLES = frozenset({EVIDENCE_BUNDLE, NO_VALIDATOR_BUNDLE, ERROR_BUNDLE})
-"""The rule bundle versions `_validate` reports when no domain rule ran: incomplete
-evidence, no validator, a validator that raised or claimed a kernel rule id. None is a
-real bundle to bind."""
 PROPOSAL_KIND = "The proposed capability is not a write or an answer this run can use."
 """The fixed message of the ``KERNEL-PROPOSAL-KIND`` repair finding (2c.8c round 2)."""
 KERNEL_RULE_ID_CLAIMED = "validator returned a kernel rule id"
@@ -69,7 +72,7 @@ def _validator_error(validator_id: str, message: str) -> ValidationResult:
     )
 
 
-class ProposalsMixin(IrOnMixin):
+class ProposalsMixin(RepeatMixin):
     # ------------------------------------------------------------- proposals
     async def _handle_proposal(
         self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
@@ -92,8 +95,6 @@ class ProposalsMixin(IrOnMixin):
         except KernelError:
             return await self._connection_refused(run, cont)
         decision = self._policy.evaluate(ctx, descriptor, proposal.connection_id)
-        validation = await self._validate(ctx, cont, proposal, binding)
-
         credential_version = (
             await self._credentials.version(ctx, proposal.connection_id)
             if self._credentials
@@ -105,7 +106,8 @@ class ProposalsMixin(IrOnMixin):
             for o in cont.observations.values()
             if o.evidence.revision is None
         }
-        canonical = digest_input(
+        canonical_for = partial(  # the digest input, less the bundle validation reports
+            digest_input,
             tenant_id=ctx.tenant_id,
             requester_id=ctx.principal.principal_id,
             logical_operation_id=run.logical_operation_id,
@@ -117,11 +119,15 @@ class ProposalsMixin(IrOnMixin):
             arguments=dict(proposal.arguments),
             expected_effects=proposal.expected_effects,
             evidence=evidence,
-            rule_bundle_version=validation.rule_bundle_version,
             policy_version=decision.policy_version,
             credential_version=credential_version,
             fact_digests=fact_digests,
         )
+        probe = await self._repeat_probe(run, cont, canonical_for, permitted=decision.permitted)
+        if not isinstance(probe, RepeatProbe):  # `on`: KERNEL-REPEAT, or closed (ADR 0031 §5)
+            return probe
+        validation = await self._validate(ctx, cont, proposal, binding)
+        canonical = canonical_for(rule_bundle_version=validation.rule_bundle_version)
         try:
             action_digest = compute_digest(canonical)
         except CanonicalizationError as exc:
@@ -138,7 +144,7 @@ class ProposalsMixin(IrOnMixin):
                 rule_bundle_version=validation.rule_bundle_version,
                 validator_id="kernel",
             )
-            action_digest = "invalid"
+            action_digest = INVALID_DIGEST
 
         previous = cont.last_action_id
         action = ActionRecord(
@@ -175,7 +181,8 @@ class ProposalsMixin(IrOnMixin):
                         **proposal_keys(action),  # ADR 0031 §3
                     },
                     action.action_id,
-                )
+                ),
+                *self._repeat_events(probe, validation, action.action_id),
             ],
         )
         cont.last_action_id = action.action_id
@@ -207,6 +214,7 @@ class ProposalsMixin(IrOnMixin):
                 )
             cont.repairs += 1
             cont.findings = validation.findings
+            self._remember_blocked(cont, action, validation)
             return DriverInput(
                 task=run.task,
                 observations=tuple(cont.observations.values()),
@@ -324,19 +332,13 @@ class ProposalsMixin(IrOnMixin):
                 {"contract_id": proposal.contract_id, "arguments": dict(proposal.arguments)}
             )
         except CanonicalizationError:
-            action_digest = "invalid"
-        if cont.last_action_id is not None:
-            previous = await self._store.get_action(ctx.tenant_id, cont.last_action_id)
-            if (
-                previous.state is ActionState.VERIFIED
-                and previous.contract_id == proposal.contract_id
-                and previous.connection_id == connection.connection_id
-                and previous.digest == action_digest
-                and previous.arguments == dict(proposal.arguments)
-            ):
-                return await self._finish_verified(
-                    cont, (), "The structured answer was independently verified.", acknowledge=False
-                )
+            action_digest = INVALID_DIGEST
+        if await self._repeats_verified_answer(
+            cont, proposal, connection.connection_id, action_digest
+        ):
+            return await self._finish_verified(
+                cont, (), "The structured answer was independently verified.", acknowledge=False
+            )
         action = ActionRecord(
             action_id=new_id("act"),
             tenant_id=ctx.tenant_id,

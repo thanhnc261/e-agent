@@ -824,7 +824,9 @@
           "context.failed",
           "context.compared",
           "context.shadow_failed",
-          "context.assembled"
+          "context.assembled",
+          "repeat.compared",
+          "repeat.shadow_failed"
         ],
         "title": "RunEventType",
         "type": "string"

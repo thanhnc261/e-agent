@@ -154,6 +154,7 @@ source_modules = [
     "e_agent.kernel.recovery",
     "e_agent.kernel.registry",
     "e_agent.kernel.registry_records",
+    "e_agent.kernel.repeat",
     "e_agent.kernel.run_loop",
     "e_agent.kernel.step",
     "e_agent.kernel.transitions",

@@ -10,8 +10,10 @@ evidence from scripts/qualify_model.py (ADR 0010).
     uv run python scripts/release_report.py --out evals/reports/fixture-release.json
 
 Each case also reports its repairs and token use, and, with ``--context-assembler shadow``,
-the context columns from the run's ``context.compared`` events (ADR 0032 §7, Task 3d.3). The
-Phase 3 ``off`` baseline is this report recorded with the toggle ``off``:
+the context columns from the run's ``context.compared`` events (ADR 0032 §7, Task 3d.3), and,
+with ``--kernel-repeat shadow``, the repeat columns and disagreement count from its
+``repeat.compared`` events (ADR 0031 §5, Task 3d.6). The Phase 3 ``off`` baseline is this
+report recorded with the toggles ``off``:
 
     uv run python scripts/release_report.py --out evals/reports/phase3-baseline.json
 """
@@ -180,13 +182,19 @@ METRICS_NOTE = (
     "kernel sent a proposal or answer back. model_tokens is what the run's events record of "
     "the driver's token use ('unknown' when they record none, never 0). context is null "
     "unless context_assembler is shadow; its pack_tokens and unbounded_tokens are the "
-    "kernel estimator's sums over the run's driver turns, not model-reported tokens."
+    "kernel estimator's sums over the run's driver turns, not model-reported tokens. repeat is "
+    "null unless kernel_repeat is shadow; a disagreement is a write proposal the repeat rule "
+    "would have short-circuited whose validation then gave other findings."
 )
 
 
-def fixture_profile(context_assembler: FeatureMode = FeatureMode.OFF) -> Any:
+def fixture_profile(
+    context_assembler: FeatureMode = FeatureMode.OFF, kernel_repeat: FeatureMode = FeatureMode.OFF
+) -> Any:
     profile = load_profile(fixture_profile_path())
-    features = profile.features.model_copy(update={"context_assembler": context_assembler})
+    features = profile.features.model_copy(
+        update={"context_assembler": context_assembler, "kernel_repeat": kernel_repeat}
+    )
     return profile.model_copy(update={"features": features})
 
 
@@ -236,9 +244,30 @@ def context_columns(events: list[RunEvent]) -> dict[str, Any] | None:
     }
 
 
-async def run_case(case: Case, context_assembler: FeatureMode = FeatureMode.OFF) -> dict[str, Any]:
+def repeat_columns(events: list[RunEvent]) -> dict[str, Any] | None:
+    """The ``repeat.compared`` columns of a ``kernel_repeat: shadow`` run; None when the run
+    recorded none. A disagreement: the rule would have repeated, validation differed."""
+    compared = [e.payload for e in events if e.type is RunEventType.REPEAT_COMPARED]
+    failed = [e for e in events if e.type is RunEventType.REPEAT_SHADOW_FAILED]
+    if not compared and not failed:
+        return None
+    return {
+        "compared": len(compared),
+        "would_repeat": sum(p["would_repeat"] is True for p in compared),
+        "disagreements": sum(
+            p["would_repeat"] is True and p["same_findings"] is not True for p in compared
+        ),
+        "shadow_failures": len(failed),
+    }
+
+
+async def run_case(
+    case: Case,
+    context_assembler: FeatureMode = FeatureMode.OFF,
+    kernel_repeat: FeatureMode = FeatureMode.OFF,
+) -> dict[str, Any]:
     rt = await build_runtime(
-        fixture_profile(context_assembler),
+        fixture_profile(context_assembler, kernel_repeat),
         driver_mode=case.mode,
         plugin_settings={
             "fixture-erp": {
@@ -289,6 +318,7 @@ async def run_case(case: Case, context_assembler: FeatureMode = FeatureMode.OFF)
         "repairs": repair_metrics(events),
         "model_tokens": project_progress(events, []).budgets_used.model_tokens,
         "context": context_columns(events),
+        "repeat": repeat_columns(events),
         "checks": checks,
         "passed": all(checks.values()),
     }
@@ -306,7 +336,10 @@ def summarize(results: list[dict[str, Any]], out: str) -> tuple[int, str]:
 
 
 def build_report(
-    rt: Any, results: list[dict[str, Any]], context_assembler: FeatureMode = FeatureMode.OFF
+    rt: Any,
+    results: list[dict[str, Any]],
+    context_assembler: FeatureMode = FeatureMode.OFF,
+    kernel_repeat: FeatureMode = FeatureMode.OFF,
 ) -> dict[str, Any]:
     """The release report: the case results, the runtime's versions, and the write effects
     its admission accepted on their defaults, which release evidence lists (ADR 0029
@@ -317,6 +350,7 @@ def build_report(
         for r in results
         if "repairs" in r
     )
+    repeats = [r["repeat"] for r in results if r.get("repeat") is not None]
     return {
         "report": "e-agent-release-matrix-v1",
         "environment": "fixture",
@@ -325,8 +359,10 @@ def build_report(
             "Not live model or live ERP evidence."
         ),
         "context_assembler": context_assembler.value,
+        "kernel_repeat": kernel_repeat.value,
         "metrics_note": METRICS_NOTE,
         "repair_rate": round(repairs / proposals, 4) if proposals else None,
+        "repeat_disagreements": sum(r["disagreements"] for r in repeats) if repeats else None,
         "versions": rt.versions,
         "defaulted_declarations": defaulted_payload(rt.registry.report.defaulted_declarations),
         "passed": sum(r["passed"] for r in results),
@@ -344,10 +380,17 @@ async def main() -> int:
         default=FeatureMode.OFF.value,
         help="the context_assembler mode the cases run with (shadow adds the context columns)",
     )
+    parser.add_argument(
+        "--kernel-repeat",
+        choices=[FeatureMode.OFF.value, FeatureMode.SHADOW.value],
+        default=FeatureMode.OFF.value,
+        help="the kernel_repeat mode the cases run with (shadow adds the repeat columns)",
+    )
     args = parser.parse_args()
-    mode = FeatureMode(args.context_assembler)
-    results = [await run_case(c, mode) for c in CASES]
-    report = build_report(await build_runtime(fixture_profile(mode)), results, mode)
+    mode, repeat = FeatureMode(args.context_assembler), FeatureMode(args.kernel_repeat)
+    results = [await run_case(c, mode, repeat) for c in CASES]
+    rt = await build_runtime(fixture_profile(mode, repeat))
+    report = build_report(rt, results, mode, repeat)
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, ensure_ascii=False)
         fh.write("\n")

@@ -100,6 +100,17 @@ class _PlanState(BaseModel):
     only when that step's outcome is VERIFIED: the one source lineage copies from."""
 
 
+class BlockedRevision(BaseModel):
+    """A write proposal `_handle_proposal` blocked on validation, kept for ``KERNEL-REPEAT``
+    (ADR 0031 §5) in a run pinned ``kernel_repeat`` ``shadow`` or ``on``: the action, its
+    approval digest, the rule bundle version that digest bound, and the findings."""
+
+    action_id: str
+    digest: str
+    rule_bundle_version: str
+    findings: tuple[Finding, ...] = ()
+
+
 class _Continuation(BaseModel):
     """Kernel-side run continuation, persisted through the RunStore at every state
     change so a restarted process can resume (ADR 0003/0004). Contains only
@@ -134,6 +145,9 @@ class _Continuation(BaseModel):
     of it has used (set by the first call, review D3-41): its driver history may hold values
     only that route may see, so a call on a stricter one is refused. None, and left out of
     the stored continuation, for every other run."""
+    blocked: tuple[BlockedRevision, ...] = ()
+    """The run's validation-blocked write proposals, kept only when ``kernel_repeat`` is not
+    pinned ``off`` (ADR 0031 §5), and left out of the stored continuation when empty."""
     _stored_driver_state: dict[str, Any] | None = PrivateAttr(default=None)
     """The stored driver state this entry was loaded with, whatever the current driver
     supports, kept until the driver's ``advance`` is about to run (`_timed` with
@@ -145,12 +159,15 @@ class _Continuation(BaseModel):
 
     @model_serializer(mode="wrap")
     def _omit_unbound_task(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        """Leave ``task``, ``plan``, ``modes`` and ``context_boundary`` out when unset, so an
-        ``off`` or ``shadow`` continuation is stored exactly as before Task 2c.6 and 3b.2."""
+        """Leave ``task``, ``plan``, ``modes`` and ``context_boundary`` out when unset, and
+        ``blocked`` when empty, so an ``off`` or ``shadow`` continuation is stored exactly as
+        before Task 2c.6, 3b.2 and 3d.6."""
         data: dict[str, Any] = handler(self)
         for name in ("task", "plan", "modes", "context_boundary"):
             if getattr(self, name) is None:
                 data.pop(name, None)
+        if not self.blocked:
+            data.pop("blocked", None)
         return data
 
 

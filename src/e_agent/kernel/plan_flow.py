@@ -70,8 +70,9 @@ from .ir import (
     validate_plan,
 )
 from .ir_on import OUTSIDE_SET, PLAN_INTERRUPTED, _fixed
-from .proposals import SENTINEL_BUNDLES, ProposalsMixin
+from .proposals import ProposalsMixin
 from .reconstruct import proposal_keys
+from .repeat import SENTINEL_BUNDLES
 
 PLAN_UNSUPPORTED = "This run does not execute multi-step plans; propose one action."
 ONE_WRITE = "This run admits one write; propose one action instead of a plan."
