@@ -2,12 +2,14 @@
   "task": "2d.2",
   "changed": "Phase 2 live check on odoo19-learning (2026-10-19), recorded in docs/handoffs/2026-10-18-phase2-execution-ir.md (Level 4, labelled live).\n- Readiness reports features.execution_ir in off, shadow and on; on starts (no capability on two connections).\n- Task 3 with a seeded shortage of 7: off creates and verifies draft PO P00033; shadow records ir.plan_compiled with digest_matches true and verifies P00034; on (second try) runs a 1-step plan with plan and step records and verifies P00035. On try 1 the model proposed no PO and the run failed acceptance_unmet.\n- Task 1 with on is answered and verified.\n- Before the reseed, the model's invented 2-unit PO was blocked by PR-002 and its wrong answers failed verification; no write was sent.\n- Target 6.4 tagged [I] with its anchor updated; roadmap Phase 2 done.",
   "evidence_refs": [
+    "harness/state/evidence/gates/2d.2/2026-10-19T00-14-14.458871+00-00-live.json",
     "harness/state/evidence/gates/2d.2/2026-10-19T00-11-22.739575+00-00-live.json",
     "harness/state/evidence/live/2d.2-task3-off-seeded.json",
     "harness/state/evidence/live/2d.2-task3-shadow-seeded.json",
     "harness/state/evidence/live/2d.2-task3-on-seeded.json",
     "harness/state/evidence/live/2d.2-task1-on.json",
-    "harness/state/evidence/live/2d.2-sandbox.log"
+    "harness/state/evidence/live/2d.2-sandbox.log",
+    "harness/state/evidence/live/2d.2-readiness.txt"
   ],
   "open_items": [
     "Owner: branch protection on main (the agent's GitHub call was refused by its permission classifier).",
@@ -29,8 +31,17 @@
     }
   ],
   "outside_repo": [
-    {"change": "Sandbox e-agent-demo reset and seeded three times; draft POs P00033 and P00034 created and removed by the next reset; P00035 left.", "undo": "reset, seed, seed-tasks with the identity flags."},
-    {"change": "Live ledger migration 0006 applied; 2d.2 runs added.", "undo": "None needed."},
-    {"change": "profiles/live-ir-{off,shadow,on}.local.json created.", "undo": "Delete the three files."}
+    {
+      "change": "Sandbox e-agent-demo reset and seeded three times; draft POs P00033 and P00034 created and removed by the next reset; P00035 left.",
+      "undo": "reset, seed, seed-tasks with the identity flags."
+    },
+    {
+      "change": "Live ledger migration 0006 applied; 2d.2 runs added.",
+      "undo": "None needed."
+    },
+    {
+      "change": "profiles/live-ir-{off,shadow,on}.local.json created.",
+      "undo": "Delete the three files."
+    }
   ]
 }
