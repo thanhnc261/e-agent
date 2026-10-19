@@ -71,7 +71,7 @@ from .ir import (
 )
 from .ir_on import OUTSIDE_SET, PLAN_INTERRUPTED, _fixed
 from .proposals import ProposalsMixin
-from .reconstruct import proposal_keys
+from .rationale import RationaleProbe, plan_entries, strip_plan
 from .repeat import SENTINEL_BUNDLES
 
 PLAN_UNSUPPORTED = "This run does not execute multi-step plans; propose one action."
@@ -91,12 +91,15 @@ class PlanFlowMixin(ProposalsMixin):
         refusal = self._plan_refusal(run, cont)
         if refusal is not None:
             return await self._repair_finding(run, cont, (refusal,))
+        entries = plan_entries(plan)  # checked after validation (ADR 0033 §4, Task 3e.3)
         if len(plan.steps) == 1:  # a 1-step plan is today's proposal (target §6.4.3)
-            return await self._handle_proposal(run, cont, plan.steps[0].proposal)
+            return await self._handle_proposal(
+                run, cont, plan.steps[0].proposal, rationales=entries
+            )
         task = self._on_task(run, cont)
         assert task is not None  # `_plan_refusal` refused a run without its snapshot
         # The kernel owns the plan's identity: a fresh id, the run's admitted definition.
-        plan = plan.model_copy(
+        plan = strip_plan(plan).model_copy(  # no validator or digest sees the envelope
             update={
                 "plan_id": new_id("plan"),
                 "task_id": task.task_id,
@@ -110,12 +113,16 @@ class PlanFlowMixin(ProposalsMixin):
         if not isinstance(built, tuple):
             return built
         contexts, validation = built
+        reasons = await self._rationale_probe(run, cont, entries, validation)
+        if not isinstance(reasons, RationaleProbe):  # `on`: KERNEL-RATIONALE, or closed
+            return reasons
+        run = reasons.run or run  # a fallback moved the revision
         try:
             canonical = plan_digest_input(plan, contexts, run_operation_id=run.logical_operation_id)
             digest = compute_digest(canonical)
         except (CanonicalizationError, ValueError):  # `validate_plan` reports KERNEL-ARGS first
             return await self._repair_finding(run, cont, (_fixed("KERNEL-ARGS", PLAN_ARGS),))
-        return await self._propose_plan(run, cont, plan, canonical, digest, validation)
+        return await self._propose_plan(run, cont, plan, canonical, digest, validation, reasons)
 
     def _plan_refusal(self, run: RunRecord, cont: _Continuation) -> Finding | None:
         """The fixed finding for a run that cannot execute a plan, or None."""
@@ -239,8 +246,10 @@ class PlanFlowMixin(ProposalsMixin):
         canonical: dict[str, Any],
         digest: str,
         validation: ValidationResult,
+        reasons: RationaleProbe,
     ) -> RunRecord:
-        """Store the plan and its first step's action, and wait for the one approval."""
+        """Store the plan and its first step's action, with the rationale at rest, and wait
+        for the one approval."""
         inputs = tuple(step["input"] for step in canonical["steps"])
         action = self._plan_action(
             cont, plan, 0, dict(plan.steps[0].proposal.arguments), inputs[0], digest
@@ -260,7 +269,9 @@ class PlanFlowMixin(ProposalsMixin):
             step_ids=tuple(step.step_id for step in plan.steps),
             inputs=inputs,
         )
-        await self._store.put_action(action, None, [self._proposal_event(action)])
+        created = self._proposal_event(action, reasons.stored())
+        await self._store.put_action(action, None, [created, *reasons.events(action.action_id)])
+        reasons.keep(cont)
         cont.last_action_id = action.action_id
         evidence = [cont.observations[r].evidence for r in sorted(cont.observations)]
         findings = [f.model_dump(mode="json") for f in validation.findings]
@@ -313,16 +324,6 @@ class PlanFlowMixin(ProposalsMixin):
             plan_id=plan.plan_id,
             step_index=index,
         )
-
-    @staticmethod
-    def _proposal_event(action: ActionRecord) -> tuple[RunEventType, dict[str, Any], str]:
-        payload = {
-            "contract_id": action.contract_id,
-            "arguments": action.arguments,
-            "supersedes": action.supersedes_action_id,
-            **proposal_keys(action),  # ADR 0031 §3
-        }
-        return (RunEventType.PROPOSAL_CREATED, payload, action.action_id)
 
     # -- dispatch --------------------------------------------------------------------------
     async def _after_step_verified(

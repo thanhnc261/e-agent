@@ -152,6 +152,7 @@ source_modules = [
     "e_agent.kernel.policy",
     "e_agent.kernel.progress",
     "e_agent.kernel.proposals",
+    "e_agent.kernel.rationale",
     "e_agent.kernel.reconstruct",
     "e_agent.kernel.recovery",
     "e_agent.kernel.registry",

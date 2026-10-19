@@ -44,6 +44,9 @@ class ValueLabel(StrEnum):
     """An outcome an independent read-back verified."""
     NOT_VERIFIED = "not_verified"
     """An outcome the read-back did not verify: failed, unknown or not finished."""
+    GROUNDED_ANSWER = "grounded_answer"
+    """A ``grounded.answer.v1`` end: every citation resolved against this run's evidence.
+    Grounded, never verified: no independent read-back took place (PR-19, ADR 0033 §3)."""
 
 
 class RunHeader(Record):
@@ -142,7 +145,8 @@ class ReceiptRef(Record):
 
 
 class OutcomeRef(Record):
-    """A verification stage: its status, never the checked values."""
+    """A verification stage, or a run's grounded end (ADR 0033 §6): its status, never the
+    checked values. A grounded end has no action, event or step id."""
 
     action_id: str | None
     status: StageStatus

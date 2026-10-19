@@ -1,10 +1,12 @@
 """Proposal handling and validation (Phase 1 split of coordinator.py). Typed answers are
-handled in `grounding.py`, with their citation check (ADR 0033, Task 3e.1), and the generic
-grounded answer in `grounded_answer.py` (Task 3e.2)."""
+handled in `grounding.py`, with their citation check (ADR 0033, Task 3e.1), the generic
+grounded answer in `grounded_answer.py` (Task 3e.2), and a write proposal's rationale is
+checked by `rationale.py` after validation, before its action exists (Task 3e.3)."""
 
 from __future__ import annotations
 
 import copy
+from collections.abc import Sequence
 from functools import partial
 from typing import Any
 
@@ -15,6 +17,7 @@ from e_agent.contracts.context import TaskContext
 from e_agent.contracts.digest import CanonicalizationError
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import ApprovedFact, Completeness
+from e_agent.contracts.grounding import ProposalRationale
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.run import (
     ReasonCode,
@@ -37,9 +40,14 @@ from .approval import (
 from .context import KERNEL_RULE_PREFIX
 from .continuation import _Continuation
 from .errors import KernelError
-from .grounded_answer import GroundedAnswerMixin
 from .ir import StepDigestContext
 from .ir_on import _fixed
+from .rationale import (
+    RationaleMixin,
+    RationaleProbe,
+    proposal_entries,
+    strip_grounding,
+)
 from .reconstruct import proposal_keys
 from .repeat import (
     ERROR_BUNDLE,
@@ -72,11 +80,17 @@ def _validator_error(validator_id: str, message: str) -> ValidationResult:
     )
 
 
-class ProposalsMixin(GroundedAnswerMixin):
+class ProposalsMixin(RationaleMixin):
     # ------------------------------------------------------------- proposals
     async def _handle_proposal(
-        self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
+        self,
+        run: RunRecord,
+        cont: _Continuation,
+        proposal: ActionProposal,
+        *,
+        rationales: Sequence[tuple[str | None, ProposalRationale]] | None = None,
     ) -> RunRecord | DriverInput:
+        """``rationales`` replaces the proposal's own for a 1-step plan (`plan_entries`)."""
         ctx = cont.ctx
         if self._grounded_branch(cont, proposal):  # before the task set (ADR 0033 §3)
             return await self._handle_grounded_answer(run, cont, proposal)
@@ -86,7 +100,8 @@ class ProposalsMixin(GroundedAnswerMixin):
         descriptor = self._registry.capabilities.get(proposal.contract_id)
         if descriptor is not None and descriptor.effect is EffectKind.ANSWER:
             return await self._handle_answer(run, cont, proposal)  # `kernel/grounding.py`
-        proposal = proposal.model_copy(update={"citations": ()})  # answers only (ADR 0033 §2)
+        entries = proposal_entries(proposal) if rationales is None else tuple(rationales)
+        proposal = strip_grounding(proposal)  # citations: answers only; rationale (3e.3)
         if descriptor is None or descriptor.effect is not EffectKind.WRITE:  # 2c.8c round 2
             kind = _fixed("KERNEL-PROPOSAL-KIND", PROPOSAL_KIND)
             return await self._repair_finding(run, cont, (kind,))
@@ -130,6 +145,10 @@ class ProposalsMixin(GroundedAnswerMixin):
         if not isinstance(probe, RepeatProbe):  # `on`: KERNEL-REPEAT, or closed (ADR 0031 §5)
             return probe
         validation = await self._validate(ctx, cont, proposal, binding)
+        reasons = await self._rationale_probe(run, cont, entries, validation)
+        if not isinstance(reasons, RationaleProbe):  # `on`: KERNEL-RATIONALE, or closed
+            return reasons
+        run = reasons.run or run  # a fallback moved the revision
         canonical = canonical_for(rule_bundle_version=validation.rule_bundle_version)
         try:
             action_digest = compute_digest(canonical)
@@ -182,12 +201,15 @@ class ProposalsMixin(GroundedAnswerMixin):
                         "arguments": action.arguments,
                         "supersedes": previous,
                         **proposal_keys(action),  # ADR 0031 §3
+                        **reasons.stored(),  # ADR 0033 §4: shadow and on only
                     },
                     action.action_id,
                 ),
                 *self._repeat_events(probe, validation, action.action_id),
+                *reasons.events(action.action_id),
             ],
         )
+        reasons.keep(cont)
         cont.last_action_id = action.action_id
         findings_payload = [f.model_dump(mode="json") for f in validation.findings]
         blocked = validation.blocks_write or not decision.permitted
@@ -252,6 +274,19 @@ class ProposalsMixin(GroundedAnswerMixin):
                 action, wait = await self._on_plan(run, cont, proposal, action, step_ctx)
                 shadow = list(wait)
         return await self._await_approval(run, cont, action, canonical, validation, shadow)
+
+    @staticmethod  # also the plan path's (`plan_flow.py`)
+    def _proposal_event(
+        action: ActionRecord, stored: dict[str, Any] | None = None
+    ) -> tuple[RunEventType, dict[str, Any], str]:
+        payload = {
+            "contract_id": action.contract_id,
+            "arguments": action.arguments,
+            "supersedes": action.supersedes_action_id,
+            **proposal_keys(action),  # ADR 0031 §3
+            **(stored or {}),  # the at-rest rationale (ADR 0033 §4)
+        }
+        return (RunEventType.PROPOSAL_CREATED, payload, action.action_id)
 
     async def _await_approval(
         self,

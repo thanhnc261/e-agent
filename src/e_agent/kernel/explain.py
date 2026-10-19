@@ -4,7 +4,8 @@
 (`kernel/progress.py`) and its reconstruction (`kernel/reconstruct.py`). It reads nothing
 else, writes nothing and calls no model. It renders goal → source facts → validation
 findings → proposals → approvals → receipts → outcomes, as ids, versions, digests and
-statuses (`contracts/explain.py`).
+statuses (`contracts/explain.py`). A run that ended ``GROUNDED`` names a grounded outcome,
+never a verified one (PR-19, ADR 0033 §6).
 
 What it leaves out is a rule, not an omission: the proposal's arguments and the receipt's
 provider error text (they can carry read data), each finding's message and its expected and
@@ -33,6 +34,7 @@ from e_agent.contracts.explain import (
     ValueLabel,
 )
 from e_agent.contracts.progress import ProgressLedger, RuleRef, StageKind, StageStatus
+from e_agent.contracts.run import ReasonCode
 from e_agent.kernel.reconstruct import (
     BY_DESIGN_PARTIAL,
     UNKNOWN_SLOT,
@@ -91,7 +93,7 @@ def explain(ledger: ProgressLedger, reconstructed: Reconstructed) -> Explanation
         proposals=tuple(_proposal(row) for row in reconstructed.actions),
         approvals=tuple(_entry(ApprovalRef, row, _APPROVAL) for row in reconstructed.approvals),
         receipts=tuple(_entry(ReceiptRef, row, _RECEIPT) for row in reconstructed.receipts),
-        outcomes=_outcomes(ledger),
+        outcomes=_outcomes(ledger, reconstructed),
     )
 
 
@@ -135,8 +137,8 @@ def _entry(model: type[Any], row: Rebuilt, names: Mapping[str, str]) -> Any:
     return model(**values, unknown_fields=unknown)
 
 
-def _outcomes(ledger: ProgressLedger) -> tuple[OutcomeRef, ...]:
-    return tuple(
+def _outcomes(ledger: ProgressLedger, reconstructed: Reconstructed) -> tuple[OutcomeRef, ...]:
+    verified = tuple(
         OutcomeRef(
             action_id=s.action_id,
             status=s.status,
@@ -149,6 +151,17 @@ def _outcomes(ledger: ProgressLedger) -> tuple[OutcomeRef, ...]:
         for s in (*ledger.done, *ledger.pending)
         if s.kind is StageKind.VERIFY
     )
+    code = reconstructed.run.fields.get("reason_code", UNKNOWN_SLOT)
+    if code.state is FieldState.UNKNOWN or code.value != ReasonCode.GROUNDED:
+        return verified
+    grounded = OutcomeRef(
+        action_id=None,
+        status=StageStatus.SUCCEEDED,
+        event_id=None,
+        step_id=None,
+        label=ValueLabel.GROUNDED_ANSWER,
+    )  # a grounded end has no verify stage and is never `verified_outcome` (PR-19)
+    return (*verified, grounded)
 
 
 def _flatten(

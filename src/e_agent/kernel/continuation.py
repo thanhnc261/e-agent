@@ -26,6 +26,7 @@ from e_agent.contracts.context_pack import ContextRoute
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import Completeness
 from e_agent.contracts.features import FeatureMode, RunModes
+from e_agent.contracts.grounding import ProposalRationale
 from e_agent.contracts.plan import ActionPlan, ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import (
@@ -148,6 +149,12 @@ class _Continuation(BaseModel):
     blocked: tuple[BlockedRevision, ...] = ()
     """The run's validation-blocked write proposals, kept only when ``kernel_repeat`` is not
     pinned ``off`` (ADR 0031 §5), and left out of the stored continuation when empty."""
+    rationale: ProposalRationale | None = None
+    """The checked rationale of the run's latest write proposal or plan, kept for the
+    approval card in a run pinned ``grounded_answers`` ``shadow`` or ``on`` (ADR 0033 §4):
+    the one place its text lives, never an event (owner G2). Left out when None."""
+    step_rationales: dict[str, ProposalRationale] = Field(default_factory=dict)
+    """That plan's step rationales by step id, as ``rationale``; left out when empty."""
     _stored_driver_state: dict[str, Any] | None = PrivateAttr(default=None)
     """The stored driver state this entry was loaded with, whatever the current driver
     supports, kept until the driver's ``advance`` is about to run (`_timed` with
@@ -159,16 +166,18 @@ class _Continuation(BaseModel):
 
     @model_serializer(mode="wrap")
     def _omit_unbound_task(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        """Leave ``task``, ``plan``, ``modes`` and ``context_boundary`` out when unset, and
-        ``blocked`` when empty, so an ``off`` continuation is stored exactly as before Task
-        2c.6, 3b.2 and 3d.6. A run pinned ``kernel_repeat`` ``shadow`` or ``on`` keeps a
-        non-empty ``blocked`` once a proposal is blocked."""
+        """Leave ``task``, ``plan``, ``modes``, ``context_boundary`` and ``rationale`` out when
+        unset, and ``blocked`` and ``step_rationales`` when empty, so an ``off`` continuation
+        is stored exactly as before Task 2c.6, 3b.2, 3d.6 and 3e.3. A run pinned
+        ``kernel_repeat`` ``shadow`` or ``on`` keeps a non-empty ``blocked`` once a proposal is
+        blocked."""
         data: dict[str, Any] = handler(self)
-        for name in ("task", "plan", "modes", "context_boundary"):
+        for name in ("task", "plan", "modes", "context_boundary", "rationale"):
             if getattr(self, name) is None:
                 data.pop(name, None)
-        if not self.blocked:
-            data.pop("blocked", None)
+        for name in ("blocked", "step_rationales"):
+            if not getattr(self, name):
+                data.pop(name, None)
         return data
 
 
@@ -226,7 +235,12 @@ class ContinuationMixin:
             raise NotImplementedError
 
         async def _handle_proposal(
-            self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
+            self,
+            run: RunRecord,
+            cont: _Continuation,
+            proposal: ActionProposal,
+            *,
+            rationales: Sequence[tuple[str | None, ProposalRationale]] | None = None,
         ) -> RunRecord | DriverInput:
             raise NotImplementedError
 

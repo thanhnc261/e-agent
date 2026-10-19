@@ -39,6 +39,7 @@ from .conftest import (
     NotesDriver,
     NotesPlanDriver,
 )
+from .test_grounded_answer import GroundedDriver, _own
 from .test_progress import WrongAnswerDriver
 
 MakeKernel = Callable[..., Kernel]
@@ -433,3 +434,25 @@ def test_an_unrecorded_driver_is_unknown() -> None:
     assert "driver_id" in explained.run.unknown_fields
     assert _explain([]).run.driver_id is None
     assert "driver_id" in _explain([]).run.unknown_fields
+
+
+async def test_explanation_of_a_grounded_run_names_a_grounded_outcome(
+    make_kernel: MakeKernel,
+) -> None:
+    """ADR 0033 §6, 3e.2 review R1-6: a run that ended ``GROUNDED`` explains a grounded
+    outcome, labelled ``grounded_answer``, never ``verified_outcome`` (PR-19); a verified
+    run names no grounded outcome."""
+    driver = GroundedDriver(_own(("/count", "0")))
+    k = make_kernel(features=Features(grounded_answers=FeatureMode.ON), driver=driver)
+    run = await k.coordinator.start_run(k.requester, "how many notes?", k.scope)
+    assert (run.state, run.reason_code) == (RunState.SUCCEEDED, ReasonCode.GROUNDED)
+
+    explained = await _explained(k, run.run_id)
+
+    (outcome,) = explained.outcomes
+    assert outcome.label is ValueLabel.GROUNDED_ANSWER
+    assert (outcome.status, outcome.action_id) == (StageStatus.SUCCEEDED, None)
+    assert ValueLabel.VERIFIED_OUTCOME not in {o.label for o in explained.outcomes}
+    k, run_id = await _approved_run(make_kernel)
+    labels = {o.label for o in (await _explained(k, run_id)).outcomes}
+    assert labels == {ValueLabel.VERIFIED_OUTCOME}
