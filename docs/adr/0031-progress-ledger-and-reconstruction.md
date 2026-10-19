@@ -118,7 +118,7 @@ No other Phase 3 change uses this refinement: `context_assembler`, `kernel_repea
 
 - Code: `contracts/progress.py`, `kernel/progress.py` (3c.1); `kernel/reconstruct.py`, the key additions above and the v3 goldens with their recording scripts (3c.2); the repeat rule in `kernel/proposals.py`, `repeat.compared` and `repeat.shadow_failed` in `contracts/events.py`, and the release report's disagreement count (3d.6).
 - Known gap: a crash between an event-less write and the state change that carries `blocked_action_ids` leaves the log one write behind the row. Reconstruction then reports the earlier state for that action, which the U3 test does not cover because it runs completed sequences. Closing it needs those writes to carry their own event, which changes the `off` stream and needs its own golden refinement.
-- The `outcome.reported` payload of an unavailable verifier (`kernel/verification.py:88`, `{status, error}`) stays as it is; outcomes are not reconstructed here.
+- The `outcome.reported` payload of an unavailable verifier (`kernel/verification.py`, `{status, error}`) gains only `action_state` (null) from the §3 table and is not made a report; outcomes are not reconstructed here.
 - Events written before 3c.2 reconstruct as `partial`. No migration rewrites old events.
 - `KERNEL-REPEAT` assumes a validator is a function of its `ValidationInput` and context. The shadow comparison is the evidence for that assumption before `on` is used.
 - `KERNEL-REPEAT` is behind the D9 cut line: if Phase 3 runs long it moves to a Phase 3′ plan with 3f.1 and 3f.2, and the rest of this ADR still applies.

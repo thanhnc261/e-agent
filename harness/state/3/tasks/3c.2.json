@@ -26,7 +26,8 @@
     ".superpowers/sdd/**",
     "docs/handoffs/**",
     "src/e_agent/kernel/ir_on.py",
-    "src/e_agent/kernel/continuation.py"
+    "src/e_agent/kernel/continuation.py",
+    "docs/adr/0031-progress-ledger-and-reconstruction.md"
   ],
   "acceptance": [
     "reconstruction equals stored rows over every fixture scenario on both stores; older events marked partial",
@@ -47,6 +48,11 @@
       "glob": "src/e_agent/kernel/continuation.py",
       "reason": "3c.2 ruling: blocked_action_ids passed explicitly through the _set_run_state/_exhausted stubs, not via hidden per-run state (ADR 0031 §3: the same kernel call)",
       "at": "2026-10-19T10:44:44+00:00"
+    },
+    {
+      "glob": "docs/adr/0031-progress-ledger-and-reconstruction.md",
+      "reason": "Review C3-20: the Consequences line on the unavailable-verifier outcome.reported must match the §3 table (action_state null)",
+      "at": "2026-10-19T11:01:14+00:00"
     }
   ]
 }
