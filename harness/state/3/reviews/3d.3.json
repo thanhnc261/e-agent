@@ -1,0 +1,38 @@
+{
+  "task": "3d.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "D3-30",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "In the acknowledgement path the shadow build runs inside the final-response guard, so a shadow-side failure is booked as budget.exhausted and suppresses the real acknowledgement turn.",
+      "evidence": "src/e_agent/kernel/verification.py:188-199,211-224"
+    },
+    {
+      "id": "D3-31",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "repair_metrics counts every non-PASS validation.completed, including dispatch STALE and later plan steps; tighten before 3f.2.",
+      "evidence": "scripts/release_report.py:193-206"
+    },
+    {
+      "id": "D3-32",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The replay consumer is honest but sees zero drops under the default policy; it guards a regression, not budget pressure.",
+      "evidence": "tests/unit/server/test_context_shadow_replays.py:95-126"
+    },
+    {
+      "id": "D3-33",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Payload keys satisfy PR-26, but context.failed marks the acknowledgement turn as turn:\"acknowledgement\" while the shadow events use turn:int plus acknowledgement:bool; reconcile in ADR 0032.",
+      "evidence": "src/e_agent/kernel/context_shadow.py:126-143; docs/adr/0032-context-assembler.md:85,135-136"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}
