@@ -510,6 +510,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
   - On a hosted route without `data_processing`, a key that no declaration names is data, not a property name, so its entry is masked and logged without naming the key (D3-12). A removed secret marks the rendering `masked` and `partial` (D3-11, PR-21).
   - Assembly fails when the stable prefix, the ledger, the open findings and the evidence that a finding or proposal refers to do not fit `max_input_tokens`. Referenced evidence is never dropped silently (D3-15).
   - 3d.3 and 3d.4 pass `referenced_evidence`, `deferred_pending` and `observation_turns` from real sources, and decide whether cited evidence survives clearing (D3-16).
+  - The assembler sees class declarations, not output schemas, so on a hosted route without `data_processing` it cannot tell an unmarked schema property from a data key. Every entry that no declaration names is left out, key and value, and logged once under its parent pointer; this narrows ADR 0032 §5's `[masked:<class>]` rendering for unmarked properties (D3-18). Cost if wrong: the model does not see that an unmarked property exists. Passing the schema's property names to render them masked under their key is a later refinement.
 
 ### Task 3d.3: `context_assembler: shadow` and the baseline
 

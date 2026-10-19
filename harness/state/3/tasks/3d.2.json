@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-3d-2"
   ],
-  "context_digest": "be6e12bcf85087f01c821c48482b40bf0bfae65c4ef5e4a3fa0e5c2cd2d9aa79",
+  "context_digest": "74d61d0dd230b77fc0472eb368d18b5d7560ebd2715d60256063d7378a79a897",
   "allowed_paths": [
     "src/e_agent/kernel/context.py",
     "src/e_agent/kernel/registry.py",

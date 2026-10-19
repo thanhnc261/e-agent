@@ -1,0 +1,38 @@
+{
+  "task": "3d.2",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "D3-18",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Leaving out an unmarked property on an undeclared hosted route narrows ADR 0032's [masked:<class>] rendering; recorded as a plan ruling.",
+      "evidence": "src/e_agent/kernel/context.py:182-190; docs/adr/0032-context-assembler.md:56,64"
+    },
+    {
+      "id": "D3-19",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "D3-14 fixed; loc tokens may name model-written keys, which is proposal content, not observed values.",
+      "evidence": "src/e_agent/kernel/ir.py:150-157"
+    },
+    {
+      "id": "D3-20",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The fixed malformed-plan message breaks no test, replay or golden; repair-rate effect shows in the 3d.3 report.",
+      "evidence": "tests/unit/server/test_recorded_model_replays.py"
+    },
+    {
+      "id": "D3-21",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Confirmed: every validator result enters through proposals._validate; KERNEL-* from a validator fails closed; D3-11/12/13 fixed.",
+      "evidence": "src/e_agent/kernel/proposals.py:485; tests/unit/kernel/test_validator_kernel_ids.py"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}
