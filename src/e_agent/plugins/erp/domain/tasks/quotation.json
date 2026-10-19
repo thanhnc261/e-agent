@@ -1,0 +1,18 @@
+{
+  "task_id": "quotation",
+  "version": "1",
+  "title": "ERP-05: create a draft quotation",
+  "goal_template": "Create a draft quotation for customer:acme for product:widget-a, quantity 2.",
+  "capabilities": [
+    "sales.pricing.read.v1",
+    "sales.quotation.create-draft.v1"
+  ],
+  "acceptance": {
+    "required_effects": [
+      {
+        "contract_id": "sales.quotation.create-draft.v1",
+        "min_verified": 1
+      }
+    ]
+  }
+}

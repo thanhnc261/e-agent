@@ -1,0 +1,24 @@
+{
+  "task": "2b.2",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-2",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "The shadow-failure plan broadens fallback-code usage beyond the accepted ADRs: plan 2c.5 required a fallback code on ir.shadow_failed for compile failures, while ADRs 0025 and 0027 permit only IR_TASK_UNRESOLVED on that event.",
+      "evidence": "docs/plans/2026-10-14-phase2-execution-ir.md:270; docs/adr/0025-execution-ir.md:36; docs/adr/0027-feature-toggles.md:14"
+    },
+    {
+      "id": "R-3",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "PostgreSQL verification does not cover the R-1 fix: the pg gate evidence identifies c14f9c7, before fix e31020e.",
+      "evidence": "harness/state/evidence/gates/2b.2/2026-10-18T01-29-40.722067+00-00-pg.json"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}

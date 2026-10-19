@@ -13,27 +13,56 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
+from e_agent.contracts.step import StepKind, StepRecord, StepStatus
 from e_agent.sdk.ports import (
     DriverInput,
     FinalAnswer,
 )
+from e_agent.sdk.store import EventSpec
 
-from .continuation import ContinuationMixin, _Continuation, _GatewayReader
+from .continuation import NextStep, _Continuation, _GatewayReader
+from .ir_on import IrOnMixin
+
+OUTCOME_STEP = {
+    OutcomeStatus.VERIFIED: StepStatus.SUCCEEDED,
+    OutcomeStatus.FAILED: StepStatus.FAILED,
+    OutcomeStatus.UNKNOWN: StepStatus.UNKNOWN,
+}
+"""How an outcome ends a linked action's verify step (execution IR ``on``)."""
 
 
-class VerificationMixin(ContinuationMixin):
+def outcome_payload(report: OutcomeReport) -> dict[str, Any]:
+    """The ``outcome.reported`` payload: the report without its read-back values, which only
+    the stored outcome and a plan's lineage see, so they never reach an export (PR-26)."""
+    return report.model_dump(mode="json", exclude={"verified_values"})
+
+
+class VerificationMixin(IrOnMixin):
     async def _verify(
-        self, cont: _Continuation, action: ActionRecord, receipt: ExecutionReceipt
+        self,
+        cont: _Continuation,
+        action: ActionRecord,
+        receipt: ExecutionReceipt,
+        *,
+        next_step: NextStep,
     ) -> RunRecord:
+        """The independent read-back of a committed ``action``. A multi-step plan's step in
+        ``on`` is verified by the approval call or a resume claim (``NextStep.START``), or by
+        recovery after a failed resume (``STOP``); reconciliation and startup recovery
+        (``QUEUE``) queue the fenced resume instead and write no plan state (Codex C-2,
+        option (b))."""
         ctx = cont.ctx
-        verifier = self._registry.verifier_for(action.contract_id)
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
-        if verifier is None:
+        if next_step is NextStep.QUEUE and self._ir_on and self._plan_step(cont, action):
+            return await self._queue_resume(run, action)
+        verifier = self._registry.verifier_for(action.contract_id)
+        if verifier is None:  # the verify stage ends UNKNOWN, as an unavailable verifier's
             return await self._set_run_state(
                 run,
                 RunState.VERIFYING,
                 "no verifier registered",
                 code=ReasonCode.VERIFICATION_PENDING,
+                before=await self._step_pair(action, StepKind.VERIFY, StepStatus.UNKNOWN),
             )
         reader = _GatewayReader(self, cont, action.connection_id)
         try:
@@ -58,7 +87,8 @@ class VerificationMixin(ContinuationMixin):
                         RunEventType.OUTCOME_REPORTED,
                         {"status": "UNKNOWN", "error": type(exc).__name__},
                         action.action_id,
-                    )
+                    ),
+                    *await self._step_pair(action, StepKind.VERIFY, StepStatus.UNKNOWN),
                 ],
             )
             run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
@@ -68,19 +98,33 @@ class VerificationMixin(ContinuationMixin):
                 "verification unavailable",
                 code=ReasonCode.VERIFICATION_PENDING,
             )
+        report = self._kept(report)
         target = (
             ActionState.VERIFIED
             if report.status is OutcomeStatus.VERIFIED
             else ActionState.VERIFICATION_FAILED
         )
+        steps: list[EventSpec | StepRecord] = [
+            *await self._step_pair(action, StepKind.VERIFY, OUTCOME_STEP[report.status])
+        ]
+        outcome = (RunEventType.OUTCOME_REPORTED, outcome_payload(report), action.action_id)
+        plan = cont.plan if self._plan_step(cont, action) else None
+        if plan is not None and report.status is OutcomeStatus.VERIFIED:
+            assert action.step_index is not None
+            step_id = plan.step_ids[action.step_index]
+            if report.verified_values is not None:  # the one lineage source (ADR 0025)
+                plan.verified[step_id] = dict(report.verified_values)
+                # Stored before the outcome, so a crash after it leaves recovery the values
+                # to resume with; a crash before it leaves the step COMMITTED, re-verified.
+                await self._persist(ctx.run_id)
+            verified = {
+                "plan_id": plan.plan_id,
+                "step_id": step_id,
+                "step_index": action.step_index,
+            }
+            steps.append((RunEventType.IR_STEP_VERIFIED, verified, action.action_id))
         if report.status is OutcomeStatus.UNKNOWN:
-            await self._store.record_outcome(
-                ctx.tenant_id,
-                report,
-                None,
-                None,
-                [(RunEventType.OUTCOME_REPORTED, report.model_dump(mode="json"), action.action_id)],
-            )
+            await self._store.record_outcome(ctx.tenant_id, report, None, None, [outcome, *steps])
             run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
             return await self._set_run_state(
                 run,
@@ -94,7 +138,7 @@ class VerificationMixin(ContinuationMixin):
             report,
             current.model_copy(update={"state": target, "revision": current.revision + 1}),
             current.revision,
-            [(RunEventType.OUTCOME_REPORTED, report.model_dump(mode="json"), action.action_id)],
+            [outcome, *steps],
         )
         cont.pending_action_id = None
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
@@ -105,9 +149,17 @@ class VerificationMixin(ContinuationMixin):
                 "outcome verification failed",
                 code=ReasonCode.VERIFICATION_FAILED,
             )
+        if plan is not None and (action.step_index or 0) + 1 < len(plan.step_ids):
+            # Steps remain (ADR 0025): the call's own authority decides (Codex C-1).
+            return await self._after_step_verified(cont, action, next_step=next_step)
         return await self._finish_verified(
             cont, receipt.external_refs, "The approved action was independently verified."
         )
+
+    @staticmethod
+    def _plan_step(cont: _Continuation, action: ActionRecord) -> bool:
+        """Whether ``action`` is a step of the multi-step plan the run is executing."""
+        return cont.plan is not None and cont.plan.plan_id == action.plan_id
 
     async def _finish_verified(
         self,
@@ -120,6 +172,9 @@ class VerificationMixin(ContinuationMixin):
         """Finish a verified write or repeated answer without executing acknowledgement tools."""
         ctx = cont.ctx
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
+        gap = await self._acceptance_gap(run, cont)
+        if gap is not None:  # `on`: no acknowledgement for an unmet task
+            return await self._fail_unmet(run, gap)
         final: Any = FinalAnswer(text=fallback)
         try:
             if acknowledge and (
@@ -130,13 +185,17 @@ class VerificationMixin(ContinuationMixin):
                     cont,
                     lambda: self._driver.advance(
                         ctx,
-                        DriverInput(
-                            task=run.task,
-                            observations=tuple(cont.observations.values()),
-                            action_result={
-                                "status": "VERIFIED",
-                                "external_refs": list(external_refs),
-                            },
+                        self._with_tools(
+                            run,
+                            cont,
+                            DriverInput(
+                                task=run.task,
+                                observations=tuple(cont.observations.values()),
+                                action_result={
+                                    "status": "VERIFIED",
+                                    "external_refs": list(external_refs),
+                                },
+                            ),
                         ),
                     ),
                     ctx.budgets.model_timeout_seconds,

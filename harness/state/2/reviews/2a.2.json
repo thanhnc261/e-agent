@@ -1,0 +1,24 @@
+{
+  "task": "2a.2",
+  "verdict": "rework",
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Plan still says the five ADRs are Proposed after acceptance. Line 5 ends '(... all Proposed); owner gate G1 still applies' right after saying G1 passed. Line 73 says 'are Proposed'. The ADR table rows at lines 77-81 say 'Written, Proposed'. This contradicts the ADR files and index, and the Task 2a.2 acceptance that no current doc calls them Proposed.",
+      "evidence": "docs/plans/2026-10-14-phase2-execution-ir.md lines 5, 73, 77-81"
+    },
+    {
+      "id": "F2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Plan status line says 'defaults of decisions D0-D7' but D8 exists and was confirmed at G1.",
+      "evidence": "docs/plans/2026-10-14-phase2-execution-ir.md line 5"
+    }
+  ]
+}

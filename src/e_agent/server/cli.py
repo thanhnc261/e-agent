@@ -10,6 +10,7 @@ from typing import Any
 
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.run import RunState
+from e_agent.kernel.approval import ApprovalPresentation
 from e_agent.kernel.errors import KernelError
 from e_agent.kernel.evidence import build_evidence
 from e_agent.sdk.discovery import discover
@@ -25,6 +26,26 @@ def demo_prompt(preset: TaskPreset, driver: DriverConfig) -> str:
     return preset.render(
         (name, driver.refs[name]) for name in preset.default_refs if name in driver.refs
     )
+
+
+def plan_lines(pres: ApprovalPresentation) -> list[str]:
+    """Every step of a multi-step plan, printed before the decision (ADR 0024); none for a
+    single action. Placeholders read "from step N: <pointer>"."""
+    if not pres.plan_steps:
+        return []
+    irreversible = ", ".join(pres.irreversible_steps) or "none"
+    lines = [
+        f"plan        {len(pres.plan_steps)} steps, one approval; highest risk "
+        f"{pres.highest_risk}; irreversible: {irreversible}"
+    ]
+    for step in pres.plan_steps:
+        after = f" after {', '.join(step.depends_on)}" if step.depends_on else ""
+        lines.append(
+            f"step {step.step_index + 1}      {step.step_id}: {step.contract_id} "
+            f"[{step.risk}, {step.reversibility}]{after}"
+        )
+        lines.extend(f"  {item.path:<16} {item.value}" for item in step.material_fields)
+    return lines
 
 
 def _print(text: str = "") -> None:
@@ -55,7 +76,8 @@ async def _demo(args: argparse.Namespace) -> int:
     # The task kind was checked against the admitted presets at startup.
     preset = rt.registry.task_presets[args.task or profile.driver.task_kind]
     prompt = args.prompt or demo_prompt(preset, profile.driver)
-    run = await rt.coordinator.start_run(rt.operator, prompt, rt.scope)
+    # The kind names the run's task definition (D8, ADR 0028); only the CLI passes it.
+    run = await rt.coordinator.start_run(rt.operator, prompt, rt.scope, task_kind=preset.kind)
 
     say = (lambda _text="": None) if args.json else _print
     presentation: dict[str, Any] | None = None
@@ -68,6 +90,8 @@ async def _demo(args: argparse.Namespace) -> int:
         say(f"executes as {pres.credential_subject}")
         for item in pres.material_fields:
             say(f"  {item.path:<16} {item.value}")
+        for line in plan_lines(pres):
+            say(line)
         say(f"digest      {pres.digest}")
         decision = _decision(args)
         if decision is None:
@@ -96,6 +120,8 @@ async def _demo(args: argparse.Namespace) -> int:
             run.run_id,
             environment=profile.environment,
             versions=rt.versions,
+            features=profile.features,
+            defaulted_declarations=rt.registry.report.defaulted_declarations,  # ADR 0029
         )
         _write_private(args.evidence_out, json.dumps(bundle, ensure_ascii=False, indent=2))
     await _close(rt.store)
@@ -179,6 +205,8 @@ async def _evidence(args: argparse.Namespace) -> int:
             args.run_id,
             environment=profile.environment,
             versions=rt.versions,
+            features=profile.features,
+            defaulted_declarations=rt.registry.report.defaulted_declarations,  # ADR 0029
         )
     finally:
         await _close(rt.store)
@@ -226,7 +254,13 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--scenario", help="fixture scenario, checked by the plugin that takes it")
     demo.add_argument(
         "--driver-mode",
-        choices=["valid", "invalid-then-repair", "always-invalid", "wrong-answer-then-correct"],
+        choices=[
+            "valid",
+            "invalid-then-repair",
+            "always-invalid",
+            "wrong-answer-then-correct",
+            "two-step-plan",
+        ],
     )
     demo.add_argument(
         "--fault",

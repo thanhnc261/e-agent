@@ -1,0 +1,45 @@
+{
+  "task": "2c.3",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "plan_to_wire did not re-check a built plan, so a literal $lineage set on mutable arguments (or a model_construct plan) could return from the store as a placeholder. Fixed: plan_to_wire re-applies the plan rules.",
+      "evidence": "src/e_agent/contracts/plan.py plan_to_wire; tests/unit/contracts/test_action_plan.py::test_plan_to_wire_refuses_a_literal_set_on_a_built_plan"
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "2c.4 validate_plan cannot revalidate a placeholder plan by model_validate of its dump; parked in the 2c.4 plan (revalidate via plan_from_wire(plan_to_wire(plan))).",
+      "evidence": "docs/plans/2026-10-14-phase2-execution-ir.md Task 2c.4"
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "No test showed a refused step in a put_plan batch leaves no plan row. Fixed in test_put_and_get_plan on both stores.",
+      "evidence": "tests/conformance/test_run_store.py::test_put_and_get_plan"
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Gate evidence was not recorded at review time; recorded in the close ritual.",
+      "evidence": "harness/state/evidence/gates/2c.3/2026-10-18T03-59-06.601052+00-00-full.json"
+    },
+    {
+      "id": "R-5",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "actions.plan_id has no foreign key or store check; parked in the 2c.6 plan before the kernel writes plan_id.",
+      "evidence": "docs/plans/2026-10-14-phase2-execution-ir.md Task 2c.6"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

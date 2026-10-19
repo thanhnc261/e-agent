@@ -1,0 +1,17 @@
+{
+  "task": "2c.4",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-5",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "After the R-1 fix a host-built deque could hide a forged $lineage literal from both placeholder walkers. Fixed: the walkers cover every non-string sequence canonicalization walks.",
+      "evidence": "tests/unit/kernel/test_ir.py test_multi_step_digest_refuses_a_forged_literal_in_any_sequence (fails before 9c902ec)"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

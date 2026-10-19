@@ -1,0 +1,1145 @@
+{
+  "schema": "e-agent-evidence-v1",
+  "generated_at": "2026-10-19T00:08:11.290659+00:00",
+  "environment": "live",
+  "classification": "live:succeeded",
+  "versions": {
+    "distributions": {
+      "e-agent-adapter-agent-pydantic": "0.1.0",
+      "e-agent-adapter-erp-simulator": "0.1.0",
+      "e-agent-adapter-odoo": "0.1.0",
+      "e-agent-adapter-postgres": "0.1.0",
+      "e-agent-adapter-secretstore-local": "0.1.0",
+      "e-agent-adapter-shacl": "0.1.0",
+      "e-agent-contracts": "0.1.0",
+      "e-agent-domain-erp": "0.1.0",
+      "e-agent-erp": "0.1.0",
+      "e-agent-harness": "0.1.0",
+      "e-agent-kernel": "0.1.0",
+      "e-agent-plugin-sdk": "0.1.0",
+      "e-agent-server": "0.1.0",
+      "pydantic-ai-slim": "2.54.0",
+      "pyshacl": "0.40.1"
+    },
+    "plugins": [
+      "domain-erp",
+      "odoo19"
+    ],
+    "driver": "pydantic-ai",
+    "driver_versions": {
+      "pydantic_ai": "2.54.0"
+    },
+    "model": "e-agent-mvp-qwen3-coder-20261007",
+    "model_provider": "ollama",
+    "profile_environment": "live"
+  },
+  "features": {
+    "execution_ir": "off"
+  },
+  "rules_evaluated": [
+    "PR-001@1",
+    "PR-002@1",
+    "PR-003@1",
+    "PR-004@1",
+    "PR-005@1"
+  ],
+  "run": {
+    "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+    "tenant_id": "tenant-local",
+    "requester_id": "local-operator",
+    "task": "Draft a purchase order for any shortage from the approved supplier",
+    "state": "SUCCEEDED",
+    "revision": 18,
+    "logical_operation_id": "op_288eaf6f003b4322ab5b099ef525d019",
+    "created_at": "2026-10-19T00:07:41.163514Z",
+    "reason": "outcome verified",
+    "reason_code": "verified",
+    "task_id": null,
+    "task_version": null
+  },
+  "actions": [
+    {
+      "action_id": "act_4613369bef564f02b38698872e7d948c",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "logical_operation_id": "op_288eaf6f003b4322ab5b099ef525d019",
+      "contract_id": "procurement.offer.recommend.v1",
+      "binding_id": "answer",
+      "connection_id": "conn-odoo",
+      "connection_version": 1,
+      "credential_subject": "conn-odoo@1/e-agent-integration",
+      "credential_version": "none",
+      "approved_facts": [],
+      "arguments": {
+        "offer_ref": "odoo/product.supplierinfo/34",
+        "demand_ref": "odoo/e_agent.demand/2",
+        "unit_price": "100",
+        "explanation": "The approved supplier offer is eligible and meets the delivery date requirement.",
+        "product_ref": "odoo/product.product/201",
+        "supplier_ref": "odoo/res.partner/83"
+      },
+      "digest": "jcs-sha256-v1:7edcb3a60ab192c22c45f74fed9284fda87fbef366ef0cb03b6dc2a52b7ba5bd",
+      "state": "VERIFIED",
+      "revision": 3,
+      "supersedes_action_id": null,
+      "plan_id": null,
+      "step_index": null
+    },
+    {
+      "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "logical_operation_id": "op_288eaf6f003b4322ab5b099ef525d019",
+      "contract_id": "procurement.purchase-order.create-draft.v1",
+      "binding_id": "odoo19.procurement.po-create",
+      "connection_id": "conn-odoo",
+      "connection_version": 1,
+      "credential_subject": "conn-odoo@1/e-agent-integration",
+      "credential_version": "df7e75371619c07d7a9c7c18db491049",
+      "approved_facts": [
+        {
+          "contract_id": "procurement.open-demands.read.v1",
+          "data": {
+            "demands": [
+              {
+                "unit": "Units",
+                "quantity": "12",
+                "demand_ref": "odoo/e_agent.demand/2",
+                "product_ref": "odoo/product.product/201",
+                "product_name": "E-Agent Widget A",
+                "requested_date": "2026-11-02"
+              }
+            ],
+            "complete": true
+          },
+          "evidence": {
+            "evidence_id": "ev_10e01a56ad2a4a7089d53a9c8249d4ff",
+            "tenant_id": "tenant-local",
+            "source": "odoo19:e_agent.demand",
+            "locator": "open",
+            "revision": null,
+            "observed_at": "2026-10-19T00:07:59.465263Z",
+            "scope": "tenant-local",
+            "completeness": "complete",
+            "environment": "live"
+          }
+        },
+        {
+          "contract_id": "procurement.demand.read.v1",
+          "data": {
+            "unit": "Units",
+            "budget": "1000",
+            "currency": "USD",
+            "quantity": "12",
+            "demand_ref": "odoo/e_agent.demand/2",
+            "product_ref": "odoo/product.product/201",
+            "requested_date": "2026-11-02"
+          },
+          "evidence": {
+            "evidence_id": "ev_419fdf6c50994bc49fe89d23e62fbd4d",
+            "tenant_id": "tenant-local",
+            "source": "odoo19:e_agent.demand",
+            "locator": "odoo/e_agent.demand/2",
+            "revision": "2026-10-19 00:07:40",
+            "observed_at": "2026-10-19T00:08:00.596915Z",
+            "scope": "tenant-local",
+            "completeness": "complete",
+            "environment": "live"
+          }
+        },
+        {
+          "contract_id": "inventory.availability.read.v1",
+          "data": {
+            "unit": "Units",
+            "inbound": "0",
+            "available": "5",
+            "product_ref": "odoo/product.product/201"
+          },
+          "evidence": {
+            "evidence_id": "ev_d3b1078369aa4628a34a642fda5d062b",
+            "tenant_id": "tenant-local",
+            "source": "odoo19:stock.quant",
+            "locator": "odoo/product.product/201",
+            "revision": "2026-10-19 00:07:40",
+            "observed_at": "2026-10-19T00:08:01.731904Z",
+            "scope": "tenant-local",
+            "completeness": "complete",
+            "environment": "live"
+          }
+        },
+        {
+          "contract_id": "procurement.offers.read.v1",
+          "data": {
+            "offers": [
+              {
+                "unit": "Units",
+                "approved": false,
+                "currency": "USD",
+                "offer_ref": "odoo/product.supplierinfo/35",
+                "unit_price": "80",
+                "product_ref": "odoo/product.product/201",
+                "supplier_ref": "odoo/res.partner/84",
+                "delivery_date": "2026-10-24"
+              },
+              {
+                "unit": "Units",
+                "approved": true,
+                "currency": "USD",
+                "offer_ref": "odoo/product.supplierinfo/34",
+                "unit_price": "100",
+                "product_ref": "odoo/product.product/201",
+                "supplier_ref": "odoo/res.partner/83",
+                "delivery_date": "2026-10-26"
+              }
+            ],
+            "product_ref": "odoo/product.product/201"
+          },
+          "evidence": {
+            "evidence_id": "ev_28a1c83b1af4482884ed1ab955ab0cbc",
+            "tenant_id": "tenant-local",
+            "source": "odoo19:product.supplierinfo",
+            "locator": "odoo/product.product/201",
+            "revision": "2026-10-19 00:07:40",
+            "observed_at": "2026-10-19T00:08:02.846645Z",
+            "scope": "tenant-local",
+            "completeness": "complete",
+            "environment": "live"
+          }
+        }
+      ],
+      "arguments": {
+        "unit": "Units",
+        "currency": "USD",
+        "quantity": "7",
+        "subtotal": "700",
+        "offer_ref": "odoo/product.supplierinfo/34",
+        "demand_ref": "odoo/e_agent.demand/2",
+        "unit_price": "100",
+        "product_ref": "odoo/product.product/201",
+        "supplier_ref": "odoo/res.partner/83",
+        "requested_date": "2026-11-02"
+      },
+      "digest": "jcs-sha256-v1:8fcb023fa090da75ee55c4c2849c77a86a128081f99df447a508e4618901a5b0",
+      "state": "VERIFIED",
+      "revision": 8,
+      "supersedes_action_id": "act_4613369bef564f02b38698872e7d948c",
+      "plan_id": null,
+      "step_index": null
+    }
+  ],
+  "approvals": [
+    {
+      "approval_id": "apr_2a1aa5b059674bc9bd6648503532b593",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+      "action_digest": "jcs-sha256-v1:8fcb023fa090da75ee55c4c2849c77a86a128081f99df447a508e4618901a5b0",
+      "actor_id": "local-operator",
+      "decision": "approved",
+      "policy_version": "policy-mvp-1",
+      "issued_at": "2026-10-19T00:08:08.979053Z",
+      "expires_at": "2026-10-19T00:23:08.979053Z"
+    }
+  ],
+  "receipts": [
+    {
+      "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+      "attempt": 1,
+      "status": "COMMITTED",
+      "external_refs": [
+        "P00033"
+      ],
+      "provider_correlation": "e-agent-demo:op_288eaf6f003b4322ab5b099ef525d019",
+      "sanitized_error": null,
+      "started_at": "2026-10-19T00:08:09.192319Z",
+      "finished_at": "2026-10-19T00:08:09.465058Z"
+    }
+  ],
+  "outcomes": [
+    {
+      "checks": [
+        {
+          "name": "demand_reference",
+          "passed": true,
+          "expected": "odoo/e_agent.demand/2",
+          "observed": "odoo/e_agent.demand/2"
+        },
+        {
+          "name": "product_reference",
+          "passed": true,
+          "expected": "odoo/product.product/201",
+          "observed": "odoo/product.product/201"
+        },
+        {
+          "name": "stock_reference",
+          "passed": true,
+          "expected": "odoo/product.product/201",
+          "observed": "odoo/product.product/201"
+        },
+        {
+          "name": "offers_reference",
+          "passed": true,
+          "expected": "odoo/product.product/201",
+          "observed": "odoo/product.product/201"
+        },
+        {
+          "name": "recommended_offer",
+          "passed": true,
+          "expected": "odoo/product.supplierinfo/34",
+          "observed": "odoo/product.supplierinfo/34"
+        },
+        {
+          "name": "supplier",
+          "passed": true,
+          "expected": "odoo/res.partner/83",
+          "observed": "odoo/res.partner/83"
+        },
+        {
+          "name": "unit_price",
+          "passed": true,
+          "expected": "100",
+          "observed": "100"
+        }
+      ],
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "status": "VERIFIED",
+      "action_id": "act_4613369bef564f02b38698872e7d948c",
+      "reported_at": "2026-10-19T00:08:05.584461Z",
+      "verifier_id": "procurement.offer-recommendation-verifier",
+      "observed_refs": [
+        "ev_f068fbf179014fd1bbd2bcd778baaec5",
+        "ev_5d32463872044a84a6528c6e60b7bf9d",
+        "ev_ee727d4c2ce54977ac6792f3588cf9f2"
+      ],
+      "verifier_version": "1"
+    },
+    {
+      "checks": [
+        {
+          "name": "complete_readback",
+          "passed": true,
+          "expected": "complete",
+          "observed": "complete"
+        },
+        {
+          "name": "exactly_one_order",
+          "passed": true,
+          "expected": "1",
+          "observed": "1"
+        },
+        {
+          "name": "operation_key",
+          "passed": true,
+          "expected": "op_288eaf6f003b4322ab5b099ef525d019",
+          "observed": "op_288eaf6f003b4322ab5b099ef525d019"
+        },
+        {
+          "name": "requested_date",
+          "passed": true,
+          "expected": "2026-11-02",
+          "observed": "2026-11-02"
+        },
+        {
+          "name": "line_count",
+          "passed": true,
+          "expected": "1",
+          "observed": "1"
+        },
+        {
+          "name": "state_is_draft",
+          "passed": true,
+          "expected": "draft",
+          "observed": "draft"
+        },
+        {
+          "name": "product",
+          "passed": true,
+          "expected": "odoo/product.product/201",
+          "observed": "odoo/product.product/201"
+        },
+        {
+          "name": "supplier",
+          "passed": true,
+          "expected": "odoo/res.partner/83",
+          "observed": "odoo/res.partner/83"
+        },
+        {
+          "name": "unit",
+          "passed": true,
+          "expected": "Units",
+          "observed": "Units"
+        },
+        {
+          "name": "currency",
+          "passed": true,
+          "expected": "USD",
+          "observed": "USD"
+        },
+        {
+          "name": "external_ref_matches_receipt",
+          "passed": true,
+          "expected": "P00033",
+          "observed": "P00033"
+        },
+        {
+          "name": "quantity",
+          "passed": true,
+          "expected": "7",
+          "observed": "7"
+        },
+        {
+          "name": "unit_price",
+          "passed": true,
+          "expected": "100",
+          "observed": "100"
+        },
+        {
+          "name": "subtotal",
+          "passed": true,
+          "expected": "700",
+          "observed": "700"
+        }
+      ],
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "status": "VERIFIED",
+      "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+      "reported_at": "2026-10-19T00:08:09.563028Z",
+      "verifier_id": "procurement.draft-po-verifier",
+      "observed_refs": [
+        "ev_37c0371cd72d484ab2526ec501887ed1"
+      ],
+      "verifier_version": "1"
+    }
+  ],
+  "events": [
+    {
+      "event_id": "evt_809406e50a1144ad9dca01074e363b02",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 1,
+      "type": "run.created",
+      "occurred_at": "2026-10-19T00:07:41.168124Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "task": "Draft a purchase order for any shortage from the approved supplier",
+        "driver": "pydantic-ai"
+      }
+    },
+    {
+      "event_id": "evt_b345f71c9be2475fa3451f1d0da0d202",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 2,
+      "type": "run.state_changed",
+      "occurred_at": "2026-10-19T00:07:41.172421Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "to": "RUNNING",
+        "from": "CREATED",
+        "reason": null,
+        "reason_code": null
+      }
+    },
+    {
+      "event_id": "evt_012682a79b6c4207b3079d477bd991a3",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 3,
+      "type": "read.recorded",
+      "occurred_at": "2026-10-19T00:07:59.476087Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "revision": null,
+        "request_id": "call_y2ahpw1s",
+        "contract_id": "procurement.open-demands.read.v1",
+        "evidence_id": "ev_10e01a56ad2a4a7089d53a9c8249d4ff",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_0be92cef6e894945a92559580fb654c1",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 4,
+      "type": "read.recorded",
+      "occurred_at": "2026-10-19T00:08:00.605589Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "revision": "2026-10-19 00:07:40",
+        "request_id": "call_s45r6ane",
+        "contract_id": "procurement.demand.read.v1",
+        "evidence_id": "ev_419fdf6c50994bc49fe89d23e62fbd4d",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_da16f60ef9e543c299b0dc10142d6cfc",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 5,
+      "type": "read.recorded",
+      "occurred_at": "2026-10-19T00:08:01.740339Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "revision": "2026-10-19 00:07:40",
+        "request_id": "call_xshafitv",
+        "contract_id": "inventory.availability.read.v1",
+        "evidence_id": "ev_d3b1078369aa4628a34a642fda5d062b",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_8e6d741597d340c8b2b2d56130e9427f",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 6,
+      "type": "read.recorded",
+      "occurred_at": "2026-10-19T00:08:02.854971Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "revision": "2026-10-19 00:07:40",
+        "request_id": "call_0rk1qltf",
+        "contract_id": "procurement.offers.read.v1",
+        "evidence_id": "ev_28a1c83b1af4482884ed1ab955ab0cbc",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_a9d9ba3b4635491893040bd1eba971df",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 7,
+      "type": "proposal.created",
+      "occurred_at": "2026-10-19T00:08:05.495843Z",
+      "action_id": "act_4613369bef564f02b38698872e7d948c",
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "kind": "answer",
+        "arguments": {
+          "offer_ref": "odoo/product.supplierinfo/34",
+          "demand_ref": "odoo/e_agent.demand/2",
+          "unit_price": "100",
+          "explanation": "The approved supplier offer is eligible and meets the delivery date requirement.",
+          "product_ref": "odoo/product.product/201",
+          "supplier_ref": "odoo/res.partner/83"
+        },
+        "supersedes": null,
+        "contract_id": "procurement.offer.recommend.v1"
+      }
+    },
+    {
+      "event_id": "evt_bf910bccdbc34a9b8c3f7128491ae9d1",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 8,
+      "type": "read.recorded",
+      "occurred_at": "2026-10-19T00:08:05.529213Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "revision": "2026-10-19 00:07:40",
+        "request_id": "vread_5a81678b26b546729729202133676740",
+        "contract_id": "procurement.demand.read.v1",
+        "evidence_id": "ev_f068fbf179014fd1bbd2bcd778baaec5",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_1337b0d9d26a484aa8202a207bd1c09c",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 9,
+      "type": "read.recorded",
+      "occurred_at": "2026-10-19T00:08:05.557274Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "revision": "2026-10-19 00:07:40",
+        "request_id": "vread_4c12df1c794440b1bbeac55005f1fde4",
+        "contract_id": "inventory.availability.read.v1",
+        "evidence_id": "ev_5d32463872044a84a6528c6e60b7bf9d",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_a613c6d61bc6447ea61b541122397a3b",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 10,
+      "type": "read.recorded",
+      "occurred_at": "2026-10-19T00:08:05.583195Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "revision": "2026-10-19 00:07:40",
+        "request_id": "vread_bb2afa0ceb194367b12e87ffd1db5a71",
+        "contract_id": "procurement.offers.read.v1",
+        "evidence_id": "ev_ee727d4c2ce54977ac6792f3588cf9f2",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_ecc2cea5ea724739840809d5815456c9",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 11,
+      "type": "outcome.reported",
+      "occurred_at": "2026-10-19T00:08:05.591349Z",
+      "action_id": "act_4613369bef564f02b38698872e7d948c",
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "checks": [
+          {
+            "name": "demand_reference",
+            "passed": true,
+            "expected": "odoo/e_agent.demand/2",
+            "observed": "odoo/e_agent.demand/2"
+          },
+          {
+            "name": "product_reference",
+            "passed": true,
+            "expected": "odoo/product.product/201",
+            "observed": "odoo/product.product/201"
+          },
+          {
+            "name": "stock_reference",
+            "passed": true,
+            "expected": "odoo/product.product/201",
+            "observed": "odoo/product.product/201"
+          },
+          {
+            "name": "offers_reference",
+            "passed": true,
+            "expected": "odoo/product.product/201",
+            "observed": "odoo/product.product/201"
+          },
+          {
+            "name": "recommended_offer",
+            "passed": true,
+            "expected": "odoo/product.supplierinfo/34",
+            "observed": "odoo/product.supplierinfo/34"
+          },
+          {
+            "name": "supplier",
+            "passed": true,
+            "expected": "odoo/res.partner/83",
+            "observed": "odoo/res.partner/83"
+          },
+          {
+            "name": "unit_price",
+            "passed": true,
+            "expected": "100",
+            "observed": "100"
+          }
+        ],
+        "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+        "status": "VERIFIED",
+        "action_id": "act_4613369bef564f02b38698872e7d948c",
+        "reported_at": "2026-10-19T00:08:05.584461Z",
+        "verifier_id": "procurement.offer-recommendation-verifier",
+        "observed_refs": [
+          "ev_f068fbf179014fd1bbd2bcd778baaec5",
+          "ev_5d32463872044a84a6528c6e60b7bf9d",
+          "ev_ee727d4c2ce54977ac6792f3588cf9f2"
+        ],
+        "verifier_version": "1"
+      }
+    },
+    {
+      "event_id": "evt_f3a5cef753a24bfd8270711dcee65024",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 12,
+      "type": "proposal.created",
+      "occurred_at": "2026-10-19T00:08:08.955289Z",
+      "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "arguments": {
+          "unit": "Units",
+          "currency": "USD",
+          "quantity": "7",
+          "subtotal": "700",
+          "offer_ref": "odoo/product.supplierinfo/34",
+          "demand_ref": "odoo/e_agent.demand/2",
+          "unit_price": "100",
+          "product_ref": "odoo/product.product/201",
+          "supplier_ref": "odoo/res.partner/83",
+          "requested_date": "2026-11-02"
+        },
+        "supersedes": "act_4613369bef564f02b38698872e7d948c",
+        "contract_id": "procurement.purchase-order.create-draft.v1"
+      }
+    },
+    {
+      "event_id": "evt_b69575ea16714283ab495e6cde4d63f1",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 13,
+      "type": "validation.completed",
+      "occurred_at": "2026-10-19T00:08:08.958627Z",
+      "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "status": "PASS",
+        "findings": [
+          {
+            "status": "PASS",
+            "message": "satisfied",
+            "rule_id": "PR-001",
+            "expected": null,
+            "observed": null,
+            "evidence_ids": [],
+            "rule_version": "1"
+          },
+          {
+            "status": "PASS",
+            "message": "satisfied",
+            "rule_id": "PR-002",
+            "expected": null,
+            "observed": null,
+            "evidence_ids": [],
+            "rule_version": "1"
+          },
+          {
+            "status": "PASS",
+            "message": "satisfied",
+            "rule_id": "PR-003",
+            "expected": null,
+            "observed": null,
+            "evidence_ids": [],
+            "rule_version": "1"
+          },
+          {
+            "status": "PASS",
+            "message": "satisfied",
+            "rule_id": "PR-004",
+            "expected": null,
+            "observed": null,
+            "evidence_ids": [],
+            "rule_version": "1"
+          },
+          {
+            "status": "PASS",
+            "message": "satisfied",
+            "rule_id": "PR-005",
+            "expected": null,
+            "observed": null,
+            "evidence_ids": [],
+            "rule_version": "1"
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "evt_940a8174d5d340cc97b75d3a511d9b4d",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 14,
+      "type": "approval.requested",
+      "occurred_at": "2026-10-19T00:08:08.970871Z",
+      "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "digest": "jcs-sha256-v1:8fcb023fa090da75ee55c4c2849c77a86a128081f99df447a508e4618901a5b0",
+        "expires_at": "2026-10-19T00:23:08.960592+00:00"
+      }
+    },
+    {
+      "event_id": "evt_7e6253d55d1c49ac8c2267b0740ae300",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 15,
+      "type": "run.state_changed",
+      "occurred_at": "2026-10-19T00:08:08.971635Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "to": "WAITING_APPROVAL",
+        "from": "RUNNING",
+        "reason": null,
+        "reason_code": null
+      }
+    },
+    {
+      "event_id": "evt_d31e5d05675a4437a4be9a4aa0af535d",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 16,
+      "type": "approval.decided",
+      "occurred_at": "2026-10-19T00:08:08.984680Z",
+      "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "digest": "jcs-sha256-v1:8fcb023fa090da75ee55c4c2849c77a86a128081f99df447a508e4618901a5b0",
+        "actor_id": "local-operator",
+        "decision": "approved"
+      }
+    },
+    {
+      "event_id": "evt_b1f6c6af12c24ee58db271ad93e93da2",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 17,
+      "type": "read.recorded",
+      "occurred_at": "2026-10-19T00:08:09.047842Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "revision": null,
+        "request_id": "call_y2ahpw1s",
+        "contract_id": "procurement.open-demands.read.v1",
+        "evidence_id": "ev_e92c338fe4604a9bb2a6cd6c61b3c476",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_1a77a3dd83fd41d48c3b9f7a64943973",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 18,
+      "type": "read.recorded",
+      "occurred_at": "2026-10-19T00:08:09.083957Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "revision": "2026-10-19 00:07:40",
+        "request_id": "call_s45r6ane",
+        "contract_id": "procurement.demand.read.v1",
+        "evidence_id": "ev_545eed3a41264dd8b33f06f4532e5440",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_5c0ebb9d8dac461e8acadb2384118c2a",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 19,
+      "type": "read.recorded",
+      "occurred_at": "2026-10-19T00:08:09.119056Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "revision": "2026-10-19 00:07:40",
+        "request_id": "call_xshafitv",
+        "contract_id": "inventory.availability.read.v1",
+        "evidence_id": "ev_15f8e706f2d24a289a564f59d42f3896",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_738b16dd19374bac89cf8dbf04840adb",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 20,
+      "type": "read.recorded",
+      "occurred_at": "2026-10-19T00:08:09.149245Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "revision": "2026-10-19 00:07:40",
+        "request_id": "call_0rk1qltf",
+        "contract_id": "procurement.offers.read.v1",
+        "evidence_id": "ev_a2a02a4cf59843fabf014e90d24686ff",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_b79843fe56d64628ad61f608dd105791",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 21,
+      "type": "action.reserved",
+      "occurred_at": "2026-10-19T00:08:09.186315Z",
+      "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "logical_operation_id": "op_288eaf6f003b4322ab5b099ef525d019"
+      }
+    },
+    {
+      "event_id": "evt_281b7a042b134db5b59a1958a3e43ded",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 22,
+      "type": "action.dispatching",
+      "occurred_at": "2026-10-19T00:08:09.189214Z",
+      "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "attempt": 1
+      }
+    },
+    {
+      "event_id": "evt_2c1512e9eaf946fdad58feaf56e71edc",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 23,
+      "type": "action.receipt_recorded",
+      "occurred_at": "2026-10-19T00:08:09.517674Z",
+      "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "status": "COMMITTED",
+        "attempt": 1,
+        "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+        "started_at": "2026-10-19T00:08:09.192319Z",
+        "finished_at": "2026-10-19T00:08:09.465058Z",
+        "external_refs": [
+          "P00033"
+        ],
+        "sanitized_error": null,
+        "provider_correlation": "e-agent-demo:op_288eaf6f003b4322ab5b099ef525d019"
+      }
+    },
+    {
+      "event_id": "evt_32fd5fe54ea04b8a8c4717f085c3f36e",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 24,
+      "type": "run.state_changed",
+      "occurred_at": "2026-10-19T00:08:09.530368Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "to": "VERIFYING",
+        "from": "WAITING_APPROVAL",
+        "reason": null,
+        "reason_code": null
+      }
+    },
+    {
+      "event_id": "evt_74a726fd04814c2faa32a4fe90b975e8",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 25,
+      "type": "read.recorded",
+      "occurred_at": "2026-10-19T00:08:09.561786Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "revision": "1",
+        "request_id": "vread_2306b12409704668b1281f17386795a6",
+        "contract_id": "procurement.purchase-order.read.v1",
+        "evidence_id": "ev_37c0371cd72d484ab2526ec501887ed1",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_5d2f094401ba4e9d83f560790a5f65ec",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 26,
+      "type": "outcome.reported",
+      "occurred_at": "2026-10-19T00:08:09.568598Z",
+      "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "checks": [
+          {
+            "name": "complete_readback",
+            "passed": true,
+            "expected": "complete",
+            "observed": "complete"
+          },
+          {
+            "name": "exactly_one_order",
+            "passed": true,
+            "expected": "1",
+            "observed": "1"
+          },
+          {
+            "name": "operation_key",
+            "passed": true,
+            "expected": "op_288eaf6f003b4322ab5b099ef525d019",
+            "observed": "op_288eaf6f003b4322ab5b099ef525d019"
+          },
+          {
+            "name": "requested_date",
+            "passed": true,
+            "expected": "2026-11-02",
+            "observed": "2026-11-02"
+          },
+          {
+            "name": "line_count",
+            "passed": true,
+            "expected": "1",
+            "observed": "1"
+          },
+          {
+            "name": "state_is_draft",
+            "passed": true,
+            "expected": "draft",
+            "observed": "draft"
+          },
+          {
+            "name": "product",
+            "passed": true,
+            "expected": "odoo/product.product/201",
+            "observed": "odoo/product.product/201"
+          },
+          {
+            "name": "supplier",
+            "passed": true,
+            "expected": "odoo/res.partner/83",
+            "observed": "odoo/res.partner/83"
+          },
+          {
+            "name": "unit",
+            "passed": true,
+            "expected": "Units",
+            "observed": "Units"
+          },
+          {
+            "name": "currency",
+            "passed": true,
+            "expected": "USD",
+            "observed": "USD"
+          },
+          {
+            "name": "external_ref_matches_receipt",
+            "passed": true,
+            "expected": "P00033",
+            "observed": "P00033"
+          },
+          {
+            "name": "quantity",
+            "passed": true,
+            "expected": "7",
+            "observed": "7"
+          },
+          {
+            "name": "unit_price",
+            "passed": true,
+            "expected": "100",
+            "observed": "100"
+          },
+          {
+            "name": "subtotal",
+            "passed": true,
+            "expected": "700",
+            "observed": "700"
+          }
+        ],
+        "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+        "status": "VERIFIED",
+        "action_id": "act_f8c7538691c84e9da80dd37c05fd56dd",
+        "reported_at": "2026-10-19T00:08:09.563028Z",
+        "verifier_id": "procurement.draft-po-verifier",
+        "observed_refs": [
+          "ev_37c0371cd72d484ab2526ec501887ed1"
+        ],
+        "verifier_version": "1"
+      }
+    },
+    {
+      "event_id": "evt_22c218eb483d4df79d1e9465a08e0996",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 27,
+      "type": "message.final",
+      "occurred_at": "2026-10-19T00:08:11.260958Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "text": "A draft purchase order has been created for the shortage of 7 units of \"E-Agent Widget A\" from the approved supplier. The subtotal is $700, and the requested delivery date is 2026-11-02. The purchase order reference is P00033."
+      }
+    },
+    {
+      "event_id": "evt_f66009b37dce498fb8bb99fae1b4c49d",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 28,
+      "type": "run.state_changed",
+      "occurred_at": "2026-10-19T00:08:11.269363Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "to": "SUCCEEDED",
+        "from": "VERIFYING",
+        "reason": "outcome verified",
+        "reason_code": "verified"
+      }
+    },
+    {
+      "event_id": "evt_aab3344b62c74f0ba0e6bc93b8ada932",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_9bcbcb6e5805487b80cb41893dd4aa58",
+      "sequence": 29,
+      "type": "run.terminal",
+      "occurred_at": "2026-10-19T00:08:11.270368Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "state": "SUCCEEDED",
+        "reason": "outcome verified",
+        "reason_code": "verified"
+      }
+    }
+  ],
+  "defaulted_declarations": []
+}

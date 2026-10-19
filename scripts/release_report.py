@@ -21,6 +21,7 @@ from typing import Any
 
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.run import RunState
+from e_agent.kernel.evidence import defaulted_payload
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.bootstrap import build_runtime
 from e_agent.server.profile import load_profile
@@ -231,13 +232,11 @@ def summarize(results: list[dict[str, Any]], out: str) -> tuple[int, str]:
     return (0 if results and passed == len(results) else 1), "".join(lines)
 
 
-async def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default="evals/reports/fixture-release.json")
-    args = parser.parse_args()
-    results = [await run_case(c) for c in CASES]
-    rt = await build_runtime(load_profile(fixture_profile_path()))
-    report = {
+def build_report(rt: Any, results: list[dict[str, Any]]) -> dict[str, Any]:
+    """The release report: the case results, the runtime's versions, and the write effects
+    its admission accepted on their defaults, which release evidence lists (ADR 0029
+    Operations)."""
+    return {
         "report": "e-agent-release-matrix-v1",
         "environment": "fixture",
         "note": (
@@ -245,10 +244,19 @@ async def main() -> int:
             "Not live model or live ERP evidence."
         ),
         "versions": rt.versions,
+        "defaulted_declarations": defaulted_payload(rt.registry.report.defaulted_declarations),
         "passed": sum(r["passed"] for r in results),
         "total": len(results),
         "cases": results,
     }
+
+
+async def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out", default="evals/reports/fixture-release.json")
+    args = parser.parse_args()
+    results = [await run_case(c) for c in CASES]
+    report = build_report(await build_runtime(load_profile(fixture_profile_path())), results)
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, ensure_ascii=False)
         fh.write("\n")

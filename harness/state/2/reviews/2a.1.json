@@ -1,0 +1,35 @@
+{
+  "task": "2a.1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "Shadow mode cannot resolve a task definition as sequenced. The plan's mode table and target 6.4.8 have shadow 'resolve the task definition' and record its id and version. The new kind source (start_run taking an optional task kind, passed by the CLI) arrives only in Task 2c.6, and Task 2c.5 (shadow, which lands earlier) names no kind source. Nothing says what shadow records when no definition resolves (an API run always, and every run before 2c.6): ir.shadow_failed, or a compile with a null task id. That leaves the 2c.5 contract and the XA-24 comparison consumer unsettled.",
+      "evidence": "docs/plans/2026-10-14-phase2-execution-ir.md:108 and Task 2c.5 Files (proposals.py, features.py only); docs/design/target-architecture.md:683; plan Task 2c.6 Files (kernel/coordinator.py, server/cli.py); ENG-PLAN-3; acceptance 'every ADR contract shape matches Tasks 2b.1-2c.9'"
+    },
+    {
+      "id": "R-2",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "The plan contradicts itself after the item-5 amendment. Line 44 says multi-step plans run 'through the CLI and API'. But an API run now resolves no definition, falls back with IR_TASK_UNRESOLVED, and turns a multi-step ProposePlan into a repair finding (and per 2c.9 the driver offers plan output only when a definition allows more than one write). So an API run cannot execute a multi-step plan in Phase 2.",
+      "evidence": "docs/plans/2026-10-14-phase2-execution-ir.md:44 vs :114 and docs/adr/0028-task-definitions.md:13; ENG-PLAN-3"
+    },
+    {
+      "id": "R-3",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "The new decision (a definition's task_id is the preset kind; only CLI runs resolve a definition; API and UI runs fall back with IR_TASK_UNRESOLVED; the TaskTemplate projection is deferred) is written as a plain Decision bullet in ADR 0028 and target 6.4.1. It is not added to the owner-decisions table, which stops at D7 and was approved 2026-10-18, and it is not flagged in 2a.2 for G1. Its consequences appear only in the git-ignored SDD report: D6's per-run narrowing never applies to API runs, the shadow comparison and the 'assistant' definition are CLI-only, and live-check legs must use the CLI. The live check still expects 'Task 1 with on: tool set equals the task definition' without naming the CLI. The ADR also does not say why the API cannot use profile.driver.task_kind (default 'draft-po', server/profile.py:61), which the server runtime already holds, the way the CLI does.",
+      "evidence": "docs/adr/0028-task-definitions.md:13; docs/design/target-architecture.md:577; docs/plans/2026-10-14-phase2-execution-ir.md:88-99 (D0-D7), :139, :164-172 (2a.2); src/e_agent/server/profile.py:61; ENG-PLAN-3"
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Plan 2c.6 Interfaces cites 'build_runtime(profile) in server/api.py' (the call site), while ADR 0028 cites build_runtime in server/bootstrap.py (the definition). Both are accurate, but the two documents should name one location.",
+      "evidence": "docs/plans/2026-10-14-phase2-execution-ir.md:277; docs/adr/0028-task-definitions.md Context; src/e_agent/server/bootstrap.py:295, src/e_agent/server/api.py:549"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}

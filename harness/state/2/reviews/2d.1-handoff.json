@@ -1,0 +1,45 @@
+{
+  "task": "2d.1",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "H-1",
+      "severity": "Medium",
+      "summary": "The plugin pins had no committed source; now recorded in harness/state/evidence/manual/2d.1/plugin-pins.json, with the regeneration commands in the handoff.",
+      "affects": "contract",
+      "evidence": "handoff Plugin pins section vs harness/state/evidence/manual/2d.1/plugin-pins.json"
+    },
+    {
+      "id": "H-2",
+      "severity": "Low",
+      "summary": "The by-hand check_wheels pass and the pg DSN note were untraceable; check_wheels output recorded, the DSN note now cites the harness distinct_databases rule.",
+      "affects": "style",
+      "evidence": "handoff What was verified vs harness/state/evidence/manual/2d.1/check-wheels.txt and harness/context.toml distinct_databases"
+    },
+    {
+      "id": "H-3",
+      "severity": "Low",
+      "summary": "The Codex re-check details were untraceable; Codex's report is recorded verbatim and labelled model output.",
+      "affects": "style",
+      "evidence": "handoff Phase review section vs harness/state/evidence/manual/2d.1/codex-final-report.json"
+    },
+    {
+      "id": "H-4",
+      "severity": "Low",
+      "summary": "The live-check open item dropped the plan's expected results and limits; now restated in full.",
+      "affects": "contract",
+      "evidence": "handoff open item 2 vs docs/plans/2026-10-14-phase2-execution-ir.md Live check"
+    },
+    {
+      "id": "H-5",
+      "severity": "Low",
+      "summary": "The 2d.1 commit row misattributed 35ff36a and omitted 1ea45e9; corrected.",
+      "affects": "style",
+      "evidence": "handoff What changed 2d.1 row vs git show --stat 35ff36a 1ea45e9"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

@@ -123,3 +123,13 @@ async def test_sandbox_guard_probes_every_provider_with_a_routable_binding() -> 
         await bootstrap._check_sandbox(profile, registry, operator, frozenset({"conn-x"}))
     assert exc.value.code is ErrorCode.STARTUP_REJECTED
     assert f"{SIMULATOR}: live provider declares no sandbox probe" in exc.value.safe_message
+
+
+def test_live_profile_refuses_a_defaulted_write_binding() -> None:
+    # ADR 0029 through bootstrap: admission sees the profile's environment, so the
+    # simulator's write binding, which keeps the default idempotency, is refused live.
+    po_create = f"{SIMULATOR}.procurement.po-create"
+    profile = _live_with_simulator([("conn-sim", SIMULATOR)], {po_create: ["conn-sim"]}, odoo=False)
+    message = _refused(profile)
+    assert po_create in message
+    assert "idempotency" in message

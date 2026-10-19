@@ -15,14 +15,23 @@ from typing import Any
 
 import pytest
 from e_agent.contracts.action import ActionRecord
-from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor, EffectKind
+from e_agent.contracts.capability import (
+    CapabilityBinding,
+    CapabilityDescriptor,
+    EffectKind,
+    Idempotency,
+    Reversibility,
+    Risk,
+)
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.connection import ConnectionDescriptor, ConnectionOwnership
 from e_agent.contracts.context import Budgets, Principal, TaskContext
 from e_agent.contracts.evidence import EvidenceRef
+from e_agent.contracts.features import Features
 from e_agent.contracts.outcome import OutcomeCheck, OutcomeReport, OutcomeStatus
-from e_agent.contracts.plan import ActionProposal
+from e_agent.contracts.plan import ActionPlan, ActionProposal, LineageRef, PlannedStep
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
+from e_agent.contracts.task import AcceptanceSpec, RequiredEffect, TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationResult, ValidationStatus
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.coordinator import RunCoordinator
@@ -30,7 +39,7 @@ from e_agent.kernel.memory_store import InMemoryRunStore
 from e_agent.kernel.policy import DefaultPolicy
 from e_agent.kernel.registry import PluginRegistry
 from e_agent.sdk.errors import KnownNoEffectError
-from e_agent.sdk.manifest import BindingTemplate
+from e_agent.sdk.manifest import BindingTemplate, TaskDeclaration
 from e_agent.sdk.ports import (
     DriverInput,
     DriverStep,
@@ -38,6 +47,7 @@ from e_agent.sdk.ports import (
     Observation,
     PluginContribution,
     ProposeAction,
+    ProposePlan,
     ReadRequest,
     RequestReads,
     ScopedReader,
@@ -50,18 +60,155 @@ READ = CapabilityDescriptor(
     input_schema_id="q",
     output_schema_id="n",
 )
+# The notes domain declares its effects explicitly (ADR 0029, DR-08).
 CREATE = CapabilityDescriptor(
     contract_id="notes.note.create.v1",
     effect=EffectKind.WRITE,
     input_schema_id="c",
     output_schema_id="r",
+    risk=Risk.WRITE_LOW,
+    reversibility=Reversibility.IRREVERSIBLE,
 )
 BINDINGS = (
     BindingTemplate(binding_id="notes-mem.read", contract_id=READ.contract_id),
-    BindingTemplate(binding_id="notes-mem.create", contract_id=CREATE.contract_id),
+    # NotesBackend keeps one note per logical operation id.
+    BindingTemplate(
+        binding_id="notes-mem.create",
+        contract_id=CREATE.contract_id,
+        idempotency=Idempotency.PROVIDER_KEY,
+    ),
+)
+# The notes domain's task definition: the core is tested without ERP (ADR 0028, DR-08).
+NOTES_TASK = TaskDefinition(
+    task_id="standup-note",
+    version="1",
+    title="Write a standup note",
+    goal_template="write standup note",
+    capabilities=(READ.contract_id, CREATE.contract_id),
+    acceptance=AcceptanceSpec(required_effects=(RequiredEffect(contract_id=CREATE.contract_id),)),
 )
 TENANT = "tenant-a"
 CONN = "conn-notes"
+
+# -- an opt-in structured answer (Task 2c.8c): verified by a fresh read of the notes -------
+SUMMARY = CapabilityDescriptor(
+    contract_id="notes.summary.answer.v1",
+    effect=EffectKind.ANSWER,
+    input_schema_id="s",
+    output_schema_id="s",
+)
+"""The notes answer: ``count`` must equal the number of notes a fresh read sees."""
+
+# -- the two-step notes plan (Task 2c.7, ADR 0025): genericity without ERP -----------------
+PIN = CapabilityDescriptor(
+    contract_id="notes.note.pin.v1",
+    effect=EffectKind.WRITE,
+    input_schema_id="p",
+    output_schema_id="r",
+    risk=Risk.WRITE_HIGH,
+    reversibility=Reversibility.COMPENSABLE,
+    compensating_contract_id="notes.note.unpin.v1",
+)
+"""An opt-in second write, so a plan can mix risks (`make_kernel(with_pin=True)`)."""
+PIN_BINDING = BindingTemplate(binding_id="notes-mem.pin", contract_id=PIN.contract_id)
+NOTE_INPUT = {
+    "type": "object",
+    "properties": {"text": {"type": "string"}, "parent": {"type": "string"}},
+    "required": ["text"],
+}
+"""The create input schema the two-step plan needs: lineage types a placeholder by it."""
+PLAN_BUDGETS = Budgets(max_admitted_writes=2)
+FIRST, FOLLOW_UP = "first", "follow-up"
+
+
+def two_step_plan(connection_id: str = CONN, *, path: str = "/key") -> ActionPlan:
+    """Write a note, then a follow-up note whose ``parent`` is the first note's verified key
+    (`NotesVerifier` reports the read-back note), copied through a lineage placeholder."""
+    return ActionPlan(
+        plan_id="driver-chosen",
+        task_id="driver-chosen",
+        task_version="0",
+        steps=(
+            PlannedStep(
+                step_id=FIRST,
+                proposal=ActionProposal(
+                    contract_id=CREATE.contract_id,
+                    connection_id=connection_id,
+                    arguments={"text": "standup notes"},
+                ),
+            ),
+            PlannedStep(
+                step_id=FOLLOW_UP,
+                proposal=ActionProposal(
+                    contract_id=CREATE.contract_id,
+                    connection_id=connection_id,
+                    arguments={"text": "follow-up", "parent": LineageRef(step_id=FIRST, path=path)},
+                ),
+                depends_on=(FIRST,),
+            ),
+        ),
+    )
+
+
+@dataclass
+class NotesPlanDriver:
+    """Reads, then proposes ``plan`` once; answers after the verified result."""
+
+    plan: ActionPlan = field(default_factory=two_step_plan)
+    connection_id: str = CONN
+    driver_id: str = "notes-plan-driver"
+    calls: int = 0
+    seen: list[DriverInput] = field(default_factory=list)
+
+    async def advance(self, ctx: TaskContext, step_input: DriverInput) -> DriverStep:
+        self.calls += 1
+        self.seen.append(step_input)
+        if step_input.action_result is not None:
+            return FinalAnswer(text="done")
+        if not step_input.observations:
+            return RequestReads(
+                reads=(
+                    ReadRequest(
+                        request_id="r1",
+                        contract_id=READ.contract_id,
+                        connection_id=self.connection_id,
+                        arguments={},
+                    ),
+                )
+            )
+        return ProposePlan(plan=self.plan)
+
+
+@dataclass
+class MetadataDriver:
+    """Reads on ``connection_id``, then proposes one note carrying nested ``metadata`` on
+    ``propose_on``; answers after the verified result (Task 2c.8b)."""
+
+    connection_id: str = CONN
+    propose_on: str = CONN
+    driver_id: str = "notes-metadata-driver"
+    calls: int = 0
+    seen: list[DriverInput] = field(default_factory=list)
+
+    async def advance(self, ctx: TaskContext, step_input: DriverInput) -> DriverStep:
+        self.calls += 1
+        if step_input.action_result is not None:
+            return FinalAnswer(text="done")
+        if not step_input.observations:
+            read = ReadRequest(
+                request_id="r1",
+                contract_id=READ.contract_id,
+                connection_id=self.connection_id,
+                arguments={},
+            )
+            return RequestReads(reads=(read,))
+        return ProposeAction(
+            proposal=ActionProposal(
+                contract_id=CREATE.contract_id,
+                connection_id=self.propose_on,
+                arguments={"text": "standup notes", "metadata": {"value": "approved"}},
+            )
+        )
 
 
 @dataclass
@@ -117,7 +264,10 @@ class NotesBackend:
         if self.fail_mode == "timeout-no-commit":
             raise TimeoutError
         key = action.logical_operation_id
-        self.notes.setdefault(key, {"key": key, "text": str(action.arguments["text"])})
+        note = {"key": key, "text": str(action.arguments["text"])}
+        if "parent" in action.arguments:
+            note["parent"] = str(action.arguments["parent"])
+        self.notes.setdefault(key, note)
         if self.fail_mode == "timeout":
             raise TimeoutError
         now = utc_now()
@@ -151,9 +301,10 @@ class NotesValidator:
 
     def __init__(self) -> None:
         self.explode = False
+        self.bundle = "notes@1"
 
     def supports(self, contract_id: str) -> bool:
-        return contract_id == CREATE.contract_id
+        return contract_id in {CREATE.contract_id, PIN.contract_id}
 
     async def validate(self, ctx: TaskContext, item: ValidationInput) -> ValidationResult:
         if self.explode:
@@ -170,7 +321,7 @@ class NotesValidator:
                     message="text must be non-empty",
                 ),
             ),
-            rule_bundle_version="notes@1",
+            rule_bundle_version=self.bundle,
             validator_id=self.validator_id,
         )
 
@@ -200,6 +351,40 @@ class NotesVerifier:
             action_id=action.action_id,
             status=OutcomeStatus.VERIFIED if ok else OutcomeStatus.FAILED,
             checks=(OutcomeCheck(name="note", passed=ok, expected=expected, observed=str(notes)),),
+            verifier_id=self.verifier_id,
+            verifier_version="1",
+            reported_at=utc_now(),
+            verified_values=dict(notes[0]) if len(notes) == 1 else None,  # the read-back
+        )
+
+
+class NotesAnswerVerifier:
+    """Recomputes the notes answer from a fresh, independent read (`make_kernel(with_answer)`)."""
+
+    verifier_id = "notes-answer-verifier"
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def supports(self, contract_id: str) -> bool:
+        return contract_id == SUMMARY.contract_id
+
+    async def verify(
+        self,
+        ctx: TaskContext,
+        action: ActionRecord,
+        receipt: ExecutionReceipt | None,
+        reader: ScopedReader,
+    ) -> OutcomeReport:
+        self.calls += 1
+        obs = await reader.read(READ.contract_id, {})
+        expected, observed = str(obs.data["count"]), str(action.arguments.get("count"))
+        ok = expected == observed
+        return OutcomeReport(
+            run_id=ctx.run_id,
+            action_id=action.action_id,
+            status=OutcomeStatus.VERIFIED if ok else OutcomeStatus.FAILED,
+            checks=(OutcomeCheck(name="count", passed=ok, expected=expected, observed=observed),),
             verifier_id=self.verifier_id,
             verifier_version="1",
             reported_at=utc_now(),
@@ -256,7 +441,7 @@ class Kernel:
     backend: NotesBackend
     validator: NotesValidator
     verifier: NotesVerifier
-    driver: NotesDriver
+    driver: Any
     connections: ConnectionCatalog
     clock: Clock
     requester: Principal
@@ -295,22 +480,42 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
         connections: list[ConnectionDescriptor] | None = None,
         binding_connections: dict[str, tuple[str, ...]] | None = None,
         allow_self_approval: bool = False,
+        features: Features | None = None,
+        task: TaskDefinition = NOTES_TASK,
+        approval_ttl: timedelta | None = None,
+        driver: Any = None,
+        input_schemas: dict[str, dict[str, Any]] | None = None,
+        with_pin: bool = False,
+        with_answer: bool = False,
+        answer_verifier: bool = True,
     ) -> Kernel:
         backend, validator, verifier = NotesBackend(), NotesValidator(), NotesVerifier()
-        driver = NotesDriver(texts=list(texts or ["standup notes"]))
-        registry = PluginRegistry(binding_connections or {b.binding_id: (CONN,) for b in BINDINGS})
+        driver = driver or NotesDriver(texts=list(texts or ["standup notes"]))
+        capabilities = (READ, CREATE, PIN) if with_pin else (READ, CREATE)
+        verifiers: tuple[Any, ...] = (verifier,)
+        if with_answer:  # the answer needs no binding; its verifier is optional (2c.8c)
+            capabilities = (*capabilities, SUMMARY)
+            verifiers = (verifier, NotesAnswerVerifier()) if answer_verifier else verifiers
+        bindings = (*BINDINGS, PIN_BINDING) if with_pin else BINDINGS
+        registry = PluginRegistry(binding_connections or {b.binding_id: (CONN,) for b in bindings})
         registry.register(
             plugin_id="notes-fixture",
             plugin_version="0.1.0",
-            declared_capabilities=(READ, CREATE),
-            binding_templates=BINDINGS,
+            declared_capabilities=capabilities,
+            binding_templates=bindings,
+            declared_task_definitions=(
+                TaskDeclaration(task_id=task.task_id, version=task.version),
+            ),
             contribution=PluginContribution(
-                capabilities=(READ, CREATE),
+                capabilities=capabilities,
                 validators=(validator,),
                 executors=(backend,),
-                verifiers=(verifier,),
+                verifiers=verifiers,
+                task_definitions=(task,),
+                input_schemas=input_schemas or {},
             ),
         )
+        registry.admit_task_definitions()
         catalog = ConnectionCatalog(
             connections
             or [
@@ -334,6 +539,8 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
             clock=clock,
             budgets=budgets,
             allow_self_approval=allow_self_approval,
+            features=features,
+            **({} if approval_ttl is None else {"approval_ttl": approval_ttl}),
         )
         return Kernel(
             coordinator,
@@ -350,3 +557,16 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
         )
 
     return _make
+
+
+async def run_resume_work(
+    store: Any, coordinator: RunCoordinator, owner: str = "resume-test"
+) -> Any:
+    """Claim the one queued ``resume`` item and run it under its claim, as the server
+    worker does (ADR 0025 amendment); afterwards no other work is queued for it."""
+    claim = await store.claim_work(owner)
+    assert claim is not None and claim.kind == "resume", claim
+    async with store.work_scope(claim):
+        run = await coordinator.resume_plan(claim.tenant_id, claim.run_id)
+        await store.finish_work(claim)
+    return run

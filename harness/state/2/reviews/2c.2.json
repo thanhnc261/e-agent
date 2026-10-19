@@ -1,0 +1,49 @@
+{
+  "task": "2c.2",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "R-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "admit_task_definitions accepts a read/write with at least one binding on any connection, and an answer with none, but tool_specs exposes only capabilities whose bindings share exactly one connection (silent continue). In a profile with two connections or two bindings of one contract (PR-09 allows both), a definition is admitted yet the run never gets that tool; containment in the routable set is proven only by the fixture-profile golden test. No ADR 0028 rule or acceptance step is violated and the silent drop predates this task; 2c.5/2c.6 must intersect the definition with the routable set or refuse at admission (PR-10).",
+      "evidence": "src/e_agent/kernel/registry.py:403-415 vs src/e_agent/server/bootstrap.py:100-114; tests/unit/plugins/erp/domain/test_task_definitions.py test_task_capabilities_match_golden (fixture profile only)"
+    },
+    {
+      "id": "R-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Budget narrowing compares only model_fields_set at admission, but the admitted Budgets record carries every default (e.g. max_driver_turns 12). The 2c.6 consumer must merge only the set fields into the profile budgets, or a definition that narrows one field silently widens the others back to defaults (D7).",
+      "evidence": "src/e_agent/kernel/registry.py:374-387; src/e_agent/contracts/context.py:20-28; src/e_agent/plugins/erp/domain/tasks/shortage.json budgets"
+    },
+    {
+      "id": "R-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Defaulted declarations are reported only in AdmissionReport.defaulted_declarations, not in /health/ready or the evidence bundle. ADR 0029 Operations requires release evidence to list them; no Phase 2 plan task owns that follow-up, so it is untracked.",
+      "evidence": "src/e_agent/kernel/registry.py:66-69; docs/adr/0029-capability-effect-declarations.md Consequences/Operations; docs/plans/2026-10-14-phase2-execution-ir.md (no task names defaulted-declaration reporting)"
+    },
+    {
+      "id": "R-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Admission does not check that acceptance.required_effects name write capabilities and required_answer names an answer capability; a misdeclared definition would be admitted and always end ACCEPTANCE_UNMET. Fails closed; the ERP definitions are correct per tests.",
+      "evidence": "src/e_agent/kernel/registry.py:390-420; src/e_agent/contracts/task.py _check_acceptance_inside_capabilities"
+    },
+    {
+      "id": "R-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Two-phase admission: admit() lists a pack as admitted while its definitions are still staged, and only admit_plugins calls admit_task_definitions. Every production path (cli, api, worker, scripts/qualify_model.py, release_report.py, capture_model_replays.py) goes through build_runtime -> admit_plugins, so live refusal and definition admission always run before a run starts; a future composition root that skips the second step resolves no definition (fail-safe).",
+      "evidence": "src/e_agent/server/bootstrap.py:210-228, 312; src/e_agent/kernel/registry.py:390-420"
+    },
+    {
+      "id": "R-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "check_wheels.py (acceptance step 4) is not in the full gate evidence; its pass rests on the implementer's report. check_core_only.py and the full pytest (1105 passed) are in the gate on clean commit 22ca83e.",
+      "evidence": "harness/state/evidence/gates/2c.2/2026-10-18T03-02-34.102183+00-00-full.json commands (10 entries, no check_wheels); ENG-EVID-1"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}

@@ -1,0 +1,31 @@
+{
+  "task": "2c.8",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "R3-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Takeover at fence > 1 fails the plan even if the first owner never started; the ADR 0025 amendment must state at-most-once and takeover",
+      "evidence": "src/e_agent/server/worker.py:103-112; docs/adr/0025-execution-ir.md"
+    },
+    {
+      "id": "R3-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Pre-existing: resume_plan drops the item when the continuation cannot load or has no plan, leaving the run until next startup recovery; unreachable through kernel writes",
+      "evidence": "src/e_agent/kernel/recovery.py:149-157"
+    },
+    {
+      "id": "R3-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The recorded pg gate covers tests/unit/kernel only; adapters/postgres and conformance Postgres runs need recording",
+      "evidence": "harness/state/evidence/gates/2c.8/2026-10-18T10-21-38.932888+00-00-pg.json"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

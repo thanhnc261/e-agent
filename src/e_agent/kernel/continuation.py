@@ -12,8 +12,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime, timedelta
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 from e_agent.contracts.action import ActionRecord, ActionState
@@ -23,13 +24,15 @@ from e_agent.contracts.common import new_id
 from e_agent.contracts.context import Budgets, TaskContext
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import Completeness
-from e_agent.contracts.plan import ActionProposal
+from e_agent.contracts.plan import ActionPlan, ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import (
     ReasonCode,
     RunRecord,
     RunState,
 )
+from e_agent.contracts.step import StepRecord
+from e_agent.contracts.task import TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationResult
 from e_agent.sdk.auth import CredentialVersionProvider
 from e_agent.sdk.errors import KnownNoEffectError
@@ -40,9 +43,9 @@ from e_agent.sdk.ports import (
     PolicyEvaluator,
     ReadRequest,
 )
-from e_agent.sdk.store import RunStore
+from e_agent.sdk.store import EventBatch, RunStore
 from e_agent.sdk.tasks import supervised_task
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SerializerFunctionWrapHandler, model_serializer
 
 from .connections import ConnectionCatalog
 from .errors import ErrorCode, KernelError
@@ -52,6 +55,38 @@ LOG = logging.getLogger("e_agent.kernel.coordinator")
 
 
 CONTINUATION_SCHEMA = "kernel-continuation-v1"
+
+
+class NextStep(StrEnum):
+    """What a call may do once a multi-step plan's step is verified with steps left: its own
+    authority, passed down the call chain, never state another call can see (Codex C-1,
+    C2-1)."""
+
+    START = "start"
+    """The approval call or a fenced resume claim: start the next step."""
+    QUEUE = "queue"
+    """Reconciliation or startup recovery: queue the fenced resume, never send a write."""
+    STOP = "stop"
+    """Recovery after a failed resume claim: queue nothing; the plan fails closed."""
+
+
+class _PlanState(BaseModel):
+    """The multi-step plan a run is executing (Task 2c.7, ADR 0025); persisted with the
+    continuation, so the approved inputs and the verified values survive a restart. Which
+    steps started, and which are verified, is read from the durable actions (Codex C-2),
+    never from this snapshot."""
+
+    plan_id: str
+    step_ids: tuple[str, ...]
+    inputs: tuple[dict[str, Any], ...]
+    """Each step's approved digest input (`plan_digest_input`), in step-index order: what
+    revalidation compares a step against before its reservation."""
+    current: int = 0
+    """The index of the step in flight."""
+    approval_id: str | None = None
+    verified: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    """Step id to the values its verifier read back (`OutcomeReport.verified_values`), set
+    only when that step's outcome is VERIFIED: the one source lineage copies from."""
 
 
 class _Continuation(BaseModel):
@@ -75,6 +110,21 @@ class _Continuation(BaseModel):
     approval_requested_at: datetime | None = None
     active_seconds: float = 0
     surface_digest: str = ""  # tool surface at run start; resume is blocked if it changed
+    task: TaskDefinition | None = None
+    """The definition admitted for an execution IR ``on`` run: its tool set, budgets, TTL and
+    acceptance for the whole run, whatever the registry later holds (ADR 0028, Codex C-1)."""
+    plan: _PlanState | None = None
+    """The multi-step plan in flight (execution IR ``on``, Task 2c.7); None otherwise."""
+
+    @model_serializer(mode="wrap")
+    def _omit_unbound_task(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        """Leave ``task`` and ``plan`` out when unset, so an ``off`` or ``shadow``
+        continuation is stored exactly as before Task 2c.6."""
+        data: dict[str, Any] = handler(self)
+        for name in ("task", "plan"):
+            if getattr(self, name) is None:
+                data.pop(name, None)
+        return data
 
 
 class _GatewayReader:
@@ -124,6 +174,29 @@ class ContinuationMixin:
         ) -> RunRecord | DriverInput:
             raise NotImplementedError
 
+        async def _handle_plan(
+            self, run: RunRecord, cont: _Continuation, plan: ActionPlan
+        ) -> RunRecord | DriverInput:
+            raise NotImplementedError
+
+        async def _after_step_verified(
+            self, cont: _Continuation, action: ActionRecord, *, next_step: NextStep
+        ) -> RunRecord:
+            raise NotImplementedError
+
+        async def _queue_resume(self, run: RunRecord, action: ActionRecord) -> RunRecord:
+            raise NotImplementedError
+
+        async def _resume_plan(
+            self,
+            cont: _Continuation,
+            latest: ActionRecord,
+            actions: list[ActionRecord],
+            *,
+            next_step: NextStep,
+        ) -> RunRecord | None:
+            raise NotImplementedError
+
         async def _record_rejected_read(
             self, cont: _Continuation, request: ReadRequest, exc: KnownNoEffectError
         ) -> None:
@@ -136,6 +209,8 @@ class ContinuationMixin:
             reason: str | None = None,
             *,
             code: ReasonCode | None = None,
+            before: EventBatch = (),
+            snapshot: bool = True,
         ) -> RunRecord:
             raise NotImplementedError
 
@@ -150,6 +225,8 @@ class ContinuationMixin:
             action: ActionRecord,
             to: ActionState,
             event: tuple[RunEventType, dict[str, Any]] | None = None,
+            *,
+            steps: Sequence[StepRecord] = (),
         ) -> ActionRecord:
             raise NotImplementedError
 
@@ -181,12 +258,22 @@ class ContinuationMixin:
             raise NotImplementedError
 
         async def _verify(
-            self, cont: _Continuation, action: ActionRecord, receipt: ExecutionReceipt
+            self,
+            cont: _Continuation,
+            action: ActionRecord,
+            receipt: ExecutionReceipt,
+            *,
+            next_step: NextStep,
         ) -> RunRecord:
             raise NotImplementedError
 
         async def _apply_receipt(
-            self, cont: _Continuation, action: ActionRecord, receipt: ExecutionReceipt
+            self,
+            cont: _Continuation,
+            action: ActionRecord,
+            receipt: ExecutionReceipt,
+            *,
+            next_step: NextStep,
         ) -> RunRecord:
             raise NotImplementedError
 

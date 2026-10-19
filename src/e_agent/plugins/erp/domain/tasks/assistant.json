@@ -1,0 +1,26 @@
+{
+  "task_id": "assistant",
+  "version": "1",
+  "title": "Assistant: answer a question from ERP records (read-only)",
+  "goal_template": "Answer the question using ERP records; propose no change.",
+  "capabilities": [
+    "procurement.open-demands.read.v1",
+    "procurement.demand.read.v1",
+    "inventory.availability.read.v1",
+    "procurement.offers.read.v1",
+    "procurement.draft-rfq.read.v1",
+    "sales.pricing.read.v1",
+    "sales.open-orders.read.v1",
+    "crm.contact.read.v1",
+    "crm.teams.read.v1",
+    "receivables.open-invoices.read.v1",
+    "procurement.shortage.answer.v1",
+    "procurement.offer.recommend.v1",
+    "sales.late-orders.answer.v1",
+    "receivables.overdue-invoices.answer.v1"
+  ],
+  "acceptance": {},
+  "budgets": {
+    "max_admitted_writes": 0
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "task_id": "crm-lead",
+  "version": "1",
+  "title": "ERP-07: create a CRM lead",
+  "goal_template": "Create a CRM lead for contact:jane assigned to user:alice in team:direct from source:website.",
+  "capabilities": [
+    "crm.contact.read.v1",
+    "crm.teams.read.v1",
+    "crm.lead.create.v1"
+  ],
+  "acceptance": {
+    "required_effects": [
+      {
+        "contract_id": "crm.lead.create.v1",
+        "min_verified": 1
+      }
+    ]
+  }
+}

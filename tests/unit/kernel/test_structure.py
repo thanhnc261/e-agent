@@ -46,6 +46,7 @@ PUBLIC_METHODS = [
     "cancel",
     "recover",
     "recover_run",
+    "resume_plan",
 ]
 
 # Private methods that tests call, read or monkeypatch on a coordinator instance.

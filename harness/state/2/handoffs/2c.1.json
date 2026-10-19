@@ -1,0 +1,29 @@
+{
+  "task": "2c.1",
+  "changed": "Portable IR records (Record: frozen, extra forbidden): contracts/task.py TaskDefinition and AcceptanceSpec (budgets: Budgets | None, approval_ttl); contracts/plan.py ActionPlan, PlannedStep and LineageRef(step_id, path) with structural validation in the records (unique step ids, known dependencies, acyclic, lineage refs only to an earlier dependency, $lineage literal refused in ordinary arguments, RFC 6901 pointers); one shared walker checks every step's whole argument tree from the ActionPlan validator as well, and LineageRef revalidates constructed instances, so revalidation and model_construct cannot bypass the checks; contracts/step.py StepRecord, StepKind, StepStatus, StepUsage (step.v1); RunRecord task_id/task_version and ActionRecord plan_id/step_index, nullable and persisted in jsonb; ADR 0029 risk/reversibility on capabilities and idempotency on bindings and BindingTemplate with conservative defaults, every existing manifest loadable without re-pinning, defaulted fields detectable through model_fields_set; target 5.4 sketch aligned to Record; OpenAPI and schema.ts regenerated. Commits a320467, e037e60, 770571b. Codex review: rework R-1 (revalidation skipped step checks), R-2 (pointer regex match vs fullmatch; then constructed refs skipped the pointer check), both fixed over two rounds and accepted.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2c.1/2026-10-18T02-27-44.597694+00-00-full.json",
+    "harness/state/evidence/gates/2c.1/2026-10-18T02-28-57.000702+00-00-pg.json"
+  ],
+  "open_items": [
+    "Task 2c.3 defines the $lineage wire form in contracts/plan.py (model_dump turns a nested LineageRef into a plain mapping today).",
+    "Task 2c.2 copies BindingTemplate.idempotency into CapabilityBinding in the registry and enforces budget narrowing by model_fields_set.",
+    "A constructed LineageRef with a non-string step_id is refused only by depends_on membership (Codex Low note)."
+  ],
+  "rulings": [
+    {
+      "ruling": "TaskDefinition.budgets stays Budgets | None as in target 6.4.1; narrowing compares only the fields a definition sets, enforced in 2c.2.",
+      "cost_if_wrong": "An all-optional override record in 2c.2."
+    },
+    {
+      "ruling": "The plan round-trip (wire form for nested LineageRef) belongs to 2c.3, the first consumer.",
+      "cost_if_wrong": "2c.4 digest code special-cases dumped refs."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "pg gate ran against e_agent_test in e-agent-ledger.",
+      "undo": "None needed."
+    }
+  ]
+}

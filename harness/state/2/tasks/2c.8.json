@@ -1,0 +1,106 @@
+{
+  "id": "2c.8",
+  "phase": "2",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-2c-8"
+  ],
+  "context_digest": "22c71d62595b847fb6a4560903e84dc12798344cf16e49a368e7a64f44e9f444",
+  "allowed_paths": [
+    "src/e_agent/contracts/run.py",
+    "src/e_agent/contracts/outcome.py",
+    "src/e_agent/kernel/transitions.py",
+    "src/e_agent/kernel/dispatch.py",
+    "src/e_agent/kernel/recovery.py",
+    "src/e_agent/kernel/evidence.py",
+    "src/e_agent/kernel/plan_flow.py",
+    "src/e_agent/kernel/ir_on.py",
+    "src/e_agent/kernel/ir.py",
+    "src/e_agent/kernel/continuation.py",
+    "src/e_agent/kernel/coordinator.py",
+    "src/e_agent/kernel/proposals.py",
+    "src/e_agent/kernel/verification.py",
+    "src/e_agent/kernel/approval_flow.py",
+    "src/e_agent/kernel/run_loop.py",
+    "src/e_agent/kernel/step.py",
+    "src/e_agent/kernel/features.py",
+    "src/e_agent/kernel/gateway.py",
+    "src/e_agent/kernel/memory_store.py",
+    "src/e_agent/adapters/postgres/store.py",
+    "src/e_agent/sdk/store.py",
+    "src/e_agent/server/api.py",
+    "src/e_agent/server/bootstrap.py",
+    "tests/unit/kernel/**",
+    "tests/unit/server/**",
+    "tests/conformance/**",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "ui/packages/ui-core/src/**",
+    "ui/packages/ui-core/test/**",
+    "ui/packages/ui-conformance/src/mock-api.ts",
+    "pyproject.toml",
+    "docs/plans/2026-10-14-phase2-execution-ir.md",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "src/e_agent/kernel/plan_*.py",
+    "docs/design/target-architecture.md",
+    "docs/adr/0025-execution-ir.md",
+    "docs/adr/README.md",
+    "src/e_agent/contracts/work.py",
+    "src/e_agent/adapters/postgres/migrations/0006_*.sql",
+    "src/e_agent/server/worker.py",
+    "tests/unit/adapters/postgres/test_migrations.py"
+  ],
+  "acceptance": [
+    "test_no_fallback_after_first_reservation passes",
+    "test_unknown_step_blocks_remaining_steps and test_lineage_value_outside_verified_outcome_stops_plan pass",
+    "recovery does not replay committed steps",
+    "full and pg gates pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "7e9525d1d3ab2ae02affea686a585e5271518712",
+  "created_at": "2026-10-18T09:14:09+00:00",
+  "features_digest": "595fcf08022a03b6a9fcce37714d654ba458c1936f8ee5284e3d1c849ba38be8",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/kernel/plan_*.py",
+      "reason": "2c.8 resume and reconciliation; plan_flow.py and ir_on.py are above 400 lines against the 500-line gate",
+      "at": "2026-10-18T09:16:47+00:00"
+    },
+    {
+      "glob": "docs/design/target-architecture.md",
+      "reason": "2c.8 ruling: an approval that expires between plan steps stops as STALE, as on today's single-action path; design rows §6.4.5 and §6.4.6 named APPROVAL_EXPIRED (ENG-PLAN-3)",
+      "at": "2026-10-18T09:44:53+00:00"
+    },
+    {
+      "glob": "docs/adr/0025-execution-ir.md",
+      "reason": "2c.8 review R-1: plan resume runs under a fenced resume work claim, never inside startup recovery (ADR 0018, MVP §9)",
+      "at": "2026-10-18T09:55:29+00:00"
+    },
+    {
+      "glob": "docs/adr/README.md",
+      "reason": "2c.8 review R-1: plan resume runs under a fenced resume work claim, never inside startup recovery (ADR 0018, MVP §9)",
+      "at": "2026-10-18T09:55:29+00:00"
+    },
+    {
+      "glob": "src/e_agent/contracts/work.py",
+      "reason": "2c.8 review R-1: plan resume runs under a fenced resume work claim, never inside startup recovery (ADR 0018, MVP §9)",
+      "at": "2026-10-18T09:55:29+00:00"
+    },
+    {
+      "glob": "src/e_agent/adapters/postgres/migrations/0006_*.sql",
+      "reason": "2c.8 review R-1: plan resume runs under a fenced resume work claim, never inside startup recovery (ADR 0018, MVP §9)",
+      "at": "2026-10-18T09:55:29+00:00"
+    },
+    {
+      "glob": "src/e_agent/server/worker.py",
+      "reason": "2c.8 review R-1: plan resume runs under a fenced resume work claim, never inside startup recovery (ADR 0018, MVP §9)",
+      "at": "2026-10-18T09:55:29+00:00"
+    },
+    {
+      "glob": "tests/unit/adapters/postgres/test_migrations.py",
+      "reason": "2c.8 migration 0006 (resume work kind) joins the applied-migration list",
+      "at": "2026-10-18T10:05:42+00:00"
+    }
+  ]
+}

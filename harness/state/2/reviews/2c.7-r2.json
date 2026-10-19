@@ -1,0 +1,31 @@
+{
+  "task": "2c.7",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R2-1",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "The R-2 sentinel-bundle clause is untested; a placeholder step whose contract has no validator binds 'none' without it",
+      "evidence": "src/e_agent/kernel/plan_flow.py:170-174; tests/unit/kernel/test_action_plan_guards.py:131-150; mutant M2 survived"
+    },
+    {
+      "id": "R2-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The R-3 step_id comparison is untested and defensive only",
+      "evidence": "src/e_agent/kernel/plan_flow.py:343-347; mutant M5 survived"
+    },
+    {
+      "id": "R2-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "R-4c tested at the plan check is accepted; an end-to-end budget test is owed once a driver turn may follow a verified write",
+      "evidence": "tests/unit/kernel/test_action_plan_guards.py:248-262"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

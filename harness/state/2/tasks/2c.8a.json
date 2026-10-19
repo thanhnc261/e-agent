@@ -1,0 +1,69 @@
+{
+  "id": "2c.8a",
+  "phase": "2",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-2c-8a"
+  ],
+  "context_digest": "22c71d62595b847fb6a4560903e84dc12798344cf16e49a368e7a64f44e9f444",
+  "allowed_paths": [
+    "src/e_agent/server/api.py",
+    "src/e_agent/server/bootstrap.py",
+    "src/e_agent/kernel/evidence.py",
+    "src/e_agent/kernel/transitions.py",
+    "src/e_agent/kernel/ir_on.py",
+    "src/e_agent/kernel/continuation.py",
+    "src/e_agent/kernel/coordinator.py",
+    "src/e_agent/kernel/recovery.py",
+    "src/e_agent/kernel/dispatch.py",
+    "src/e_agent/kernel/verification.py",
+    "src/e_agent/kernel/approval_flow.py",
+    "src/e_agent/kernel/plan_flow.py",
+    "src/e_agent/kernel/proposals.py",
+    "src/e_agent/kernel/run_loop.py",
+    "src/e_agent/kernel/step.py",
+    "src/e_agent/kernel/plan_*.py",
+    "src/e_agent/contracts/run.py",
+    "tests/unit/kernel/**",
+    "tests/unit/server/**",
+    "tests/conformance/**",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "ui/packages/ui-core/src/**",
+    "ui/packages/ui-core/test/**",
+    "ui/packages/ui-conformance/src/mock-api.ts",
+    "pyproject.toml",
+    "docs/plans/2026-10-14-phase2-execution-ir.md",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "src/e_agent/server/cli.py",
+    "scripts/release_report.py",
+    "tests/unit/scripts/**"
+  ],
+  "acceptance": [
+    "test_readiness_and_evidence_list_defaulted_declarations passes",
+    "test_every_stage_writes_a_step_row and test_bound_run_without_snapshot_fails_fast pass",
+    "full and pg gates pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "a7d0e95c780ecd18e0145698ffcc17b7545dbb92",
+  "created_at": "2026-10-18T10:29:25+00:00",
+  "features_digest": "be40f5a28be8c3500fc505f1bed797752b25ddae91763b0544a9576ea63fcfbe",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/server/cli.py",
+      "reason": "2c.8a review R-3: CLI evidence export and the release report list defaulted declarations (ADR 0029 Operations)",
+      "at": "2026-10-18T11:04:46+00:00"
+    },
+    {
+      "glob": "scripts/release_report.py",
+      "reason": "2c.8a review R-3: CLI evidence export and the release report list defaulted declarations (ADR 0029 Operations)",
+      "at": "2026-10-18T11:04:46+00:00"
+    },
+    {
+      "glob": "tests/unit/scripts/**",
+      "reason": "2c.8a review R-3: CLI evidence export and the release report list defaulted declarations (ADR 0029 Operations)",
+      "at": "2026-10-18T11:04:46+00:00"
+    }
+  ]
+}

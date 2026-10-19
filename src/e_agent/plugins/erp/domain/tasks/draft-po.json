@@ -1,0 +1,28 @@
+{
+  "task_id": "draft-po",
+  "version": "1",
+  "title": "ERP-03: create a draft purchase order",
+  "goal_template": "Restock product:widget-a for demand:d-001 by creating a draft purchase order.",
+  "capabilities": [
+    "procurement.open-demands.read.v1",
+    "procurement.demand.read.v1",
+    "inventory.availability.read.v1",
+    "procurement.offers.read.v1",
+    "procurement.purchase-order.create-draft.v1",
+    "procurement.shortage.answer.v1",
+    "procurement.offer.recommend.v1"
+  ],
+  "acceptance": {
+    "required_effects": [
+      {
+        "contract_id": "procurement.purchase-order.create-draft.v1",
+        "min_verified": 1
+      }
+    ],
+    "required_answer": "procurement.shortage.answer.v1",
+    "answer_condition": {
+      "check": "shortage",
+      "expected": "0"
+    }
+  }
+}

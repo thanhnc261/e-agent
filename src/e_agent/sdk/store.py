@@ -15,8 +15,10 @@ from e_agent.contracts.action import ActionRecord
 from e_agent.contracts.approval import ApprovalRecord
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.outcome import OutcomeReport
+from e_agent.contracts.plan import ActionPlan
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import RunRecord
+from e_agent.contracts.step import StepRecord
 from e_agent.contracts.work import WorkClaim
 
 current_actor: ContextVar[str] = ContextVar("e_agent_current_actor", default="system:kernel")
@@ -55,15 +57,24 @@ class NotFound(Exception):
 EventSpec = tuple[RunEventType, Mapping[str, Any], str | None]
 """(event type, payload, action_id) appended atomically with a state change."""
 
+EventBatch = Sequence[EventSpec | StepRecord]
+"""Events and step records committed together with a write (ADR 0025, target §5.4).
+
+A step record is an append-only state row: a status change appends a new row with the same
+``step_id`` and a higher ``sequence``. Every step must belong to the run being written
+(``ValueError`` otherwise), and its sequence must be strictly greater than the run's last
+step sequence and any earlier step in the batch (``ConcurrencyConflict`` otherwise). A
+refused step leaves the whole write, its events and its steps uncommitted."""
+
 
 @runtime_checkable
 class RunStore(Protocol):
-    async def create_run(self, run: RunRecord, events: Sequence[EventSpec]) -> None: ...
+    async def create_run(self, run: RunRecord, events: EventBatch) -> None: ...
 
     async def create_run_idempotent(
         self,
         run: RunRecord,
-        events: Sequence[EventSpec],
+        events: EventBatch,
         state: Mapping[str, Any],
         actor_id: str,
         key: str,
@@ -78,14 +89,14 @@ class RunStore(Protocol):
         self,
         run: RunRecord,
         expected_revision: int,
-        events: Sequence[EventSpec],
+        events: EventBatch,
         *,
         continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None] | None = None,
         work: tuple[str, Mapping[str, Any], str] | None = None,
     ) -> RunRecord: ...
 
     async def put_action(
-        self, action: ActionRecord, expected_revision: int | None, events: Sequence[EventSpec]
+        self, action: ActionRecord, expected_revision: int | None, events: EventBatch
     ) -> ActionRecord: ...
 
     async def wait_for_approval(
@@ -95,7 +106,7 @@ class RunStore(Protocol):
         run: RunRecord,
         expected_run_revision: int,
         continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None],
-        events: Sequence[EventSpec],
+        events: EventBatch,
     ) -> None:
         """Checkpoint the pending action, run, continuation and presentation events together."""
         ...
@@ -106,7 +117,7 @@ class RunStore(Protocol):
         self,
         action: ActionRecord,
         expected_revision: int,
-        events: Sequence[EventSpec],
+        events: EventBatch,
     ) -> ActionRecord:
         """Atomically create the unique (tenant, connection, logical op) reservation
         and move the action to RESERVED. Raises DuplicateOperation if one exists."""
@@ -115,7 +126,7 @@ class RunStore(Protocol):
     async def record_approval(
         self,
         approval: ApprovalRecord,
-        events: Sequence[EventSpec],
+        events: EventBatch,
         *,
         action: ActionRecord | None = None,
         expected_revision: int | None = None,
@@ -126,7 +137,7 @@ class RunStore(Protocol):
         receipt: ExecutionReceipt,
         action: ActionRecord,
         expected_revision: int,
-        events: Sequence[EventSpec],
+        events: EventBatch,
     ) -> ActionRecord: ...
 
     async def record_outcome(
@@ -135,13 +146,30 @@ class RunStore(Protocol):
         outcome: OutcomeReport,
         action: ActionRecord | None,
         expected_revision: int | None,
-        events: Sequence[EventSpec],
+        events: EventBatch,
     ) -> None: ...
+
+    async def put_plan(
+        self, tenant_id: str, run_id: str, plan: ActionPlan, events: EventBatch
+    ) -> None:
+        """Store a plan for an existing run (``NotFound`` otherwise). A plan is never
+        overwritten: a second put of its ``plan_id`` in the tenant is a ``ConcurrencyConflict``.
+        Arguments outside the digest profile (ADR 0006) raise ``ValueError`` before anything
+        is written (`plan_to_wire`), so a literal can never return as a placeholder."""
+        ...
+
+    async def get_plan(self, tenant_id: str, plan_id: str) -> ActionPlan:
+        """``NotFound`` for an unknown id or another tenant's plan."""
+        ...
 
     async def list_events(
         self, tenant_id: str, run_id: str, after_sequence: int = 0, limit: int | None = None
     ) -> list[RunEvent]:
         """Events after `after_sequence` in order; at most `limit` when given (ADR 0018)."""
+        ...
+
+    async def list_steps(self, tenant_id: str, run_id: str) -> list[StepRecord]:
+        """Step records of the run in sequence order; empty for another tenant."""
         ...
 
     async def list_actions(self, tenant_id: str, run_id: str) -> list[ActionRecord]: ...

@@ -1,0 +1,16 @@
+{
+  "task_id": "late-orders",
+  "version": "1",
+  "title": "ERP-06: report late sales orders",
+  "goal_template": "Report late sales orders as of 2026-10-06.",
+  "capabilities": [
+    "sales.open-orders.read.v1",
+    "sales.late-orders.answer.v1"
+  ],
+  "acceptance": {
+    "required_answer": "sales.late-orders.answer.v1"
+  },
+  "budgets": {
+    "max_admitted_writes": 0
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "task": "2c.4",
+  "changed": "kernel/ir.py: compile_proposal(proposal, task, *, plan_id) -> 1-step ActionPlan; validate_plan(plan, task, ctx) pure, with findings KERNEL-PLAN-STRUCTURE/TASK/CAPABILITY/UNKNOWN-CAPABILITY/READ-STEP/WRITES and KERNEL-ARGS; plan_digest_input/plan_digest (1-step = today's action digest byte for byte; 2+ steps = plan.v1 wrapper over Python arguments with placeholders in wire form); step_operation_id for 2+-step plans. kernel/step.py: StepRecord builders. kernel/approval.py: PLAN_SCHEMA, plan_digest_wrapper. Plan vectors in the shared golden file, checked by ui-core. contracts/plan.py: public check_plan_rules; placeholder walk covers every sequence. Design: target 6.4.3 and ADR 0025 list the read-step and digest-profile rules. pyproject: kernel.ir and kernel.step join the coordinator facade contract.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2c.4/2026-10-18T04-36-30.687982+00-00-full.json",
+    "harness/state/evidence/gates/2c.4/2026-10-18T04-37-41.795230+00-00-pg.json"
+  ],
+  "open_items": [
+    "Codex has not reviewed 2c.2, 2c.3 or 2c.4 (usage limit until 13:09); one Codex batch pass over b8c962b..9c902ec runs before 2c.6 dispatches.",
+    "2c.6: per-step domain validation and policy, and placeholder typing by input schema, are the caller's; the end-to-end 1-step approval equality test.",
+    "2c.6: StepDigestContext.evidence must carry every continuation observation (proposals.py:59).",
+    "Postgres conformance (tests/conformance/test_run_store.py): 58 passed on 9c902ec, run by the controller outside the gate (HP-6); pnpm ui test 173 passed."
+  ],
+  "rulings": [
+    {
+      "ruling": "A 1-step plan's approval digest is today's action digest; the plan.v1 wrapper applies only to plans of 2+ steps.",
+      "cost_if_wrong": "Approval UI and ui-core digest diverge."
+    },
+    {
+      "ruling": "The 2+-step digest input uses Python arguments with only placeholders encoded (corrects the earlier ruling to use the JSON dump).",
+      "cost_if_wrong": "None; it is today's profile."
+    },
+    {
+      "ruling": "compile_proposal takes plan_id from the caller, because stores refuse a repeated plan_id and a run may compile several proposals.",
+      "cost_if_wrong": "One signature change in 2c.5."
+    },
+    {
+      "ruling": "Keep KERNEL-PLAN-READ-STEP and record it in the design.",
+      "cost_if_wrong": "Drop one rule later."
+    },
+    {
+      "ruling": "Codex hit its usage limit; a Claude reviewer (opus, fresh context) reviewed instead, with a Codex batch pass queued.",
+      "cost_if_wrong": "Rework in 2c.5 if Codex finds a digest defect."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "pg gate and Postgres conformance ran against e_agent_test in e-agent-ledger.",
+      "undo": "None needed."
+    }
+  ]
+}

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 from functools import partial
+from typing import Any
 
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.capability import CapabilityBinding, EffectKind
@@ -18,36 +20,55 @@ from e_agent.contracts.run import (
     RunRecord,
     RunState,
 )
+from e_agent.contracts.step import StepRecord
 from e_agent.contracts.validation import Finding, ValidationResult, ValidationStatus
 from e_agent.sdk.ports import (
     DriverInput,
     ValidationInput,
 )
+from e_agent.sdk.store import EventSpec
 
 from .approval import (
     compute_digest,
     digest_input,
     fact_digest,
 )
-from .continuation import ContinuationMixin, _Continuation, _GatewayReader
-from .errors import ErrorCode, KernelError
+from .continuation import _Continuation, _GatewayReader
+from .errors import KernelError
+from .ir import StepDigestContext
+from .ir_on import IrOnMixin, _fixed
+from .verification import outcome_payload
+
+EVIDENCE_BUNDLE, NO_VALIDATOR_BUNDLE, ERROR_BUNDLE = "kernel-evidence-v1", "none", "error"
+SENTINEL_BUNDLES = frozenset({EVIDENCE_BUNDLE, NO_VALIDATOR_BUNDLE, ERROR_BUNDLE})
+"""The rule bundle versions `_validate` reports when no domain rule ran: incomplete
+evidence, no validator, a validator that raised. None is a real bundle to bind."""
+PROPOSAL_KIND = "The proposed capability is not a write or an answer this run can use."
+"""The fixed message of the ``KERNEL-PROPOSAL-KIND`` repair finding (2c.8c round 2)."""
 
 
-class ProposalsMixin(ContinuationMixin):
+class ProposalsMixin(IrOnMixin):
     # ------------------------------------------------------------- proposals
     async def _handle_proposal(
         self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
     ) -> RunRecord | DriverInput:
         ctx = cont.ctx
-        descriptor = self._registry.descriptor(proposal.contract_id)
-        if descriptor.effect is EffectKind.ANSWER:
+        refused = await self._outside_task_set(run, cont, proposal)  # `on` only (D6)
+        if refused is not None:
+            return refused
+        descriptor = self._registry.capabilities.get(proposal.contract_id)
+        if descriptor is not None and descriptor.effect is EffectKind.ANSWER:
             return await self._handle_answer(run, cont, proposal)
-        if descriptor.effect is not EffectKind.WRITE:
-            raise KernelError(ErrorCode.INVALID_REQUEST, "proposals are for write capabilities")
+        if descriptor is None or descriptor.effect is not EffectKind.WRITE:  # 2c.8c round 2
+            kind = _fixed("KERNEL-PROPOSAL-KIND", PROPOSAL_KIND)
+            return await self._repair_finding(run, cont, (kind,))
         if cont.writes >= ctx.budgets.max_admitted_writes:
             return await self._exhausted(run, "admitted writes")
-        connection = self._connections.usable(ctx, proposal.connection_id)
-        binding = self._registry.resolve(proposal.contract_id, proposal.connection_id)
+        try:
+            connection = self._connections.usable(ctx, proposal.connection_id)
+            binding = self._registry.resolve(proposal.contract_id, proposal.connection_id)
+        except KernelError:
+            return await self._connection_refused(run, cont)
         decision = self._policy.evaluate(ctx, descriptor, proposal.connection_id)
         validation = await self._validate(ctx, cont, proposal, binding)
 
@@ -57,6 +78,11 @@ class ProposalsMixin(ContinuationMixin):
             else "none"
         )
         evidence = [cont.observations[r].evidence for r in sorted(cont.observations)]
+        fact_digests = {
+            o.evidence.evidence_id: fact_digest(o.data)
+            for o in cont.observations.values()
+            if o.evidence.revision is None
+        }
         canonical = digest_input(
             tenant_id=ctx.tenant_id,
             requester_id=ctx.principal.principal_id,
@@ -72,11 +98,7 @@ class ProposalsMixin(ContinuationMixin):
             rule_bundle_version=validation.rule_bundle_version,
             policy_version=decision.policy_version,
             credential_version=credential_version,
-            fact_digests={
-                o.evidence.evidence_id: fact_digest(o.data)
-                for o in cont.observations.values()
-                if o.evidence.revision is None
-            },
+            fact_digests=fact_digests,
         )
         try:
             action_digest = compute_digest(canonical)
@@ -176,6 +198,39 @@ class ProposalsMixin(ContinuationMixin):
                 {"status": validation.status, "findings": findings_payload},
             ),
         )
+        shadow: list[EventSpec | StepRecord] = []  # execution IR (ADR 0027); `off` adds nothing
+        if self._ir_shadow or self._ir_on:
+            step_ctx = StepDigestContext(
+                tenant_id=ctx.tenant_id,
+                requester_id=ctx.principal.principal_id,
+                binding_id=binding.binding_id,
+                connection_version=connection.version,
+                credential_subject=connection.credential_subject(),
+                credential_version=credential_version,
+                evidence=tuple(evidence),
+                fact_digests=fact_digests,
+                rule_bundle_version=validation.rule_bundle_version,
+                policy_version=decision.policy_version,
+            )
+            if self._ir_shadow:
+                shadow = list(await self._shadow_plan(run, cont, proposal, action, step_ctx))
+            else:  # `on`: the action is linked to its stored 1-step plan, or falls back
+                action, wait = await self._on_plan(run, cont, proposal, action, step_ctx)
+                shadow = list(wait)
+        return await self._await_approval(run, cont, action, canonical, validation, shadow)
+
+    async def _await_approval(
+        self,
+        run: RunRecord,
+        cont: _Continuation,
+        action: ActionRecord,
+        canonical: dict[str, Any],
+        validation: ValidationResult,
+        extra: list[EventSpec | StepRecord],
+    ) -> RunRecord:
+        """Checkpoint a VALIDATED action as the run's pending approval: the action, the run's
+        WAITING_APPROVAL state, the continuation and ``extra`` with the approval request, in
+        one write. ``canonical`` is the approval digest's input, shown verbatim."""
         cont.pending_action_id = action.action_id
         cont.canonical_proposal = canonical
         cont.last_validation = validation
@@ -201,11 +256,14 @@ class ProposalsMixin(ContinuationMixin):
             run.revision,
             checkpoint,
             [
+                *extra,
                 (
                     RunEventType.APPROVAL_REQUESTED,
                     {
                         "digest": action.digest,
-                        "expires_at": (cont.approval_requested_at + self._approval_ttl).isoformat(),
+                        "expires_at": (
+                            cont.approval_requested_at + self._ttl_for(run, cont)
+                        ).isoformat(),
                     },
                     action.action_id,
                 ),
@@ -229,10 +287,13 @@ class ProposalsMixin(ContinuationMixin):
         """Structured answers: no approval or dispatch; the domain verifier recomputes
         the answer from fresh, independent reads."""
         ctx = cont.ctx
-        connection = self._connections.usable(ctx, proposal.connection_id)
+        try:  # as a write proposal: a repair finding, never an exception (2c.8c)
+            connection = self._connections.usable(ctx, proposal.connection_id)
+        except KernelError:
+            return await self._connection_refused(run, cont)
         verifier = self._registry.verifier_for(proposal.contract_id)
-        if verifier is None:
-            raise KernelError(ErrorCode.DEPENDENCY_UNAVAILABLE, "no verifier for answer")
+        if verifier is None:  # it can never be verified: fail, never claim it (review P-1)
+            return await self._no_verifier(run)
         try:
             action_digest = compute_digest(
                 {"contract_id": proposal.contract_id, "arguments": dict(proposal.arguments)}
@@ -298,6 +359,7 @@ class ProposalsMixin(ContinuationMixin):
                 verifier_version=type(exc).__name__,
                 reported_at=self._clock(),
             )
+        report = self._kept(report)
         verified = report.status is OutcomeStatus.VERIFIED
         target = ActionState.VERIFIED if verified else ActionState.VERIFICATION_FAILED
         await self._store.record_outcome(
@@ -305,7 +367,7 @@ class ProposalsMixin(ContinuationMixin):
             report,
             action.model_copy(update={"state": target, "revision": action.revision + 1}),
             action.revision,
-            [(RunEventType.OUTCOME_REPORTED, report.model_dump(mode="json"), action.action_id)],
+            [(RunEventType.OUTCOME_REPORTED, outcome_payload(report), action.action_id)],
         )
         if verified:
             return DriverInput(
@@ -362,7 +424,7 @@ class ProposalsMixin(ContinuationMixin):
                         message="proposal evidence is incomplete",
                     ),
                 ),
-                rule_bundle_version="kernel-evidence-v1",
+                rule_bundle_version=EVIDENCE_BUNDLE,
                 validator_id="kernel",
             )
         validators = self._registry.validators_for(proposal.contract_id)
@@ -377,7 +439,7 @@ class ProposalsMixin(ContinuationMixin):
                         message="no validator registered for capability",
                     ),
                 ),
-                rule_bundle_version="none",
+                rule_bundle_version=NO_VALIDATOR_BUNDLE,
                 validator_id="kernel",
             )
         item = ValidationInput(proposal=proposal, observations=tuple(cont.observations.values()))
@@ -387,7 +449,9 @@ class ProposalsMixin(ContinuationMixin):
                 results.append(
                     await self._timed(
                         cont,
-                        partial(validator.validate, ctx, item),
+                        # Each validator gets its own copy, never kernel-owned state: what it
+                        # changes cannot reach an approved action (PR-08, PR-16, Codex C-3).
+                        partial(validator.validate, ctx, copy.deepcopy(item)),
                         ctx.budgets.provider_timeout_seconds,
                     )
                 )
@@ -403,7 +467,7 @@ class ProposalsMixin(ContinuationMixin):
                                 message=type(exc).__name__,
                             ),
                         ),
-                        rule_bundle_version="error",
+                        rule_bundle_version=ERROR_BUNDLE,
                         validator_id=validator.validator_id,
                     )
                 )

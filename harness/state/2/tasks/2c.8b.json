@@ -1,0 +1,51 @@
+{
+  "id": "2c.8b",
+  "phase": "2",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-2c-8b"
+  ],
+  "context_digest": "f31a36bbb7b67aa4a6bc17ed5343a3708815a22db60ed245c3a6d35fa763be3d",
+  "allowed_paths": [
+    "src/e_agent/kernel/plan_flow.py",
+    "src/e_agent/kernel/plan_*.py",
+    "src/e_agent/kernel/recovery.py",
+    "src/e_agent/kernel/continuation.py",
+    "src/e_agent/kernel/coordinator.py",
+    "src/e_agent/kernel/dispatch.py",
+    "src/e_agent/kernel/proposals.py",
+    "src/e_agent/kernel/ir.py",
+    "src/e_agent/kernel/ir_on.py",
+    "src/e_agent/kernel/evidence.py",
+    "src/e_agent/kernel/verification.py",
+    "src/e_agent/kernel/approval_flow.py",
+    "src/e_agent/kernel/run_loop.py",
+    "src/e_agent/kernel/gateway.py",
+    "src/e_agent/kernel/step.py",
+    "src/e_agent/kernel/transitions.py",
+    "src/e_agent/sdk/store.py",
+    "src/e_agent/kernel/memory_store.py",
+    "src/e_agent/adapters/postgres/store.py",
+    "src/e_agent/server/worker.py",
+    "src/e_agent/contracts/run.py",
+    "tests/conformance/**",
+    "tests/unit/kernel/**",
+    "tests/unit/server/**",
+    "docs/adr/0025-execution-ir.md",
+    "docs/adr/README.md",
+    "docs/design/target-architecture.md",
+    "pyproject.toml",
+    "docs/plans/2026-10-14-phase2-execution-ir.md",
+    "harness/state/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "the Codex C-1, C-2 and C-3 reproductions are tests that pass",
+    "each new guard is killed by its mutant",
+    "full and pg gates pass; Codex accepts"
+  ],
+  "gate_set": "full",
+  "base_commit": "f2eb97140584e253a7a3dcc59d9962af3107269e",
+  "created_at": "2026-10-18T11:36:47+00:00",
+  "features_digest": "5234b3f4171908a214943af3ed1af69876f4495715fc8c7a1c13c8e3601d7e98"
+}

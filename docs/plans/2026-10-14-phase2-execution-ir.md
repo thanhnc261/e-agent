@@ -2,12 +2,12 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** Draft 2026-10-14, awaiting owner review. Not approved; no `new-task` until the owner names it approved. Part 2a's documents were drafted on 2026-10-14 from the approved [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) (target §6.4, ADRs 0024, 0025, 0027–0029, threats T20–T22, all Proposed); owner gate G1 still applies.
+**Status:** Draft 2026-10-14, amended 2026-10-17 after a staleness review against the checkout at the Hygiene phase's close (findings P2R-1 to P2R-19, folded in below). **Approved by the owner 2026-10-18**, with the defaults of decisions D0–D8, after the Hygiene merge (PR #4, `6f7ec70`). Gate G1 passed 2026-10-18; the owner confirmed the ERP write risk values chosen in Task 2c.2 on 2026-10-18: the owner accepted ADRs 0024, 0025, 0027, 0028, 0029 and target §6.4 and confirmed D6, D7 and D8 at their defaults. Part 2a's documents were drafted on 2026-10-14 from the approved [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) (target §6.4, ADRs 0024, 0025, 0027–0029, threats T20–T22); the owner accepted them at gate G1 on 2026-10-18.
 
 **Goal:** the kernel executes a typed execution IR (TaskDefinition → ActionPlan → StepRecord) behind `features.execution_ir: off | shadow | on`, falling back to today's single-action loop before any write is reserved.
 
 **Architecture:** the plan has four parts.
-- **2a (design entry gate, no runtime code):** the target architecture gets an "Execution IR" section, the ADRs are written, and the threat model gets the plan-specific threats. The [design-principles review](../reviews/2026-10-14-design-principles-review.md) (DR-01, uncommitted at the time of writing) found that Phase 2 has no design section; roadmap rule 2 makes that section and its ADRs the entry gate. The owner accepts them before 2b starts.
+- **2a (design entry gate, no runtime code):** the target architecture's "Execution IR" section (§6.4), threats T20–T22 and ADRs 0024, 0025, 0027–0029 already exist (commit `6aaab54`). 2a reconciles them with this plan and the current checkout, and the owner accepts them (gate G1). The [design-principles review](../reviews/2026-10-14-design-principles-review.md) DR-01 found that Phase 2 had no design section; roadmap rule 2 makes that section and its ADRs the entry gate.
 - **2b (toggle infrastructure):** `Profile.features`, the `feature.fallback` event, toggles in `/health/ready` and in the evidence bundle. This is the roadmap's first runtime task, and every later feature uses it.
 - **2c (execution IR):** portable contracts, task definitions for the eight ERP tasks, store support, the IR compiler and validator, shadow mode, single-step `on`, multi-step plans with one approval digest and serial per-step dispatch, failure semantics, and a driver that emits IR.
 - **2d (verification):** end-of-phase gate, Postgres run, `make e2e`, phase review, handoff and the live check.
@@ -27,19 +27,21 @@ The trust anchor does not move: the kernel compiles, validates, approves, reserv
 
 ## Global Constraints
 
-- **Branch** `phase2/execution-ir` from `main` (at `8bc7b1f` or later, after this plan is committed). Stage explicit paths. Every commit ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Merge, push and rebase only on the owner's instruction.
+- **Branch** `phase2/execution-ir` from `main` after the owner merges the Hygiene phase ([PR #4](https://github.com/thanhnc261/e-agent/pull/4)); `new-task` waits for that merge. `main` without Hygiene lacks `server/environment.py`, `sdk/tasks.py`, the TID251 bans and the prompt golden this plan relies on. Stage explicit paths. Every commit ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Merge, push and rebase only on the owner's instruction.
 - **Runs after Phase 1d** ([plugin boundary plan](2026-10-14-phase1d-plugin-boundary.md)). Amended at Phase 1d's close (2026-10-16, ENG-PLAN-3): the ERP domain pack is now `src/e_agent/plugins/erp/domain/` (tests `tests/unit/plugins/erp/domain/`), the Odoo adapter `src/e_agent/plugins/erp/odoo/` and the simulator `src/e_agent/plugins/erp/simulator/`, and the paths below use that layout. Phase 1d added task presets (`TaskPreset` in `src/e_agent/sdk/ports.py`, contributed by the domain pack's `plugin.py`; Task 1d.3), and Task 2c.2 extends those presets into task definitions rather than starting a second catalogue.
 - **Harness phase `2`.** Features in `harness/state/2/features.json` (`F-2a-1` … `F-2d-2`, one per task, as in Phase 1), one task contract per task (`uv run e-agent-harness new-task`), `check-scope` before each commit, `gate <set>` after the commit on a clean tree, `close-check` before a task closes (ENG-WORK-1, ENG-EVID-1).
 - **Gate commands** (from `harness/context.toml`):
-  - `full`: `uv sync --locked`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run lint-imports`, `uv run python scripts/export_openapi.py --check`, `uv run pytest -q`, `pnpm --dir ui gen:check`, `pnpm --dir ui check`.
+  - `full`: `uv sync --locked`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run lint-imports`, `uv run python scripts/export_openapi.py --check`, `uv run pytest -q`, `pnpm --dir ui gen:check`, `pnpm --dir ui check`, `uv run python scripts/check_core_only.py`.
+  - `core`: `uv run python scripts/check_core_only.py` (core wheels and a non-ERP test pack install and start without any ERP wheel).
   - `pg`: `E_AGENT_TEST_STORE=postgres uv run pytest -q tests/unit/kernel`, with `E_AGENT_TEST_PG_DSN` set to the `e_agent_test` database and never the live ledger's database (G-11).
   - `e2e`: `make e2e`.
 - **Design before code.** Part 2a's documents and ADRs are accepted by the owner before 2b starts. 2c's contract shapes below come from the existing sketches (core plan line 107, Odoo plan 0.3, target §5.4). If an accepted ADR changes a shape, the commit that accepts it also amends this plan (ENG-PLAN-3, G-7: re-materialise the active task with `--replace`).
-- **Authoritative files mid-task (G-7).** Tasks that edit a digest input (2a.1 target architecture and roadmap, 2a.2 and 2a.3 the ADR index, 2d.1 the roadmap) run `uv run e-agent-harness refresh-task` before `close-check`.
-- **Toggle default `off`.** Every committed profile (`src/e_agent/server/profiles/fixture.json`, `profiles/dev-ollama.json`, `profiles/live.example.json`) keeps `execution_ir` `off`. A profile without `features` means all `off`.
-- **`off` is today.** With `execution_ir: off` the event stream, action records, digests and outcomes of every existing test are unchanged. `proposals.py:47` keeps its meaning.
+- **Authoritative files mid-task (G-7).** Tasks that edit a digest input (2a.1 and 2a.2 the target architecture and the ADR index, 2d.1 the roadmap) run `uv run e-agent-harness refresh-task` before `close-check`.
+- **Toggle default `off`.** Every committed profile (`src/e_agent/plugins/erp/simulator/fixture_profile.json`, `profiles/dev-ollama.json`, `profiles/live.example.json`) keeps `execution_ir` `off`. A profile without `features` means all `off`.
+- **`off` is today.** With `execution_ir: off` the event stream, action records, digests and outcomes of every existing test are unchanged. The `max_admitted_writes` check in `_handle_proposal` (`kernel/proposals.py`) keeps its meaning.
+- **Hygiene rules** (Phase 1h). No `os.environ`, `os.getenv` or `asyncio.create_task` under `src/e_agent` (ENG-ARCH-6, ENG-ARCH-7): environment reads go through `server/environment.py`, background work through `supervised_task` (`sdk/tasks.py`), and the allow-list pinned by `tests/conformance/test_banned_api.py` stays unchanged. A task that changes the driver, its prompt or the tool schemas runs `uv run pytest -q tests/unit/server/test_recorded_model_replays.py tests/unit/adapters/pydantic_ai/test_prompt_golden.py`, and an intended prompt change updates `tests/unit/adapters/pydantic_ai/golden/base_instructions.txt` in the same commit (ENG-EVID-5). A golden-file test fails on an empty golden and asserts its case count (ENG-EVID-4).
 - **Phase 3 boundary.** Phase 2 delivers StepRecord. ProgressLedger, KERNEL-REPEAT, ContextAssembler, the explanation contract and run reconstruction stay in Phase 3.
-- **Live multi-step writes are out of scope.** Multi-step plans run in fixture profiles and through the CLI and API only. A bootstrap guard refuses `max_admitted_writes > 1` with `environment: live` (Task 2c.7) until a UI plan-approval thread lands (owner decision D3).
+- **Live multi-step writes are out of scope.** Multi-step plans run in fixture profiles and through the CLI only in Phase 2 (API runs resolve no task definition, D8). A bootstrap guard refuses `max_admitted_writes > 1` with `environment: live` (Task 2c.7) until a UI plan-approval thread lands (owner decision D3).
 - **Boundaries.** Containers: only `e-agent-ledger` (test database `e_agent_test`) for `pg`, and `odoo19-learning` plus `e-agent-ledger` in the live check (Task 2d.2). Never `odoo-bench` (ENG-BOUND-1). `archive/**` and existing `research/**` reports are read-only. No change under `addons/**` is planned; one would bump the bridge version (ENG-BOUND-2).
 
 ## Review Focus
@@ -47,13 +49,13 @@ The trust anchor does not move: the kernel compiles, validates, approves, reserv
 Failure modes the happy-path tests do not exercise; each is pinned to the task that adds its test.
 
 1. **Shadow costs something.** Shadow must not add a driver call, a provider read or a budget decrement. Test: Task 2c.5 `test_shadow_adds_no_driver_calls_reads_or_budget`.
-2. **`off` drifts from today.** Any new code path reached with the toggle `off` changes the event stream. Test: Task 2c.5 `test_off_mode_event_stream_matches_baseline` against a golden stream recorded in Task 2b.1 before any 2c change.
+2. **`off` drifts from today.** Any new code path reached with the toggle `off` changes the event stream. Test: Task 2c.5 `test_off_mode_event_stream_matches_baseline` against the golden streams recorded in Task 2b.1 before any 2c change (the notes-domain run in `tests/unit/kernel`, the ERP draft-po run in `tests/unit/plugins/erp/simulator`, because the kernel suite imports no plugin). Generated ids (`new_id`, uuid4) enter the digest input through `logical_operation_id`, so the baseline records digests under a deterministic id source and normalises ids in the stream; otherwise it would differ on every run.
 3. **Fallback after a reservation.** A failure after `reserve_operation` must fail closed or go to reconciliation, never back to the single-action loop. Test: Task 2c.8 `test_no_fallback_after_first_reservation`.
-4. **A lineage value the approval did not bind.** A step argument resolved at run time from an earlier step's result must satisfy the resolution rule bound in the plan digest; otherwise the plan stops before that step reserves. Test: Task 2c.8 `test_lineage_value_outside_bound_rule_stops_plan`.
+4. **A lineage value the approval did not bind.** The plan digest binds the placeholder `(step, path)`; lineage has one rule (target §6.4.3, ADR 0025): the value is copied from the earlier step's verified outcome and must match the schema type. A value from anywhere else, or of the wrong type, stops the plan before that step reserves. Test: Task 2c.8 `test_lineage_value_outside_verified_outcome_stops_plan`.
 5. **Step N blocks step N+1 on the same connection.** An `UNKNOWN` or `CONNECTION_BUSY` step stops the remainder; the run goes to reconciliation and reports the unstarted steps. Test: Task 2c.8 `test_unknown_step_blocks_remaining_steps`.
 6. **A multi-step plan approved through a UI that shows one action.** Test: Task 2c.7 `test_live_profile_refuses_multi_write_budget`.
 7. **Profile schema edges.** A profile without `features` loads as all `off`; an unknown feature name is rejected (`extra="forbid"`). Test: Task 2b.1 `test_profile_features_default_off` and `test_profile_rejects_unknown_feature`.
-8. **New event types break the UI.** `ui-core` selectors and i18n switch on `RunEventType`. Test: Task 2b.2 `pnpm --dir ui check` with a ui-core test that renders `feature.fallback` and the `ir.*` events.
+8. **New event types break the UI.** `ui-core` selectors and i18n switch on `RunEventType`. Test: Task 2b.2 `pnpm --dir ui check` with a ui-core test that renders `feature.fallback` and every `ir.*` event (`ir.plan_compiled`, `ir.shadow_failed`, `ir.lineage_resolved`, `ir.step_verified`).
 
 ## Design refs
 
@@ -61,22 +63,22 @@ Failure modes the happy-path tests do not exercise; each is pinned to the task t
 |---|---|---|
 | `docs/design/target-architecture.md` | §1.3 task definition; §7.2 rule 1 | 2a.1, 2c.2, 2c.6 |
 | `docs/design/target-architecture.md` | §5.1 principle 3; §5.4 step record | 2a.1, 2c.1, 2c.3 |
-| `docs/design/target-architecture.md` | new section "Execution IR" (written in 2a.1) | all of 2c |
+| `docs/design/target-architecture.md` | §6.4 Execution IR (proposed, `6aaab54`; reconciled in 2a.1) | all of 2c |
 | `docs/design/target-architecture.md` | §15 module map (`contracts/task.py`, `kernel/step.py`); §17 C8, C11 | 2c.1, 2c.4 |
 | `docs/design/mvp-detailed-design.md` | §7 action states; §9 reservations; §10 budgets; approval digest | 2c.4, 2c.7, 2c.8 |
-| `docs/design/threat-model.md` | new T20, T21 (written in 2a.1) | 2c.7, 2c.8 |
+| `docs/design/threat-model.md` | T20, T21, T22 (proposed, `6aaab54`); T22's test belongs to Phase 5 (benchmark auto-approve) | 2c.7, 2c.8 |
 
 ## ADRs
 
-Numbers 0024 and 0025 are the ones the roadmap and the Odoo plan already use; 0027 and 0028 are provisional (0023 stays reserved for conversations; 0026 is the Phase 1d plugin-layout ADR).
+All five Phase 2 ADRs were written in `6aaab54`, reconciled with this plan in 2a.1 and accepted by the owner on 2026-10-18 (2a.2, gate G1) (0023 stays reserved for conversations; 0026 is the Phase 1d plugin-layout ADR).
 
 | ADR | Decision | Status | Effect on this phase |
 |---|---|---|---|
-| [0027](../adr/0027-feature-toggles.md) (2a.2) | Feature toggles: `Profile.features`, modes, shadow comparison, `feature.fallback` with reason codes, readiness and evidence reporting | Written, Proposed | Blocks 2b |
-| [0024](../adr/0024-plan-approval-model.md) (2a.3) | Approval model for multi-step plans: the approver approves the whole plan's digest once; deviation stops the plan; benchmark-only auto-approve for `read`/`write_low` (owner D-3); nothing modified after approval (owner D-4) | Written, Proposed | Blocks 2c.7 |
-| [0025](../adr/0025-execution-ir.md) (2a.3) | Execution IR: ActionPlan, PlannedStep, lineage placeholders and their digest binding, per-step reservation and verification, partial failure, StepRecord (C8 part 1), `execution_ir` mode semantics; widens the ADR 0018 table (`VERIFYING → RUNNING`, `RUNNING → VERIFYING`) | Written, Proposed | Blocks 2c |
-| [0028](../adr/0028-task-definitions.md) (2a.3) | Task definitions (C11): portable `TaskDefinition` and `AcceptanceSpec`, owned by domain packs, tool set fixed at admission; `TaskTemplate` becomes a projection; per-task approval TTL | Written, Proposed | Blocks 2c.2 |
-| [0029](../adr/0029-capability-effect-declarations.md) (2a.3) | Capability effect declarations: `risk`, `reversibility` on contracts, `idempotency` on bindings; conservative defaults refused in live profiles (adoption review XA-01) | Written, Proposed | Blocks 2c.1, 2c.2, 2c.7, 2c.8 |
+| [0027](../adr/0027-feature-toggles.md) | Feature toggles: `Profile.features`, modes, shadow comparison, `feature.fallback` with reason codes, readiness and evidence reporting | Accepted 2026-10-18 | Blocks 2b |
+| [0024](../adr/0024-plan-approval-model.md) | Approval model for multi-step plans: the approver approves the whole plan's digest once; deviation stops the plan; benchmark-only auto-approve for `read`/`write_low` (owner D-3); nothing modified after approval (owner D-4) | Accepted 2026-10-18 | Blocks 2c.7 |
+| [0025](../adr/0025-execution-ir.md) | Execution IR: ActionPlan, PlannedStep, lineage placeholders and their digest binding, per-step reservation and verification, partial failure, StepRecord (C8 part 1), `execution_ir` mode semantics; widens the ADR 0018 table (`VERIFYING → RUNNING`, `RUNNING → VERIFYING`) | Accepted 2026-10-18 | Blocks 2c |
+| [0028](../adr/0028-task-definitions.md) | Task definitions (C11): portable `TaskDefinition` and `AcceptanceSpec`, owned by domain packs, tool set fixed at admission and passed per run through `DriverInput.allowed_capabilities` (D6); per-task approval TTL and budget narrowing (D7); `TaskTemplate` becomes a projection after Phase 2 | Accepted 2026-10-18; amendment `AcceptanceSpec.answer_condition` (Codex review C-2, Task 2c.5a) accepted by the owner 2026-10-18 | Blocks 2c.2 |
+| [0029](../adr/0029-capability-effect-declarations.md) | Capability effect declarations: `risk`, `reversibility` on contracts, `idempotency` on bindings; conservative defaults refused in live profiles (adoption review XA-01) | Accepted 2026-10-18 | Blocks 2c.1, 2c.2, 2c.7, 2c.8 |
 | 0006 | Approval digest canonicalization | Accepted | Plan digest uses `jcs-sha256-v1`; a 1-step plan's approval digest equals today's action digest |
 | 0003, 0014 | Durability; approval binds versions and facts | Accepted | Per-step evidence before writes; revalidation before each step |
 | 0004 | Agent driver integration | Accepted | `DriverStep` gains `ProposePlan` (SDK port change, covered by 0025) |
@@ -90,9 +92,12 @@ Numbers 0024 and 0025 are the ones the roadmap and the Odoo plan already use; 00
 | D0 | DR-01 asks for the design section and ADR before the detailed plan. This plan puts them inside the phase as Part 2a with gate G1 and writes 2c from the existing sketches, amended when the ADRs differ. The alternative is 2a as a separate pre-phase, with 2c rewritten after acceptance | 2a inside this plan, gate G1 |
 | D1 | ADR numbers 0027 (toggles) and 0028 (task definitions); or fold both into 0025 | Separate ADRs, as numbered |
 | D2 | ADR 0024 approval model | **Decided 2026-10-14:** approve the plan once; benchmark-only auto-approve allowed for `read`/`write_low` (adoption review D-3), implemented with Phase 5, not in Phase 2 |
-| D3 | Approval surface for multi-step plans | Phase 2: fixtures, CLI and API only, with the live guard; UI plan approval is an `ag-*` thread with Phase 5 writes |
+| D3 | Approval surface for multi-step plans | Phase 2: fixtures, CLI and API only, with the live guard (with D8, a multi-step plan starts only from the CLI; its approval may still come through the API); UI plan approval is an `ag-*` thread with Phase 5 writes |
 | D4 | ADRs 0018 and 0020 (DR-06) | **Done:** accepted 2026-10-14 with 0019, 0021, 0022 |
 | D5 | Evidence bundle | Additive keys (`features`, `plan`, `steps`) under `e-agent-evidence-v1`; existing keys unchanged |
+| D6 | How a run's tool set reaches the driver (amendment 2026-10-17, P2R-3). The API builds one runtime and one driver for every task kind, so a tool set fixed at driver construction cannot differ per run. The alternative is to build a driver per run | `DriverInput.allowed_capabilities` (additive SDK port field, same `sdk_api` minor bump as `ProposePlan`), set by the run loop on every turn; the kernel refuses any read or proposal outside it, and the driver's filter only shapes what the model sees (Task 2c.6; recorded in ADR 0028 by Task 2a.1) **Confirmed by the owner 2026-10-18 (G1).** |
+| D7 | Per-task `approval_ttl` and budget narrowing (ADR 0028; amendment 2026-10-17, P2R-10). The alternative is to defer both at G1 and keep the global TTL and profile budgets in Phase 2 | Implemented in Phase 2: admission refuses a widening budget (Task 2c.2), and runs use the definition's TTL and narrowed budgets (Task 2c.6) **Confirmed by the owner 2026-10-18 (G1).** |
+| D8 | How a run names its task definition in Phase 2 (added by Task 2a.1, confirmed at G1). The API does not use the profile's `driver.task_kind`: it is the runtime's one default kind (used to build the scripted driver), so applying it to every free-text API run would bind runs to a definition the requester never chose. The alternative is to add an optional task id to `CreateRun` in Phase 2 | A definition's `task_id` is its preset kind; only the CLI passes it (`start_run` task kind, Task 2c.5); API and UI runs carry free text, resolve no definition, and with `shadow` record `ir.shadow_failed` (`IR_TASK_UNRESOLVED`), with `on` fall back with `IR_TASK_UNRESOLVED`; the `TaskTemplate` projection and a task id on `CreateRun` come after Phase 2 (ADR 0028) **Confirmed by the owner 2026-10-18 (G1).** |
 
 ## Toggles and fallback
 
@@ -101,13 +106,13 @@ One toggle, `features.execution_ir`, covers task definitions, action plans and s
 | Mode | Behaviour |
 |---|---|
 | `off` | Today's single-action loop. No IR is compiled, no step record is written, no new event appears. |
-| `shadow` | The run acts on the existing path. After the existing proposal handling validates a proposal, the kernel compiles it into a 1-step ActionPlan, resolves the task definition, computes the plan digest and records `ir.plan_compiled` (plan digest, step count, task definition id and version, whether the step digest equals the action digest) and the step records. A compile or validation error records `ir.shadow_failed` and nothing else. No extra driver call, provider read or budget use. |
-| `on` | The run executes the IR. The tool set comes from the task definition at admission. A single `ProposeAction` becomes a 1-step plan; a `ProposePlan` becomes an N-step plan. The plan is validated as a whole, approved once and dispatched step by step. |
+| `shadow` | The run acts on the existing path. After the existing proposal handling validates a proposal, the kernel compiles it into a 1-step ActionPlan, resolves the task definition, computes the plan digest and records `ir.plan_compiled` (plan digest, step count, task definition id and version, whether the step digest equals the action digest) and the step records. A run that resolves no task definition (an API or UI run, D8), or a compile or validation error, records `ir.shadow_failed` (with `IR_TASK_UNRESOLVED` for the first) and nothing else; the run is unchanged. No extra driver call, provider read or budget use. |
+| `on` | The run executes the IR. The tool set comes from the task definition at admission (`DriverInput.allowed_capabilities`, D6). A single `ProposeAction` becomes a 1-step plan; a `ProposePlan` becomes an N-step plan. The plan is validated as a whole, approved once and dispatched step by step. |
 
 The mode table and fallback rule are decided in target §6.4.8 (ADR 0027); this section restates them for the tasks.
 
 **Fallback boundary** (ENG-TOGGLE-2): the first `reserve_operation` call (`src/e_agent/kernel/dispatch.py`, the `reserve_operation` call in `_dispatch`).
-- Before it, with `on`: a task-definition, compile or validation failure records `feature.fallback` with a reason code (`IR_TASK_UNRESOLVED`, `IR_COMPILE_FAILED`, `IR_VALIDATION_FAILED`) and continues on the existing path. A single proposal goes to today's `_handle_proposal`. A multi-step `ProposePlan` cannot run on the old path, so it returns to the driver as a repair finding within `max_validation_repairs`, which is today's handling of an invalid proposal.
+- Before it, with `on`: a task-definition, compile or validation failure records `feature.fallback` with a reason code (`IR_TASK_UNRESOLVED`, `IR_COMPILE_FAILED`, `IR_VALIDATION_FAILED`) and that code's fixed message, never caller text (Task 2b.2 R-1), and continues on the existing path. A single proposal goes to today's `_handle_proposal`. A multi-step `ProposePlan` cannot run on the old path, so it returns to the driver as a repair finding within `max_validation_repairs`, which is today's handling of an invalid proposal.
 - After it: no fallback. A failed, `UNKNOWN` or busy step stops the plan; the run fails closed or goes to reconciliation, and the outcome reports committed, verified and unstarted steps.
 - Fallback never bypasses approval, admission, verification or the transition table.
 
@@ -117,11 +122,11 @@ The mode table and fallback rule are decided in target §6.4.8 (ADR 0027); this 
 
 | Task | Gate set |
 |---|---|
-| 2a.1–2a.3 | `full` (docs only; confirms nothing else moved) |
+| 2a.1, 2a.2 | `full` (docs only; confirms nothing else moved) |
 | 2b.1, 2b.2 | `full` and `pg` |
 | 2b.3 | `full` and `e2e` |
-| 2c.1, 2c.2, 2c.4, 2c.9 | `full` |
-| 2c.3, 2c.5, 2c.6, 2c.7, 2c.8 | `full` and `pg` |
+| 2c.2 | `full` |
+| 2c.1, 2c.3–2c.9 | `full` and `pg` (the set ADR 0025 names) |
 | 2d.1 | end-of-phase levels 1–3 |
 | 2d.2 | level 4 (live) |
 
@@ -131,6 +136,7 @@ The mode table and fallback rule are decided in target §6.4.8 (ADR 0027); this 
 
 Run by the owner through the `live-sandbox` skill at the end of the phase. It exercises:
 - `/health/ready` reports `features.execution_ir` for each mode used.
+- The `shadow` and `on` legs below (Task 3 and Task 1) run through the CLI (`--task <kind>`), because API and UI runs resolve no task definition in Phase 2 (D8).
 - Task 3 ("Draft a purchase order for any shortage from the approved supplier") three times: once with `off`, once with `shadow`, once with `on`. Expected: `off` matches the pre-phase behaviour; `shadow` records `ir.plan_compiled` with the step digest equal to the action digest and the same outcome as `off`; `on` runs a 1-step plan through approval, reservation, dispatch and read-back verification with step records for each stage.
 - Task 1 (read-only shortage question) with `on`: the tool set equals the task definition's capabilities, and the answer passes the acceptance check.
 - The evidence bundle of each run contains `features`; the `on` run also contains `plan` and `steps`.
@@ -141,43 +147,32 @@ It may not touch: `odoo-bench` or any container outside `odoo19-learning-*` and 
 
 ## Part 2a: design entry gate
 
-### Task 2a.1: Execution IR design section and threat entries
+The documents exist (commit `6aaab54`): target §6.4, threats T20–T22, ADRs 0024, 0025, 0027, 0028 and 0029 with their index rows, and the roadmap coverage row. 2a does not rewrite them; it makes them agree with this plan and the checkout, and records the owner's acceptance.
 
-**Files:** `docs/design/target-architecture.md` (new section "Execution IR" after §6; §5.4 tag; §15 rows; §17 C8/C11 rows), `docs/design/threat-model.md` (T20, T21), `docs/roadmap.md` (coverage row "Execution IR / action plans" points at the new section).
+### Task 2a.1: reconcile the ADRs and §6.4 with this plan
 
-**Interfaces:** consumes the sketches named in Spec; produces the section that 2c implements.
+**Files:** `docs/adr/0024-plan-approval-model.md`, `docs/adr/0025-execution-ir.md`, `docs/adr/0027-feature-toggles.md`, `docs/adr/0028-task-definitions.md`, `docs/adr/0029-capability-effect-declarations.md`, `docs/adr/README.md`, `docs/design/target-architecture.md` (§6.4), this plan if a shape changes.
 
-- [ ] Write the section. It must settle:
-  - TaskDefinition and AcceptanceSpec fields (start from core plan line 107: `task_id`, `version`, `goal_template`, `acceptance`, `capabilities`, `budgets`, `approval_ttl`) and who owns them (domain pack resources).
-  - ActionPlan and PlannedStep (`step_id`, `proposal`, `depends_on`, `lineage`), the plan-level validation rules (DAG, capabilities inside the task definition, write count within `max_admitted_writes`).
-  - Lineage placeholders: a step argument may be a `LineageRef(step_id, path, rule)`. The digest binds the placeholder and its rule, not the run-time value; the resolved value is checked against the rule and recorded before the step reserves.
-  - Plan digest: `jcs-sha256-v1` over the ordered step digest inputs plus the dependency edges; a 1-step plan's approval digest equals today's action digest so `ui-core/src/digest.ts` stays valid.
-  - Dispatch: serial in dependency order; step N+1 reserves only after step N is verified; revalidation of facts and policy before each reservation.
-  - Partial failure: run states and reason codes; outcome reports committed, verified and unstarted steps.
-  - StepRecord: §5.4 fields, written in the same transaction as the run events.
-  - The toggle semantics from "Toggles and fallback" above.
-- [ ] Threat model: T20 plan approval fatigue (one approval covering many writes; mitigation: whole-plan presentation, live guard, cap); T21 step divergence and lineage substitution (mitigation: digest binds placeholders and rules, revalidation per step).
-- [ ] Run `uv run python scripts/repo_move.py check`; expected: no broken links.
-- [ ] Commit `docs(design): execution IR section and threats T20, T21`.
+**Interfaces:** consumes the five ADRs and §6.4; produces the shapes 2b and 2c implement.
 
-### Task 2a.2: ADR 0027 feature toggles
+- [x] Compare each ADR's contract shapes with Tasks 2b.1–2c.9 and amend this plan or the ADR in the same commit where they differ (ENG-PLAN-3). Known differences to settle:
+  - ADR 0028 names the run's tool set but not how it reaches a driver built once per runtime. Record this plan's mechanism (Task 2c.6): `DriverInput.allowed_capabilities`, set by the run loop from the admitted definition, with the kernel refusing any read or proposal outside it. It is an additive SDK port change, in the same `sdk_api` minor bump as `ProposePlan` (ADR 0025).
+  - Lineage: `LineageRef(step_id, path)` with the one copy-from-verified-outcome rule (§6.4.3), and no `PlannedStep.lineage` field; the plan's tasks use that shape.
+  - ADR 0025's gate line and this plan's Gate table name the same sets.
+- [x] Fix the stale code references (ENG-DOC-1): ADR 0027 `server/profile.py:70-81` (the `Profile` record is now further down), ADR 0028 `bootstrap.py:106-133` (now `tool_specs`, 100-127), and ADR 0029 `adapters/odoo/executor.py:340-347` (now `plugins/erp/odoo/executor.py`). Cite functions rather than line numbers where they can be.
+- [x] Run `uv run python scripts/repo_move.py check`; expected: no broken links.
+- [x] Commit `docs(adr): reconcile Phase 2 ADRs with the plan`.
 
-**Files:** `docs/adr/0027-feature-toggles.md`, `docs/adr/README.md`.
+### Task 2a.2: owner acceptance (gate G1)
 
-- [ ] Write the ADR (status Proposed): `Profile.features` record, `FeatureMode` (`off`, `shadow`, `on`), `RunEventType.FEATURE_FALLBACK` with a reason code, the reservation boundary, `/health/ready` and evidence fields, defaults `off`, unknown names rejected. Consequences: OpenAPI and UI client regeneration.
-- [ ] Add the index row. Run `uv run python scripts/repo_move.py check`; expected: no broken links.
-- [ ] Commit `docs(adr): 0027 feature toggles`.
+**Files:** the five ADRs (status lines), `docs/adr/README.md` (status column), `docs/design/target-architecture.md` (§6.4 tag once accepted), this plan's status line.
 
-### Task 2a.3: ADRs 0024, 0025, 0028 and plan amendment
+- [x] The owner accepts or amends ADRs 0024, 0025, 0027, 0028, 0029 and §6.4. Record each status as Accepted with the date, or record the amendment and repeat 2a.1 for it.
+- [x] The owner confirms owner decisions D6, D7 and D8 (or picks an alternative); record the answer in the Owner decisions table.
+- [x] Run `uv run python scripts/repo_move.py check`; expected: no broken links.
+- [x] Commit `docs(adr): accept Phase 2 ADRs 0024, 0025, 0027-0029`.
 
-**Files:** `docs/adr/0024-plan-approval-model.md`, `docs/adr/0025-execution-ir.md`, `docs/adr/0028-task-definitions.md`, `docs/adr/0029-capability-effect-declarations.md`, `docs/adr/README.md`, this plan if a shape changes.
-
-- [ ] Write the three ADRs (status Proposed), each citing the 2a.1 section. 0025 records the SDK port change (`DriverStep` gains `ProposePlan`, `sdk_api` minor bump) and the new store methods.
-- [ ] Compare each ADR's contract shapes with Tasks 2c.1–2c.9; amend this plan in the same commit where they differ (ENG-PLAN-3).
-- [ ] Run `uv run python scripts/repo_move.py check`; expected: no broken links.
-- [ ] Commit `docs(adr): 0024 plan approval, 0025 execution IR, 0028 task definitions`.
-
-**Owner gate G1:** the owner accepts or amends ADRs 0024, 0025, 0027, 0028, 0029 and the 2a.1 section. 2b starts after 0027 is accepted; 2c starts after 0024, 0025 and 0028 are accepted.
+**Owner gate G1:** 2b starts after 0027 is accepted; 2c starts after 0024, 0025, 0028 and 0029 are accepted.
 
 ---
 
@@ -185,24 +180,24 @@ It may not touch: `odoo-bench` or any container outside `odoo19-learning-*` and 
 
 ### Task 2b.1: `Profile.features`
 
-**Files:** `src/e_agent/contracts/features.py` (new: `FeatureMode` StrEnum, `Features` record with `execution_ir: FeatureMode = FeatureMode.OFF`), `src/e_agent/server/profile.py` (`Profile.features: Features = Features()`), `src/e_agent/kernel/coordinator.py` (accepts `features`), `src/e_agent/server/bootstrap.py` (passes it), `tests/unit/contracts/test_features.py`, `tests/unit/server/test_profile_features.py`, `tests/unit/kernel/golden/off_mode_events.json` (new baseline), `tests/unit/kernel/record_off_baseline.py` (recording script), `tests/unit/kernel/test_off_baseline.py`.
+**Files:** `src/e_agent/contracts/features.py` (new: `FeatureMode` StrEnum, `Features` record with `execution_ir: FeatureMode = FeatureMode.OFF`), `src/e_agent/server/profile.py` (`Profile.features: Features = Features()`), `src/e_agent/kernel/coordinator.py` (accepts `features`), `src/e_agent/server/bootstrap.py` (passes it), `tests/unit/contracts/test_features.py`, `tests/unit/server/test_profile_features.py`, `tests/unit/kernel/golden/off_mode_events.json` (new notes-domain baseline), `tests/unit/kernel/record_off_baseline.py` (its recording script), `tests/unit/kernel/test_off_baseline.py`, `tests/unit/plugins/erp/simulator/golden/off_mode_events_erp.json` (new ERP draft-po baseline), `tests/unit/plugins/erp/simulator/record_off_baseline_erp.py` (its recording script), `tests/unit/plugins/erp/simulator/test_off_baseline_erp.py`, `tests/conformance/test_kernel_tests_neutral.py` (no file under `tests/unit/kernel` imports `e_agent.plugins`; MVP design §13), `tests/unit/server/test_committed_profiles.py` (covers all three committed profiles).
 
-**Interfaces:** produces `Features` and `FeatureMode` for every later task; the coordinator exposes `self._features`.
+**Interfaces:** produces `Features` and `FeatureMode` for every later task; the coordinator exposes `self._features`. Toggles come only from the typed profile, never from an environment variable (ADR 0027; ENG-ARCH-6).
 
-- [ ] Record the golden baseline first, on the unchanged kernel: `uv run python tests/unit/kernel/record_off_baseline.py` writes the event types, action states and digests of the notes-domain write run and the ERP draft-po fixture run into `off_mode_events.json`; `test_off_baseline.py` only asserts against it. Commit the baseline before any other change.
+- [ ] Record the golden baselines first, on the unchanged kernel, with a deterministic id source injected for `new_id` and generated ids normalised in the stream. Each records the event types, run transitions, action states and digests of one run. `uv run python tests/unit/kernel/record_off_baseline.py` writes the notes-domain write run into `tests/unit/kernel/golden/off_mode_events.json`; `uv run python tests/unit/plugins/erp/simulator/record_off_baseline_erp.py` writes the ERP draft-po fixture run into `tests/unit/plugins/erp/simulator/golden/off_mode_events_erp.json`. The ERP run lives with the simulator's tests because the kernel suite imports no plugin; the two scripts duplicate their small helpers rather than share one through `tests/unit/kernel`. `test_off_baseline.py` and `test_off_baseline_erp.py` only assert against their golden and each fails on an empty golden (`test_off_baseline_fails_on_empty_golden`, ENG-EVID-4). `tests/conformance/test_kernel_tests_neutral.py` parses every file under `tests/unit/kernel` and fails on any `e_agent.plugins` import (top-level, lazy, or an `import_module`/`__import__` literal), reporting how many files it checked and failing on zero. Commit the baselines before any other change.
 - [ ] Failing tests: `test_profile_features_default_off` (fixture profile without `features` → `execution_ir == "off"`), `test_profile_rejects_unknown_feature` (`{"features": {"nope": "on"}}` raises `ValidationError`), `test_feature_mode_values` (exactly `off`, `shadow`, `on`), `test_coordinator_receives_profile_features`.
 - [ ] Run `uv run pytest -q tests/unit/contracts/test_features.py tests/unit/server/test_profile_features.py`; expected: fails with `ModuleNotFoundError: No module named 'e_agent.contracts.features'`.
 - [ ] Implement. Add `"features": {"execution_ir": "off"}` to the three committed profiles.
-- [ ] Run the same command; expected: all pass. Run `uv run pytest -q tests/unit/server/test_committed_profiles.py`; expected: pass.
+- [ ] Run the same command; expected: all pass. Run `uv run pytest -q tests/unit/server/test_committed_profiles.py`; expected: pass, with `test_committed_profiles_keep_execution_ir_off` loading all three committed profiles, including the simulator's `fixture_profile.json`.
 - [ ] Commit `feat(contracts): profile feature toggles, default off`.
 
 ### Task 2b.2: `feature.fallback` event
 
-**Files:** `src/e_agent/contracts/events.py` (`RunEventType.FEATURE_FALLBACK = "feature.fallback"`, `IR_PLAN_COMPILED = "ir.plan_compiled"`, `IR_SHADOW_FAILED = "ir.shadow_failed"`), `src/e_agent/contracts/run.py` (`ReasonCode` members `IR_TASK_UNRESOLVED`, `IR_COMPILE_FAILED`, `IR_VALIDATION_FAILED`), `src/e_agent/kernel/features.py` (new: `record_fallback(feature, reason, detail)` mixin method), `tests/unit/kernel/test_feature_fallback.py`, `ui/packages/ui-core/src/i18n.ts`, `ui/packages/ui-core/src/store.ts` (only if the switch is exhaustive), `ui/packages/ui-core/test/feature-events.test.ts`.
+**Files:** `src/e_agent/contracts/events.py` (`RunEventType.FEATURE_FALLBACK = "feature.fallback"`, `IR_PLAN_COMPILED = "ir.plan_compiled"`, `IR_SHADOW_FAILED = "ir.shadow_failed"`, `IR_LINEAGE_RESOLVED = "ir.lineage_resolved"`, `IR_STEP_VERIFIED = "ir.step_verified"`; target §6.4.5, §6.4.6), `src/e_agent/contracts/run.py` (`ReasonCode` members `IR_TASK_UNRESOLVED`, `IR_COMPILE_FAILED`, `IR_VALIDATION_FAILED`), `src/e_agent/kernel/features.py` (new: `record_fallback(run, feature, reason)` mixin method; the message comes from a fixed mapping keyed by the three fallback codes, and callers never supply text, Task 2b.2 R-1), `tests/unit/kernel/test_feature_fallback.py`, `ui/packages/ui-core/src/i18n.ts`, `ui/packages/ui-core/src/store.ts` (only if the switch is exhaustive), `ui/packages/ui-core/test/feature-events.test.ts`.
 
 **Interfaces:** consumes `Features`; produces `record_fallback` for 2c.6 and 2c.8.
 
-- [ ] Failing tests: `test_record_fallback_appends_event_with_reason` (payload carries `feature`, `reason_code`, `detail`; memory store), the same through the store conformance fixture so it runs under `pg`; ui-core test `renders feature and IR events without crashing and with a label`.
+- [ ] Failing tests: `test_record_fallback_appends_event_with_reason` (payload carries `feature`, `reason_code` and the code's fixed `message`, not caller text), `test_record_fallback_payload_is_fixed_per_reason`, `test_record_fallback_refuses_non_fallback_reason`, `test_record_fallback_refuses_unknown_feature` and `test_fallback_event_and_evidence_carry_no_caller_text`, parametrised over both stores in `tests/unit/kernel/` so the `pg` gate runs it (ENG-STORE-1); ui-core test `renders feature and IR events without crashing and with a label`.
 - [ ] Run `uv run pytest -q tests/unit/kernel/test_feature_fallback.py`; expected: fails with `AttributeError: FEATURE_FALLBACK`. Run `pnpm --dir ui test`; expected: the new `feature-events.test.ts` test fails.
 - [ ] Implement. UI labels follow `ag-ui-implement` (event labels are user-visible text; no provider identifiers).
 - [ ] Run both commands; expected: pass. Run the `pg` gate; expected: pass.
@@ -210,12 +205,12 @@ It may not touch: `odoo-bench` or any container outside `odoo19-learning-*` and 
 
 ### Task 2b.3: toggles in readiness and evidence
 
-**Files:** `src/e_agent/server/api.py` (`/health/ready` adds `features`), `src/e_agent/kernel/evidence.py` (`build_evidence(..., features=...)` adds `features`), `src/e_agent/server/cli.py` (evidence command passes features), `ui/packages/client/openapi.json`, `ui/packages/client/src/schema.ts` (regenerated), `tests/unit/server/test_api.py`, `tests/unit/kernel/test_evidence.py`.
+**Files:** `src/e_agent/server/api.py` (`/health/ready` adds `features`; the evidence route passes `features` to `build_evidence`), `src/e_agent/kernel/evidence.py` (`build_evidence(..., features=...)` adds `features`), `src/e_agent/server/cli.py` (evidence command passes features), `ui/packages/client/openapi.json`, `ui/packages/client/src/schema.ts` (regenerated), `tests/unit/server/test_api.py`, `tests/unit/kernel/test_evidence.py`.
 
 - [ ] Failing tests: `test_ready_reports_features` (`{"execution_ir": "off"}` for the fixture profile, `"shadow"` when the profile says so), `test_evidence_records_features`, `test_evidence_v1_keys_unchanged` (D5: all existing keys still present with the same schema id).
 - [ ] Run `uv run pytest -q tests/unit/server/test_api.py -k ready tests/unit/kernel/test_evidence.py`; expected: the three new tests fail with `KeyError: 'features'`.
 - [ ] Implement; regenerate with `uv run python scripts/export_openapi.py` and `pnpm --dir ui gen`.
-- [ ] Run the same tests, `uv run python scripts/export_openapi.py --check` and `pnpm --dir ui gen:check`; expected: pass, no drift. Run `make e2e`; expected: pass.
+- [ ] Run the same tests, `uv run python scripts/export_openapi.py --check` and `pnpm --dir ui gen:check`; expected: pass. `/health/ready` returns an untyped mapping, so readiness alone causes no OpenAPI drift; regenerate only if the evidence response model changes. Run `make e2e`; expected: pass.
 - [ ] Commit `feat(server): report feature toggles in readiness and evidence`.
 
 ---
@@ -224,33 +219,35 @@ It may not touch: `odoo-bench` or any container outside `odoo19-learning-*` and 
 
 ### Task 2c.1: IR contracts
 
-**Files:** `src/e_agent/contracts/task.py` (`TaskDefinition`, `AcceptanceSpec`), `src/e_agent/contracts/plan.py` (adds `ActionPlan`, `PlannedStep`, `LineageRef`; `ActionProposal` unchanged), `src/e_agent/contracts/step.py` (`StepRecord`, `StepKind`, `StepStatus`, `StepUsage`, `schema_version = "step.v1"`), `src/e_agent/contracts/capability.py` (`Risk`, `Reversibility` on `CapabilityDescriptor`; `Idempotency` on `CapabilityBinding`, ADR 0029), `src/e_agent/sdk/manifest.py` (`BindingTemplate.idempotency`), `tests/unit/contracts/test_capability_effects.py`, `tests/unit/contracts/test_task.py`, `tests/unit/contracts/test_action_plan.py`, `tests/unit/contracts/test_step.py`.
+**Files:** `src/e_agent/contracts/task.py` (`TaskDefinition`, `AcceptanceSpec`), `src/e_agent/contracts/plan.py` (adds `ActionPlan`, `PlannedStep`, `LineageRef`; `ActionProposal` unchanged), `src/e_agent/contracts/step.py` (`StepRecord`, `StepKind`, `StepStatus`, `StepUsage`, `schema_version = "step.v1"`), `src/e_agent/contracts/action.py` (nullable `plan_id`, `step_index` on `ActionRecord`), `src/e_agent/contracts/run.py` (`RunRecord` gains nullable `task_id`, `task_version`; C11), `src/e_agent/contracts/capability.py` (`Risk`, `Reversibility` on `CapabilityDescriptor`; `Idempotency` on `CapabilityBinding`, ADR 0029), `src/e_agent/sdk/manifest.py` (`BindingTemplate.idempotency`), `tests/unit/contracts/test_capability_effects.py`, `tests/unit/contracts/test_task.py`, `tests/unit/contracts/test_action_plan.py`, `tests/unit/contracts/test_step.py`.
 
 **Interfaces:** produces the records every 2c task uses; portable records only (ENG-ARCH-2).
 
-- [ ] Failing tests: `test_task_definition_requires_capabilities_and_acceptance`; `test_action_plan_rejects_duplicate_step_ids`; `test_action_plan_rejects_unknown_dependency`; `test_action_plan_rejects_cycle`; `test_lineage_ref_must_point_to_an_earlier_dependency`; `test_step_record_fields_match_target_5_4`; `test_contract_records_are_frozen`; `test_read_risk_only_on_read_or_answer_effects`; `test_effect_declaration_defaults` (write → `write_high`, `irreversible`; binding → `none`); `test_lineage_key_literal_refused`.
+- [ ] Failing tests: `test_task_definition_requires_capabilities_and_acceptance`; `test_action_plan_rejects_duplicate_step_ids`; `test_action_plan_rejects_unknown_dependency`; `test_action_plan_rejects_cycle`; `test_lineage_ref_must_point_to_an_earlier_dependency`; `test_step_record_fields_match_target_5_4`; `test_contract_records_are_frozen`; `test_read_risk_only_on_read_or_answer_effects`; `test_effect_declaration_defaults` (write → `write_high`, `irreversible`; binding → `none`); `test_lineage_key_literal_refused`; `test_lineage_ref_has_step_and_path_only`; `test_action_record_plan_fields_default_null`; `test_run_record_task_fields_default_null`.
 - [ ] Run `uv run pytest -q tests/unit/contracts -k "task or plan or step"`; expected: `ModuleNotFoundError: No module named 'e_agent.contracts.task'`.
 - [ ] Implement; structural validation lives in the records, policy validation stays in the kernel.
-- [ ] Run the same command; expected: pass. Run `uv run lint-imports`; expected: every contract kept.
+- [ ] Run the same command; expected: pass. Run `uv run lint-imports`; expected: every contract kept. Run the `pg` gate; expected: pass.
 - [ ] Commit `feat(contracts): task definition, action plan and step record`.
 
 ### Task 2c.2: task definitions for the ERP pack
 
 Builds on the Phase 1d task presets (Task 1d.3): each of the eight task definitions extends the `TaskPreset` the domain pack already contributes for its task kind, so the preset and the definition do not become two catalogues.
 
-**Files:** `src/e_agent/plugins/erp/domain/tasks/` (one resource file per task kind, eight), `src/e_agent/plugins/erp/domain/e_agent_plugin.json` (declares the task definitions), `src/e_agent/plugins/erp/domain/plugin.py` (exposes them), `src/e_agent/sdk/` (plugin API to provide task definitions, if the ADR places it there), `src/e_agent/kernel/registry.py` (admits task definitions: every capability must be an admitted binding, duplicate `task_id` refused; refuses a defaulted write effect declaration with `environment: live`, ADR 0029), the ERP pack and Odoo manifests (effect declarations), `tests/unit/plugins/erp/domain/test_task_definitions.py`, `tests/unit/kernel/test_registry.py`, `tests/unit/kernel/conftest.py` (notes-domain task definition).
+**Files:** `src/e_agent/plugins/erp/domain/tasks/` (one resource file per task kind, eight), `src/e_agent/plugins/erp/domain/e_agent_plugin.json` (declares the task definitions), `src/e_agent/plugins/erp/domain/plugin.py` (exposes them), `src/e_agent/sdk/` (plugin API to provide task definitions, if the ADR places it there), `src/e_agent/kernel/registry.py` (admits task definitions: every capability must be an admitted binding, duplicate `task_id` refused; refuses a defaulted write effect declaration with `environment: live`, ADR 0029), the ERP pack and Odoo manifests (effect declarations), `tests/unit/plugins/erp/domain/test_task_definitions.py`, `tests/unit/kernel/test_registry.py`, `tests/unit/kernel/conftest.py` (notes-domain task definition), `tests/unit/plugins/erp/domain/golden/task_capabilities.json` (new).
 
-- [ ] Failing tests: `test_eight_task_definitions_load_from_resources`; `test_task_capabilities_equal_current_tool_lists` (golden list recorded from today's driver tool sets per `task_kind`); `test_registry_refuses_task_with_unadmitted_capability`; `test_registry_refuses_duplicate_task_id`; `test_notes_domain_task_definition_admitted` (genericity, DR-08); `test_live_profile_refuses_defaulted_write_declaration`; `test_fixture_profile_reports_defaulted_declarations`; `test_erp_write_capabilities_declare_effects`.
+**Interfaces:** today every run gets one tool set: each agent-visible capability with exactly one binding (`tool_specs` in `server/bootstrap.py`). There is no per-task set to copy. This task decides each definition's narrowed capability set from the task's goal and records it.
+
+- [ ] Failing tests: `test_eight_task_definitions_load_from_resources`; `test_task_capabilities_match_golden` (the golden file records today's single tool set and each definition's chosen subset; every subset is inside today's set; non-zero case count); `test_assistant_definition_is_read_only` (the general `assistant` definition, ADR 0028); `test_definition_budgets_only_narrow` (a definition budget above the profile's is refused at admission); `test_registry_refuses_task_with_unadmitted_capability`; `test_registry_refuses_duplicate_task_id`; `test_notes_domain_task_definition_admitted` (genericity, DR-08); `test_live_profile_refuses_defaulted_write_declaration`; `test_fixture_profile_reports_defaulted_declarations`; `test_erp_write_capabilities_declare_effects`; `test_pack_without_task_definitions_admitted` (a pack that declares none, such as the `check_core_only.py` test pack, still loads).
 - [ ] Run `uv run pytest -q tests/unit/plugins/erp/domain/test_task_definitions.py tests/unit/kernel/test_registry.py`; expected: the new tests fail (`FileNotFoundError` for the resources, then registry assertions).
 - [ ] Implement; manifests and resources change, so re-pin digests with `scripts/plugin_inventory.py` in the same commit.
-- [ ] Run the same command and `uv run python scripts/check_wheels.py`; expected: pass; the domain-erp wheel contains `e_agent/plugins/erp/domain/tasks/*`.
+- [ ] Run the same command, `uv run python scripts/check_wheels.py` and `uv run python scripts/check_core_only.py`; expected: pass; the domain-erp wheel contains `e_agent/plugins/erp/domain/tasks/*`, and the core-only check passes with a pack that declares no task definitions.
 - [ ] Commit `feat(erp): task definitions for the eight ERP tasks`.
 
 ### Task 2c.3: store support for plans and steps
 
-**Files:** `src/e_agent/adapters/postgres/migrations/0005_action_plans_and_steps.sql` (tables `action_plans`, `run_steps`; nullable `plan_id`, `step_index` on actions), `src/e_agent/sdk/store.py` (`put_plan`, `get_plan`, `list_steps`; `EventSpec` batches may carry step records so steps commit in the same transaction as run events), `src/e_agent/kernel/memory_store.py`, `src/e_agent/adapters/postgres/store.py`, `tests/conformance/test_run_store.py`.
+**Files:** `src/e_agent/adapters/postgres/migrations/0005_action_plans_and_steps.sql` (tables `action_plans`, `run_steps`; nullable `plan_id`, `step_index` on actions), `src/e_agent/sdk/store.py` (`put_plan`, `get_plan`, `list_steps`; `EventSpec` batches may carry step records so steps commit in the same transaction as run events), `src/e_agent/kernel/memory_store.py`, `src/e_agent/adapters/postgres/store.py`, `tests/conformance/test_run_store.py`, `src/e_agent/contracts/plan.py` (the `$lineage` wire form: one serializer and one parser for a `LineageRef` nested in proposal arguments, so a stored plan round-trips to equal `LineageRef` instances; the store is its first consumer and the 2c.4 digest reuses it; parked from 2c.1).
 
-- [ ] Failing conformance tests: `test_put_and_get_plan`; `test_steps_commit_with_events_atomically` (a failing append leaves neither); `test_step_sequence_is_monotonic_per_run`; `test_tenant_scope_on_plans_and_steps`; `test_existing_rows_have_null_plan_id`.
+- [ ] Failing conformance tests: `test_put_and_get_plan` (a plan with a nested `LineageRef` comes back equal, in both stores); `test_lineage_wire_form_round_trips` and `test_lineage_wire_form_rejects_malformed` (unit, `tests/unit/contracts/`); `test_steps_commit_with_events_atomically` (a failing append leaves neither); `test_step_sequence_is_monotonic_per_run`; `test_tenant_scope_on_plans_and_steps`; `test_existing_rows_have_null_plan_id`.
 - [ ] Run `uv run pytest -q tests/conformance/test_run_store.py`; expected: `AttributeError: put_plan`.
 - [ ] Implement both stores and the migration.
 - [ ] Run the same command; expected: pass. Run the `pg` gate and `E_AGENT_TEST_STORE=postgres uv run pytest -q tests/conformance/test_run_store.py`; expected: pass (ENG-STORE-1).
@@ -258,39 +255,60 @@ Builds on the Phase 1d task presets (Task 1d.3): each of the eight task definiti
 
 ### Task 2c.4: IR compiler, validator and plan digest
 
-**Files:** `src/e_agent/kernel/ir.py` (new: `compile_proposal(proposal, task) -> ActionPlan`, `validate_plan(plan, task, ctx) -> tuple[Finding, ...]`, `plan_digest_input(plan, ...)`), `src/e_agent/kernel/approval.py` (plan digest using the existing `compute_digest`), `src/e_agent/kernel/step.py` (new: step-record builders), `tests/unit/kernel/test_ir.py`, `tests/unit/contracts/test_digest.py` (plan golden vectors).
+**Files:** `src/e_agent/kernel/ir.py` (new: `compile_proposal(proposal, task) -> ActionPlan`, `validate_plan(plan, task, ctx) -> tuple[Finding, ...]`, `plan_digest_input(plan, ...)`), `src/e_agent/kernel/approval.py` (plan digest using the existing `compute_digest`), `src/e_agent/kernel/step.py` (new: step-record builders), `tests/unit/kernel/test_ir.py`, `tests/unit/contracts/test_digest.py` (plan golden vectors), `ui/packages/ui-core/test/digest.test.ts` (1-step plan vector).
 
-- [ ] Failing tests: `test_single_proposal_compiles_to_one_step_plan`; `test_one_step_plan_digest_equals_action_digest`; `test_plan_digest_golden_vectors` (two- and three-step plans with a lineage placeholder); `test_plan_digest_changes_when_dependency_or_rule_changes`; `test_validate_rejects_capability_outside_task_definition`; `test_validate_rejects_write_count_over_budget`; `test_validate_is_pure` (no store or driver access).
+- [ ] Failing tests: `test_single_proposal_compiles_to_one_step_plan`; `test_one_step_plan_digest_equals_action_digest`; `test_plan_digest_golden_vectors` (two- and three-step plans with a lineage placeholder; asserts a non-zero vector count); `test_plan_digest_changes_when_dependency_or_path_changes`; ui-core `1-step plan digest equals the action digest` (same vector in TypeScript, so `ui-core/src/digest.ts` stays valid); `test_validate_rejects_capability_outside_task_definition`; `test_validate_rejects_write_count_over_budget`; `test_validate_is_pure` (no store or driver access).
+- [ ] Revalidation and digest input (from the 2c.3 review R-2): a plan that holds a placeholder dumps to the `$lineage` wire form, which `ActionPlan.model_validate` refuses as a literal, so `validate_plan` revalidates a built plan with `plan_from_wire(plan_to_wire(plan))` (its rules re-applied, `contracts/plan.py`), never a plain `model_validate` of a dump; the digest input uses the same `plan_to_wire` encoding.
+- [ ] Plan digest vectors join the shared `src/e_agent/contracts/golden/digest_vectors.json`, which `ui-core` already reads. A 1-step plan with no placeholder digests without passing through the `LineageRef` serializer (assert it), and Python-mode `model_dump()` is never used for digest input (a `LineageRef` in a set argument cannot dump in Python mode; JSON mode can).
 - [ ] Run `uv run pytest -q tests/unit/kernel/test_ir.py tests/unit/contracts/test_digest.py`; expected: `ModuleNotFoundError: No module named 'e_agent.kernel.ir'`.
 - [ ] Implement.
-- [ ] Run the same command; expected: pass.
+- [ ] Run the same command and `pnpm --dir ui test`; expected: pass. Run the `pg` gate; expected: pass.
 - [ ] Commit `feat(kernel): IR compiler, plan validation and plan digest`.
 
 ### Task 2c.5: shadow mode
 
-**Files:** `src/e_agent/kernel/proposals.py` (after today's validation, shadow compiles and records), `src/e_agent/kernel/features.py`, `tests/unit/kernel/test_execution_ir_shadow.py`, `tests/unit/kernel/test_off_baseline.py`.
+**Files:** `src/e_agent/kernel/coordinator.py` (`start_run` takes an optional task kind, the definition's `task_id`, and keeps it as `RunRecord.task_id` unless the mode is `off`; D8, ADR 0028), `src/e_agent/server/cli.py` (passes the preset kind it renders, `--task`), `src/e_agent/kernel/proposals.py` (after today's validation, shadow resolves the definition, compiles and records), `src/e_agent/kernel/features.py`, `tests/unit/kernel/test_execution_ir_shadow.py`, `tests/unit/kernel/test_off_baseline.py`, `tests/unit/plugins/erp/simulator/test_off_baseline_erp.py`.
 
-- [ ] Failing tests: `test_shadow_records_plan_compiled_with_matching_digest`; `test_shadow_writes_step_records`; `test_shadow_compile_error_records_shadow_failed_and_run_unchanged`; `test_shadow_adds_no_driver_calls_reads_or_budget` (counting driver and executor fakes; budget counters equal to `off`); `test_shadow_outcome_equals_off`; `test_off_mode_event_stream_matches_baseline` (against the 2b.1 golden file).
-- [ ] Run `uv run pytest -q tests/unit/kernel/test_execution_ir_shadow.py tests/unit/kernel/test_off_baseline.py`; expected: the shadow tests fail (no `ir.plan_compiled` event); the baseline test passes.
+- [ ] Failing tests: `test_shadow_records_plan_compiled_with_matching_digest`; `test_shadow_writes_step_records`; `test_shadow_compile_error_records_shadow_failed_and_run_unchanged`; `test_shadow_without_definition_records_shadow_failed` (an API-style run with free text only records `ir.shadow_failed` with `IR_TASK_UNRESOLVED` and nothing else); `test_shadow_adds_no_driver_calls_reads_or_budget` (counting driver and executor fakes; budget counters equal to `off`); `test_shadow_outcome_equals_off`; `test_off_mode_event_stream_matches_baseline` (against both 2b.1 golden files: the notes-domain run in `tests/unit/kernel/golden/off_mode_events.json` and the ERP draft-po run in `tests/unit/plugins/erp/simulator/golden/off_mode_events_erp.json`). Before any 2c.5 change, extend both goldens with each event's payload key set, recorded on the kernel as 2b.1 left it, so an `off`-mode change that only alters a payload is caught too. `ir.shadow_failed` follows the 2b.2 rule: the kernel fixes its whole payload, never caller or exception text. An unresolved task carries `IR_TASK_UNRESOLVED` (ADRs 0025, 0028); a compile or validation failure carries no reason code, only the failed `stage` (`compile` or `validate`) and that stage's fixed message (`test_shadow_failed_carries_no_exception_text`).
+- [ ] Run `uv run pytest -q tests/unit/kernel/test_execution_ir_shadow.py tests/unit/kernel/test_off_baseline.py tests/unit/plugins/erp/simulator/test_off_baseline_erp.py`; expected: the shadow tests fail (no `ir.plan_compiled` event); both baseline tests pass.
 - [ ] Implement.
 - [ ] Run the same command; expected: pass. Run the `pg` gate; expected: pass.
 - [ ] Commit `feat(kernel): execution IR shadow mode`.
 
+### Task 2c.5a: batch review fixes (Codex review of 2c.2–2c.5)
+
+Added 2026-10-18 after the Codex batch review of 2c.2–2c.5 (C-1, C-2), before 2c.6.
+
+**Files:** `src/e_agent/contracts/plan.py` (one public helper that encodes placeholders to the wire form and canonicalizes; `plan_to_wire` refuses what the digest profile refuses), `src/e_agent/kernel/ir.py` (uses that helper), `src/e_agent/contracts/task.py` (`AcceptanceSpec.answer_condition`), `src/e_agent/kernel/registry.py` (admits the condition only with `required_answer`), `src/e_agent/plugins/erp/domain/tasks/draft-po.json`, `docs/adr/0028-task-definitions.md` (amendment, Proposed), `docs/design/target-architecture.md` (§6.4 task definition sketch), tests under `tests/unit/contracts/`, `tests/unit/kernel/`, `tests/unit/plugins/erp/domain/`, `tests/conformance/test_run_store.py`.
+
+- [ ] C-1 failing tests: `test_plan_to_wire_refuses_a_bytes_lineage_key` (a nested `{b"$lineage": {...}}` is refused, never stored as a placeholder) and the conformance case `test_put_plan_refuses_arguments_outside_the_digest_profile` (both stores).
+- [ ] C-2 failing tests: `test_answer_condition_requires_required_answer`; `test_draft_po_acceptance_answer_is_zero_shortage` (the definition's condition is the verifier's `shortage` check with `expected` `"0"`); `test_answer_condition_reads_the_verifier_check_not_model_arguments`. `AcceptanceSpec.answer_condition` is `{check, expected}`: the answer alternative is met only when the verified answer's outcome has a passing check of that name whose `expected` (the verifier's own value) equals `expected`. 2c.6's `test_on_acceptance_met_by_verified_no_op_answer` evaluates it; a positive-shortage answer leaves draft-po's acceptance unmet.
+- [ ] Run `uv run pytest -q tests/unit/contracts tests/unit/kernel/test_ir.py tests/unit/kernel/test_registry.py tests/unit/plugins/erp/domain tests/conformance/test_run_store.py`; expected: the new tests fail.
+- [ ] Implement. ADR 0028 gains an amendment, Proposed until the owner accepts it before the phase merges (accepted by the owner 2026-10-18). Re-pin the domain-erp digest where the pins require it.
+- [ ] Run the same command; expected: pass. Run the `pg` gate; expected: pass. `off` goldens unchanged.
+- [ ] Commit `fix: plan wire form keeps the digest profile; draft-po acceptance needs a zero-shortage answer (Codex C-1, C-2)`.
+
 ### Task 2c.6: `on` mode, single step
 
-**Files:** `src/e_agent/kernel/run_loop.py` (tool set from the task definition at admission), `src/e_agent/kernel/proposals.py` (`on` path: compile, validate, approve the 1-step plan), `src/e_agent/kernel/dispatch.py` (step records around reserve, dispatch, verify), `src/e_agent/kernel/verification.py` (acceptance check at run end), `tests/unit/kernel/test_execution_ir_on.py`.
+**Files:** `src/e_agent/sdk/ports.py` (`DriverInput.allowed_capabilities: tuple[str, ...] | None = None`; `None` keeps today's set; additive, and the `sdk_api` minor bump it shares with `ProposePlan` is made in Task 2c.9, ADR 0025), `src/e_agent/kernel/run_loop.py` (resolves the run's task definition at admission from the task kind `start_run` received in Task 2c.5, records `task_id` and `task_version`, sets `allowed_capabilities` on every turn), `src/e_agent/kernel/gateway.py` (refuses a read outside the set), `src/e_agent/kernel/proposals.py` (`on` path: compile, validate, approve the 1-step plan; a proposal outside the set is a finding), `src/e_agent/kernel/approval_flow.py` (the definition's `approval_ttl` replaces the global TTL for its runs), `src/e_agent/kernel/dispatch.py` (step records around reserve, dispatch, verify), `src/e_agent/kernel/verification.py` (acceptance check at run end; disjunctive, per the `AcceptanceSpec` docstring and ADR 0028: with both fields set the spec is met when every `required_effects` entry is verified or when `required_answer` verified, so a draft-po run that verifies a zero-shortage answer meets it; with one field set only that one counts; 2c.2 C-1; the answer alternative also needs its `answer_condition` when set, evaluated by the 2c.5a helper over the verifier's check, Codex C-2), `src/e_agent/contracts/run.py` (`ReasonCode.ACCEPTANCE_UNMET`, classified failed), `src/e_agent/adapters/pydantic_ai/driver.py` (offers only the allowed tools on a turn), `tests/unit/kernel/test_execution_ir_on.py`, `tests/unit/adapters/pydantic_ai/test_driver_tool_filter.py`.
 
-- [ ] Failing tests: `test_on_tool_set_equals_task_definition`; `test_on_single_step_run_records_steps_for_each_stage`; `test_on_single_step_approval_presentation_unchanged` (same `ApprovalPresentation` and digest as `off`); `test_on_acceptance_unmet_fails_run_with_reason` (`ACCEPTANCE_UNMET`, ADR 0028); `test_on_unresolved_task_falls_back_with_reason` (`IR_TASK_UNRESOLVED`, run completes on the old path); `test_on_validation_error_before_reservation_falls_back`; `test_model_cannot_mark_plan_verified` (ENG-TRUST-1).
-- [ ] Run `uv run pytest -q tests/unit/kernel/test_execution_ir_on.py`; expected: fails (tool set is today's list; no step records).
+**Interfaces:** the API builds one runtime, and one driver, for every task kind (`build_runtime` (`server/bootstrap.py`), called once by `server/api.py`), so the tool set is narrowed per run through `DriverInput`, not per driver. The kernel's refusal is the boundary; the driver's filter is what the model sees.
+
+- [ ] Failing tests: `test_on_tool_set_equals_task_definition`; `test_on_read_outside_task_definition_refused`; `test_on_run_records_task_id_and_version`; `test_on_task_approval_ttl_replaces_global`; `test_on_definition_budgets_narrow_profile_budgets`; `test_driver_offers_only_allowed_tools` (FunctionModel; `None` offers today's set); `test_on_single_step_run_records_steps_for_each_stage`; `test_on_single_step_approval_presentation_unchanged` (same `ApprovalPresentation` and digest as `off`); `test_on_acceptance_unmet_fails_run_with_reason` (`ACCEPTANCE_UNMET`, ADR 0028; a run that verifies neither the required effects nor the required answer); `test_on_acceptance_met_by_verified_no_op_answer` (a draft-po run whose verified zero-shortage answer meets acceptance without a write, target §1.3, through the `answer_condition` path); `test_on_acceptance_unmet_for_positive_shortage_answer` (an accurate positive-shortage answer and no PO end `ACCEPTANCE_UNMET`, Codex C-2); `test_on_unresolved_task_falls_back_with_reason` (`feature.fallback` carries `IR_TASK_UNRESOLVED` and its fixed message, no caller text; run completes on the old path; covers an API run, which names no task kind in Phase 2); `test_on_validation_error_before_reservation_falls_back` (`IR_VALIDATION_FAILED` and its fixed message); `test_model_cannot_mark_plan_verified` (ENG-TRUST-1).
+- [ ] Also failing, from the 2c.2 review: `test_on_tool_set_includes_capability_bound_on_two_connections` (R-1: a capability the definition admits but whose bindings sit on more than one connection is offered once with kernel routing, or the run refuses at admission with a stated reason; never a silent drop from `tool_specs`, PR-10); `test_on_definition_budget_merges_only_set_fields` (R-2: a definition that sets one budget field leaves the other profile budget fields unchanged; merge `model_fields_set` only).
+- [ ] Also failing, from the 2c.3 review R-5: `test_action_plan_link_refused_for_unknown_plan` (an action whose `plan_id` names no stored plan of its tenant is refused by both stores before 2c.6 writes `plan_id`; the 0005 schema has no foreign key, so the check is the store's, or a migration adds the key).
+- [ ] Run `uv run pytest -q tests/unit/kernel/test_execution_ir_on.py tests/unit/adapters/pydantic_ai/test_driver_tool_filter.py`; expected: fails (`allowed_capabilities` unknown; tool set is today's list; no step records).
 - [ ] Implement.
-- [ ] Run the same command; expected: pass. Run the `pg` gate; expected: pass.
+- [ ] Run the same command; expected: pass. Run the replay suite and the prompt golden (Global Constraints, ENG-EVID-5); expected: pass with `off`, every recording replayed. Run the `pg` gate; expected: pass.
 - [ ] Commit `feat(kernel): execution IR on, single-step plans`.
 
 ### Task 2c.7: multi-step plans, approval and dispatch
 
-**Files:** `src/e_agent/kernel/approval.py` (`ApprovalPresentation` gains optional `plan_steps`, the plan's highest `risk` and its irreversible steps; a 1-step plan leaves `plan_steps` empty), `src/e_agent/kernel/approval_flow.py` (one approval for the plan digest), `src/e_agent/kernel/dispatch.py` (serial dependency-order dispatch; step N+1 reserves after step N is verified; facts and policy revalidated before each reservation), `src/e_agent/kernel/transitions.py`, `src/e_agent/server/bootstrap.py` (live guard), `src/e_agent/server/cli.py` (prints plan steps before `--approve`), `src/e_agent/plugins/erp/domain/testing/scripted_tasks.py` (a two-step fixture scenario), `tests/unit/kernel/conftest.py` (two-step notes scenario), `tests/unit/kernel/test_action_plan_dispatch.py`, `tests/unit/server/test_bootstrap_guards.py`, OpenAPI and `schema.ts` regenerated.
+**Moved here from 2c.9 (2026-10-18, a seam ships with its first consumer):** `src/e_agent/sdk/ports.py` (`ProposePlan(plan: ActionPlan)` in `DriverStep`), `src/e_agent/sdk/__init__.py` (`SDK_API_VERSION` `1.0` → `1.1`, the one minor bump for `ProposePlan` and 2c.6's `allowed_capabilities`, ADR 0025), plugin manifests' `sdk_api` ranges (only if one no longer admits `1.1`), `tests/unit/sdk/test_ports.py` (`test_sdk_api_range_admits_existing_plugins`); the scripted driver's `ProposePlan` output (`scripted_tasks.py`). In `on`, a `ProposePlan` that falls back before its reservation returns to the driver as a repair finding (target §6.4.8).
 
-- [ ] Failing tests: `test_plan_approved_once_dispatches_steps_in_order`; `test_each_step_reserves_after_previous_verified`; `test_lineage_value_resolved_and_recorded_before_reservation`; `test_stale_fact_before_step_two_stops_plan` (ENG-TRUST-3); `test_approval_for_other_digest_rejected`; `test_presentation_shows_highest_risk_and_irreversible_steps` (ADR 0029); `test_live_profile_refuses_multi_write_budget`; `test_erp_two_step_fixture_scenario` (scripted); `test_notes_two_step_plan` (genericity).
+**Files:** `src/e_agent/kernel/approval.py` (`ApprovalPresentation` gains optional `plan_steps`, the plan's highest `risk` and its irreversible steps; a 1-step plan leaves `plan_steps` empty), `src/e_agent/kernel/approval_flow.py` (one approval for the plan digest), `src/e_agent/kernel/dispatch.py` (serial dependency-order dispatch; step N+1 reserves after step N is verified; facts and policy revalidated before each reservation), `src/e_agent/contracts/run.py` (run pairs `VERIFYING → RUNNING` and `RUNNING → VERIFYING`, ADR 0025), `src/e_agent/kernel/transitions.py`, `src/e_agent/server/bootstrap.py` (live guard), `src/e_agent/server/cli.py` (prints plan steps before `--approve`), `src/e_agent/plugins/erp/domain/testing/scripted_tasks.py` (a two-step fixture scenario), `tests/unit/kernel/conftest.py` (two-step notes scenario), `tests/unit/kernel/test_action_plan_dispatch.py`, `tests/unit/server/test_bootstrap_guards.py`, OpenAPI and `schema.ts` regenerated.
+
+- [ ] Failing tests: `test_plan_approved_once_dispatches_steps_in_order`; `test_each_step_reserves_after_previous_verified`; `test_lineage_value_resolved_and_recorded_before_reservation`; `test_stale_fact_before_step_two_stops_plan` (ENG-TRUST-3); `test_approval_for_other_digest_rejected`; `test_presentation_shows_highest_risk_and_irreversible_steps` (ADR 0029); `test_live_profile_refuses_multi_write_budget`; `test_erp_two_step_fixture_scenario` (scripted); `test_notes_two_step_plan` (genericity); `test_verifying_to_running_allowed_only_between_plan_steps`. Steps run serially inside the run loop; no task is started outside `supervised_task` (ENG-ARCH-7).
 - [ ] Run `uv run pytest -q tests/unit/kernel/test_action_plan_dispatch.py tests/unit/server/test_bootstrap_guards.py`; expected: fails (only one write admitted; no guard).
 - [ ] Implement; regenerate the OpenAPI document and the UI client.
 - [ ] Run the same command, `uv run python scripts/export_openapi.py --check` and `pnpm --dir ui gen:check`; expected: pass. Run the `pg` gate; expected: pass.
@@ -298,22 +316,75 @@ Builds on the Phase 1d task presets (Task 1d.3): each of the eight task definiti
 
 ### Task 2c.8: plan failure semantics
 
-**Files:** `src/e_agent/contracts/run.py` (reason code `PLAN_LINEAGE_REJECTED`; step outcomes keep today's codes, ADR 0025; pairs `VERIFYING → RUNNING` and `RUNNING → VERIFYING` per ADR 0025), `src/e_agent/kernel/transitions.py`, `src/e_agent/kernel/dispatch.py`, `src/e_agent/kernel/recovery.py`, `src/e_agent/kernel/evidence.py` (`plan` and `steps` sections), `tests/unit/kernel/test_action_plan_failures.py`, `tests/unit/kernel/test_recovery.py`.
+Split on 2026-10-18 (controller ruling, as 2c.5a was): the hygiene items moved to Task 2c.8a, so each diff stays one review unit.
 
-- [ ] Failing tests: `test_no_fallback_after_first_reservation`; `test_step_failure_keeps_verified_steps_and_reports_remainder`; `test_unknown_step_blocks_remaining_steps` (run goes to reconciliation; no replay, ENG-TRUST-5); `test_connection_busy_on_step_two_stops_plan`; `test_lineage_value_outside_bound_rule_stops_plan`; `test_recovery_resumes_plan_without_replaying_committed_steps`; `test_evidence_lists_plan_and_steps`; `test_unknown_step_not_resent_even_with_provider_key` (re-send stays off in Phase 2, ADR 0029); `test_step_reason_codes_independent_of_plan_length` (a provider error on step 2 classifies like one on a 1-step run).
-- [ ] Run `uv run pytest -q tests/unit/kernel/test_action_plan_failures.py tests/unit/kernel/test_recovery.py`; expected: the new tests fail.
+**Files:** `src/e_agent/contracts/run.py` (reason code `PLAN_LINEAGE_REJECTED`; step outcomes keep today's codes, ADR 0025; the run pairs arrive in 2c.7), `src/e_agent/kernel/transitions.py`, `src/e_agent/kernel/dispatch.py`, `src/e_agent/kernel/recovery.py`, `src/e_agent/kernel/evidence.py` (`plan` and `steps` sections), `tests/unit/kernel/test_action_plan_failures.py`, `tests/unit/kernel/test_recovery.py`.
+
+- [ ] Failing tests: `test_no_fallback_after_first_reservation`; `test_step_failure_keeps_verified_steps_and_reports_remainder`; `test_unknown_step_blocks_remaining_steps` (run goes to reconciliation; no replay, ENG-TRUST-5); `test_connection_busy_on_step_two_stops_plan`; `test_lineage_value_outside_verified_outcome_stops_plan`; `test_recovery_resumes_plan_without_replaying_committed_steps`; `test_evidence_lists_plan_and_steps`; `test_unknown_step_not_resent_even_with_provider_key` (re-send stays off in Phase 2, ADR 0029); `test_step_reason_codes_independent_of_plan_length` (a provider error on step 2 classifies like one on a 1-step run).
+- [ ] Resume and reconciliation rules: a resumed step passes every guard the live path applies before a reservation (approval TTL, `step_matches_input`, fact, rule and policy staleness, domain validation of resolved lineage values, lineage only from verified read-back), with a test that a resumed step whose approval expired or whose stored step changed stops before reserving; resume applies only when the latest action is VERIFIED and a later step is unstarted (the 2c.7 `_succeed` guard it replaces); a latest step in UNKNOWN never resumes and goes to reconciliation. A test that already passes at the base is reported as passing, not forced red (PR-29).
+- [ ] Also, carried from 2c.7, where these were interim choices:
+  - a lineage rejection ends `PLAN_LINEAGE_REJECTED` rather than `VALIDATION_FAILED` (`test_lineage_value_outside_verified_outcome_stops_plan`);
+  - recovery in the middle of a plan resumes it rather than ending it `INTERRUPTED` (`test_recovery_resumes_plan_without_replaying_committed_steps`);
+  An answer step in a multi-step plan stays refused (`KERNEL-PLAN-ANSWER-STEP`); answers are not compiled to plans.
+- [ ] Run `uv run pytest -q tests/unit/kernel/test_action_plan_failures.py tests/unit/kernel/test_recovery.py`; expected: the new tests fail. Recovery reuses the existing supervised sweeper; no new background task or TID251 exemption (ENG-ARCH-7).
 - [ ] Implement.
 - [ ] Run the same command; expected: pass. Run the `pg` gate; expected: pass.
 - [ ] Commit `feat(kernel): action plan partial failure and reconciliation`.
 
+### Task 2c.8a: hygiene parked from 2c.2, 2c.6 and 2c.7
+
+**Files:** `src/e_agent/server/api.py`, `src/e_agent/kernel/evidence.py`, `src/e_agent/kernel/transitions.py`, `src/e_agent/kernel/ir_on.py`, `src/e_agent/kernel/continuation.py`, `src/e_agent/kernel/coordinator.py`, `tests/unit/kernel/`, `tests/unit/server/`.
+
+- [ ] Failing, from the 2c.2 review: `test_readiness_and_evidence_list_defaulted_declarations` (R-3: `/health/ready` and the evidence bundle list the admission report's defaulted effect declarations, ADR 0029 Operations); its files are `src/e_agent/server/api.py` and `tests/unit/server/`.
+- [ ] Parked from 2c.6: step rows for staleness revalidation, an approval-wait cancel in recovery and the verifier-missing path (`test_every_stage_writes_a_step_row`); one transition helper for the `ACCEPTANCE_UNMET` batch instead of copied events; `message.final` consistent with the skipped acknowledgement when acceptance is unmet; a bound run without a snapshot fails at once rather than at the turn budget (`test_bound_run_without_snapshot_fails_fast`, review R-2); budgets are never merged from the snapshot (`model_fields_set` does not survive the JSON round trip, review R-1).
+- [ ] From 2c.7: an end-to-end test that the plan write budget counts writes made earlier in the run, once a driver turn may follow a verified write; until then, record why it is unreachable (2c.7 review R2-3).
+- [ ] Run `uv run pytest -q tests/unit/kernel tests/unit/server`; expected: the new tests fail first, then pass. Run the `pg` gate; expected: pass.
+- [ ] Commit `fix(kernel): parked step rows, acceptance transitions and readiness of defaulted declarations`.
+
+### Task 2c.8b: Codex re-check fixes (C-1 to C-3)
+
+Added 2026-10-18 (controller ruling): the Codex re-check of 2c.6–2c.8 (`harness/state/2/reviews/2c.8-codex.json`) found three reproduced High defects. They block 2d.1, the live check and the merge.
+
+**Files:** `src/e_agent/kernel/plan_flow.py`, `src/e_agent/kernel/recovery.py`, `src/e_agent/kernel/continuation.py`, `src/e_agent/kernel/coordinator.py`, `src/e_agent/kernel/dispatch.py`, `src/e_agent/kernel/proposals.py`, `src/e_agent/kernel/ir.py`, `src/e_agent/kernel/ir_on.py`, `src/e_agent/kernel/evidence.py`, `src/e_agent/sdk/store.py`, `src/e_agent/kernel/memory_store.py`, `src/e_agent/adapters/postgres/store.py`, `tests/conformance/`, `tests/unit/kernel/`, `tests/unit/server/`, `docs/adr/0025-execution-ir.md`.
+
+- [ ] **C-1:** authority to start a later step travels with the call; there is no coordinator-wide run-id set. Only the approval call and the fenced resume claim may start the next step. Every other path (verification on the live path, `reconcile()`, `recover*()`) queues fenced resume work instead. Test (Codex's reproduction): step 1 UNKNOWN, the approval task paused after NEEDS_RECONCILIATION is stored, a concurrent `reconcile()`. Expected: one provider write, one resume item, and the run never SUCCEEDED by reconciliation.
+- [ ] **C-2:**
+  - (i) Whether steps remain unstarted is decided from the durable actions in the store, never from the continuation snapshot. This covers `_succeed`, `_resume_plan` and the evidence step classifier.
+  - (ii) An unfenced continuation write is refused when the run has moved past the revision it was built from. Alternatively, recovery writes no plan state at all. The implementer chooses whichever leaves fewer unfenced writes, and records the choice in the ADR 0025 amendment.
+  - Test (Codex's reproduction): a delayed recovery save released after a fenced worker verified step 2. Expected: never 'interrupted, remaining steps not started' for a plan whose actions are all VERIFIED.
+- [ ] **C-3:**
+  - (i) Plugin validators receive a copy of the arguments, never a reference to kernel-owned state (PR-08, PR-16). The memory store does not alias stored dicts, matching Postgres.
+  - (ii) The last operation before `reserve_operation`, on every path, compares the digest input of the action as it will be dispatched with the approved one: `approval.action_digest` for a single action, `state.inputs[index]` for a plan step, with lineage substituted. A mismatch blocks the action and fails the run with STALE and the fixed finding `KERNEL-ARGUMENTS-CHANGED`.
+  - If this path is shared with `off`, the fix applies to `off` too. The happy path stays byte-identical, proved by the off goldens, the payload key sets and the replays.
+  - Test (Codex's reproduction): a validator that mutates nested arguments. Expected: zero provider calls, and the run FAILED with the finding.
+- [ ] Also, found in 2c.9: a proposal or plan step on a connection without a binding raises FORBIDDEN out of `start_run` and leaves the run RUNNING for startup recovery. This happens on the single-action path too, and `test_plan_step_on_a_connection_without_binding_is_refused` pins it. It should fail closed now, as a fixed finding or a terminal state, never as an exception that strands the run.
+- [ ] Each Codex reproduction is the failing test first. If one no longer reproduces at the base, report it and still add the invariant test (PR-29). Each new guard gets a mutation check.
+- [ ] Run the full suite and the `pg` gate; expected: pass. Codex reviews the task.
+- [ ] Commit `fix(kernel): call-scoped plan authority, durable step state and argument integrity before reservation (Codex C-1 to C-3)`.
+
+### Task 2c.8c: reads and answers on an unusable connection fail closed
+
+Added 2026-10-18 (controller ruling): an open item from 2c.8b. A driver read, or an answer proposal, on a connection that is unusable (unbound, disabled or not admitted) raises FORBIDDEN out of the driver turn and leaves the run non-terminal until startup recovery. 2c.8b fixed the write path (`KERNEL-CONNECTION`); this task does the same for reads and answers.
+
+**Files:** `src/e_agent/kernel/gateway.py`, `src/e_agent/kernel/run_loop.py`, `src/e_agent/kernel/proposals.py`, `src/e_agent/kernel/ir_on.py`, `tests/unit/kernel/`, `tests/unit/server/`.
+
+- [ ] Failing tests:
+  - `test_read_on_unusable_connection_fails_closed`: the gateway returns a fixed refusal to the driver, or the run ends as a terminal failure; never an exception that strands the run.
+  - `test_answer_on_unusable_connection_fails_closed`.
+  - `test_no_run_left_non_terminal_after_a_forbidden_read`: no pending work and not terminal is a failure.
+  - Each test covers `off` and `on`.
+- [ ] `off` stays byte-identical on the success path; only the failure path changes. Prove it with the off goldens and replays (ENG-TOGGLE-1).
+- [ ] Run the full suite and the `pg` gate; expected: pass. Codex reviews it together with 2c.8b.
+- [ ] Commit `fix(kernel): reads and answers on an unusable connection fail closed`.
+
 ### Task 2c.9: driver emits IR
 
-**Files:** `src/e_agent/sdk/ports.py` (`ProposePlan(plan: ActionPlan)` added to `DriverStep`; `sdk_api` minor bump), plugin manifests' `sdk_api` ranges, `src/e_agent/adapters/pydantic_ai/driver.py` (with `on`, offers plan output when the task definition allows more than one write), `src/e_agent/plugins/erp/domain/testing/scripted_tasks.py` (scripted driver emits `ProposePlan`), `tests/unit/adapters/pydantic_ai/test_driver_plan.py`, `tests/unit/sdk/test_ports.py`.
+**Files:** (`ProposePlan`, the `sdk_api` bump and the scripted driver's plan output moved to 2c.7, 2026-10-18) `src/e_agent/adapters/pydantic_ai/driver.py` (with `on`, offers plan output when the task definition allows more than one write), `tests/unit/adapters/pydantic_ai/test_driver_plan.py`, `tests/unit/adapters/pydantic_ai/golden/base_instructions.txt` (if the base prompt changes; today it says to call exactly one write tool), a new recording under the replay suite's recordings for a plan output.
 
-- [ ] Failing tests: `test_function_model_plan_output_becomes_propose_plan` (pydantic-ai `FunctionModel`, no live model); `test_driver_offers_plan_output_only_when_task_allows_multiple_writes`; `test_driver_off_mode_outputs_unchanged`; `test_plan_with_model_chosen_connection_is_rejected` (model output never selects connections); `test_sdk_api_range_admits_existing_plugins`.
-- [ ] Run `uv run pytest -q tests/unit/adapters/pydantic_ai/test_driver_plan.py tests/unit/sdk/test_ports.py`; expected: `ImportError: cannot import name 'ProposePlan'`.
+- [ ] Failing tests: `test_function_model_plan_output_becomes_propose_plan` (pydantic-ai `FunctionModel`, no live model); `test_driver_offers_plan_output_only_when_task_allows_multiple_writes`; `test_driver_off_mode_outputs_unchanged`; `test_plan_with_model_chosen_connection_is_rejected` (model output never selects connections).
+- [ ] Run `uv run pytest -q tests/unit/adapters/pydantic_ai/test_driver_plan.py`; expected: the driver offers no plan output.
 - [ ] Implement.
-- [ ] Run the same command and `uv run lint-imports`; expected: pass, every contract kept.
+- [ ] Run the same command and `uv run lint-imports`; expected: pass, every contract kept. Run the replay suite and the prompt golden (ENG-EVID-5); expected: pass, the new plan recording replayed, and `off` recordings unchanged. Run the `pg` gate; expected: pass.
 - [ ] Commit `feat(driver): drivers emit action plans`.
 
 ---
@@ -326,6 +397,14 @@ Builds on the Phase 1d task presets (Task 1d.3): each of the eight task definiti
 
 - [ ] Run `eng-verify` levels 1–3 on a clean tree; expected: `full` pass, `pg` and Postgres store conformance pass, `make e2e` pass. Record each result.
 - [ ] Phase review with `eng-review` (reviewer subagent) against this plan and the ENG rules; fix findings as `2.R<n>` tasks.
+- [ ] Before the phase review: Codex accepts its final check of 2c.8b and 2c.8c, and the whole-branch review findings are fixed or ruled.
+- [ ] Regenerate `evals/reports/fixture-release.json` so it carries `defaulted_declarations` (2c.8a). The report stays labelled as fixture evidence, not live qualification (PR-29).
+- [ ] The handoff states these limits plainly:
+  - The plan replay recording is authored, not captured. No live model has been shown to emit a plan (ADR 0010).
+  - The ERP two-step scenario shows lineage only; the simulator echoes the copied value.
+  - A plan run left VERIFYING by an inconclusive verification waits for the next startup recovery.
+  - Step statuses are only in the evidence bundle.
+  - The live profile is to refuse `max_admitted_writes > 1`, so live multi-step writes wait for Phase 5.
 - [ ] Write the handoff with `eng-handoff`: what changed, each verification level with its output, rulings, changes outside the repository, what remains (UI plan approval, live multi-step writes, Phase 3 items) (ENG-DOC-2).
 - [ ] Commit `docs: Phase 2 handoff and roadmap status`.
 
@@ -336,7 +415,7 @@ Builds on the Phase 1d task presets (Task 1d.3): each of the eight task definiti
 
 ## Self-review
 
-- **Spec coverage.** Roadmap row: toggle infrastructure → 2b.1–2b.3; TaskDefinition (C11) → 2a.3, 2c.1, 2c.2, 2c.6; ActionPlan with dependencies, lineage and one approval digest → 2c.1, 2c.4, 2c.7, 2c.8; StepRecord (C8) → 2c.1, 2c.3, 2c.5, 2c.6; driver emits IR → 2c.9; kernel validates, approves, dispatches step by step and verifies → 2c.4, 2c.6, 2c.7; toggle with fallback → 2b.2, 2c.5, 2c.6, 2c.8; ADRs C8, C11 and the action-plan IR → 2a.2, 2a.3. DR-01 → 2a.1. Roadmap rule 1 end-of-phase levels → 2d.1, 2d.2.
-- **Placeholder scan.** No TBD. The open shapes are named in 2a.1 and settled by the ADRs; 2a.3 amends this plan where they differ.
-- **Name consistency.** `Features`, `FeatureMode`, `execution_ir`, `feature.fallback`, `ir.plan_compiled`, `ir.shadow_failed`, `ActionPlan`, `PlannedStep`, `LineageRef`, `StepRecord`, `ProposePlan`, `compile_proposal`, `validate_plan`, `Risk`, `Reversibility`, `Idempotency`, the `$lineage` digest key, `PLAN_LINEAGE_REJECTED` and `ACCEPTANCE_UNMET` are used with the same spelling in every task.
+- **Spec coverage.** Roadmap row: toggle infrastructure → 2b.1–2b.3; TaskDefinition (C11) → 2a.1, 2c.1, 2c.2, 2c.6; ActionPlan with dependencies, lineage and one approval digest → 2c.1, 2c.4, 2c.7, 2c.8; StepRecord (C8) → 2c.1, 2c.3, 2c.5, 2c.6; driver emits IR → 2c.9; kernel validates, approves, dispatches step by step and verifies → 2c.4, 2c.6, 2c.7; toggle with fallback → 2b.2, 2c.5, 2c.6, 2c.8; ADRs C8, C11 and the action-plan IR → 2a.1, 2a.2. DR-01 → §6.4 (exists), accepted in 2a.2. Roadmap rule 1 end-of-phase levels → 2d.1, 2d.2.
+- **Placeholder scan.** No TBD. The open shapes are settled by the ADRs; 2a.1 amends this plan or the ADR where they differ.
+- **Name consistency.** `Features`, `FeatureMode`, `execution_ir`, `feature.fallback`, `ir.plan_compiled`, `ir.shadow_failed`, `ir.lineage_resolved`, `ir.step_verified`, `ActionPlan`, `PlannedStep`, `LineageRef`, `StepRecord`, `ProposePlan`, `compile_proposal`, `validate_plan`, `Risk`, `Reversibility`, `Idempotency`, the `$lineage` digest key, `allowed_capabilities`, `PLAN_LINEAGE_REJECTED` and `ACCEPTANCE_UNMET` are used with the same spelling in every task.
 - **Review Focus coverage.** Items 1–8 each name a task and a test.

@@ -88,5 +88,8 @@
   },
   "fixture": {
     "driver_mode": "valid"
+  },
+  "features": {
+    "execution_ir": "off"
   }
 }

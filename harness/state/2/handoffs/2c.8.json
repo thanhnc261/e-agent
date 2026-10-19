@@ -1,0 +1,46 @@
+{
+  "task": "2c.8",
+  "changed": "Action plan failure semantics under execution_ir on.\n- PLAN_LINEAGE_REJECTED: a new reason code (blocked-by-design), with en and vi i18n; OpenAPI and schema.ts regenerated.\n- A step failure keeps the verified steps and reports the remainder. An UNKNOWN step blocks the remaining steps and goes to reconciliation; nothing is replayed or re-sent.\n- No fallback after the first reservation. Reason codes do not depend on plan length.\n- The evidence bundle gains 'plan' and 'steps' sections only when the run has them, so off bundles are unchanged. Each step is listed as verified, committed, unknown, failed or unstarted; no verified_values appear.\n- _verify persists the continuation, with the read-back values, before record_outcome.\n- Plan resume after a crash (ADR 0025 amendment, proposed). Recovery, recover_run and reconcile never send a write. A resumable plan (latest action VERIFIED, next step unstarted) enqueues one de-duplicated, fenced 'resume' work item; the worker re-checks under the claim and continues through every live pre-reservation guard.\n- A resume is attempted at most once. A failed claim, or a takeover at fence above 1, runs the crash rules with resume disabled.\n- A new work kind 'resume': contracts/work.py and migration 0006_run_work_resume.sql.\n- A crash before a later step reserves ends INTERRUPTED with a plan-specific reason, and evidence lists that step as unstarted.\n- Design: target \u00a76.4.5 and \u00a76.4.6 now say an approval that expires between steps stops STALE, as on the single-action path. The \u00a75.5 blocked-by-design wording now covers plans.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2c.8/2026-10-18T10-26-51.248903+00-00-full.json",
+    "harness/state/evidence/gates/2c.8/2026-10-18T10-28-02.777802+00-00-pg.json"
+  ],
+  "open_items": [
+    "Owner: accept the ADR 0025 plan-resume amendment (fenced resume work, at most one attempt, takeover counts as failed) before Phase 2 merges.",
+    "Review R3-2 (pre-existing): resume_plan drops the item when the continuation cannot load or has no plan, so the run waits for the next startup recovery. Kernel writes cannot reach this.",
+    "Review R3-1: a takeover at fence above 1 fails a resumable plan even if the first owner never started. This is fail-closed and documented in the ADR amendment.",
+    "Postgres: gate pg covers tests/unit/kernel. The controller ran tests/unit/adapters/postgres and tests/conformance on Postgres at de5ae80: 283 passed (HP-6; no evidence file).",
+    "2c.8a: readiness and evidence of defaulted declarations, the parked 2c.6 step rows, the ACCEPTANCE_UNMET helper, message.final, snapshot fail-fast, the budget merge, and the 2c.7 end-to-end budget test.",
+    "No API or CLI outcome view lists step statuses yet; they are in the evidence bundle only.",
+    "Codex re-check of 2c.6 to 2c.8 before the phase closes.",
+    "Codex re-check (harness/state/2/reviews/2c.8-codex.json): C-1, C-2 and C-3 are High and reproduced; fixed in 2c.8b before 2d.1."
+  ],
+  "rulings": [
+    {
+      "ruling": "An approval that expires between steps stays STALE; design rows amended (ENG-PLAN-3).",
+      "cost_if_wrong": "A reason-code change later."
+    },
+    {
+      "ruling": "Plan resume runs only under a fenced resume work claim; recovery never sends a write (review R-1, ADR 0018).",
+      "cost_if_wrong": "One work kind and migration 0006."
+    },
+    {
+      "ruling": "A plan resume is attempted at most once (review R2-1); the dedup key is unchanged so that two processes stay safe.",
+      "cost_if_wrong": "A transient host error ends a resumable plan INTERRUPTED instead of retrying."
+    },
+    {
+      "ruling": "2c.8 was split; the hygiene items moved to 2c.8a.",
+      "cost_if_wrong": "One extra close ritual."
+    },
+    {
+      "ruling": "Codex was limited, so three Claude opus review rounds ran; each confirmed its key guards by mutation.",
+      "cost_if_wrong": "Rework after the Codex re-check."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "gate pg and the Postgres adapter and conformance tests ran against e_agent_test in e-agent-ledger.",
+      "undo": "None needed."
+    }
+  ]
+}

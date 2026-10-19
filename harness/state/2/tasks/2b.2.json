@@ -1,0 +1,46 @@
+{
+  "id": "2b.2",
+  "phase": "2",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-2b-2"
+  ],
+  "context_digest": "cb98122137b5a06321aecfe4e54e870088eef05c4a75e93fc3309f8b93d91ee3",
+  "allowed_paths": [
+    "src/e_agent/contracts/events.py",
+    "src/e_agent/contracts/run.py",
+    "src/e_agent/kernel/features.py",
+    "src/e_agent/kernel/coordinator.py",
+    "tests/unit/kernel/test_feature_fallback.py",
+    "ui/packages/ui-core/src/**",
+    "ui/packages/ui-core/test/**",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "docs/plans/2026-10-14-phase2-execution-ir.md",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "pyproject.toml",
+    "docs/adr/0027-feature-toggles.md"
+  ],
+  "acceptance": [
+    "test_record_fallback_appends_event_with_reason passes on memory and postgres",
+    "ui-core feature-events test passes",
+    "full and pg gates pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "d3f1b7f277a6fdf39ca2af62c3652a7f583815b8",
+  "created_at": "2026-10-18T01:18:05+00:00",
+  "features_digest": "a4f910f3c365fabd450c8bc55100fc77feb1eabc123020137af0cde7bf53a17e",
+  "scope_changes": [
+    {
+      "glob": "pyproject.toml",
+      "reason": "new kernel module e_agent.kernel.features must join the 'Only the facade module imports e_agent.kernel.coordinator' import-linter contract's source_modules (tests/unit/kernel/test_structure.py requires every kernel module listed); tightens, not loosens",
+      "at": "2026-10-18T01:25:08+00:00"
+    },
+    {
+      "glob": "docs/adr/0027-feature-toggles.md",
+      "reason": "review 2b.2 R-1: feature.fallback carries a fixed message per code, not a free-text detail",
+      "at": "2026-10-18T01:35:43+00:00"
+    }
+  ]
+}

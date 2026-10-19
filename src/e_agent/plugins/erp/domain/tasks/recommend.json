@@ -1,0 +1,19 @@
+{
+  "task_id": "recommend",
+  "version": "1",
+  "title": "ERP-02: recommend a supplier offer",
+  "goal_template": "Recommend an approved offer for product:widget-a and demand:d-001 within budget.",
+  "capabilities": [
+    "procurement.open-demands.read.v1",
+    "procurement.demand.read.v1",
+    "inventory.availability.read.v1",
+    "procurement.offers.read.v1",
+    "procurement.offer.recommend.v1"
+  ],
+  "acceptance": {
+    "required_answer": "procurement.offer.recommend.v1"
+  },
+  "budgets": {
+    "max_admitted_writes": 0
+  }
+}

@@ -15,8 +15,9 @@ from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor
 from e_agent.contracts.context import TaskContext
 from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.outcome import OutcomeReport
-from e_agent.contracts.plan import ActionProposal
+from e_agent.contracts.plan import ActionPlan, ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt
+from e_agent.contracts.task import TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationResult
 
 # ---- Agent driver -----------------------------------------------------------
@@ -50,6 +51,10 @@ class DriverInput:
     # request_id -> "<code>: <safe_message>" for reads the provider rejected (ADR 0022).
     # An observation for the same request id supersedes an error.
     read_errors: Mapping[str, str] = field(default_factory=dict)
+    # The run's tool set, as contract ids, when its task definition fixes one (D6, ADR 0028):
+    # the driver offers only these tools on this turn. None offers every tool, as today. The
+    # kernel refuses anything outside the set; this field only shapes what the model sees.
+    allowed_capabilities: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -63,6 +68,16 @@ class ProposeAction:
 
 
 @dataclass(frozen=True)
+class ProposePlan:
+    """An N-step action plan (ADR 0025, target §6.4.3): validated as a whole, approved once
+    and dispatched step by step. Later steps may hold `LineageRef` placeholders. A proposal,
+    never an approval: the kernel assigns the plan's id and its task definition, and refuses a
+    plan in a run that admits one write (Task 2c.7)."""
+
+    plan: ActionPlan
+
+
+@dataclass(frozen=True)
 class FinalAnswer:
     text: str
 
@@ -72,7 +87,7 @@ class AskClarification:
     question: str
 
 
-DriverStep = RequestReads | ProposeAction | FinalAnswer | AskClarification
+DriverStep = RequestReads | ProposeAction | ProposePlan | FinalAnswer | AskClarification
 
 
 @runtime_checkable
@@ -262,6 +277,9 @@ class PluginContribution:
     """ValidationDatasetBuilder instances (see e_agent.sdk.validation)."""
     task_presets: tuple[TaskPreset, ...] = ()
     """Demo tasks the pack offers; a profile's ``driver.task_kind`` names one."""
+    task_definitions: tuple[TaskDefinition, ...] = ()
+    """Task definitions (ADR 0028), as the manifest's ``provides_task_definitions`` names
+    them. A definition's ``task_id`` is its preset's ``kind`` (D8)."""
     driver_factories: Mapping[str, DriverFactory] = field(default_factory=dict)
     """Driver factories keyed by the profile's ``driver.kind`` (ADR 0026)."""
     diagnostics: Callable[[], Mapping[str, Any]] | None = None

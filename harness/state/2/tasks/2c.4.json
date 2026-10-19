@@ -1,0 +1,59 @@
+{
+  "id": "2c.4",
+  "phase": "2",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-2c-4"
+  ],
+  "context_digest": "b295290367f15043c97d86487ab4d25560ab2dd37771623a3287c1fa3dcecf50",
+  "allowed_paths": [
+    "src/e_agent/kernel/ir.py",
+    "src/e_agent/kernel/approval.py",
+    "src/e_agent/kernel/step.py",
+    "tests/unit/kernel/test_ir.py",
+    "tests/unit/kernel/test_step.py",
+    "tests/unit/contracts/test_digest.py",
+    "src/e_agent/contracts/golden/**",
+    "ui/packages/ui-core/test/digest.test.ts",
+    "docs/plans/2026-10-14-phase2-execution-ir.md",
+    "docs/roadmap.md",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "pyproject.toml",
+    "docs/design/target-architecture.md",
+    "docs/adr/0025-execution-ir.md",
+    "src/e_agent/contracts/plan.py"
+  ],
+  "acceptance": [
+    "test_one_step_plan_digest_equals_action_digest passes",
+    "plan digest golden vectors pass",
+    "validation is pure",
+    "full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "33c995a72b3f719ed7e1736af2b888034bdffa9e",
+  "created_at": "2026-10-18T04:03:13+00:00",
+  "features_digest": "1077ebbbeb10f638859b07360c7cbe79484191139fb199cd8db0c4f9818a95d0",
+  "scope_changes": [
+    {
+      "glob": "pyproject.toml",
+      "reason": "the facade import contract must list every kernel module (test_structure); ir and step join it, tightening the contract",
+      "at": "2026-10-18T04:17:58+00:00"
+    },
+    {
+      "glob": "docs/design/target-architecture.md",
+      "reason": "2c.4 review R-3: record the read-step rule in 6.4.3",
+      "at": "2026-10-18T04:27:51+00:00"
+    },
+    {
+      "glob": "docs/adr/0025-execution-ir.md",
+      "reason": "2c.4 review R-3: record the read-step rule in Validation",
+      "at": "2026-10-18T04:27:51+00:00"
+    },
+    {
+      "glob": "src/e_agent/contracts/plan.py",
+      "reason": "2c.4 fix: plan_digest_input re-applies the plan rules through a public check",
+      "at": "2026-10-18T04:31:58+00:00"
+    }
+  ]
+}

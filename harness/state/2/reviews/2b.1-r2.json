@@ -1,0 +1,1 @@
+{"task":"2b.1","verdict":"accept","reviewer":{"provider":"claude","fresh_context":true},"findings":[{"id":"S-1","severity":"Low","affects":"style","summary":"Neutrality test also bans tests.* imports outside the kernel suite, stricter than the stated ruling; harmless and documented in its docstring.","evidence":"tests/conformance/test_kernel_tests_neutral.py:29-34"}]}

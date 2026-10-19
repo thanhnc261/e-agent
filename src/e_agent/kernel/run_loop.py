@@ -20,18 +20,22 @@ from e_agent.sdk.ports import (
     DriverInput,
     FinalAnswer,
     ProposeAction,
+    ProposePlan,
     RequestReads,
 )
 
-from .continuation import ContinuationMixin
 from .errors import ErrorCode, KernelError
+from .gateway import GatewayMixin
 
 
-class RunLoopMixin(ContinuationMixin):
+class RunLoopMixin(GatewayMixin):
     # ---------------------------------------------------------------- driving
     async def _drive(self, run: RunRecord, step_input: DriverInput) -> RunRecord:
         cont = await self._load_cont(run.tenant_id, run.run_id)
         ctx = cont.ctx
+        unbound = await self._unbound_snapshot(run, cont)  # `on`: fails before any turn
+        if unbound is not None:
+            return unbound
         while True:
             if cont.turns >= ctx.budgets.max_driver_turns:
                 return await self._exhausted(run, "driver turns")
@@ -42,7 +46,7 @@ class RunLoopMixin(ContinuationMixin):
             try:
                 step = await self._timed(
                     cont,
-                    partial(self._driver.advance, ctx, step_input),
+                    partial(self._driver.advance, ctx, self._with_tools(run, cont, step_input)),
                     ctx.budgets.model_timeout_seconds,
                 )
             except DriverBudgetExceeded:
@@ -60,7 +64,7 @@ class RunLoopMixin(ContinuationMixin):
                     if cont.read_calls >= ctx.budgets.max_read_calls:
                         return await self._exhausted(run, "read calls")
                     try:
-                        obs = await self._gateway_read(cont, request, count_budget=True)
+                        obs = await self._driver_read(run, cont, request)
                     except TimeoutError:
                         return await self._exhausted(run, "active time or provider deadline")
                     except KnownNoEffectError as exc:
@@ -89,6 +93,14 @@ class RunLoopMixin(ContinuationMixin):
             if isinstance(step, ProposeAction):
                 run = await self._store.get_run(run.tenant_id, run.run_id)
                 outcome = await self._handle_proposal(run, cont, step.proposal)
+                if isinstance(outcome, RunRecord):
+                    return outcome
+                step_input = outcome
+                continue
+
+            if isinstance(step, ProposePlan):  # `on` with more than one write (Task 2c.7)
+                run = await self._store.get_run(run.tenant_id, run.run_id)
+                outcome = await self._handle_plan(run, cont, step.plan)
                 if isinstance(outcome, RunRecord):
                     return outcome
                 step_input = outcome
@@ -196,16 +208,15 @@ class RunLoopMixin(ContinuationMixin):
                         findings=(repair_finding,),
                     )
                     continue
-                run = await self._store.update_run(
+                if cont.pending_action_id is None:  # `message.final` only if it succeeds
+                    return await self._succeed(
+                        run, cont, "answered", ReasonCode.ANSWERED, final=step.text
+                    )
+                return await self._store.update_run(
                     run.model_copy(update={"revision": run.revision + 1}),
                     run.revision,
                     [(RunEventType.MESSAGE_FINAL, {"text": step.text}, None)],
                 )
-                if cont.pending_action_id is None:
-                    return await self._set_run_state(
-                        run, RunState.SUCCEEDED, "answered", code=ReasonCode.ANSWERED
-                    )
-                return run
             raise KernelError(ErrorCode.INVALID_REQUEST, "driver returned an unknown step")
 
     async def accept_input(

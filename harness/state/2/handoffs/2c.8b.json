@@ -1,0 +1,39 @@
+{
+  "task": "2c.8b",
+  "changed": "Fixes for the Codex re-check findings on 2c.6 to 2c.8.\n- C-1 and C2-1: the authority to start the next plan step is a keyword-only NextStep (START, QUEUE, STOP) passed down the call chain. Only the approval call and the fenced resume claim pass START; reconcile() and recover*() queue a fenced resume. No coordinator-wide state carries authority.\n- C-2 (option b): recovery and reconciliation write no plan state. They neither save the continuation nor attach it to a run update, and a COMMITTED plan step is verified under the resume claim. Whether every step is done is read from the durable actions.\n- C2-2: the resume item is keyed by action and run revision. The old key matched a DONE item, so an inconclusive claim stranded the run.\n- C-3: each validator gets a deep copy of its input, and the memory store stores and returns copies of actions (conformance on both stores). The last operation before every reserve_operation, off included, compares the action as dispatched with the approved digest input. A mismatch fails the run STALE with KERNEL-ARGUMENTS-CHANGED; the happy path adds no event.\n- Found in 2c.9: a proposal or plan step on an unbound connection is a KERNEL-CONNECTION repair finding and fails closed.\n- ADR 0025 amendment: items are keyed by step and run revision. A step still COMMITTED after any claim is re-driven at the next startup recovery (owner ruling 2026-10-18). Recovery writes no plan state.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2c.8b/2026-10-18T12-51-52.554041+00-00-full.json",
+    "harness/state/evidence/gates/2c.8b/2026-10-18T12-53-10.204600+00-00-pg.json"
+  ],
+  "open_items": [
+    "Codex final check of 2c.8b. Its first review was cut off by the usage limit (resets 23:11). 2d.1 and the merge wait for a Codex accept.",
+    "A read, or an answer proposal, on an unusable connection still raises FORBIDDEN and leaves the run until startup recovery (outside the brief; review it in 2d.1).",
+    "The memory store's continuation save and load share nested data (test store only).",
+    "A plan run left VERIFYING by an inconclusive verification waits for the next startup recovery; there is no periodic re-drive (as for single actions).",
+    "Postgres: gate pg covers tests/unit/kernel. The controller ran tests/conformance and tests/unit/adapters/postgres on Postgres at dbd1689: 285 passed (no evidence file)."
+  ],
+  "rulings": [
+    {
+      "ruling": "C-2 option (b): recovery writes no plan state, instead of a compare-and-set save_continuation port change.",
+      "cost_if_wrong": "A port change later."
+    },
+    {
+      "ruling": "Owner 2026-10-18: a pending verification is re-driven at the next startup (replacing 'a resume is attempted at most once').",
+      "cost_if_wrong": "None; the owner decided."
+    },
+    {
+      "ruling": "The argument-integrity check applies to off too; only a mutated action is refused.",
+      "cost_if_wrong": "None; the off goldens pass."
+    },
+    {
+      "ruling": "Codex was limited mid-review; Claude reviewers (opus, then sonnet) covered the fix rounds; Codex does the final check before 2d.1.",
+      "cost_if_wrong": "Rework after the Codex check."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "gate pg and the Postgres conformance tests ran against e_agent_test in e-agent-ledger.",
+      "undo": "None needed."
+    }
+  ]
+}

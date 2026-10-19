@@ -1,0 +1,31 @@
+{
+  "id": "2d.1",
+  "phase": "2",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-2d-1"
+  ],
+  "context_digest": "1e1867e4838cb3f2f43ab0a6923096aca83da62489b52c7cf5ff519733ce3303",
+  "allowed_paths": [
+    "README.md",
+    "docs/roadmap.md",
+    "docs/handoffs/**",
+    "harness/state/**",
+    "harness/context.toml",
+    "docs/design/target-architecture.md",
+    "docs/adr/0025-execution-ir.md",
+    "docs/adr/README.md",
+    "docs/plans/2026-10-14-phase2-execution-ir.md",
+    "evals/reports/**",
+    "scripts/release_report.py"
+  ],
+  "acceptance": [
+    "full gate, Postgres run and make e2e pass on a clean tree",
+    "phase review findings closed",
+    "handoff validates with e-agent-harness handoff"
+  ],
+  "gate_set": "full",
+  "base_commit": "9bf73241662c96c3510a0d77efe6d25b94bb6205",
+  "created_at": "2026-10-18T15:22:51+00:00",
+  "features_digest": "798781d03fdfa06cc67ece5032bc90f312c944f851a6dd5a27d42518f82e8dda"
+}

@@ -295,6 +295,11 @@ export interface components {
         /**
          * ApprovalPresentation
          * @description Everything any UI needs to show an approval; the digest input is included verbatim.
+         *
+         *     For a plan of two or more steps (ADR 0024) the digest is the plan digest, the top-level
+         *     action fields are the first step's, and ``plan_steps`` lists every step with the plan's
+         *     ``highest_risk`` and its ``irreversible_steps`` (ADR 0029). A single action, a 1-step
+         *     plan included, leaves the three empty, exactly as before Task 2c.7.
          */
         ApprovalPresentation: {
             /** Action Id */
@@ -324,8 +329,19 @@ export interface components {
             expires_at: string;
             /** Findings */
             findings: components["schemas"]["Finding"][];
+            highest_risk?: components["schemas"]["Risk"] | null;
+            /**
+             * Irreversible Steps
+             * @default []
+             */
+            irreversible_steps: string[];
             /** Material Fields */
             material_fields: components["schemas"]["MaterialField"][];
+            /**
+             * Plan Steps
+             * @default []
+             */
+            plan_steps: components["schemas"]["PlanStepPresentation"][];
             /** Run Id */
             run_id: string;
             /** Run Revision */
@@ -461,11 +477,43 @@ export interface components {
             schema_version: string;
         };
         /**
+         * PlanStepPresentation
+         * @description One step of a multi-step plan on the approval card (ADR 0024). Its arguments show a
+         *     lineage placeholder as ``from step N: <pointer>``; ``risk`` and ``reversibility`` are the
+         *     capability's declarations (ADR 0029), a presentation annotation outside the digest.
+         */
+        PlanStepPresentation: {
+            /** Binding Id */
+            binding_id: string;
+            /** Connection Id */
+            connection_id: string;
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Depends On
+             * @default []
+             */
+            depends_on: string[];
+            /**
+             * Expected Effects
+             * @default []
+             */
+            expected_effects: string[];
+            /** Material Fields */
+            material_fields: components["schemas"]["MaterialField"][];
+            reversibility: components["schemas"]["Reversibility"];
+            risk: components["schemas"]["Risk"];
+            /** Step Id */
+            step_id: string;
+            /** Step Index */
+            step_index: number;
+        };
+        /**
          * ReasonCode
          * @description Typed cause of a run state change (ADR 0018). The human `reason` text stays.
          * @enum {string}
          */
-        ReasonCode: "answered" | "verified" | "verification_pending" | "verification_failed" | "validation_failed" | "policy_denied" | "stale" | "surface_changed" | "approval_rejected" | "approval_expired" | "operation_reserved" | "connection_busy" | "effect_unknown" | "provider_error" | "budget_exhausted" | "interrupted" | "cancelled";
+        ReasonCode: "answered" | "verified" | "verification_pending" | "verification_failed" | "validation_failed" | "policy_denied" | "stale" | "surface_changed" | "approval_rejected" | "approval_expired" | "operation_reserved" | "connection_busy" | "effect_unknown" | "provider_error" | "budget_exhausted" | "interrupted" | "cancelled" | "acceptance_unmet" | "plan_lineage_rejected" | "ir_task_unresolved" | "ir_compile_failed" | "ir_validation_failed";
         /**
          * ResourceHint
          * @description What a host page says the user is looking at. Untrusted; never grants access.
@@ -478,6 +526,18 @@ export interface components {
             /** System Hint */
             system_hint: string;
         };
+        /**
+         * Reversibility
+         * @description Whether a capability's effect can be undone (ADR 0029).
+         * @enum {string}
+         */
+        Reversibility: "irreversible" | "compensable";
+        /**
+         * Risk
+         * @description How severe a capability's effect is (ADR 0029, target §6.4.2).
+         * @enum {string}
+         */
+        Risk: "read" | "write_low" | "write_high" | "destructive";
         /** RunEvent */
         RunEvent: {
             /** Action Id */
@@ -511,7 +571,7 @@ export interface components {
          * RunEventType
          * @enum {string}
          */
-        RunEventType: "run.created" | "run.state_changed" | "read.recorded" | "read.rejected" | "proposal.created" | "validation.completed" | "approval.requested" | "approval.decided" | "connect.required" | "input.requested" | "input.received" | "action.reserved" | "action.dispatching" | "action.receipt_recorded" | "action.unknown" | "reconciliation.completed" | "outcome.reported" | "message.final" | "budget.exhausted" | "run.cancel_requested" | "run.terminal";
+        RunEventType: "run.created" | "run.state_changed" | "read.recorded" | "read.rejected" | "proposal.created" | "validation.completed" | "approval.requested" | "approval.decided" | "connect.required" | "input.requested" | "input.received" | "action.reserved" | "action.dispatching" | "action.receipt_recorded" | "action.unknown" | "reconciliation.completed" | "outcome.reported" | "message.final" | "budget.exhausted" | "run.cancel_requested" | "run.terminal" | "feature.fallback" | "ir.plan_compiled" | "ir.shadow_failed" | "ir.lineage_resolved" | "ir.step_verified";
         /** RunRecord */
         RunRecord: {
             /** Created At */
@@ -530,6 +590,10 @@ export interface components {
             state: components["schemas"]["RunState"];
             /** Task */
             task: string;
+            /** Task Id */
+            task_id?: string | null;
+            /** Task Version */
+            task_version?: string | null;
             /** Tenant Id */
             tenant_id: string;
         };

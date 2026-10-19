@@ -1,0 +1,33 @@
+{
+  "task": "2c.5a",
+  "changed": "contracts/plan.py: one public helper encodes placeholders to the wire form and canonicalizes; plan_to_wire and kernel/ir.py both use it, so a stored plan holds exactly the digest profile and a coercible literal (bytes $lineage key) is refused. contracts/task.py: AcceptanceSpec.answer_condition {check, expected} and answer_condition_met (VERIFIED, passing check, verifier's expected; never observed); the registry refuses a condition without required_answer. draft-po.json requires the verifier's shortage expected 0. ADR 0028 amendment (Proposed). sdk/store.py put_plan docstring names the refusal. Plan: task 2c.5a; 2c.6 acceptance uses the condition.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2c.5a/2026-10-18T06-34-09.801243+00-00-full.json",
+    "harness/state/evidence/gates/2c.5a/2026-10-18T06-35-20.108925+00-00-pg.json"
+  ],
+  "open_items": [
+    "Owner decisions (one list): accept the ADR 0028 answer_condition amendment before Phase 2 merges; confirm the 2c.2 ERP write risk values; answer whether to push phase2/execution-ir and open a draft PR; re-pin domain-erp (draft-po.json changed) and odoo19 in profiles/live-odoo19-learning.local.json before the live check 2d.2; branch protection (PR-39).",
+    "2c.6 calls answer_condition_met at run end; nothing evaluates acceptance before then.",
+    "Postgres conformance and shadow: 81 passed on 030b5a5, run by the controller outside the gate (HP-6); ui 173 passed; check_wheels ok (implementer)."
+  ],
+  "rulings": [
+    {
+      "ruling": "C-1 fixed at the store boundary with one shared encode-and-canonicalize helper.",
+      "cost_if_wrong": "None."
+    },
+    {
+      "ruling": "C-2 adds AcceptanceSpec.answer_condition over the verifier's own check value; the ADR 0028 amendment stays Proposed until the owner accepts it.",
+      "cost_if_wrong": "An owner-rejected amendment reworks one field."
+    },
+    {
+      "ruling": "The fixes ran as task 2c.5a before 2c.6; the unstarted 2c.6 contract was replaced.",
+      "cost_if_wrong": "None."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "pg gate and Postgres tests ran against e_agent_test in e-agent-ledger.",
+      "undo": "None needed."
+    }
+  ]
+}

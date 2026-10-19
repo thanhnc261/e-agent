@@ -1,0 +1,112 @@
+{
+  "id": "2c.6",
+  "phase": "2",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-2c-6"
+  ],
+  "context_digest": "9f34ee1be47ebabfe0fc6c4fc52ee68a0afaf25b0b2ebe10e2d4b8ba1c2e1e1d",
+  "allowed_paths": [
+    "src/e_agent/sdk/ports.py",
+    "src/e_agent/kernel/run_loop.py",
+    "src/e_agent/kernel/gateway.py",
+    "src/e_agent/kernel/proposals.py",
+    "src/e_agent/kernel/approval_flow.py",
+    "src/e_agent/kernel/dispatch.py",
+    "src/e_agent/kernel/verification.py",
+    "src/e_agent/kernel/features.py",
+    "src/e_agent/kernel/coordinator.py",
+    "src/e_agent/kernel/ir.py",
+    "src/e_agent/kernel/step.py",
+    "src/e_agent/kernel/ir_on.py",
+    "src/e_agent/kernel/memory_store.py",
+    "src/e_agent/adapters/postgres/store.py",
+    "src/e_agent/adapters/postgres/migrations/0006_*.sql",
+    "src/e_agent/contracts/run.py",
+    "src/e_agent/contracts/task.py",
+    "src/e_agent/adapters/pydantic_ai/driver.py",
+    "pyproject.toml",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "ui/packages/ui-core/src/i18n.ts",
+    "ui/packages/ui-core/test/**",
+    "tests/unit/kernel/test_execution_ir_on.py",
+    "tests/unit/kernel/test_execution_ir_shadow.py",
+    "tests/unit/kernel/conftest.py",
+    "tests/unit/adapters/pydantic_ai/**",
+    "tests/conformance/test_run_store.py",
+    "tests/unit/adapters/postgres/**",
+    "tests/unit/server/**",
+    "tests/unit/plugins/erp/simulator/**",
+    "tests/replays/**",
+    "docs/plans/2026-10-14-phase2-execution-ir.md",
+    "harness/state/**",
+    "docs/handoffs/**",
+    "src/e_agent/kernel/registry.py",
+    "tests/unit/kernel/test_registry.py",
+    "src/e_agent/server/bootstrap.py",
+    "docs/adr/0028-task-definitions.md",
+    "docs/adr/README.md",
+    ".gitleaks.toml",
+    "src/e_agent/kernel/recovery.py",
+    "tests/unit/kernel/test_recovery.py",
+    "src/e_agent/kernel/continuation.py"
+  ],
+  "acceptance": [
+    "test_on_tool_set_equals_task_definition, test_on_read_outside_task_definition_refused and test_driver_offers_only_allowed_tools pass",
+    "fallback tests record feature.fallback with reason codes; ACCEPTANCE_UNMET fails the run",
+    "test_model_cannot_mark_plan_verified passes; replay suite and prompt golden pass",
+    "full and pg gates pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "76d9b8a6a1216c36fd7494a4bd4c1a3063db75d7",
+  "created_at": "2026-10-18T06:38:57+00:00",
+  "features_digest": "862337d6137025596725890aa60f5fd9cc545c69951c3ceaeb03c125c81c680a",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/kernel/registry.py",
+      "reason": "2c.2 R-1: refuse at admission a definition capability that tool_specs cannot offer",
+      "at": "2026-10-18T06:39:27+00:00"
+    },
+    {
+      "glob": "tests/unit/kernel/test_registry.py",
+      "reason": "2c.2 R-1 admission test",
+      "at": "2026-10-18T06:39:27+00:00"
+    },
+    {
+      "glob": "src/e_agent/server/bootstrap.py",
+      "reason": "tool_specs lives in bootstrap; 2c.2 R-1 and the allowed set",
+      "at": "2026-10-18T06:39:27+00:00"
+    },
+    {
+      "glob": "docs/adr/0028-task-definitions.md",
+      "reason": "owner accepted the ADR 0028 answer-condition amendment 2026-10-18",
+      "at": "2026-10-18T06:52:53+00:00"
+    },
+    {
+      "glob": "docs/adr/README.md",
+      "reason": "owner accepted the ADR 0028 answer-condition amendment 2026-10-18",
+      "at": "2026-10-18T06:52:53+00:00"
+    },
+    {
+      "glob": ".gitleaks.toml",
+      "reason": "allowlist the synthetic sentinel in the 2b.2 fallback test (CI secret scan on PR #6)",
+      "at": "2026-10-18T07:07:56+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/recovery.py",
+      "reason": "recovery must not skip the run-end acceptance check (2c.6 concern 1)",
+      "at": "2026-10-18T07:15:27+00:00"
+    },
+    {
+      "glob": "tests/unit/kernel/test_recovery.py",
+      "reason": "recovery must not skip the run-end acceptance check (2c.6 concern 1)",
+      "at": "2026-10-18T07:15:27+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/continuation.py",
+      "reason": "2c.6 Codex C-1: the admitted definition snapshot lives in the run continuation",
+      "at": "2026-10-18T07:26:00+00:00"
+    }
+  ]
+}

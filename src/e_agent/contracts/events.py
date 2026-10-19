@@ -32,6 +32,13 @@ class RunEventType(StrEnum):
     BUDGET_EXHAUSTED = "budget.exhausted"
     RUN_CANCEL_REQUESTED = "run.cancel_requested"
     RUN_TERMINAL = "run.terminal"
+    # A feature in `on` mode returned to the existing path before a write (ADR 0027).
+    FEATURE_FALLBACK = "feature.fallback"
+    # Execution IR (ADR 0025, target architecture §6.4.5, §6.4.6).
+    IR_PLAN_COMPILED = "ir.plan_compiled"
+    IR_SHADOW_FAILED = "ir.shadow_failed"
+    IR_LINEAGE_RESOLVED = "ir.lineage_resolved"
+    IR_STEP_VERIFIED = "ir.step_verified"
 
 
 class RunEvent(Record):

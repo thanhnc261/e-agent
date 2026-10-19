@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 import pytest
+from e_agent.contracts.features import FeatureMode, Features
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.api import create_app
 from e_agent.server.bootstrap import build_runtime
@@ -466,6 +467,14 @@ def test_ready_reports_whether_self_approval_is_allowed(client: TestClient) -> N
     assert body["self_approval_allowed"] is True  # fixture profile: one local operator
 
 
+def test_ready_reports_features(client: TestClient) -> None:
+    assert client.get("/health/ready").json()["features"] == {"execution_ir": "off"}
+    profile = load_profile(fixture_profile_path())
+    shadow = profile.model_copy(update={"features": Features(execution_ir=FeatureMode.SHADOW)})
+    with TestClient(create_app(lambda: build_runtime(shadow))) as c:
+        assert c.get("/health/ready").json()["features"] == {"execution_ir": "shadow"}
+
+
 def test_ready_reports_self_approval_disallowed_when_the_profile_flag_is_unset() -> None:
     from e_agent.server.profile import OperatorConfig
 
@@ -719,3 +728,39 @@ async def test_discard_on_unknown_key_does_not_grow_the_buffers() -> None:
     bus = PublicTextBus()
     bus.discard("t", "never-streamed")
     assert len(bus.frames) == 0
+
+
+FIXTURE_DEFAULTED = [
+    {
+        "plugin_id": "fixture-erp",
+        "subject": "binding",
+        "subject_id": f"fixture-erp.{name}",
+        "fields": ["idempotency"],
+    }
+    for name in (
+        "procurement.po-create",
+        "procurement.rfq-amend",
+        "sales.quotation-create",
+        "crm.lead-create",
+    )
+]
+"""The fixture profile's four write bindings admitted on a defaulted ``idempotency``."""
+
+
+def test_readiness_and_evidence_list_defaulted_declarations(client: TestClient) -> None:
+    """2c.2 review R-3 (ADR 0029 Operations): `/health/ready` and the evidence bundle list the
+    effect declarations the admission report admitted on their defaults. Names only: plugin,
+    subject and field, never a setting or a secret (PR-25)."""
+    ready = client.get("/health/ready").json()
+    assert ready["defaulted_declarations"] == FIXTURE_DEFAULTED
+    h = _login(client)
+    r = client.post(
+        "/v1/runs",
+        json={"task": "restock widget-a"},
+        headers={**h, "Idempotency-Key": "run-key-defaults"},
+    )
+    run_id = r.json()["run_id"]
+    _wait(client, run_id, {"WAITING_APPROVAL"})
+    evidence = client.get(f"/v1/runs/{run_id}/evidence").json()
+    assert evidence["defaulted_declarations"] == FIXTURE_DEFAULTED
+    print(f"defaulted declarations listed: {len(FIXTURE_DEFAULTED)}")

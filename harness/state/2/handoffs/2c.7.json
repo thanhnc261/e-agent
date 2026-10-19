@@ -1,0 +1,48 @@
+{
+  "task": "2c.7",
+  "changed": "Multi-step action plans under execution_ir on. Steps:\n- The driver step ProposePlan was added and SDK_API_VERSION became 1.1; existing plugin manifests (>=1.0,<2.0) still admit.\n- A 2+-step plan is approved once over the plan.v1 digest. Each step's input binds the real rule_bundle_version and policy_version known at proposal.\n- A placeholder step that cannot be validated in wire form is refused before approval (KERNEL-PLAN-STEP-UNVALIDATABLE). This covers an ERROR status and any kernel sentinel bundle: kernel-evidence-v1, none or error.\n- Steps dispatch in order, each after the previous one is VERIFIED. Run transitions VERIFYING->RUNNING happen only between plan steps.\n- Before a later step reserves, the kernel checks:\n  - that the stored step matches the approved input: contract, connection, expected_effects, wire-form arguments and step id; a mismatch is STALE (KERNEL-PLAN-STEP-CHANGED);\n  - that the approval has not expired;\n  - that the facts, the rule bundle and the policy are unchanged; a change is STALE;\n  - that the resolved lineage values pass domain validation; a block is STALE.\n- Lineage resolves only from VERIFIED OutcomeReport.verified_values. A missing value or a type mismatch stops the plan before the reservation.\n- verified_values is stored only in on; off and shadow drop it before record_outcome.\n- Approval presentation: plan_steps, highest_risk, irreversible_steps.\n- The live guard refuses a multi-write budget.\n- CLI plan printing; ERP and notes two-step scripted scenarios; OpenAPI and schema.ts regenerated; the conformance mock carries the new presentation fields.\n- New kernel module plan_flow.py.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2c.7/2026-10-18T09-10-32.791057+00-00-full.json",
+    "harness/state/evidence/gates/2c.7/2026-10-18T09-11-43.001489+00-00-pg.json"
+  ],
+  "open_items": [
+    "2c.8:\n- partial-failure semantics, replacing the interim choices:\n  - lineage rejection ends VALIDATION_FAILED;\n  - an answer step in a multi-step plan is refused (KERNEL-PLAN-ANSWER-STEP);\n  - recovery in the middle of a plan ends INTERRUPTED and does not resume;\n- PLAN_LINEAGE_REJECTED;\n- UNKNOWN reconciliation.",
+    "2c.8: an end-to-end test of the plan write budget counting earlier run writes, once a driver turn can follow a verified write. Today the budget is tested at _plan_findings (review R2-3).",
+    "In the ERP two-step scenario, step 2's lineage value equals the value step 1 proposed, because the simulator echoes it back. It demonstrates lineage only and is not a procurement scenario, so later evidence must not claim more.",
+    "tests/unit/server/test_action_plan_erp.py takes its store from the fixture profile and does not run on Postgres. The kernel plan tests run there through gate pg.",
+    "Codex re-check of 2c.6 and 2c.7 after its usage limit resets, before the phase closes.",
+    "Owner: re-pin domain-erp and odoo19 in the local live profile before 2d.2; branch protection."
+  ],
+  "rulings": [
+    {
+      "ruling": "verified_values is stored only in on; off and shadow drop it before the store, so off stays byte-identical (ENG-TOGGLE-1, PR-26).",
+      "cost_if_wrong": "None."
+    },
+    {
+      "ruling": "Every step's digest binds the real rule and policy versions known at proposal. A sentinel version never reaches a digest. Resolved values are validated before their step reserves.",
+      "cost_if_wrong": "None."
+    },
+    {
+      "ruling": "A stored step that differs from its approved input stops the plan as STALE, since no INTEGRITY reason code exists.",
+      "cost_if_wrong": "Reason-code churn if an integrity code is added."
+    },
+    {
+      "ruling": "The R-4c write-budget guard is tested at the plan check, because it is unreachable end to end today.",
+      "cost_if_wrong": "A regression there goes unnoticed until the 2c.8 end-to-end test exists."
+    },
+    {
+      "ruling": "ui-conformance mock-api.ts was added to the scope: the generated schema makes the defaulted presentation fields required.",
+      "cost_if_wrong": "None."
+    },
+    {
+      "ruling": "Codex was limited, so Claude reviewers ran three rounds (opus twice; a fresh sonnet scoped re-review of the tests-only round 2). Each confirmed the new tests by mutation.",
+      "cost_if_wrong": "Rework after the Codex re-check."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "gate pg ran against e_agent_test in e-agent-ledger.",
+      "undo": "None needed."
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # ADR 0024: Approval model for multi-step plans
 
-Date: 2026-10-14. Status: Proposed. Refines ADRs 0006, 0014, 0019; MVP design §7, §10; [target architecture](../design/target-architecture.md) §6.4.4, §6.4.9.
+Date: 2026-10-14. Status: Accepted (owner, 2026-10-18, gate G1 of the Phase 2 plan). Refines ADRs 0006, 0014, 0019; MVP design §7, §10; [target architecture](../design/target-architecture.md) §6.4.4, §6.4.9.
 
 ## Context
 

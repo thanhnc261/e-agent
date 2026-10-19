@@ -1,0 +1,18 @@
+{
+  "task_id": "amend-rfq",
+  "version": "1",
+  "title": "ERP-04: amend a draft RFQ",
+  "goal_template": "Amend draft RFQ rfq:po-100 to quantity 15, retaining its current requested date.",
+  "capabilities": [
+    "procurement.draft-rfq.read.v1",
+    "procurement.draft-rfq.amend.v1"
+  ],
+  "acceptance": {
+    "required_effects": [
+      {
+        "contract_id": "procurement.draft-rfq.amend.v1",
+        "min_verified": 1
+      }
+    ]
+  }
+}

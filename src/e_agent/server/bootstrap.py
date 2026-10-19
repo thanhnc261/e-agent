@@ -17,6 +17,7 @@ from e_agent.adapters.secretstore_local import LocalSecretStore
 from e_agent.adapters.shacl import ShaclPlanValidator
 from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.context import Principal, TaskContext
+from e_agent.contracts.features import FeatureMode
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.coordinator import RunCoordinator
 from e_agent.kernel.credentials import CredentialService
@@ -127,6 +128,32 @@ def tool_specs(registry: PluginRegistry, profile: Profile) -> list[ToolSpec]:
     return specs
 
 
+def check_task_tool_sets(registry: PluginRegistry, profile: Profile) -> None:
+    """In ``execution_ir: on`` a run's tool set is its definition's capabilities (ADR 0028,
+    D6), so every admitted definition's capability must be one `tool_specs` offers. One it
+    leaves out (unbound, or bound on more than one connection) refuses startup with the
+    capabilities named, never a silent drop from the run's tool set (2c.2 review R-1, PR-10).
+    ``off`` and ``shadow`` narrow nothing and are not checked."""
+    if profile.features.execution_ir is not FeatureMode.ON:
+        return
+    offered = {spec.contract_id for spec in tool_specs(registry, profile)}
+    missing = sorted(
+        {
+            contract_id
+            for task in registry.task_definitions.values()
+            for contract_id in task.capabilities
+            if contract_id not in offered
+        }
+    )
+    if missing:
+        raise KernelError(
+            ErrorCode.STARTUP_REJECTED,
+            "execution_ir: on offers each task definition capability to the driver; "
+            f"{', '.join(missing)} cannot be offered (unbound, or bound on more than one "
+            "connection)",
+        )
+
+
 MODEL_ENDPOINTS: dict[str, tuple[str, str]] = {
     "ollama": ("E_AGENT_OLLAMA_URL", "http://localhost:11434/v1"),
     "litellm": ("E_AGENT_LITELLM_URL", "http://localhost:4000"),
@@ -205,7 +232,11 @@ def admit_plugins(
         raise KernelError(
             ErrorCode.STARTUP_REJECTED, f"settings given for plugins not enabled: {not_enabled}"
         )
-    registry = PluginRegistry(profile.bindings)
+    # The profile's environment and budgets drive the ADR 0029 live refusal of defaulted
+    # write declarations and the ADR 0028 budget narrowing of task definitions.
+    registry = PluginRegistry(
+        profile.bindings, environment=profile.environment, budgets=profile.budgets
+    )
     credentials = CredentialService(catalog, secrets, registry.auth_placements)
     enabled = {
         pid: EnabledPlugin(
@@ -219,6 +250,8 @@ def admit_plugins(
     }
     registry.admit(discovered, enabled, credentials_for=credentials.scoped)
     _check_connection_owners(profile, registry)
+    # Task definitions need the final binding set (ADR 0028).
+    registry.admit_task_definitions()
     return registry, credentials
 
 
@@ -292,6 +325,19 @@ def fixture_scenario_check(profile: Profile) -> None:
             )
 
 
+def check_live_write_budget(profile: Profile) -> None:
+    """A live profile admits at most one write per run (ADR 0025, live guard): no UI can yet
+    present and recompute a multi-step plan's digest (Phase 5). A task definition only
+    narrows the profile's budgets (ADR 0028, owner decision D7), so no definition in a live
+    profile can admit more either."""
+    if profile.environment == "live" and profile.budgets.max_admitted_writes > 1:
+        raise KernelError(
+            ErrorCode.STARTUP_REJECTED,
+            "a live profile admits at most one write per run (budgets.max_admitted_writes); "
+            "multi-step plans run in fixture profiles only",
+        )
+
+
 async def build_runtime(
     profile: Profile,
     *,
@@ -301,6 +347,7 @@ async def build_runtime(
     driver_factory: Callable[[PluginRegistry], AgentDriver] | None = None,
     task_kind: str | None = None,
 ) -> Runtime:
+    check_live_write_budget(profile)
     fixture_scenario_check(profile)
     catalog = ConnectionCatalog(profile.connections)
     registry, credentials = admit_plugins(
@@ -312,6 +359,7 @@ async def build_runtime(
     scope = frozenset(c.connection_id for c in profile.connections)
     connection_id = profile.connections[0].connection_id
 
+    check_task_tool_sets(registry, profile)
     task_kind = task_kind or profile.driver.task_kind
     if task_kind not in registry.task_presets:
         known = ", ".join(sorted(registry.task_presets)) or "none"
@@ -358,6 +406,7 @@ async def build_runtime(
         allow_self_approval=profile.operator.allow_self_approval,
         budgets=profile.budgets,
         credentials=credentials,
+        features=profile.features,
     )
     return Runtime(
         profile,

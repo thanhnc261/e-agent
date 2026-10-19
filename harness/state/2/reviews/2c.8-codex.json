@@ -1,0 +1,31 @@
+{
+  "task": "2c.8",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "C-1",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "Concurrent reconciliation borrows the approval call's coordinator-wide plan-run authority and dispatches a later write without a fenced resume claim",
+      "evidence": "plan_flow.py:324,348 at de5ae80; recovery.py:54; reproduced: provider writes 1 -> 2, run SUCCEEDED, no resume work"
+    },
+    {
+      "id": "C-2",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "Delayed startup recovery overwrites a newer continuation without a claim or revision check; a fully verified plan is then reported interrupted with unstarted steps",
+      "evidence": "plan_flow.py:400; continuation.py:294; postgres/store.py:600,642; ir_on.py:389 at de5ae80; reproduced in memory"
+    },
+    {
+      "id": "C-3",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "A validator can mutate nested action arguments after approval; the changed values execute under the original digest",
+      "evidence": "plan_flow.py:416; ir.py:437; dispatch.py:239; proposals.py:435 at de5ae80; reproduced with the notes plan"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}

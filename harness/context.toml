@@ -13,7 +13,7 @@ files = [
   "docs/design/target-architecture.md",
   "docs/adr/README.md",
 ]
-active_plan = "docs/plans/2026-10-15-hygiene-gates-config-ci.md"
+active_plan = "docs/plans/2026-10-14-phase2-execution-ir.md"
 # From roadmap Phase 2 on, plans also need "Toggles and fallback" and "Gate"
 # sections (harness plan, eng-phase-plan).
 active_plan_required_sections = ["Global Constraints", "Review Focus", "Toggles and fallback", "Gate"]
@@ -57,7 +57,7 @@ full = [
 ]
 # UI type check, unit tests, layer and neutrality rules, build (pilot log HP-12).
 ui = ["pnpm --dir ui check"]
-pg = ["E_AGENT_TEST_STORE=postgres uv run pytest -q tests/unit/kernel"]
+pg = ["E_AGENT_TEST_STORE=postgres uv run pytest -q tests/unit/kernel tests/conformance tests/unit/adapters/postgres"]
 e2e = ["make e2e"]
 # Core wheels and a non-ERP test pack install without any ERP wheel; the server starts (Task 1d.8).
 core = ["uv run python scripts/check_core_only.py"]

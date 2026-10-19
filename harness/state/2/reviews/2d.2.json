@@ -1,0 +1,12 @@
+{
+  "task": "2d.2",
+  "verdict": "rework",
+  "findings": [
+    {"id": "L-1", "severity": "Medium", "affects": "contract", "summary": "Readiness, the migration and the re-pin had no committed evidence; now in harness/state/evidence/live/2d.2-readiness.txt and cited.", "evidence": "handoff Level 4 Readiness, Ledger and Pins bullets vs 2d.2-* files"},
+    {"id": "L-2", "severity": "Medium", "affects": "correctness", "summary": "off (unseeded) and Task 1 on each had a first answer that failed verification; the wording now says so.", "evidence": "2d.2-task3-off.json and 2d.2-task1-on.json events"},
+    {"id": "L-3", "severity": "Low", "affects": "correctness", "summary": "The sandbox log stops at on try 1; the handoff now says so and cites the try 2 bundle.", "evidence": "2d.2-sandbox.log tail vs 2d.2-task3-on-seeded.json"},
+    {"id": "L-4", "severity": "Low", "affects": "correctness", "summary": "The identity gate runs were recorded under 2d.1 at 21a675d and the 2d.2 gate ran after the runs; the wording now states both.", "evidence": "evidence/live/2026-10-18T23-*-live.json vs evidence/gates/2d.2/*-live.json"},
+    {"id": "L-5", "severity": "Low", "affects": "style", "summary": "harness/state/2/handoffs/2d.1.json names the old anchor in a historical ruling; left as written.", "evidence": "harness/state/2/handoffs/2d.1.json:19"}
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}

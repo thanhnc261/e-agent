@@ -1,0 +1,33 @@
+{
+  "task": "2d.1",
+  "changed": "End-of-phase verification and handoff for Phase 2.\n- README: the execution_ir toggle and the two-step plan demo on the fixture simulator, run verbatim.\n- Roadmap: Phase 2 status at Part 2d; the live check and merge wait for the owner.\n- Target architecture 6.4: the status line, argument integrity, and fenced resume work in the recovery rows (phase review P-2).\n- ADR 0025: the RunStore port grows put_plan, get_plan, list_steps and a wider EventBatch (P-6).\n- harness/context.toml: the pg gate covers tests/unit/kernel, tests/conformance and tests/unit/adapters/postgres (P-4).\n- evals/reports/fixture-release.json regenerated with defaulted_declarations; 21/21; fixture evidence.\n- Phase handoff docs/handoffs/2026-10-18-phase2-execution-ir.md with every level, the Codex final accept, the stated limits and the plugin pins.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2d.1/2026-10-18T15-32-03.258128+00-00-full.json",
+    "harness/state/evidence/gates/2d.1/2026-10-18T15-33-22.012579+00-00-pg.json",
+    "harness/state/evidence/gates/2d.1/2026-10-18T15-36-01.274698+00-00-e2e.json",
+    "harness/state/evidence/gates/2d.1/2026-10-18T15-37-23.573787+00-00-core.json"
+  ],
+  "open_items": [
+    "Owner: re-pin domain-erp and odoo19 in profiles/live-odoo19-learning.local.json with the pins in the phase handoff.",
+    "Owner: the live check 2d.2 through live-sandbox; before the on legs, check that no capability is bound on two connections (on refuses that at startup, 2c.6).",
+    "Owner: branch protection on main (PR-39); merge PR #6 after 2d.2.",
+    "Phase review P-7: test_on_refuses_startup_for_capability_bound_on_two_connections was renamed; noted in the phase handoff.",
+    "Stated limits in the phase handoff: authored plan recording, lineage-only two-step scenario, VERIFYING until startup, step statuses only in evidence, live profiles refuse more than one write, provider mismatched-observation FORBIDDEN (2c.8c R-1)."
+  ],
+  "rulings": [
+    {
+      "ruling": "The target architecture 6.4 heading keeps [P] because docs/adr/README.md links #64-execution-ir-p; the status line states that it is implemented on the phase branch.",
+      "cost_if_wrong": "A reader skimming headings sees proposal; the tag and anchor change together at merge."
+    },
+    {
+      "ruling": "The Codex final check ran on 5d39921..ad54b43; the gates ran on f390d98, which only adds a README fix that no wheel contains.",
+      "cost_if_wrong": "None; f390d98 changes README.md only."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "gate pg ran against e_agent_test in e-agent-ledger (truncated only that database).",
+      "undo": "None needed."
+    }
+  ]
+}

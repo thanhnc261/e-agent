@@ -1,0 +1,17 @@
+{
+  "task": "2c.1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R-2",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Constructed LineageRef instances still bypass pointer validation during revalidation (model_construct path '\\n' or '/bad~2' passes LineageRef.model_validate and ActionPlan.model_validate when nested). R-1 bypasses are closed.",
+      "evidence": "src/e_agent/contracts/plan.py:93 checks only ref.step_id; the path field validator at line 49 is skipped for existing instances; target architecture 6.4.3 RFC 6901"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}

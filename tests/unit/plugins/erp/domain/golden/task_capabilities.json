@@ -1,0 +1,85 @@
+{
+  "comment": "Today's single tool set (tool_specs in server/bootstrap.py over the simulator fixture profile) and each ERP task definition's chosen subset (ADR 0028, Task 2c.2). Every subset is inside today's set.",
+  "today": [
+    "crm.contact.read.v1",
+    "crm.lead.create.v1",
+    "crm.teams.read.v1",
+    "inventory.availability.read.v1",
+    "procurement.demand.read.v1",
+    "procurement.draft-rfq.amend.v1",
+    "procurement.draft-rfq.read.v1",
+    "procurement.offer.recommend.v1",
+    "procurement.offers.read.v1",
+    "procurement.open-demands.read.v1",
+    "procurement.purchase-order.create-draft.v1",
+    "procurement.shortage.answer.v1",
+    "receivables.open-invoices.read.v1",
+    "receivables.overdue-invoices.answer.v1",
+    "sales.late-orders.answer.v1",
+    "sales.open-orders.read.v1",
+    "sales.pricing.read.v1",
+    "sales.quotation.create-draft.v1"
+  ],
+  "definitions": {
+    "amend-rfq": [
+      "procurement.draft-rfq.amend.v1",
+      "procurement.draft-rfq.read.v1"
+    ],
+    "assistant": [
+      "crm.contact.read.v1",
+      "crm.teams.read.v1",
+      "inventory.availability.read.v1",
+      "procurement.demand.read.v1",
+      "procurement.draft-rfq.read.v1",
+      "procurement.offer.recommend.v1",
+      "procurement.offers.read.v1",
+      "procurement.open-demands.read.v1",
+      "procurement.shortage.answer.v1",
+      "receivables.open-invoices.read.v1",
+      "receivables.overdue-invoices.answer.v1",
+      "sales.late-orders.answer.v1",
+      "sales.open-orders.read.v1",
+      "sales.pricing.read.v1"
+    ],
+    "crm-lead": [
+      "crm.contact.read.v1",
+      "crm.lead.create.v1",
+      "crm.teams.read.v1"
+    ],
+    "draft-po": [
+      "inventory.availability.read.v1",
+      "procurement.demand.read.v1",
+      "procurement.offer.recommend.v1",
+      "procurement.offers.read.v1",
+      "procurement.open-demands.read.v1",
+      "procurement.purchase-order.create-draft.v1",
+      "procurement.shortage.answer.v1"
+    ],
+    "late-orders": [
+      "sales.late-orders.answer.v1",
+      "sales.open-orders.read.v1"
+    ],
+    "overdue-invoices": [
+      "receivables.open-invoices.read.v1",
+      "receivables.overdue-invoices.answer.v1"
+    ],
+    "quotation": [
+      "sales.pricing.read.v1",
+      "sales.quotation.create-draft.v1"
+    ],
+    "recommend": [
+      "inventory.availability.read.v1",
+      "procurement.demand.read.v1",
+      "procurement.offer.recommend.v1",
+      "procurement.offers.read.v1",
+      "procurement.open-demands.read.v1"
+    ],
+    "shortage": [
+      "inventory.availability.read.v1",
+      "procurement.demand.read.v1",
+      "procurement.offers.read.v1",
+      "procurement.open-demands.read.v1",
+      "procurement.shortage.answer.v1"
+    ]
+  }
+}

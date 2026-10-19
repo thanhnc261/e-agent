@@ -1,0 +1,30 @@
+{
+  "task": "2c.9",
+  "changed": "The pydantic-ai driver emits action plans. In on, it offers plan output only for a bound run (allowed_capabilities set) whose budget allows more than one write. In off and shadow, the tools, outputs and prompt are byte-identical: four golden cases match the driver at a7d291f, and the base prompt golden and the captured recordings are unchanged.\n- Plan steps map to the host-supplied ToolSpec connection. Unknown step keys are rejected, including any key naming a connection. The kernel resolves the exact binding.\n- Step dependencies are typed lineage entries; a literal $lineage key is refused.\n- A new authored replay fixture lives in tests/replays/erp-authored-plan-calls/. It is marked provenance 'authored', with no model digest, and a test enforces this. The replay suite replays both folders.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2c.9/2026-10-18T11-34-17.432415+00-00-full.json",
+    "harness/state/evidence/gates/2c.9/2026-10-18T11-35-31.996103+00-00-pg.json"
+  ],
+  "open_items": [
+    "The plan recording is authored, not captured. No live model has been shown to produce a plan; that needs a qualified model run (evals, ADR 0010).",
+    "A malformed plan call becomes AskClarification, as an all-rejected response does today: a user round trip instead of a retry within the turn.",
+    "golden/off_model_request.json serialises pydantic-ai's ToolDefinition; a pydantic-ai upgrade needs it regenerated at a baseline commit.",
+    "Task 2c.8b: Codex C-1 to C-3, plus a plan step on an unbound connection raising FORBIDDEN out of start_run."
+  ],
+  "rulings": [
+    {
+      "ruling": "The authored recording is labelled as synthetic and kept in a separate folder from captured recordings (PR-29).",
+      "cost_if_wrong": "None."
+    },
+    {
+      "ruling": "No DriverInput field was added; plan output is gated on allowed_capabilities and max_admitted_writes.",
+      "cost_if_wrong": "A field later if the budget source changes."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "gate pg ran against e_agent_test in e-agent-ledger.",
+      "undo": "None needed."
+    }
+  ]
+}

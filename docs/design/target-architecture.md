@@ -320,7 +320,7 @@ The market evidence is that topology, not framework, dominates cost: about 2.1×
 
 ### 5.2 Run state machine (transition table implemented)
 
-*Merged: the transition table is in MVP §7; ADR 0025 (Proposed) would widen it (ADR 0018, accepted 2026-10-14). The MVP design is authoritative for this part.*
+*Merged: the transition table is in MVP §7; ADR 0025 (accepted 2026-10-18) widens it in Phase 2 (ADR 0018, accepted 2026-10-14). The MVP design is authoritative for this part.*
 
 ```mermaid
 stateDiagram-v2
@@ -397,23 +397,22 @@ class StepStatus(StrEnum):
     STARTED = "started"; SUCCEEDED = "succeeded"; FAILED = "failed"
     BLOCKED = "blocked"; UNKNOWN = "unknown"; SKIPPED = "skipped"
 
-class StepRecord(BaseModel):          # e_agent.contracts.step (proposed)
-    model_config = ConfigDict(extra="forbid", frozen=True)
+class StepRecord(Record):             # e_agent.contracts.step; Record: extra="forbid", frozen
     schema_version: Literal["step.v1"] = "step.v1"
     tenant_id: str
     run_id: str
     step_id: str
-    sequence: int                       # monotonic per run
+    sequence: int                       # monotonic per run, >= 0
     kind: StepKind
     status: StepStatus
-    parent_step_id: str | None          # repair links to the step it repairs
-    action_id: str | None
-    input_refs: tuple[EvidenceRef, ...]  # no raw payloads
-    output_ref: EvidenceRef | None
-    finding_ids: tuple[str, ...]
-    usage: StepUsage                     # tokens, calls, active seconds
-    started_at: datetime
-    finished_at: datetime | None
+    parent_step_id: str | None = None   # repair links to the step it repairs
+    action_id: str | None = None
+    input_refs: tuple[EvidenceRef, ...] = ()  # no raw payloads
+    output_ref: EvidenceRef | None = None
+    finding_ids: tuple[str, ...] = ()
+    usage: StepUsage = StepUsage()      # model_tokens, provider_calls, active_seconds
+    started_at: UtcDatetime
+    finished_at: UtcDatetime | None = None
 ```
 
 **Write path.** Step rows are written in the same short transaction as their `run_events`, under the run row lock. That is the same mechanism as event appends today (`store.py: _append`). There is no second, non-atomic write (MVP §9). Steps can therefore be checked against the event log, but the rows themselves are authoritative.
@@ -433,7 +432,7 @@ The event log is the audit truth (§5.1), so its integrity and attribution are a
 | Actor attribution | Every append stamps `RunEvent.actor` from the `current_actor` context variable (`sdk/store.py`, set with `actor_scope`; default `system:kernel`). The server sets `principal:<id>` for authenticated requests and `system:worker:<owner>` for claimed recovery and expiry work (`system:worker:startup` for startup recovery), and a work item runs under the principal it acts for. `correlation_id` is never set on events; only error responses mint one (`api.py`) | Every event carries `actor` (`principal:<id>`, `service:<id>` for triggers, `system:<role>` for kernel and worker) and the request's correlation id; the worker takes the correlation id from the work item | [I] actor / [P] correlation id (WP2) |
 | Access audit | Reading a run, streaming it or exporting evidence appends nothing | An API access log (actor, run, operation, purpose, correlation id) for run reads, streams and evidence exports. Exports are deliberately not run events: an audit read must not advance the audited stream, reopen a terminal run (ADR 0007) or appear inside the next export | [P] |
 | Control-plane audit | No connection, profile, policy or role tables exist (three migrations: ledger, `api_idempotency`, `run_work`). Configuration changes are file edits under git, so git history is the audit trail today | Control-plane audit table (who changed which profile, binding, policy bundle or role grant, with digests before and after) | [C] trigger: the first administrative mutation API |
-| Failure classification | `RunRecord.reason_code` carries a typed `ReasonCode`; `evidence.classify()` reads it first and falls back to substring-matching the free-text `reason` for runs without a code. Buckets: blocked-by-design (a kernel guard refused before any effect), infrastructure-or-budget, otherwise failed; `VERIFICATION_FAILED` is `failed` because it follows a COMMITTED write (ADR 0018) | Derived from `ReasonCode` (§5.6) | [I] (ReasonCode, ADR 0018) |
+| Failure classification | `RunRecord.reason_code` carries a typed `ReasonCode`; `evidence.classify()` reads it first and falls back to substring-matching the free-text `reason` for runs without a code. Buckets: blocked-by-design (a kernel guard refused the action before it had any effect; in a multi-step plan the refusal is the refused step's, and earlier steps may have committed and been verified, ADR 0025), infrastructure-or-budget, otherwise failed; `VERIFICATION_FAILED` is `failed` because it follows a COMMITTED write (ADR 0018) | Derived from `ReasonCode` (§5.6) | [I] (ReasonCode, ADR 0018) |
 
 Redaction rules for the export stay as in MVP §11. HLD §9 requires export authorization; today the export is tenant-scoped only (§13.2 closes this).
 
@@ -546,9 +545,9 @@ sequenceDiagram
 
 Repair limits come from the task definition and the profile (MVP §10 defaults). **Repeat detection [P]:** a proposal whose digest equals an already blocked revision in the same run gets a `KERNEL-REPEAT` finding without re-validation, and it counts against the repair budget. Today the kernel only short-circuits a repeated *verified* answer (`proposals.py: _handle_proposal`). An exhausted budget stops new work. A possibly dispatched write still goes to reconciliation.
 
-### 6.4 Execution IR [P]
+### 6.4 Execution IR [I]
 
-Status: proposed for roadmap Phase 2 ([plan](../plans/2026-10-14-phase2-execution-ir.md)); decided by ADRs [0027](../adr/0027-feature-toggles.md) (toggles), [0028](../adr/0028-task-definitions.md) (task definitions), [0029](../adr/0029-capability-effect-declarations.md) (effect declarations), [0025](../adr/0025-execution-ir.md) (plans, digest, dispatch, failure) and [0024](../adr/0024-plan-approval-model.md) (approval model). Closes DR-01 of the [design principles review](../reviews/2026-10-14-design-principles-review.md) and XA-01 of the [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md).
+Status: designed for roadmap Phase 2 and accepted by the owner on 2026-10-18 (gate G1). Implemented in Phase 2 (Tasks 2a–2d.2, [plan](../plans/2026-10-14-phase2-execution-ir.md), [handoff](../handoffs/2026-10-18-phase2-execution-ir.md)) behind `features.execution_ir` (default `off`), live-checked on 2026-10-19 and merged to `main`; the HLD and MVP design do not restate it yet; decided by ADRs [0027](../adr/0027-feature-toggles.md) (toggles), [0028](../adr/0028-task-definitions.md) (task definitions), [0029](../adr/0029-capability-effect-declarations.md) (effect declarations), [0025](../adr/0025-execution-ir.md) (plans, digest, dispatch, failure) and [0024](../adr/0024-plan-approval-model.md) (approval model). Closes DR-01 of the [design principles review](../reviews/2026-10-14-design-principles-review.md) and XA-01 of the [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md).
 
 The execution IR states a run's work in a form the kernel can check. It has three layers: a **task definition** says what the run may do and when it is done; an **action plan** says what the driver proposes to do; **step records** say what happened. Driver output stays a proposal. The kernel compiles, validates, approves, reserves, dispatches and verifies (ENG-TRUST-1, ENG-TRUST-2).
 
@@ -557,27 +556,34 @@ The execution IR states a run's work in a form the kernel can check. It has thre
 #### 6.4.1 Task definitions (ADR 0028)
 
 ```python
+class AnswerCondition(Record):          # ADR 0028 amendment (proposed, Codex review C-2)
+    check: str                         # an OutcomeCheck name of the required answer's verifier
+    expected: str                      # equals that check's `expected` (the verifier's value)
+
 class AcceptanceSpec(Record):           # e_agent.contracts.task (proposed)
     required_effects: tuple[RequiredEffect, ...] = ()   # contract_id + minimum verified count
     required_answer: str | None = None                  # an answer contract that must verify
+    answer_condition: AnswerCondition | None = None     # needs required_answer; narrows it
 
 class TaskDefinition(Record):
-    task_id: str                       # unique across admitted packs
+    task_id: str                       # unique across admitted packs; the Phase 1d preset's kind
     version: str
     title: str
     goal_template: str                 # the demo prompt of Phase 1d's task presets
     capabilities: tuple[str, ...]      # contract ids; the run's fixed tool set
     acceptance: AcceptanceSpec
     budgets: Budgets | None = None     # narrows the profile budgets, never widens them
-    approval_ttl: timedelta | None = None   # per-task TTL deferred by ADR 0019
+    approval_ttl: timedelta | None = None   # replaces the global TTL (deferred by ADR 0019; Phase 2, D7)
 ```
 
-- Task definitions are domain-pack resources, declared in the pack manifest and admitted by the registry. Every capability must have an admitted binding, and a duplicate `task_id` is refused.
+- Task definitions are domain-pack resources, declared in the pack manifest and admitted by the registry. Every capability must have an admitted binding, a duplicate `task_id` is refused, and so is a `budgets` wider than the profile's (Phase 2 plan, owner decision D7).
 - The Phase 1d "task presets" are the first version of the same resource. Phase 2 extends them into task definitions under the name `TaskDefinition`.
-- The server's `TaskTemplate` (ADR 0017) becomes a projection of an admitted task definition plus the requester's availability.
-- The run's tool set is fixed at admission: the definition's agent-visible capabilities (§7.2 rule 1).
-- The run records `task_id` and `version` (C11).
+- A run names its definition by `task_id` (Phase 2 plan, owner decision D8). In Phase 2 only the CLI passes it, through an optional task kind on `start_run` (`--task`, or the CLI's default preset). An API or UI run carries free text only and resolves no definition: with `shadow` it records `ir.shadow_failed` (`IR_TASK_UNRESOLVED`), and with `on` it falls back with `IR_TASK_UNRESOLVED` (§6.4.8). The API does not apply the profile's `driver.task_kind`, the runtime's one default kind, because that would bind every free-text run to a definition the requester never chose.
+- The server's `TaskTemplate` (ADR 0017) is to become a projection of an admitted task definition plus the requester's availability, with a task id on `CreateRun`. Phase 2 keeps today's catalog (`task_catalog` in `kernel/discovery.py`) unchanged.
+- The run's tool set is fixed at admission: the definition's agent-visible capabilities (§7.2 rule 1). One driver serves every task kind, so the set reaches it per run: the run loop sets `DriverInput.allowed_capabilities` on every turn, the kernel refuses any read or proposal outside it, and the driver's filter only shapes what the model sees (owner decision D6; an additive port field in the same `sdk_api` minor bump as `ProposePlan`).
+- The run records `task_id` and `task_version` on `RunRecord` (C11), and uses the definition's `approval_ttl` and narrowed budgets (D7).
 - The kernel checks the acceptance spec at run end. When it is unmet, the run ends `FAILED` with `ACCEPTANCE_UNMET` and an acceptance finding (§6.1). The model cannot mark its own task as met.
+- The spec is disjunctive: the required effects, or the required answer. An `answer_condition` narrows the answer alternative to a verified answer whose verifier computed a given value, so `draft-po`'s no-op is a verified shortage answer of `"0"`, not any accurate shortage answer (ADR 0028 amendment, proposed; `answer_condition_met` in `contracts/task.py`).
 - A general `assistant` definition with read-only capabilities covers open questions (core plan Phase 2).
 
 #### 6.4.2 Capability effect declarations (ADR 0029)
@@ -596,7 +602,7 @@ Rules:
 - The declarations are not inputs to the approval digest. They come from admitted, digest-pinned artifacts (MVP §6), so they cannot change during a run.
 - The approval presentation shows the highest `risk` and any `irreversible` steps of a plan. This is a presentation annotation under ADR 0015, which allows non-digest metadata on the approval card; the card's digest check (threat T9) is unchanged.
 - Tools that are not mapped to a contract (MCP, Phase 8) are treated as `write_high`, `irreversible`, `none`. A provider's own hints never set these values.
-- Retry rule (ENG-TRUST-5): a write whose outcome is ambiguous goes to reconciliation, as today. A re-send is allowed only when the binding declares `provider_key` and a conformance test proves the provider deduplicates on that key. The Odoo bridge's `operation_key` (`plugins/erp/odoo/executor.py:340-347`) is the first candidate. Re-sending stays off in Phase 2; Phase 2 adds only the declarations and the refusal.
+- Retry rule (ENG-TRUST-5): a write whose outcome is ambiguous goes to reconciliation, as today. A re-send is allowed only when the binding declares `provider_key` and a conformance test proves the provider deduplicates on that key. The Odoo bridge's `operation_key` (sent by `OdooExecutor.execute` in `plugins/erp/odoo/executor.py`) is the first candidate. Re-sending stays off in Phase 2; Phase 2 adds only the declarations and the refusal.
 - Benchmark auto-approve eligibility uses `risk` (ADR 0024).
 - The notes fixture domain declares the same fields (DR-08).
 
@@ -623,14 +629,16 @@ class ActionPlan(Record):
 - **Policy** is checked by the kernel, and the check is pure (no store or driver access):
   - every `contract_id` is in the task definition;
   - the plan's write count is at most `max_admitted_writes`;
+  - every step is a write or an answer: a read is not a plan step, because reads go through the gateway when the driver asks (finding `KERNEL-PLAN-READ-STEP`, added 2026-10-18 by review finding 2c.4 R-3);
+  - every step's arguments, with placeholders in their wire form, are inside the digest profile (ADR 0006); a value the profile refuses is a `KERNEL-ARGS` finding, as on today's 1-step path;
   - each step passes today's domain validation and policy, with each placeholder treated as a value of the type its input schema declares.
-- **Compilation.** A single `ProposeAction` compiles to a 1-step plan. A `ProposePlan` (a new `DriverStep` variant, with an `sdk_api` minor bump) carries an N-step plan.
+- **Compilation.** A single `ProposeAction` compiles to a 1-step plan. A `ProposePlan` (a new `DriverStep` variant, with an `sdk_api` minor bump shared with `DriverInput.allowed_capabilities`, §6.4.1) carries an N-step plan.
 - **Lineage has one rule: copy from the verified outcome.** The resolved value is the value at `path` in the earlier step's *verified outcome*, the independent read-back (MVP §7–§8). It is never taken from a receipt or from model output. It must match the type its input schema declares. Phase 2 adds no other rule kinds; a new kind needs an ADR.
 
 #### 6.4.4 Plan digest (ADRs 0006, 0025)
 
 - **Placeholder encoding.** Inside a step's digest input, a placeholder is encoded as `{"$lineage": {"step": "<step_id>", "path": "<pointer>"}}`. A literal argument object with the key `$lineage` is refused at validation, so a literal can never imitate a placeholder.
-- **Step digest input.** It is today's `digest_input` (`kernel/approval.py:18-60`) with placeholders in `arguments`. A step N > 1 binds the evidence and fact digests known when the plan was proposed, which may be none.
+- **Step digest input.** It is today's `digest_input` (`kernel/approval.py`) with placeholders in `arguments`. A step N > 1 binds the evidence and fact digests known when the plan was proposed, which may be none.
 - **Plan digest.** It is `jcs-sha256-v1` over `{"plan_schema": "plan.v1", "steps": [{"step_id", "depends_on" (sorted), "input": <step digest input>} …]}` in step-index order.
 - **A 1-step plan's approval digest is that step's action digest**, byte for byte, so the approval UI and `ui-core/src/digest.ts` stay valid. Recomputing an N-step plan digest in the UI is the Phase 5 plan-approval thread (Phase 2 plan, owner decision D3). Until then, a live profile refuses multi-write plans.
 - Approval binds the plan digest once (ADR 0024).
@@ -645,9 +653,10 @@ class ActionPlan(Record):
   - the approval TTL;
   - lineage: it resolves each placeholder from the verified outcome and checks its type.
 - The resolved values are recorded in a `validate` step record and an `ir.lineage_resolved` event before `reserve_operation`.
-- Any mismatch stops the plan before that step reserves: `STALE`, `APPROVAL_EXPIRED` or `PLAN_LINEAGE_REJECTED`.
+- Any mismatch stops the plan before that step reserves: `PLAN_LINEAGE_REJECTED` for lineage, otherwise `STALE`. An approval that expired after the decision is `STALE` with the reason "approval expired before dispatch", as on the single-action path; `APPROVAL_EXPIRED` stays the code for a decision that arrives after expiry or for the expiry sweeper, so a reason code never depends on plan length.
 - Each step reserves under its own logical operation id, derived from the plan id and step id. The connection-level admission rule (ADR 0020) applies unchanged: a busy connection stops the plan with `CONNECTION_BUSY`.
 - Evidence before writes and atomic local state hold per step (ENG-TRUST-4).
+- **Argument integrity.** The last operation before every `reserve_operation`, on every path including `off`, compares the action as it will be dispatched with the approved digest input: `approval.action_digest` for a single action; for a plan step, its approved input with lineage substituted, after the plan digest has been recomputed from the step inputs and compared with the approval. A mismatch blocks the action and fails the run `STALE` with `KERNEL-ARGUMENTS-CHANGED` or `KERNEL-PLAN-DIGEST-MISMATCH`. Plugin validators receive a copy of the arguments, never the kernel's (2c.8b, 2c.8c).
 
 #### 6.4.6 Partial failure and run states (ADR 0025 widens the ADR 0018 table)
 
@@ -656,14 +665,14 @@ class ActionPlan(Record):
 | Step N verified, steps remain | `VERIFYING → RUNNING` (new pair) | none; event `ir.step_verified` | next step revalidates |
 | A later step dispatched and committed | `RUNNING → VERIFYING` (new pair) | none | verify as today |
 | A later step's receipt is `UNKNOWN` | `RUNNING → NEEDS_RECONCILIATION` (existing defensive pair, now with a call site) | `EFFECT_UNKNOWN`, as today | the remaining steps do not start; no replay |
-| Reconciliation proves the effect and verification passes | `NEEDS_RECONCILIATION → VERIFYING → RUNNING` | none | continue only after a fresh revalidation; an expired approval stops the plan |
-| Step validation, staleness or lineage fails before its reservation | `RUNNING → FAILED` | `STALE`, `APPROVAL_EXPIRED` or `PLAN_LINEAGE_REJECTED` | earlier steps stay committed and verified |
+| Reconciliation proves the effect | `NEEDS_RECONCILIATION → VERIFYING` | none | reconciliation sends nothing and writes no plan state; it queues one fenced `resume` work item, whose claim verifies the step (`VERIFYING → RUNNING`) and continues after a fresh revalidation; an expired approval stops the plan |
+| Step validation, staleness, approval expiry or lineage fails before its reservation | `RUNNING → FAILED` | `STALE` (expiry included, as on the single-action path) or `PLAN_LINEAGE_REJECTED` | earlier steps stay committed and verified |
 | A step fails with a known no-effect error or fails verification | `→ FAILED` | `PROVIDER_ERROR` or `VERIFICATION_FAILED`, as today | earlier steps stay committed and verified |
 | Acceptance unmet at run end | `VERIFYING → FAILED` or `RUNNING → FAILED` (a run that ends without a write) | `ACCEPTANCE_UNMET` | — |
-| Worker crash between steps | recovery resumes at the first unstarted step after revalidation | — | committed steps are never replayed |
+| Worker crash between steps | latest step `VERIFIED`, next unstarted: recovery queues one fenced `resume` item (keyed by step and run revision) and the claim continues after revalidation; a later step whose action exists but never reserved: `FAILED`; a reserved or dispatched step: reconciliation; a failed or taken-over resume claim: the crash rules with resume disabled; a step still `COMMITTED` after a claim: `VERIFYING` until the next startup recovery re-queues it (ADR 0025 amendment) | `INTERRUPTED` where the run fails | committed steps are never replayed; recovery never sends a write |
 
 - The outcome and the evidence bundle list each step as `verified`, `committed`, `unknown`, `failed` or `unstarted`.
-- **Reason codes do not depend on plan length.** A step's outcome uses today's codes and today's `classify` groups (ADR 0018), so a provider timeout on step 3 classifies exactly as on a 1-step run. Which step it was comes from `plan_id` and `step_index` on the action and from the step records. Only two codes are new: `PLAN_LINEAGE_REJECTED` (blocked-by-design) and `ACCEPTANCE_UNMET` (failed).
+- **Reason codes do not depend on plan length.** A step's outcome uses today's codes and today's `classify` groups (ADR 0018), so a provider timeout on step 3 classifies exactly as on a 1-step run. Which step it was comes from `plan_id` and `step_index` on the action and from the step records. Only two run-outcome codes are new: `PLAN_LINEAGE_REJECTED` (blocked-by-design) and `ACCEPTANCE_UNMET` (failed). The fallback codes of §6.4.8 are `ReasonCode` members carried only by `feature.fallback` (and `IR_TASK_UNRESOLVED` also by `ir.shadow_failed`) and never end a run.
 - There is no fallback after the first reservation (ENG-TOGGLE-2).
 
 #### 6.4.7 Step records
@@ -679,8 +688,8 @@ class ActionPlan(Record):
   | Mode | Behaviour |
   |---|---|
   | `off` | Today's single-action loop. No IR is compiled, no step record is written, no new event appears. |
-  | `shadow` | The run acts on the existing path. After today's proposal handling validates a proposal, the kernel compiles it into a 1-step plan, resolves the task definition, computes the plan digest and records `ir.plan_compiled` (plan digest, step count, task definition id and version, whether the step digest equals the action digest) and the step records. A compile or validation error records `ir.shadow_failed` and nothing else. |
-  | `on` | The run executes the IR. The tool set comes from the task definition at admission. A `ProposeAction` becomes a 1-step plan; a `ProposePlan` becomes an N-step plan, validated as a whole, approved once and dispatched step by step. |
+  | `shadow` | The run acts on the existing path. After today's proposal handling validates a proposal, the kernel compiles it into a 1-step plan, resolves the task definition, computes the plan digest and records `ir.plan_compiled` (plan digest, step count, task definition id and version, whether the step digest equals the action digest) and the step records. A run that resolves no task definition (an API or UI run in Phase 2, §6.4.1), or a compile or validation error, records `ir.shadow_failed` (with `IR_TASK_UNRESOLVED` for the first) and nothing else; the run is unchanged. |
+  | `on` | The run executes the IR. The tool set comes from the task definition at admission (`DriverInput.allowed_capabilities`, §6.4.1). A `ProposeAction` becomes a 1-step plan; a `ProposePlan` becomes an N-step plan, validated as a whole, approved once and dispatched step by step. |
 
 - **Fallback boundary:** the first `reserve_operation`. Before it, with `on`, a task-definition, compile or validation failure records `feature.fallback` (`IR_TASK_UNRESOLVED`, `IR_COMPILE_FAILED`, `IR_VALIDATION_FAILED`) and continues on today's path. A multi-step `ProposePlan` cannot run on that path, so it returns to the driver as a repair finding within `max_validation_repairs`. After the boundary there is no fallback (ENG-TOGGLE-2). The Phase 2 plan cites this table.
 - General rule (XA-24): a `shadow` path records a comparison with the live path and acts on nothing. For example, `ir.plan_compiled` records whether the compiled step digest equals the action digest. A shadow path adds no driver call, provider read or budget use.
@@ -1161,9 +1170,9 @@ e-agent/
 ├── src/e_agent/                    all Python product code (PEP 420)          [I]
 │   ├── contracts/                  e_agent.contracts — portable records      [I]
 │   │   ├── action.py run.py events.py evidence.py ...                        [I]
-│   │   ├── step.py                 StepRecord, Finding persistence            [P]
+│   │   ├── step.py                 StepRecord [I], Finding persistence [P]    [I]/[P]
 │   │   ├── context.py              + ContextPolicy, ContextPack               [I]/[P]
-│   │   ├── task.py                 TaskDefinition, AcceptanceSpec             [P]
+│   │   ├── task.py                 TaskDefinition, AcceptanceSpec             [I]
 │   │   └── trigger.py              TriggerSpec                                [P]
 │   ├── sdk/                        e_agent.sdk — ports, manifests            [I]
 │   │   ├── ports.py                AgentDriver, Executor, ScopedReader, ...   [I]
@@ -1277,12 +1286,12 @@ Paths are relative to `src/e_agent/`.
 | C3 | Connection-level write admission rule + durable writer lease (TTL > provider timeout) — admission rule merged into MVP §9 (ADR 0020, accepted), lease pending | ADR 0003, 0014; MVP §9 |
 | C4 | API and worker process roles | HLD §4 |
 | C5 | HTTP framework stays FastAPI; revisit trigger | — |
-| C6 | Run transition table; no graph runtime in the kernel; LangGraph only as a driver adapter — table merged into MVP §7 (ADR 0018, accepted); widened by ADR 0025 (Proposed) | ADR 0004; MVP §7 |
+| C6 | Run transition table; no graph runtime in the kernel; LangGraph only as a driver adapter — table merged into MVP §7 (ADR 0018, accepted); widened by ADR 0025 (accepted 2026-10-18) | ADR 0004; MVP §7 |
 | C7 | Swappable-runtime boundary: trust anchor vs ports (§4) | HLD §6 |
-| C8 | Step records and progress ledger as kernel projections; plan updates are proposals; `KERNEL-REPEAT` finding for repeated blocked proposals (§6) — step records and action plans: ADR 0025 (Proposed, §6.4); ledger and `KERNEL-REPEAT` stay Phase 3 | MVP §4, §7 |
+| C8 | Step records and progress ledger as kernel projections; plan updates are proposals; `KERNEL-REPEAT` finding for repeated blocked proposals (§6) — step records and action plans: ADR 0025 (accepted 2026-10-18, §6.4); ledger and `KERNEL-REPEAT` stay Phase 3 | MVP §4, §7 |
 | C9 | ContextAssembler ownership split and context rules (§7) | ADR 0004 |
 | C10 | Memory model, promotion path and `MemoryStore` port (§8) | HLD §7 |
-| C11 | Task definitions with acceptance specs (AR-01) as the unit of specialization; per-task approval TTL; skill and task-definition versions recorded per run (§13) — ADR 0028 (Proposed, §6.4.1) | ADR 0017 |
+| C11 | Task definitions with acceptance specs (AR-01) as the unit of specialization; per-task approval TTL; skill and task-definition versions recorded per run (§13) — ADR 0028 (accepted 2026-10-18, §6.4.1) | ADR 0017 |
 | C12 | MCP as a capability binding type (§10.2) | ADR 0012, 0013 |
 | C13 | Event-triggered runs: service principal, idempotency, approval unchanged; approval reachability: expiry sweeper, approver notification/inbox, scope limited to no-approval tasks until both exist (§11.2) — sweeper merged into MVP §10 (ADR 0019, accepted) | MVP §10, §12; ADR 0017 |
 | C14 | Knowledge service and projection selection when triggered (§9) | HLD §7 |

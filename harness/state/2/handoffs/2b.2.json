@@ -1,0 +1,32 @@
+{
+  "task": "2b.2",
+  "changed": "RunEventType gains feature.fallback, ir.plan_compiled, ir.shadow_failed, ir.lineage_resolved and ir.step_verified; ReasonCode gains the fallback codes IR_TASK_UNRESOLVED, IR_COMPILE_FAILED and IR_VALIDATION_FAILED, which never end a run. New kernel/features.py: record_fallback(run, feature, reason) appends feature.fallback atomically and returns the updated run; the payload is exactly feature, reason_code and a fixed message from FALLBACK_MESSAGES; a non-fallback reason or an unknown feature raises KernelError(INVALID_REQUEST); a finished run raises CONFLICT. kernel.features joins a forbidden-import contract's source list (a restriction). OpenAPI and schema.ts regenerated; ui-core i18n labels and store handling for the five events, with a render test. Commits c14f9c7, e31020e, 5038b8f, fbc0466. Reviews: Codex rework R-1 High (free-text detail reached events and evidence) fixed in e31020e with a no-leak test on both stores; Codex re-review rework R-2 (plan widened ir.shadow_failed codes) fixed in fbc0466 and R-3 (pg evidence predated the fix) resolved by the final pg gate; Claude re-check accept.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2b.2/2026-10-18T01-37-59.895662+00-00-full.json",
+    "harness/state/evidence/gates/2b.2/2026-10-18T01-39-10.125468+00-00-pg.json"
+  ],
+  "open_items": [
+    "Task 2c.5 gives ir.shadow_failed its fixed payload: IR_TASK_UNRESOLVED for an unresolved task, otherwise a stage (compile or validate) and a fixed message, never exception text.",
+    "Next: Task 2b.3 (toggles in readiness and evidence)."
+  ],
+  "rulings": [
+    {
+      "ruling": "R-1: feature.fallback carries no caller text; the kernel owns one fixed message per fallback code, and ADR 0027 gets a dated note saying so.",
+      "cost_if_wrong": "A later task adds a strictly validated structured field."
+    },
+    {
+      "ruling": "R-2: ir.shadow_failed carries IR_TASK_UNRESOLVED only; compile and validation failures carry a stage, so the accepted ADRs stay unchanged.",
+      "cost_if_wrong": "An ADR note adds two codes to ir.shadow_failed."
+    },
+    {
+      "ruling": "record_fallback takes the run first and returns the updated run, because the event moves the run revision.",
+      "cost_if_wrong": "A signature change in 2c.6 and 2c.8."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "pg gate ran against the e_agent_test database in e-agent-ledger.",
+      "undo": "None needed."
+    }
+  ]
+}

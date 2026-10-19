@@ -474,3 +474,143 @@
 - changed: no working-tree changes
 - next: local baseline of scanner and audits recorded and triaged in the contract
 - open: none
+
+## 2026-10-18T00:47:37.306653+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2a.1
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2a.1.json, harness/state/2/reviews/2a.1-r2.json, harness/state/2/reviews/2a.1.json, harness/state/evidence/gates/2a.1/2026-10-18T00-36-54.544426+00-00-full.json, harness/state/evidence/gates/2a.1/2026-10-18T00-46-02.697690+00-00-full.json
+- next: 2a.2: owner gate G1 accepts ADRs 0024, 0025, 0027-0029 and confirms D6-D8
+- open: none
+
+## 2026-10-18T00:55:21.373904+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2a.2
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2a.2.json, harness/state/2/reviews/2a.2-r2.json, harness/state/2/reviews/2a.2.json, harness/state/evidence/gates/2a.2/2026-10-18T00-51-00.067907+00-00-full.json, harness/state/evidence/gates/2a.2/2026-10-18T00-53-39.124227+00-00-full.json
+- next: 2b.1: Profile.features and the off-mode golden baseline
+- open: none
+
+## 2026-10-18T01:17:51.032806+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2b.1
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2b.1.json, harness/state/2/reviews/2b.1-r2.json, harness/state/2/reviews/2b.1.json, harness/state/evidence/gates/2b.1/2026-10-18T01-07-24.417468+00-00-full.json, harness/state/evidence/gates/2b.1/2026-10-18T01-08-46.216555+00-00-pg.json, harness/state/evidence/gates/2b.1/2026-10-18T01-16-11.363888+00-00-full.json, harness/state/evidence/gates/2b.1/2026-10-18T01-17-24.889978+00-00-pg.json
+- next: 2b.2: feature.fallback and IR event types
+- open: none
+
+## 2026-10-18T01:48:52.238893+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2b.2
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2b.2.json, harness/state/2/reviews/2b.2-r2.json, harness/state/2/reviews/2b.2-r3.json, harness/state/2/reviews/2b.2.json, harness/state/evidence/gates/2b.2/2026-10-18T01-28-31.253094+00-00-full.json, harness/state/evidence/gates/2b.2/2026-10-18T01-29-40.722067+00-00-pg.json, harness/state/evidence/gates/2b.2/2026-10-18T01-37-59.895662+00-00-full.json, harness/state/evidence/gates/2b.2/2026-10-18T01-39-10.125468+00-00-pg.json
+- next: 2b.3: toggles in readiness and evidence
+- open: none
+
+## 2026-10-18T01:57:00.290331+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2b.3
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2b.3.json, harness/state/2/reviews/2b.3.json, harness/state/evidence/gates/2b.3/2026-10-18T01-52-38.393062+00-00-full.json, harness/state/evidence/gates/2b.3/2026-10-18T01-53-48.932832+00-00-e2e.json
+- next: 2c.1: IR contracts
+- open: none
+
+## 2026-10-18T02:29:24.296981+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.1
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.1.json, harness/state/2/reviews/2c.1-r2.json, harness/state/2/reviews/2c.1-r3.json, harness/state/2/reviews/2c.1.json, harness/state/evidence/gates/2c.1/2026-10-18T02-13-52.983035+00-00-full.json, harness/state/evidence/gates/2c.1/2026-10-18T02-15-03.886313+00-00-pg.json, harness/state/evidence/gates/2c.1/2026-10-18T02-27-44.597694+00-00-full.json, harness/state/evidence/gates/2c.1/2026-10-18T02-28-57.000702+00-00-pg.json
+- next: 2c.2: task definitions for the ERP pack
+- open: none
+
+## 2026-10-18T03:25:13.487253+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.2
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.2.json, harness/state/2/reviews/2c.2.json, harness/state/evidence/gates/2c.2/2026-10-18T03-02-34.102183+00-00-full.json, harness/state/evidence/gates/2c.2/2026-10-18T03-03-45.065087+00-00-pg.json
+- next: 2c.3: store support for plans and steps (first commit amends the plan for 2c.2 R-1..R-3)
+- open: none
+
+## 2026-10-18T03:25:27.903097+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.2
+- changed: no working-tree changes
+- next: test_task_capabilities_match_golden passes with a non-zero case count
+- open: none
+
+## 2026-10-18T04:01:26.506205+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.3
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.3.json, harness/state/2/reviews/2c.3.json, harness/state/evidence/gates/2c.3/2026-10-18T03-59-06.601052+00-00-full.json, harness/state/evidence/gates/2c.3/2026-10-18T04-00-20.898864+00-00-pg.json
+- next: 2c.4: IR compiler, validator and plan digest (validate_plan revalidates via plan_from_wire(plan_to_wire))
+- open: none
+
+## 2026-10-18T04:39:01.682807+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.4
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.4.json, harness/state/2/reviews/2c.4-r2.json, harness/state/2/reviews/2c.4-r3.json, harness/state/2/reviews/2c.4.json, harness/state/evidence/gates/2c.4/2026-10-18T04-36-30.687982+00-00-full.json, harness/state/evidence/gates/2c.4/2026-10-18T04-37-41.795230+00-00-pg.json
+- next: Codex batch review of 2c.2-2c.4 when available; 2c.5: shadow mode
+- open: none
+
+## 2026-10-18T05:17:15.346250+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.5
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.5.json, harness/state/2/reviews/2c.5-r2.json, harness/state/2/reviews/2c.5.json, harness/state/evidence/gates/2c.5/2026-10-18T04-59-24.888763+00-00-full.json, harness/state/evidence/gates/2c.5/2026-10-18T05-00-37.877039+00-00-pg.json, harness/state/evidence/gates/2c.5/2026-10-18T05-13-55.206058+00-00-full.json, harness/state/evidence/gates/2c.5/2026-10-18T05-15-08.867996+00-00-pg.json
+- next: Codex batch review of 2c.2-2c.5 (after 13:09), then 2c.6: on mode, single step
+- open: none
+
+## 2026-10-18T06:38:22.185957+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.5a
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.5a.json, harness/state/2/reviews/2c.5a-r2.json, harness/state/2/reviews/2c.5a.json, harness/state/evidence/gates/2c.5a/2026-10-18T06-34-09.801243+00-00-full.json, harness/state/evidence/gates/2c.5a/2026-10-18T06-35-20.108925+00-00-pg.json
+- next: 2c.6: on mode, single step (re-create its contract; replace the stale 2c.6.json)
+- open: none
+
+## 2026-10-18T07:28:25.091327+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.6
+- changed: harness/state/evidence/gates/2c.6/2026-10-18T07-18-25.934741+00-00-full.json, harness/state/evidence/gates/2c.6/2026-10-18T07-19-39.643994+00-00-pg.json, src/e_agent/kernel/continuation.py, src/e_agent/kernel/coordinator.py, src/e_agent/kernel/ir_on.py, tests/unit/kernel/test_execution_ir_on.py, tests/unit/kernel/test_recovery.py
+- next: test_on_tool_set_equals_task_definition, test_on_read_outside_task_definition_refused and test_driver_offers_only_allowed_tools pass
+- open: none
+
+## 2026-10-18T07:45:38.954436+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.6
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.6.json, harness/state/2/reviews/2c.6-r2.json, harness/state/2/reviews/2c.6.json, harness/state/evidence/gates/2c.6/2026-10-18T07-18-25.934741+00-00-full.json, harness/state/evidence/gates/2c.6/2026-10-18T07-19-39.643994+00-00-pg.json, harness/state/evidence/gates/2c.6/2026-10-18T07-34-29.292677+00-00-full.json, harness/state/evidence/gates/2c.6/2026-10-18T07-35-40.344858+00-00-pg.json
+- next: 2c.7: multi-step plans, approval and dispatch (first commit carries the 2c.6 parked items into the 2c.8 plan section)
+- open: none
+
+## 2026-10-18T08:15:56.484653+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.7
+- changed: harness/state/2/tasks/2c.7.json, pyproject.toml, src/e_agent/contracts/outcome.py, src/e_agent/contracts/run.py, src/e_agent/kernel/approval.py, src/e_agent/kernel/approval_flow.py, src/e_agent/kernel/continuation.py, src/e_agent/kernel/coordinator.py, src/e_agent/kernel/dispatch.py, src/e_agent/kernel/ir.py, src/e_agent/kernel/ir_on.py, src/e_agent/kernel/proposals.py, src/e_agent/kernel/run_loop.py, src/e_agent/kernel/transitions.py, src/e_agent/kernel/verification.py, src/e_agent/plugins/erp/domain/procurement/verifier.py, src/e_agent/sdk/__init__.py, src/e_agent/sdk/ports.py, tests/unit/kernel/conftest.py, tests/unit/kernel/test_action_plan_dispatch.py, tests/unit/plugins/erp/domain/test_procurement.py, tests/unit/sdk/test_ports.py
+- next: test_plan_approved_once_dispatches_steps_in_order passes with the VERIFYING to RUNNING pair added in this task
+- open: none
+
+## 2026-10-18T08:18:10.385319+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.7
+- changed: harness/state/2/tasks/2c.7.json, harness/state/progress.md, pyproject.toml, src/e_agent/contracts/outcome.py, src/e_agent/contracts/run.py, src/e_agent/kernel/approval.py, src/e_agent/kernel/approval_flow.py, src/e_agent/kernel/continuation.py, src/e_agent/kernel/coordinator.py, src/e_agent/kernel/dispatch.py, src/e_agent/kernel/ir.py, src/e_agent/kernel/ir_on.py, src/e_agent/kernel/plan_flow.py, src/e_agent/kernel/proposals.py, src/e_agent/kernel/run_loop.py, src/e_agent/kernel/transitions.py, src/e_agent/kernel/verification.py, src/e_agent/plugins/erp/domain/procurement/verifier.py, src/e_agent/plugins/erp/domain/testing/scripted_tasks.py, src/e_agent/sdk/__init__.py, src/e_agent/sdk/ports.py, src/e_agent/server/bootstrap.py, src/e_agent/server/cli.py, tests/unit/kernel/conftest.py, tests/unit/kernel/test_action_plan_dispatch.py, tests/unit/kernel/test_ir.py, tests/unit/plugins/erp/domain/test_procurement.py, tests/unit/sdk/test_ports.py
+- next: test_plan_approved_once_dispatches_steps_in_order passes with the VERIFYING to RUNNING pair added in this task
+- open: none
+
+## 2026-10-18T09:13:42.760916+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.7
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.7.json, harness/state/2/reviews/2c.7-r3.json, harness/state/evidence/gates/2c.7/2026-10-18T09-10-32.791057+00-00-full.json, harness/state/evidence/gates/2c.7/2026-10-18T09-11-43.001489+00-00-pg.json
+- next: 2c.8: plan failure semantics plus the parked items
+- open: none
+
+## 2026-10-18T10:29:12.808122+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.8
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.8.json, harness/state/evidence/gates/2c.8/2026-10-18T10-26-51.248903+00-00-full.json, harness/state/evidence/gates/2c.8/2026-10-18T10-28-02.777802+00-00-pg.json
+- next: 2c.8a: hygiene parked from 2c.2, 2c.6 and 2c.7
+- open: none
+
+## 2026-10-18T11:13:35.220785+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.8a
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.8a.json, harness/state/2/reviews/2c.8a-r2.json, harness/state/evidence/gates/2c.8a/2026-10-18T11-11-04.765222+00-00-full.json, harness/state/evidence/gates/2c.8a/2026-10-18T11-12-34.738830+00-00-pg.json
+- next: 2c.9: the pydantic-ai driver emits plans; prompt and replay recording
+- open: none
+
+## 2026-10-18T11:36:36.447680+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.9
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.9.json, harness/state/2/reviews/2c.9.json, harness/state/evidence/gates/2c.9/2026-10-18T11-34-17.432415+00-00-full.json, harness/state/evidence/gates/2c.9/2026-10-18T11-35-31.996103+00-00-pg.json
+- next: 2c.8b: Codex C-1 to C-3 fixes
+- open: none
+
+## 2026-10-18T12:25:42.067179+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.8b
+- changed: src/e_agent/kernel/approval_flow.py, src/e_agent/kernel/continuation.py, src/e_agent/kernel/coordinator.py, src/e_agent/kernel/dispatch.py, src/e_agent/kernel/plan_flow.py, src/e_agent/kernel/recovery.py, src/e_agent/kernel/verification.py, tests/unit/kernel/test_plan_durable_state.py
+- next: the Codex C-1, C-2 and C-3 reproductions are tests that pass
+- open: none
+
+## 2026-10-18T12:54:29.256423+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.8b
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.8b.json, harness/state/2/reviews/2c.8b-r2.json, harness/state/evidence/gates/2c.8b/2026-10-18T12-51-52.554041+00-00-full.json, harness/state/evidence/gates/2c.8b/2026-10-18T12-53-10.204600+00-00-pg.json
+- next: Codex final check of 2c.8b after 23:11; then 2d.1 phase verification
+- open: none
+
+## 2026-10-18T15:22:23.608900+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2c.8c
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2c.8c.json, harness/state/2/reviews/2c.8c-r2.json, harness/state/evidence/gates/2c.8c/2026-10-18T15-18-59.026589+00-00-full.json, harness/state/evidence/gates/2c.8c/2026-10-18T15-20-14.690500+00-00-pg.json
+- next: Codex final check of 2c.8b and 2c.8c after 23:11; then 2d.1
+- open: none
+
+## 2026-10-18T15:24:52.681907+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2d.1
+- changed: README.md, docs/adr/0025-execution-ir.md, docs/design/target-architecture.md, docs/roadmap.md, harness/context.toml
+- next: full gate, Postgres run and make e2e pass on a clean tree
+- open: none
+
+## 2026-10-18T16:18:17.000555+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2d.1
+- changed: docs/handoffs/2026-10-18-phase2-execution-ir.md, harness/state/2/features.json, harness/state/2/handoffs/2d.1.json, harness/state/2/reviews/2d.1-codex-final.json, harness/state/evidence/gates/2d.1/2026-10-18T15-32-03.258128+00-00-full.json, harness/state/evidence/gates/2d.1/2026-10-18T15-33-22.012579+00-00-pg.json, harness/state/evidence/gates/2d.1/2026-10-18T15-36-01.274698+00-00-e2e.json, harness/state/evidence/gates/2d.1/2026-10-18T15-37-23.573787+00-00-core.json
+- next: Phase 2 closed locally; owner items: re-pin, live check 2d.2, branch protection, merge PR #6
+- open: none
+
+## 2026-10-19T00:11:41.620120+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2d.2
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2d.2.json, harness/state/evidence/gates/2d.2/2026-10-19T00-11-22.739575+00-00-live.json
+- next: merge PR #6 after update with main and CI
+- open: none
+
+## 2026-10-19T00:14:25.094771+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2d.2
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2d.2.json, harness/state/evidence/gates/2d.2/2026-10-19T00-14-14.458871+00-00-live.json
+- next: merge PR #6 once CI is green
+- open: none
+
+## 2026-10-19T00:22:55.161729+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2d.2
+- changed: harness/state/2/features.json, harness/state/2/handoffs/2d.2.json, harness/state/evidence/gates/2d.2/2026-10-19T00-22-45.359971+00-00-live.json
+- next: merge PR #6 on the owner's ok once CI is green
+- open: none

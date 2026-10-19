@@ -1,0 +1,31 @@
+{
+  "id": "2a.2",
+  "phase": "2",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-2a-2"
+  ],
+  "context_digest": "2b11667f2afe47d4391685c21f77f4a482456c213044bf2194aae7f59431f02f",
+  "allowed_paths": [
+    "docs/adr/0024-plan-approval-model.md",
+    "docs/adr/0025-execution-ir.md",
+    "docs/adr/0027-feature-toggles.md",
+    "docs/adr/0028-task-definitions.md",
+    "docs/adr/0029-capability-effect-declarations.md",
+    "docs/adr/README.md",
+    "docs/design/target-architecture.md",
+    "docs/plans/2026-10-14-phase2-execution-ir.md",
+    "docs/roadmap.md",
+    "harness/state/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "each ADR status reads Accepted with a date in the ADR and the index",
+    "2b starts only after 0027 is accepted; 2c only after 0024, 0025, 0028 and 0029",
+    "full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "056806b95d10d70899deb71d4691bcc37e6b4694",
+  "created_at": "2026-10-18T00:49:43+00:00",
+  "features_digest": "c2c4662b698e50e828b6b020f2d4b3c3dae4380ad03d35b060ccb045c1d212d3"
+}

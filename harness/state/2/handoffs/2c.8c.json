@@ -1,0 +1,34 @@
+{
+  "task": "2c.8c",
+  "changed": "Refused driver steps fail closed and never strand a run; phase review P-1, P-3 and P-5.\n- Reads: the gateway returns a fixed refusal to the driver before any provider call, in off and on. The codes are CONNECTION_NOT_AVAILABLE, READ_NOT_PERMITTED, UNKNOWN_CAPABILITY and NOT_A_READ_CAPABILITY. No message names a role, credential, subject or policy detail, and a policy refusal never reaches the provider. A driver that keeps asking ends FAILED BUDGET_EXHAUSTED.\n- Answers and proposals: an answer on an unusable connection is the KERNEL-CONNECTION repair finding. An answer with no verifier ends FAILED VERIFICATION_FAILED with KERNEL-VERIFIER. A proposal of an unknown kind is the KERNEL-PROPOSAL-KIND repair finding. The worker path no longer classifies these as INTERRUPTED.\n- P-3: before every plan step reserves, the plan digest is recomputed from the step inputs and compared with approval.action_digest. A mismatch, or a multi-step action without its plan state, blocks the step and fails the run STALE with KERNEL-PLAN-DIGEST-MISMATCH. A 1-step on plan passes.\n- P-5: the resume comments follow the ADR 0025 amendment.\n- Kernel reads (verifier, revalidation) keep their codes and messages; the recorded exception class on those failure paths is now ReadRefused.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2c.8c/2026-10-18T15-18-59.026589+00-00-full.json",
+    "harness/state/evidence/gates/2c.8c/2026-10-18T15-20-14.690500+00-00-pg.json"
+  ],
+  "open_items": [
+    "Review R-1 (pre-existing, provider-caused): a provider read returning a mismatched observation raises FORBIDDEN out of _driver_read. The run is left until recovery, or ends INTERRUPTED in the worker. A follow-up for a later phase.",
+    "The worker-path test covers the connection read and the answer; the other refusal causes rely on the kernel liveness test (same _drive path).",
+    "P-3 adds one get_plan read per plan step dispatch (on only).",
+    "Codex final check of 2c.8b and 2c.8c after the usage limit resets (23:11)."
+  ],
+  "rulings": [
+    {
+      "ruling": "Phase review P-1, P-3 and P-5, and the other stranding read and proposal causes, were folded into 2c.8c so that Codex reviews one complete fix.",
+      "cost_if_wrong": "None."
+    },
+    {
+      "ruling": "A refused read is a fixed refusal to the driver (the model may recover within its budget), not an immediate run failure.",
+      "cost_if_wrong": "Extra turns before BUDGET_EXHAUSTED."
+    },
+    {
+      "ruling": "The change of the recorded exception class name on the kernel-read failure path is accepted.",
+      "cost_if_wrong": "A consumer matching the class name; none exists."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "gate pg and the Postgres suites ran against e_agent_test in e-agent-ledger.",
+      "undo": "None needed."
+    }
+  ]
+}

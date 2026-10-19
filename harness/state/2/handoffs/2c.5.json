@@ -1,0 +1,42 @@
+{
+  "task": "2c.5",
+  "changed": "Off goldens (notes and ERP) record each event's payload key set, recorded before any change and byte-identical after. Shadow mode: start_run/admit_run take an optional task_kind (the CLI passes its preset kind; API runs pass none); a resolved shadow run records task_id/task_version; an unresolved one records ir.shadow_failed IR_TASK_UNRESOLVED once in the creating batch. After today's validation of a write proposal, a resolved run compiles a 1-step plan, validates it, digests it and records ir.plan_compiled (plan id, digest, step count, definition id/version, digest_matches) with step records in one put_plan batch; compile/validate failures record ir.shadow_failed with a fixed stage message in the wait_for_approval batch. The Coordinator refuses execution_ir=on until 2c.6.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/2c.5/2026-10-18T05-13-55.206058+00-00-full.json",
+    "harness/state/evidence/gates/2c.5/2026-10-18T05-15-08.867996+00-00-pg.json"
+  ],
+  "open_items": [
+    "2c.6 removes the Coordinator's refusal of execution_ir=on.",
+    "Optional (review R-5): a test that an idempotent replay writes no second unresolved event; docstring that the gone-definition branch applies per proposal.",
+    "Codex batch review of 2c.2-2c.5 before 2c.6 dispatches.",
+    "Postgres shadow and store tests: 79 passed on 423db64, run by the controller outside the gate (HP-6); replay suite 10 passed."
+  ],
+  "rulings": [
+    {
+      "ruling": "An unresolved shadow run records IR_TASK_UNRESOLVED once at admission (fixes the code to match ADRs 0027/0028).",
+      "cost_if_wrong": "One more event at admission."
+    },
+    {
+      "ruling": "Compile/validate shadow runs only on validated write proposals of a resolved run; answers have no approval digest to compare.",
+      "cost_if_wrong": "Answer-run comparison added with 2c.6 acceptance."
+    },
+    {
+      "ruling": "Shadow IR-stage errors become ir.shadow_failed; store errors propagate.",
+      "cost_if_wrong": "A shadow store failure fails a run off would finish."
+    },
+    {
+      "ruling": "execution_ir=on is refused at Coordinator construction until 2c.6 (every selectable mode must be complete).",
+      "cost_if_wrong": "A profile selecting on fails at startup for one task."
+    },
+    {
+      "ruling": "Codex hit its usage limit; a Claude reviewer (opus, fresh context) reviewed instead, with a Codex batch pass queued.",
+      "cost_if_wrong": "Rework before 2c.6."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "pg gate and Postgres tests ran against e_agent_test in e-agent-ledger.",
+      "undo": "None needed."
+    }
+  ]
+}

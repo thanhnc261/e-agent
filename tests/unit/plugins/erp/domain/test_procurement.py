@@ -279,3 +279,25 @@ async def test_verifier_rejects_inexact_readback(field: str, value: object) -> N
     report = await DraftPurchaseOrderVerifier().verify(CTX, _action(), receipt, reader)
     assert report.status is OutcomeStatus.FAILED
     assert not next(c for c in report.checks if c.name == field).passed
+
+
+@pytest.mark.asyncio
+async def test_verifier_reports_the_read_back_values_not_the_arguments() -> None:
+    """Lineage copies from the verified outcome (ADR 0025): the verifier reports the one
+    read-back order as its values, and none when the read-back found no single order."""
+    erp = FakeErp(SCENARIOS["valid"])
+    receipt = await erp.execute(CTX, None, _action(), 1)  # type: ignore[arg-type]
+    erp.orders["op_1"].external_ref = "PO/READ-BACK/0001"  # the provider's state, not args
+    report = await DraftPurchaseOrderVerifier().verify(
+        CTX, _action(), _receipt(("PO/READ-BACK/0001",)), _Reader(erp)
+    )
+    assert report.status is OutcomeStatus.VERIFIED
+    assert report.verified_values is not None
+    assert report.verified_values["external_ref"] == "PO/READ-BACK/0001"
+    assert report.verified_values["requested_date"] == "2026-10-20"
+    assert report.verified_values["operation_key"] == "op_1"
+    assert receipt.external_refs != ("PO/READ-BACK/0001",)
+    missing = await DraftPurchaseOrderVerifier().verify(
+        CTX, _action(op="op_2"), receipt, _Reader(erp)
+    )
+    assert missing.status is OutcomeStatus.FAILED and missing.verified_values is None

@@ -1,0 +1,31 @@
+{
+  "task": "2c.8",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R2-1",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "A host error on a resume claim before the next step's action exists re-enqueues under the same dedup key while the claimed row exists; finish_work marks it DONE and the run is stranded RUNNING with no pending work",
+      "evidence": "src/e_agent/server/worker.py:144-148; src/e_agent/kernel/recovery.py:158,231; src/e_agent/kernel/plan_flow.py:396-399; migrations/0003_run_work.sql:14"
+    },
+    {
+      "id": "R2-2",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "Removing the resume dedup survives the suite; the 'one item' test relies on has_pending_work; a racing second recovery test is missing",
+      "evidence": "src/e_agent/kernel/plan_flow.py:398; tests/unit/kernel/test_recovery.py:573-580"
+    },
+    {
+      "id": "R2-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "No recorded Postgres run at 40ba1a7 of test_migrations and the resume-kind conformance test; gate pg covers tests/unit/kernel only",
+      "evidence": "harness/state/evidence/gates/2c.8/2026-10-18T10-07-34.384177+00-00-pg.json"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

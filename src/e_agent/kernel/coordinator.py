@@ -15,6 +15,7 @@ from typing import Any
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.context import Budgets, HostContext, Principal, TaskContext
 from e_agent.contracts.events import RunEventType
+from e_agent.contracts.features import Features
 from e_agent.contracts.run import (
     RunRecord,
     RunState,
@@ -36,8 +37,10 @@ from .continuation import _Continuation as _Continuation
 from .continuation import _GatewayReader as _GatewayReader
 from .dispatch import DispatchMixin
 from .errors import ErrorCode, KernelError
+from .features import FeaturesMixin
 from .gateway import GatewayMixin
-from .proposals import ProposalsMixin
+from .ir_on import merged_budgets
+from .plan_flow import PlanFlowMixin
 from .recovery import RecoveryMixin
 from .registry import PluginRegistry
 from .run_loop import RunLoopMixin
@@ -51,11 +54,12 @@ class RunCoordinator(
     TransitionsMixin,
     RunLoopMixin,
     GatewayMixin,
-    ProposalsMixin,
+    PlanFlowMixin,
     ApprovalFlowMixin,
     DispatchMixin,
     VerificationMixin,
     RecoveryMixin,
+    FeaturesMixin,
 ):
     def __init__(
         self,
@@ -70,6 +74,7 @@ class RunCoordinator(
         allow_self_approval: bool = False,
         budgets: Budgets | None = None,
         credentials: CredentialVersionProvider | None = None,
+        features: Features | None = None,
     ) -> None:
         self._store = store
         self._registry = registry
@@ -81,6 +86,7 @@ class RunCoordinator(
         self._approval_ttl = approval_ttl
         self._allow_self_approval = allow_self_approval
         self._budgets = budgets or Budgets()
+        self._features = features or Features()  # profile toggles (ADR 0027)
         self._runs: dict[str, _Continuation] = {}
         self._active_calls: dict[str, asyncio.Task[Any]] = {}
 
@@ -93,15 +99,9 @@ class RunCoordinator(
         *,
         run_id: str | None = None,
         host_context: HostContext | None = None,
+        task_kind: str | None = None,
     ) -> tuple[RunRecord, _Continuation, list[EventSpec]]:
         run_id = run_id or new_id("run")
-        ctx = TaskContext(
-            run_id=run_id,
-            tenant_id=principal.tenant_id,
-            principal=principal,
-            resource_scope=resource_scope,
-            budgets=self._budgets,
-        )
         run = RunRecord(
             run_id=run_id,
             tenant_id=principal.tenant_id,
@@ -111,6 +111,19 @@ class RunCoordinator(
             revision=1,
             logical_operation_id=new_id("op"),  # host-assigned; survives repairs
             created_at=self._clock(),
+        )
+        run, admitted = self._admit_task(run, task_kind)  # execution IR (ADR 0027, ADR 0028)
+        # `on` only: the admitted definition narrows the budgets (D7) and is snapshotted into
+        # the continuation, which the run uses for its whole life (Codex C-1).
+        definition = self._run_task(run) if self._ir_on else None
+        ctx = TaskContext(
+            run_id=run_id,
+            tenant_id=principal.tenant_id,
+            principal=principal,
+            resource_scope=resource_scope,
+            budgets=self._budgets
+            if definition is None
+            else merged_budgets(self._budgets, definition),
         )
         created: dict[str, Any] = {"task": task, "driver": self._driver.driver_id}
         if host_context is not None:
@@ -123,8 +136,10 @@ class RunCoordinator(
                 "resolved_hints": [h.model_dump() for h in resolved],
                 "dropped_hints": dropped,
             }
-        cont = _Continuation(ctx=ctx, surface_digest=self._registry.surface_digest())
-        return run, cont, [(RunEventType.RUN_CREATED, created, None)]
+        cont = _Continuation(
+            ctx=ctx, surface_digest=self._registry.surface_digest(), task=definition
+        )
+        return run, cont, [(RunEventType.RUN_CREATED, created, None), *admitted]
 
     async def start_run(
         self,
@@ -134,9 +149,17 @@ class RunCoordinator(
         *,
         run_id: str | None = None,
         host_context: HostContext | None = None,
+        task_kind: str | None = None,
     ) -> RunRecord:
+        """``task_kind`` names the run's task definition (D8, ADR 0028); in Phase 2 only the
+        CLI passes it. ``off`` ignores it, and the run record is today's."""
         run, cont, events = self._prepare_run(
-            principal, task, resource_scope, run_id=run_id, host_context=host_context
+            principal,
+            task,
+            resource_scope,
+            run_id=run_id,
+            host_context=host_context,
+            task_kind=task_kind,
         )
         await self._store.create_run(run, events)
         self._runs[run.run_id] = cont
@@ -153,9 +176,16 @@ class RunCoordinator(
         idempotency_key: str,
         request_digest: str,
         host_context: HostContext | None = None,
+        task_kind: str | None = None,
     ) -> tuple[str, bool]:
+        """``task_kind`` as in `start_run`; the API passes none in Phase 2 (D8)."""
         run, cont, events = self._prepare_run(
-            principal, task, resource_scope, run_id=run_id, host_context=host_context
+            principal,
+            task,
+            resource_scope,
+            run_id=run_id,
+            host_context=host_context,
+            task_kind=task_kind,
         )
         claimed, previous_digest = await self._store.create_run_idempotent(
             run,

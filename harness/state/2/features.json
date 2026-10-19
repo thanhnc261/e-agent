@@ -3,50 +3,41 @@
   "entries": [
     {
       "id": "F-2a-1",
-      "category": "design",
-      "description": "Task 2a.1: target-architecture Execution IR section and threat-model entries T20, T21",
+      "category": "adr",
+      "description": "Task 2a.1: reconcile ADRs 0024, 0025, 0027-0029 and target 6.4 with the plan and the checkout",
       "steps": [
-        "the section settles task definition, action plan, lineage placeholders, plan digest, serial dispatch, partial failure, step record and toggle semantics",
-        "threat model lists T20 and T21 with mitigations",
-        "uv run python scripts/repo_move.py check reports no broken links",
-        "full gate passes"
+        "every ADR contract shape matches Tasks 2b.1-2c.9, or the plan or ADR is amended in the same commit",
+        "ADR 0028 records the DriverInput.allowed_capabilities mechanism; lineage is LineageRef(step_id, path) with one rule",
+        "stale code references in ADRs 0027, 0028 and 0029 fixed",
+        "uv run python scripts/repo_move.py check reports no broken links; full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2a.1/2026-10-18T00-46-02.697690+00-00-full.json"
     },
     {
       "id": "F-2a-2",
       "category": "adr",
-      "description": "Task 2a.2: ADR 0027 feature toggles",
+      "description": "Task 2a.2: owner accepts ADRs 0024, 0025, 0027, 0028, 0029 and target 6.4 (gate G1)",
       "steps": [
-        "docs/adr/0027-feature-toggles.md exists with status Proposed and an index row",
-        "full gate passes",
-        "owner accepts ADR 0027 before 2b starts"
+        "each ADR status reads Accepted with a date in the ADR and the index",
+        "2b starts only after 0027 is accepted; 2c only after 0024, 0025, 0028 and 0029",
+        "full gate passes"
       ],
-      "passes": false
-    },
-    {
-      "id": "F-2a-3",
-      "category": "adr",
-      "description": "Task 2a.3: ADRs 0024 plan approval, 0025 execution IR, 0028 task definitions, and plan amendment",
-      "steps": [
-        "the three ADRs exist with index rows",
-        "the plan is amended in the same commit where an ADR shape differs from Tasks 2c.1-2c.9",
-        "full gate passes",
-        "owner accepts ADRs 0024, 0025 and 0028 before 2c starts"
-      ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2a.2/2026-10-18T00-53-39.124227+00-00-full.json"
     },
     {
       "id": "F-2b-1",
       "category": "contracts",
       "description": "Task 2b.1: Profile.features with off/shadow/on, default off, and the off-mode golden baseline",
       "steps": [
-        "off_mode_events.json baseline committed before any other change",
+        "off_mode_events.json baseline committed before any other change, with deterministic ids, and test_off_baseline_fails_on_empty_golden passes",
         "test_profile_features_default_off and test_profile_rejects_unknown_feature pass",
-        "test_committed_profiles.py passes",
+        "test_committed_profiles_keep_execution_ir_off covers all three committed profiles",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2b.1/2026-10-18T01-16-11.363888+00-00-full.json"
     },
     {
       "id": "F-2b-2",
@@ -57,7 +48,8 @@
         "ui-core feature-events test passes",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2b.2/2026-10-18T01-37-59.895662+00-00-full.json"
     },
     {
       "id": "F-2b-3",
@@ -68,7 +60,8 @@
         "export_openapi.py --check and pnpm --dir ui gen:check report no drift",
         "full gate and make e2e pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2b.3/2026-10-18T01-52-38.393062+00-00-full.json"
     },
     {
       "id": "F-2c-1",
@@ -79,19 +72,21 @@
         "uv run lint-imports keeps every contract",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.1/2026-10-18T02-27-44.597694+00-00-full.json"
     },
     {
       "id": "F-2c-2",
       "category": "erp",
       "description": "Task 2c.2: task definitions for the eight ERP tasks, admitted by the registry",
       "steps": [
-        "test_task_capabilities_equal_current_tool_lists passes",
-        "registry refuses unadmitted capabilities and duplicate task ids",
-        "notes-domain task definition admitted",
-        "check_wheels.py passes; full gate passes"
+        "test_task_capabilities_match_golden passes with a non-zero case count",
+        "registry refuses unadmitted capabilities, duplicate task ids and widening budgets; assistant definition is read-only",
+        "notes-domain task definition admitted; a pack without task definitions still loads",
+        "check_wheels.py and check_core_only.py pass; full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.2/2026-10-18T03-02-34.102183+00-00-full.json"
     },
     {
       "id": "F-2c-3",
@@ -102,7 +97,8 @@
         "the same pass with E_AGENT_TEST_STORE=postgres",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.3/2026-10-18T03-59-06.601052+00-00-full.json"
     },
     {
       "id": "F-2c-4",
@@ -114,7 +110,8 @@
         "validation is pure",
         "full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.4/2026-10-18T04-36-30.687982+00-00-full.json"
     },
     {
       "id": "F-2c-5",
@@ -125,31 +122,34 @@
         "test_off_mode_event_stream_matches_baseline passes",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.5/2026-10-18T05-13-55.206058+00-00-full.json"
     },
     {
       "id": "F-2c-6",
       "category": "kernel",
       "description": "Task 2c.6: execution_ir on with single-step plans, tool set from the task definition, fallback before reservation",
       "steps": [
-        "test_on_tool_set_equals_task_definition passes",
-        "fallback tests record feature.fallback with reason codes",
-        "test_model_cannot_mark_plan_verified passes",
+        "test_on_tool_set_equals_task_definition, test_on_read_outside_task_definition_refused and test_driver_offers_only_allowed_tools pass",
+        "fallback tests record feature.fallback with reason codes; ACCEPTANCE_UNMET fails the run",
+        "test_model_cannot_mark_plan_verified passes; replay suite and prompt golden pass",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.6/2026-10-18T07-34-29.292677+00-00-full.json"
     },
     {
       "id": "F-2c-7",
       "category": "kernel",
       "description": "Task 2c.7: multi-step plans approved once and dispatched serially with per-step verification and the live guard",
       "steps": [
-        "test_plan_approved_once_dispatches_steps_in_order passes",
+        "test_plan_approved_once_dispatches_steps_in_order passes with the VERIFYING to RUNNING pair added in this task",
         "test_live_profile_refuses_multi_write_budget passes",
         "ERP and notes two-step scenarios pass",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.7/2026-10-18T09-10-32.791057+00-00-full.json"
     },
     {
       "id": "F-2c-8",
@@ -157,11 +157,12 @@
       "description": "Task 2c.8: plan partial failure, reconciliation and evidence sections",
       "steps": [
         "test_no_fallback_after_first_reservation passes",
-        "test_unknown_step_blocks_remaining_steps and test_lineage_value_outside_bound_rule_stops_plan pass",
+        "test_unknown_step_blocks_remaining_steps and test_lineage_value_outside_verified_outcome_stops_plan pass",
         "recovery does not replay committed steps",
         "full and pg gates pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.8/2026-10-18T10-26-51.248903+00-00-full.json"
     },
     {
       "id": "F-2c-9",
@@ -171,9 +172,10 @@
         "FunctionModel plan output becomes ProposePlan",
         "off-mode driver outputs unchanged",
         "model-chosen connections rejected",
-        "full gate passes"
+        "replay suite replays the new plan recording; prompt golden passes; full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.9/2026-10-18T11-34-17.432415+00-00-full.json"
     },
     {
       "id": "F-2d-1",
@@ -184,7 +186,8 @@
         "phase review findings closed",
         "handoff validates with e-agent-harness handoff"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2d.1/2026-10-18T15-32-03.258128+00-00-full.json"
     },
     {
       "id": "F-2d-2",
@@ -194,7 +197,56 @@
         "draft-po with off, shadow and on and a read-only task with on behave as the plan's Live check says",
         "results recorded in the handoff, labelled live"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2d.2/2026-10-19T00-22-45.359971+00-00-live.json"
+    },
+    {
+      "id": "F-2c-5a",
+      "category": "kernel",
+      "description": "Codex batch review fixes: the plan wire form keeps the digest profile, and draft-po acceptance needs a verified zero-shortage answer.",
+      "steps": [
+        "test_plan_to_wire_refuses_a_bytes_lineage_key and the put_plan profile conformance case pass on both stores",
+        "test_draft_po_acceptance_answer_is_zero_shortage and test_answer_condition_reads_the_verifier_check_not_model_arguments pass",
+        "full and pg gates pass; off goldens unchanged"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.5a/2026-10-18T06-34-09.801243+00-00-full.json"
+    },
+    {
+      "id": "F-2c-8a",
+      "category": "kernel",
+      "description": "Task 2c.8a: hygiene parked from 2c.2, 2c.6 and 2c.7 (defaulted declarations in readiness and evidence, step rows, acceptance transitions, snapshot fail-fast)",
+      "steps": [
+        "test_readiness_and_evidence_list_defaulted_declarations passes",
+        "test_every_stage_writes_a_step_row and test_bound_run_without_snapshot_fails_fast pass",
+        "full and pg gates pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.8a/2026-10-18T11-11-04.765222+00-00-full.json"
+    },
+    {
+      "id": "F-2c-8b",
+      "category": "kernel",
+      "description": "Task 2c.8b: Codex re-check fixes: call-scoped plan authority, durable step state, argument integrity before reservation",
+      "steps": [
+        "the Codex C-1, C-2 and C-3 reproductions are tests that pass",
+        "each new guard is killed by its mutant",
+        "full and pg gates pass; Codex accepts"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.8b/2026-10-18T12-51-52.554041+00-00-full.json"
+    },
+    {
+      "id": "F-2c-8c",
+      "category": "kernel",
+      "description": "Task 2c.8c: reads and answers on an unusable connection fail closed and never strand the run",
+      "steps": [
+        "test_read_on_unusable_connection_fails_closed and test_answer_on_unusable_connection_fails_closed pass in off and on",
+        "test_no_run_left_non_terminal_after_a_forbidden_read passes",
+        "full and pg gates pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2c.8c/2026-10-18T15-18-59.026589+00-00-full.json"
     }
   ]
 }

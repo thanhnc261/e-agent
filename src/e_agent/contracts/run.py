@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Self
+
+from pydantic import model_validator
 
 from .common import Record, UtcDatetime
 
@@ -39,6 +42,16 @@ class ReasonCode(StrEnum):
     BUDGET_EXHAUSTED = "budget_exhausted"
     INTERRUPTED = "interrupted"
     CANCELLED = "cancelled"
+    ACCEPTANCE_UNMET = "acceptance_unmet"
+    """The run ended without meeting its task definition's acceptance spec (ADR 0028)."""
+    PLAN_LINEAGE_REJECTED = "plan_lineage_rejected"
+    """A plan step's lineage placeholder had no value of its declared type in the earlier
+    step's verified read-back, so the plan stopped before that step reserved (ADR 0025)."""
+    # Fallback codes (ADR 0025, ADR 0027): carried only by `feature.fallback` and, for an
+    # unresolved task, by `ir.shadow_failed`. They never end a run.
+    IR_TASK_UNRESOLVED = "ir_task_unresolved"
+    IR_COMPILE_FAILED = "ir_compile_failed"
+    IR_VALIDATION_FAILED = "ir_validation_failed"
 
 
 TERMINAL_RUN_STATES = frozenset({RunState.SUCCEEDED, RunState.FAILED, RunState.CANCELLED})
@@ -46,8 +59,8 @@ TERMINAL_RUN_STATES = frozenset({RunState.SUCCEEDED, RunState.FAILED, RunState.C
 # Allowed run transitions (ADR 0018). Self-transitions carry a new reason or repair;
 # terminal states are final. Every pair was observed in the kernel, server and conformance
 # suites or is tied to a coordinator call site or crash-recovery rule (MVP design §9) named in
-# its comment. Two pairs are marked "defensive": no current call site reaches them, and they
-# are kept for the recovery rule that marks an effect UNKNOWN regardless of run state. Other
+# its comment. One pair is marked "defensive": no current call site reaches it, and it is
+# kept for the recovery rule that marks an effect UNKNOWN regardless of run state. Other
 # pairs no code path reaches are deliberately absent.
 ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
     RunState.CREATED: frozenset(
@@ -61,12 +74,12 @@ ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
         {
             RunState.WAITING_INPUT,
             RunState.WAITING_APPROVAL,  # approval checkpoint
-            # defensive: no current call site; kept for the recovery rule that marks an effect
-            # UNKNOWN regardless of run state
+            # plan (ADR 0025): a later plan step's receipt is UNKNOWN; the remaining steps wait
             RunState.NEEDS_RECONCILIATION,
             RunState.SUCCEEDED,  # verified structured answer
             RunState.FAILED,
             RunState.CANCELLED,
+            RunState.VERIFYING,  # plan only (ADR 0025): a later plan step committed
         }
     ),
     RunState.WAITING_INPUT: frozenset(
@@ -97,6 +110,7 @@ ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
             # UNKNOWN regardless of run state
             RunState.NEEDS_RECONCILIATION,
             RunState.CANCELLED,  # cancel() while verifying with no unresolved dispatch
+            RunState.RUNNING,  # plan only (ADR 0025): a step verified and steps remain
         }
     ),
     RunState.NEEDS_RECONCILIATION: frozenset(
@@ -113,6 +127,13 @@ ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
 }
 
 
+PLAN_STEP_RUN_TRANSITIONS = frozenset(
+    {(RunState.VERIFYING, RunState.RUNNING), (RunState.RUNNING, RunState.VERIFYING)}
+)
+"""The two pairs ADR 0025 adds to the table. They are legal only between the steps of a
+multi-step plan: the kernel refuses them for any other run (`kernel/transitions.py`)."""
+
+
 class RunRecord(Record):
     run_id: str
     tenant_id: str
@@ -124,3 +145,12 @@ class RunRecord(Record):
     created_at: UtcDatetime
     reason: str | None = None
     reason_code: ReasonCode | None = None
+    task_id: str | None = None
+    """The task definition the run resolved (ADR 0028, C11); null for free-text runs."""
+    task_version: str | None = None
+
+    @model_validator(mode="after")
+    def _check_task_link(self) -> Self:
+        if (self.task_id is None) != (self.task_version is None):
+            raise ValueError("task_id and task_version are set together or not at all")
+        return self

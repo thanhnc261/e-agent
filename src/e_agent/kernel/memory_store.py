@@ -1,15 +1,15 @@
 """In-memory RunStore for tests and the fixture walking skeleton.
 
-It implements the same atomicity contract as the PostgreSQL adapter (I05):
-each method applies its state change and events together or not at all.
-Not durable; never use it for live runs.
+It implements the same atomicity contract as the PostgreSQL adapter (I05): each method
+applies its state change and events together or not at all, and an action is stored and
+returned as a copy, never a caller's reference (Codex C-3). Not durable; never for live runs.
 """
 
 from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from datetime import timedelta
@@ -20,14 +20,16 @@ from e_agent.contracts.approval import ApprovalRecord
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.events import RunEvent
 from e_agent.contracts.outcome import OutcomeReport
+from e_agent.contracts.plan import ActionPlan, plan_from_wire, plan_to_wire
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord
+from e_agent.contracts.step import StepRecord
 from e_agent.contracts.work import WorkClaim
 from e_agent.sdk.store import (
     ConcurrencyConflict,
     ConnectionBusy,
     DuplicateOperation,
-    EventSpec,
+    EventBatch,
     NotFound,
     current_actor,
 )
@@ -47,20 +49,37 @@ class InMemoryRunStore:
         self._approvals: dict[tuple[str, str], list[ApprovalRecord]] = defaultdict(list)
         self._receipts: dict[tuple[str, str], list[ExecutionReceipt]] = defaultdict(list)
         self._outcomes: dict[tuple[str, str], list[OutcomeReport]] = defaultdict(list)
-        self._continuations: dict[
-            tuple[str, str], tuple[dict[str, Any], dict[str, Any] | None]
-        ] = {}
+        self._continuations: dict[tuple[str, str], _Stored] = {}
         self._writer_locks: dict[tuple[str, str], asyncio.Lock] = defaultdict(asyncio.Lock)
         self._work: dict[str, dict[str, Any]] = {}
         self._work_claim: ContextVar[WorkClaim | None] = ContextVar(
             "memory_work_claim", default=None
         )
         self._idempotency: dict[tuple[str, str, str], tuple[str, str]] = {}
+        # (tenant, plan_id) -> (run_id, wire form): kept as Postgres keeps it, read back validated.
+        self._plans: dict[tuple[str, str], tuple[str, dict[str, Any]]] = {}
+        self._steps: dict[tuple[str, str], list[StepRecord]] = defaultdict(list)
 
     # -- helpers (caller holds the lock) --------------------------------------
-    def _append(self, tenant_id: str, run_id: str, events: Sequence[EventSpec]) -> None:
+    def _begin(self, tenant_id: str, run_id: str, events: EventBatch) -> None:
+        """The pure checks a fenced write runs before its first mutation."""
+        self._fence()
+        self._check_steps(tenant_id, run_id, events)
+
+    def _check_steps(self, tenant_id: str, run_id: str, events: EventBatch) -> None:
+        """Steps must be this run's, strictly increasing; a refused one leaves nothing."""
+        last = max((s.sequence for s in self._steps.get((tenant_id, run_id), ())), default=-1)
+        for step in (item for item in events if isinstance(item, StepRecord)):
+            if (step.tenant_id, step.run_id) != (tenant_id, run_id):
+                raise ValueError(f"step {step.step_id} does not belong to run {run_id}")
+            if step.sequence <= last:
+                raise ConcurrencyConflict(f"step sequence {step.sequence} is not after {last}")
+            last = step.sequence
+
+    def _append(self, tenant_id: str, run_id: str, events: EventBatch) -> None:
         log = self._events[(tenant_id, run_id)]
-        for event_type, payload, action_id in events:
+        self._steps[(tenant_id, run_id)].extend(e for e in events if isinstance(e, StepRecord))
+        for event_type, payload, action_id in (e for e in events if not isinstance(e, StepRecord)):
             log.append(
                 RunEvent(
                     event_id=new_id("evt"),
@@ -84,11 +103,14 @@ class InMemoryRunStore:
             raise ConcurrencyConflict(f"action {action.action_id} changed")
         if action.revision != (0 if expected is None else expected) + 1:
             raise ConcurrencyConflict("new revision must be expected + 1")
+        plan = self._plans.get((action.tenant_id, action.plan_id or ""))
+        if action.plan_id is not None and (plan is None or plan[0] != action.run_id):
+            raise ValueError(f"action {action.action_id}: no plan {action.plan_id} in its run")
 
     # -- runs ---------------------------------------------------------------
-    async def create_run(self, run: RunRecord, events: Sequence[EventSpec]) -> None:
+    async def create_run(self, run: RunRecord, events: EventBatch) -> None:
         async with self._lock:
-            self._fence()
+            self._begin(run.tenant_id, run.run_id, events)
             key = (run.tenant_id, run.run_id)
             if key in self._runs:
                 raise ConcurrencyConflict(f"run {run.run_id} exists")
@@ -98,7 +120,7 @@ class InMemoryRunStore:
     async def create_run_idempotent(
         self,
         run: RunRecord,
-        events: Sequence[EventSpec],
+        events: EventBatch,
         state: Mapping[str, Any],
         actor_id: str,
         key: str,
@@ -111,6 +133,7 @@ class InMemoryRunStore:
             run_key = (run.tenant_id, run.run_id)
             if run_key in self._runs:
                 raise ConcurrencyConflict("run already exists")
+            self._check_steps(run.tenant_id, run.run_id, events)
             self._runs[run_key] = run
             self._continuations[run_key] = (dict(state), None)
             self._append(run.tenant_id, run.run_id, events)
@@ -140,13 +163,13 @@ class InMemoryRunStore:
         self,
         run: RunRecord,
         expected_revision: int,
-        events: Sequence[EventSpec],
+        events: EventBatch,
         *,
         continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None] | None = None,
         work: tuple[str, Mapping[str, Any], str] | None = None,
     ) -> RunRecord:
         async with self._lock:
-            self._fence()
+            self._begin(run.tenant_id, run.run_id, events)
             key = (run.tenant_id, run.run_id)
             current = self._runs.get(key)
             if current is None or current.revision != expected_revision:
@@ -168,12 +191,12 @@ class InMemoryRunStore:
 
     # -- actions --------------------------------------------------------------
     async def put_action(
-        self, action: ActionRecord, expected_revision: int | None, events: Sequence[EventSpec]
+        self, action: ActionRecord, expected_revision: int | None, events: EventBatch
     ) -> ActionRecord:
         async with self._lock:
-            self._fence()
+            self._begin(action.tenant_id, action.run_id, events)
             self._check_action_cas(action, expected_revision)
-            self._actions[(action.tenant_id, action.action_id)] = action
+            self._actions[(action.tenant_id, action.action_id)] = action.model_copy(deep=True)
             self._append(action.tenant_id, action.run_id, events)
             return action
 
@@ -184,10 +207,10 @@ class InMemoryRunStore:
         run: RunRecord,
         expected_run_revision: int,
         continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None],
-        events: Sequence[EventSpec],
+        events: EventBatch,
     ) -> None:
         async with self._lock:
-            self._fence()
+            self._begin(run.tenant_id, run.run_id, events)
             self._check_action_cas(action, expected_action_revision)
             current = self._runs.get((run.tenant_id, run.run_id))
             if (
@@ -197,7 +220,7 @@ class InMemoryRunStore:
             ):
                 raise ConcurrencyConflict("run changed before approval checkpoint")
             state, driver_state = continuation
-            self._actions[(action.tenant_id, action.action_id)] = action
+            self._actions[(action.tenant_id, action.action_id)] = action.model_copy(deep=True)
             self._runs[(run.tenant_id, run.run_id)] = run
             self._continuations[(run.tenant_id, run.run_id)] = (
                 dict(state),
@@ -207,15 +230,15 @@ class InMemoryRunStore:
 
     async def get_action(self, tenant_id: str, action_id: str) -> ActionRecord:
         try:
-            return self._actions[(tenant_id, action_id)]
+            return self._actions[(tenant_id, action_id)].model_copy(deep=True)
         except KeyError:
             raise NotFound(action_id) from None
 
     async def reserve_operation(
-        self, action: ActionRecord, expected_revision: int, events: Sequence[EventSpec]
+        self, action: ActionRecord, expected_revision: int, events: EventBatch
     ) -> ActionRecord:
         async with self._lock:
-            self._fence()
+            self._begin(action.tenant_id, action.run_id, events)
             key = (action.tenant_id, action.connection_id, action.logical_operation_id)
             if key in self._reservations:
                 raise DuplicateOperation(action.logical_operation_id)
@@ -230,25 +253,25 @@ class InMemoryRunStore:
             if busy:
                 raise ConnectionBusy(action.connection_id)
             self._reservations[key] = action.action_id
-            self._actions[(action.tenant_id, action.action_id)] = action
+            self._actions[(action.tenant_id, action.action_id)] = action.model_copy(deep=True)
             self._append(action.tenant_id, action.run_id, events)
             return action
 
     async def record_approval(
         self,
         approval: ApprovalRecord,
-        events: Sequence[EventSpec],
+        events: EventBatch,
         *,
         action: ActionRecord | None = None,
         expected_revision: int | None = None,
     ) -> None:
         async with self._lock:
-            self._fence()
+            self._begin(approval.tenant_id, approval.run_id, events)
             if action is not None:
                 if expected_revision is None:
                     raise ConcurrencyConflict("approval transition requires a revision")
                 self._check_action_cas(action, expected_revision)
-                self._actions[(action.tenant_id, action.action_id)] = action
+                self._actions[(action.tenant_id, action.action_id)] = action.model_copy(deep=True)
             self._approvals[(approval.tenant_id, approval.action_id)].append(approval)
             self._append(approval.tenant_id, approval.run_id, events)
 
@@ -257,13 +280,13 @@ class InMemoryRunStore:
         receipt: ExecutionReceipt,
         action: ActionRecord,
         expected_revision: int,
-        events: Sequence[EventSpec],
+        events: EventBatch,
     ) -> ActionRecord:
         async with self._lock:
-            self._fence()
+            self._begin(action.tenant_id, action.run_id, events)
             self._check_action_cas(action, expected_revision)
             self._receipts[(action.tenant_id, action.action_id)].append(receipt)
-            self._actions[(action.tenant_id, action.action_id)] = action
+            self._actions[(action.tenant_id, action.action_id)] = action.model_copy(deep=True)
             self._append(action.tenant_id, action.run_id, events)
             return action
 
@@ -273,18 +296,40 @@ class InMemoryRunStore:
         outcome: OutcomeReport,
         action: ActionRecord | None,
         expected_revision: int | None,
-        events: Sequence[EventSpec],
+        events: EventBatch,
     ) -> None:
         async with self._lock:
-            self._fence()
+            self._begin(tenant_id, outcome.run_id, events)
             run = self._runs[(tenant_id, outcome.run_id)]
             if action is not None:
                 self._check_action_cas(action, expected_revision)
-                self._actions[(action.tenant_id, action.action_id)] = action
+                self._actions[(action.tenant_id, action.action_id)] = action.model_copy(deep=True)
             self._outcomes[(run.tenant_id, outcome.run_id)].append(outcome)
             self._append(run.tenant_id, outcome.run_id, events)
 
+    # -- plans ----------------------------------------------------------------
+    async def put_plan(
+        self, tenant_id: str, run_id: str, plan: ActionPlan, events: EventBatch
+    ) -> None:
+        async with self._lock:
+            self._begin(tenant_id, run_id, events)
+            if (tenant_id, run_id) not in self._runs:
+                raise NotFound(run_id)
+            key = (tenant_id, plan.plan_id)
+            if key in self._plans:
+                raise ConcurrencyConflict(f"plan {plan.plan_id} exists")
+            self._plans[key] = (run_id, plan_to_wire(plan))
+            self._append(tenant_id, run_id, events)
+
+    async def get_plan(self, tenant_id: str, plan_id: str) -> ActionPlan:
+        if (tenant_id, plan_id) not in self._plans:
+            raise NotFound(plan_id)
+        return plan_from_wire(self._plans[(tenant_id, plan_id)][1])
+
     # -- queries --------------------------------------------------------------
+    async def list_steps(self, tenant_id: str, run_id: str) -> list[StepRecord]:
+        return sorted(self._steps.get((tenant_id, run_id), ()), key=lambda s: s.sequence)
+
     async def list_events(
         self, tenant_id: str, run_id: str, after_sequence: int = 0, limit: int | None = None
     ) -> list[RunEvent]:
@@ -292,7 +337,8 @@ class InMemoryRunStore:
         return events if limit is None else events[:limit]
 
     async def list_actions(self, tenant_id: str, run_id: str) -> list[ActionRecord]:
-        return [a for (t, _), a in self._actions.items() if t == tenant_id and a.run_id == run_id]
+        actions = [a for (t, _), a in self._actions.items() if (t, a.run_id) == (tenant_id, run_id)]
+        return [a.model_copy(deep=True) for a in actions]
 
     async def list_receipts(self, tenant_id: str, action_id: str) -> list[ExecutionReceipt]:
         return list(self._receipts[(tenant_id, action_id)])
@@ -325,9 +371,7 @@ class InMemoryRunStore:
             dict(driver_state) if driver_state is not None else None,
         )
 
-    async def load_continuation(
-        self, tenant_id: str, run_id: str
-    ) -> tuple[dict[str, Any], dict[str, Any] | None] | None:
+    async def load_continuation(self, tenant_id: str, run_id: str) -> _Stored | None:
         return self._continuations.get((tenant_id, run_id))
 
     @asynccontextmanager

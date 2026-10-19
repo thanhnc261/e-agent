@@ -34,7 +34,7 @@ from e_agent.kernel.discovery import (
     task_catalog,
 )
 from e_agent.kernel.errors import ErrorCode, KernelError
-from e_agent.kernel.evidence import build_evidence
+from e_agent.kernel.evidence import build_evidence, defaulted_payload
 from e_agent.sdk.store import ConcurrencyConflict, NotFound, actor_scope, current_actor
 from e_agent.sdk.tasks import supervised_task
 from fastapi import Depends, FastAPI, Header, Query, Request, Response
@@ -278,6 +278,9 @@ def create_app(
             "plugins": rt.registry.report.admitted,
             "store": rt.profile.store.kind,
             "self_approval_allowed": rt.profile.operator.allow_self_approval,
+            "features": rt.profile.features.model_dump(mode="json"),
+            # ADR 0029 Operations: write effects admitted on defaults (fixture profiles only)
+            "defaulted_declarations": defaulted_payload(rt.registry.report.defaulted_declarations),
         }
 
     # -- local session (loopback only, never production auth) ---------------
@@ -491,6 +494,8 @@ def create_app(
             run_id,
             environment=rt.profile.environment,
             versions=rt.versions,
+            features=rt.profile.features,
+            defaulted_declarations=rt.registry.report.defaulted_declarations,
         )
 
     # -- member discovery (ADR 0017): read-only projections of admitted metadata ---

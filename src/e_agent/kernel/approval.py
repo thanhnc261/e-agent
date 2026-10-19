@@ -9,9 +9,11 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 from e_agent.contracts.action import ActionRecord
+from e_agent.contracts.capability import CapabilityDescriptor, Reversibility, Risk
 from e_agent.contracts.common import Record, UtcDatetime
 from e_agent.contracts.digest import digest
 from e_agent.contracts.evidence import EvidenceRef
+from e_agent.contracts.plan import ActionPlan, LineageRef
 from e_agent.contracts.validation import Finding
 
 
@@ -72,6 +74,27 @@ def compute_digest(canonical_proposal: dict[str, Any]) -> str:
     return digest(canonical_proposal)
 
 
+PLAN_SCHEMA = "plan.v1"
+"""The plan digest wrapper's schema tag (target §6.4.4)."""
+
+
+def plan_digest_wrapper(
+    steps: Iterable[tuple[str, Iterable[str], dict[str, Any]]],
+) -> dict[str, Any]:
+    """The digest input of a plan with two or more steps (target §6.4.4, ADR 0025).
+
+    ``steps`` are ``(step_id, depends_on, step digest input)`` in step-index order; each step
+    input is a `digest_input` with placeholders in its arguments. A 1-step plan never uses
+    this wrapper: its approval digest is that step's action digest (`kernel/ir.py`)."""
+    return {
+        "plan_schema": PLAN_SCHEMA,
+        "steps": [
+            {"step_id": step_id, "depends_on": sorted(depends_on), "input": step_input}
+            for step_id, depends_on, step_input in steps
+        ],
+    }
+
+
 class MaterialField(Record):
     path: str
     value: str
@@ -82,8 +105,30 @@ class MaterialField(Record):
     comparison: str | None = None
 
 
+class PlanStepPresentation(Record):
+    """One step of a multi-step plan on the approval card (ADR 0024). Its arguments show a
+    lineage placeholder as ``from step N: <pointer>``; ``risk`` and ``reversibility`` are the
+    capability's declarations (ADR 0029), a presentation annotation outside the digest."""
+
+    step_id: str
+    step_index: int
+    contract_id: str
+    binding_id: str
+    connection_id: str
+    depends_on: tuple[str, ...] = ()
+    risk: Risk
+    reversibility: Reversibility
+    material_fields: tuple[MaterialField, ...]
+    expected_effects: tuple[str, ...] = ()
+
+
 class ApprovalPresentation(Record):
-    """Everything any UI needs to show an approval; the digest input is included verbatim."""
+    """Everything any UI needs to show an approval; the digest input is included verbatim.
+
+    For a plan of two or more steps (ADR 0024) the digest is the plan digest, the top-level
+    action fields are the first step's, and ``plan_steps`` lists every step with the plan's
+    ``highest_risk`` and its ``irreversible_steps`` (ADR 0029). A single action, a 1-step
+    plan included, leaves the three empty, exactly as before Task 2c.7."""
 
     run_id: str
     action_id: str
@@ -99,6 +144,9 @@ class ApprovalPresentation(Record):
     findings: tuple[Finding, ...]
     display_title: str | None = None
     expected_effects: tuple[str, ...] = ()
+    plan_steps: tuple[PlanStepPresentation, ...] = ()
+    highest_risk: Risk | None = None
+    irreversible_steps: tuple[str, ...] = ()
 
 
 def _flatten(arguments: dict[str, Any], prefix: str = "") -> dict[str, str]:
@@ -193,3 +241,52 @@ def presentation_for(
         expected_effects=tuple(canonical_proposal.get("expected_effects", ())),
         findings=tuple(findings),
     )
+
+
+RISK_ORDER = (Risk.READ, Risk.WRITE_LOW, Risk.WRITE_HIGH, Risk.DESTRUCTIVE)
+
+
+def _shown(value: Any, index: Mapping[str, int]) -> Any:
+    """Arguments for the card: a placeholder becomes ``from step N: <pointer>`` (1-based)."""
+    if isinstance(value, LineageRef):
+        return f"from step {index[value.step_id] + 1}: {value.path}"
+    if isinstance(value, Mapping):
+        return {k: _shown(v, index) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return [_shown(v, index) for v in value]
+    return value
+
+
+def plan_presentation(
+    plan: ActionPlan,
+    inputs: Iterable[Mapping[str, Any]],
+    descriptors: Mapping[str, CapabilityDescriptor],
+) -> dict[str, Any]:
+    """The plan fields of an `ApprovalPresentation`: every step, the highest declared risk
+    and the irreversible steps. ``inputs`` are the steps' approved digest inputs (their
+    binding), in step-index order. Pure."""
+    index = {step.step_id: position for position, step in enumerate(plan.steps)}
+    steps = []
+    for position, (step, approved) in enumerate(zip(plan.steps, inputs, strict=True)):
+        descriptor = descriptors[step.proposal.contract_id]
+        steps.append(
+            PlanStepPresentation(
+                step_id=step.step_id,
+                step_index=position,
+                contract_id=step.proposal.contract_id,
+                binding_id=str(approved["binding_id"]),
+                connection_id=step.proposal.connection_id,
+                depends_on=step.depends_on,
+                risk=descriptor.risk,
+                reversibility=descriptor.reversibility,
+                material_fields=material_fields(_shown(dict(step.proposal.arguments), index)),
+                expected_effects=step.proposal.expected_effects,
+            )
+        )
+    return {
+        "plan_steps": tuple(steps),
+        "highest_risk": max((s.risk for s in steps), key=RISK_ORDER.index),
+        "irreversible_steps": tuple(
+            s.step_id for s in steps if s.reversibility is Reversibility.IRREVERSIBLE
+        ),
+    }

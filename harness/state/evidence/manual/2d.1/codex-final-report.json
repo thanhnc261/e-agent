@@ -1,0 +1,17 @@
+{
+  "source": "Codex final JSON as returned through the codex-rescue companion (thread/session 01a14fc9-dbbc-74c3-9b58-eb9f216b73e3, turn 01a14fc9-de3d-7a71-a22d-0207e83777eb). Model output, recorded verbatim; the schema-valid review is harness/state/2/reviews/2d.1-codex-final.json.",
+  "task": "2c.8b-2c.8c-codex-final",
+  "verdict": "accept",
+  "findings": [],
+  "rechecked": {
+    "C-1": "fixed: Concurrent reconciliation regression passed. Reconciliation sends no later write; the fenced resume claim completes the plan.",
+    "C-2": "fixed: Delayed recovery and stale-continuation regressions passed. Resume queuing writes no continuation, and completion checks durable actions.",
+    "C-3": "fixed: Validator mutation, post-validation mutation, tampered plan inputs, and missing plan-state tests passed. Approved arguments remain intact; mismatches fail STALE before reservation.",
+    "C2-1": "fixed: Concurrent resume-disabled recovery regression passed. STOP authority remains call-scoped and does not disable the fenced resume.",
+    "C2-2": "fixed: Pending verification is re-queued at startup using action and run revision. An additional delayed-reconciliation reproduction spanning two UNKNOWN writes completed SUCCEEDED with exactly three provider writes for three steps. Waiting until startup after inconclusive verification matches the accepted owner ruling.",
+    "2c.8c": "fixed: Unusable-connection and unknown-capability refusal tests passed, including worker completion without stranded work.",
+    "execution_ir_off": "unchanged on tested success paths: notes and ERP event-stream goldens, approval digests, recovery tests, and recorded-model replays passed.",
+    "validation": "Reviewed 5d39921..ad54b43; checked-out source and tests are identical to ad54b43. The focused regression run passed 34 tests. The broader kernel, worker, and memory-store conformance run passed 563 tests; seven test_registry.py cases had setup errors because temporary-file creation is prohibited. ERP golden and replay tests passed another 17 tests. Scratch creation and uv cache initialization were blocked, so tests ran from /tmp using the existing .venv/bin/python -B -m pytest -q -p no:cacheprovider --capture=sys with E_AGENT_TEST_STORE=memory. No repository edits, secret-profile reads, Docker operations, PostgreSQL runs, or live runs."
+  },
+  "reviewer": {"provider": "codex", "fresh_context": true}
+}

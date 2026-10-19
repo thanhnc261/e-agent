@@ -10,6 +10,7 @@ from typing import Any, Literal
 from e_agent.contracts.common import Record
 from e_agent.contracts.connection import ConnectionDescriptor
 from e_agent.contracts.context import Budgets
+from e_agent.contracts.features import Features
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.server.environment import optional_env
 from pydantic import Field, model_validator
@@ -100,6 +101,8 @@ class Profile(Record):
     store: StoreConfig = StoreConfig()
     driver: DriverConfig = DriverConfig()
     fixture: FixtureConfig | None = None
+    features: Features = Features()
+    """Feature toggles, all ``off`` unless the profile names them (ADR 0027)."""
 
 
 def load_profile(path: str | Path | None = None) -> Profile:

@@ -63,7 +63,7 @@
       },
       "ApprovalPresentation": {
         "additionalProperties": false,
-        "description": "Everything any UI needs to show an approval; the digest input is included verbatim.",
+        "description": "Everything any UI needs to show an approval; the digest input is included verbatim.\n\nFor a plan of two or more steps (ADR 0024) the digest is the plan digest, the top-level\naction fields are the first step's, and ``plan_steps`` lists every step with the plan's\n``highest_risk`` and its ``irreversible_steps`` (ADR 0029). A single action, a 1-step\nplan included, leaves the three empty, exactly as before Task 2c.7.",
         "properties": {
           "action_id": {
             "title": "Action Id",
@@ -124,11 +124,37 @@
             "title": "Findings",
             "type": "array"
           },
+          "highest_risk": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Risk"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "irreversible_steps": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Irreversible Steps",
+            "type": "array"
+          },
           "material_fields": {
             "items": {
               "$ref": "#/components/schemas/MaterialField"
             },
             "title": "Material Fields",
+            "type": "array"
+          },
+          "plan_steps": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PlanStepPresentation"
+            },
+            "title": "Plan Steps",
             "type": "array"
           },
           "run_id": {
@@ -531,6 +557,73 @@
         "title": "MemberConnections",
         "type": "object"
       },
+      "PlanStepPresentation": {
+        "additionalProperties": false,
+        "description": "One step of a multi-step plan on the approval card (ADR 0024). Its arguments show a\nlineage placeholder as ``from step N: <pointer>``; ``risk`` and ``reversibility`` are the\ncapability's declarations (ADR 0029), a presentation annotation outside the digest.",
+        "properties": {
+          "binding_id": {
+            "title": "Binding Id",
+            "type": "string"
+          },
+          "connection_id": {
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "contract_id": {
+            "title": "Contract Id",
+            "type": "string"
+          },
+          "depends_on": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Depends On",
+            "type": "array"
+          },
+          "expected_effects": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Expected Effects",
+            "type": "array"
+          },
+          "material_fields": {
+            "items": {
+              "$ref": "#/components/schemas/MaterialField"
+            },
+            "title": "Material Fields",
+            "type": "array"
+          },
+          "reversibility": {
+            "$ref": "#/components/schemas/Reversibility"
+          },
+          "risk": {
+            "$ref": "#/components/schemas/Risk"
+          },
+          "step_id": {
+            "title": "Step Id",
+            "type": "string"
+          },
+          "step_index": {
+            "title": "Step Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step_id",
+          "step_index",
+          "contract_id",
+          "binding_id",
+          "connection_id",
+          "risk",
+          "reversibility",
+          "material_fields"
+        ],
+        "title": "PlanStepPresentation",
+        "type": "object"
+      },
       "ReasonCode": {
         "description": "Typed cause of a run state change (ADR 0018). The human `reason` text stays.",
         "enum": [
@@ -550,7 +643,12 @@
           "provider_error",
           "budget_exhausted",
           "interrupted",
-          "cancelled"
+          "cancelled",
+          "acceptance_unmet",
+          "plan_lineage_rejected",
+          "ir_task_unresolved",
+          "ir_compile_failed",
+          "ir_validation_failed"
         ],
         "title": "ReasonCode",
         "type": "string"
@@ -585,6 +683,26 @@
         ],
         "title": "ResourceHint",
         "type": "object"
+      },
+      "Reversibility": {
+        "description": "Whether a capability's effect can be undone (ADR 0029).",
+        "enum": [
+          "irreversible",
+          "compensable"
+        ],
+        "title": "Reversibility",
+        "type": "string"
+      },
+      "Risk": {
+        "description": "How severe a capability's effect is (ADR 0029, target \u00a76.4.2).",
+        "enum": [
+          "read",
+          "write_low",
+          "write_high",
+          "destructive"
+        ],
+        "title": "Risk",
+        "type": "string"
       },
       "RunEvent": {
         "additionalProperties": false,
@@ -689,7 +807,12 @@
           "message.final",
           "budget.exhausted",
           "run.cancel_requested",
-          "run.terminal"
+          "run.terminal",
+          "feature.fallback",
+          "ir.plan_compiled",
+          "ir.shadow_failed",
+          "ir.lineage_resolved",
+          "ir.step_verified"
         ],
         "title": "RunEventType",
         "type": "string"
@@ -744,6 +867,28 @@
           "task": {
             "title": "Task",
             "type": "string"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "task_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Version"
           },
           "tenant_id": {
             "title": "Tenant Id",

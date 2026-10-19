@@ -23,6 +23,23 @@ describe("JCS digest (shared golden vectors with Python)", () => {
     expect(() => canonicalize({ s: "\ud800" })).toThrow(CanonicalizationError);
   });
 
+  it("1-step plan digest equals the action digest", async () => {
+    // ADR 0025: a 1-step plan's approval digest is its step's action digest, byte for byte,
+    // so the approval card's check of `canonical_proposal` stays valid for 1-step plans.
+    const byName = new Map(golden.vectors.map((v) => [v.name, v]));
+    const plan = byName.get("1-step plan (a compiled proposal)");
+    const action = byName.get("action digest input (today's proposal path)");
+    expect(plan?.digest).toBeDefined();
+    expect(action?.digest).toBeDefined();
+    if (!plan?.digest || !action?.digest) return;
+    expect(plan.input).toStrictEqual(action.input);
+    expect(plan.input).not.toHaveProperty("plan_schema");
+    expect(canonicalize(plan.input)).toBe(canonicalize(action.input));
+    expect(await digest(plan.input)).toBe(action.digest);
+    expect(plan.digest).toBe(action.digest);
+    expect(await verifyDigest(action.input, plan.digest)).toBe(true);
+  });
+
   it("verifies only an exact match", async () => {
     const proposal = { arguments: { quantity: "40" } };
     const d = await digest(proposal);
