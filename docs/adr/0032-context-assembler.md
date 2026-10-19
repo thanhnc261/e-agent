@@ -133,6 +133,11 @@ Phase 3 adds nine `ReasonCode` members in `contracts/run.py`: the eight toggle, 
 New event types (`contracts/events.py`), each payload of ids, counts, digests and codes only (PR-26):
 
 - `context.compared` and `context.shadow_failed` (Task 3d.3);
+- `context.assembled` (Task 3d.5), written after every driver call of a run pinned `on`, the acknowledgement turn included:
+  - its keys are `turn`, `acknowledgement` and `fallback`. A turn with a pack adds `pack_digest`, `pack_tokens` (the kernel's estimate per layer), `observations`, the `dropped` and `drop_reasons` counts, `omitted_evidence`, `masked_evidence` and `drop_log`;
+  - `drop_log` lists each `Dropped` entry as (`kind`, `ref`, `reason`). A ref into observation data is cut before the first token that no class declaration names, so it never names an undeclared key and never holds a value;
+  - a turn that fell back records `fallback: true` and no pack keys;
+  - it is the turn marker that clearing ages reads by, and the record of the pack digests and drop log that the evidence bundle reports (§13);
 - `context.failed`, with `reason_code`, its fixed message and `turn: "acknowledgement"` (Task 3b.2, its first writer);
 - `repeat.compared`, `repeat.shadow_failed` (ADR 0031); `grounding.compared`, `grounding.shadow_failed` (ADR 0033).
 
@@ -148,7 +153,7 @@ Nothing is released between 3b.3 and 3e.4, so the three share one version. The e
 
 ### 13. Observability (ENG-TOGGLE-3)
 
-`/health/ready` and the evidence bundle report the four toggles under `features`, the route's `data_boundary`, its basis and whether `data_processing` is declared (ADR 0030). The evidence bundle also reports the run's pinned modes, and for a pinned-`on` run the pack digests and drop log.
+`/health/ready` and the evidence bundle report the four toggles under `features`, the route's `data_boundary`, its basis and whether `data_processing` is declared (ADR 0030). The evidence bundle also reports the run's pinned modes, and for a pinned-`on` run the pack digests and drop log, from its `context.assembled` events (`context`).
 
 ## Alternatives considered
 

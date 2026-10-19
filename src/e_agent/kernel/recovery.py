@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import NoReturn
+
 from e_agent.contracts.action import ALLOWED_ACTION_TRANSITIONS, ActionRecord, ActionState
 from e_agent.contracts.context import Principal
 from e_agent.contracts.events import RunEventType
@@ -14,8 +16,9 @@ from e_agent.contracts.run import (
 )
 from e_agent.contracts.step import StepRecord, StepStatus
 
-from .continuation import LOG, NextStep, _Continuation
+from .continuation import LOG, DriverStateConflict, NextStep, _Continuation
 from .errors import ErrorCode, KernelError
+from .features import TERMINAL_MESSAGES, UNRESOLVED_RESERVATION
 from .ir_on import IrOnMixin
 
 
@@ -77,6 +80,8 @@ class RecoveryMixin(IrOnMixin):
             )
         try:
             cont: _Continuation | None = await self._load_cont(actor.tenant_id, run_id)
+        except DriverStateConflict:  # the handler ended the run (D8): it is returned as it is
+            return await self._store.get_run(actor.tenant_id, run_id)
         except KernelError:
             cont = None
         blocked: list[str] = []  # event-less: the state change records them (ADR 0031 §3)
@@ -160,6 +165,8 @@ class RecoveryMixin(IrOnMixin):
             return run
         try:
             cont = await self._load_cont(tenant_id, run_id)
+        except DriverStateConflict:  # the handler ended the run (D8)
+            return await self._store.get_run(tenant_id, run_id)
         except KernelError:
             return run
         if cont.plan is None:
@@ -201,6 +208,8 @@ class RecoveryMixin(IrOnMixin):
         actions, latest = await self._latest_action(run)
         try:
             cont = await self._load_cont(run.tenant_id, run.run_id)
+        except DriverStateConflict:
+            raise  # the handler ended the run (D8): nothing more is written on this record
         except KernelError:
             cont = None
         dispatching = [a for a in actions if a.state is ActionState.DISPATCHING]
@@ -284,3 +293,44 @@ class RecoveryMixin(IrOnMixin):
                 run, RunState.FAILED, reason, code=ReasonCode.INTERRUPTED, before=closed
             )
         return None
+
+    async def _driver_state_mismatch(self, tenant_id: str, run_id: str) -> NoReturn:
+        """`_load_cont`'s handler for a refused driver state (ADR 0032 §8, D8, review D3-50).
+
+        Nothing is restored. A run that has not ended goes to reconciliation while a write
+        reservation is unresolved; otherwise it fails, and every action still waiting for
+        approval or dispatch is blocked in the same kernel call, recorded on the state
+        change (``blocked_action_ids``, ADR 0031 §3), so the events reconstruct the rows. A
+        run already in reconciliation for this code is left as it is. The caller then gets
+        `DriverStateConflict` and writes nothing more on the run record it held."""
+        message = TERMINAL_MESSAGES[ReasonCode.DRIVER_STATE_MISMATCH]
+        run = await self._store.get_run(tenant_id, run_id)
+        repeated = (
+            run.state is RunState.NEEDS_RECONCILIATION
+            and run.reason_code is ReasonCode.DRIVER_STATE_MISMATCH
+        )
+        if run.state not in TERMINAL_RUN_STATES and not repeated:
+            actions = await self._store.list_actions(tenant_id, run_id)
+            if any(a.state in UNRESOLVED_RESERVATION for a in actions):
+                await self._set_run_state(
+                    run,
+                    RunState.NEEDS_RECONCILIATION,
+                    message,
+                    code=ReasonCode.DRIVER_STATE_MISMATCH,
+                )
+            else:
+                blocked: list[str] = []
+                for action in actions:
+                    if ActionState.BLOCKED in ALLOWED_ACTION_TRANSITIONS[action.state]:
+                        steps = await self._close_open(action, StepStatus.BLOCKED)
+                        await self._transition(action, ActionState.BLOCKED, steps=steps)
+                        blocked.append(action.action_id)
+                run = await self._store.get_run(tenant_id, run_id)
+                await self._set_run_state(
+                    run,
+                    RunState.FAILED,
+                    message,
+                    code=ReasonCode.DRIVER_STATE_MISMATCH,
+                    blocked_action_ids=blocked,
+                )
+        raise DriverStateConflict(message)

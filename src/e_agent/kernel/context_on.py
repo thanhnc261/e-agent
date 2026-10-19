@@ -3,11 +3,16 @@
 Every driver call of a run pinned ``on`` (each run-loop turn and the post-write
 acknowledgement turn) passes the turn's pack in ``DriverInput.context``, built by `assemble`
 from the same records ``shadow`` reads (`_pack_inputs`). After the call the kernel records
-``context.assembled``: the turn, the pack digest and counts, never a value (PR-26). It marks
-the turn as ``context.compared`` does in shadow, so a read's age for clearing comes from the
-events (`observation_turns`), and it is the durable record of the pack digests and drop log
-ADR 0032 §13 names. A turn that fell back records no marker: its reads count from the
-previous marker (cleared at most one turn early) or, with none before, are never cleared.
+``context.assembled``: the turn, the pack digest, counts and the drop log, never a value
+(PR-26). It marks the turn as ``context.compared`` does in shadow, so a read's age for
+clearing comes from the events (`observation_turns`), and it is the durable record of the
+pack digests and drop log ADR 0032 §13 names. A turn that fell back records it too, with
+``fallback: true`` and no pack keys, so ages stay exact (review D3-52, D3-51).
+
+The drop log keeps each ``Dropped`` as (kind, ref, reason). A ref into observation data is
+cut at the first token no class declaration names literally (an array index is kept): a key
+no declaration names may be data (review D3-12), so the log never names one, whatever the
+route. Other refs (evidence ids, ``finding:<n>#/…``, ``read_error:<id>``) are kernel ids.
 
 Failure handling (ADR 0032 §7, ADR 0027). When the pack cannot be built:
 
@@ -28,8 +33,11 @@ call is given.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Any
 
+from e_agent.contracts import data_classes as dc
 from e_agent.contracts.context_pack import ContextPack, DroppedKind, DroppedReason
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode
@@ -50,13 +58,55 @@ class ContextUnavailable(Exception):
     escapes the kernel's two driver call sites."""
 
 
-def assembled_payload(pack: ContextPack, *, turn: int, acknowledgement: bool) -> dict[str, Any]:
-    """The ``context.assembled`` payload: ids, counts, a digest and the kernel's estimates,
-    never a value (PR-26)."""
+def _named_paths(classes: Mapping[str, dc.DataClass]) -> frozenset[dc.Path]:
+    """Every declaration key's tokens and their prefixes: the property names a declaration
+    writes literally."""
+    parsed = [dc.parse_pointer(key) for key in classes]
+    return frozenset(tokens[:end] for tokens in parsed for end in range(1, len(tokens) + 1))
+
+
+def safe_ref(ref: str, named: Mapping[str, frozenset[dc.Path]]) -> str:
+    """``ref`` as the drop log records it: a pointer into an observation (its evidence id in
+    ``named``) is cut before the first token no declaration names; any other ref is kept."""
+    evidence, sep, pointer = ref.partition("#")
+    if not sep or evidence not in named:
+        return ref
+    names = named[evidence]
+    path: dc.Path = ("output",)
+    kept: list[str] = []
+    for token in dc.parse_pointer(pointer) if pointer else ():
+        step = dc.instance_token(token)
+        child = (*path, step)
+        if step != dc.ITEMS and child not in names:
+            break
+        kept.append(token)
+        path = child
+    return f"{evidence}#{dc.format_pointer(kept)}"
+
+
+def drop_log(pack: ContextPack, named: Mapping[str, frozenset[dc.Path]]) -> list[dict[str, str]]:
+    return [
+        {"kind": d.kind.value, "ref": safe_ref(d.ref, named), "reason": d.reason.value}
+        for d in pack.dropped
+    ]
+
+
+def assembled_payload(
+    pack: ContextPack | None,
+    *,
+    turn: int,
+    acknowledgement: bool,
+    named: Mapping[str, frozenset[dc.Path]] = MappingProxyType({}),
+) -> dict[str, Any]:
+    """The ``context.assembled`` payload: ids, counts, a digest, the kernel's estimates and
+    the drop log, never a value (PR-26). A fallback turn (no pack) records its turn only."""
+    if pack is None:
+        return {"turn": turn, "acknowledgement": acknowledgement, "fallback": True}
     omitted = [d.ref for d in pack.dropped if d.kind is DroppedKind.OBSERVATION]
     return {
         "turn": turn,
         "acknowledgement": acknowledgement,
+        "fallback": False,
         "pack_digest": pack.digest,
         "pack_tokens": layer_tokens(pack),
         "observations": len(pack.observations),
@@ -64,6 +114,7 @@ def assembled_payload(pack: ContextPack, *, turn: int, acknowledgement: bool) ->
         "drop_reasons": {r.value: sum(d.reason is r for d in pack.dropped) for r in DroppedReason},
         "omitted_evidence": omitted,
         "masked_evidence": [o.evidence.evidence_id for o in pack.observations if o.masked],
+        "drop_log": drop_log(pack, named),
     }
 
 
@@ -121,18 +172,20 @@ class ContextOnMixin(ContextShadowMixin):
         *,
         acknowledgement: bool = False,
     ) -> RunRecord:
-        """Append the turn's ``context.assembled`` after the driver returned, when the call
-        carried a pack; only the run revision moves."""
-        pack = step_input.context
-        if pack is None:
+        """Append the turn's ``context.assembled`` after the driver returned, for a run
+        pinned ``on``: with the pack's record, or ``fallback: true`` when the call fell back;
+        only the run revision moves."""
+        if self._run_modes(cont).context_assembler is not FeatureMode.ON:
             return run
+        pack = step_input.context
+        named = {
+            o.evidence.evidence_id: _named_paths(self._registry.data_classes(o.contract_id))
+            for o in cont.observations.values()
+        }
         ack = acknowledgement
         turn = cont.turns + 1 if ack else cont.turns
-        event = (
-            RunEventType.CONTEXT_ASSEMBLED,
-            assembled_payload(pack, turn=turn, acknowledgement=ack),
-            None,
-        )
+        payload = assembled_payload(pack, turn=turn, acknowledgement=ack, named=named)
+        event = (RunEventType.CONTEXT_ASSEMBLED, payload, None)
         run = await self._store.get_run(run.tenant_id, run.run_id)
         return await self._store.update_run(
             run.model_copy(update={"revision": run.revision + 1}), run.revision, [event]

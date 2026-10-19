@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any, NoReturn
+from typing import Any
 
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.common import new_id
@@ -248,15 +248,6 @@ class FeaturesMixin(ContinuationMixin):
             TERMINAL_MESSAGES[code],
             code=code,
         )
-
-    async def _driver_state_mismatch(self, tenant_id: str, run_id: str) -> NoReturn:
-        """`_load_cont`'s handler for a refused driver state (ADR 0032 §8, D8): nothing is
-        restored, the run ends ``DRIVER_STATE_MISMATCH`` (reconciliation while a write is
-        unresolved) unless it already ended, and the caller gets a conflict."""
-        run = await self._store.get_run(tenant_id, run_id)
-        if run.state not in TERMINAL_RUN_STATES:  # not cached, so no continuation is written
-            await self._end_closed(run, ReasonCode.DRIVER_STATE_MISMATCH)
-        raise KernelError(ErrorCode.CONFLICT, TERMINAL_MESSAGES[ReasonCode.DRIVER_STATE_MISMATCH])
 
     @staticmethod
     def _run_modes(cont: _Continuation) -> RunModes:

@@ -62,6 +62,15 @@ KNOWN_RENDERINGS = frozenset({"pack"})
 """The driver snapshot ``rendering`` markers the kernel knows (ADR 0032 §6, §8)."""
 
 
+class DriverStateConflict(KernelError):
+    """`_load_cont` refused a run's driver state (ADR 0032 §8, D8) and its handler already
+    ended the run: a caller that catches it re-reads the run and writes nothing more on the
+    record it held (review D3-50)."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(ErrorCode.CONFLICT, message)
+
+
 class NextStep(StrEnum):
     """What a call may do once a multi-step plan's step is verified with steps left: its own
     authority, passed down the call chain, never state another call can see (Codex C-1,

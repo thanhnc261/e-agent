@@ -1,21 +1,24 @@
 """Evidence bundle export (MVP design §11).
 
-A redacted, self-describing JSON record of one run: environment class, versions,
-events, proposals/findings, approvals, receipts and outcomes. It contains no
-secrets (the ledger never stores them), no driver continuation and no model
-reasoning; operators export it through an authorized command.
+A redacted, self-describing JSON record of one run: environment class, versions, events,
+proposals/findings, approvals, receipts and outcomes. It contains no secrets (the ledger
+never stores them), no driver continuation and no model reasoning; operators export it
+through an authorized command.
 
-A run that executed an action plan (execution IR ``on``, ADR 0025) also carries the
-additive ``plan`` key, the plan its latest linked action belongs to with each step's
-status, and a run with step records carries ``steps``. Neither key appears without that
-data, so an ``off`` bundle is unchanged (ENG-TOGGLE-1). The read-back values a plan's
-lineage copies from stay out of the bundle (PR-26). An exporter that passes its admission
-report's defaulted effect declarations gets the additive ``defaulted_declarations`` key
-(ADR 0029 Operations). A run that pinned a Phase 3 mode carries the additive ``modes`` key,
-the pin read from its kernel continuation (ADR 0032 §8, §13); an all-``off`` run pins
-nothing, so its bundle has no such key. Nothing else of the continuation is exported. Every
-bundle carries the additive ``explanation`` key, the projection of its events and steps
-(ADR 0033 §6): ids, versions, digests and statuses, no observation values or model text.
+A run that executed an action plan (execution IR ``on``, ADR 0025) also carries the additive
+``plan`` key, the plan its latest linked action belongs to with each step's status, and a
+run with step records carries ``steps``. Neither key appears without that data, so an
+``off`` bundle is unchanged (ENG-TOGGLE-1). The read-back values a plan's lineage copies
+from stay out of the bundle (PR-26). An exporter that passes its admission report's
+defaulted effect declarations gets the additive ``defaulted_declarations`` key (ADR 0029
+Operations). A run that pinned a Phase 3 mode carries the additive ``modes`` key, the pin
+read from its kernel continuation (ADR 0032 §8, §13); an all-``off`` run pins nothing, so
+its bundle has no such key. A run pinned ``context_assembler: on`` also carries ``context``:
+per driver turn, its ``context.assembled`` record (turn, fallback, pack digest, drop log of
+kinds, kernel refs and reasons; ADR 0032 §13). Nothing else of the continuation is exported.
+Every bundle carries the additive ``explanation`` key, the projection of its events and
+steps (ADR 0033 §6): ids, versions, digests and statuses, no observation values or model
+text.
 """
 
 from __future__ import annotations
@@ -27,7 +30,7 @@ from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.common import utc_now
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.explain import Explanation
-from e_agent.contracts.features import Features, RunModes
+from e_agent.contracts.features import FeatureMode, Features, RunModes
 from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode
 from e_agent.sdk.store import RunStore
 
@@ -182,6 +185,18 @@ async def _pinned_modes(store: RunStore, tenant_id: str, run_id: str) -> RunMode
     return None if pin is None else RunModes.model_validate(pin)
 
 
+CONTEXT_KEYS = ("turn", "acknowledgement", "fallback", "pack_digest", "drop_log")
+
+
+def _context_section(events: Sequence[RunEvent]) -> list[dict[str, Any]]:
+    """Each ``context.assembled`` of the run: the pack digest and drop log per turn."""
+    return [
+        {key: e.payload[key] for key in CONTEXT_KEYS if key in e.payload}
+        for e in events
+        if e.type is RunEventType.CONTEXT_ASSEMBLED
+    ]
+
+
 async def build_evidence(
     store: RunStore,
     tenant_id: str,
@@ -241,6 +256,8 @@ async def build_evidence(
     modes = await _pinned_modes(store, tenant_id, run_id)
     if modes is not None:
         bundle["modes"] = modes.model_dump(mode="json")
+        if modes.context_assembler is FeatureMode.ON:
+            bundle["context"] = _context_section(events)
     plan = await _plan_section(store, tenant_id, events, actions)
     if plan is not None:
         bundle["plan"] = plan

@@ -31,6 +31,7 @@ from e_agent.contracts.context_pack import (
     DroppedReason,
     tool_return_text,
 )
+from e_agent.contracts.data_classes import DataClass
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.plan import ActionProposal
@@ -38,7 +39,7 @@ from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.kernel import context_on
 from e_agent.kernel.continuation import _Continuation
 from e_agent.kernel.errors import ErrorCode, KernelError
-from e_agent.kernel.evidence import classify
+from e_agent.kernel.evidence import build_evidence, classify
 from e_agent.kernel.features import FALLBACK_MESSAGES, TERMINAL_MESSAGES
 from e_agent.sdk.errors import ContextNotRendered
 from e_agent.sdk.ports import (
@@ -671,3 +672,131 @@ async def test_injected_fixture_run_proposes_the_same_action(make_kernel: MakeKe
     assert clean[2:] == dirty[2:]
     print(f"injected values checked: {len(injected)}")
     assert len(injected) >= 10
+
+
+# -- exact turn ages across fallback turns (review D3-51) ----------------------------------
+@dataclass
+class ReadEachTurnDriver:
+    """Reads a new request on each of ``reads`` turns, then asks the user."""
+
+    reads: int = 4
+    driver_id: str = "read-each-turn"
+    calls: int = 0
+    seen: list[DriverInput] = field(default_factory=list)
+
+    async def advance(self, ctx: TaskContext, step_input: DriverInput) -> DriverStep:
+        self.calls += 1
+        self.seen.append(step_input)
+        if self.calls > self.reads:
+            return AskClarification(question="Anything else?")
+        read = ReadRequest(
+            request_id=f"r{self.calls}",
+            contract_id=READ.contract_id,
+            connection_id=CONN,
+            arguments={},
+        )
+        return RequestReads(reads=(read,))
+
+
+async def test_fallback_turns_keep_observation_ages_exact(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pack turn, three fallback turns, then a pack turn: each fallback turn records its
+    turn, so on turn 5 only the read of turn 1 is older than the retention (3 turns), and
+    the read returned on the last fallback turn is rendered, not cleared."""
+    _failing_assemble(monkeypatch, lambda n: n in (2, 3, 4))
+    driver = ReadEachTurnDriver()
+    k = make_kernel(features=ON, driver=driver)
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+    assert run.state is RunState.WAITING_INPUT, run.reason
+    assert [s.context is None for s in driver.seen] == [False, True, True, True, False]
+
+    events = await _events(k, run.run_id)
+    markers = [e.payload for e in events if e.type is RunEventType.CONTEXT_ASSEMBLED]
+    assert [(m["turn"], m["fallback"]) for m in markers] == [
+        (1, False),
+        (2, True),
+        (3, True),
+        (4, True),
+        (5, False),
+    ]
+    assert all(set(m) == {"turn", "acknowledgement", "fallback"} for m in markers if m["fallback"])
+    cont = await k.coordinator._peek_cont(TENANT, run.run_id)
+    evidence = {rid: o.evidence.evidence_id for rid, o in cont.observations.items()}
+    last = driver.seen[-1].context
+    assert last is not None
+    cleared = {d.ref for d in last.dropped if d.reason is DroppedReason.CLEARED}
+    assert cleared == {evidence["r1"]}
+    assert evidence["r4"] not in cleared
+    fallbacks = [e for e in events if e.type is RunEventType.FEATURE_FALLBACK]
+    assert len(fallbacks) == 3
+
+
+# -- the drop log (review D3-52) ----------------------------------------------------------
+def test_drop_log_refs_never_name_an_undeclared_key() -> None:
+    """A ref into observation data is cut before the first token no declaration names; an
+    array index is kept; kernel refs are kept as they are (3d.2 ruling D3-12)."""
+    named = {
+        "ev1": context_on._named_paths(
+            {"/output/notes/items/key": DataClass.INTERNAL, "/output/by_email": DataClass.INTERNAL}
+        )
+    }
+    cases = {
+        "ev1#/notes/3/key": "ev1#/notes/3/key",
+        "ev1#/notes/3/text": "ev1#/notes/3",  # unmarked: may be data
+        "ev1#/by_email/alice@example.com": "ev1#/by_email",  # a dict key is data
+        "ev1#/alice@example.com/x": "ev1#",
+        "ev1#": "ev1#",
+        "ev1": "ev1",  # an observation stub: its evidence id
+        "finding:0#/observed": "finding:0#/observed",
+        "read_error:r1": "read_error:r1",
+        "ev2#/notes/0/text": "ev2#/notes/0/text",  # no observation of this run: not data
+    }
+    checked = 0
+    for ref, expected in cases.items():
+        assert context_on.safe_ref(ref, named) == expected, ref
+        checked += 1
+    print(f"drop log refs checked: {checked}")
+    assert checked == len(cases)
+
+
+async def test_masked_run_drop_log_is_in_the_bundle(make_kernel: MakeKernel) -> None:
+    @dataclass
+    class KeyedDriver(PackNotesDriver):
+        async def advance(self, ctx: TaskContext, step_input: DriverInput) -> DriverStep:
+            if not step_input.observations and step_input.action_result is None:
+                self.seen.append(step_input)
+                read = ReadRequest(
+                    request_id="r1",
+                    contract_id=READ.contract_id,
+                    connection_id=CONN,
+                    arguments={"operation_key": "k1"},
+                )
+                return RequestReads(reads=(read,))
+            return await super().advance(ctx, step_input)
+
+    driver = KeyedDriver(texts=["standup notes"])
+    k = make_kernel(features=ON, route=HOSTED_UNDECLARED, driver=driver)
+    k.backend.notes["k1"] = {"key": "SEEDED-KEY-alice@example.com", "text": "SEEDED-TEXT"}
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+    assert run.state is RunState.WAITING_APPROVAL, run.reason
+    bundle = await build_evidence(
+        k.store, TENANT, run.run_id, environment="fixture", versions={}, features=ON
+    )
+    context = bundle["context"]
+    assert [c["turn"] for c in context] == [1, 2]
+    packs = [s.context for s in driver.seen if s.context is not None]
+    assert [c["pack_digest"] for c in context] == [p.digest for p in packs]
+    log = context[1]["drop_log"]
+    assert any(e["kind"] == "value" and e["reason"] == "class_route" for e in log)
+    assert len(log) == len(packs[1].dropped)
+    assert "SEEDED" not in json.dumps(bundle["context"])
+    events = [e for e in bundle["events"] if e["type"] == RunEventType.CONTEXT_ASSEMBLED]
+    assert "SEEDED" not in json.dumps(events)
+    # an off run's bundle has no context key
+    off = make_kernel()
+    off_run = await off.coordinator.start_run(off.requester, "write standup note", off.scope)
+    off_bundle = await build_evidence(
+        off.store, TENANT, off_run.run_id, environment="fixture", versions={}, features=ON
+    )
+    assert "context" not in off_bundle
