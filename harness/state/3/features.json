@@ -39,6 +39,7 @@
       "steps": [
         "off_model_request_erp.json committed before any Phase 3 change",
         "toggle, code and pinning tests pass on both stores",
+        "a run pinned off fails closed with ROUTE_BOUNDARY_UNMET on an undeclared hosted route",
         "off baselines and both off model-request goldens unchanged; full and pg pass"
       ],
       "passes": false

@@ -52,7 +52,7 @@ Each row has a recommended default. "Approve" accepts every default; name a row 
 | D5 | Generic read-only question | A core answer `grounded.answer.v1` (`summary`, `citations`), offered only with `grounded_answers` not `off`. It ends `SUCCEEDED` with verification `grounded`: every citation resolved against this run's recorded evidence. It is never `verified`, which needs a typed verifier's fresh read-back (PR-19). Text outside citations is labelled `unverified`. The core plan asked for `verified`; this default keeps the PR-19 distinction |
 | D6 | Rationale finding | `ProposalRationale` is optional on `ActionProposal` and on `ActionPlan`. With `grounded_answers: on`, a rationale is the repair finding `KERNEL-RATIONALE`, within `max_validation_repairs`, when its evidence ref is not in this run or its rule is not in the inventory. Rationale is never an approval input and never enters the approval digest (target §5.6) |
 | D7 | Event keys for reconstruction | Events gain the payload keys reconstruction needs, additively (Task 3c.2). ADR 0031 records this as a refinement of ADR 0027's `off` proof:<br>– The Phase 2 goldens stay frozen.<br>– A new golden is recorded beside them.<br>– A test proves the old golden is a projection of the new one: same order, same keys, same values, plus only ADR 0031's listed keys.<br>Events written before this change are reconstructed and marked `partial` |
-| D8 | Per-run mode pinning and continuation | A run pins the three Phase 3 modes when it starts, in the kernel continuation. The pin is written only when a mode is not `off`; when it is absent, every mode is `off`. So a profile flip affects new runs only, and an in-flight `off` run keeps its history continuation.<br>The driver snapshot gains `rendering: "pack"` only for pinned-`on` runs, so `STATE_SCHEMA` is unchanged and `off` snapshots are byte-identical.<br>A restore whose `rendering` disagrees with the pin fails the run closed with `DRIVER_STATE_MISMATCH`, through a handler in `_load_cont` and an allowed transition (today a restore `ValueError` propagates uncaught).<br>`execution_ir` keeps reading the profile per call, as Phase 2 shipped |
+| D8 | Per-run mode pinning and continuation | A run pins the three Phase 3 modes when it starts, in the kernel continuation. The pin is written only when a mode is not `off`; when it is absent, every mode is `off`. So a profile flip affects new runs only, and an in-flight `off` run keeps its history continuation.<br>The driver snapshot gains `rendering: "pack"` only for pinned-`on` runs, so `STATE_SCHEMA` is unchanged and `off` snapshots are byte-identical.<br>A restore whose `rendering` disagrees with the pin fails the run closed with `DRIVER_STATE_MISMATCH`, or sends it to reconciliation when a reservation is unresolved, through a handler in `_load_cont` and an allowed transition (today a restore `ValueError` propagates uncaught).<br>The route is not pinned, so the startup rule alone cannot protect a resumed run. Before every model call, the kernel checks the run's pinned `context_assembler` mode against the current route. A run not pinned `on`, on a route that is not `local` and has no `data_processing`, makes no model call and fails closed with `ROUTE_BOUNDARY_UNMET`, or goes to reconciliation when a reservation is unresolved (T23).<br>The driver learns the pinned `grounded_answers` mode only from `DriverInput.grounding`, never from the profile<br>`execution_ir` keeps reading the profile per call, as Phase 2 shipped |
 | D9 | Phase size and cut line | Must-have: 3a–3c, 3d.1–3d.5 and 3e. The cut line is the core plan's Phase 4 items: 3d.6 (`KERNEL-REPEAT`), 3f.1 (driver conformance) and 3f.2 (ablation). If the phase runs long, they move to a Phase 3′ with their own plan rather than being skipped |
 | D10 | UI | Citations, rationale and the explanation are exposed through the evidence bundle and the CLI only. Their UI (timeline, citation display, rationale second on the approval card) is a later UI plan |
 
@@ -164,6 +164,7 @@ Reason codes (named in 3b.2, decided by ADRs 0032 and 0033):
 | `kernel_repeat` | `REPEAT_CHECK_FAILED` | `REPEAT_UNAVAILABLE` |
 | `grounded_answers` | `GROUNDING_CHECK_FAILED` | `GROUNDING_UNAVAILABLE` |
 | (restore, D8) | none | `DRIVER_STATE_MISMATCH` |
+| (route, D8) | none | `ROUTE_BOUNDARY_UNMET` |
 
 Each toggle's `shadow` path has its own failure event, as `ir.shadow_failed` does for `execution_ir`: `context.shadow_failed`, `repeat.shadow_failed` and `grounding.shadow_failed`. A shadow failure changes nothing else.
 
@@ -261,7 +262,7 @@ No runtime code. The ADRs are written, the target sections they decide are recon
 **Interfaces:** produces the record shapes and codes every later task uses:
 - records: `ProgressLedger`, `ContextPolicy`, `ContextPack`, `ContextLayer`, `Dropped`, `Citation`, `ProposalRationale`;
 - the `grounded.answer.v1` contract and verification value `grounded`;
-- the seven reason codes in the table above;
+- the eight reason codes in the table above;
 - the findings `KERNEL-REPEAT`, `KERNEL-CITATION` and `KERNEL-RATIONALE`;
 - the event types `context.compared`, `context.failed`, `context.shadow_failed`, `repeat.compared`, `repeat.shadow_failed`, `grounding.compared` and `grounding.shadow_failed`.
 
@@ -274,7 +275,8 @@ No runtime code. The ADRs are written, the target sections they decide are recon
   - layers, per-layer token budgets, the drop log, clearing rules (including rule 4) and fencing;
   - the class-per-route rule from ADR 0030;
   - the toggle table and reason codes above, D3 and D8;
-  - the `sdk_api` 1.2 change: `data_classes` on the capability declaration (3b.3) and `DriverInput.context` (3d.1), one unreleased version.
+  - the `sdk_api` 1.2 change: `data_classes` on the capability declaration (3b.3), `DriverInput.context` (3d.1) and `DriverInput.grounding` (3e.4), one unreleased version;
+  - the per-call route check and `ROUTE_BOUNDARY_UNMET` (D8).
 - [ ] Write ADR 0033 from §5.6:
   - `ProposalRationale` (`goal_ref`, `cited_evidence`, `rules_considered`, `alternatives`, `summary` ≤ 400 characters);
   - `Citation` and its envelope (D4), D5, D6;
@@ -327,9 +329,10 @@ No runtime code. The ADRs are written, the target sections they decide are recon
 **Files:**
 - `src/e_agent/contracts/features.py`: `context_assembler`, `kernel_repeat`, `grounded_answers`, each `FeatureMode.OFF`.
 - The three committed profiles.
-- `src/e_agent/contracts/run.py`: the seven reason codes.
+- `src/e_agent/contracts/run.py`: the eight reason codes.
 - `src/e_agent/kernel/features.py`: mode properties and fixed messages.
 - `src/e_agent/kernel/continuation.py`: the pin, written only when a mode is not `off` (D8).
+- `src/e_agent/kernel/run_loop.py`: the route check before every model call (D8, T23).
 - New ERP `off` golden: `tests/unit/plugins/erp/simulator/golden/off_model_request_erp.json`, with its recording script, and `tests/unit/plugins/erp/simulator/test_off_model_request_erp.py`.
 - Tests: `tests/unit/contracts/test_features.py`, `tests/unit/server/test_committed_profiles.py`, `tests/unit/kernel/test_feature_fallback.py`, `tests/unit/kernel/test_mode_pinning.py`.
 
@@ -344,7 +347,9 @@ No runtime code. The ADRs are written, the target sections they decide are recon
   - `test_fallback_codes_never_end_a_run` (ADR 0027);
   - `test_modes_are_pinned_at_start`: a profile flip after start does not change the run's modes;
   - `test_off_run_writes_no_pin`: the continuation is byte-identical to today's;
-  - `test_absent_pin_means_off`.
+  - `test_absent_pin_means_off`;
+  - `test_pinned_off_run_on_undeclared_hosted_route_fails_closed`: a run started on a local route resumes after a restart onto an undeclared hosted route with `context_assembler: on`; it makes no model call and ends `ROUTE_BOUNDARY_UNMET` (T23, Review Focus 4);
+  - `test_route_check_with_unresolved_reservation_goes_to_reconciliation`.
 - [ ] Run `uv run pytest -q tests/unit/contracts/test_features.py tests/unit/server/test_committed_profiles.py tests/unit/kernel/test_feature_fallback.py tests/unit/kernel/test_mode_pinning.py`; expected: fails on the unknown field `context_assembler`.
 - [ ] Implement; nothing reads the new modes yet except readiness, evidence and the pin.
 - [ ] Run the same command, the `off` baselines (`tests/unit/kernel/test_off_baseline.py`, `tests/unit/plugins/erp/simulator/test_off_baseline_erp.py`) and both `off` model-request goldens; expected: all pass, goldens unchanged. Run the first command with `E_AGENT_TEST_STORE=postgres`; expected: pass.
@@ -403,6 +408,7 @@ No runtime code. The ADRs are written, the target sections they decide are recon
 **Files:**
 - `src/e_agent/kernel/reconstruct.py` (new): `reconstruct(events) -> Reconstructed`, with the run, actions, approvals and receipts, each field `known`, `partial` or `unknown`.
 - The event writers that gain keys (the ADR 0031 list).
+- The recorders and comparers of the frozen goldens, which compare the projection onto the Phase 2 keys: `tests/unit/kernel/record_off_baseline.py`, `tests/unit/kernel/test_off_baseline.py`, and their ERP counterparts under `tests/unit/plugins/erp/simulator/`.
 - New goldens beside the frozen Phase 2 ones: `tests/unit/kernel/golden/off_mode_events_v3.json` and `tests/unit/plugins/erp/simulator/golden/off_mode_events_erp_v3.json`.
 - `tests/unit/kernel/test_off_projection.py`.
 - `tests/conformance/test_reconstruction.py`.
@@ -415,7 +421,7 @@ No runtime code. The ADRs are written, the target sections they decide are recon
   - `test_phase2_golden_is_a_projection_of_v3` (D7): same order, keys and values, plus only ADR 0031's listed keys.
 - [ ] Run `uv run pytest -q tests/conformance/test_reconstruction.py tests/unit/kernel/test_off_projection.py`; expected: `ModuleNotFoundError: e_agent.kernel.reconstruct`.
 - [ ] Add exactly the ADR 0031 keys, additively, with no observation values (PR-26).
-- [ ] Record the `v3` goldens with their scripts. Leave the Phase 2 goldens and their tests untouched; their tests now compare the projection.
+- [ ] Record the `v3` goldens with their scripts. Leave the Phase 2 golden files untouched; their tests now compare the projection onto the Phase 2 keys.
 - [ ] Run `uv run pytest -q tests/conformance/test_reconstruction.py tests/unit/kernel/test_off_projection.py tests/unit/kernel/test_off_baseline.py tests/unit/plugins/erp/simulator/test_off_baseline_erp.py`, and the first with `E_AGENT_TEST_STORE=postgres`; expected: pass.
 - [ ] Commit `feat(kernel): reconstruct run rows from run_events (U3, ADR 0031)`.
 
@@ -557,7 +563,7 @@ No runtime code. The ADRs are written, the target sections they decide are recon
   - `test_assembly_failure_after_reservation_has_no_fallback` (Review Focus 7);
   - `test_ack_turn_assembly_failure_skips_turn_and_keeps_verified`;
   - `test_off_to_on_flip_keeps_inflight_run_on_history` (D8);
-  - `test_restore_rendering_mismatch_fails_closed` (D8): through the handler, not an uncaught `ValueError`;
+  - `test_restore_rendering_mismatch_fails_closed` (D8): through the handler, not an uncaught `ValueError`; with an unresolved reservation it goes to reconciliation;
   - `test_injected_fixture_run_proposes_the_same_action` (T1, Review Focus 1);
   - `test_twelve_turn_conversation_respects_budget` and `test_twenty_turn_conversation_stays_under_budget`: scripted driver; core plan exit evidence.
 - [ ] Run `uv run pytest -q tests/unit/kernel/test_context_on.py tests/unit/kernel/test_context_budget_turns.py`; expected: fails, no pack reaches the driver.
@@ -668,7 +674,9 @@ No runtime code. The ADRs are written, the target sections they decide are recon
 ### Task 3e.4: drivers emit citations and rationale
 
 **Files:**
-- `src/e_agent/adapters/pydantic_ai/driver.py`: answer tools gain a sibling `citations`, and write and plan tools gain `rationale`, only when the pinned `grounded_answers` mode is not `off`.
+- `src/e_agent/sdk/ports.py`: `DriverInput.grounding: bool = False`, set by the kernel from the pinned mode (part of the unreleased `sdk_api` 1.2).
+- `src/e_agent/kernel/run_loop.py`: sets `grounding` per call.
+- `src/e_agent/adapters/pydantic_ai/driver.py`: answer tools gain a sibling `citations`, and write and plan tools gain `rationale`, only when `DriverInput.grounding` is true; the driver never reads the profile.
 - `src/e_agent/plugins/erp/domain/testing/scripted_driver.py`: the scripted driver emits citations.
 - `tests/replays/erp-authored-grounded-calls/`: an authored recording, provenance "authored".
 - `tests/unit/server/test_recorded_model_replays.py`.
@@ -679,6 +687,7 @@ No runtime code. The ADRs are written, the target sections they decide are recon
 - [ ] Failing tests:
   - `test_off_tool_schemas_unchanged`: both `off` model-request goldens, notes and ERP;
   - `test_grounded_on_schema_offers_citations`;
+  - `test_inflight_off_run_schema_unchanged_after_flip`: a run pinned `off` keeps the `off` tool schema after the profile flips `grounded_answers` on;
   - `test_authored_grounded_replay_verifies`;
   - the consumer `test_grounding_shadow_agrees_with_on`: authored grounded replays; asserts the case count.
 - [ ] Run `uv run pytest -q tests/unit/adapters/pydantic_ai/test_driver_grounding.py tests/unit/server/test_recorded_model_replays.py`; expected: fails.
@@ -775,12 +784,12 @@ No runtime code. The ADRs are written, the target sections they decide are recon
   - `Reconstructed` (3c.2) feeds `explain`.
   - `Citation` and `ProposalRationale` live in `contracts/grounding.py` (3e.1, 3e.3).
   - `ContextPack` and `RenderedObservation` in `contracts/context_pack.py` (3d.1) are the only types `DriverInput.context` carries.
-  - `sdk_api` 1.2 covers `data_classes` (3b.3) and `DriverInput.context` (3d.1).
+  - `sdk_api` 1.2 covers `data_classes` (3b.3), `DriverInput.context` (3d.1) and `DriverInput.grounding` (3e.4).
 - **Review Focus coverage.**
   - Item 1 → 3d.2, 3d.5.
   - Item 2 → 3d.4.
   - Item 3 → 3d.2.
-  - Item 4 → 3d.4, 3d.5.
+  - Item 4 → 3b.2, 3d.4, 3d.5.
   - Item 5 → 3e.1.
   - Item 6 → 3d.6.
   - Item 7 → 3d.5, 3d.6, 3e.1.

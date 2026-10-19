@@ -134,6 +134,34 @@
       "affects": "contract",
       "summary": "Rationale now also on ActionPlan, and the plan states 3a.1's plan digest is the Phase 2 plan.",
       "evidence": "plan D6, Task 3e.3, Global Constraints"
+    },
+    {
+      "id": "P3-R1",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "Re-review: a run pinned off could resume onto an undeclared hosted route that startup accepted because the profile is on; a per-call route check now fails it closed with ROUTE_BOUNDARY_UNMET (3b.2).",
+      "evidence": "plan D8, Task 3b.1; driver.py:543; verification.py:193; threat-model.md:51"
+    },
+    {
+      "id": "P3-R2",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Re-review: 3c.2 must change the golden recorders and comparers, since assert_matches compares key sets exactly; now in its Files.",
+      "evidence": "tests/unit/kernel/test_off_baseline.py:23,40-46"
+    },
+    {
+      "id": "P3-R3",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Re-review: nothing told the driver the pinned grounded_answers mode; DriverInput.grounding added in 3e.4, with an in-flight flip test.",
+      "evidence": "sdk/ports.py:45-58; plan Task 3e.4"
+    },
+    {
+      "id": "P3-R4",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "Re-review: a restore mismatch with an unresolved reservation goes to reconciliation; D8 and the 3d.5 test now say so.",
+      "evidence": "plan D8, Task 3d.5"
     }
   ],
   "reviewer": {
