@@ -1,0 +1,206 @@
+{
+  "phase": "3",
+  "entries": [
+    {
+      "id": "F-3a-1",
+      "category": "adr",
+      "description": "Task 3a.1: ADRs 0031-0033, ADR 0030's Phase 3 parts and the target sections they decide",
+      "steps": [
+        "ADRs 0031, 0032 and 0033 written; ADR 0030 index row and route-boundary rule corrected",
+        "target 5.1, 5.6, 6.2, 6.3, 7.2, 7.4 and 13.3 tagged with their ADRs",
+        "repo_move.py check reports no broken links; full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3a-2",
+      "category": "adr",
+      "description": "Task 3a.2: owner acceptance of ADRs 0030 (Phase 3 parts) and 0031-0033 and decisions D1-D10 (gate G2)",
+      "steps": [
+        "owner answers recorded in the plan and the ADR status lines",
+        "active_plan switched to the Phase 3 plan; validate-context prints ok"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3b-1",
+      "category": "server",
+      "description": "Task 3b.1: model route data boundary and the hosted-route startup rule",
+      "steps": [
+        "test_hosted_route_without_data_processing_fails_startup and test_local_only_refuses_hosted_route pass",
+        "test_loopback_ollama_is_local and test_committed_profiles_are_local pass",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3b-2",
+      "category": "contracts",
+      "description": "Task 3b.2: the context_assembler, kernel_repeat and grounded_answers toggles, default off",
+      "steps": [
+        "test_phase3_toggles_default_off and test_readiness_reports_four_toggles pass",
+        "off goldens unchanged",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3b-3",
+      "category": "contracts",
+      "description": "Task 3b.3: data classes on capability schemas and stored records",
+      "steps": [
+        "test_unmarked_property_counts_as_personal passes",
+        "test_every_store_record_kind_declares_a_class passes on both stores and fails on zero kinds",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3c-1",
+      "category": "kernel",
+      "description": "Task 3c.1: progress ledger projection",
+      "steps": [
+        "test_progress_of_a_two_step_plan and test_progress_holds_no_model_text pass on both stores",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3c-2",
+      "category": "kernel",
+      "description": "Task 3c.2: run reconstruction from run_events (U3)",
+      "steps": [
+        "test_reconstruction_equals_stored_rows passes on both stores and fails on zero scenarios",
+        "off goldens re-recorded with only the ADR 0031 keys added",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3c-3",
+      "category": "kernel",
+      "description": "Task 3c.3: deterministic explanation projection (Q5, G11)",
+      "steps": [
+        "test_explanation_answers_competency_questions asserts its case count",
+        "test_explanation_makes_no_model_call and test_export_shortens_credential_version pass",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3d-1",
+      "category": "contracts",
+      "description": "Task 3d.1: context policy and pack contracts; sdk_api 1.2",
+      "steps": [
+        "test_pack_digest_is_stable and test_driver_input_context_defaults_none pass",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3d-2",
+      "category": "kernel",
+      "description": "Task 3d.2: context assembler with budgets, drop log, minimization, bounded observations and fencing",
+      "steps": [
+        "test_bounded_observation_is_partial_with_truncated_marker and test_personal_value_masked_on_hosted_route_and_logged pass",
+        "test_fence_cannot_be_closed_from_inside and test_approval_presentation_ignores_the_pack pass",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3d-3",
+      "category": "kernel",
+      "description": "Task 3d.3: context_assembler shadow comparison",
+      "steps": [
+        "test_shadow_adds_no_model_call_read_or_budget passes",
+        "test_shadow_pack_keeps_every_cited_evidence passes over the replay corpus",
+        "full and pg gates pass; off goldens unchanged"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3d-4",
+      "category": "driver",
+      "description": "Task 3d.4: context_assembler on and target 7.4 rendering",
+      "steps": [
+        "test_clearing_keeps_call_return_pairs and test_old_schema_on_continuation_fails_closed pass",
+        "recorded replays and prompt golden pass; off_model_request.json unchanged",
+        "full, pg and e2e gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3d-5",
+      "category": "kernel",
+      "description": "Task 3d.5: KERNEL-REPEAT for a repeated blocked proposal",
+      "steps": [
+        "test_repeat_of_blocked_digest_short_circuits and test_changed_fact_revision_revalidates pass",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3e-1",
+      "category": "kernel",
+      "description": "Task 3e.1: grounded answers with checked citations",
+      "steps": [
+        "test_citation_to_another_run_is_unresolved and test_mismatched_value_is_kernel_citation pass",
+        "test_verifier_still_decides passes",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3e-2",
+      "category": "kernel",
+      "description": "Task 3e.2: checked proposal rationale",
+      "steps": [
+        "test_rationale_with_unknown_evidence_is_kernel_rationale and test_rationale_never_changes_the_approval_digest pass",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3e-3",
+      "category": "driver",
+      "description": "Task 3e.3: drivers emit citations and rationale",
+      "steps": [
+        "test_off_tool_schema_unchanged and test_authored_grounded_replay_verifies pass",
+        "full, pg and e2e gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3f-1",
+      "category": "conformance",
+      "description": "Task 3f.1: driver conformance suite over the scripted and pydantic-ai drivers",
+      "steps": [
+        "test_every_driver_passes_conformance passes for both drivers and fails on zero cases",
+        "full and pg gates pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3g-1",
+      "category": "verification",
+      "description": "Task 3g.1: end-of-phase levels 1-3, phase review and handoff",
+      "steps": [
+        "full gate, Postgres run and make e2e pass on a clean tree",
+        "phase review and Codex final findings closed",
+        "handoff validates with e-agent-harness handoff"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-3g-2",
+      "category": "verification",
+      "description": "Task 3g.2: live check on odoo19-learning",
+      "steps": [
+        "the plan's Live check behaves as stated",
+        "results recorded in the handoff, labelled live"
+      ],
+      "passes": false
+    }
+  ]
+}
