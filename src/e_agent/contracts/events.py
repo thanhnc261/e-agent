@@ -41,6 +41,10 @@ class RunEventType(StrEnum):
     IR_STEP_VERIFIED = "ir.step_verified"
     # Context assembly (ADR 0032 §11): an acknowledgement turn skipped, with its code.
     CONTEXT_FAILED = "context.failed"
+    # `context_assembler: shadow` (ADR 0032 §7, Task 3d.3): the pack built for a driver turn
+    # compared with the same inputs unbounded, or the stage at which building it failed.
+    CONTEXT_COMPARED = "context.compared"
+    CONTEXT_SHADOW_FAILED = "context.shadow_failed"
 
 
 class RunEvent(Record):

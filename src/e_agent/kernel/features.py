@@ -105,6 +105,16 @@ SHADOW_MESSAGES = MappingProxyType(
 )
 """Each shadow stage's fixed ``ir.shadow_failed`` message; the event carries no reason code."""
 
+CONTEXT_SHADOW_MESSAGES = MappingProxyType(
+    {
+        "inputs": "The context pack inputs could not be derived from the run's records.",
+        "assemble": "The context pack could not be assembled.",
+        "compare": "The context pack could not be compared with its unbounded inputs.",
+    }
+)
+"""Each ``context_assembler: shadow`` stage's fixed ``context.shadow_failed`` message (ADR 0032
+§7); like ``ir.shadow_failed`` the event carries no reason code and no exception text."""
+
 
 LOCAL_ROUTE = MappingProxyType(
     {"data_boundary": "local", "data_boundary_basis": "verified", "data_processing_declared": False}
@@ -152,6 +162,13 @@ def context_failed_event(reason: ReasonCode) -> EventSpec:
         "turn": "acknowledgement",
     }
     return (RunEventType.CONTEXT_FAILED, payload, None)
+
+
+def context_shadow_failed_event(stage: str, turn: int) -> EventSpec:
+    """``context.shadow_failed``: the stage, its fixed message and the driver turn, nothing
+    else (ADR 0032 §7, PR-26). The run is otherwise unchanged."""
+    payload = {"stage": stage, "message": CONTEXT_SHADOW_MESSAGES[stage], "turn": turn}
+    return (RunEventType.CONTEXT_SHADOW_FAILED, payload, None)
 
 
 def _task_unresolved(action_id: str | None) -> EventSpec:

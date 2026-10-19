@@ -8,6 +8,12 @@ Live Odoo evidence comes from tests/integration/test_odoo_live*.py; live model
 evidence from scripts/qualify_model.py (ADR 0010).
 
     uv run python scripts/release_report.py --out evals/reports/fixture-release.json
+
+Each case also reports its repairs and token use, and, with ``--context-assembler shadow``,
+the context columns from the run's ``context.compared`` events (ADR 0032 §7, Task 3d.3). The
+Phase 3 ``off`` baseline is this report recorded with the toggle ``off``:
+
+    uv run python scripts/release_report.py --out evals/reports/phase3-baseline.json
 """
 
 from __future__ import annotations
@@ -20,8 +26,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from e_agent.contracts.approval import ApprovalDecision
+from e_agent.contracts.events import RunEvent, RunEventType
+from e_agent.contracts.features import FeatureMode
 from e_agent.contracts.run import RunState
 from e_agent.kernel.evidence import defaulted_payload
+from e_agent.kernel.progress import project_progress
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.bootstrap import build_runtime
 from e_agent.server.profile import load_profile
@@ -166,9 +175,70 @@ CASES = [
 ]
 
 
-async def run_case(case: Case) -> dict[str, Any]:
+METRICS_NOTE = (
+    "repairs.rate is (failed_validations + failed_answer_checks) / proposals: how often the "
+    "kernel sent a proposal or answer back. model_tokens is what the run's events record of "
+    "the driver's token use ('unknown' when they record none, never 0). context is null "
+    "unless context_assembler is shadow; its pack_tokens and unbounded_tokens are the "
+    "kernel estimator's sums over the run's driver turns, not model-reported tokens."
+)
+
+
+def fixture_profile(context_assembler: FeatureMode = FeatureMode.OFF) -> Any:
+    profile = load_profile(fixture_profile_path())
+    features = profile.features.model_copy(update={"context_assembler": context_assembler})
+    return profile.model_copy(update={"features": features})
+
+
+def repair_metrics(events: list[RunEvent]) -> dict[str, Any]:
+    """Proposals, the kernel's refusals of them, and the repair rate (METRICS_NOTE)."""
+    answers = {
+        e.action_id
+        for e in events
+        if e.type is RunEventType.PROPOSAL_CREATED and e.payload.get("kind") == "answer"
+    }
+    proposals = sum(e.type is RunEventType.PROPOSAL_CREATED for e in events)
+    failed_validations = sum(
+        e.type is RunEventType.VALIDATION_COMPLETED and e.payload.get("status") != "PASS"
+        for e in events
+    )
+    failed_answer_checks = sum(
+        e.type is RunEventType.OUTCOME_REPORTED
+        and e.payload.get("status") == "FAILED"
+        and e.action_id in answers
+        for e in events
+    )
+    repairs = failed_validations + failed_answer_checks
+    return {
+        "proposals": proposals,
+        "failed_validations": failed_validations,
+        "failed_answer_checks": failed_answer_checks,
+        "rate": round(repairs / proposals, 4) if proposals else None,
+    }
+
+
+def context_columns(events: list[RunEvent]) -> dict[str, Any] | None:
+    """The ``context.compared`` columns of a shadow run; None when the run recorded none."""
+    compared = [e.payload for e in events if e.type is RunEventType.CONTEXT_COMPARED]
+    failed = [e for e in events if e.type is RunEventType.CONTEXT_SHADOW_FAILED]
+    if not compared and not failed:
+        return None
+    deltas = [p["tokens_used_delta"] for p in compared]
+    return {
+        "turns": len(compared),
+        "shadow_failures": len(failed),
+        "pack_tokens": sum(sum(p["pack_tokens"].values()) for p in compared),
+        "unbounded_tokens": sum(sum(p["unbounded_tokens"].values()) for p in compared),
+        "tokens_used": sum(deltas) if deltas and None not in deltas else "unknown",
+        "dropped": sum(sum(p["dropped"].values()) for p in compared),
+        "masked": sum(p["drop_reasons"]["class_route"] for p in compared),
+        "omitted_observations": sum(len(p["omitted_evidence"]) for p in compared),
+    }
+
+
+async def run_case(case: Case, context_assembler: FeatureMode = FeatureMode.OFF) -> dict[str, Any]:
     rt = await build_runtime(
-        load_profile(fixture_profile_path()),
+        fixture_profile(context_assembler),
         driver_mode=case.mode,
         plugin_settings={
             "fixture-erp": {
@@ -216,6 +286,9 @@ async def run_case(case: Case) -> dict[str, Any]:
         "outcomes": list(outcomes),
         "first_blocked_rules": sorted(blocked[0]) if blocked else [],
         "provider_write_calls": writes,
+        "repairs": repair_metrics(events),
+        "model_tokens": project_progress(events, []).budgets_used.model_tokens,
+        "context": context_columns(events),
         "checks": checks,
         "passed": all(checks.values()),
     }
@@ -232,10 +305,18 @@ def summarize(results: list[dict[str, Any]], out: str) -> tuple[int, str]:
     return (0 if results and passed == len(results) else 1), "".join(lines)
 
 
-def build_report(rt: Any, results: list[dict[str, Any]]) -> dict[str, Any]:
+def build_report(
+    rt: Any, results: list[dict[str, Any]], context_assembler: FeatureMode = FeatureMode.OFF
+) -> dict[str, Any]:
     """The release report: the case results, the runtime's versions, and the write effects
     its admission accepted on their defaults, which release evidence lists (ADR 0029
     Operations)."""
+    proposals = sum(r.get("repairs", {}).get("proposals", 0) for r in results)
+    repairs = sum(
+        r["repairs"]["failed_validations"] + r["repairs"]["failed_answer_checks"]
+        for r in results
+        if "repairs" in r
+    )
     return {
         "report": "e-agent-release-matrix-v1",
         "environment": "fixture",
@@ -243,6 +324,9 @@ def build_report(rt: Any, results: list[dict[str, Any]]) -> dict[str, Any]:
             "Deterministic host-path evidence (scripted driver, fake ERP). "
             "Not live model or live ERP evidence."
         ),
+        "context_assembler": context_assembler.value,
+        "metrics_note": METRICS_NOTE,
+        "repair_rate": round(repairs / proposals, 4) if proposals else None,
         "versions": rt.versions,
         "defaulted_declarations": defaulted_payload(rt.registry.report.defaulted_declarations),
         "passed": sum(r["passed"] for r in results),
@@ -254,9 +338,16 @@ def build_report(rt: Any, results: list[dict[str, Any]]) -> dict[str, Any]:
 async def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default="evals/reports/fixture-release.json")
+    parser.add_argument(
+        "--context-assembler",
+        choices=[FeatureMode.OFF.value, FeatureMode.SHADOW.value],
+        default=FeatureMode.OFF.value,
+        help="the context_assembler mode the cases run with (shadow adds the context columns)",
+    )
     args = parser.parse_args()
-    results = [await run_case(c) for c in CASES]
-    report = build_report(await build_runtime(load_profile(fixture_profile_path())), results)
+    mode = FeatureMode(args.context_assembler)
+    results = [await run_case(c, mode) for c in CASES]
+    report = build_report(await build_runtime(fixture_profile(mode)), results, mode)
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, ensure_ascii=False)
         fh.write("\n")

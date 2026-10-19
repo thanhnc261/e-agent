@@ -67,7 +67,8 @@ def test_recording_provenance_is_explicit():
     print(f"provenance checked: {len(captured)} captured, {len(authored)} authored")
 
 
-async def replay(task, *, omit_late_order=False, root=ROOT, offered=None):
+async def replay(task, *, omit_late_order=False, root=ROOT, offered=None, context_assembler=None):
+    """Replay one recording; ``context_assembler`` pins that mode for the run (Task 3d.3)."""
     recording = json.loads((root / f"{task}.json").read_text())
     responses = ModelMessagesTypeAdapter.validate_python(recording["responses"])
     if omit_late_order:
@@ -101,6 +102,9 @@ async def replay(task, *, omit_late_order=False, root=ROOT, offered=None):
                 "budgets": profile.budgets.model_copy(update=recording["budgets"]),
             }
         )
+    if context_assembler is not None:
+        features = profile.features.model_copy(update={"context_assembler": context_assembler})
+        profile = profile.model_copy(update={"features": features})
     runtime = await build_runtime(
         profile,
         driver_factory=lambda registry: PydanticAiDriver(

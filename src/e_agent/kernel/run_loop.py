@@ -25,12 +25,13 @@ from e_agent.sdk.ports import (
     RequestReads,
 )
 
+from .context_shadow import ContextShadowMixin
 from .errors import ErrorCode, KernelError
 from .features import RouteRefused
 from .gateway import GatewayMixin
 
 
-class RunLoopMixin(GatewayMixin):
+class RunLoopMixin(GatewayMixin, ContextShadowMixin):
     # ---------------------------------------------------------------- driving
     async def _drive(self, run: RunRecord, step_input: DriverInput) -> RunRecord:
         cont = await self._load_cont(run.tenant_id, run.run_id)
@@ -45,6 +46,7 @@ class RunLoopMixin(GatewayMixin):
             tokens_used = getattr(self._driver, "tokens_used", lambda _: 0)(ctx.run_id)
             if tokens_used >= ctx.budgets.max_model_tokens:
                 return await self._exhausted(run, "model tokens")
+            shadow = await self._context_shadow(run, cont, step_input)  # pinned shadow only
             try:
                 step = await self._timed(
                     cont,
@@ -57,6 +59,8 @@ class RunLoopMixin(GatewayMixin):
                 return await self._exhausted(run, "model usage")
             except TimeoutError:
                 return await self._exhausted(run, "active time or model deadline")
+            if shadow is not None:  # ADR 0032 §7: recorded after the turn, before its step
+                run = await self._record_context_shadow(run, shadow)
 
             if (
                 getattr(self._driver, "tokens_used", lambda _: 0)(ctx.run_id)
