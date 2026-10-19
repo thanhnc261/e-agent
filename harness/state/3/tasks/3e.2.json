@@ -47,7 +47,9 @@
     "ui/packages/ui-core/src/presentation.ts",
     "ui/packages/components/test/**",
     "ui/packages/components/src/features/composer/RunStatus.tsx",
-    "ui/packages/ui-core/src/controller.ts"
+    "ui/packages/ui-core/src/controller.ts",
+    "ui/apps/reference-vanilla/src/main.ts",
+    "ui/packages/components/src/features/composer/runStateTone.ts"
   ],
   "acceptance": [
     "a read-only question ends grounded without a bespoke contract; grounded never reported as verified",
@@ -132,6 +134,16 @@
       "glob": "ui/packages/ui-core/src/controller.ts",
       "reason": "review 3e.2 R1-1 (PR-19): the run badge and task history must not show verified for a GROUNDED run",
       "at": "2026-10-19T18:20:15+00:00"
+    },
+    {
+      "glob": "ui/apps/reference-vanilla/src/main.ts",
+      "reason": "review 3e.2 R2 (PR-19): no surface or tone marks a grounded run verified",
+      "at": "2026-10-19T18:27:36+00:00"
+    },
+    {
+      "glob": "ui/packages/components/src/features/composer/runStateTone.ts",
+      "reason": "review 3e.2 R2 (PR-19): no surface or tone marks a grounded run verified",
+      "at": "2026-10-19T18:27:37+00:00"
     }
   ]
 }
