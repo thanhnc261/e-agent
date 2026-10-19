@@ -1,0 +1,52 @@
+{
+  "task": "3b.1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "B1-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Evidence bundle did not report data_boundary, basis and data_processing_declared, which the plan's Observability paragraph requires.",
+      "evidence": "docs/plans/2026-10-19-phase3-cognition-context.md:203; src/e_agent/kernel/evidence.py:160-202"
+    },
+    {
+      "id": "B1-2",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "The startup-refusal case with context_assembler on cannot exist before 3b.2 adds the field; moved into 3b.2's test list by ruling.",
+      "evidence": "tests/unit/server/test_route_boundary.py:85; plan Task 3b.2"
+    },
+    {
+      "id": "B1-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "test_committed_profiles_are_local checks check_route_boundary, not a full start; renamed or made to build the runtime.",
+      "evidence": "tests/unit/server/test_route_boundary.py:122-134"
+    },
+    {
+      "id": "B1-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Loopback detection is correct and fails closed; pin more bypass cases (userinfo, nip.io, trailing dot).",
+      "evidence": "src/e_agent/server/bootstrap.py:172-186"
+    },
+    {
+      "id": "B1-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Scripted driver ignores a contradicting declaration; acceptable per ADR 0030, left as is.",
+      "evidence": "src/e_agent/server/bootstrap.py:199-200"
+    },
+    {
+      "id": "B1-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The e2e helper edit does not weaken those tests; a comment now says the adapter's endpoint check is the backstop.",
+      "evidence": "tests/unit/server/test_pydantic_driver_e2e.py:149-155"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

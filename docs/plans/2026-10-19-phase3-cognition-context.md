@@ -350,6 +350,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
   - `test_modes_are_pinned_at_start`: a profile flip after start does not change the run's modes;
   - `test_off_run_writes_no_pin`: the continuation is byte-identical to today's;
   - `test_absent_pin_means_off`;
+  - `test_hosted_route_refused_at_startup_even_with_context_assembler_on` (moved from 3b.1, review B1-2: the field lands here; ADR 0030's `on` exemption waits for 3d.5);
   - `test_pinned_off_run_on_undeclared_hosted_route_fails_closed`: a run started on a local route resumes after a restart onto an undeclared hosted route with `context_assembler: on`; it makes no model call and ends `ROUTE_BOUNDARY_UNMET` (T23, Review Focus 4);
   - `test_route_check_with_unresolved_reservation_goes_to_reconciliation`;
   - `test_route_check_skips_ack_turn_and_keeps_verified`: the acknowledgement turn of a verified write on an undeclared hosted route makes no model call;

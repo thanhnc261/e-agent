@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-3b-1"
   ],
-  "context_digest": "b01eb018a7c9dd87715cfc4e6770908bd46cc8f1e1a7032185e6b13404453527",
+  "context_digest": "07a656f1594f2753ca784e4a2012619f884d2fa1fadfdd1161d049c10bd0fdba",
   "allowed_paths": [
     "src/e_agent/server/profile.py",
     "src/e_agent/contracts/data.py",
@@ -25,7 +25,8 @@
     "harness/state/**",
     ".superpowers/sdd/**",
     "docs/handoffs/**",
-    "ui/packages/client/**"
+    "ui/packages/client/**",
+    "src/e_agent/server/cli.py"
   ],
   "acceptance": [
     "test_route_boundary.py passes, including loopback verified, hosted:unknown default and the startup refusal",
@@ -40,6 +41,11 @@
       "glob": "ui/packages/client/**",
       "reason": "readiness keys change the exported OpenAPI schema and generated client",
       "at": "2026-10-19T06:42:49+00:00"
+    },
+    {
+      "glob": "src/e_agent/server/cli.py",
+      "reason": "review B1-1: build_evidence callers in cli.py must pass the route boundary",
+      "at": "2026-10-19T06:52:08+00:00"
     }
   ]
 }
