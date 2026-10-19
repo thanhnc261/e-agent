@@ -82,6 +82,14 @@ class OpenFinding(Record):
     message: str
 
 
+class RuleRef(Record):
+    """One evaluated rule: its id, version and status, never its message or values."""
+
+    rule_id: str
+    rule_version: str
+    status: str
+
+
 class BudgetsUsed(Record):
     """What the events and steps show. ``unknown`` means they do not show it, not zero."""
 
@@ -109,6 +117,9 @@ class ProgressLedger(Record):
     done: tuple[Stage, ...]
     pending: tuple[Stage, ...]
     open_findings: tuple[OpenFinding, ...]
+    rules_evaluated: tuple[RuleRef, ...]
+    """Every rule of the same validation as ``open_findings``, ``PASS`` included, once each in
+    the order recorded; empty when no validation is current."""
     repair_turns: tuple[str, ...]
     """Event ids of the plain-text repair turns (``KERNEL-VERIFICATION``), never their text."""
     budgets_used: BudgetsUsed

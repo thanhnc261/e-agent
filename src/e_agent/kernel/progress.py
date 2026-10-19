@@ -21,6 +21,7 @@ from e_agent.contracts.progress import (
     FactRef,
     OpenFinding,
     ProgressLedger,
+    RuleRef,
     Stage,
     StageKind,
     StageSource,
@@ -70,7 +71,7 @@ def project_progress(events: Iterable[RunEvent], steps: Iterable[StepRecord]) ->
     created = next((e for e in ordered if e.type is RunEventType.RUN_CREATED), None)
     goal = created.payload.get("task") if created is not None else None
     stages = _stages(ordered, latest)
-    findings, repair_turns = _findings(ordered)
+    findings, rules, repair_turns = _findings(ordered)
     return ProgressLedger(
         run_id=ordered[0].run_id if ordered else (latest[0][1].run_id if latest else None),
         goal=goal if isinstance(goal, str) else None,
@@ -80,6 +81,7 @@ def project_progress(events: Iterable[RunEvent], steps: Iterable[StepRecord]) ->
         done=tuple(s for _, s in stages if not _is_pending(s)),
         pending=tuple(s for _, s in stages if _is_pending(s)),
         open_findings=findings,
+        rules_evaluated=rules,
         repair_turns=repair_turns,
         budgets_used=_budgets(ordered, [row for _, row in latest]),
     )
@@ -125,8 +127,11 @@ def _text(value: Any) -> str | None:
 
 
 # -- findings and repairs --------------------------------------------------------------------
-def _findings(events: Sequence[RunEvent]) -> tuple[tuple[OpenFinding, ...], tuple[str, ...]]:
-    """Open findings are those of the latest validation that no later proposal superseded."""
+def _findings(
+    events: Sequence[RunEvent],
+) -> tuple[tuple[OpenFinding, ...], tuple[RuleRef, ...], tuple[str, ...]]:
+    """The current validation is the latest one that no later proposal superseded: its open
+    findings, and every rule it evaluated (``PASS`` included)."""
     latest: RunEvent | None = None
     repairs: list[str] = []
     for event in events:
@@ -137,7 +142,7 @@ def _findings(events: Sequence[RunEvent]) -> tuple[tuple[OpenFinding, ...], tupl
             if any(f.get("rule_id") == REPAIR_RULE_ID for f in _finding_dicts(event)):
                 repairs.append(event.event_id)
     if latest is None:
-        return (), tuple(repairs)
+        return (), (), tuple(repairs)
     open_findings = tuple(
         OpenFinding(
             rule_id=str(f.get("rule_id")),
@@ -148,7 +153,15 @@ def _findings(events: Sequence[RunEvent]) -> tuple[tuple[OpenFinding, ...], tupl
         for f in _finding_dicts(latest)
         if f.get("status") != "PASS"
     )
-    return open_findings, tuple(repairs)
+    rules = dict.fromkeys(
+        RuleRef(
+            rule_id=str(f.get("rule_id")),
+            rule_version=str(f.get("rule_version")),
+            status=str(f.get("status")),
+        )
+        for f in _finding_dicts(latest)
+    )
+    return open_findings, tuple(rules), tuple(repairs)
 
 
 def _finding_dicts(event: RunEvent) -> list[dict[str, Any]]:

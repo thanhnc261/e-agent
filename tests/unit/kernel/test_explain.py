@@ -18,7 +18,7 @@ from typing import Any
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.explain import Completeness, Explanation, ValueLabel
-from e_agent.contracts.progress import StageStatus, TaskRefState
+from e_agent.contracts.progress import RuleRef, StageStatus, TaskRefState
 from e_agent.contracts.run import ReasonCode, RunRecord, RunState
 from e_agent.kernel import explain as explain_module
 from e_agent.kernel.explain import explain
@@ -132,6 +132,12 @@ async def _cq07_basis(make_kernel: MakeKernel) -> None:
     (approval,) = explained.approvals
     assert approval.policy_version == record.policy_version
     assert [s.status for s in explained.validation.stages] == [StageStatus.SUCCEEDED]
+    # the passed rules' versions, and the driver this run recorded (review C3-26, C3-27)
+    assert explained.validation.rules_evaluated == (
+        RuleRef(rule_id="NOTE-001", rule_version="1", status="PASS"),
+    )
+    assert explained.validation.open_findings == ()
+    assert explained.run.driver_id == k.driver.driver_id == "notes-driver"
 
 
 async def _cq08_withdrawn_source(make_kernel: MakeKernel) -> None:
@@ -263,6 +269,27 @@ async def test_explanation_holds_no_observation_values(make_kernel: MakeKernel) 
     assert explained.validation.input_requests  # the request is shown, by its event id
     assert SENTINEL not in explained.model_dump_json()
 
+    # a failing validation: its finding's message and values stay out (review C3-29)
+    finding = {
+        "rule_id": "R-1",
+        "rule_version": "2",
+        "status": "FAIL",
+        "message": f"value {SENTINEL} is not allowed",
+        "expected": f"not {SENTINEL}",
+        "observed": SENTINEL,
+        "evidence_ids": [],
+    }
+    failing = [
+        _event(1, RunEventType.RUN_CREATED, {"task": "t", "driver": "d"}),
+        _event(2, RunEventType.VALIDATION_COMPLETED, {"status": "FAIL", "findings": [finding]}),
+    ]
+    blocked = _explain(failing)
+    assert blocked.validation.open_findings == (
+        RuleRef(rule_id="R-1", rule_version="2", status="FAIL"),
+    )
+    assert blocked.validation.rules_evaluated == blocked.validation.open_findings
+    assert SENTINEL not in blocked.model_dump_json()
+
 
 # -- partial and unknown (PR-24) --------------------------------------------------------------
 def _phase2(event: RunEvent) -> RunEvent:
@@ -291,6 +318,9 @@ async def test_explanation_of_old_run_marks_partial(make_kernel: MakeKernel) -> 
     # still recorded: the digest (from the approval request) and the reservation's operation id
     assert proposal.digest == current.proposals[0].digest
     assert proposal.logical_operation_id == current.proposals[0].logical_operation_id
+    # `run.created` recorded the driver before the keys too, so it stays known
+    assert old.run.driver_id == current.run.driver_id == "notes-driver"
+    assert "driver_id" not in old.run.unknown_fields
     (approval,) = old.approvals
     assert approval.policy_version is None and "policy_version" in approval.unknown_fields
     assert approval.actor_id == current.approvals[0].actor_id
@@ -334,3 +364,13 @@ def test_a_known_null_is_not_an_unknown_field() -> None:
     assert explained.run.task_ref_state is TaskRefState.NONE
     assert explained.run.unknown_fields == ()
     assert explained.run.state == "CREATED"
+    assert explained.run.driver_id == "d"
+
+
+def test_an_unrecorded_driver_is_unknown() -> None:
+    """A ``run.created`` without ``driver`` does not say which driver ran: unknown (PR-24)."""
+    explained = _explain([_event(1, RunEventType.RUN_CREATED, {"task": "t"})])
+    assert explained.run.driver_id is None
+    assert "driver_id" in explained.run.unknown_fields
+    assert _explain([]).run.driver_id is None
+    assert "driver_id" in _explain([]).run.unknown_fields

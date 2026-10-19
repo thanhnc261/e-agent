@@ -17,6 +17,7 @@ from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.progress import (
     ProgressLedger,
+    RuleRef,
     StageKind,
     StageSource,
     StageStatus,
@@ -112,6 +113,8 @@ async def test_progress_of_a_verified_answer_run(make_kernel: MakeKernel) -> Non
     assert kinds[-1] == (StageKind.VERIFY, StageStatus.SUCCEEDED)
     assert all(s.source is StageSource.EVENT for s in ledger.done)  # off writes no steps
     assert ledger.open_findings == ()
+    # the answer has no validation, so no rule is current
+    assert ledger.rules_evaluated == ()
     assert ledger.repair_turns == ()
     used = ledger.budgets_used
     assert (used.failed_validations, used.admitted_writes) == (0, 0)
@@ -127,6 +130,7 @@ async def test_progress_of_a_blocked_then_repaired_run(make_kernel: MakeKernel) 
 
     # the blocked proposal is superseded by the repaired one, whose validation passed
     assert ledger.open_findings == ()
+    assert ledger.rules_evaluated == (RuleRef(rule_id="NOTE-001", rule_version="1", status="PASS"),)
     assert ledger.budgets_used.failed_validations == 1
     validations = [s.status for s in ledger.done if s.kind is StageKind.VALIDATE]
     assert validations == [StageStatus.BLOCKED, StageStatus.SUCCEEDED]
@@ -154,6 +158,8 @@ async def test_progress_keeps_the_findings_of_a_blocked_proposal_open(
     assert [f.rule_id for f in ledger.open_findings] == ["NOTE-001"]
     assert ledger.open_findings[0].status == "FAIL"
     assert ledger.open_findings[0].message == "text must be non-empty"
+    # the same validation's rules, by id, version and status (review C3-27)
+    assert ledger.rules_evaluated == (RuleRef(rule_id="NOTE-001", rule_version="1", status="FAIL"),)
     # every non-PASS validation counts, including the one that ended the run
     assert ledger.budgets_used.failed_validations == 3
 

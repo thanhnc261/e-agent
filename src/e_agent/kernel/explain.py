@@ -7,9 +7,10 @@ findings → proposals → approvals → receipts → outcomes, as ids, versions
 statuses (`contracts/explain.py`).
 
 What it leaves out is a rule, not an omission: the proposal's arguments and the receipt's
-provider error text (they can carry read data), the outcome's checks (observed values,
-PR-26) and every model text (PR-28); the ledger already holds no model text. A field the
-events do not record is None and named in ``unknown_fields`` (PR-24).
+provider error text (they can carry read data), each finding's message and its expected and
+observed values, the outcome's checks (observed values, PR-26) and every model text (PR-28;
+the ledger holds none). A field the events do not record is None and named in
+``unknown_fields`` (PR-24).
 """
 
 from __future__ import annotations
@@ -31,7 +32,7 @@ from e_agent.contracts.explain import (
     Validation,
     ValueLabel,
 )
-from e_agent.contracts.progress import ProgressLedger, StageKind, StageStatus
+from e_agent.contracts.progress import ProgressLedger, RuleRef, StageKind, StageStatus
 from e_agent.kernel.reconstruct import (
     BY_DESIGN_PARTIAL,
     UNKNOWN_SLOT,
@@ -84,7 +85,7 @@ def explain(ledger: ProgressLedger, reconstructed: Reconstructed) -> Explanation
     """The run's explanation; the same inputs always give the same record."""
     return Explanation(
         completeness=Completeness(reconstructed.state.value),
-        run=_header(ledger, reconstructed.run),
+        run=_header(ledger, reconstructed),
         sources=tuple(SourceFact.of(f) for f in ledger.facts),
         validation=_validation(ledger),
         proposals=tuple(_proposal(row) for row in reconstructed.actions),
@@ -94,13 +95,16 @@ def explain(ledger: ProgressLedger, reconstructed: Reconstructed) -> Explanation
     )
 
 
-def _header(ledger: ProgressLedger, run: Rebuilt) -> RunHeader:
-    values, _, unknown = _flatten(run, _RUN)
+def _header(ledger: ProgressLedger, reconstructed: Reconstructed) -> RunHeader:
+    values, _, unknown = _flatten(reconstructed.run, _RUN)
+    driver = reconstructed.driver
+    driver_known = driver.state is not FieldState.UNKNOWN
     return RunHeader(
         **values,
+        driver_id=driver.value if driver_known else None,
         task_ref=ledger.task_ref,
         task_ref_state=ledger.task_ref_state,
-        unknown_fields=unknown,
+        unknown_fields=unknown if driver_known else (*unknown, "driver_id"),
     )
 
 
@@ -108,7 +112,11 @@ def _validation(ledger: ProgressLedger) -> Validation:
     stages = (*ledger.done, *ledger.pending)
     return Validation(
         stages=tuple(s for s in stages if s.kind is StageKind.VALIDATE),
-        open_findings=ledger.open_findings,
+        open_findings=tuple(
+            RuleRef(rule_id=f.rule_id, rule_version=f.rule_version, status=f.status)
+            for f in ledger.open_findings
+        ),  # without the message (PR-26)
+        rules_evaluated=ledger.rules_evaluated,
         input_requests=tuple(
             InputRequest(event_id=s.event_id, status=s.status)
             for s in stages

@@ -503,6 +503,18 @@ def test_an_answer_without_its_outcome_is_partial() -> None:
     assert action.fields["state"].state is FieldState.PARTIAL
 
 
+def test_the_driver_is_read_from_run_created() -> None:
+    """``driver`` is not a run row field: it sits beside the run and is unknown when
+    ``run.created`` does not record it (review C3-26, PR-24)."""
+    created = _event(1, RunEventType.RUN_CREATED, {"task": "t", "driver": "d"})
+    got = reconstruct([created])
+    assert (got.driver.state, got.driver.value) == (FieldState.KNOWN, "d")
+    assert "driver" not in got.run.fields
+    bare = reconstruct([_event(1, RunEventType.RUN_CREATED, {"task": "t"})])
+    assert bare.driver.state is FieldState.UNKNOWN and bare.driver.value is None
+    assert reconstruct([]).driver.state is FieldState.UNKNOWN
+
+
 def test_an_empty_log_is_unknown() -> None:
     got = reconstruct([])
     assert got.state is FieldState.UNKNOWN

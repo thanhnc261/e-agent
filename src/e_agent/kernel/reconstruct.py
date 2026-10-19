@@ -158,6 +158,10 @@ class Reconstructed(Record):
     """In the order of their ``proposal.created``."""
     approvals: tuple[Rebuilt, ...]
     receipts: tuple[Rebuilt, ...]
+    driver: Slot = UNKNOWN_SLOT
+    """The driver id ``run.created`` records (``driver``); ``unknown`` when it records none.
+    It is not a run row field (``RunRecord`` has no driver), so it is outside ``run`` and
+    outside ``state``."""
 
     @property
     def state(self) -> FieldState:
@@ -257,8 +261,17 @@ def reconstruct(events: Iterable[RunEvent]) -> Reconstructed:
             fields["state"] = Slot(state=FieldState.PARTIAL, value=state.value)
         rebuilt.append(Rebuilt(fields=fields))
     return Reconstructed(
-        run=run, actions=tuple(rebuilt), approvals=tuple(approvals), receipts=tuple(receipts)
+        run=run,
+        actions=tuple(rebuilt),
+        approvals=tuple(approvals),
+        receipts=tuple(receipts),
+        driver=_driver(created),
     )
+
+
+def _driver(created: RunEvent | None) -> Slot:
+    driver = created.payload.get("driver") if created is not None else None
+    return Slot(state=FieldState.KNOWN, value=driver) if isinstance(driver, str) else UNKNOWN_SLOT
 
 
 def _run(events: list[RunEvent], created: RunEvent | None) -> Rebuilt:

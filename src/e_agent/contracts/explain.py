@@ -16,7 +16,7 @@ from __future__ import annotations
 from enum import StrEnum
 
 from .common import Record
-from .progress import FactRef, OpenFinding, Stage, StageStatus, TaskRefState
+from .progress import FactRef, RuleRef, Stage, StageStatus, TaskRefState
 
 
 class Completeness(StrEnum):
@@ -53,6 +53,8 @@ class RunHeader(Record):
     task_ref: str | None
     task_ref_state: TaskRefState
     requester_id: str | None
+    driver_id: str | None
+    """The driver ``run.created`` records for this run, not the exporting runtime's."""
     state: str | None
     reason_code: str | None
     unknown_fields: tuple[str, ...] = ()
@@ -83,9 +85,12 @@ class InputRequest(Record):
 class Validation(Record):
     stages: tuple[Stage, ...]
     """Each validation the run recorded, in order."""
-    open_findings: tuple[OpenFinding, ...]
-    """The findings of the latest validation that no later proposal superseded, by rule id.
-    Their ``expected`` and ``observed`` values are read data and stay out (PR-26)."""
+    open_findings: tuple[RuleRef, ...]
+    """The non-``PASS`` findings of the latest validation that no later proposal superseded,
+    by rule id, version and status. Their message is validator free text and their
+    ``expected`` and ``observed`` values are read data; all stay out (PR-26)."""
+    rules_evaluated: tuple[RuleRef, ...]
+    """Every rule that validation evaluated, ``PASS`` included (research 03 CQ07)."""
     input_requests: tuple[InputRequest, ...]
 
 
