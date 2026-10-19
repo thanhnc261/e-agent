@@ -145,7 +145,7 @@ These are failure modes the tests below do not fully exercise. Each item names t
 | 0028 Task definitions | Accepted | `AcceptanceSpec`, refined by 0033 with `grounded_answer` | 3e.2 |
 | 0004, 0007, 0018, 0022 | Accepted | no persisted reasoning; durable events; reason codes and attribution; rejected reads as feedback | throughout |
 
-**ADR 0030 amendment:** fields are classed by `data_classes: Mapping[<JSON pointer>, DataClass]` on the capability declaration, not by `x-data-class` inside the JSON schema. This keeps model-facing schemas, and the `off` model request, unchanged. 3a.1 amended ADR 0030, and G2 accepted the amended Phase 3 parts.
+**ADR 0030 amendment:** fields are classed by `data_classes: Mapping[<instance path>, DataClass]` on the capability declaration, not by `x-data-class` inside the JSON schema. This keeps model-facing schemas, and the `off` model request, unchanged. 3a.1 amended ADR 0030, and G2 accepted the amended Phase 3 parts.
 
 Every ADR this phase needs was accepted at G2 on 2026-10-19, so no task waits on an ADR. Which ADR each task implements: 3b.1 and 3b.3 → 0030 (Phase 3 parts); 3b.2 → 0032 (pinning and codes); 3c.1, 3c.2 and 3d.6 → 0031; 3d.1–3d.5 → 0032; 3c.3 and 3e → 0033.
 
@@ -364,14 +364,14 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 
 **Files:**
 - `src/e_agent/contracts/data_classes.py` (new): `DataClass`, `RecordClass`, `RetentionClass`, and the store-neutral registry of stored record kinds.
-- `src/e_agent/contracts/capability.py`: `CapabilityDescriptor.data_classes: Mapping[str, DataClass]`, keyed by a JSON pointer into the input or output schema.
+- `src/e_agent/contracts/capability.py`: `CapabilityDescriptor.data_classes: Mapping[str, DataClass]`, keyed by an instance path under `/input` or `/output` (`items` for any array index; owner decision 2026-10-19).
 - `src/e_agent/sdk/__init__.py`: `SDK_API_VERSION = "1.2"`.
 - `src/e_agent/kernel/registry.py`: resolves classes and counts unmarked properties per capability.
 - Declarations: the ERP pack's capability declarations (`src/e_agent/plugins/erp/domain/*/`) and the notes test pack (`tests/unit/kernel/conftest.py`).
 - `src/e_agent/server/api.py`: readiness `unmarked_properties`.
 - Tests: `tests/unit/contracts/test_data_classes.py`, `tests/conformance/test_record_classes.py`, `tests/unit/kernel/test_registry_data_classes.py`, `tests/unit/plugins/erp/domain/test_data_classes_erp.py`, `tests/unit/sdk/test_ports.py`.
 
-**Interfaces:** produces `Registry.data_class(contract_id, pointer) -> DataClass`, with an unmarked pointer resolving to `personal`; the assembler (3d.2) reads it.
+**Interfaces:** produces `Registry.data_class(contract_id, instance_path) -> DataClass`: the most restrictive class declared on the path or an ancestor, `personal` when none; the assembler (3d.2) passes the observation's own value paths, with array indices written as `items`.
 
 - [ ] Failing tests:
   - `test_unmarked_property_counts_as_personal`;

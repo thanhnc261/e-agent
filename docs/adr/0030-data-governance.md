@@ -1,6 +1,6 @@
 # ADR 0030: Data classification, minimization, retention and deletion for run data
 
-Date: 2026-10-14. Status: Proposed; **the parts marked [Phase 3] were accepted by the owner on 2026-10-19 at gate G2** (Phase 3 Task 3a.2). Amended 2026-10-19 (Phase 3 Task 3a.1): the loopback rule and the boundary basis (Phase 3 plan D2), and field classes declared beside the schema instead of inside it. **At gate G2 (Phase 3 Task 3a.2) the owner accepts or amends the parts marked [Phase 3]**: the route boundary and startup rule, field and record classes, minimization and bounded results. The parts marked [Phase 5] (class markers on new capabilities, export authorization) and [Phase 7] (retention and deletion) stay Proposed after G2. Refines ADRs 0004, 0008, 0021; HLD §8, §9; MVP design §10, §11; [target architecture](../design/target-architecture.md) §7, §13.2, §13.3.
+Date: 2026-10-14. Amended 2026-10-19 again (owner, Task 3b.3): `data_classes` keys are instance paths. Status: Proposed; **the parts marked [Phase 3] were accepted by the owner on 2026-10-19 at gate G2** (Phase 3 Task 3a.2). Amended 2026-10-19 (Phase 3 Task 3a.1): the loopback rule and the boundary basis (Phase 3 plan D2), and field classes declared beside the schema instead of inside it. **At gate G2 (Phase 3 Task 3a.2) the owner accepts or amends the parts marked [Phase 3]**: the route boundary and startup rule, field and record classes, minimization and bounded results. The parts marked [Phase 5] (class markers on new capabilities, export authorization) and [Phase 7] (retention and deletion) stay Proposed after G2. Refines ADRs 0004, 0008, 0021; HLD §8, §9; MVP design §10, §11; [target architecture](../design/target-architecture.md) §7, §13.2, §13.3.
 
 ## Context
 
@@ -24,7 +24,7 @@ The first version of this ADR marked fields with an `x-data-class` keyword insid
 
 - **[Phase 3] Field classes are pack data, declared beside the schema.**
   - A capability declaration carries `CapabilityDescriptor.data_classes: Mapping[str, DataClass]`, with the classes `public`, `internal`, `personal`, `sensitive_personal` and `secret` (target §13.3).
-  - Each key is an RFC 6901 JSON pointer into the document `{"input": <input schema>, "output": <output schema>}` that names a property schema, for example `/output/properties/partners/items/properties/email`. A pointer that does not resolve to a property schema fails admission. The class applies to every instance value that schema describes: an `items` step matches every array index, so the example classes the email of every partner in the list.
+  - Each key is an instance path: where the value sits in the capability's input or output data, written as an RFC 6901 pointer under `/input` or `/output`, with `items` standing for every array index. For example, `/output/partners/items/email` classes the email of every partner in the list. A value's class is the most restrictive class declared on its path or on any ancestor path; an undeclared value is `personal`. Keys of a dict-valued property are data, so a dict is classed by a declaration on the dict property itself. Admission refuses a path that does not resolve to a property through at least one branch of the schema; resolution only checks the path exists and never decides a class. (Owner decision 2026-10-19, Phase 3 Task 3b.3: the earlier schema-pointer keys let one value be reached through several schema paths, and three review rounds found ways to lower a class through them.)
   - The schemas themselves are unchanged, so the model-facing tool schemas, the approval digest and the `off` model requests do not change.
   - An unmarked property counts as `personal`. Readiness reports unmarked counts per capability.
   - The field is part of `sdk_api` 1.2 (ADR 0032) and has an empty default, so an existing declaration still loads.
@@ -74,7 +74,7 @@ The first version of this ADR marked fields with an `x-data-class` keyword insid
   - the purge job, purge role, offboarding and subject deletion (Phase 7).
 - Tests and evidence:
   - an unmarked property is treated as `personal`;
-  - a `data_classes` pointer that names no property schema fails admission;
+  - a `data_classes` instance path that resolves to no property fails admission;
   - an undeclared loopback Ollama route is `local` with basis `verified`; an undeclared remote or LiteLLM route is `hosted:unknown` with basis `default`;
   - startup is refused for a hosted route without `data_processing` and for `local_only` with a hosted route;
   - a masked value is recorded in `dropped`;

@@ -1099,7 +1099,7 @@ Decided by [ADR 0030](../adr/0030-data-governance.md) (Proposed; amended 2026-10
 - `RunStore` has no delete path (`sdk/store.py:71-225`), and no retention applies to continuations.
 - ADR 0021 leaves data egress for a hosted model upstream to the operator.
 
-**Data classes (pack data).** Each capability declaration classes the properties of its input and output schemas in `data_classes`, a map from an RFC 6901 pointer into `{"input": <input schema>, "output": <output schema>}` to a class. The classes sit beside the schemas, never inside them, so the model-facing tool schemas and the `off` model requests do not change (ADR 0030 amendment, 2026-10-19):
+**Data classes (pack data).** Each capability declaration classes the properties of its input and output schemas in `data_classes`, a map from an instance path (an RFC 6901 pointer under `/input` or `/output` into the data, `items` for every array index) to a class; the most restrictive class on the path or an ancestor applies (ADR 0030, owner decision 2026-10-19). The classes sit beside the schemas, never inside them, so the model-facing tool schemas and the `off` model requests do not change (ADR 0030 amendment, 2026-10-19):
 
 | Class | Meaning | May reach a hosted model route | In the default evidence export |
 |---|---|---|---|
