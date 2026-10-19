@@ -746,11 +746,13 @@ def test_drop_log_refs_never_name_an_undeclared_key() -> None:
         "by_email": {"alice@example.com": "x"},
         "by_id": {"123456789": "v", "0": "w"},
         "alice@example.com": {"x": 1},
+        "x": {"items": {"label": "v"}},
     }
     classes = {
         "/output/notes/items/key": DataClass.INTERNAL,
         "/output/by_email": DataClass.INTERNAL,
         "/output/by_id": DataClass.INTERNAL,
+        "/output/x/items/label": DataClass.PUBLIC,
     }
     named = {"ev1": (context_on._named_paths(classes), data)}
     cases = {
@@ -761,6 +763,7 @@ def test_drop_log_refs_never_name_an_undeclared_key() -> None:
         "ev1#/by_email/alice@example.com": "ev1#/by_email",  # a dict key is data
         "ev1#/by_id/123456789": "ev1#/by_id",  # a numeric dict key is data (D3-71)
         "ev1#/by_id/0": "ev1#/by_id",
+        "ev1#/x/items/label": "ev1#/x",  # a dict key `items` is never the marker (D3-81)
         "ev1#/alice@example.com/x": "ev1#",
         "ev1#": "ev1#",
         "ev1": "ev1",  # an observation stub: its evidence id
@@ -897,3 +900,52 @@ async def test_a_numeric_dict_key_is_never_classed_as_a_list_index(
         assert observation.data == {"by_id": ["SEEDED-LISTED"]}
         assert not observation.masked
         assert "SEEDED-LISTED" in text
+
+
+@pytest.mark.parametrize(
+    ("shape", "route", "kept"),
+    [("dict", HOSTED_UNDECLARED, False), ("list", HOSTED_UNDECLARED, True), ("dict", LOCAL, True)],
+    ids=["dict-hosted-undeclared", "list-hosted-undeclared", "dict-local"],
+)
+async def test_a_dict_key_named_items_is_never_the_array_marker(
+    make_kernel: MakeKernel,
+    monkeypatch: pytest.MonkeyPatch,
+    shape: str,
+    route: dict[str, Any],
+    kept: bool,
+) -> None:
+    """Codex's case (review D3-81): ``/output/x/items/label`` declared public; ``x`` a dict
+    with a key ``items``. On an undeclared hosted route that key is undeclared, so it is left
+    out with its value and logged under ``x`` (D3-12); a real list under ``x`` still resolves
+    to ``items``; a local route keeps the key."""
+    driver = PackNotesDriver(texts=["standup notes"])
+    k = make_kernel(features=ON, route=route, driver=driver)
+    monkeypatch.setattr(
+        k.coordinator._registry,
+        "data_classes",
+        lambda _cid: {"/output/x/items/label": DataClass.PUBLIC},
+    )
+    label = {"label": "SEEDED-PERSONAL"}
+    x: Any = {"items": label} if shape == "dict" else [label]
+    original = k.backend.read
+
+    async def shaped(*args: Any) -> Any:
+        return dataclasses.replace(await original(*args), data={"x": x})
+
+    monkeypatch.setattr(k.backend, "read", shaped)
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+    assert run.state is RunState.WAITING_APPROVAL, run.reason
+    [pack, *_] = [st.context for st in driver.seen if st.context is not None and st.observations]
+    [observation] = pack.observations
+    text = pack.model_dump_json()  # the observations and every rendered layer
+    if kept:
+        assert observation.data == {"x": x}
+        assert "SEEDED-PERSONAL" in text
+        return
+    assert observation.data == {"x": {}}
+    assert observation.masked
+    assert "SEEDED" not in text
+    assert '"items"' not in text
+    ref = f"{observation.evidence.evidence_id}#/x"
+    drops = [(d.kind, d.ref, d.reason) for d in pack.dropped]
+    assert (DroppedKind.VALUE, ref, DroppedReason.CLASS_ROUTE) in drops

@@ -214,6 +214,7 @@ class VerificationMixin(ContextOnMixin):
                     cont,
                     partial(self._driver.advance, ctx, self._with_tools(run, cont, turn_input)),
                     ctx.budgets.model_timeout_seconds,
+                    driver_turn=True,
                 )
                 answered = True
         except (RouteRefused, ContextUnavailable, ContextNotRendered, DriverStateMismatch) as exc:

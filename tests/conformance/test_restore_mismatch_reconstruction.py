@@ -17,6 +17,7 @@ from typing import Any
 
 import pytest
 from e_agent.contracts.action import ActionState
+from e_agent.contracts.context import Budgets
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.run import ReasonCode, RunRecord, RunState
 from e_agent.kernel.coordinator import RunCoordinator
@@ -27,7 +28,8 @@ from e_agent.kernel.reconstruct import BLOCKED_KEY, reconstruct
 from tests.conformance.test_reconstruction import _approve, _assert_equal, _rows
 from tests.unit.kernel import conftest as notes
 from tests.unit.kernel.conftest import TENANT, Kernel, NotesDriver
-from tests.unit.kernel.test_context_on import StatefulDriver
+from tests.unit.kernel.test_context_on import PackNotesDriver, StatefulDriver
+from tests.unit.kernel.test_mode_pinning import HOSTED_UNDECLARED
 
 run_store = notes.run_store  # the kernel suite's fixtures: both stores (ENG-STORE-1)
 make_kernel = notes.make_kernel
@@ -242,3 +244,58 @@ async def test_a_driver_without_restore_keeps_the_stored_snapshot(
     assert cancelled.state is RunState.CANCELLED
     assert await _driver_state(k, run.run_id) == stored
     await _reconstructs(k, run.run_id, "cancel without restore")
+
+
+@pytest.mark.parametrize("stop", ["turn_budget", "route"])
+async def test_a_turn_stopped_before_the_driver_call_keeps_the_stored_snapshot(
+    make_kernel: MakeKernel, stop: str
+) -> None:
+    """Codex's case (review D3-80): a run started on a driver that snapshots, resumed on one
+    with no ``restore``, whose turn a pre-turn check stops (the turn budget, or a route the
+    run may not call). The replacement driver is never called, and the stored snapshot is
+    written back unchanged."""
+    budgets = Budgets(max_driver_turns=1) if stop == "turn_budget" else None
+    k = make_kernel(budgets=budgets, driver=StatefulDriver())  # asks a question
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+    assert run.state is RunState.WAITING_INPUT
+    stored = await _driver_state(k, run.run_id)
+    assert stored is not None
+
+    driver = PackNotesDriver(texts=["standup notes"])
+    assert not hasattr(driver, "restore")
+    route = HOSTED_UNDECLARED if stop == "route" else None
+    restarted = make_kernel(budgets=budgets, driver=driver, route=route)
+    ended = await restarted.coordinator.resume_input(
+        restarted.requester, run.run_id, "the standup", run.revision
+    )
+    expected = (
+        ReasonCode.BUDGET_EXHAUSTED if stop == "turn_budget" else ReasonCode.ROUTE_BOUNDARY_UNMET
+    )
+    assert (ended.state, ended.reason_code) == (RunState.FAILED, expected)
+    assert driver.seen == []
+    assert await _driver_state(k, run.run_id) == stored
+    await _reconstructs(k, run.run_id, f"stopped before the call ({stop})")
+
+
+async def test_a_skipped_acknowledgement_keeps_the_stored_snapshot(
+    make_kernel: MakeKernel,
+) -> None:
+    """The acknowledgement site (review D3-80): reconciliation resolves the write on a
+    restart with no ``restore``, on a route the run may not call; the acknowledgement turn
+    is skipped before the driver call, and the stored snapshot is written back unchanged."""
+    k, run = await _waiting_approval(make_kernel)
+    k.backend.fail_mode = "timeout"
+    assert (await _approve(k, run.run_id)).state is RunState.NEEDS_RECONCILIATION
+    stored = await _driver_state(k, run.run_id)
+    assert stored is not None
+
+    driver = PackNotesDriver(texts=["standup notes"])
+    restarted = make_kernel(driver=driver, route=HOSTED_UNDECLARED)
+    restarted.backend.notes.update(k.backend.notes)  # the provider's committed note
+    reconciled = await restarted.coordinator.reconcile(restarted.approver, run.run_id)
+    assert reconciled.state is RunState.SUCCEEDED
+    assert driver.seen == []
+    assert await _driver_state(k, run.run_id) == stored
+    rows = await _reconstructs(k, run.run_id, "skipped acknowledgement")
+    failed = [e.payload for e in rows.events if e.type is RunEventType.CONTEXT_FAILED]
+    assert [f["reason_code"] for f in failed] == [ReasonCode.ROUTE_BOUNDARY_UNMET]

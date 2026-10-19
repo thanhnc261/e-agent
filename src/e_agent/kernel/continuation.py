@@ -134,11 +134,14 @@ class _Continuation(BaseModel):
     of it has used (set by the first call, review D3-41): its driver history may hold values
     only that route may see, so a call on a stricter one is refused. None, and left out of
     the stored continuation, for every other run."""
-    _unrestored: dict[str, Any] | None = PrivateAttr(default=None)
+    _stored_driver_state: dict[str, Any] | None = PrivateAttr(default=None)
     """The stored driver state this entry was loaded with, whatever the current driver
-    supports, until a driver turn restores it or the driver starts fresh (`_restore_for_turn`,
-    reviews D3-60, D3-70): never serialized, and written back verbatim by `_snapshot`
-    meanwhile, so a kernel-only save leaves the stored driver state as it was."""
+    supports, kept until the driver's ``advance`` is about to run (`_timed` with
+    ``driver_turn``, reviews D3-60, D3-70, D3-80): never serialized, and written back
+    verbatim by `_snapshot` meanwhile, so a kernel-only save, and a turn stopped by a
+    pre-turn check (a budget, the route, the unbound check, assembly), leave it as it was."""
+    _restored: bool = PrivateAttr(default=False)
+    """Whether `_restore_for_turn` restored this load's driver state: at most once per load."""
 
     @model_serializer(mode="wrap")
     def _omit_unbound_task(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -345,22 +348,20 @@ class ContinuationMixin:
         if cont is not None:
             return cont
         cont, driver_state = await self._read_cont(tenant_id, run_id)
-        cont._unrestored = driver_state  # kept whatever the driver supports (review D3-70)
+        cont._stored_driver_state = driver_state  # whatever the driver supports (D3-70)
         self._runs[run_id] = cont
         return cont
 
     def _restore_for_turn(self, cont: _Continuation) -> bool:
-        """Restore the driver state a load left pending, once per load, before the run's next
-        driver turn (`_drive`, the acknowledgement turn). A driver without ``restore`` starts
-        fresh: the stored state is released, and the turn's snapshot replaces it. False on the
-        typed refusal (D8): the kernel's ``rendering`` marker check, or the driver's own;
-        nothing is restored, and the stored driver state stays as it was."""
-        driver_state = cont._unrestored
-        if driver_state is None:
-            return True
+        """Restore the driver state a load left pending, at most once per load, before the
+        run's next driver turn (`_drive`, the acknowledgement turn) reads any driver state. A
+        driver without ``restore`` starts fresh at its call. The stored state stays on the
+        entry either way until ``advance`` is about to run (review D3-80). False on the typed
+        refusal (D8): the kernel's ``rendering`` marker check, or the driver's own; nothing is
+        restored, and the stored driver state stays as it was."""
+        driver_state = cont._stored_driver_state
         restore = getattr(self._driver, "restore", None)
-        if restore is None:  # the driver keeps no history: it starts fresh
-            cont._unrestored = None
+        if driver_state is None or restore is None or cont._restored:
             return True
         try:
             if rendering_mismatch(cont, driver_state):
@@ -368,7 +369,7 @@ class ContinuationMixin:
             restore(cont.ctx.run_id, driver_state)
         except DriverStateMismatch:
             return False
-        cont._unrestored = None
+        cont._restored = True
         return True
 
     def _snapshot(self, run_id: str) -> tuple[dict[str, Any], dict[str, Any] | None] | None:
@@ -376,7 +377,7 @@ class ContinuationMixin:
         if cont is None:
             return None
         snapshot = getattr(self._driver, "snapshot", None)
-        driver_state = cont._unrestored  # not restored yet: the stored state, verbatim
+        driver_state = cont._stored_driver_state  # before the driver call: verbatim
         if driver_state is None and snapshot is not None:
             driver_state = snapshot(run_id)
         return ({"schema": CONTINUATION_SCHEMA, "data": cont.model_dump(mode="json")}, driver_state)
@@ -394,13 +395,19 @@ class ContinuationMixin:
         limit: int,
         *,
         cancellable: bool = True,
+        driver_turn: bool = False,
     ) -> T:
+        """Run ``call`` within the run's active-time budget and ``limit``. ``driver_turn``:
+        the call is the driver's ``advance``, so the stored driver state is released as it
+        starts, never before (review D3-80); the driver's own snapshot replaces it."""
         remaining = cont.ctx.budgets.max_active_seconds - cont.active_seconds
         if remaining <= 0:
             raise TimeoutError("active execution budget exhausted")
         started = time.perf_counter()
 
         async def invoke() -> T:
+            if driver_turn:
+                cont._stored_driver_state = None
             return await call()
 
         # An awaited child, not a background task: the caller handles its failure, so no log.

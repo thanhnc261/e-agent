@@ -60,6 +60,7 @@ class RunLoopMixin(GatewayMixin, ContextOnMixin):
                     cont,
                     partial(self._driver.advance, ctx, self._with_tools(run, cont, turn_input)),
                     ctx.budgets.model_timeout_seconds,
+                    driver_turn=True,
                 )
             except RouteRefused:  # no model call on this route (ADR 0032 §9, T23, D3-41)
                 return await self._end_closed(run, ReasonCode.ROUTE_BOUNDARY_UNMET)

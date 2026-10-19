@@ -90,8 +90,8 @@ def safe_ref(ref: str, named: Named) -> str:
             child: dc.Path = (*path, dc.ITEMS)
             node = node[int(token)]
         elif isinstance(node, Mapping):
-            child = (*path, token)
-            if child not in names or token not in node:
+            child = (*path, token)  # a key ``items`` is never the array marker (D3-81)
+            if token == dc.ITEMS or child not in names or token not in node:
                 break
             node = node[token]
         else:

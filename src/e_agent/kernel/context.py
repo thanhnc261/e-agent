@@ -65,6 +65,11 @@ _CODE = re.compile(r"[A-Za-z][A-Za-z0-9_.-]{0,63}")
 _EMPTY: Mapping[str, Any] = MappingProxyType({})
 _MASKED_TEXT = masked_marker(dc.DataClass.PERSONAL)
 KEEP = ClassAction.KEEP
+_UNNAMEABLE = "0"
+"""The class-lookup token of a dict key named ``items``: ADR 0030's key format reserves
+``items`` for array members, and a class key never writes a numeric token, so no declaration
+names it (review D3-81). Its ancestors' classes still apply. The cost: a schema property
+literally named ``items`` is always ``personal``; no ERP schema has one."""
 
 
 def context_route(route: Mapping[str, Any]) -> ContextRoute:
@@ -178,7 +183,8 @@ class _Walker:
             unnamed = False
             for key, item in value.items():
                 name = _key(key)
-                child = (*tokens, name)  # a dict key is itself, numeric or not, never `items`
+                # a dict key is itself, numeric or not, and never the array marker (D3-81)
+                child = (*tokens, _UNNAMEABLE if name == dc.ITEMS else name)
                 if not self.index.named(child) and self.rules[dc.UNMARKED_CLASS] is not KEEP:
                     unnamed = True  # the key may be data: the entry is left out (D3-12)
                     continue
