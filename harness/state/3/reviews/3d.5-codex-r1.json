@@ -1,0 +1,24 @@
+{
+  "task": "3d.5",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "D3-70",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "Snapshot preservation depends on the current driver exposing restore; otherwise _load_cont discards the stored snapshot and a kernel-only save overwrites it (reproduced: StatefulDriver run restarted with NotesDriver, cancel -> stored snapshot null).",
+      "evidence": "src/e_agent/kernel/continuation.py:347,375; src/e_agent/kernel/recovery.py:91"
+    },
+    {
+      "id": "D3-71",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "Drop-log sanitization treats every numeric token as an array index, so an undeclared numeric dictionary key reaches context.assembled and the evidence bundle (reproduced: ev-r1#/by_id/123456789).",
+      "evidence": "src/e_agent/kernel/context_on.py:78,80,117; src/e_agent/kernel/evidence.py:194"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}
