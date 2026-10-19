@@ -32,7 +32,7 @@ The first version of this ADR marked fields with an `x-data-class` keyword insid
 - **[Phase 3] Model routes declare a data boundary.**
   - The driver route declares `data_boundary: local | hosted:<region>`. The declared value decides.
   - An undeclared `ollama` route whose base URL host is a loopback address (`localhost`, `127.0.0.0/8`, `::1`, compared literally, with no DNS lookup) is `local`. Any other undeclared route, `litellm` included, is `hosted:unknown`. Being undeclared is never refused for that alone; the rules below apply to the resulting boundary.
-  - Readiness reports each boundary with its **basis**: `verified` for an `ollama` route on a loopback host (whether or not the profile also declares `local`), `declared` for an operator assertion. A LiteLLM route's boundary is always `declared`, because its upstream is outside e-agent. The scripted driver makes no model call; it reports `local`, basis `verified`.
+  - Readiness reports each boundary with its **basis**: `verified` for an `ollama` route on a loopback host (whether or not the profile also declares `local`), `declared` for an operator assertion, and `default` for an undeclared route that resolves to `hosted:unknown`. A LiteLLM route's boundary is never `verified`, because its upstream is outside e-agent: it is `declared` when the profile declares it and `default` otherwise. The scripted driver makes no model call; it reports `local`, basis `verified`.
   - `local_only: true` refuses non-local routes at startup.
   - A hosted route that may receive `personal` data needs a profile `data_processing` declaration (data owner, legal basis, region), reported in `/health/ready`.
   - **Startup rule:** a route that is not `local` and has no `data_processing` declaration fails startup while `features.context_assembler` is not `on`. The exemption for `on` lands together with the masking it relies on (Phase 3 Task 3d.5); until then the rule refuses such a route whatever the toggle says, so `on` never covers an unbuilt path (ADR 0027). No committed profile uses a hosted route, and the owner's live profile uses a loopback Ollama, so it needs no edit.
@@ -75,7 +75,7 @@ The first version of this ADR marked fields with an `x-data-class` keyword insid
 - Tests and evidence:
   - an unmarked property is treated as `personal`;
   - a `data_classes` pointer that names no property schema fails admission;
-  - an undeclared loopback Ollama route is `local` with basis `verified`; an undeclared remote or LiteLLM route is `hosted:unknown`;
+  - an undeclared loopback Ollama route is `local` with basis `verified`; an undeclared remote or LiteLLM route is `hosted:unknown` with basis `default`;
   - startup is refused for a hosted route without `data_processing` and for `local_only` with a hosted route;
   - a masked value is recorded in `dropped`;
   - a bounded result is `PARTIAL` with its marker;

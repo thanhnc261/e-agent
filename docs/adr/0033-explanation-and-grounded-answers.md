@@ -28,13 +28,19 @@ Research 03 §5 lists competency questions the knowledge layer must answer ([res
 
 ### 3. The generic grounded answer `grounded.answer.v1` (D5, Task 3e.2)
 
-- A core answer contract owned by the kernel, with arguments `{summary}` and citations in the envelope. It answers a read-only question for which no typed answer contract exists.
+- A core answer contract owned by the kernel, with arguments `{summary}` and citations in the envelope. It answers a read-only question for which no typed answer contract exists. It never stands in for a typed verifier (PR-19).
 - It reads nothing and writes nothing, so it has no connection, binding or verifier. A connection named on it is ignored (model output never selects a connection, PR-12), and it creates no `ActionRecord`, so the action table and its states are unchanged.
 - It is **not a registry capability**. It is outside the host tool specs and the registry `surface_digest`, so a run that is not pinned `on` never sees it and a toggle flip does not stale an in-flight approval (threat T17). The driver offers it as an extra tool, the way it offers `propose_plan` (`adapters/pydantic_ai/driver.py`).
 - The kernel recognizes it in `_handle_proposal` **before** the task-set check (`_outside_task_set`) and the capability lookup, so a task definition's tool set does not refuse it and the no-verifier rule (`KERNEL-VERIFIER`) does not apply.
 - When every citation resolves (at least one is required), the run ends `SUCCEEDED` with the new reason code `GROUNDED` (`grounded`, `contracts/run.py`). The `message.final` event carries the summary as its `text` and gains the keys `contract_id` and `citations` (the at-rest form). The evidence bundle labels the summary `unverified` model text and each citation `grounded`. A grounded answer is never `verified`, never has an outcome report and never satisfies a task definition's acceptance item that requires a verified answer.
 - An unresolved citation is `KERNEL-CITATION`, within `max_validation_repairs`.
-- It is offered to the model only for a run pinned `grounded_answers: on`. In `shadow` the kernel would have no existing path to act on when the model calls it (ADR 0027: `shadow` acts on nothing), so it is not offered there. This narrows D5's "not `off`"; the owner confirms or changes it at G2.
+- **Admission.** The kernel admits the generic answer for a run only when all three hold, and the result is fixed for the run because its tool set and task definition are:
+  1. the run is pinned `grounded_answers: on`. In `shadow` the kernel would have no existing path to act on when the model calls it (ADR 0027: `shadow` acts on nothing), so it is not offered there. This narrows D5's "not `off`"; the owner confirms or changes it at G2;
+  2. the run's offered tool set contains no typed answer contract (no capability with `EffectKind.ANSWER`): the definition's capabilities on a bound run, every agent-visible capability otherwise. Where a typed answer exists, its verifier decides, and the generic answer cannot bypass it;
+  3. the run is not bound to a task definition, or its definition's acceptance spec admits a grounded answer explicitly (below).
+- A run that does not admit it is never offered it, and a call to it anyway is the fixed repair finding `KERNEL-GROUNDED-ANSWER`, recorded in `validation.completed` with no action id, within `max_validation_repairs`.
+- **Acceptance (refines ADR 0028).** `AcceptanceSpec` gains `grounded_answer: bool = False` (Task 3e.2). It is valid only when `required_effects` and `required_answer` are both empty, so a definition that names a typed answer or an effect can never be met by a grounded one. The acceptance gate (`_acceptance_gap`, `kernel/ir_on.py:395-422`) reads only `VERIFIED` actions and verifier reports today; with `grounded_answer: true` it also accepts the run's `GROUNDED` end, read from the kernel's own citation-check record (the `message.final` it wrote with `contract_id` and the at-rest `citations`), never from model output (ENG-TRUST-1). With `false`, a grounded end never meets the spec. No task definition sets the flag today.
+- **Counting.** A grounded run writes no `outcome.reported`, so the release report (`scripts/release_report.py`, which reads `outcome.reported` statuses) and model qualification (ADR 0010) count `GROUNDED` as its own category, never as `VERIFIED`. Task 3e.2 changes the release report.
 
 ### 4. `ProposalRationale` (D6, Task 3e.3)
 
@@ -52,7 +58,8 @@ class ProposalRationale(Record):            # contracts/grounding.py
 - A `summary` over 400 characters is refused by the record.
 - `goal_ref` is recorded and shown, not checked, in Phase 3.
 - Rationale is never an approval input and never enters the approval digest (target §5.6). The approval card shows the canonical proposal first and the rationale second, labelled model-authored (threat T9); the card UI is later work (D10).
-- At rest the rationale is stored in the `proposal.created` payload under `rationale`, with evidence ids, rule ids, digests and codes, plus the two model-authored texts (`summary` and each alternative's line). Those texts are model output, classed `business_payload` like arguments and `message.final` text (ADR 0030). They are not hidden reasoning: the driver emits them as a structured output field, and thinking parts stay stripped (ADR 0004, PR-28).
+- At rest the rationale is stored in the `proposal.created` payload under `rationale`, with evidence ids, rule ids, digests and codes, plus the two model-authored texts (`summary` and each alternative's line).
+- **Exception to the ids-only payload rule.** The Phase 3 plan's Global Constraint says new event payloads carry ids, pointers, counts, digests and reason codes only. These two texts are an explicit exception. They are model output, not observation values, but they can echo one. They are classed `business_payload`, like arguments and `message.final` text (ADR 0030), are treated as `personal` by default, and are masked by the class-aware evidence export when it lands (ADR 0030, Phase 5). They are not hidden reasoning: the driver emits them as a structured output field, and thinking parts stay stripped (ADR 0004, PR-28). The alternative, open to the owner at G2, stores only a `jcs-sha256-v1` digest of each text plus the evidence ids; the approval card would then show the rationale text only while the run's continuation holds it.
 
 ### 5. Toggle `features.grounded_answers` (D1)
 
@@ -60,9 +67,9 @@ class ProposalRationale(Record):            # contracts/grounding.py
 |---|---|
 | `off` | Today. Answer tools offer no `citations`, write and plan tools offer no `rationale`, and `grounded.answer.v1` is not offered. Citations or rationale that a driver sends anyway are dropped and not stored. |
 | `shadow` | Citations and rationale are offered. The kernel checks them from the continuation and records `grounding.compared` (resolved, unresolved and mismatched counts for citations and for rationale refs). Typed answers go to their verifier and write proposals to validation as today. Real consumer: `test_grounding_shadow_agrees_with_on` over the authored grounded replays asserts that shadow's verdicts equal `on`'s and its case count (Task 3e.4); the release report shows the counts. A shadow error records `grounding.shadow_failed` and changes nothing else. |
-| `on` | Sections 2–4: `KERNEL-CITATION` and `KERNEL-RATIONALE` repair findings, and `grounded.answer.v1`. |
+| `on` | Sections 2–4: `KERNEL-CITATION`, `KERNEL-RATIONALE` and `KERNEL-GROUNDED-ANSWER` repair findings, and `grounded.answer.v1` where section 3 admits it. |
 
-- `DriverInput.grounding` carries the run's pinned mode (`FeatureMode`, default `off`), set by the kernel per call. The driver offers `citations` and `rationale` when it is not `off`, and `grounded.answer.v1` only when it is `on`. The driver never reads the profile (D8). With `off`, both `off` model-request goldens (notes and ERP) stay byte-identical.
+- `DriverInput.grounding` is a `GroundingOffer` (`off`, `cite`, `cite_and_answer`; default `off`) that the kernel derives per call from the run's pinned mode and section 3's admission: pinned `off` gives `off`; pinned `shadow` gives `cite`; pinned `on` gives `cite_and_answer` when the run admits the generic answer and `cite` otherwise. The driver offers `citations` and `rationale` unless it is `off`, and `grounded.answer.v1` only for `cite_and_answer`. The driver never reads the profile (D8). With `off`, both `off` model-request goldens (notes and ERP) stay byte-identical.
 - **Failure handling (ADR 0027):** before the run's first reservation, `feature.fallback` with `GROUNDING_CHECK_FAILED`; a typed answer then goes to its verifier and a write proposal to validation as today. A `grounded.answer.v1` has no existing path, so its check failure fails the run closed with `GROUNDING_UNAVAILABLE`. After a reservation every check failure fails closed with `GROUNDING_UNAVAILABLE`, or goes to `NEEDS_RECONCILIATION` when a reservation is unresolved.
 
 ### 6. The explanation projection (Task 3c.3)
@@ -93,14 +100,14 @@ CQ01–CQ05 (entity mapping, valid time, conflicting sources, viewing rights) ne
 
 ## Consequences
 
-- Code: `contracts/grounding.py`, `ActionProposal` and `ActionPlan` fields, `kernel/grounding.py`, `kernel/grounded_answer.py`, `kernel/explain.py`, the `GROUNDED` reason code, `grounding.compared` and `grounding.shadow_failed`, the driver's conditional fields and tool, the scripted driver, the evidence bundle and the CLI command.
+- Code: `contracts/grounding.py`, `ActionProposal` and `ActionPlan` fields, `AcceptanceSpec.grounded_answer` (`contracts/task.py`) and its acceptance-gate branch, `kernel/grounding.py`, `kernel/grounded_answer.py`, `kernel/explain.py`, the `GROUNDED` reason code, the release report's grounded count, `grounding.compared` and `grounding.shadow_failed`, the driver's conditional fields and tool, the scripted driver, the evidence bundle and the CLI command.
 - Tests and evidence: Tasks 3c.3 and 3e.1–3e.4; an authored grounded replay recording (provenance "authored", not live evidence).
 - The UI for citations, rationale and the explanation is later work (D10).
 
 ## Verification
 
 - 3e.1: `test_citation_to_another_run_is_unresolved`, `test_citation_value_is_not_stored`, `test_grounded_off_drops_citations_and_action_record_unchanged`, `test_verifier_still_decides`, and the post-reservation test.
-- 3e.2: `test_grounded_is_never_reported_as_verified`, `test_free_text_answer_is_labelled_unverified`, `test_grounded_answer_not_offered_when_pinned_off`.
+- 3e.2: `test_grounded_is_never_reported_as_verified`, `test_free_text_answer_is_labelled_unverified`, `test_grounded_answer_not_offered_when_pinned_off`, and the admission tests `test_grounded_answer_not_offered_beside_a_typed_answer`, `test_grounded_answer_refused_on_bound_run_without_admission` and `test_release_report_counts_grounded_separately`.
 - 3e.3: `test_rationale_never_changes_the_approval_digest`, `test_rationale_holds_no_hidden_reasoning`.
 - 3c.3: `test_explanation_answers_competency_questions`, with one case per question above and its case count; `test_explanation_makes_no_model_call`; `test_explanation_holds_no_observation_values`.
 - Revisit when a citation must point into a document span rather than structured data (knowledge layer), or when a grounded answer is proposed as an acceptance item.

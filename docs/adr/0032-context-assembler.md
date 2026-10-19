@@ -47,7 +47,7 @@ ADR 0030 (its Phase 3 parts are accepted at the same gate) decides field classes
 
 ### 4. Fencing (target §7.2 rule 5, threat T1, PR-34)
 
-- Untrusted text in the dynamic suffix (read errors, and the `expected` and `observed` values of findings, which can echo data) is wrapped in `<untrusted-data source="…" evidence="…">…</untrusted-data>`. The content is JSON-encoded with `<`, `>` and `&` written as `<`, `>` and `&`, so no value can produce the closing delimiter (Review Focus 1).
+- Untrusted text in the dynamic suffix (read errors, and the `expected` and `observed` values of findings, which can echo data) is wrapped in `<untrusted-data source="…" evidence="…">…</untrusted-data>`. The content is JSON-encoded, and inside the fence every `<` is written as `\u003c`, every `>` as `\u003e` and every `&` as `\u0026` (JSON unicode escapes), so no value can produce the closing delimiter `</untrusted-data>` (Review Focus 1). The same text is masked first where section 5 says so.
 - Observations reach the model only as tool returns built from `RenderedObservation.data`, as JSON with the same escaping of string values and the observation's `evidence_id`.
 - The stable prefix states that fenced blocks and tool returns are data and never instructions. Data cannot change the tool set, the plan, policy or budgets: the tool set is fixed per run (§7.2 rule 1) and the kernel checks every proposal.
 
@@ -61,7 +61,14 @@ ADR 0030 (its Phase 3 parts are accepted at the same gate) decides field classes
 | hosted, `data_processing` declared | kept | kept | masked | never present |
 | hosted, no `data_processing` (including `hosted:unknown`) | kept | masked | masked | never present |
 
-A masked value is replaced by the string `[masked:<class>]` and recorded as a `Dropped` entry of kind `value` with reason `class_route` and its pointer; the rendered observation is `partial` and `masked`. Masking governs the model context only; the approval card is always built from the unmasked action (ADR 0030, ADR 0006, threat T9, Review Focus 3).
+A masked value is replaced by the string `[masked:<class>]` and recorded as a `Dropped` entry of kind `value` with reason `class_route` and its pointer; the rendered observation is `partial` and `masked`.
+
+**Free text outside observations (threat T23).** Finding `expected` and `observed` fields (`contracts/validation.py`, `Finding`) and read-error text can echo observation values, and they have no schema to carry a class. On a route that is neither `local` nor hosted with `data_processing` declared:
+- the `expected` and `observed` text of a finding is masked to `[masked:personal]`, unless the finding's validator declares the class of those fields. No validator declares one in Phase 3, so they are always masked there. Kernel findings (`KERNEL-*`) are kernel-authored with fixed text and keep their fields;
+- a read error keeps its kernel code, and the provider's message after it is masked to `[masked:personal]`;
+- each mask is a `Dropped` entry of kind `value`, reason `class_route`, whose `ref` names the finding (`finding:<index>#/expected` or `#/observed`) or the read request (`read_error:<request_id>`).
+
+A finding's `rule_id`, `status` and `message` (the rule text from the pack's inventory, ADR 0009) are kept, so the model can still repair. Masking governs the model context only; the approval card is always built from the unmasked action (ADR 0030, ADR 0006, threat T9, Review Focus 3).
 
 ### 6. Rendering (target §7.4, Task 3d.4)
 
@@ -91,7 +98,7 @@ Failure handling in `on` (ADR 0027 reservation rule):
 - A run pins `context_assembler`, `kernel_repeat` and `grounded_answers` when it is prepared, in `_prepare_run` (`kernel/coordinator.py`), so the pin is in the continuation that both `start_run` and `admit_run` (`create_run_idempotent`) store. The pin is a `RunModes` record in the kernel continuation.
 - The pin is written only when a mode is not `off`, and the field is left out of the serialized continuation when absent, as `OutcomeReport` leaves out `verified_values` (`contracts/outcome.py`). An absent pin means every mode is `off`, so an `off` continuation is byte-identical and `CONTINUATION_SCHEMA` does not change.
 - A profile flip affects new runs only; an in-flight `off` run keeps its history continuation. `execution_ir` is not pinned: it keeps reading the profile per call, as Phase 2 shipped.
-- The driver learns the pinned `grounded_answers` mode only from `DriverInput.grounding` (ADR 0033), never from the profile.
+- The driver learns what the pinned `grounded_answers` mode lets it offer only from `DriverInput.grounding` (ADR 0033), never from the profile.
 - **Restore check.** Before `_load_cont` calls `restore`, the kernel compares the pin with the snapshot's `rendering` marker. A marker `pack` on a run not pinned `on`, or a marker value the kernel does not know, is a mismatch. A run pinned `on` without the marker is valid (no pack turn yet, or every turn so far fell back). On a mismatch the kernel does not restore: it fails the run closed with `DRIVER_STATE_MISMATCH`, or sends it to `NEEDS_RECONCILIATION` when an action of the run is `RESERVED`, `DISPATCHING`, `UNKNOWN` or `COMMITTED` without an outcome, and raises a conflict to the caller. Other restore refusals (a driver schema or version change) keep today's behaviour; handling them is a follow-up outside Phase 3.
 
 ### 9. The per-call route check (D8, T23)
@@ -100,7 +107,7 @@ Failure handling in `on` (ADR 0027 reservation rule):
 - A run not pinned `on`, on a route that is not `local` and has no `data_processing` declaration, makes no model call:
   - in the run loop, the run fails closed with `ROUTE_BOUNDARY_UNMET`, or goes to `NEEDS_RECONCILIATION` when a reservation is unresolved;
   - for the acknowledgement turn, the turn is skipped, `context.failed` is recorded with `ROUTE_BOUNDARY_UNMET`, and the run keeps its verified outcome.
-- A run pinned `on` may call such a route, because its pack is masked (section 5).
+- A run pinned `on` may call such a route only because everything its pack sends is masked by section 5: observation values by their class, and finding `expected` and `observed` text and read-error text by the free-text rule. The exemption depends on both; without the free-text rule, findings would carry unmasked values to the route.
 - A conformance test fails if any `_driver.advance` call bypasses `_with_tools`.
 
 ### 10. Transitions
@@ -109,7 +116,7 @@ Failure handling in `on` (ADR 0027 reservation rule):
 
 ### 11. Reason codes and events
 
-All eight Phase 3 codes are `ReasonCode` members in `contracts/run.py`, each with one fixed message kept by the kernel (ADR 0027 amendment, PR-25, PR-28). Callers pass no text. Task 3b.2 adds them together.
+Phase 3 adds nine `ReasonCode` members in `contracts/run.py`: the eight toggle, restore and route codes below, which Task 3b.2 adds together, and `GROUNDED` (ADR 0033), which Task 3e.2 adds. Each fixed-message code has one message kept by the kernel (ADR 0027 amendment, PR-25, PR-28). Callers pass no text.
 
 | Code | Kind | Decided in | Carried by | `classify` group |
 |---|---|---|---|---|
@@ -121,6 +128,7 @@ All eight Phase 3 codes are `ReasonCode` members in `contracts/run.py`, each wit
 | `GROUNDING_UNAVAILABLE` | terminal | ADR 0033 | run state change | infrastructure-or-budget |
 | `DRIVER_STATE_MISMATCH` | terminal | this ADR | run state change | failed |
 | `ROUTE_BOUNDARY_UNMET` | terminal | this ADR | run state change; `context.failed` for a skipped acknowledgement turn | blocked-by-design |
+| `GROUNDED` | success | ADR 0033 | the `SUCCEEDED` state change of a grounded answer | succeeded, but counted apart from `VERIFIED` in the release report and qualification (ADR 0033) |
 
 New event types (`contracts/events.py`), each payload of ids, counts, digests and codes only (PR-26):
 
@@ -153,14 +161,14 @@ Nothing is released between 3b.3 and 3e.4, so the three share one version. The e
 
 ## Consequences
 
-- Code: `contracts/context_pack.py`, `kernel/context.py`, the shadow and `on` paths in `kernel/run_loop.py` and `kernel/verification.py`, the pin in `kernel/continuation.py` and `kernel/coordinator.py`, the route check in `kernel/ir_on.py`, the restore check in `_load_cont`, the driver's rendering, the eight codes, the new events and the `sdk_api` bump.
+- Code: `contracts/context_pack.py`, `kernel/context.py`, the shadow and `on` paths in `kernel/run_loop.py` and `kernel/verification.py`, the pin in `kernel/continuation.py` and `kernel/coordinator.py`, the route check in `kernel/ir_on.py`, the restore check in `_load_cont`, the driver's rendering, the nine codes, the new events and the `sdk_api` bump.
 - Tests and evidence: the tests listed in Tasks 3b.2 and 3d.1–3d.5, the `off` model-request goldens (notes and ERP) unchanged, a new `on` model-request golden, and the Phase 3 `off` baseline report (`evals/reports/phase3-baseline.json`, fixture evidence).
 - Operations: an operator who moves a profile to a hosted route without `data_processing` gets a startup refusal while `context_assembler` is not `on` (ADR 0030), and in-flight runs that resume on it fail closed with `ROUTE_BOUNDARY_UNMET`.
 - The fixed budgets are a starting point. The ablation (research 03 §8, Task 3f.2) and the release report's context columns are the evidence for changing them.
 
 ## Verification
 
-- 3d.2: `test_layer_over_budget_drops_oldest_and_logs_it`, `test_bounded_observation_is_partial_with_truncated_marker`, `test_error_is_never_rendered_as_empty_result`, `test_personal_value_masked_on_hosted_route_and_logged`, `test_untrusted_values_are_fenced`, `test_fence_cannot_be_closed_from_inside`, `test_approval_presentation_ignores_the_pack`.
+- 3d.2: `test_finding_and_read_error_text_masked_on_hosted_route`, `test_layer_over_budget_drops_oldest_and_logs_it`, `test_bounded_observation_is_partial_with_truncated_marker`, `test_error_is_never_rendered_as_empty_result`, `test_personal_value_masked_on_hosted_route_and_logged`, `test_untrusted_values_are_fenced`, `test_fence_cannot_be_closed_from_inside`, `test_approval_presentation_ignores_the_pack`.
 - 3d.4: `test_clearing_keeps_call_return_pairs` (parallel calls included), `test_no_clearing_with_pending_deferred_call`, `test_masked_value_absent_from_model_request`.
 - 3b.2 and 3d.5: `test_modes_are_pinned_at_start`, `test_off_run_writes_no_pin`, `test_pinned_off_run_on_undeclared_hosted_route_fails_closed`, `test_every_driver_call_goes_through_with_tools`, `test_restore_rendering_mismatch_fails_closed`, and the post-reservation tests (Review Focus 7).
 - Revisit when a profile needs its own budgets, when summarization is proposed, or when a second driver renders the pack.
