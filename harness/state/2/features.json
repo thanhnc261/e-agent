@@ -197,7 +197,8 @@
         "draft-po with off, shadow and on and a read-only task with on behave as the plan's Live check says",
         "results recorded in the handoff, labelled live"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/2d.2/2026-10-19T00-11-22.739575+00-00-live.json"
     },
     {
       "id": "F-2c-5a",
