@@ -1,0 +1,28 @@
+{
+  "task": "3d.1",
+  "changed": "Context contracts (ADR 0032 \u00a71): contracts/context_pack.py with ContextLayer, ContextPolicy (per-layer budgets that must cover every layer, class_rules over ContextRoute x DataClass with ClassAction per \u00a75, defaults provisional until 3d.3), RenderedObservation (partial exactly when truncated, masked or evidence not COMPLETE; data refuses JSON numbers), Dropped (DroppedKind, DroppedReason), ContextPack (stable_prefix, dynamic_suffix, observations, dropped, plain jcs-sha256-v1 digest checked on construction). sdk/ports.py: DriverInput.context: ContextPack | None = None in sdk_api 1.2. Review fix: the plain ADR 0006 digest replaces an invented number encoding that collided (D3-1, D3-2). Commits 56bce7a, d5e7000; plan rulings in f68dab7's parent; reviews harness/state/3/reviews/3d.1.json, 3d.1-r1.json.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3d.1/2026-10-19T11-44-51.560745+00-00-full.json",
+    "harness/state/evidence/gates/3d.1/2026-10-19T11-46-08.930054+00-00-pg.json"
+  ],
+  "open_items": [
+    "3d.2: the renderer turns every JSON number in observation data into its canonical decimal string before building a RenderedObservation (ADR 0006 defines the form for contracts; record the rule if it is not explicit).",
+    "Owner: override the number ruling with 'Tag' (a defined number encoding needs an ADR 0006/0032 amendment)."
+  ],
+  "rulings": [
+    {
+      "ruling": "The pack digest is the plain ADR 0006 jcs-sha256-v1 digest, so observation data in a pack holds no JSON numbers; numbers become canonical decimal strings in 3d.2.",
+      "cost_if_wrong": "In on, the model sees \"3\" where a provider returned 3; 2 of 138 typed ERP read properties are integers."
+    },
+    {
+      "ruling": "Default budgets (32000 input, layers summing to 31000, skills and knowledge 0, 2000 per observation, 3 retention turns) are provisional until the 3d.3 replay comparison.",
+      "cost_if_wrong": "Re-tuning after 3d.3."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "Postgres test database e_agent_test used by the pg gate.",
+      "undo": "none needed; test data only"
+    }
+  ]
+}
