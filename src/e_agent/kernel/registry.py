@@ -15,13 +15,7 @@ from typing import Any, Literal
 
 from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor, EffectKind
 from e_agent.contracts.context import Budgets
-from e_agent.contracts.data_classes import (
-    DataClass,
-    class_of,
-    resolve_property,
-    schema_document,
-    unmarked_pointers,
-)
+from e_agent.contracts.data_classes import ClassIndex, DataClass, schema_document
 from e_agent.contracts.task import TaskDefinition, check_answer_condition
 from e_agent.sdk import SDK_API_VERSION
 from e_agent.sdk.connection import ConnectionSpec
@@ -118,6 +112,7 @@ class PluginRegistry:
         self.input_schemas: dict[str, Mapping[str, Any]] = {}
         self.output_schemas: dict[str, Mapping[str, Any]] = {}
         """For class pointers only (ADR 0030): never model-facing, not in the surface digest."""
+        self._class_indexes: dict[str, ClassIndex] = {}
         self.agent_guidance: list[str] = []
         self.task_presets: dict[str, TaskPreset] = {}
         self.task_definitions: dict[str, TaskDefinition] = {}
@@ -328,12 +323,11 @@ class PluginRegistry:
                 raise _reject(f"conflicting schema definitions for {schema_id}")
             self.output_schemas[schema_id] = schema
         for cap in sorted(declared, key=lambda c: c.contract_id):  # ADR 0030 class pointers
-            document = self.schema_document(cap.contract_id)
-            for pointer in sorted(cap.data_classes):
-                if resolve_property(document, pointer) is None:
-                    raise _reject(
-                        f"{plugin_id}: {cap.contract_id} {pointer!r} names no property schema"
-                    )
+            try:
+                index = ClassIndex(self.schema_document(cap.contract_id), cap.data_classes)
+            except ValueError as exc:
+                raise _reject(f"{plugin_id}: {cap.contract_id} {exc}") from None
+            self._class_indexes[cap.contract_id] = index
         if contribution.agent_guidance:
             self.agent_guidance.append(contribution.agent_guidance)
         for preset in contribution.task_presets:
@@ -381,14 +375,16 @@ class PluginRegistry:
         )
 
     def data_class(self, contract_id: str, pointer: str) -> DataClass:
-        """A property's class; ``personal`` when unmarked. Task 3d.2's assembler reads it."""
-        return class_of(self.descriptor(contract_id).data_classes, pointer)
+        """A value's class; ``personal`` when unmarked. Task 3d.2's assembler reads it.
+        ``ValueError`` for a malformed pointer."""
+        self.descriptor(contract_id)  # an unknown capability is INVALID_REQUEST
+        return self._class_indexes[contract_id].class_of(pointer)
 
-    def unmarked_properties(self) -> dict[str, int]:
-        """Leaf properties no class covers, per capability; readiness reports it."""
+    def unmarked_properties(self) -> dict[str, dict[str, int | None]]:
+        """Unmarked leaf properties per capability and side (None: no schema on that side);
+        readiness reports it."""
         return {
-            cid: len(unmarked_pointers(self.schema_document(cid), cap.data_classes))
-            for cid, cap in sorted(self.capabilities.items())
+            cid: self._class_indexes[cid].unmarked_counts() for cid in sorted(self.capabilities)
         }
 
     # -- task definitions (ADR 0028) ----------------------------------------------

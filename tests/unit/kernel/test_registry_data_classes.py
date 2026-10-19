@@ -56,7 +56,11 @@ def test_unmarked_property_counts_as_personal() -> None:
 def test_registry_counts_unmarked_properties_per_capability() -> None:
     counts = _register().unmarked_properties()
     print(f"capabilities counted: {len(counts)}")
-    assert counts == {CLASSED_READ.contract_id: 1, CREATE.contract_id: 2}
+    # the read registers no input schema and the create no output schema: None, not 0
+    assert counts == {
+        CLASSED_READ.contract_id: {"input": None, "output": 1},
+        CREATE.contract_id: {"input": 2, "output": None},
+    }
 
 
 @pytest.mark.parametrize(

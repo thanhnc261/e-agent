@@ -2,7 +2,7 @@
 pointer resolves at admission, and every read output property is classed."""
 
 from e_agent.contracts.capability import EffectKind
-from e_agent.contracts.data_classes import DataClass, declared_class, leaf_property_pointers
+from e_agent.contracts.data_classes import ClassIndex, DataClass, leaf_property_pointers
 from e_agent.kernel.registry import PluginRegistry
 from e_agent.plugins.erp.domain.plugin import INPUT_SCHEMAS, create_plugin, load_manifest
 from e_agent.sdk.ports import PluginServices
@@ -65,8 +65,8 @@ def test_erp_read_outputs_are_marked() -> None:
         assert "output" in document, f"{cap.contract_id}: no output schema registered"
         outputs = [p for p in leaf_property_pointers(document) if p.startswith("/output/")]
         assert outputs, cap.contract_id
-        classes = cap.data_classes
-        unclassed = [p for p in outputs if declared_class(classes, p) is None]
+        index = ClassIndex(document, cap.data_classes)
+        unclassed = [p for p in outputs if index.declared(p) is None]
         assert not unclassed, (cap.contract_id, unclassed)
         checked += len(outputs)
     print(f"ERP read capabilities: {len(reads)}, output properties classed: {checked}")
@@ -94,12 +94,17 @@ def test_every_email_or_partner_name_property_is_personal() -> None:
 
 
 def test_erp_unmarked_counts() -> None:
-    """Every registered ERP property is classed; write and answer outputs are host records
-    (receipts, verified answers) with no plugin output schema, so they count nothing."""
-    counts = _registry().unmarked_properties()
+    """Every registered ERP property is classed. Write and answer outputs are host records
+    (receipts, verified answers) with no plugin output schema: their output side is None,
+    which readiness shows apart from a fully classed 0."""
+    reg = _registry()
+    counts = reg.unmarked_properties()
     print(f"ERP capabilities counted: {len(counts)}")
     assert len(counts) == 21
-    assert counts == dict.fromkeys(counts, 0)
+    for cid, sides in counts.items():
+        assert sides["input"] == 0, cid
+        has_output = reg.capabilities[cid].effect is EffectKind.READ
+        assert sides["output"] == (0 if has_output else None), cid
 
 
 def test_classes_leave_the_model_facing_input_schemas_alone() -> None:

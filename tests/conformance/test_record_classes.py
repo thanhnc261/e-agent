@@ -37,16 +37,31 @@ NOT_RECORD_KINDS = {
     "schema_migrations": "migration bookkeeping of the PostgreSQL adapter, not run data",
 }
 """What a store holds that is not a record kind, each with its reason."""
+NOT_COLLECTIONS = {
+    "_lock": "the store's asyncio lock",
+    "_work_claim": "a ContextVar holding the current work claim",
+}
+"""In-memory attributes that hold no records at all."""
+
+
+def memory_record_kinds(store: object) -> set[str]:
+    """The record kinds an in-memory store keeps. Every attribute must be a known
+    collection, a named non-record or a named non-collection; anything else, such as a
+    list or set the check cannot map, fails rather than being skipped (B3-8)."""
+    kinds: set[str] = set()
+    for name, value in vars(store).items():
+        if name in MEMORY_COLLECTIONS:
+            assert isinstance(value, dict), f"{name}: expected a dict collection"
+            kinds.add(MEMORY_COLLECTIONS[name])
+        elif name not in NOT_RECORD_KINDS and name not in NOT_COLLECTIONS:
+            raise AssertionError(f"in-memory attribute {name!r} has no record kind")
+    return kinds
 
 
 @pytest.fixture(params=KINDS)
 async def store_kinds(request: pytest.FixtureRequest) -> AsyncIterator[set[str]]:
     if request.param == "memory":
-        store = InMemoryRunStore()
-        held = {name for name, value in vars(store).items() if isinstance(value, dict)}
-        unknown = sorted(held - set(MEMORY_COLLECTIONS) - set(NOT_RECORD_KINDS))
-        assert not unknown, f"in-memory collections with no record kind: {unknown}"
-        yield {MEMORY_COLLECTIONS[name] for name in held if name in MEMORY_COLLECTIONS}
+        yield memory_record_kinds(InMemoryRunStore())
         return
     import psycopg
     from e_agent.adapters.postgres import apply_migrations
@@ -84,3 +99,10 @@ def test_the_check_fails_on_a_missing_declaration_and_on_zero_kinds() -> None:
         check_declared(set())
     with pytest.raises(AssertionError, match="does not keep"):
         check_declared(set(RECORD_KINDS) - {"runs"})
+
+
+def test_memory_discovery_fails_on_an_attribute_it_cannot_map() -> None:
+    store = InMemoryRunStore()
+    store._extra = []  # type: ignore[attr-defined]  # a collection in a list
+    with pytest.raises(AssertionError, match="_extra"):
+        memory_record_kinds(store)

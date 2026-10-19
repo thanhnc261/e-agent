@@ -37,6 +37,16 @@ def test_sdk_1_2_additions_have_empty_defaults() -> None:
     assert PluginContribution().output_schemas == {}
 
 
+def test_plugin_contribution_keeps_its_1_1_positional_order() -> None:
+    """C3-2: 1.2 appends ``output_schemas``, so a 1.1 positional call keeps its meaning."""
+    from e_agent.sdk.ports import PluginContribution
+
+    built = PluginContribution((), (), (), (), (), {"q": {}}, "guidance")
+    assert built.input_schemas == {"q": {}}
+    assert built.agent_guidance == "guidance"
+    assert built.output_schemas == {}
+
+
 def test_sdk_api_range_admits_existing_plugins() -> None:
     manifests = sorted(PLUGINS.rglob(MANIFEST_FILENAME))
     checked = 0
