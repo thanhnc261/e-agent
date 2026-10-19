@@ -204,7 +204,8 @@
         "both off model-request goldens unchanged; authored grounded replay verifies",
         "grounding shadow agrees with on over the replays; full, pg and make e2e pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3e.4/2026-10-19T20-26-30.824243+00-00-full.json"
     },
     {
       "id": "F-3f-1",

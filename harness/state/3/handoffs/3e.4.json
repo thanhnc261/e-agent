@@ -1,0 +1,28 @@
+{
+  "task": "3e.4",
+  "changed": "Drivers emit citations and rationale (ADR 0033): DriverInput.grounding (GroundingOffer off|cite|cite_and_answer, additive in unreleased sdk_api 1.2), set by the kernel per call in run_loop from the run's pinned grounded_answers and the 3e.2 admission (cite_and_answer only when grounded.answer.v1 would be admitted); the acknowledgement turn keeps grounding off. The pydantic driver (new adapters/pydantic_ai/grounding.py) offers a sibling citations on answer tools and rationale on write and plan tools, and grounded.answer.v1 only for cite_and_answer; it never reads the profile. Review fixes: an undeclared top-level citations/rationale key is never forwarded as an argument in any mode (dropped, or extracted only where offered), a plan's lineage onto such a key is refused, and a tool declaring the name keeps it as a domain argument and is offered no grounding (decided per call, not at init). The scripted procurement driver cites; authored recordings tests/replays/erp-authored-grounded-calls/ (provenance authored); shadow consumer test_grounding_shadow_agrees_with_on (4 comparisons over 4 replays); release-report grounding counts; evals/reports/phase3-baseline.json regenerated (additive keys, deterministic). Off model-request goldens (ERP, notes) and the on golden unchanged. Commits 9ca5244, 433e641, f9e2f03; reviews harness/state/3/reviews/3e.4-codex.json (rework), 3e.4-r2.json (rework, fixed and controller-verified).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3e.4/2026-10-19T20-26-30.824243+00-00-full.json",
+    "harness/state/evidence/gates/3e.4/2026-10-19T20-27-52.262623+00-00-pg.json"
+  ],
+  "open_items": [
+    "make e2e passed on the final commit (150 passed, 4 skipped; log in the session scratchpad, not committed).",
+    "Fix round 2 (f9e2f03) was verified by the controller (diff and test coverage), not by a fresh reviewer: Codex was out of quota until 2026-10-25.",
+    "Test-first order was not followed for the initial implementation (ENG-WORK-2); fix rounds were test-first.",
+    "A malformed citations or rationale field becomes an AskClarification turn (as a bad plan does today); may stall a live model run.",
+    "Only the procurement scripted driver cites; amend-rfq, quotation, crm-lead, late-orders and overdue-invoices show zero/null in the shadow release report.",
+    "The rationale schema offers no alternatives (each needs a proposal digest the model never sees).",
+    "Approval card reading the rationale text from the continuation (D10) still needs presentation, server and UI work."
+  ],
+  "rulings": [
+    {
+      "ruling": "An undeclared envelope key is never a tool argument in any mode; a tool declaring the name keeps it and is offered no grounding, decided per call.",
+      "cost_if_wrong": "grounding unavailable on such a tool"
+    },
+    {
+      "ruling": "The acknowledgement turn keeps grounding off (its text only is used).",
+      "cost_if_wrong": "an unused offer later"
+    }
+  ],
+  "outside_repo": []
+}
