@@ -1,0 +1,24 @@
+{
+  "task": "3e.4",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R2-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Plan lineage re-adds an undeclared citations/rationale key to a plan step's arguments (LineageRef path carries model text) in every mode; the kernel's KERNEL-PLAN-LINEAGE check is what keeps the store clean today.",
+      "evidence": "src/e_agent/adapters/pydantic_ai/driver.py:968, :970-981; contracts/plan.py:35; kernel/ir.py:348, :390; kernel/ir_on.py:196."
+    },
+    {
+      "id": "R2-2",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "The end-to-end canary test covers only the typed-answer and single-write runs, not plan steps or grounded.answer.v1, and does not search logs.",
+      "evidence": "tests/unit/adapters/pydantic_ai/test_driver_grounding.py CANARY_RUNS."
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}
