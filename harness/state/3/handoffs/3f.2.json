@@ -1,0 +1,26 @@
+{
+  "task": "3f.2",
+  "changed": "Context ablation, first fixture run (research 03 §8): design evals/ablation/context-history-vs-typed.md (hypotheses, metrics, corpus, threats, limits); scripts/context_ablation.py runs the release-report fixture corpus with context_assembler off and on, reusing release_report; evals/reports/phase3-context-ablation.json labelled fixture evidence, deterministic. Result: 21/21 cases both arms, 17 verified and 4 failed in each, repair rate 0.3824 in each, 72 packs and 0 fallbacks in on, pack tokens 53216 (kernel estimate), 0 evidence dropped or masked; model tokens unknown. This shows only that on does not change the host path; the scripted driver never reads its context, so it says nothing about typed state helping a model. D3-31: the repair-rate numerator is the kernel's own counter (the stored continuation's repairs); terminal refusals are one per run FAILED validation_failed or verification_failed; policy_denied is its own key; the denominator is repairs + validated attempts + terminal, so the rate is at most 1. Baseline evals/reports/phase3-baseline.json regenerated: repair rate 0.4706 -> 0.3824 (13/34). The on arm reads context.assembled (plan Interfaces line updated). Commits aa14ce3, fd5d820, c33feb2, b5e8b7a; reviews harness/state/3/reviews/3f.2-r1.json, 3f.2-r2.json (rework), 3f.2-r3.json (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3f.2/2026-10-19T22-08-00.049288+00-00-full.json",
+    "harness/state/evidence/gates/3f.2/2026-10-19T22-09-32.265668+00-00-pg.json"
+  ],
+  "open_items": [
+    "R3-1: a first-step STALE the kernel does not return (repair budget spent) is counted nowhere (rate overstated on that path); not reachable in the corpus.",
+    "R3-2: with execution_ir on, a plan whose step 0 verifies and a later step fails counts two denominator units for one attempt; not reachable in the corpus.",
+    "R3-3: METRICS_NOTE and the design doc say 'the kernel's success records'; 'validated attempts' is the accurate phrase.",
+    "Renamed report keys (validation_repairs, answer_repairs): evals/reports/fixture-release.json still has the old keys until 3g.1 regenerates it.",
+    "A model-driven ablation (H2) needs a qualified model run; this run is fixture evidence only."
+  ],
+  "rulings": [
+    {
+      "ruling": "The repair-rate numerator is the kernel's own counter read from the stored continuation, not re-derived from events (after two review rounds found missed increment sites).",
+      "cost_if_wrong": "one metric definition change"
+    },
+    {
+      "ruling": "A refusal is terminal only by the run's FAILED reason code; policy_denied is reported separately.",
+      "cost_if_wrong": "one metric definition change"
+    }
+  ],
+  "outside_repo": []
+}

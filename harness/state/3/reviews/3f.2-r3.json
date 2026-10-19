@@ -1,0 +1,31 @@
+{
+  "task": "3f.2",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "R3-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "A first-step dispatch STALE the kernel does not return (repair budget spent) is counted nowhere; the rate is overstated on that path (still <= 1). Not reachable in the corpus.",
+      "evidence": "kernel/dispatch.py:103-106, :310-323; scripts/release_report.py TERMINAL_CODES."
+    },
+    {
+      "id": "R3-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "With execution_ir on, a plan whose step 0 verifies and a later step fails scores accepted=1 plus terminal=1 for one driver attempt (rate understated). Not reachable in the corpus.",
+      "evidence": "kernel/verification.py:121-160; scripts/release_report.py repair_metrics."
+    },
+    {
+      "id": "R3-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "METRICS_NOTE and the design doc call accepted 'the kernel's success records'; 'validated attempts' is accurate (an approval_rejected run counts accepted=1).",
+      "evidence": "scripts/release_report.py METRICS_NOTE; evals/ablation/context-history-vs-typed.md:42."
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}

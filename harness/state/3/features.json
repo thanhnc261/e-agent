@@ -226,7 +226,8 @@
         "ablation design written; both arms run with their counts",
         "phase3-context-ablation.json recorded, labelled fixture; full passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3f.2/2026-10-19T22-08-00.049288+00-00-full.json"
     },
     {
       "id": "F-3g-1",
