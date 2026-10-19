@@ -237,6 +237,11 @@ class ClassIndex:
         are property names, not data."""
         return tokens in self._inner
 
+    def named(self, tokens: Path) -> bool:
+        """Whether a declaration names ``tokens``, a path below it or an ancestor. A key
+        whose path no declaration names may be data, not a property name (review D3-12)."""
+        return tokens in self._inner or self.declared(tokens) is not None
+
 
 def declared_class(classes: Mapping[str, DataClass], path: str) -> DataClass | None:
     """The most restrictive class declared on ``path`` or an ancestor path, or None.

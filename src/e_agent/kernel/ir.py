@@ -32,7 +32,7 @@ from e_agent.contracts.plan import (
 from e_agent.contracts.task import TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationStatus
 from e_agent.kernel.approval import compute_digest, digest_input, plan_digest_wrapper
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 SINGLE_STEP_ID = "step-1"
 """The step id of a compiled single proposal; a 1-step plan's step id is not in its digest."""
@@ -93,7 +93,7 @@ def validate_plan(
         # such step is reported below as ``KERNEL-ARGS`` (Codex review C-1).
         pass
     except ValueError as exc:
-        return (_finding("KERNEL-PLAN-STRUCTURE", f"plan structure is invalid: {exc}"),)
+        return (_finding("KERNEL-PLAN-STRUCTURE", _structure_message(exc)),)
     findings: list[Finding] = []
     if (plan.task_id, plan.task_version) != (task.task_id, task.version):
         findings.append(
@@ -147,6 +147,16 @@ def validate_plan(
 
 
 # -- digest ------------------------------------------------------------------------------
+def _structure_message(exc: ValueError) -> str:
+    """The ``KERNEL-PLAN-STRUCTURE`` message without any input value (ADR 0032 §5, review
+    D3-14): pydantic's error locations and types, or a fixed text for any other error."""
+    if not isinstance(exc, ValidationError):
+        return "plan structure is invalid"
+    errors = exc.errors(include_input=False, include_url=False, include_context=False)
+    parts = dict.fromkeys(f"{'/'.join(str(t) for t in e['loc'])}: {e['type']}" for e in errors)
+    return "plan structure is invalid: " + "; ".join(parts)
+
+
 def _profile_finding(step: PlannedStep) -> Finding | None:
     """``KERNEL-ARGS`` when the step's digest arguments are outside the digest profile."""
     try:

@@ -33,6 +33,7 @@ from .approval import (
     digest_input,
     fact_digest,
 )
+from .context import KERNEL_RULE_PREFIX
 from .continuation import _Continuation, _GatewayReader
 from .errors import KernelError
 from .ir import StepDigestContext
@@ -43,9 +44,29 @@ from .verification import outcome_payload
 EVIDENCE_BUNDLE, NO_VALIDATOR_BUNDLE, ERROR_BUNDLE = "kernel-evidence-v1", "none", "error"
 SENTINEL_BUNDLES = frozenset({EVIDENCE_BUNDLE, NO_VALIDATOR_BUNDLE, ERROR_BUNDLE})
 """The rule bundle versions `_validate` reports when no domain rule ran: incomplete
-evidence, no validator, a validator that raised. None is a real bundle to bind."""
+evidence, no validator, a validator that raised or claimed a kernel rule id. None is a
+real bundle to bind."""
 PROPOSAL_KIND = "The proposed capability is not a write or an answer this run can use."
 """The fixed message of the ``KERNEL-PROPOSAL-KIND`` repair finding (2c.8c round 2)."""
+KERNEL_RULE_ID_CLAIMED = "validator returned a kernel rule id"
+"""The fixed message when a validator's result claims a ``KERNEL-*`` rule id (review D3-10):
+only the kernel authors those findings, whose text ADR 0032 §5 sends unmasked."""
+
+
+def _validator_error(validator_id: str, message: str) -> ValidationResult:
+    """A validator that failed or broke the kernel-id rule: the write is blocked (fail closed)."""
+    finding = Finding(
+        rule_id="KERNEL-VALIDATOR-ERROR",
+        rule_version="1",
+        status=ValidationStatus.ERROR,
+        message=message,
+    )
+    return ValidationResult(
+        status=ValidationStatus.ERROR,
+        findings=(finding,),
+        rule_bundle_version=ERROR_BUNDLE,
+        validator_id=validator_id,
+    )
 
 
 class ProposalsMixin(IrOnMixin):
@@ -451,31 +472,19 @@ class ProposalsMixin(IrOnMixin):
         results: list[ValidationResult] = []
         for validator in validators:
             try:
-                results.append(
-                    await self._timed(
-                        cont,
-                        # Each validator gets its own copy, never kernel-owned state: what it
-                        # changes cannot reach an approved action (PR-08, PR-16, Codex C-3).
-                        partial(validator.validate, ctx, copy.deepcopy(item)),
-                        ctx.budgets.provider_timeout_seconds,
-                    )
+                result = await self._timed(
+                    cont,
+                    # Each validator gets its own copy, never kernel-owned state: what it
+                    # changes cannot reach an approved action (PR-08, PR-16, Codex C-3).
+                    partial(validator.validate, ctx, copy.deepcopy(item)),
+                    ctx.budgets.provider_timeout_seconds,
                 )
             except Exception as exc:  # engine failure blocks the write (MVP §11)
-                results.append(
-                    ValidationResult(
-                        status=ValidationStatus.ERROR,
-                        findings=(
-                            Finding(
-                                rule_id="KERNEL-VALIDATOR-ERROR",
-                                rule_version="1",
-                                status=ValidationStatus.ERROR,
-                                message=type(exc).__name__,
-                            ),
-                        ),
-                        rule_bundle_version=ERROR_BUNDLE,
-                        validator_id=validator.validator_id,
-                    )
-                )
+                result = _validator_error(validator.validator_id, type(exc).__name__)
+            else:
+                if any(f.rule_id.startswith(KERNEL_RULE_PREFIX) for f in result.findings):
+                    result = _validator_error(validator.validator_id, KERNEL_RULE_ID_CLAIMED)
+            results.append(result)
         order = [ValidationStatus.ERROR, ValidationStatus.FAIL, ValidationStatus.UNKNOWN]
         status = next(
             (s for s in order if any(r.status is s for r in results)), ValidationStatus.PASS

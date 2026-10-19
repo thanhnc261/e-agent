@@ -1,20 +1,15 @@
 """The context assembler: what may enter the model's context on a turn (ADR 0032 §2-§5).
 
-``assemble`` is pure. It reads its arguments only: no store, plugin, adapter, server or
-model, and it never calls a tokenizer (tokens are estimated from the JSON text). The
-continuation keeps every full observation; only the model's view is bounded and masked.
-
-- **Stable prefix:** the kernel's data statement, the task and the run's tool set. It holds
-  no per-turn state, so it is identical on every turn of a run.
-- **Dynamic suffix:** the ledger (ids, statuses and counts), the findings and the read
-  errors, rebuilt per turn. Observations reach the model only as tool returns built from
-  ``ContextPack.observations`` (``tool_return_text``).
-- **Order of work:** clearing, rendering (numbers as canonical decimal strings, classes per
-  route), the bound per observation, then the evidence budget and ``max_input_tokens``.
-- **Drops:** an observation left out keeps its place and its ``EvidenceRef`` as a stub
-  marked ``truncated`` (so ``partial``), and every drop is a ``Dropped`` entry. Nothing is
-  guessed: an observation of unknown age is never cleared, and evidence that a finding or
-  the caller refers to is never dropped for the budget.
+``assemble`` is pure: it reads its arguments only (no store, plugin, adapter, server, model
+or tokenizer). The continuation keeps every full observation; only the model's view is
+bounded and masked. The stable prefix (data statement, task, tool set) holds no per-turn
+state; the dynamic suffix (ledger ids and counts, findings, read errors) is rebuilt per
+turn, and observations reach the model only as ``tool_return_text`` of the pack's own.
+Order of work: clearing, rendering (canonical decimal strings, classes per route), the
+bound per observation, then the evidence budget and ``max_input_tokens``. A left-out
+observation keeps its place and ``EvidenceRef`` as a ``truncated`` stub; every drop is a
+``Dropped`` entry; nothing is guessed (an unknown age is never cleared, referenced
+evidence is never dropped for the budget).
 """
 
 from __future__ import annotations
@@ -69,6 +64,7 @@ KERNEL_RULE_PREFIX = "KERNEL-"
 _CODE = re.compile(r"[A-Za-z][A-Za-z0-9_.-]{0,63}")
 _EMPTY: Mapping[str, Any] = MappingProxyType({})
 _MASKED_TEXT = masked_marker(dc.DataClass.PERSONAL)
+KEEP = ClassAction.KEEP
 
 
 def context_route(route: Mapping[str, Any]) -> ContextRoute:
@@ -141,6 +137,8 @@ class _Walker:
         self.index, self.rules, self.evidence_id = index, rules, evidence_id
         self.drops: list[Dropped] = []
         self.masked = False
+        self.mask_pointers: set[Pointer] = set()
+        """Where the kernel wrote a mask marker; a provider string never poses as one."""
         self.positions: dict[int, list[int]] = {}
         """Original indices of each rendered list, by the list's id."""
 
@@ -152,36 +150,44 @@ class _Walker:
 
     # rendering ----------------------------------------------------------------------
     def root(self, data: Mapping[str, Any]) -> dict[str, Any]:
-        rendered: dict[str, Any] = self._children(data, ("output",), ())  # schema root keys
+        rendered: dict[str, Any] = self._children(data, ("output",), ())
         return rendered
 
     def _node(self, value: Any, tokens: dc.Path, pointer: Pointer) -> tuple[bool, Any]:
         declared = self.index.declared(tokens)
         if isinstance(value, Mapping | list | tuple) and self.index.declared_below(tokens):
-            action = ClassAction.KEEP if declared is None else self.rules[declared]
-            if action is ClassAction.KEEP:
+            action = KEEP if declared is None else self.rules[declared]
+            if action is KEEP:
                 return True, self._children(value, tokens, pointer)
         # a leaf, or a container no declaration reaches into: one value of one class, so
         # an undeclared dict's keys are masked with it (ADR 0030)
         data_class = dc.UNMARKED_CLASS if declared is None else declared
         action = self.rules[data_class]
-        if action is ClassAction.KEEP:
+        if action is KEEP:
             return True, self._track(_plain(value))
         self._drop(DroppedKind.VALUE, pointer, DroppedReason.CLASS_ROUTE)
+        self.masked = True  # a removed secret too: the rendering is not the whole (D3-11)
         if action is ClassAction.ABSENT:
             return False, None
-        self.masked = True
+        self.mask_pointers.add(pointer)
         return True, masked_marker(data_class)
 
     def _children(self, value: Any, tokens: dc.Path, pointer: Pointer) -> Any:
         if isinstance(value, Mapping):
             out: dict[str, Any] = {}
+            unnamed = False
             for key, item in value.items():
                 name = _key(key)
                 child = (*tokens, dc.instance_token(name))
+                if not self.index.named(child) and self.rules[dc.UNMARKED_CLASS] is not KEEP:
+                    unnamed = True  # the key may be data: the entry is left out (D3-12)
+                    continue
                 kept, rendered = self._node(item, child, (*pointer, name))
                 if kept:
                     out[name] = rendered
+            if unnamed:  # one drop naming the parent, never the key
+                self.masked = True
+                self._drop(DroppedKind.VALUE, pointer, DroppedReason.CLASS_ROUTE)
             return out
         members: list[Any] = []
         positions: list[int] = []
@@ -227,7 +233,7 @@ class _Walker:
         else:
             return
         for key, item, token in entries:
-            if isinstance(item, str) and item and not item.startswith("[masked:"):
+            if isinstance(item, str) and item and (*pointer, token) not in self.mask_pointers:
                 yield (*pointer, token), value, key
             else:
                 yield from self._strings(item, (*pointer, token))
@@ -413,11 +419,11 @@ def _older(turn: int | None, returned: int | None, policy: ContextPolicy) -> boo
 
 
 def _drop_for_budget(
-    rendered: list[_Rendered], referenced: Collection[str], over: Callable[[], bool]
+    rendered: list[_Rendered], referenced: Collection[str], base: int, limit: int
 ) -> None:
-    """Replace the oldest unreferenced observations with stubs while ``over()`` holds."""
+    """Stub the oldest unreferenced observations while ``base`` plus theirs exceeds ``limit``."""
     for position, item in enumerate(rendered):
-        if not over():
+        if base + sum(r.tokens for r in rendered) <= limit:
             return
         if item.stub or item.source.evidence.evidence_id in referenced:
             continue
@@ -473,19 +479,10 @@ def assemble(
 
     referenced = set(referenced_evidence) | {e for f in findings for e in f.evidence_ids}
     fixed = sum(estimate_tokens(t) for t in (*stable.values(), *suffix.values()))
-    errors_tokens = estimate_tokens(errors_text)
-    evidence_budget = policy.layer_budgets[ContextLayer.EVIDENCE]
     # knowledge and recent turns come first in the drop order; in Phase 3 both are empty
-    _drop_for_budget(
-        rendered,
-        referenced,
-        lambda: errors_tokens + sum(r.tokens for r in rendered) > evidence_budget,
-    )
-    _drop_for_budget(
-        rendered,
-        referenced,
-        lambda: fixed + sum(r.tokens for r in rendered) > policy.max_input_tokens,
-    )
+    evidence_budget = policy.layer_budgets[ContextLayer.EVIDENCE]
+    _drop_for_budget(rendered, referenced, estimate_tokens(errors_text), evidence_budget)
+    _drop_for_budget(rendered, referenced, fixed, policy.max_input_tokens)
     if fixed + sum(r.tokens for r in rendered) > policy.max_input_tokens:
         raise KernelError(ErrorCode.BUDGET_EXCEEDED, "the context does not fit max_input_tokens")
     return ContextPack.build(
