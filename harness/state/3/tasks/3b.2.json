@@ -1,0 +1,47 @@
+{
+  "id": "3b.2",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3b-2"
+  ],
+  "context_digest": "07a656f1594f2753ca784e4a2012619f884d2fa1fadfdd1161d049c10bd0fdba",
+  "allowed_paths": [
+    "src/e_agent/contracts/features.py",
+    "src/e_agent/contracts/run.py",
+    "src/e_agent/contracts/events.py",
+    "src/e_agent/kernel/features.py",
+    "src/e_agent/kernel/continuation.py",
+    "src/e_agent/kernel/coordinator.py",
+    "src/e_agent/kernel/ir_on.py",
+    "src/e_agent/kernel/run_loop.py",
+    "src/e_agent/kernel/verification.py",
+    "src/e_agent/kernel/evidence.py",
+    "src/e_agent/server/api.py",
+    "src/e_agent/server/bootstrap.py",
+    "src/e_agent/server/cli.py",
+    "profiles/dev-ollama.json",
+    "profiles/live.example.json",
+    "src/e_agent/plugins/erp/simulator/fixture_profile.json",
+    "tests/unit/contracts/**",
+    "tests/unit/kernel/**",
+    "tests/unit/server/**",
+    "tests/conformance/**",
+    "tests/unit/plugins/erp/simulator/**",
+    "ui/packages/client/**",
+    "docs/plans/2026-10-19-phase3-cognition-context.md",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "off_model_request_erp.json committed before any Phase 3 change",
+    "toggle, code and pinning tests pass on both stores",
+    "a run pinned off fails closed with ROUTE_BOUNDARY_UNMET on an undeclared hosted route",
+    "off baselines and both off model-request goldens unchanged; full and pg pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "8234738540c03e645fb015cdc75a0324aa9df923",
+  "created_at": "2026-10-19T06:55:58+00:00",
+  "features_digest": "ab9c03521cd98af6e1f0da4c82465c65b225cb9573e6be27ecb117dba6586783"
+}
