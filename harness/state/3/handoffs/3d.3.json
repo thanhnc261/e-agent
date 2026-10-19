@@ -1,0 +1,31 @@
+{
+  "task": "3d.3",
+  "changed": "context_assembler: shadow (ADR 0032): context.compared and context.shadow_failed event types (ids, counts, digests, estimates, a turn number and an acknowledgement flag); kernel/context_shadow.py builds the pack before every driver turn, run loop and post-write acknowledgement, from real sources (referenced_evidence from proposal.created evidence ids, deferred_pending from pending_action_id, observation turns from events) and records the comparison after the turn; a failure records context.shadow_failed with a stage and changes nothing else. off is byte-identical (goldens unchanged). release_report.py gains context columns, repair rate and token cost; evals/reports/phase3-baseline.json (fixture, off): repair rate 0.4706 (16/34 proposals, 21 cases), model_tokens unknown with the scripted driver. Client schema regenerated (openapi.json, schema.ts) for the two event types; README lists the release-report flag. Review fix: the acknowledgement shadow is built outside the final-response guard (D3-30). Commits b1ddb93, 94b8010, 3dae1aa; reviews harness/state/3/reviews/3d.3.json, 3d.3-r1.json.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3d.3/2026-10-19T13-21-08.686134+00-00-full.json",
+    "harness/state/evidence/gates/3d.3/2026-10-19T13-22-27.967105+00-00-pg.json"
+  ],
+  "open_items": [
+    "3f.2: repair_metrics counts every non-PASS validation.completed, including dispatch STALE and later plan steps; tighten before the comparison (D3-31).",
+    "ADR 0032: context.failed marks the acknowledgement turn as turn:\"acknowledgement\" while the shadow events use turn:int plus acknowledgement:bool; reconcile the encodings and record the key sets (D3-33).",
+    "3d.4: deferred_pending is pending_action_id; rule_texts is not passed (the kernel cannot reach the rule inventory without importing a plugin), so validator messages stay masked on undeclared hosted routes.",
+    "Token cost needs a report built on the replays; the scripted driver reports no tokens. The ledger's driver_turns and model_tokens stay unknown.",
+    "The replay consumer sees zero drops under the default policy (D3-32)."
+  ],
+  "rulings": [
+    {
+      "ruling": "referenced_evidence is the evidence ids proposal.created bound (ADR 0031 \u00a73), i.e. every observation present at the proposal.",
+      "cost_if_wrong": "In on, a broad referenced set can fail assembly with BUDGET_EXCEEDED."
+    },
+    {
+      "ruling": "Shadow input reads are guarded as stage inputs in both paths, so a shadow failure never suppresses a turn or books a budget event.",
+      "cost_if_wrong": "A store failure on the shadow read is recorded rather than surfacing; the turn's own reads still surface it."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "Postgres test database e_agent_test used by the pg gate.",
+      "undo": "none needed; test data only"
+    }
+  ]
+}

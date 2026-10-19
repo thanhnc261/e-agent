@@ -125,7 +125,8 @@
         "replay consumer passes with its count; phase3-baseline.json recorded",
         "off goldens unchanged; full and pg pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3d.3/2026-10-19T13-21-08.686134+00-00-full.json"
     },
     {
       "id": "F-3d-4",
