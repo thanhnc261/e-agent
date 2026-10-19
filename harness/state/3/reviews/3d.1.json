@@ -1,0 +1,45 @@
+{
+  "task": "3d.1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "D3-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "The pack digest wraps numbers as {\"$number\": repr}, an encoding neither ADR 0006 nor ADR 0032 defines, still labelled jcs-sha256-v1.",
+      "evidence": "src/e_agent/contracts/context_pack.py:163-173,209; docs/adr/0006-approval-digest-canonicalization.md:11"
+    },
+    {
+      "id": "D3-2",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "The number transform is not injective: {\"n\": 1} and {\"n\": {\"$number\": \"1\"}} digest alike; NaN/inf collide with null; repr is Python-specific.",
+      "evidence": "src/e_agent/contracts/context_pack.py:166-168"
+    },
+    {
+      "id": "D3-3",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "The default budgets are recorded only in the SDD report.",
+      "evidence": "src/e_agent/contracts/context_pack.py:79-91"
+    },
+    {
+      "id": "D3-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "layer_budgets is not checked to cover every ContextLayer; an error message reads as a statement.",
+      "evidence": "src/e_agent/contracts/context_pack.py:97,106-108"
+    },
+    {
+      "id": "D3-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "_check_layers duplicates the validator; build() constructs twice; the Dropped.ref docstring omits the ADR \u00a75 ref forms.",
+      "evidence": "src/e_agent/contracts/context_pack.py:154-157,176-201,212-235"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

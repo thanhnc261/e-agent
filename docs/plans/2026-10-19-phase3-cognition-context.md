@@ -476,6 +476,9 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 - [ ] Implement. A driver built for `sdk_api` 1.1 keeps working, because `context` is optional.
 - [ ] Run the same command; expected: pass.
 - [ ] Commit `feat(contracts): context policy and pack (ADR 0032)`.
+- Rulings from review (2026-10-19, D3-1 to D3-3):
+  - The pack digest is the plain ADR 0006 `jcs-sha256-v1` digest. `RenderedObservation.data` must fit that profile: no JSON numbers (int, float, non-finite). The 3d.2 renderer turns a number into its canonical decimal string, as the model already does for action arguments (`KERNEL-ARGS`). Cost if wrong: in `on` the model sees `"3"` where a provider returned `3`; the ERP read schemas have 2 integer properties among 138 typed ones.
+  - The record defaults are the Phase 3 policy (ADR 0032 §1) and are provisional until the Task 3d.3 replay comparison: `max_input_tokens` 32000; per-layer budgets summing to 31000, with `skills` and `knowledge` 0; `max_tool_output_tokens` 2000; `tool_result_retention_turns` 3.
 
 ### Task 3d.2: the assembler
 
