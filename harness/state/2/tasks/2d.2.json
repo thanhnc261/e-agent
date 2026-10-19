@@ -13,7 +13,9 @@
     "README.md",
     "docs/design/target-architecture.md",
     "docs/adr/README.md",
-    "docs/plans/2026-10-14-phase2-execution-ir.md"
+    "docs/plans/2026-10-14-phase2-execution-ir.md",
+    ".github/workflows/odoo-live.yml",
+    "tests/integration/test_odoo_live.py"
   ],
   "acceptance": [
     "draft-po with off, shadow and on and a read-only task with on behave as the plan's Live check says",
@@ -22,5 +24,17 @@
   "gate_set": "live",
   "base_commit": "21a675d22ec1fd6e804ebc223fd3e0d01faf9e35",
   "created_at": "2026-10-18T23:16:20+00:00",
-  "features_digest": "8600d96abf20dfc9608ad8573d99681a29768fdaf7b15e90a8c9356f69cdfb4e"
+  "features_digest": "8600d96abf20dfc9608ad8573d99681a29768fdaf7b15e90a8c9356f69cdfb4e",
+  "scope_changes": [
+    {
+      "glob": ".github/workflows/odoo-live.yml",
+      "reason": "brought in by merging main (PR #5) into the phase branch for the PR #6 merge; not edited in 2d.2",
+      "at": "2026-10-19T00:14:06+00:00"
+    },
+    {
+      "glob": "tests/integration/test_odoo_live.py",
+      "reason": "brought in by merging main (PR #5) into the phase branch for the PR #6 merge; not edited in 2d.2",
+      "at": "2026-10-19T00:14:06+00:00"
+    }
+  ]
 }

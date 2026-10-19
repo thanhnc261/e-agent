@@ -1,0 +1,13 @@
+# 2026-10-19T00:13:31Z commit 5b6731e
+## migrate (idempotent re-run)
+migrations applied
+## pins in the toggle profiles (prefix only)
+off {'domain-erp': 'c4e89bfb1241', 'odoo19': '5976460ec47f'}
+shadow {'domain-erp': 'c4e89bfb1241', 'odoo19': '5976460ec47f'}
+on {'domain-erp': 'c4e89bfb1241', 'odoo19': '5976460ec47f'}
+## /health/ready off
+{"status":"ready","environment":"live","plugins":["domain-erp","odoo19"],"store":"postgres","self_approval_allowed":true,"features":{"execution_ir":"off"},"defaulted_declarations":[]}
+## /health/ready shadow
+{"status":"ready","environment":"live","plugins":["domain-erp","odoo19"],"store":"postgres","self_approval_allowed":true,"features":{"execution_ir":"shadow"},"defaulted_declarations":[]}
+## /health/ready on
+{"status":"ready","environment":"live","plugins":["domain-erp","odoo19"],"store":"postgres","self_approval_allowed":true,"features":{"execution_ir":"on"},"defaulted_declarations":[]}
