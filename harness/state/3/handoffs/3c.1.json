@@ -1,0 +1,29 @@
+{
+  "task": "3c.1",
+  "changed": "Progress ledger projection (ADR 0031 \u00a71): contracts/progress.py (ProgressLedger, Stage, FactRef, OpenFinding, BudgetsUsed) and kernel/progress.py (pure project_progress(events, steps)); kernel.progress added to the facade-only import contract in pyproject.toml (a tightening). Review fixes: budgets_used.failed_validations, an exact count of non-PASS validation.completed events, replaces a repairs heuristic (C3-15; ADR 0031 wording amended); an UNKNOWN reconcile stays pending (C3-16); the unverified-answer test asserts VERIFICATION_FAILED (C3-19). Commits 9badeff, 10ea53c, 427ed96; reviews harness/state/3/reviews/3c.1.json and 3c.1-r1.json (Codex hit its usage limit, so a Claude reviewer ran).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3c.1/2026-10-19T10-10-27.334721+00-00-full.json",
+    "harness/state/evidence/gates/3c.1/2026-10-19T10-11-40.007001+00-00-pg.json"
+  ],
+  "open_items": [
+    "3d.2: the ledger is rendered into model context; a pyshacl-generated sh:resultMessage can embed a proposed argument value (C3-17).",
+    "3d.2: ADR 0031 mentions plan items in the ledger, but the field list and Stage carry no plan link (C3-18).",
+    "driver_turns and model_tokens stay unknown until DRIVER_TURN step records are written; reads_recorded includes verifier reads (an upper bound); the task ref is unknown in off mode."
+  ],
+  "rulings": [
+    {
+      "ruling": "The repair budget's exact counter lives only in the continuation, so the ledger reports failed validations, which the events show exactly, and ADR 0031's budgets_used wording says so (PR-24).",
+      "cost_if_wrong": "A consumer that needs the repair count must read the continuation or a new event; only test_progress.py uses the field today."
+    },
+    {
+      "ruling": "With Codex rate-limited, the 3c.1 review ran on a fresh-context Claude reviewer (opus), with a sonnet re-review of the fix.",
+      "cost_if_wrong": "A kernel task without a Codex pass; the phase-end review can include it."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "Postgres test database e_agent_test used by the pg gate.",
+      "undo": "none needed; test data only"
+    }
+  ]
+}

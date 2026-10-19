@@ -68,7 +68,8 @@
         "test_progress.py passes on both stores, including plain-text repair turns and no model text",
         "full and pg pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3c.1/2026-10-19T10-10-27.334721+00-00-full.json"
     },
     {
       "id": "F-3c-2",
