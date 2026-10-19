@@ -23,14 +23,16 @@ the check is no oracle on what the pack withheld (review R1-1, PR-26).
   nothing else.
 - ``on``: before the answer's action exists and before its verifier reads, an unresolved or
   mismatched citation is the repair finding ``KERNEL-CITATION`` (one per citation, its
-  evidence id and pointer, never a value), recorded in ``validation.completed`` with no
-  action id and returned within ``max_validation_repairs`` (`_repair_finding`). When every
-  citation resolves the answer takes today's path and its verifier decides (PR-19).
+  evidence id and pointer, never a value), returned within ``max_validation_repairs`` and
+  recorded in ``validation.completed`` with no action id, as digests when the citation named
+  nothing (`repair_at_rest`, Task 3.R1). When every citation resolves the answer takes
+  today's path and its verifier decides (PR-19).
 
-**At rest** a citation is ``evidence_id``, ``pointer`` and ``value_digest``, never the value
-(PR-26), under ``citations`` in ``proposal.created``, only for a run pinned ``shadow`` or
-``on`` with at least one checked citation. ``ActionRecord`` gains no field, and the domain
-answer's arguments never hold the citations.
+**At rest** a citation is ``value_digest``, never the value (PR-26), with ``evidence_id`` and
+``pointer`` verbatim only when they named a value of this run's evidence, else their digests
+(`kernel/at_rest.py`, Task 3.R1), under ``citations`` in ``proposal.created``, only for a run
+pinned ``shadow`` or ``on`` with at least one checked citation. ``ActionRecord`` gains no
+field, and the domain answer's arguments never hold the citations.
 
 **Failure** (ADR 0027): a check that cannot run in ``on`` records ``feature.fallback``
 ``GROUNDING_CHECK_FAILED`` before the run's first reservation (no ``action.reserved``
@@ -66,6 +68,7 @@ from e_agent.sdk.ports import DriverInput, Observation
 from e_agent.sdk.store import EventSpec
 
 from .approval import compute_digest
+from .at_rest import citation_at_rest, finding_at_rest, repair_at_rest
 from .context import ClassLookup, context_route
 from .context_on import ON_POLICY
 from .context_walk import Walker, _plain
@@ -210,20 +213,17 @@ def _removals(walker: Walker, evidence_id: str) -> set[tuple[str, ...]]:
 
 @dataclass(frozen=True)
 class CitationVerdict:
-    """One citation's verdict, holding no value: its evidence id, pointer and value digest
-    (``invalid`` for a value outside the digest profile)."""
+    """One citation's verdict, never its value: evidence id, pointer, value digest (``invalid``
+    outside the digest profile) and whether they ``named`` a value of this run (Task 3.R1)."""
 
     evidence_id: str
     pointer: str
     value_digest: str
     status: CitationStatus
+    named: bool = False
 
     def at_rest(self) -> dict[str, str]:
-        return {
-            "evidence_id": self.evidence_id,
-            "pointer": self.pointer,
-            "value_digest": self.value_digest,
-        }
+        return citation_at_rest(self.evidence_id, self.pointer, self.value_digest, named=self.named)
 
 
 @dataclass(frozen=True)
@@ -247,17 +247,20 @@ class GroundingResult:
     def at_rest(self) -> list[dict[str, str]]:
         return [v.at_rest() for v in self.verdicts]
 
-    def findings(self) -> tuple[Finding, ...]:
-        """One ``KERNEL-CITATION`` per citation that did not resolve: the evidence id and
-        the pointer, never a value (ADR 0032 §5)."""
+    def findings(self, stored: bool = False) -> tuple[Finding, ...]:
+        """One ``KERNEL-CITATION`` per citation that did not resolve, never a value (ADR 0032
+        §5); ``stored``: as recorded, digests for one that named nothing (Task 3.R1)."""
         return tuple(
-            Finding(
-                rule_id=KERNEL_CITATION,
-                rule_version="1",
-                status=ValidationStatus.FAIL,
-                message=CITATION_MESSAGES[v.status],
-                observed=v.pointer,
-                evidence_ids=(v.evidence_id,),
+            finding_at_rest(
+                Finding(
+                    rule_id=KERNEL_CITATION,
+                    rule_version="1",
+                    status=ValidationStatus.FAIL,
+                    message=CITATION_MESSAGES[v.status],
+                    observed=v.pointer,
+                    evidence_ids=(v.evidence_id,),
+                ),
+                digested=stored and not v.named,
             )
             for v in self.verdicts
             if v.status is not CitationStatus.RESOLVED
@@ -267,8 +270,15 @@ class GroundingResult:
 def _verdict(
     by_id: Mapping[str, list[Observation]], citation: Citation, view: ClassView | None
 ) -> CitationVerdict:
+    sources = by_id.get(citation.evidence_id, ())
+    if view is None:
+        found = [_value_at(o.data, citation.pointer) for o in sources]
+    else:
+        found = [view.value_at(o, citation.pointer) for o in sources]
+    found = [value for value in found if value is not _MISSING]
+
     def verdict(status: CitationStatus, cited: str) -> CitationVerdict:
-        return CitationVerdict(citation.evidence_id, citation.pointer, cited, status)
+        return CitationVerdict(citation.evidence_id, citation.pointer, cited, status, bool(found))
 
     try:
         cited = value_digest(citation.value)
@@ -276,12 +286,6 @@ def _verdict(
         return verdict(CitationStatus.MISMATCHED, INVALID_DIGEST)  # equals no stored value
     if view is not None and _holds_marker(citation.value):
         return verdict(CitationStatus.UNRESOLVED, cited)  # a marker is not evidence
-    sources = by_id.get(citation.evidence_id, ())
-    if view is None:
-        found = [_value_at(o.data, citation.pointer) for o in sources]
-    else:
-        found = [view.value_at(o, citation.pointer) for o in sources]
-    found = [value for value in found if value is not _MISSING]
     if not found:
         return verdict(CitationStatus.UNRESOLVED, cited)
     for value in found:
@@ -367,9 +371,8 @@ class GroundingMixin(RepeatMixin):
             )
             return GroundingProbe(FeatureMode.OFF)  # verified as today, citations dropped
         if mode is FeatureMode.ON and not result.grounded:
-            cont.findings = result.findings()
             current = await self._store.get_run(run.tenant_id, run.run_id)
-            return await self._repair_finding(current, cont, cont.findings)
+            return await repair_at_rest(self._repair_finding, current, cont, result)
         return GroundingProbe(mode, result)
 
     async def _handle_answer(

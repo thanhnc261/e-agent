@@ -18,7 +18,8 @@ dropped unread, so no event, log or export holds it (PR-26). A tool that declare
 keeps it as its own argument and is offered no grounding. An envelope the records refuse is
 a fixed refusal returned to the model as the call's error, never an exception and never
 model text. The rationale schema carries the record's id pattern and summary bound, so a
-model that follows it is not refused (3e.3 open item). It offers no ``alternatives``: a
+model that follows it is not refused (3e.3 open item), and the citation schema carries the
+record's evidence id and pointer bounds (Task 3.R1). It offers no ``alternatives``: a
 rejected alternative names a proposal digest that the model is never shown. Citations and
 rationale are model claims the kernel checks; they grant nothing (PR-13).
 """
@@ -29,7 +30,13 @@ import copy
 from collections.abc import Mapping
 from typing import Any
 
-from e_agent.contracts.grounding import SUMMARY_MAX, Citation, ProposalRationale
+from e_agent.contracts.grounding import (
+    EVIDENCE_ID_MAX,
+    POINTER_MAX,
+    SUMMARY_MAX,
+    Citation,
+    ProposalRationale,
+)
 from pydantic import ValidationError
 
 from pydantic_ai import ToolDefinition
@@ -78,8 +85,8 @@ CITATIONS_SCHEMA: dict[str, Any] = {
     "items": {
         "type": "object",
         "properties": {
-            "evidence_id": {"type": "string"},
-            "pointer": {"type": "string"},
+            "evidence_id": {"type": "string", "maxLength": EVIDENCE_ID_MAX},
+            "pointer": {"type": "string", "maxLength": POINTER_MAX},
             "value": {},
         },
         "required": ["evidence_id", "pointer", "value"],

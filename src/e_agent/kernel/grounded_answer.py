@@ -55,6 +55,7 @@ from e_agent.contracts.run import ReasonCode, RunRecord
 from e_agent.contracts.task import GROUNDED_ANSWER
 from e_agent.sdk.ports import DriverInput, GroundingOffer
 
+from .at_rest import repair_at_rest
 from .continuation import _Continuation
 from .grounding import KERNEL_CITATION, ClassView, GroundingMixin, check_citations
 from .ir_on import _fixed
@@ -134,9 +135,8 @@ class GroundedAnswerMixin(GroundingMixin):
             result = check_citations(cont.observations.values(), proposal.citations, view)
         except Exception:  # no fallback, no exception text (ADR 0033 §5, PR-25, PR-28)
             return await self._end_closed(run, ReasonCode.GROUNDING_UNAVAILABLE)
-        if not result.grounded:
-            cont.findings = result.findings()
-            return await self._repair_finding(run, cont, cont.findings)
+        if not result.grounded:  # recorded as digests where a citation named nothing (3.R1)
+            return await repair_at_rest(self._repair_finding, run, cont, result)
         final = {"text": summary, "contract_id": GROUNDED_ANSWER, "citations": result.at_rest()}
         run = await self._store.update_run(
             run.model_copy(update={"revision": run.revision + 1}),

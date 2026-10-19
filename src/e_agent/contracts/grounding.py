@@ -6,17 +6,21 @@ by ``evidence_id``, an RFC 6901 ``pointer`` into that observation's ``data``, an
 arguments (`ActionProposal.citations`), never inside them, so a domain answer model is
 unchanged. It never grants approval, changes policy or marks anything verified (PR-13).
 
-The record accepts any pointer text: a pointer that is not RFC 6901, or that names nothing,
-is an unresolved citation the kernel returns as a repair, never a refused proposal. The
-value must be a JSON value, so the kernel can always digest it (ADR 0006). At rest a
-citation is its evidence id, pointer and value digest, never the value (PR-26).
+The record accepts any pointer text up to `POINTER_MAX` (and an evidence id up to
+`EVIDENCE_ID_MAX`): a pointer that is not RFC 6901, or that names nothing, is an unresolved
+citation the kernel returns as a repair, never a refused proposal. The value must be a JSON
+value, so the kernel can always digest it (ADR 0006). At rest a citation is its value
+digest, never the value, with its evidence id and pointer verbatim only when they named a
+value of this run's evidence; otherwise their digests (PR-26, Task 3.R1, `kernel/at_rest.py`).
 
 A `ProposalRationale` (ADR 0033 §4) is model output too, on a write proposal or a plan: the
 goal it serves, the evidence ids and rule ids it rests on, the alternatives it rejected and
 a short summary. The kernel checks its ids and never lets it grant, gate or change anything
 (PR-13, target §5.6). The record accepts any id that names nothing (the kernel returns that
-as a repair), but every id-like field must have an id's shape, never prose, so its at-rest
-form (ids, codes and a digest of each text, owner G2) can carry no model text (PR-26).
+as a repair), but every id-like field must have an id's shape, never prose. At rest (owner
+G2, PR-26, Task 3.R1) it is codes, a digest of each text, and each id verbatim only when
+the kernel resolved it; an id that resolved nothing is stored only as its digest, so a
+value-shaped token the model put in an id field is never stored.
 """
 
 from __future__ import annotations
@@ -54,12 +58,18 @@ def _check_json(value: Any, depth: int = 0) -> None:
     raise ValueError(f"a cited value is a JSON value, not {type(value).__name__}")
 
 
+EVIDENCE_ID_MAX = 128
+"""The longest citation evidence id the record accepts (Task 3.R1)."""
+POINTER_MAX = 1024
+"""The longest citation pointer the record accepts (Task 3.R1)."""
+
+
 class Citation(Record):
     """One claim that ``value`` is at ``pointer`` in the data of this run's observation
     ``evidence_id`` (ADR 0033 §1)."""
 
-    evidence_id: str
-    pointer: str
+    evidence_id: Annotated[str, StringConstraints(max_length=EVIDENCE_ID_MAX)]
+    pointer: Annotated[str, StringConstraints(max_length=POINTER_MAX)]
     """An RFC 6901 JSON pointer into the observation's ``data``; ``""`` is the whole data."""
     value: Any
     """The value the model claims is there; compared under ``jcs-sha256-v1``, never stored."""
@@ -92,8 +102,9 @@ class ProposalRationale(Record):
     an approval input and never in the approval digest."""
 
     goal_ref: RefId
-    """The task definition ``id@version`` and acceptance item, or the run: recorded and
-    shown, not checked, in Phase 3."""
+    """``run``, or the run's task definition ``id@version``: never refused, and stored and
+    shown verbatim only when it is one of those two; any other value is stored as its
+    digest (Task 3.R1)."""
     cited_evidence: tuple[RefId, ...] = ()
     """Evidence ids of this run's observations."""
     rules_considered: tuple[RefId, ...] = ()

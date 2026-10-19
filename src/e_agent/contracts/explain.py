@@ -14,9 +14,9 @@ value never look alike.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Self
 
-from pydantic import SerializerFunctionWrapHandler, model_serializer
+from pydantic import SerializerFunctionWrapHandler, model_serializer, model_validator
 
 from .common import Record
 from .progress import FactRef, RuleRef, Stage, StageStatus, TaskRefState
@@ -110,19 +110,48 @@ class AlternativeRef(Record):
     """The digest of the model's one line, never the line."""
 
 
+_DIGEST_FIELDS = ("goal_ref_digest", "unresolved_evidence_digests", "unresolved_rule_digests")
+
+
 class RationaleRef(Record):
     """A proposal's rationale as stored (ADR 0033 §4, §6): the goal, evidence ids, rule ids
     and codes it names and the digest of each model-authored text, never the text. It is a
-    model's claim the kernel checked, shown after the facts it names."""
+    model's claim the kernel checked, shown after the facts it names. A ref the kernel did
+    not resolve was stored, and is shown, only as its digest, in a field named as a digest
+    (Task 3.R1); those fields are left out when empty, so a resolved rationale renders as
+    before."""
 
     step_id: str | None
     """The plan step it belongs to; None for the proposal's or the plan's own."""
-    goal_ref: str
+    goal_ref: str | None = None
+    """``run`` or the run's task definition ``id@version``; else None and ``goal_ref_digest``."""
+    goal_ref_digest: str | None = None
+    """The digest of a goal ref that is neither; exactly one of the two is set."""
     cited_evidence: tuple[str, ...]
+    """The evidence ids that resolved to this run's observations, in order."""
+    unresolved_evidence_digests: tuple[str, ...] = ()
+    """The digest of each evidence id that resolved nothing, never the id."""
     rules_considered: tuple[str, ...]
+    """The rule ids that resolved, in order."""
+    unresolved_rule_digests: tuple[str, ...] = ()
+    """The digest of each rule id that resolved nothing, never the id."""
     alternatives: tuple[AlternativeRef, ...]
     summary_digest: str
     label: ValueLabel = ValueLabel.MODEL_AUTHORED
+
+    @model_validator(mode="after")
+    def _one_goal(self) -> Self:
+        if (self.goal_ref is None) == (self.goal_ref_digest is None):
+            raise ValueError("a rationale ref has exactly one of goal_ref and goal_ref_digest")
+        return self
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_digests(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        for name in ("goal_ref", *_DIGEST_FIELDS):
+            if not getattr(self, name):
+                data.pop(name, None)
+        return data
 
 
 class ProposalRef(Record):

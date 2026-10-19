@@ -143,15 +143,19 @@ def _proposal(row: Rebuilt, rationales: Mapping[str, Mapping[str, Any]]) -> Prop
 
 def _rationales(stored: Mapping[str, Any]) -> tuple[RationaleRef, ...]:
     """The at-rest rationale (ADR 0033 §4) as refs: the proposal's or plan's own, then each
-    step's. Ids, codes and digests only; the texts were never stored."""
+    step's. Ids, codes and digests only; the texts were never stored. A ref stored as a
+    digest (Task 3.R1) is shown as that digest, in its digest field, never as an id."""
     entries = [(None, stored["rationale"])] if "rationale" in stored else []
     entries.extend((step, r) for step, r in (stored.get("step_rationales") or {}).items())
     return tuple(
         RationaleRef(
             step_id=step,
-            goal_ref=r["goal_ref"],
+            goal_ref=r.get("goal_ref"),
+            goal_ref_digest=r.get("goal_ref_digest"),
             cited_evidence=tuple(r["cited_evidence"]),
+            unresolved_evidence_digests=tuple(r.get("unresolved_evidence_digests", ())),
             rules_considered=tuple(r["rules_considered"]),
+            unresolved_rule_digests=tuple(r.get("unresolved_rule_digests", ())),
             alternatives=tuple(AlternativeRef.model_validate(a) for a in r["alternatives"]),
             summary_digest=r["summary_digest"],
         )

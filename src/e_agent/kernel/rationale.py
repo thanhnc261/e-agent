@@ -17,17 +17,18 @@ never reaches a validator. It makes no provider read and no model call.
   the rationale at rest and ``grounding.compared`` (counts only). A check error records
   ``grounding.shadow_failed`` (stage ``rationale``, a fixed message) and changes nothing else.
 - ``on``: an evidence id or rule id that does not resolve is the repair finding
-  ``KERNEL-RATIONALE`` (one per id: the id, a fixed message, never model text), recorded in
-  ``validation.completed`` with no action id and returned within ``max_validation_repairs``
-  (`_repair_finding`). A rationale that resolves changes nothing: validation, policy,
-  approval and dispatch are today's. It can only add a finding.
+  ``KERNEL-RATIONALE`` (one per id: the id, a fixed message, never model text), returned
+  within ``max_validation_repairs`` and recorded in ``validation.completed`` with no action
+  id as the id's digest (`repair_at_rest`, Task 3.R1). A rationale that resolves changes
+  nothing: validation, policy, approval and dispatch are today's. It can only add a finding.
 
 Rationale is never an approval input and never in the approval digest (target §5.6): every
 validator, digest input and stored plan gets the proposal or plan without it
-(`strip_grounding`, `strip_plan`). **At rest** (owner G2, PR-26) it is ids, codes and the
-``jcs-sha256-v1`` digest of each model-authored text (`at_rest`): ``rationale`` and, for a
-plan's steps, ``step_rationales`` in ``proposal.created``. The texts live only in the run's
-continuation (``rationale``, ``step_rationales``), for the approval card.
+(`strip_grounding`, `strip_plan`). **At rest** (owner G2, PR-26) it is codes, the
+``jcs-sha256-v1`` digest of each model-authored text, and each id verbatim only when it
+resolved, else only its digest (`at_rest`, `kernel/at_rest.py`, Task 3.R1): ``rationale``
+and, for a plan's steps, ``step_rationales`` in ``proposal.created``. The texts live only in
+the run's continuation (``rationale``, ``step_rationales``), for the approval card.
 
 **Failure** (ADR 0027): a check that cannot run in ``on`` records ``feature.fallback``
 ``GROUNDING_CHECK_FAILED`` before the run's first reservation, and the proposal goes on as
@@ -59,6 +60,7 @@ from e_agent.contracts.validation import Finding, ValidationStatus
 from e_agent.sdk.ports import DriverInput
 from e_agent.sdk.store import EventSpec
 
+from .at_rest import finding_at_rest, goal_at_rest, known_goals, refs_at_rest, repair_at_rest
 from .context import KERNEL_RULE_PREFIX
 from .continuation import _Continuation
 from .grounded_answer import GroundedAnswerMixin
@@ -87,12 +89,20 @@ Entry = tuple[str | None, ProposalRationale]
 """A rationale and where it sits: None for the proposal's or the plan's own, else a step id."""
 
 
-def at_rest(rationale: ProposalRationale) -> dict[str, Any]:
-    """The stored form (owner G2): ids, codes and a digest of each model-authored text."""
+def at_rest(rationale: ProposalRationale, result: RationaleResult) -> dict[str, Any]:
+    """The stored form (owner G2, Task 3.R1): codes and a digest of each model-authored text;
+    the goal verbatim only when ``result`` knows it, and the evidence and rule ids verbatim
+    only when they resolved, else only their digests (`kernel/at_rest.py`)."""
+    evidence = {ref for ref, ok in result.evidence if ok}
+    rules = {ref for ref, ok in result.rules if ok}
     return {
-        "goal_ref": rationale.goal_ref,
-        "cited_evidence": list(rationale.cited_evidence),
-        "rules_considered": list(rationale.rules_considered),
+        **goal_at_rest(rationale.goal_ref, result.goals),
+        **refs_at_rest(
+            "cited_evidence", "unresolved_evidence_digests", rationale.cited_evidence, evidence
+        ),
+        **refs_at_rest(
+            "rules_considered", "unresolved_rule_digests", rationale.rules_considered, rules
+        ),
         "alternatives": [
             {
                 "proposal_digest": a.proposal_digest,
@@ -111,6 +121,8 @@ class RationaleResult:
 
     evidence: tuple[tuple[str, bool], ...]
     rules: tuple[tuple[str, bool], ...]
+    goals: frozenset[str] = frozenset()
+    """The goal refs stored verbatim (`known_goals`); a goal is never checked or refused."""
 
     @property
     def resolved(self) -> bool:
@@ -123,11 +135,12 @@ class RationaleResult:
 
         return RationaleCounts(evidence=count(self.evidence), rules=count(self.rules))
 
-    def findings(self) -> tuple[Finding, ...]:
-        """One ``KERNEL-RATIONALE`` per id that did not resolve: the id, never model text."""
+    def findings(self, stored: bool = False) -> tuple[Finding, ...]:
+        """One ``KERNEL-RATIONALE`` per id that did not resolve: the id, never model text;
+        ``stored``: as recorded, the id's digest and no evidence id (Task 3.R1)."""
 
         def finding(kind: RefKind, ref: str) -> Finding:
-            return Finding(
+            raw = Finding(
                 rule_id=KERNEL_RATIONALE,
                 rule_version="1",
                 status=ValidationStatus.FAIL,
@@ -135,6 +148,7 @@ class RationaleResult:
                 observed=ref,
                 evidence_ids=(ref,) if kind is RefKind.EVIDENCE else (),
             )
+            return finding_at_rest(raw) if stored else raw
 
         return (
             *(finding(RefKind.EVIDENCE, ref) for ref, ok in self.evidence if not ok),
@@ -146,9 +160,11 @@ def check_rationale(
     rationales: Iterable[ProposalRationale],
     evidence_ids: Collection[str],
     known_rules: Collection[str],
+    goals: frozenset[str] = frozenset(),
 ) -> RationaleResult:
     """Each named evidence id against ``evidence_ids`` (this run's observations) and each
-    rule id against ``known_rules`` or the ``KERNEL-*`` prefix. Pure."""
+    rule id against ``known_rules`` or the ``KERNEL-*`` prefix; ``goals`` are carried for
+    the stored form. Pure."""
     evidence: list[tuple[str, bool]] = []
     rules: list[tuple[str, bool]] = []
     for rationale in rationales:
@@ -157,7 +173,7 @@ def check_rationale(
             (ref, ref.startswith(KERNEL_RULE_PREFIX) or ref in known_rules)
             for ref in rationale.rules_considered
         )
-    return RationaleResult(tuple(evidence), tuple(rules))
+    return RationaleResult(tuple(evidence), tuple(rules), goals)
 
 
 def strip_grounding(proposal: ActionProposal) -> ActionProposal:
@@ -206,13 +222,13 @@ class RationaleProbe:
 
     def stored(self) -> dict[str, Any]:
         """The ``proposal.created`` keys: the at-rest rationale and step rationales."""
-        if not self._kept:
+        if not self._kept or self.result is None:
             return {}
         keys: dict[str, Any] = {}
-        steps = {step: at_rest(r) for step, r in self.entries if step is not None}
+        steps = {step: at_rest(r, self.result) for step, r in self.entries if step is not None}
         top = [r for step, r in self.entries if step is None]
         if top:
-            keys["rationale"] = at_rest(top[0])
+            keys["rationale"] = at_rest(top[0], self.result)
         if steps:
             keys["step_rationales"] = steps
         return keys
@@ -254,7 +270,8 @@ class RationaleMixin(GroundedAnswerMixin):
         try:
             evidence = {o.evidence.evidence_id for o in cont.observations.values()}
             rationales = [r for _, r in entries]
-            result = check_rationale(rationales, evidence, self._registry.rule_inventory)
+            goals = known_goals(run.task_id, run.task_version)
+            result = check_rationale(rationales, evidence, self._registry.rule_inventory, goals)
         except Exception:  # no exception text reaches an event (PR-25, PR-28)
             if mode is FeatureMode.SHADOW:
                 return RationaleProbe(mode, entries, failed=True)
@@ -267,7 +284,6 @@ class RationaleMixin(GroundedAnswerMixin):
             )
             return RationaleProbe(FeatureMode.OFF, run=current)  # as today, dropped
         if mode is FeatureMode.ON and not result.resolved:
-            cont.findings = result.findings()
             current = await self._store.get_run(run.tenant_id, run.run_id)
-            return await self._repair_finding(current, cont, cont.findings)
+            return await repair_at_rest(self._repair_finding, current, cont, result)
         return RationaleProbe(mode, entries, result)

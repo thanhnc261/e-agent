@@ -593,7 +593,7 @@ async def test_grounded_answer_resolves_only_against_the_class_view(
     events = await _events(k, run.run_id)
     final = _assert_grounded_end(run, events)
     (refused,) = _of(events, RunEventType.VALIDATION_COMPLETED)
-    assert [f["observed"] for f in refused.payload["findings"]] == ["/owner"]
+    assert [f["observed"] for f in refused.payload["findings"]] == [digest("/owner")]  # 3.R1
     assert "alice" not in json.dumps(refused.payload)
     assert [c["pointer"] for c in final.payload["citations"]] == ["/count"]
 

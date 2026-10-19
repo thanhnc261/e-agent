@@ -164,7 +164,8 @@ class Reconstructed(Record):
     outside ``state``."""
     rationales: dict[str, dict[str, Any]] = Field(default_factory=dict)
     """The at-rest rationale (ADR 0033 §4) each ``proposal.created`` holds, by action id:
-    its ``rationale`` and ``step_rationales`` keys, ids, codes and digests only, never text.
+    its ``rationale`` and ``step_rationales`` keys as recorded (no schema version keys them,
+    so the Task 3.R1 digest keys pass through): ids, codes and digests only, never text.
     Not an action row field (``ActionRecord`` has none), so it is outside ``state``; a
     proposal without one is absent."""
 

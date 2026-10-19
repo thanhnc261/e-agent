@@ -246,13 +246,14 @@ async def test_rationale_with_unknown_evidence_is_kernel_rationale(
     events = await _events(k, run.run_id)
     (finding,) = _repairs(events)
     assert finding["rule_id"] == rationale.KERNEL_RATIONALE
-    assert finding["observed"] == "ev_unknown"
-    assert finding["evidence_ids"] == ["ev_unknown"]
+    assert finding["observed"] == digest("ev_unknown")  # recorded as its digest (3.R1)
+    assert finding["evidence_ids"] == []
     assert finding["message"] == rationale.RATIONALE_MESSAGES[rationale.RefKind.EVIDENCE]
     (created,) = _of(events, RunEventType.PROPOSAL_CREATED)  # the repaired proposal only
     assert len(await k.store.list_actions(TENANT, run.run_id)) == 1
     driver = k.driver
     assert [f.rule_id for f in driver.seen[2].findings] == [rationale.KERNEL_RATIONALE]
+    assert driver.seen[2].findings[0].observed == "ev_unknown"  # the model gets the raw id
     cont = await k.coordinator._load_cont(TENANT, run.run_id)
     assert cont.repairs == 1
     obs = next(iter(cont.observations.values()))
@@ -275,7 +276,10 @@ async def test_rationale_evidence_of_another_run_is_unresolved(make_kernel: Make
 
     assert second.state is RunState.WAITING_APPROVAL
     (finding,) = _repairs(await _events(k, second.run_id))
-    assert (finding["rule_id"], finding["observed"]) == (rationale.KERNEL_RATIONALE, foreign)
+    assert (finding["rule_id"], finding["observed"]) == (
+        rationale.KERNEL_RATIONALE,
+        digest(foreign),
+    )
 
 
 async def test_rationale_with_unknown_rule_is_kernel_rationale(make_kernel: MakeKernel) -> None:
@@ -292,7 +296,8 @@ async def test_rationale_with_unknown_rule_is_kernel_rationale(make_kernel: Make
     assert run.state is RunState.WAITING_APPROVAL, run.reason
     events = await _events(k, run.run_id)
     (finding,) = _repairs(events)
-    assert (finding["rule_id"], finding["observed"]) == (rationale.KERNEL_RATIONALE, "NOTE-999")
+    assert finding["rule_id"] == rationale.KERNEL_RATIONALE
+    assert finding["observed"] == digest("NOTE-999")
     assert finding["message"] == rationale.RATIONALE_MESSAGES[rationale.RefKind.RULE]
     assert "evidence_ids" not in finding or not finding["evidence_ids"]
     (created,) = _of(events, RunEventType.PROPOSAL_CREATED)
@@ -567,7 +572,9 @@ def test_rationale_holds_no_hidden_reasoning() -> None:
     for extra in ("reasoning", "thinking", "chain_of_thought"):
         with pytest.raises(ValidationError):
             ProposalRationale(**{**_rationale().model_dump(), extra: "because"})
-    stored = rationale.at_rest(_rationale(("ev_1",), ("PR-001",)))
+    named = _rationale(("ev_1",), ("PR-001",))
+    checked = rationale.check_rationale([named], {"ev_1"}, {"PR-001"}, frozenset({"run"}))
+    stored = rationale.at_rest(named, checked)
     assert stored == {
         "goal_ref": "run",
         "cited_evidence": ["ev_1"],
@@ -745,7 +752,10 @@ async def test_rationale_shadow_records_comparison(make_kernel: MakeKernel) -> N
             "rules": {"cited": 1, "resolved": 0, "unresolved": 1},
         },
     }
-    assert set(created.payload["rationale"]) == AT_REST_KEYS
+    unresolved = {"unresolved_evidence_digests", "unresolved_rule_digests"}  # 3.R1
+    assert set(created.payload["rationale"]) == AT_REST_KEYS | unresolved
+    assert created.payload["rationale"]["unresolved_evidence_digests"] == [digest("ev_unknown")]
+    assert created.payload["rationale"]["unresolved_rule_digests"] == [digest("NOTE-999")]
     _no_text(events)
 
 

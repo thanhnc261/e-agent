@@ -129,6 +129,7 @@ type = "forbidden"
 source_modules = [
     "e_agent.kernel.approval",
     "e_agent.kernel.approval_flow",
+    "e_agent.kernel.at_rest",
     "e_agent.kernel.connections",
     "e_agent.kernel.context",
     "e_agent.kernel.context_on",

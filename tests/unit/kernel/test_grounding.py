@@ -240,8 +240,10 @@ async def test_citation_to_another_run_is_unresolved(make_kernel: MakeKernel) ->
     assert validation.action_id is None
     assert _rules(validation) == ["KERNEL-CITATION"]
     (finding,) = validation.payload["findings"]
-    assert finding["evidence_ids"] == [foreign]
-    assert finding["observed"] == "/count"
+    assert finding["evidence_ids"] == []  # recorded: it named nothing of this run (3.R1)
+    assert finding["observed"] == digest("/count")
+    sent = k.coordinator._driver.seen[2].findings[0]  # the model gets the raw refs
+    assert (sent.evidence_ids, sent.observed) == ((foreign,), "/count")
     assert finding["message"] == grounding.CITATION_MESSAGES[grounding.CitationStatus.UNRESOLVED]
     assert len(_of(events, RunEventType.PROPOSAL_CREATED)) == 1  # only the repaired answer
     assert _verifier(k).calls == 2  # one per run: never for the foreign citation
@@ -310,7 +312,7 @@ async def test_bad_pointer_is_kernel_citation(make_kernel: MakeKernel) -> None:
     assert run.state is RunState.SUCCEEDED, run.reason
     validation = _of(await _events(k, run.run_id), RunEventType.VALIDATION_COMPLETED)[0]
     (finding,) = validation.payload["findings"]
-    assert (finding["rule_id"], finding["observed"]) == ("KERNEL-CITATION", "/missing")
+    assert (finding["rule_id"], finding["observed"]) == ("KERNEL-CITATION", digest("/missing"))
     assert finding["message"] == grounding.CITATION_MESSAGES[grounding.CitationStatus.UNRESOLVED]
 
 
@@ -459,7 +461,11 @@ async def test_grounded_shadow_records_comparison(make_kernel: MakeKernel) -> No
     created = events[index - 1]
     assert created.type is RunEventType.PROPOSAL_CREATED
     assert created.action_id == compared.action_id is not None
-    assert [c["pointer"] for c in created.payload["citations"]] == ["/count", "/topic", "/count"]
+    resolved, mismatched, unresolved = created.payload["citations"]
+    assert [c["pointer"] for c in (resolved, mismatched)] == ["/count", "/topic"]
+    assert unresolved["evidence_id_digest"] == digest("ev-not-this-run")  # named nothing (3.R1)
+    assert unresolved["pointer_digest"] == digest("/count")
+    assert "ev-not-this-run" not in json.dumps([e.payload for e in events])
     assert "KERNEL-CITATION" not in str([e.payload for e in events])
 
 
@@ -759,7 +765,7 @@ async def test_masked_and_removed_citations_give_one_finding_text(
     assert run.state is RunState.SUCCEEDED, run.reason
     validation = _of(await _events(k, run.run_id), RunEventType.VALIDATION_COMPLETED)[0]
     findings = validation.payload["findings"]
-    assert [f["observed"] for f in findings] == pointers
+    assert [f["observed"] for f in findings] == [digest(p) for p in pointers]  # 3.R1
     unresolved = grounding.CITATION_MESSAGES[grounding.CitationStatus.UNRESOLVED]
     assert {f["message"] for f in findings} == {unresolved}
     text = json.dumps(findings)
