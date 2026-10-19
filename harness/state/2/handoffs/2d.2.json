@@ -14,7 +14,8 @@
   "open_items": [
     "Owner: branch protection on main (the agent's GitHub call was refused by its permission classifier).",
     "Sandbox: P00035 left and the seed-tasks fixtures removed; undo with reset, seed, seed-tasks (identity flags).",
-    "Delete profiles/live-ir-{off,shadow,on}.local.json when no longer needed."
+    "Delete profiles/live-ir-{off,shadow,on}.local.json when no longer needed.",
+    "Secret scan: five generic-api-key false positives on credential_version in a05f89b are pinned by fingerprint in .gitleaksignore; decide before the next live evidence commit whether bundles keep credential_version verbatim."
   ],
   "rulings": [
     {

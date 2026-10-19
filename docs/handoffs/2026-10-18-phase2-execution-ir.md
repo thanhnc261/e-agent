@@ -164,7 +164,8 @@ The live profile does not enable `fixture-erp`, so only the first two go into `p
 2. The sandbox is left with the `on` run's draft PO `P00035` and without the task fixtures of `seed-tasks`, which the first reset removed. Undo: `odoo_sandbox.py reset`, `seed`, then `seed-tasks`, each with `--namespace e-agent-demo --expected-marker odoo19-learning --expected-company-id 1 --expected-bridge-version 19.0.0.4.0`. The reseed gives new record ids (demand `odoo/e_agent.demand/4` now); profile refs that name the old ids are stale.
 3. What remains after Phase 2: plan approval in the UI (the API and UI show the plan's presentation fields but resolve no task definition, D8), live multi-step writes (Phase 5), a qualified model run for plans (ADR 0010), and the Phase 3 plan.
 4. `golden/off_model_request.json` serialises pydantic-ai's `ToolDefinition`; a pydantic-ai upgrade needs it regenerated at a baseline commit (2c.9).
-5. Delete the temporary toggle profiles `profiles/live-ir-{off,shadow,on}.local.json` when no longer needed (git-ignored, mode 0600).
+5. Secret scan: gitleaks' `generic-api-key` rule flagged the `credential_version` field (a random secret-store revision id, not key material) in five live bundles of `a05f89b`; the five exact fingerprints are in `.gitleaksignore` with the reason. Before the next live evidence commit with a write, decide whether bundles keep `credential_version` verbatim or a scoped rule is warranted (owner decision; the `.gitleaks.toml` allowlist is for test fixtures only).
+6. Delete the temporary toggle profiles `profiles/live-ir-{off,shadow,on}.local.json` when no longer needed (git-ignored, mode 0600).
 
 ## Changes outside the repository
 

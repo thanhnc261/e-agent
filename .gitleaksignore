@@ -1,0 +1,15 @@
+# gitleaks findings ignored by exact fingerprint (commit:path:rule:line). Each entry
+# carries its reason. Never add a real credential here: rotate it and report it to the
+# owner.
+#
+# Phase 2 live check (2d.2), commit a05f89b: the generic-api-key rule matches the
+# `credential_version` field of five live evidence bundles. The value is the local
+# secret store's random revision id (`secrets.token_hex(16)`,
+# src/e_agent/adapters/secretstore_local/store.py:83), used as AEAD associated data to
+# bind approval to a credential revision. It is not key material and grants nothing;
+# there is nothing to rotate.
+a05f89bac90efbb97850c2fb4395a66bbd77e4e1:harness/state/evidence/live/2d.2-task3-shadow-seeded.json:generic-api-key:71
+a05f89bac90efbb97850c2fb4395a66bbd77e4e1:harness/state/evidence/live/2d.2-task3-off-seeded.json:generic-api-key:98
+a05f89bac90efbb97850c2fb4395a66bbd77e4e1:harness/state/evidence/live/2d.2-task3-on.json:generic-api-key:152
+a05f89bac90efbb97850c2fb4395a66bbd77e4e1:harness/state/evidence/live/2d.2-task3-on-seeded.json:generic-api-key:71
+a05f89bac90efbb97850c2fb4395a66bbd77e4e1:harness/state/evidence/live/2d.2-task3-shadow.json:generic-api-key:206
