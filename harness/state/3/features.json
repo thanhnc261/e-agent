@@ -160,7 +160,8 @@
         "repeat tests pass on both stores, including a changed revision and the post-reservation path",
         "shadow consumer reports zero disagreements with its count; full and pg pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3d.6/2026-10-19T16-39-15.108026+00-00-full.json"
     },
     {
       "id": "F-3e-1",

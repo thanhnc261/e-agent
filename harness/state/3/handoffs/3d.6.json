@@ -1,0 +1,35 @@
+{
+  "task": "3d.6",
+  "changed": "KERNEL-REPEAT (ADR 0031 §5) behind kernel_repeat off|shadow|on in new kernel/repeat.py: a write proposal whose recomputed approval digest (with the earlier revision's rule bundle version) equals a validation-blocked action's digest under the same registry surface digest is blocked without validation in on, compared in shadow (repeat.compared / repeat.shadow_failed). Blocked revisions (action id, digest, rule bundle version, findings) kept in the continuation field `blocked` only when not off and omitted when empty, so off goldens are byte-identical. A block from a validator that raised (error sentinel) or returned ERROR is never kept (review R1-1). on: feature.fallback REPEAT_CHECK_FAILED before a reservation, REPEAT_UNAVAILABLE fail-closed after. Release report: per-case repeat column and repeat_disagreements; corpus consumer in tests/unit/server (22 cases, 27 compared, 8 would repeat, 0 disagreements). Verified-answer repeat check and rule-bundle sentinels moved unchanged from proposals.py to repeat.py. Commits a713cb0, 9e3787f; review harness/state/3/reviews/3d.6-r1.json (accept, 7 Low).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3d.6/2026-10-19T16-39-15.108026+00-00-full.json",
+    "harness/state/evidence/gates/3d.6/2026-10-19T16-40-33.650576+00-00-pg.json"
+  ],
+  "open_items": [
+    "README release-report flag list lacks --kernel-repeat shadow (outside 3d.6 scope).",
+    "evals/reports/phase3-baseline.json not regenerated; new runs add per-case repeat and kernel_repeat/repeat_disagreements keys.",
+    "ADR 0031 Consequences places the rule in kernel/proposals.py; it lives in kernel/repeat.py, and BlockedRevision also keeps findings (needed by the on repair) beyond §5's digest+bundle wording: ADR wording amendment for owner at phase end (R1-5).",
+    "Post-reservation repeat path is tested white-box only (no live path reaches _handle_proposal after a reservation in an open run).",
+    "R1-3: release report has no top-level repeat shadow-failure total; R1-4: same_findings is order-sensitive (shadow signal only); R1-6: no test varies credential/policy/connection version (covered by digest construction).",
+    "Off path: credentials.version lookup now precedes _validate; if it raises, validation no longer runs first (no event change) (R1-2)."
+  ],
+  "rulings": [
+    {
+      "ruling": "Scope amended to add kernel/continuation.py: ADR 0031 line 106 keeps blocked revisions in the continuation.",
+      "cost_if_wrong": "one field to move to an event key with an ADR change"
+    },
+    {
+      "ruling": "A block from a validator that raised or returned ERROR is not a repeat; it is validated again.",
+      "cost_if_wrong": "one extra validation per such repeat"
+    },
+    {
+      "ruling": "Fixture-corpus shadow consumer lives in tests/unit/server/ and asserts would_repeat > 0 as well as zero disagreements (kernel tests may not import ERP).",
+      "cost_if_wrong": "test relocation"
+    },
+    {
+      "ruling": "Post-reservation failure tested by entering _handle_proposal directly (3d.5 precedent).",
+      "cost_if_wrong": "a missed integration path"
+    }
+  ],
+  "outside_repo": []
+}

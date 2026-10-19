@@ -704,3 +704,8 @@
 - changed: no working-tree changes
 - next: repeat tests pass on both stores, including a changed revision and the post-reservation path
 - open: none
+
+## 2026-10-19T16:42:29.711330+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3d.6
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3d.6.json, harness/state/evidence/gates/3d.6/2026-10-19T16-39-15.108026+00-00-full.json, harness/state/evidence/gates/3d.6/2026-10-19T16-40-33.650576+00-00-pg.json
+- next: Task 3e.1
+- open: none
