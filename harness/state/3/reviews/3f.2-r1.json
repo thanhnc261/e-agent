@@ -1,0 +1,45 @@
+{
+  "task": "3f.2",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R1-1",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "Adjacency classifies a returned refusal as terminal when the next turn ends the run for another reason (budget, timeout, route, context unavailable).",
+      "evidence": "scripts/release_report.py _ends_run, _KERNEL_RECORDS; kernel/run_loop.py:50-82, :327-343; kernel/features.py:245-254."
+    },
+    {
+      "id": "R1-2",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "First-step dispatch STALE returned within budget and plain-text KERNEL-VERIFICATION turns increment cont.repairs but are excluded, contradicting the 'as cont.repairs counts' claim.",
+      "evidence": "kernel/dispatch.py:96-121; kernel/run_loop.py:191-197; scripts/release_report.py _proposal_validation_failed, NOT_PROPOSAL_FINDINGS."
+    },
+    {
+      "id": "R1-3",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "The repair rate can exceed 1.0; redefine the denominator so every counted refusal maps to one attempt, or state the bound.",
+      "evidence": "scripts/release_report.py repair_metrics; tests/unit/scripts/test_release_report.py event 16."
+    },
+    {
+      "id": "R1-4",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Plan 3f.2 Interfaces still names context.compared; the on arm correctly reads context.assembled.",
+      "evidence": "docs/plans/2026-10-19-phase3-cognition-context.md:761."
+    },
+    {
+      "id": "R1-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "'context turns' counts every context.assembled including acknowledgement packs; word it as packs.",
+      "evidence": "kernel/context_on.py:205-206; scripts/release_report.py assembled_columns."
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}
