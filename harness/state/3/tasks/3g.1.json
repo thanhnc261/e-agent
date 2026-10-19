@@ -10,7 +10,6 @@
     "README.md",
     "docs/roadmap.md",
     "docs/handoffs/**",
-    "evals/reports/fixture-release.json",
     "evals/reports/**",
     "scripts/release_report.py",
     "docs/plans/2026-10-19-phase3-cognition-context.md",
