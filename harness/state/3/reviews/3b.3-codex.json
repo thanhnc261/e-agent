@@ -1,0 +1,52 @@
+{
+  "task": "3b.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "C3-1",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "Class lookup does not resolve $ref aliases: a secret declared under $defs is lowered to personal or internal through the referencing path.",
+      "evidence": "src/e_agent/contracts/data_classes.py:239; src/e_agent/kernel/registry.py:385"
+    },
+    {
+      "id": "C3-2",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "output_schemas inserted before agent_guidance breaks positional construction of PluginContribution (SDK 1.2 must be additive).",
+      "evidence": "src/e_agent/sdk/ports.py:274; src/e_agent/kernel/registry.py:326"
+    },
+    {
+      "id": "C3-3",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "$ref with sibling properties: admission rejects a valid pointer and counts omit sibling properties.",
+      "evidence": "src/e_agent/contracts/data_classes.py:165, :203"
+    },
+    {
+      "id": "C3-4",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "_walk skips additionalProperties, so unmarked properties there are not counted.",
+      "evidence": "src/e_agent/contracts/data_classes.py:213"
+    },
+    {
+      "id": "C3-5",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Admission accepts pointers into non-schema data such as examples.",
+      "evidence": "src/e_agent/contracts/data_classes.py:191; src/e_agent/kernel/registry.py:333"
+    },
+    {
+      "id": "C3-6",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Malformed ~ escapes and leading-zero array tokens are accepted, so a declaration can miss its canonical lookup.",
+      "evidence": "src/e_agent/contracts/data_classes.py:120, :158"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}
