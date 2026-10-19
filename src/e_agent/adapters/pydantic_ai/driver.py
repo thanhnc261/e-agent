@@ -966,10 +966,12 @@ class PydanticAiDriver:
                 return PLAN_TOOL_REFUSAL
             values = self._coerced_args(spec, arguments)
             _envelope(spec, values, cited=False)  # a step's undeclared envelope keys: dropped
+            stripped = _undeclared_envelope(spec)
             sources: list[str] = []
             for name, ref in lineage.items():
                 if (
                     name in values
+                    or name in stripped  # never an argument, so never a lineage target (R2-1)
                     or not isinstance(ref, dict)
                     or set(ref) != _LINEAGE_KEYS
                     or not all(isinstance(ref[key], str) for key in _LINEAGE_KEYS)
@@ -1032,6 +1034,12 @@ def _grounded_schema(spec: ToolSpec) -> dict[str, Any]:
     return with_field(spec.parameters, name, field)
 
 
+def _undeclared_envelope(spec: ToolSpec) -> frozenset[str]:
+    """The envelope names this tool's own schema does not declare: `_envelope` removes them
+    from every call's arguments, so a plan's lineage onto one is malformed."""
+    return frozenset({CITATIONS, RATIONALE}) - set(spec.parameters.get("properties", {}))
+
+
 def _envelope(spec: ToolSpec, args: dict[str, Any], cited: bool) -> dict[str, Any] | str:
     """Take the envelope keys out of a call's arguments, in place (fix round 1, PR-26).
 
@@ -1039,11 +1047,10 @@ def _envelope(spec: ToolSpec, args: dict[str, Any], cited: bool) -> dict[str, An
     stays an argument, in any mode. It becomes the proposal's envelope field only where that
     field is offered on this call (``cited``, and `_offered` for the tool); otherwise it is
     dropped unread. A field the records refuse is a fixed refusal, never model text."""
-    declared = spec.parameters.get("properties", {})
     offered = _offered(spec) if cited else None
     envelope: dict[str, Any] = {}
-    for key in (CITATIONS, RATIONALE):
-        if key in declared or key not in args:
+    for key in sorted(_undeclared_envelope(spec)):
+        if key not in args:
             continue
         raw = args.pop(key)
         if key != offered:

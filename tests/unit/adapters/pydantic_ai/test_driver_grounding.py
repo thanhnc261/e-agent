@@ -13,11 +13,17 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import logging
 from typing import Any
 
 import pytest
 from e_agent.adapters.pydantic_ai import PydanticAiDriver
-from e_agent.adapters.pydantic_ai.driver import PLAN_SHAPE_REFUSAL, PLAN_TOOL, _RunState
+from e_agent.adapters.pydantic_ai.driver import (
+    PLAN_LINEAGE_REFUSAL,
+    PLAN_SHAPE_REFUSAL,
+    PLAN_TOOL,
+    _RunState,
+)
 from e_agent.adapters.pydantic_ai.grounding import (
     CITATION_REFUSAL,
     CITATIONS_SCHEMA,
@@ -31,6 +37,7 @@ from e_agent.adapters.pydantic_ai.grounding import (
 )
 from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.grounding import SUMMARY_MAX, Citation, ProposalRationale
+from e_agent.contracts.plan import LineageRef
 from e_agent.contracts.run import RunState
 from e_agent.contracts.task import GROUNDED_ANSWER
 from e_agent.plugins.erp.simulator import fixture_profile_path
@@ -453,9 +460,82 @@ async def test_inflight_off_run_schema_unchanged_after_flip() -> None:
     assert GROUNDED_TOOL not in tools  # the fixture's typed answers keep the generic one out
 
 
-# -- no dropped key reaches the ledger or an export (fix round 1, C1-1, PR-26) ------------
+# -- lineage onto an envelope key (fix round 2, R2-1, PR-26) -----------------------------
+def _lineage_plan(tool: str, name: str) -> dict[str, Any]:
+    """Two steps; the second's ``name`` comes from the first by lineage, its path model text."""
+    return {
+        "steps": [
+            {"step_id": "first", "tool": WRITE.name, "arguments": {"text": "a"}},
+            {
+                "step_id": "second",
+                "tool": tool,
+                "arguments": {"text": "b"},
+                "lineage": {name: {"step": "first", "path": "/model-text-here"}},
+            },
+        ]
+    }
+
+
+async def test_plan_lineage_onto_an_undeclared_envelope_key_is_refused() -> None:
+    """A lineage name ``citations`` or ``rationale`` that the step's tool does not declare is
+    a malformed plan in every mode: the fixed lineage refusal, never a `LineageRef` whose
+    path carries model text into the step's arguments."""
+    cases = 0
+    for offer in GroundingOffer:
+        for name in ("citations", "rationale"):
+            run_id = f"r_lin_{offer}_{name}"
+            step, driver = await _call(
+                offer,
+                PLAN_TOOL,
+                _lineage_plan(PIN.name, name),
+                run_id=run_id,
+                allowed=PLAN_ALLOWED,
+                writes=2,
+            )
+            assert isinstance(step, AskClarification), (offer, name)
+            assert _rejections(driver, run_id) == {"call-1": PLAN_LINEAGE_REFUSAL}, (offer, name)
+            cases += 1
+    print(f"refused envelope lineage cases: {cases}")
+    assert cases == 6
+
+
+async def test_plan_lineage_onto_a_declared_name_is_kept() -> None:
+    """A tool whose own schema declares ``rationale`` keeps its lineage onto it (ruling 2)."""
+    own = dataclasses.replace(
+        PIN,
+        contract_id="notes.reasoned.pin.v1",
+        parameters={
+            "type": "object",
+            "properties": {"text": {"type": "string"}, "rationale": {"type": "string"}},
+            "required": ["text"],
+        },
+    )
+    specs = (READ, WRITE, own)
+    allowed = (READ.contract_id, WRITE.contract_id, own.contract_id)
+    plan = _lineage_plan(own.name, "rationale")
+    for offer in GroundingOffer:
+
+        def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            return ModelResponse(parts=[ToolCallPart(PLAN_TOOL, plan, "call-1")])
+
+        driver = PydanticAiDriver(FunctionModel(model), specs)
+        step = await driver.advance(
+            _ctx(f"r_own_lin_{offer}", 2),
+            DriverInput(task="t", allowed_capabilities=allowed, grounding=offer),
+        )
+        assert isinstance(step, ProposePlan), offer
+        second = step.plan.steps[1].proposal
+        assert second.arguments["rationale"] == LineageRef(step_id="first", path="/model-text-here")
+        assert second.rationale is None
+
+
+# -- no dropped key reaches the ledger, a log or an export (fix rounds 1-2, PR-26) ---------
 CANARY = "CANARY-3e4"
 READ_EXTRAS = {"citations": f"{CANARY}-read-citations", "rationale": f"{CANARY}-read-rationale"}
+STEP_EXTRAS = {"citations": f"{CANARY}-step-citations", "rationale": f"{CANARY}-step-rationale"}
+DEMAND = ("procurement_demand_read_v1", {"demand_ref": "demand:d-001", **READ_EXTRAS})
+STOCK = ("inventory_availability_read_v1", {"product_ref": "product:widget-a", **READ_EXTRAS})
+OFFERS = ("procurement_offers_read_v1", {"product_ref": "product:widget-a", **READ_EXTRAS})
 SHORTAGE_ARGS = {
     "demand_ref": "demand:d-001",
     "product_ref": "product:widget-a",
@@ -476,121 +556,203 @@ PO_ARGS = {
     "subtotal": "700",
     "requested_date": "2026-10-20",
 }
-CANARY_RUNS = {
-    "shortage": [
-        [
-            ("procurement_demand_read_v1", {"demand_ref": "demand:d-001", **READ_EXTRAS}),
-            ("inventory_availability_read_v1", {"product_ref": "product:widget-a", **READ_EXTRAS}),
-        ],
-        [
-            (
-                "procurement_shortage_answer_v1",
-                {
-                    **SHORTAGE_ARGS,
-                    "citations": [
-                        {"evidence_id": "ev-none", "pointer": "/quantity", "value": f"{CANARY}-v"}
-                    ],
-                    "rationale": {"goal_ref": "run", "summary": f"{CANARY}-answer-rationale"},
-                },
-            )
-        ],
-        [("procurement_shortage_answer_v1", dict(SHORTAGE_ARGS))],
-    ],
-    "draft-po": [
-        [
-            ("procurement_demand_read_v1", {"demand_ref": "demand:d-001", **READ_EXTRAS}),
-            ("inventory_availability_read_v1", {"product_ref": "product:widget-a", **READ_EXTRAS}),
-            ("procurement_offers_read_v1", {"product_ref": "product:widget-a", **READ_EXTRAS}),
-        ],
-        [
-            (
-                "procurement_purchase_order_create_draft_v1",
-                {
-                    **PO_ARGS,
-                    "citations": f"{CANARY}-write-citations",
-                    "rationale": {
-                        "goal_ref": "run",
-                        "rules_considered": ["PR-003"],
-                        "summary": f"{CANARY}-write-rationale",
-                    },
-                },
-            )
-        ],
-    ],
-}
+MODEL_RATIONALE = {"goal_ref": "run", "rules_considered": ["PR-003"]}
+PO_TOOL = "procurement_purchase_order_create_draft_v1"
+WRONG_CITE = {"evidence_id": "<<evidence:c1-0>>", "pointer": "/state", "value": f"{CANARY}-v"}
+RIGHT_CITE = {"evidence_id": "<<evidence:c1-0>>", "pointer": "/state", "value": "draft"}
 
 
-@pytest.mark.parametrize("mode", list(FeatureMode))
-async def test_no_canary_reaches_events_or_evidence(mode: FeatureMode) -> None:
-    """Canary text in envelope keys the tools do not declare (on reads, an answer's
-    rationale, a write's citations, and the offered fields themselves) reaches no event, no
-    action record and no evidence bundle, in ``off``, ``shadow`` and ``on``: dropped keys
-    are dropped, and the offered ones are stored as ids and digests only."""
+def _plan_args(mode: FeatureMode) -> dict[str, Any]:
+    """A two-step plan with canaries in each step and, where offered, in its rationale."""
+    plan: dict[str, Any] = {
+        "steps": [
+            {"step_id": "first-po", "tool": PO_TOOL, "arguments": {**PO_ARGS, **STEP_EXTRAS}},
+            {
+                "step_id": "second-po",
+                "tool": PO_TOOL,
+                "arguments": {
+                    **{k: v for k, v in PO_ARGS.items() if k != "requested_date"},
+                    **STEP_EXTRAS,
+                },
+                "lineage": {"requested_date": {"step": "first-po", "path": "/requested_date"}},
+            },
+        ]
+    }
+    if mode is not FeatureMode.OFF:  # the plan tool offers no rationale in `off`
+        plan["rationale"] = {**MODEL_RATIONALE, "summary": f"{CANARY}-plan-rationale"}
+    return plan
+
+
+def _canary_runs(mode: FeatureMode) -> dict[str, dict[str, Any]]:
+    """Each run: its model calls per turn, its toggles and budgets, and how it ends."""
+    runs: dict[str, dict[str, Any]] = {
+        "shortage": {
+            "turns": [
+                [DEMAND, STOCK],
+                [
+                    (
+                        "procurement_shortage_answer_v1",
+                        {
+                            **SHORTAGE_ARGS,
+                            "citations": [
+                                {"evidence_id": "ev-none", "pointer": "/q", "value": f"{CANARY}-v"}
+                            ],
+                            "rationale": {**MODEL_RATIONALE, "summary": f"{CANARY}-answer"},
+                        },
+                    )
+                ],
+                [("procurement_shortage_answer_v1", dict(SHORTAGE_ARGS))],
+            ],
+            "end": RunState.SUCCEEDED,
+        },
+        "draft-po": {
+            "turns": [
+                [DEMAND, STOCK, OFFERS],
+                [
+                    (
+                        PO_TOOL,
+                        {
+                            **PO_ARGS,
+                            "citations": f"{CANARY}-write-citations",
+                            "rationale": {**MODEL_RATIONALE, "summary": f"{CANARY}-write"},
+                        },
+                    )
+                ],
+            ],
+            "end": RunState.SUCCEEDED,
+        },
+        "plan": {
+            "features": {"execution_ir": FeatureMode.ON},
+            "budgets": {"max_admitted_writes": 2},
+            "task_kind": "draft-po",
+            "turns": [[DEMAND, STOCK, OFFERS], [(PLAN_TOOL, _plan_args(mode))]],
+            "end": RunState.SUCCEEDED,
+            "writes": 2,
+        },
+    }
+    if mode is FeatureMode.ON:  # the generic answer is offered only to a run pinned `on`
+        runs["grounded"] = {
+            "features": {"execution_ir": FeatureMode.ON},
+            "task_kind": "open-pos",
+            "turns": [
+                [
+                    (
+                        "procurement_draft_rfq_read_v1",
+                        {"purchase_order_ref": "rfq:po-100", **READ_EXTRAS},
+                    )
+                ],
+                [
+                    (
+                        "grounded_answer_v1",
+                        {
+                            "summary": "One draft RFQ is open.",
+                            "citations": [WRONG_CITE],
+                            "rationale": {**MODEL_RATIONALE, "summary": f"{CANARY}-grounded"},
+                        },
+                    )
+                ],
+                [
+                    (
+                        "grounded_answer_v1",
+                        {"summary": "One draft RFQ is open.", "citations": [RIGHT_CITE]},
+                    )
+                ],
+            ],
+            "end": RunState.SUCCEEDED,
+            "writes": 0,
+        }
+    return runs
+
+
+async def _canary_run(mode: FeatureMode, spec: dict[str, Any]) -> tuple[Any, list[Any], str]:
+    """Run one canary scenario; its run, its events and its serialized ledger and bundle."""
     from e_agent.contracts.approval import ApprovalDecision
     from e_agent.kernel.evidence import build_evidence
 
+    from tests.unit.server.test_recorded_model_replays import _resolve_evidence
+
+    turns = spec["turns"]
+    cursor = 0
+
+    def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        nonlocal cursor
+        cursor += 1
+        if cursor > len(turns):
+            return ModelResponse(parts=[TextPart("Done.")])
+        parts = [
+            ToolCallPart(name, json.dumps(args), f"c{cursor}-{i}")
+            for i, (name, args) in enumerate(turns[cursor - 1])
+        ]
+        return _resolve_evidence(ModelResponse(parts=parts), messages)
+
+    profile = load_profile(fixture_profile_path())
+    features = profile.features.model_copy(
+        update={"grounded_answers": mode, **spec.get("features", {})}
+    )
+    budgets = profile.budgets.model_copy(update=spec.get("budgets", {}))
+    profile = profile.model_copy(update={"features": features, "budgets": budgets})
+    rt = await build_runtime(
+        profile,
+        driver_factory=lambda registry: PydanticAiDriver(
+            FunctionModel(respond), tool_specs(registry, profile), guidance=registry.agent_guidance
+        ),
+    )
+    run = await rt.coordinator.start_run(
+        rt.operator, "canary", rt.scope, task_kind=spec.get("task_kind")
+    )
+    if run.state is RunState.WAITING_APPROVAL:
+        pres = await rt.coordinator.pending_approval(rt.operator.tenant_id, run.run_id)
+        run = await rt.coordinator.decide(
+            actor=rt.operator,
+            run_id=run.run_id,
+            action_id=pres.action_id,
+            action_digest=pres.digest,
+            expected_run_revision=pres.run_revision,
+            decision=ApprovalDecision.APPROVED,
+        )
+    tenant = rt.operator.tenant_id
+    events = await rt.store.list_events(tenant, run.run_id)
+    actions = await rt.store.list_actions(tenant, run.run_id)
+    bundle = await build_evidence(
+        rt.store, tenant, run.run_id, environment="fixture", versions={}, features=features
+    )
+    if "writes" in spec:
+        assert rt.diagnostics()["fixture-erp"]["create_calls"] == spec["writes"]
+    text = json.dumps(
+        [
+            [e.model_dump(mode="json") for e in events],
+            [a.model_dump(mode="json") for a in actions],
+            bundle,
+        ],
+        default=str,
+    )
+    return run, events, text
+
+
+@pytest.mark.parametrize("mode", list(FeatureMode))
+async def test_no_canary_reaches_events_logs_or_evidence(
+    mode: FeatureMode, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Canary text in envelope keys a tool does not declare (on reads, on an answer, a write
+    and each plan step) and in the offered fields themselves (citations, a write's and a
+    plan's rationale, the generic answer's) reaches no event, action record, evidence bundle
+    or log line, in ``off``, ``shadow`` and ``on``: dropped keys are dropped, and the offered
+    ones are stored as ids and digests only. The generic answer runs in ``on`` only, the one
+    mode that offers it."""
+    caplog.set_level(logging.DEBUG)
+    logging.getLogger("e_agent.kernel.coordinator").debug("caplog probe")
+    assert "caplog probe" in caplog.text  # the kernel's logger is captured
+    runs = _canary_runs(mode)
     searched = 0
-    for task, turns in CANARY_RUNS.items():
-        cursor = 0
-
-        def respond(
-            messages: list[ModelMessage], info: AgentInfo, turns: Any = turns
-        ) -> ModelResponse:
-            nonlocal cursor
-            cursor += 1
-            if cursor > len(turns):
-                return ModelResponse(parts=[TextPart("Done.")])
-            calls = turns[cursor - 1]
-            return ModelResponse(
-                parts=[
-                    ToolCallPart(name, dict(args), f"c{cursor}-{i}")
-                    for i, (name, args) in enumerate(calls)
-                ]
-            )
-
-        profile = load_profile(fixture_profile_path())
-        profile = profile.model_copy(
-            update={"features": profile.features.model_copy(update={"grounded_answers": mode})}
-        )
-        rt = await build_runtime(
-            profile,
-            driver_factory=lambda registry, p=profile, r=respond: PydanticAiDriver(
-                FunctionModel(r), tool_specs(registry, p), guidance=registry.agent_guidance
-            ),
-        )
-        run = await rt.coordinator.start_run(rt.operator, f"canary {task}", rt.scope)
-        if run.state is RunState.WAITING_APPROVAL:
-            pres = await rt.coordinator.pending_approval(rt.operator.tenant_id, run.run_id)
-            run = await rt.coordinator.decide(
-                actor=rt.operator,
-                run_id=run.run_id,
-                action_id=pres.action_id,
-                action_digest=pres.digest,
-                expected_run_revision=pres.run_revision,
-                decision=ApprovalDecision.APPROVED,
-            )
-        assert run.state is RunState.SUCCEEDED, (mode, task, run.reason)
-        tenant = rt.operator.tenant_id
-        events = await rt.store.list_events(tenant, run.run_id)
-        actions = await rt.store.list_actions(tenant, run.run_id)
-        bundle = await build_evidence(
-            rt.store,
-            tenant,
-            run.run_id,
-            environment="fixture",
-            versions={},
-            features=profile.features,
-        )
-        text = json.dumps(
-            [
-                [e.model_dump(mode="json") for e in events],
-                [a.model_dump(mode="json") for a in actions],
-                bundle,
-            ],
-            default=str,
-        )
-        assert events and actions
-        assert CANARY not in text, (mode, task)
-        assert "rationale" not in json.dumps([a.arguments for a in actions]), (mode, task)
+    for name, spec in runs.items():
+        run, events, text = await _canary_run(mode, spec)
+        assert run.state is spec["end"], (mode, name, run.reason)
+        assert events
+        assert CANARY not in text, (mode, name)
         searched += len(events)
-    print(f"{mode.value}: no canary in {searched} events and 2 bundles")
+    if mode is FeatureMode.ON:
+        assert run.reason_code.value == "grounded"  # the generic answer, repaired once
+    assert CANARY not in caplog.text, mode
+    assert all(CANARY not in str(r.args) for r in caplog.records), mode
+    records = len(caplog.records)
+    print(f"{mode.value}: no canary in {searched} events, {len(runs)} bundles, {records} logs")
