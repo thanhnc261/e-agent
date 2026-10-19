@@ -1,0 +1,43 @@
+{
+  "id": "3e.3",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3e-3"
+  ],
+  "context_digest": "856429048caeb2c7226d3e4ba5cab9c778b886e562c6132233cf5604b5210020",
+  "allowed_paths": [
+    "src/e_agent/contracts/grounding.py",
+    "src/e_agent/contracts/plan.py",
+    "src/e_agent/contracts/events.py",
+    "src/e_agent/contracts/explain.py",
+    "src/e_agent/kernel/grounding.py",
+    "src/e_agent/kernel/rationale*.py",
+    "src/e_agent/kernel/grounded_answer.py",
+    "src/e_agent/kernel/explain.py",
+    "src/e_agent/kernel/proposals.py",
+    "src/e_agent/kernel/plan_flow.py",
+    "src/e_agent/kernel/continuation.py",
+    "src/e_agent/kernel/repeat.py",
+    "src/e_agent/kernel/approval_flow.py",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "tests/unit/kernel/**",
+    "tests/unit/contracts/**",
+    "tests/unit/server/**",
+    "tests/conformance/**",
+    "pyproject.toml",
+    "docs/plans/2026-10-19-phase3-cognition-context.md",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "rationale tests pass on both stores; approval digest unchanged by rationale",
+    "full and pg pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "86129d2e5e78a84e7b4c5ba567118e00a3a74ced",
+  "created_at": "2026-10-19T18:32:04+00:00",
+  "features_digest": "1380417816414df24b36049f172944e463c2af43f54897b2ff6057dffb3a485a"
+}
