@@ -381,11 +381,15 @@ class PluginRegistry:
         return self._class_indexes[contract_id].class_of(pointer)
 
     def unmarked_properties(self) -> dict[str, dict[str, int | None]]:
-        """Unmarked leaf properties per capability and side (None: no schema on that side);
-        readiness reports it."""
+        """Unmarked leaves per capability and side; None: no schema, or an unsupported one."""
         return {
             cid: self._class_indexes[cid].unmarked_counts() for cid in sorted(self.capabilities)
         }
+
+    def unsupported_schemas(self) -> dict[str, dict[str, str]]:
+        """Sides whose schema leaves the data-class subset (every value there is personal)."""
+        found = {cid: self._class_indexes[cid].unsupported for cid in sorted(self.capabilities)}
+        return {cid: sides for cid, sides in found.items() if sides}
 
     # -- task definitions (ADR 0028) ----------------------------------------------
     def _stage_task_definitions(

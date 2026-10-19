@@ -114,8 +114,8 @@ def record_kind(kind: str) -> RecordKind:
 _MAX_REFS = 32
 _BAD_ESCAPE = re.compile(r"~(?![01])")
 _INDEX = re.compile(r"0|[1-9][0-9]*")
-_NAMED = frozenset({"properties", "$defs", "definitions"})
-"""Keywords whose value maps a name to a schema."""
+_NAMED = frozenset({"properties", "$defs"})
+"""Keywords whose value maps a name to a schema (``$defs`` only at a schema root)."""
 _INDEXED = ("prefixItems", "anyOf", "oneOf", "allOf")
 """Keywords whose value is a list of schemas."""
 _SINGLE = ("items", "additionalProperties")
@@ -128,6 +128,36 @@ RESTRICTIVENESS = (
     DataClass.SECRET,
 )
 """Classes from least to most restrictive."""
+
+_DEF_REF = re.compile(r"#/\$defs/([^/~]+)")
+"""The one supported ``$ref`` form: a whole definition of the same schema's root."""
+REF_ANNOTATIONS = frozenset(
+    {"title", "description", "default", "examples", "deprecated", "readOnly", "writeOnly"}
+    | {"$comment"}
+)
+"""Siblings a ``$ref`` node may carry: annotations, never a schema-bearing keyword."""
+_NON_SCHEMA = REF_ANNOTATIONS | {
+    "type",
+    "required",
+    "enum",
+    "const",
+    "format",
+    "pattern",
+    "minLength",
+    "maxLength",
+    "minimum",
+    "maximum",
+    "exclusiveMinimum",
+    "exclusiveMaximum",
+    "multipleOf",
+    "minItems",
+    "maxItems",
+    "uniqueItems",
+    "minProperties",
+    "maxProperties",
+    "discriminator",
+}
+"""Keywords whose values are data or assertions, never schemas (``x-`` extensions too)."""
 
 Location = tuple[str, ...]
 """Where a schema sits in the document, ``$ref`` hops resolved: its identity."""
@@ -171,21 +201,73 @@ def schema_document(
     return {name: schema for name, schema in document.items() if schema is not None}
 
 
+# -- the supported schema subset ------------------------------------------------------------
+def _unsupported_in(node: Any, defs: Mapping[str, Any], *, root: bool = False) -> str | None:
+    """The first construct of ``node`` outside the supported subset, by keyword, or None."""
+    if isinstance(node, bool):
+        return None
+    if not isinstance(node, Mapping):
+        return "a schema that is not an object"
+    if "$ref" in node:
+        ref = node["$ref"]
+        match = _DEF_REF.fullmatch(ref) if isinstance(ref, str) else None
+        if match is None or match.group(1) not in defs:
+            return "a $ref to anything but a whole #/$defs/<Name> definition"
+        extra = sorted(k for k in node if k != "$ref" and not _annotation(k, REF_ANNOTATIONS))
+        return f"a $ref beside the keyword {extra[0]!r}" if extra else None
+    for key, value in node.items():
+        if key == "$defs" and root and isinstance(value, Mapping):
+            continue  # each definition is checked by unsupported_construct
+        if key == "properties" and isinstance(value, Mapping):
+            children: list[Any] = list(value.values())
+        elif key in _SINGLE:
+            children = [value]
+        elif key in _INDEXED and isinstance(value, list):
+            children = value
+        elif _annotation(key, _NON_SCHEMA):
+            continue
+        else:
+            return f"the keyword {key!r}"
+        for child in children:
+            if (found := _unsupported_in(child, defs)) is not None:
+                return found
+    return None
+
+
+def _annotation(key: str, allowed: frozenset[str]) -> bool:
+    return key in allowed or key.startswith("x-")
+
+
+def unsupported_construct(schema: Mapping[str, Any]) -> str | None:
+    """The first construct of a schema outside the subset data classes support, or None.
+
+    Supported: the data keywords in ``_NON_SCHEMA``; ``properties/<name>``, ``items``,
+    ``additionalProperties``, ``prefixItems/<i>``, ``anyOf/<i>``, ``oneOf/<i>`` and
+    ``allOf/<i>``; ``$defs/<Name>`` at the schema root; and ``$ref`` only as
+    ``#/$defs/<Name>`` (a whole definition) with annotation siblings only. Everything
+    else (``if``/``then``/``else``, ``patternProperties``, ``not``, ``dependentSchemas``,
+    ``unevaluatedProperties``, a ``$ref`` into a definition, ...) is unsupported: a side
+    that uses it admits no declaration, and every value on it counts as ``personal``."""
+    defs = schema.get("$defs", {})
+    if not isinstance(defs, Mapping):
+        return "the keyword '$defs'"
+    for node in (schema, *defs.values()):
+        if (found := _unsupported_in(node, defs, root=node is schema)) is not None:
+            return found
+    return None
+
+
 def _ref_target(
     node: Mapping[str, Any], document: Mapping[str, Any], loc: Location
 ) -> tuple[Mapping[str, Any], Location] | None:
-    """The schema a local ``$ref`` names, resolved against the schema ``loc`` is in."""
+    """The definition a supported ``$ref`` names, in the schema ``loc`` is in."""
     ref = node.get("$ref")
-    if not isinstance(ref, str) or not ref.startswith("#"):
+    match = _DEF_REF.fullmatch(ref) if isinstance(ref, str) else None
+    defs = document[loc[0]].get("$defs")
+    if match is None or not isinstance(defs, Mapping):
         return None
-    target: Any = document[loc[0]]
-    try:
-        tokens = parse_pointer(ref[1:]) if ref != "#" else ()
-    except ValueError:
-        return None
-    for token in tokens:
-        target = target.get(token) if isinstance(target, Mapping) else None
-    return (target, (loc[0], *tokens)) if isinstance(target, Mapping) else None
+    target = defs.get(match.group(1))
+    return (target, (loc[0], "$defs", match.group(1))) if isinstance(target, Mapping) else None
 
 
 def _child(node: Mapping[str, Any], keyword: str, name: str | None) -> Any:
@@ -202,8 +284,8 @@ def _child(node: Mapping[str, Any], keyword: str, name: str | None) -> Any:
 def _step(
     node: Mapping[str, Any], loc: Location, keyword: str, name: str | None, document: Any
 ) -> tuple[Mapping[str, Any], Location] | None:
-    """One schema keyword step; through ``$ref`` hops when the node itself lacks it, so a
-    ``$ref`` beside sibling keywords is followed for what the siblings do not hold."""
+    """One schema keyword step, through ``$ref`` hops (a supported ``$ref`` has no
+    schema-bearing sibling, so a node either holds the keyword or refers on)."""
     for _ in range(_MAX_REFS):
         found = _child(node, keyword, name)
         if isinstance(found, Mapping):
@@ -303,14 +385,28 @@ class ClassIndex:
     """A capability's classes keyed by the location of the schema each one names, so a
     declaration and a lookup that reach one schema through different ``$ref`` paths
     agree. A value's class is the most restrictive class declared on its property or on
-    any property above it: a deeper declaration never lowers a class."""
+    any property above it: a deeper declaration never lowers a class. A side whose
+    schema leaves the supported subset (``unsupported_construct``) admits no declaration
+    and classes every value ``personal``."""
 
     def __init__(self, document: Mapping[str, Any], classes: Mapping[str, DataClass]) -> None:
-        """Raises ``ValueError`` for a pointer that names no property schema, or for two
-        pointers that reach one schema with different classes."""
+        """Raises ``ValueError`` for a declaration on an unsupported side, a pointer that
+        names no property schema, or two pointers that reach one schema with different
+        classes. The message names the side and construct, never a value."""
         self._document = document
+        self.unsupported: dict[str, str] = {
+            side: found
+            for side in SCHEMA_ROOTS
+            if side in document and (found := unsupported_construct(document[side]))
+        }
         self._by_location: dict[Location, DataClass] = {}
         for pointer, data_class in sorted(classes.items()):
+            side = pointer.split("/", 2)[1] if pointer.startswith("/") else ""
+            if side in self.unsupported:
+                raise ValueError(
+                    f"declares data classes on its {side} schema, which uses "
+                    f"{self.unsupported[side]}; that is outside the supported subset"
+                )
             loc = resolve_property(document, pointer)
             if loc is None:
                 raise ValueError(f"{pointer!r} names no property schema")
@@ -319,27 +415,31 @@ class ClassIndex:
 
     def declared(self, pointer: str) -> DataClass | None:
         """The class declarations give the value at ``pointer``, or None when none does
-        (also when the pointer names nothing in the schemas)."""
+        (also when the pointer names nothing, or its side is unsupported)."""
+        tokens = parse_pointer(pointer)
+        if tokens[0] in self.unsupported:
+            return None
         found = _property_locations(self._document, pointer) or []
         return most_restrictive(self._by_location[at] for at in found if at in self._by_location)
 
     def class_of(self, pointer: str) -> DataClass:
-        """The class of the value at ``pointer``; ``personal`` when unmarked."""
+        """The class of the value at ``pointer``; ``personal`` when unmarked. ``ValueError``
+        for a malformed pointer."""
         found = self.declared(pointer)
         return UNMARKED_CLASS if found is None else found
 
     def unmarked(self) -> tuple[str, ...]:
-        """The leaf properties no declaration covers."""
-        leaves = leaf_property_pointers(self._document)
-        return tuple(p for p in leaves if self.declared(p) is None)
+        """The leaf properties of the supported sides that no declaration covers."""
+        supported = {k: v for k, v in self._document.items() if k not in self.unsupported}
+        return tuple(p for p in leaf_property_pointers(supported) if self.declared(p) is None)
 
     def unmarked_counts(self) -> dict[str, int | None]:
-        """Unmarked leaves per schema side; None for a side with no registered schema, so
-        readiness tells "fully classed" from "nothing to class"."""
+        """Unmarked leaves per side; None for a side with no schema or an unsupported one
+        (``unsupported`` says which), so readiness tells "fully classed" from "unknown"."""
         unmarked = self.unmarked()
         return {
             side: None
-            if side not in self._document
+            if side not in self._document or side in self.unsupported
             else sum(p.startswith(f"/{side}/") for p in unmarked)
             for side in SCHEMA_ROOTS
         }

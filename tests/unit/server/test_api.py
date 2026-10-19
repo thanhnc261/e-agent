@@ -495,14 +495,21 @@ def test_readiness_reports_unmarked_counts() -> None:
         rt = await build_runtime(load_profile(fixture_profile_path()))
         cid = "crm.contact.read.v1"
         rt.registry._class_indexes[cid] = ClassIndex(rt.registry.schema_document(cid), {})
+        odd = {"type": "object", "properties": {"p": {"not": {"type": "string"}}}}
+        other = "crm.teams.read.v1"
+        rt.registry._class_indexes[other] = ClassIndex({"output": odd}, {})
         return rt
 
     with TestClient(create_app(runtime)) as c:
-        counts = c.get("/health/ready").json()["unmarked_properties"]
+        body = c.get("/health/ready").json()
+    counts = body["unmarked_properties"]
     print(f"capabilities with unmarked counts: {len(counts)}")
     assert counts["crm.contact.read.v1"] == {"input": 1, "output": 3}
     assert counts["sales.pricing.read.v1"] == {"input": 0, "output": 0}
     assert counts["crm.lead.create.v1"] == {"input": 0, "output": None}
+    # a side outside the supported subset counts None and is listed with its construct
+    assert counts["crm.teams.read.v1"] == {"input": None, "output": None}
+    assert body["unsupported_schemas"] == {"crm.teams.read.v1": {"output": "the keyword 'not'"}}
     assert list(counts) == sorted(counts)
 
 

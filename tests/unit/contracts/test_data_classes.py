@@ -1,9 +1,13 @@
 """Field data classes beside the schema, and the stored record kinds (ADR 0030, Task 3b.3)."""
 
-from typing import Any
+from datetime import date
+from decimal import Decimal
+from enum import StrEnum
+from typing import Any, Literal
 
 import pytest
 from e_agent.contracts.capability import CapabilityDescriptor
+from e_agent.contracts.common import Record
 from e_agent.contracts.data_classes import (
     RECORD_KINDS,
     UNMARKED_CLASS,
@@ -15,8 +19,9 @@ from e_agent.contracts.data_classes import (
     parse_pointer,
     record_kind,
     resolve_property,
+    unsupported_construct,
 )
-from pydantic import ValidationError
+from pydantic import Field, ValidationError
 
 LINE = {
     "type": "object",
@@ -42,7 +47,7 @@ ALIASED: dict[str, Any] = {
         "type": "object",
         "properties": {
             "person": {"$ref": "#/$defs/Person"},
-            "other": {"$ref": "#/$defs/Person", "properties": {"extra": {"type": "string"}}},
+            "other": {"$ref": "#/$defs/Person", "description": "an annotation sibling"},
             "tags": {"type": "object", "additionalProperties": {"$ref": "#/$defs/Person"}},
         },
     }
@@ -124,19 +129,104 @@ def test_two_pointers_reaching_one_schema_with_different_classes_fail() -> None:
     assert same.class_of(TOKEN) is DataClass.SECRET
 
 
-def test_ref_with_sibling_properties_and_additional_properties_are_walked() -> None:
-    """C3-3 and C3-4: both the ``$ref`` and its sibling ``properties`` count, and so do
-    properties under ``additionalProperties``."""
+def test_additional_properties_are_walked_and_counted() -> None:
+    """C3-4 (round 1): properties under ``additionalProperties`` are leaves, resolve and
+    count when unmarked."""
     leaves = leaf_property_pointers(ALIASED)
-    for pointer in (
-        "/output/properties/other/properties/extra",
-        "/output/properties/other/properties/token",
-        "/output/properties/tags/additionalProperties/properties/nick",
-    ):
-        assert pointer in leaves, pointer
-        assert resolve_property(ALIASED, pointer) is not None, pointer
+    nick = "/output/properties/tags/additionalProperties/properties/nick"
+    assert nick in leaves
+    assert resolve_property(ALIASED, nick) == ("output", "$defs", "Person", "properties", "nick")
+    assert nick in ClassIndex(ALIASED, {}).unmarked()
     print(f"leaf property pointers: {len(leaves)}")
-    assert len(leaves) == len(set(leaves)) == 7
+    assert len(leaves) == len(set(leaves)) == 6
+
+
+def _output(properties: dict[str, Any], **root: Any) -> dict[str, Any]:
+    return {"output": {"type": "object", "properties": properties, **root}}
+
+
+DEFS = {"$defs": {"Person": PERSON, "U": {"anyOf": [PERSON, {"type": "null"}]}}}
+UNSUPPORTED = {
+    # round 1 C3-3: a $ref beside sibling properties
+    "C3-3": _output({"other": {"$ref": "#/$defs/Person", "properties": {"extra": {}}}}, **DEFS),
+    # round 2 C3-1: a terminal $ref into a definition, to one of its leaves
+    "C3-1": _output(
+        {"person": {"$ref": "#/$defs/Person"}, "tok": {"$ref": "#/$defs/Person/properties/token"}},
+        **DEFS,
+    ),
+    # round 2 C3-7: a same-named sibling next to a $ref
+    "C3-7": _output(
+        {"person": {"$ref": "#/$defs/Person", "properties": {"token": {"type": "string"}}}},
+        **DEFS,
+    ),
+    # round 2 C3-8: a $ref into an anyOf branch
+    "C3-8": _output({"u": {"$ref": "#/$defs/U/anyOf/0"}}, **DEFS),
+    # round 2 C3-9: then / else / patternProperties name property schemas, unsupported
+    "C3-9-then": _output({"p": {"if": {}, "then": {"properties": {"token": {"type": "string"}}}}}),
+    "C3-9-patternProperties": _output(
+        {"p": {"patternProperties": {"^t": {"properties": {"token": {"type": "string"}}}}}}
+    ),
+    "nested-$defs": _output({"p": {"$defs": {"X": {}}, "type": "object"}}),
+    "other-$ref": _output({"p": {"$ref": "https://example.com/schema"}}),
+    "not": _output({"p": {"not": {"type": "string"}}}),
+}
+DECLARED = {
+    "C3-3": "/output/properties/other/properties/extra",
+    "C3-1": "/output/$defs/Person/properties/token",
+    "C3-7": "/output/$defs/Person/properties/token",
+    "C3-8": "/output/$defs/Person/properties/token",
+    "C3-9-then": "/output/properties/p/then/properties/token",
+    "C3-9-patternProperties": "/output/properties/p/patternProperties/^t/properties/token",
+    "nested-$defs": "/output/properties/p",
+    "other-$ref": "/output/properties/p",
+    "not": "/output/properties/p",
+}
+
+
+@pytest.mark.parametrize("probe", sorted(UNSUPPORTED))
+def test_a_declaration_on_an_unsupported_schema_is_refused(probe: str) -> None:
+    """Every Codex probe that leaves the supported subset fails admission by design; the
+    message names the side and the construct, never a value."""
+    document = UNSUPPORTED[probe]
+    assert unsupported_construct(document["output"]) is not None, probe
+    with pytest.raises(ValueError, match="outside the supported subset") as err:
+        ClassIndex(document, {DECLARED[probe]: DataClass.SECRET})
+    assert "output schema" in str(err.value)
+
+
+@pytest.mark.parametrize("probe", sorted(UNSUPPORTED))
+def test_an_unsupported_side_classes_every_value_personal(probe: str) -> None:
+    """With no declaration possible there, every value is personal and the side's count
+    is None, with the construct listed."""
+    index = ClassIndex(UNSUPPORTED[probe], {})
+    assert index.class_of(DECLARED[probe]) is DataClass.PERSONAL
+    assert index.unmarked_counts() == {"input": None, "output": None}
+    assert set(index.unsupported) == {"output"}
+
+
+def test_the_construct_is_named_by_keyword() -> None:
+    assert unsupported_construct(UNSUPPORTED["C3-9-then"]["output"]) == "the keyword 'if'"
+    assert unsupported_construct(UNSUPPORTED["C3-7"]["output"]) == (
+        "a $ref beside the keyword 'properties'"
+    )
+    assert "#/$defs/<Name>" in str(unsupported_construct(UNSUPPORTED["C3-8"]["output"]))
+
+
+def test_c3_7_a_ref_class_is_never_hidden() -> None:
+    """Round 2 C3-7, in the supported subset: a $ref can have no schema-bearing sibling,
+    so the class declared on the definition always applies through it."""
+    document = _output({"person": {"$ref": "#/$defs/Person", "title": "P"}}, **DEFS)
+    index = ClassIndex(document, {"/output/$defs/Person/properties/token": DataClass.SECRET})
+    assert index.class_of("/output/properties/person/properties/token") is DataClass.SECRET
+
+
+def test_c3_8_a_whole_definition_union_classes_its_branch() -> None:
+    """Round 2 C3-8, supported form: a $ref to the whole union definition."""
+    document = _output({"u": {"$ref": "#/$defs/U"}}, **DEFS)
+    pointer = "/output/properties/u/anyOf/0/properties/token"
+    index = ClassIndex(document, {"/output/$defs/U/anyOf/0/properties/token": DataClass.SECRET})
+    assert index.class_of(pointer) is DataClass.SECRET
+    assert index.class_of("/output/$defs/Person/properties/token") is DataClass.PERSONAL
 
 
 def test_leaf_pointers_resolve_and_escape_per_rfc_6901() -> None:
@@ -224,3 +314,64 @@ def test_record_kinds_are_declared_once_with_both_classes() -> None:
     assert record_kind("run_work").record_class is RecordClass.INFRA
     with pytest.raises(KeyError):
         record_kind("unknown")
+
+
+class _Kind(StrEnum):
+    A = "a"
+
+
+class _Leaf(Record):
+    token: str
+    nick: str | None = None
+
+
+class _Cat(Record):
+    kind: Literal["cat"]
+    leaf: _Leaf
+
+
+class _Dog(Record):
+    kind: Literal["dog"]
+    leaves: tuple[_Leaf, ...]
+
+
+class _Tree(Record):
+    name: str
+    children: tuple["_Tree", ...] = ()
+
+
+class _Everything(Record):
+    leaf: _Leaf
+    maybe: _Leaf | None = None
+    described: _Leaf = Field(description="a $ref with an annotation sibling")
+    defaulted: _Leaf = _Leaf(token="t")
+    by_name: dict[str, _Leaf]
+    pair: tuple[str, int]
+    pet: _Cat | _Dog = Field(discriminator="kind")
+    union: _Leaf | int
+    kind: _Kind
+    tree: _Tree
+    when: date
+    amount: Decimal = Field(ge=0)
+    tags: frozenset[str] = frozenset()
+
+
+def test_pydantic_schemas_fall_inside_the_supported_subset() -> None:
+    """The shapes pydantic v2's ``model_json_schema()`` emits: nested and optional models,
+    annotated and defaulted refs, dicts, fixed tuples, discriminated and plain unions,
+    enums, recursion and constrained scalars."""
+    schema = _Everything.model_json_schema()
+    assert unsupported_construct(schema) is None
+    leaves = leaf_property_pointers({"output": schema})
+    print(f"pydantic leaf properties: {len(leaves)}")
+    assert "/output/properties/by_name/additionalProperties/properties/token" in leaves
+    index = ClassIndex(
+        {"output": schema}, {"/output/$defs/_Leaf/properties/token": DataClass.SECRET}
+    )
+    for pointer in (
+        "/output/properties/leaf/properties/token",
+        "/output/properties/described/properties/token",
+        "/output/properties/maybe/anyOf/0/properties/token",
+        "/output/properties/by_name/additionalProperties/properties/token",
+    ):
+        assert index.class_of(pointer) is DataClass.SECRET, pointer

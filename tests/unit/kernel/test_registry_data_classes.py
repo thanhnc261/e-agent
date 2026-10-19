@@ -13,6 +13,7 @@ from e_agent.kernel.registry import PluginRegistry
 from e_agent.sdk.ports import PluginContribution
 
 from .conftest import BINDINGS, CLASSED_READ, CREATE, NOTE_INPUT, NOTE_OUTPUT
+from .conftest import READ as READ_UNCLASSED
 
 
 def _register(
@@ -106,3 +107,31 @@ def test_classes_leave_the_surface_digest_unchanged() -> None:
     classed = _register().surface_digest()
     plain = _register(READ, output_schemas={}).surface_digest()
     assert classed == plain
+
+
+def test_notes_schemas_are_inside_the_supported_subset() -> None:
+    from e_agent.contracts.data_classes import unsupported_construct
+
+    checked = [NOTE_INPUT, NOTE_OUTPUT]
+    assert [unsupported_construct(schema) for schema in checked] == [None, None]
+    print(f"notes schemas checked: {len(checked)}")
+    assert _register().unsupported_schemas() == {}
+
+
+def test_a_declaration_on_an_unsupported_output_fails_admission() -> None:
+    odd = {**NOTE_OUTPUT, "patternProperties": {"^n": {"type": "string"}}}
+    with pytest.raises(KernelError) as err:
+        _register(output_schemas={"n": odd})
+    assert err.value.code is ErrorCode.STARTUP_REJECTED
+    message = str(err.value)
+    assert CLASSED_READ.contract_id in message and "'patternProperties'" in message
+    assert "outside the supported subset" in message
+    # without declarations it admits, flagged, and every value there is personal
+    reg = _register(READ_UNCLASSED, output_schemas={"n": odd})
+    assert reg.unsupported_schemas() == {
+        CLASSED_READ.contract_id: {"output": "the keyword 'patternProperties'"}
+    }
+    assert reg.unmarked_properties()[CLASSED_READ.contract_id] == {"input": None, "output": None}
+    assert reg.data_class(CLASSED_READ.contract_id, "/output/properties/topic") is (
+        DataClass.PERSONAL
+    )

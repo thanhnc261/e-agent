@@ -285,6 +285,8 @@ def create_app(
             "defaulted_declarations": defaulted_payload(rt.registry.report.defaulted_declarations),
             # ADR 0030: properties no data class covers, which count as personal
             "unmarked_properties": rt.registry.unmarked_properties(),
+            # schema sides outside the supported subset: count null, every value personal
+            "unsupported_schemas": rt.registry.unsupported_schemas(),
         }
 
     # -- local session (loopback only, never production auth) ---------------

@@ -2,9 +2,19 @@
 pointer resolves at admission, and every read output property is classed."""
 
 from e_agent.contracts.capability import EffectKind
-from e_agent.contracts.data_classes import ClassIndex, DataClass, leaf_property_pointers
+from e_agent.contracts.data_classes import (
+    ClassIndex,
+    DataClass,
+    leaf_property_pointers,
+    unsupported_construct,
+)
 from e_agent.kernel.registry import PluginRegistry
-from e_agent.plugins.erp.domain.plugin import INPUT_SCHEMAS, create_plugin, load_manifest
+from e_agent.plugins.erp.domain.plugin import (
+    INPUT_SCHEMAS,
+    OUTPUT_SCHEMAS,
+    create_plugin,
+    load_manifest,
+)
 from e_agent.sdk.ports import PluginServices
 
 PARTNER_NAMES = {
@@ -112,3 +122,13 @@ def test_classes_leave_the_model_facing_input_schemas_alone() -> None:
     assert reg.input_schemas == INPUT_SCHEMAS
     for schema in INPUT_SCHEMAS.values():
         assert "data_classes" not in str(schema) and "x-data-class" not in str(schema)
+
+
+def test_every_erp_schema_is_inside_the_supported_subset() -> None:
+    """The pack's pydantic-generated schemas use only the shapes data classes support."""
+    schemas = {**INPUT_SCHEMAS, **OUTPUT_SCHEMAS}
+    outside = {sid: unsupported_construct(s) for sid, s in schemas.items()}
+    print(f"ERP schemas checked: {len(schemas)}")
+    assert len(schemas) == len(INPUT_SCHEMAS) + len(OUTPUT_SCHEMAS) == 34
+    assert outside == dict.fromkeys(schemas)
+    assert _registry().unsupported_schemas() == {}
