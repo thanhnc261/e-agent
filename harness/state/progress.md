@@ -624,3 +624,8 @@
 - changed: harness/state/3/features.json, harness/state/3/handoffs/3a.1.json, harness/state/evidence/gates/3a.1/2026-10-19T06-14-03.678464+00-00-full.json
 - next: G2: owner accepts ADRs 0030 (Phase 3 parts), 0031-0033 and answers the open questions (Task 3a.2)
 - open: none
+
+## 2026-10-19T06:39:30.722431+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3a.2
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3a.2.json, harness/state/evidence/gates/3a.2/2026-10-19T06-38-02.537797+00-00-full.json
+- next: Task 3b.1: route data boundary and the startup rule
+- open: none
