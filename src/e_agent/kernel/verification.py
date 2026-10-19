@@ -184,19 +184,23 @@ class VerificationMixin(ContextShadowMixin):
         if gap is not None:  # `on`: no acknowledgement for an unmet task
             return await self._fail_unmet(run, gap)
         final: Any = FinalAnswer(text=fallback)
-        shadow, answered = None, False
+        ack_input = DriverInput(
+            task=run.task,
+            observations=tuple(cont.observations.values()),
+            action_result={"status": "VERIFIED", "external_refs": list(external_refs)},
+        )
+        # pinned shadow only, above the final-response guard (ADR 0032 §7, review D3-30)
+        shadow = (
+            await self._context_shadow(run, cont, ack_input, acknowledgement=True)
+            if acknowledge
+            else None
+        )
+        answered = False
         try:
             if acknowledge and (
                 getattr(self._driver, "tokens_used", lambda _: 0)(ctx.run_id)
                 < ctx.budgets.max_model_tokens
             ):
-                ack_input = DriverInput(
-                    task=run.task,
-                    observations=tuple(cont.observations.values()),
-                    action_result={"status": "VERIFIED", "external_refs": list(external_refs)},
-                )
-                # pinned shadow only: this turn's pack too (ADR 0032 §7), outside `_timed`
-                shadow = await self._context_shadow(run, cont, ack_input, acknowledgement=True)
                 final = await self._timed(
                     cont,
                     partial(self._driver.advance, ctx, self._with_tools(run, cont, ack_input)),

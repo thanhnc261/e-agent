@@ -8,8 +8,10 @@ The driver keeps its own history and never sees either pack. Shadow adds no mode
 provider read and no budget use: its inputs are the run's own records (events, steps and the
 continuation), read from the store outside `_timed`, and its token counts are the kernel's
 estimator, never a model or tokenizer call. A shadow error records ``context.shadow_failed``
-with its stage and a fixed message and changes nothing else; as with ``ir.shadow_failed``,
-only the pure steps are guarded and a store error propagates.
+with its stage and a fixed message and changes nothing else: reading its inputs (the store's
+events and steps, the driver's token count), assembling and comparing are all guarded, so a
+failure there never ends or skips the turn (review D3-30). Only the write of the event itself
+can raise, as any other event write of the turn would.
 
 The sources of `assemble`'s per-turn arguments (plan ruling D3-16), none of them new state:
 
@@ -177,10 +179,12 @@ class ContextShadowMixin(IrOnMixin):
         if self._run_modes(cont).context_assembler is not FeatureMode.SHADOW:
             return None
         turn = cont.turns + 1 if acknowledgement else cont.turns
-        before, ack = self._driver_tokens(run.run_id), acknowledgement
-        events = await self._store.list_events(run.tenant_id, run.run_id)
-        steps = await self._store.list_steps(run.tenant_id, run.run_id)
-        try:  # a shadow error never reaches the live path
+        before: int | None = None
+        ack = acknowledgement
+        try:  # a shadow error, a store read's included, never reaches the live path
+            before = self._driver_tokens(run.run_id)
+            events = await self._store.list_events(run.tenant_id, run.run_id)
+            steps = await self._store.list_steps(run.tenant_id, run.run_id)
             ledger = project_progress(events, steps)
             turns = observation_turns(events, cont.observations.keys())
             referenced = referenced_evidence(events, cont.observations)
@@ -230,10 +234,9 @@ class ContextShadowMixin(IrOnMixin):
             stage = shadow.failed or "assemble"
             event = context_shadow_failed_event(stage, shadow.turn, acknowledgement=ack)
         else:
-            after = self._driver_tokens(run.run_id)
-            before = shadow.tokens_before
-            delta = None if after is None or before is None else after - before
             try:
+                after, before = self._driver_tokens(run.run_id), shadow.tokens_before
+                delta = None if after is None or before is None else after - before
                 payload = compared_payload(
                     shadow.pack,
                     shadow.unbounded,

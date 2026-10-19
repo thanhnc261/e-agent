@@ -25,7 +25,7 @@ from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.plan import ActionProposal
-from e_agent.contracts.run import RunState
+from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.kernel import context_shadow
 from e_agent.kernel.context_shadow import observation_turns, referenced_evidence
 from e_agent.kernel.features import CONTEXT_SHADOW_MESSAGES
@@ -320,6 +320,44 @@ async def test_shadow_failure_records_context_shadow_failed_and_changes_nothing(
         off.backend.read_calls,
         off.backend.create_calls,
     )
+
+
+@pytest.mark.parametrize("target", ["store.list_steps", "coordinator._driver_tokens"])
+async def test_acknowledgement_shadow_failure_keeps_the_acknowledgement_turn(
+    make_kernel: MakeKernel, target: str
+) -> None:
+    """Review D3-30: a shadow-side failure in the acknowledgement path (a store read or the
+    driver's token count) records ``context.shadow_failed`` and nothing else. It is not
+    booked as the ``final response`` budget, and the acknowledgement driver call still
+    happens."""
+    driver = NotesDriver(texts=["standup notes"])
+    k = make_kernel(features=SHADOW, driver=driver)
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+    assert run.state is RunState.WAITING_APPROVAL and driver.calls == 2
+
+    def boom(*_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError(SENTINEL)
+
+    owner, name = target.split(".")
+    # after the run-loop turns, only the acknowledgement shadow calls either of them (IR off)
+    setattr(k.store if owner == "store" else k.coordinator, name, boom)
+    run = await _approve(k, run.run_id)
+
+    assert (run.state, run.reason_code) == (RunState.SUCCEEDED, ReasonCode.VERIFIED)
+    assert driver.calls == 3  # the acknowledgement turn ran
+    events = await _events(k, run.run_id)
+    assert not [e for e in events if e.type is RunEventType.BUDGET_EXHAUSTED]
+    failed = [e.payload for e in events if e.type is RunEventType.CONTEXT_SHADOW_FAILED]
+    assert failed == [
+        {
+            "stage": "inputs",
+            "message": CONTEXT_SHADOW_MESSAGES["inputs"],
+            "turn": 3,
+            "acknowledgement": True,
+        }
+    ]
+    assert [e.payload["text"] for e in events if e.type is RunEventType.MESSAGE_FINAL] == ["done"]
+    assert SENTINEL not in json.dumps([e.payload for e in events])
 
 
 # -- off: today -----------------------------------------------------------------------------
