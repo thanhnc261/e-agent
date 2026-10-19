@@ -15,7 +15,8 @@
     "docs/plans/2026-10-19-phase3-cognition-context.md",
     "harness/state/**",
     ".superpowers/sdd/**",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "pyproject.toml"
   ],
   "acceptance": [
     "test_progress.py passes on both stores, including plain-text repair turns and no model text",
@@ -24,5 +25,12 @@
   "gate_set": "full",
   "base_commit": "9c437ce032a29a8ee0d8e8764a50896699d5e343",
   "created_at": "2026-10-19T09:46:43+00:00",
-  "features_digest": "ee6dedabab3b7cf9fdc9fd1ab5bcdbcd2a11ac9674f62f35230587cbd9c4ba9d"
+  "features_digest": "ee6dedabab3b7cf9fdc9fd1ab5bcdbcd2a11ac9674f62f35230587cbd9c4ba9d",
+  "scope_changes": [
+    {
+      "glob": "pyproject.toml",
+      "reason": "tighten the facade import contract: e_agent.kernel.progress joins the modules forbidden to import the coordinator (test_structure requires every kernel module listed)",
+      "at": "2026-10-19T09:52:34+00:00"
+    }
+  ]
 }
