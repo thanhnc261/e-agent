@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-3c-3"
   ],
-  "context_digest": "01e10e0ae22978ee4dbaed442a1feef28909f5fc4fcd7a2b7c6ea463a9aa731e",
+  "context_digest": "82ae1cf56dce82c281e23bb2af6f2f76901281231bed9d8fbef62803d08bb5cc",
   "allowed_paths": [
     "src/e_agent/kernel/explain.py",
     "src/e_agent/contracts/explain.py",
