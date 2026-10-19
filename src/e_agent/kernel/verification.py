@@ -21,9 +21,9 @@ from e_agent.sdk.ports import (
 )
 from e_agent.sdk.store import EventSpec
 
+from .context_shadow import ContextShadowMixin
 from .continuation import NextStep, _Continuation, _GatewayReader
 from .features import RouteRefused, context_failed_event
-from .ir_on import IrOnMixin
 from .reconstruct import ACTION_STATE_KEY
 
 OUTCOME_STEP = {
@@ -42,7 +42,7 @@ def outcome_payload(report: OutcomeReport, action_state: ActionState | None) -> 
     return {**payload, ACTION_STATE_KEY: action_state}
 
 
-class VerificationMixin(IrOnMixin):
+class VerificationMixin(ContextShadowMixin):
     async def _verify(
         self,
         cont: _Continuation,
@@ -184,31 +184,25 @@ class VerificationMixin(IrOnMixin):
         if gap is not None:  # `on`: no acknowledgement for an unmet task
             return await self._fail_unmet(run, gap)
         final: Any = FinalAnswer(text=fallback)
+        shadow, answered = None, False
         try:
             if acknowledge and (
                 getattr(self._driver, "tokens_used", lambda _: 0)(ctx.run_id)
                 < ctx.budgets.max_model_tokens
             ):
+                ack_input = DriverInput(
+                    task=run.task,
+                    observations=tuple(cont.observations.values()),
+                    action_result={"status": "VERIFIED", "external_refs": list(external_refs)},
+                )
+                # pinned shadow only: this turn's pack too (ADR 0032 §7), outside `_timed`
+                shadow = await self._context_shadow(run, cont, ack_input, acknowledgement=True)
                 final = await self._timed(
                     cont,
-                    partial(
-                        self._driver.advance,
-                        ctx,
-                        self._with_tools(
-                            run,
-                            cont,
-                            DriverInput(
-                                task=run.task,
-                                observations=tuple(cont.observations.values()),
-                                action_result={
-                                    "status": "VERIFIED",
-                                    "external_refs": list(external_refs),
-                                },
-                            ),
-                        ),
-                    ),
+                    partial(self._driver.advance, ctx, self._with_tools(run, cont, ack_input)),
                     ctx.budgets.model_timeout_seconds,
                 )
+                answered = True
         except RouteRefused:  # skipped, recorded; the run keeps its outcome (ADR 0032 §9)
             run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
             run = await self._store.update_run(
@@ -229,6 +223,8 @@ class VerificationMixin(IrOnMixin):
                     )
                 ],
             )
+        if shadow is not None and answered:
+            run = await self._record_context_shadow(run, shadow)
         if not isinstance(final, FinalAnswer):
             final = FinalAnswer(text=fallback)
         if isinstance(final, FinalAnswer):

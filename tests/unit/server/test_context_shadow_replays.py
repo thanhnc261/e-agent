@@ -61,7 +61,10 @@ async def _shadow_case(root: Path, task: str) -> tuple[int, int, list[str]]:
     failed = [e.payload for e in events if e.type is RunEventType.CONTEXT_SHADOW_FAILED]
     cont = await runtime.coordinator._peek_cont(tenant, run.run_id)
     assert not failed, (task, failed)
-    assert [p["turn"] for p in compared] == list(range(1, cont.turns + 1)), task
+    loop = [p["turn"] for p in compared if not p["acknowledgement"]]
+    acks = [p["turn"] for p in compared if p["acknowledgement"]]
+    assert loop == list(range(1, cont.turns + 1)), task
+    assert acks in ([], [cont.turns + 1]), task  # a verified write's acknowledgement turn
 
     used = {
         ref

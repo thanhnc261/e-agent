@@ -164,10 +164,15 @@ def context_failed_event(reason: ReasonCode) -> EventSpec:
     return (RunEventType.CONTEXT_FAILED, payload, None)
 
 
-def context_shadow_failed_event(stage: str, turn: int) -> EventSpec:
+def context_shadow_failed_event(stage: str, turn: int, *, acknowledgement: bool) -> EventSpec:
     """``context.shadow_failed``: the stage, its fixed message and the driver turn, nothing
     else (ADR 0032 §7, PR-26). The run is otherwise unchanged."""
-    payload = {"stage": stage, "message": CONTEXT_SHADOW_MESSAGES[stage], "turn": turn}
+    payload = {
+        "stage": stage,
+        "message": CONTEXT_SHADOW_MESSAGES[stage],
+        "turn": turn,
+        "acknowledgement": acknowledgement,
+    }
     return (RunEventType.CONTEXT_SHADOW_FAILED, payload, None)
 
 

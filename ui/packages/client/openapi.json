@@ -821,7 +821,9 @@
           "ir.shadow_failed",
           "ir.lineage_resolved",
           "ir.step_verified",
-          "context.failed"
+          "context.failed",
+          "context.compared",
+          "context.shadow_failed"
         ],
         "title": "RunEventType",
         "type": "string"

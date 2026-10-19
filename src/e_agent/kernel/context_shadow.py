@@ -1,7 +1,9 @@
 """``features.context_assembler: shadow`` (ADR 0032 §7, Task 3d.3, Review Focus 8).
 
-Before each run-loop driver turn of a run pinned ``shadow`` the kernel builds the context pack
-(`assemble`) and the same inputs unbounded; after the turn it records ``context.compared``.
+Before each driver turn of a run pinned ``shadow`` (each run-loop turn and the post-write
+acknowledgement turn) the kernel builds the context pack (`assemble`) and the same inputs
+unbounded; after the turn it records ``context.compared``. The acknowledgement turn is
+numbered ``cont.turns + 1`` and marked ``acknowledgement``; it moves no continuation counter.
 The driver keeps its own history and never sees either pack. Shadow adds no model call, no
 provider read and no budget use: its inputs are the run's own records (events, steps and the
 continuation), read from the store outside `_timed`, and its token counts are the kernel's
@@ -113,13 +115,19 @@ def layer_tokens(pack: ContextPack) -> dict[str, int]:
 
 
 def compared_payload(
-    pack: ContextPack, unbounded: ContextPack, *, turn: int, tokens_used_delta: int | None
+    pack: ContextPack,
+    unbounded: ContextPack,
+    *,
+    turn: int,
+    tokens_used_delta: int | None,
+    acknowledgement: bool = False,
 ) -> dict[str, Any]:
     """The ``context.compared`` payload: ids, counts, a digest and estimates, never a value
     (PR-26). ``tokens_used_delta`` is None when the driver reports no token use."""
     omitted = [d.ref for d in pack.dropped if d.kind is DroppedKind.OBSERVATION]
     return {
         "turn": turn,
+        "acknowledgement": acknowledgement,
         "pack_digest": pack.digest,
         "pack_tokens": layer_tokens(pack),
         "unbounded_tokens": layer_tokens(unbounded),
@@ -147,6 +155,8 @@ class ShadowTurn:
     unbounded: ContextPack | None = None
     failed: str | None = None
     """The stage that failed (`CONTEXT_SHADOW_MESSAGES`), or None."""
+    acknowledgement: bool = False
+    """The post-write acknowledgement turn (`_finish_verified`), not a run-loop turn."""
 
 
 class ContextShadowMixin(IrOnMixin):
@@ -156,12 +166,18 @@ class ContextShadowMixin(IrOnMixin):
         return None if tokens_used is None else int(tokens_used(run_id))
 
     async def _context_shadow(
-        self, run: RunRecord, cont: _Continuation, step_input: DriverInput
+        self,
+        run: RunRecord,
+        cont: _Continuation,
+        step_input: DriverInput,
+        *,
+        acknowledgement: bool = False,
     ) -> ShadowTurn | None:
         """The pack for the turn about to run, for a run pinned ``shadow``; None otherwise."""
         if self._run_modes(cont).context_assembler is not FeatureMode.SHADOW:
             return None
-        turn, before = cont.turns, self._driver_tokens(run.run_id)
+        turn = cont.turns + 1 if acknowledgement else cont.turns
+        before, ack = self._driver_tokens(run.run_id), acknowledgement
         events = await self._store.list_events(run.tenant_id, run.run_id)
         steps = await self._store.list_steps(run.tenant_id, run.run_id)
         try:  # a shadow error never reaches the live path
@@ -172,7 +188,7 @@ class ContextShadowMixin(IrOnMixin):
             allowed = self._allowed(run, cont)
             tool_set = tuple(self._registry.capabilities) if allowed is None else allowed
         except Exception:
-            return ShadowTurn(turn, before, failed="inputs")
+            return ShadowTurn(turn, before, failed="inputs", acknowledgement=ack)
         observations = tuple(cont.observations.values())
         errors: Mapping[str, str] = dict(cont.read_errors)
         common: dict[str, Any] = {"task": task, "tool_set": tool_set}
@@ -202,26 +218,32 @@ class ContextShadowMixin(IrOnMixin):
                 **common,
             )
         except Exception:
-            return ShadowTurn(turn, before, failed="assemble")
-        return ShadowTurn(turn, before, pack, unbounded)
+            return ShadowTurn(turn, before, failed="assemble", acknowledgement=ack)
+        return ShadowTurn(turn, before, pack, unbounded, acknowledgement=ack)
 
     async def _record_context_shadow(self, run: RunRecord, shadow: ShadowTurn) -> RunRecord:
         """Append the turn's ``context.compared`` (or ``context.shadow_failed``) after the
         driver returned; only the run revision moves."""
         event: EventSpec
+        ack = shadow.acknowledgement
         if shadow.pack is None or shadow.unbounded is None:
-            event = context_shadow_failed_event(shadow.failed or "assemble", shadow.turn)
+            stage = shadow.failed or "assemble"
+            event = context_shadow_failed_event(stage, shadow.turn, acknowledgement=ack)
         else:
             after = self._driver_tokens(run.run_id)
             before = shadow.tokens_before
             delta = None if after is None or before is None else after - before
             try:
                 payload = compared_payload(
-                    shadow.pack, shadow.unbounded, turn=shadow.turn, tokens_used_delta=delta
+                    shadow.pack,
+                    shadow.unbounded,
+                    turn=shadow.turn,
+                    tokens_used_delta=delta,
+                    acknowledgement=ack,
                 )
                 event = (RunEventType.CONTEXT_COMPARED, payload, None)
             except Exception:
-                event = context_shadow_failed_event("compare", shadow.turn)
+                event = context_shadow_failed_event("compare", shadow.turn, acknowledgement=ack)
         run = await self._store.get_run(run.tenant_id, run.run_id)
         return await self._store.update_run(
             run.model_copy(update={"revision": run.revision + 1}), run.revision, [event]

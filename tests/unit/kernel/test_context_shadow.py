@@ -48,6 +48,7 @@ CONTEXT_EVENTS = {RunEventType.CONTEXT_COMPARED, RunEventType.CONTEXT_SHADOW_FAI
 SENTINEL = "SENTINEL-3d3-shadow-exception-text"
 COMPARED_KEYS = {
     "turn",
+    "acknowledgement",
     "pack_digest",
     "pack_tokens",
     "unbounded_tokens",
@@ -157,9 +158,11 @@ async def test_shadow_records_context_compared_per_turn(make_kernel: MakeKernel)
     events = await _events(k, run.run_id)
     compared = [e for e in events if e.type is RunEventType.CONTEXT_COMPARED]
     cont = await k.coordinator._peek_cont(TENANT, run.run_id)
-    # one per run-loop turn: the read turn and the proposal turn (the post-write
-    # acknowledgement turn is in verification.py, outside the run loop)
-    assert [e.payload["turn"] for e in compared] == [1, 2] == list(range(1, cont.turns + 1))
+    # one per driver turn: the read turn and the proposal turn of the run loop, then the
+    # post-write acknowledgement turn, numbered after them without moving `cont.turns`
+    assert [e.payload["turn"] for e in compared] == [1, 2, 3]
+    assert cont.turns == 2
+    assert [e.payload["acknowledgement"] for e in compared] == [False, False, True]
     assert not [e for e in events if e.type is RunEventType.CONTEXT_SHADOW_FAILED]
     for event in compared:
         payload = event.payload
@@ -174,8 +177,9 @@ async def test_shadow_records_context_compared_per_turn(make_kernel: MakeKernel)
         assert set(payload["dropped"]) == {kind.value for kind in DroppedKind}
         assert set(payload["drop_reasons"]) == {reason.value for reason in DroppedReason}
         assert event.action_id is None
-    first, second = (e.payload for e in compared)
+    first, second, acknowledgement = (e.payload for e in compared)
     assert (first["observations"], second["observations"]) == (0, 1)
+    assert acknowledgement["observations"] == 1
     assert "evidence" not in first["pack_tokens"]
     assert second["pack_tokens"]["evidence"] > 0
     # each comparison is recorded right after its turn, before the step's own events
@@ -240,11 +244,43 @@ async def test_shadow_adds_no_model_call_read_or_budget(make_kernel: MakeKernel)
         }
     off, shadow = seen["off"], seen["shadow"]
     assert off["context_events"] == 0
-    assert shadow["context_events"] == 2
+    assert shadow["context_events"] == 3  # two run-loop turns and the acknowledgement turn
     # one more revision per comparison and nothing else
-    assert shadow.pop("revision") - off.pop("revision") == 2
+    assert shadow.pop("revision") - off.pop("revision") == 3
     shadow.pop("context_events"), off.pop("context_events")
     assert shadow == off
+
+
+async def test_shadow_covers_the_acknowledgement_turn(make_kernel: MakeKernel) -> None:
+    """The post-write acknowledgement turn (`_finish_verified`) is a driver turn too (ADR
+    0032 §7): its comparison follows the verified outcome and precedes the final message,
+    and it adds no model call, provider read or budgeted call to the `off` run."""
+    counts: dict[str, tuple[int, int, int, int]] = {}
+    for name, features in (("off", OFF), ("shadow", SHADOW)):
+        driver = TokenNotesDriver(texts=["standup notes"])
+        k = make_kernel(features=features, driver=driver)
+        timed = _counted_timed(k)
+        run = await _complete(k)
+        counts[name] = (driver.calls, k.backend.read_calls, len(timed), driver.tokens[run.run_id])
+        events = await _events(k, run.run_id)
+        acks = [
+            (i, e.payload)
+            for i, e in enumerate(events)
+            if e.type is RunEventType.CONTEXT_COMPARED and e.payload["acknowledgement"]
+        ]
+        if name == "off":
+            assert acks == []
+            continue
+        ((at, ack),) = acks
+        types = [e.type for e in events]
+        assert (
+            types.index(RunEventType.OUTCOME_REPORTED)
+            < at
+            < types.index(RunEventType.MESSAGE_FINAL)
+        )
+        assert ack["tokens_used_delta"] == driver.per_call
+        assert ack["turn"] == 3 and ack["observations"] == 1
+    assert counts["shadow"] == counts["off"]
 
 
 # -- failure: a fixed record, nothing else changes -------------------------------------------
@@ -269,7 +305,13 @@ async def test_shadow_failure_records_context_shadow_failed_and_changes_nothing(
     events = await _events(k, run.run_id)
     failed = [e.payload for e in events if e.type is RunEventType.CONTEXT_SHADOW_FAILED]
     assert failed == [
-        {"stage": stage, "message": CONTEXT_SHADOW_MESSAGES[stage], "turn": turn} for turn in (1, 2)
+        {
+            "stage": stage,
+            "message": CONTEXT_SHADOW_MESSAGES[stage],
+            "turn": turn,
+            "acknowledgement": turn == 3,
+        }
+        for turn in (1, 2, 3)
     ]
     assert not [e for e in events if e.type is RunEventType.CONTEXT_COMPARED]
     assert _without_context([e.type for e in events]) == off_types

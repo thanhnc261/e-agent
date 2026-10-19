@@ -137,6 +137,8 @@ ollama create e-agent-mvp-qwen3-coder-20261007 -f profiles/ollama-mvp.Modelfile
 uv run python scripts/qualify_model.py --model e-agent-mvp-qwen3-coder-20261007:latest --task draft-po --mode release --trials 10 --out evals/reports/draft-po.json
 # Repeat --task for shortage, recommend, amend-rfq, quotation, late-orders, crm-lead, overdue-invoices
 # Fixture/harness approval results do not satisfy the live human-approved release gate.
+uv run python scripts/release_report.py --out evals/reports/fixture-release.json   # 21-case fixture matrix: repairs, model tokens
+uv run python scripts/release_report.py --context-assembler shadow --out shadow.json # adds context columns (context.compared); fixture evidence
 
 uv run ruff check . && uv run ruff format --check .
 uv run mypy
