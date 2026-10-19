@@ -3,18 +3,27 @@
 The kernel assembles a ``ContextPack`` from the run's typed state; the driver renders it.
 The pack holds rendered facts and ids, never model reasoning (PR-28). Its digest is the
 plain ``jcs-sha256-v1`` digest (ADR 0006), which has no JSON numbers, so a rendered
-observation carries none: the kernel renders numbers as strings.
+observation carries none: the kernel renders numbers as strings (``number_text``).
+
+The rendering rules the kernel and a driver share live here too (ADR 0032 §4): every JSON
+text written for the model has ``<``, ``>`` and ``&`` as JSON unicode escapes
+(``json_text``), untrusted text is fenced (``fence``) and an observation reaches the model
+only as ``tool_return_text``.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import json
+import math
+from collections.abc import Mapping, Sequence
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any, Self
+from urllib.parse import quote
 
 from pydantic import Field, model_validator
 
-from .common import Record
+from .common import Record, format_decimal
 from .data_classes import DataClass
 from .digest import digest as jcs_digest
 from .evidence import Completeness, EvidenceRef
@@ -244,3 +253,93 @@ class ContextPack(Record):
 def pack_digest(pack: ContextPack) -> str:
     """The ``jcs-sha256-v1`` digest of the pack without its digest field."""
     return jcs_digest(pack.model_dump(mode="json", exclude={"digest"}))
+
+
+# -- rendering rules shared by the kernel and a driver (ADR 0032 §4) ------------------------
+FENCE_TAG = "untrusted-data"
+FENCE_CLOSE = f"</{FENCE_TAG}>"
+_MARKUP = str.maketrans({"<": "\\u003c", ">": "\\u003e", "&": "\\u0026"})
+_ATTRIBUTE_SAFE = ":#/@,"
+"""Kept as is in a fence attribute besides letters, digits and ``_.-~``; the rest is
+percent-encoded, so an attribute holds no quote, ``<``, ``>`` or ``&``."""
+
+
+def masked_marker(data_class: DataClass) -> str:
+    """What a masked value becomes (ADR 0032 §5)."""
+    return f"[masked:{DataClass(data_class).value}]"
+
+
+def number_text(value: int | float | Decimal) -> str:
+    """A JSON number as its canonical decimal string (``format_decimal``, ADR 0006): no
+    exponent, no trailing zeros, ``-0`` is ``0``. A float is read through its shortest
+    round-trip text (``repr``), so ``0.1`` is ``"0.1"``. A non-finite value, which no
+    canonical decimal has, is written ``"NaN"``, ``"Infinity"`` or ``"-Infinity"``."""
+    if isinstance(value, bool):
+        raise TypeError("a JSON boolean is not a number")
+    if isinstance(value, float) and not math.isfinite(value):
+        return "NaN" if math.isnan(value) else ("Infinity" if value > 0 else "-Infinity")
+    number = Decimal(repr(value)) if isinstance(value, float) else Decimal(value)
+    if number.is_nan():
+        return "NaN"
+    if number.is_infinite():
+        return "Infinity" if number > 0 else "-Infinity"
+    return format_decimal(number)
+
+
+def escape_markup(json_text_value: str) -> str:
+    """JSON text with every ``<``, ``>`` and ``&`` written as a JSON unicode escape. Only for
+    JSON text, where those characters can occur only inside strings, so the text decodes to
+    the same value and can never hold a fence delimiter."""
+    return json_text_value.translate(_MARKUP)
+
+
+def json_text(value: Any) -> str:
+    """The one JSON form the pack writes for the model: compact, keys sorted, markup
+    escaped. Refuses NaN and infinities."""
+    return escape_markup(
+        json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+        )
+    )
+
+
+def fence(text: str, *, source: str, evidence: Sequence[str] = ()) -> str:
+    """Untrusted text as data: ``<untrusted-data source="…" evidence="…">"…"</untrusted-data>``,
+    the content a JSON string in ``json_text`` form, so nothing inside can close the fence."""
+    attributes = f' source="{quote(source, safe=_ATTRIBUTE_SAFE)}"'
+    if evidence:
+        attributes += f' evidence="{quote(",".join(evidence), safe=_ATTRIBUTE_SAFE)}"'
+    return f"<{FENCE_TAG}{attributes}>{json_text(text)}{FENCE_CLOSE}"
+
+
+def tool_return_payload(
+    evidence: EvidenceRef,
+    data: Mapping[str, Any],
+    *,
+    partial: bool,
+    truncated: bool = False,
+    masked: bool = False,
+) -> dict[str, Any]:
+    """The JSON value of a tool return (``tool_return_text``), from its parts."""
+    return {
+        "evidence_id": evidence.evidence_id,
+        "completeness": evidence.completeness.value,
+        "data": dict(data),
+        "partial": partial,
+        "truncated": truncated,
+        "masked": masked,
+    }
+
+
+def tool_return_text(observation: RenderedObservation) -> str:
+    """The tool return an observation reaches the model as: its rendered data, its
+    ``evidence_id`` and its markers, in ``json_text`` form."""
+    return json_text(
+        tool_return_payload(
+            observation.evidence,
+            observation.data,
+            partial=observation.partial,
+            truncated=observation.truncated,
+            masked=observation.masked,
+        )
+    )

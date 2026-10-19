@@ -197,9 +197,14 @@ def check_class_key(key: str) -> str:
     return key
 
 
+def instance_token(token: str) -> str:
+    """One path token as a class key writes it: a canonical array index is ``items``."""
+    return ITEMS if _INDEX.fullmatch(token) else token
+
+
 def instance_tokens(path: str) -> Path:
     """The tokens of a value's path, every array index written as ``items``."""
-    return tuple(ITEMS if _INDEX.fullmatch(t) else t for t in parse_pointer(path))
+    return tuple(instance_token(t) for t in parse_pointer(path))
 
 
 def most_restrictive(classes: Iterable[DataClass]) -> DataClass | None:
@@ -207,14 +212,36 @@ def most_restrictive(classes: Iterable[DataClass]) -> DataClass | None:
     return RESTRICTIVENESS[max(ranked)] if ranked else None
 
 
+class ClassIndex:
+    """One capability's declarations, parsed once, for walking a value's tokens (the
+    context assembler classes every value of an observation through it, Task 3d.2)."""
+
+    def __init__(self, classes: Mapping[str, DataClass]) -> None:
+        self._by_tokens = {parse_pointer(key): DataClass(c) for key, c in classes.items()}
+        self._inner = frozenset(
+            tokens[:end] for tokens in self._by_tokens for end in range(1, len(tokens))
+        )
+
+    def declared(self, tokens: Path) -> DataClass | None:
+        """The most restrictive class declared on ``tokens`` or an ancestor, or None."""
+        by_tokens = self._by_tokens
+        return most_restrictive(
+            by_tokens[tokens[:end]]
+            for end in range(1, len(tokens) + 1)
+            if tokens[:end] in by_tokens
+        )
+
+    def declared_below(self, tokens: Path) -> bool:
+        """Whether a declaration names a path strictly below ``tokens``: the value there is
+        then schema-shaped (admission resolved that path through the schema), so its keys
+        are property names, not data."""
+        return tokens in self._inner
+
+
 def declared_class(classes: Mapping[str, DataClass], path: str) -> DataClass | None:
     """The most restrictive class declared on ``path`` or an ancestor path, or None.
     ``ValueError`` for a malformed path."""
-    tokens = instance_tokens(path)
-    by_tokens = {parse_pointer(key): data_class for key, data_class in classes.items()}
-    return most_restrictive(
-        by_tokens[tokens[:end]] for end in range(1, len(tokens) + 1) if tokens[:end] in by_tokens
-    )
+    return ClassIndex(classes).declared(instance_tokens(path))
 
 
 def frozen_classes(classes: Mapping[str, DataClass]) -> Mapping[str, DataClass]:

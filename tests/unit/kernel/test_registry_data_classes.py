@@ -65,6 +65,14 @@ def test_post_admission_mutation_does_not_reach_lookup() -> None:
     del classes["/output/notes/items/key"]
     assert reg.data_class(rid, "/output/topic") is DataClass.INTERNAL
     assert reg.data_class(rid, "/output/notes/0/key") is DataClass.INTERNAL
+    # the declarations the context assembler reads are the same frozen copy (Task 3d.2)
+    admitted = reg.data_classes(rid)
+    assert admitted["/output/topic"] is DataClass.INTERNAL
+    assert "/output/notes/0/key" not in admitted
+    with pytest.raises(TypeError):
+        admitted["/output/topic"] = DataClass.PUBLIC  # type: ignore[index]
+    with pytest.raises(KernelError):
+        reg.data_classes("notes.note.purge.v1")
 
 
 def test_registry_counts_unmarked_properties_per_capability() -> None:

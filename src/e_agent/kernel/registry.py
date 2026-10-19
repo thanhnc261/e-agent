@@ -10,7 +10,6 @@ import hashlib
 import importlib
 import re
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from e_agent.contracts import data_classes as dc
@@ -36,36 +35,9 @@ from e_agent.sdk.validation import ValidationDatasetBuilder
 from pydantic import ValidationError
 
 from .errors import ErrorCode, KernelError
+from .registry_records import AdmissionReport, DefaultedDeclaration, EnabledPlugin
 
-
-@dataclass(frozen=True)
-class EnabledPlugin:
-    version: str
-    manifest_sha256: str | None = None
-    settings: Mapping[str, Any] = field(default_factory=dict)
-    artifact_sha256: str | None = None
-    allow_unverified_fixture: bool = False
-
-
-@dataclass(frozen=True)
-class DefaultedDeclaration:
-    """A write capability or connected write binding that relies on a default effect
-    field (ADR 0029). A fixture profile admits it and lists it here; a live profile
-    refuses it."""
-
-    plugin_id: str
-    subject: Literal["capability", "binding"]
-    subject_id: str
-    """The contract id of a capability, or the binding id of a binding."""
-    fields: tuple[str, ...]
-
-
-@dataclass
-class AdmissionReport:
-    admitted: list[str] = field(default_factory=list)
-    skipped: list[str] = field(default_factory=list)
-    defaulted_declarations: list[DefaultedDeclaration] = field(default_factory=list)
-    """Effect declarations admitted on their defaults (fixture profiles only)."""
+__all__ = ["AdmissionReport", "DefaultedDeclaration", "EnabledPlugin", "PluginRegistry"]
 
 
 def _reject(message: str) -> KernelError:
@@ -376,8 +348,13 @@ class PluginRegistry:
 
     def data_class(self, contract_id: str, instance_path: str) -> dc.DataClass:
         """The most restrictive class declared on the path or an ancestor, ``personal``
-        when none; string work, no schema walk. Task 3d.2's assembler reads it."""
-        return dc.class_for(self._classes[self.descriptor(contract_id).contract_id], instance_path)
+        when none; string work, no schema walk."""
+        return dc.class_for(self.data_classes(contract_id), instance_path)
+
+    def data_classes(self, contract_id: str) -> Mapping[str, dc.DataClass]:
+        """The capability's declarations as admitted (a frozen copy, review C3-14): the
+        lookup the context assembler classes observation values with (Task 3d.2)."""
+        return self._classes[self.descriptor(contract_id).contract_id]
 
     def unmarked_properties(self) -> dict[str, dict[str, int | None]]:
         """Unmarked leaves per capability and side; None: no schema, or an unsupported one."""
