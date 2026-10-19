@@ -41,7 +41,6 @@ from __future__ import annotations
 from typing import Any, assert_never
 
 from e_agent.contracts.action import ActionRecord, ActionState
-from e_agent.contracts.approval import ApprovalRecord
 from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.common import new_id
 from e_agent.contracts.digest import CanonicalizationError, digest
@@ -53,10 +52,11 @@ from e_agent.contracts.step import StepKind, StepStatus
 from e_agent.contracts.task import TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationResult, ValidationStatus
 from e_agent.sdk.ports import DriverInput, PolicyDecision
+from e_agent.sdk.store import EventBatch
 
 from .approval import compute_digest, fact_digest
 from .continuation import NextStep, _Continuation, _PlanState
-from .errors import ErrorCode, KernelError
+from .errors import KernelError
 from .ir import (
     LINEAGE_MESSAGES,
     LineageRejected,
@@ -110,10 +110,11 @@ class PlanFlowMixin(ProposalsMixin):
         if not isinstance(reasons, RationaleProbe):  # `on`: KERNEL-RATIONALE, or closed
             return reasons
         run = reasons.run or run  # a fallback moved the revision
+        shadow = reasons.events(None)  # in the write of every rejection below (Codex C1-1)
         findings = self._plan_findings(plan, task, cont)
         if findings:
-            return await self._repair_finding(run, cont, findings)
-        built = await self._plan_contexts(run, cont, plan)
+            return await self._repair_finding(run, cont, findings, shadow)
+        built = await self._plan_contexts(run, cont, plan, shadow)
         if not isinstance(built, tuple):
             return built
         contexts, validation = built
@@ -121,7 +122,9 @@ class PlanFlowMixin(ProposalsMixin):
             canonical = plan_digest_input(plan, contexts, run_operation_id=run.logical_operation_id)
             digest = compute_digest(canonical)
         except (CanonicalizationError, ValueError):  # `validate_plan` reports KERNEL-ARGS first
-            return await self._repair_finding(run, cont, (_fixed("KERNEL-ARGS", PLAN_ARGS),))
+            return await self._repair_finding(
+                run, cont, (_fixed("KERNEL-ARGS", PLAN_ARGS),), shadow
+            )
         return await self._propose_plan(run, cont, plan, canonical, digest, validation, reasons)
 
     def _plan_refusal(self, run: RunRecord, cont: _Continuation) -> Finding | None:
@@ -157,11 +160,12 @@ class PlanFlowMixin(ProposalsMixin):
         return tuple(findings)
 
     async def _plan_contexts(
-        self, run: RunRecord, cont: _Continuation, plan: ActionPlan
+        self, run: RunRecord, cont: _Continuation, plan: ActionPlan, shadow: EventBatch
     ) -> tuple[dict[str, StepDigestContext], ValidationResult] | RunRecord | DriverInput:
         """Each step's digest context: its connection, binding and policy now, and its domain
         validation unless a placeholder defers it. A denied policy fails the run, a blocking
-        validation returns to the driver, as for a single proposal."""
+        validation returns to the driver, as for a single proposal; each such write carries
+        the rationale probe's ``shadow`` events."""
         ctx = cont.ctx
         evidence = tuple(cont.observations[r].evidence for r in sorted(cont.observations))
         fact_digests = {
@@ -178,10 +182,10 @@ class PlanFlowMixin(ProposalsMixin):
                 connection = self._connections.usable(ctx, proposal.connection_id)
                 binding = self._registry.resolve(proposal.contract_id, proposal.connection_id)
             except KernelError:  # never an exception that strands the run (2c.9)
-                return await self._connection_refused(run, cont)
+                return await self._connection_refused(run, cont, shadow)
             decision = self._policy.evaluate(ctx, descriptor, proposal.connection_id)
             if not decision.permitted:
-                return await self._plan_denied(run, decision)
+                return await self._plan_denied(run, decision, shadow)
             if has_placeholders(proposal):
                 # Its values are domain-validated before it reserves; the digest binds the
                 # rule bundle known now, read from the validators on its wire-form arguments.
@@ -194,12 +198,12 @@ class PlanFlowMixin(ProposalsMixin):
                     SENTINEL_BUNDLES & set(rules.split("+"))
                 ):  # no real rule bundle to bind: never a sentinel in a digest
                     unvalidatable = _fixed("KERNEL-PLAN-STEP-UNVALIDATABLE", UNVALIDATABLE)
-                    return await self._repair_finding(run, cont, (unvalidatable,))
+                    return await self._repair_finding(run, cont, (unvalidatable,), shadow)
             else:
                 validation = await self._validate(ctx, cont, proposal, binding)
                 if validation.blocks_write:
                     cont.findings = validation.findings
-                    return await self._repair_finding(run, cont, validation.findings)
+                    return await self._repair_finding(run, cont, validation.findings, shadow)
                 results.append(validation)
                 rules = validation.rule_bundle_version
             credential_version = (
@@ -227,12 +231,14 @@ class PlanFlowMixin(ProposalsMixin):
         )
         return contexts, merged
 
-    async def _plan_denied(self, run: RunRecord, decision: PolicyDecision) -> RunRecord:
+    async def _plan_denied(
+        self, run: RunRecord, decision: PolicyDecision, shadow: EventBatch = ()
+    ) -> RunRecord:
         payload = {"status": "FAIL", "findings": [], "policy_reasons": list(decision.reasons)}
         run = await self._store.update_run(
             run.model_copy(update={"revision": run.revision + 1}),
             run.revision,
-            [(RunEventType.VALIDATION_COMPLETED, payload, None)],
+            [(RunEventType.VALIDATION_COMPLETED, payload, None), *shadow],
         )
         return await self._set_run_state(
             run, RunState.FAILED, "policy denied", code=ReasonCode.POLICY_DENIED
@@ -483,16 +489,3 @@ class PlanFlowMixin(ProposalsMixin):
         )
         cont.pending_action_id = None
         return await self._set_run_state(run, RunState.FAILED, reason, code=code)
-
-    async def _plan_approval(self, cont: _Continuation) -> ApprovalRecord:
-        """The plan's one approval, recorded on its first step's durable action."""
-        state = cont.plan
-        assert state is not None
-        ctx = cont.ctx
-        for first in await self._store.list_actions(ctx.tenant_id, ctx.run_id):
-            if first.plan_id != state.plan_id or first.step_index != 0:
-                continue
-            for approval in await self._store.list_approvals(ctx.tenant_id, first.action_id):
-                if approval.approval_id == state.approval_id:
-                    return approval
-        raise KernelError(ErrorCode.CONFLICT, "the plan's approval is unavailable")

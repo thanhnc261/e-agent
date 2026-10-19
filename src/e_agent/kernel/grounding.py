@@ -98,6 +98,7 @@ CITATION_MESSAGES = MappingProxyType(
 """The fixed message of each ``KERNEL-CITATION`` repair finding, by status."""
 GROUNDING_SHADOW_MESSAGE = "The grounding check could not run."
 """The fixed ``grounding.shadow_failed`` message of the ``check`` stage."""
+REPEATED_ANSWER = "The structured answer was independently verified."
 
 _INDEX = re.compile(r"0|[1-9][0-9]*")
 _MISSING = object()
@@ -323,9 +324,9 @@ class GroundingProbe:
             return {}
         return {"citations": self.result.at_rest()}
 
-    def events(self, action_id: str) -> list[EventSpec]:
-        """``shadow`` only: the answer's ``grounding.compared``, or
-        ``grounding.shadow_failed``; written with its ``proposal.created``."""
+    def events(self, action_id: str | None) -> list[EventSpec]:
+        """``shadow`` only: the answer's ``grounding.compared``, or ``grounding.shadow_failed``;
+        written with its ``proposal.created``, or with a repeated answer's final (no action)."""
         if self.mode is not FeatureMode.SHADOW:
             return []
         if self.failed or self.result is None:
@@ -397,8 +398,8 @@ class GroundingMixin(RepeatMixin):
         if await self._repeats_verified_answer(
             cont, proposal, connection.connection_id, action_digest
         ):
-            return await self._finish_verified(
-                cont, (), "The structured answer was independently verified.", acknowledge=False
+            return await self._finish_verified(  # its shadow events too (3e.1 R1-2)
+                cont, (), REPEATED_ANSWER, acknowledge=False, extra=probe.events(None)
             )
         action = ActionRecord(
             action_id=new_id("act"),

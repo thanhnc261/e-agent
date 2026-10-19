@@ -20,7 +20,7 @@ from e_agent.sdk.ports import (
     DriverInput,
     FinalAnswer,
 )
-from e_agent.sdk.store import EventSpec
+from e_agent.sdk.store import EventBatch, EventSpec
 
 from .context_on import ContextOnMixin, ContextUnavailable
 from .continuation import NextStep, _Continuation, _GatewayReader
@@ -177,13 +177,16 @@ class VerificationMixin(ContextOnMixin):
         fallback: str,
         *,
         acknowledge: bool = True,
+        extra: EventBatch = (),
     ) -> RunRecord:
-        """Finish a verified write or repeated answer without executing acknowledgement tools."""
+        """Finish a verified write or repeated answer without executing acknowledgement tools.
+        ``extra`` joins the first write: a repeated answer's shadow grounding events (ADR 0033
+        §5, 3e.1 R1-2)."""
         ctx = cont.ctx
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
         gap = await self._acceptance_gap(run, cont)
         if gap is not None:  # `on`: no acknowledgement for an unmet task
-            return await self._fail_unmet(run, gap)
+            return await self._fail_unmet(run, gap, extra)
         final: Any = FinalAnswer(text=fallback)
         ack_input = DriverInput(
             task=run.task,
@@ -255,7 +258,7 @@ class VerificationMixin(ContextOnMixin):
             run = await self._store.update_run(
                 run.model_copy(update={"revision": run.revision + 1}),
                 run.revision,
-                [(RunEventType.MESSAGE_FINAL, {"text": final.text}, None)],
+                [(RunEventType.MESSAGE_FINAL, {"text": final.text}, None), *extra],
             )
         return await self._set_run_state(
             run, RunState.SUCCEEDED, "outcome verified", code=ReasonCode.VERIFIED

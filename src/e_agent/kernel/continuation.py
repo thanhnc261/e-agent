@@ -257,6 +257,9 @@ class ContinuationMixin:
         async def _queue_resume(self, run: RunRecord, action: ActionRecord) -> RunRecord:
             raise NotImplementedError
 
+        async def _plan_approval(self, cont: _Continuation) -> ApprovalRecord:
+            raise NotImplementedError
+
         async def _resume_plan(
             self,
             cont: _Continuation,
@@ -313,6 +316,7 @@ class ContinuationMixin:
             fallback: str,
             *,
             acknowledge: bool = True,
+            extra: EventBatch = (),
         ) -> RunRecord:
             raise NotImplementedError
 

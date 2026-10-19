@@ -64,6 +64,7 @@ from .conftest import (
     NOTES_TASK,
     PLAN_BUDGETS,
     READ,
+    SUMMARY,
     TENANT,
     Kernel,
     NotesPlanDriver,
@@ -873,3 +874,131 @@ async def test_rationale_failure_after_reservation_fails_closed(
     assert len(await k.store.list_actions(TENANT, run.run_id)) == 1  # the first write only
     assert k.backend.create_calls == 1
     _no_text(events)
+
+
+# -- fix round 2 (Codex C1-1): shadow results survive a rejected proposal -------------------
+PLAN_SHADOW = Features(execution_ir=FeatureMode.ON, grounded_answers=FeatureMode.SHADOW)
+
+
+def _shadow_plan_kernel(
+    make_kernel: MakeKernel, build: Callable[[Observation], ActionPlan]
+) -> Kernel:
+    driver = PlanRationaleDriver(build=build)
+    return make_kernel(
+        features=PLAN_SHADOW, budgets=PLAN_BUDGETS, driver=driver, input_schemas=SCHEMAS
+    )
+
+
+def _too_many_steps(obs: Observation) -> ActionPlan:
+    """Three writes in a run that admits two: refused by the structural checks."""
+    plan = _plan(obs, plan=_good(obs), step=_good(obs))
+    third = plan.steps[0].model_copy(update={"step_id": "third"})
+    return plan.model_copy(update={"steps": (*plan.steps, third)})
+
+
+def _invalid_first_step(obs: Observation) -> ActionPlan:
+    """An empty note: the first step's domain validation blocks the plan."""
+    plan = _plan(obs, plan=_good(obs), step=_good(obs))
+    first, follow = plan.steps
+    first = first.model_copy(
+        update={"proposal": first.proposal.model_copy(update={"arguments": {"text": ""}})}
+    )
+    return plan.model_copy(update={"steps": (first, follow)})
+
+
+def _rejections(events: list[RunEvent]) -> list[RunEvent]:
+    return [e for e in _of(events, RunEventType.VALIDATION_COMPLETED) if e.action_id is None]
+
+
+@pytest.mark.parametrize(
+    ("build", "cited"),
+    [(_too_many_steps, 4), (_invalid_first_step, 3)],  # the plan's rationale and each step's
+    ids=["structural", "step-validation"],
+)
+async def test_shadow_rejected_plan_records_grounding_compared(
+    make_kernel: MakeKernel, build: Callable[[Observation], ActionPlan], cited: int
+) -> None:
+    """ADR 0033 §5, ENG-TOGGLE-1: a shadow plan the kernel rejects still records its
+    rationale comparison, in the rejection's own write, with no action id."""
+    k = _shadow_plan_kernel(make_kernel, build)
+
+    run = await _start(k, NOTES_TASK.task_id)
+
+    events = await _events(k, run.run_id)
+    rejections = _rejections(events)
+    compared = _of(events, RunEventType.GROUNDING_COMPARED)
+    assert rejections and len(compared) == len(rejections)
+    for rejection, comparison in zip(rejections, compared, strict=True):
+        assert comparison.action_id is None
+        assert comparison.sequence == rejection.sequence + 1  # the same write
+        assert comparison.payload["rationale"]["evidence"]["cited"] == cited
+    assert await k.store.list_actions(TENANT, run.run_id) == []
+    _no_text(events)
+
+
+async def test_shadow_check_failure_on_rejected_plan_records_shadow_failed(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A shadow check that cannot run on a plan the kernel then rejects records
+    ``grounding.shadow_failed`` with the rejection, and nothing else changes."""
+    _broken_check(monkeypatch)
+    k = _shadow_plan_kernel(make_kernel, _too_many_steps)
+
+    run = await _start(k, NOTES_TASK.task_id)
+
+    events = await _events(k, run.run_id)
+    failed = _of(events, RunEventType.GROUNDING_SHADOW_FAILED)
+    assert failed and len(failed) == len(_rejections(events))
+    assert all(
+        e.payload == {"stage": "rationale", "message": rationale.RATIONALE_SHADOW_MESSAGE}
+        for e in failed
+    )
+    assert not _of(events, RunEventType.FEATURE_FALLBACK)
+    _no_text(events)
+
+
+@dataclass
+class RepeatingAnswerDriver:
+    """Reads, answers the notes summary with a citation, then repeats the same answer."""
+
+    driver_id: str = "notes-repeating-answer-driver"
+    answers: int = 0
+
+    async def advance(self, ctx: TaskContext, step_input: DriverInput) -> DriverStep:
+        if not step_input.observations:
+            request = ReadRequest(
+                request_id="r1", contract_id=READ.contract_id, connection_id=CONN, arguments={}
+            )
+            return RequestReads(reads=(request,))
+        if self.answers >= 2:
+            return FinalAnswer(text="done")
+        self.answers += 1
+        obs = step_input.observations[0]
+        cited = Citation(evidence_id=obs.evidence.evidence_id, pointer="/count", value="0")
+        proposal = ActionProposal(
+            contract_id=SUMMARY.contract_id,
+            connection_id=CONN,
+            arguments={"count": "0"},
+            citations=(cited,),
+        )
+        return ProposeAction(proposal=proposal)
+
+
+async def test_shadow_repeated_verified_answer_records_grounding_compared(
+    make_kernel: MakeKernel,
+) -> None:
+    """The single-proposal audit (3e.1 R1-2): a shadow typed answer that repeats the run's
+    verified answer ends the run without a new action, and still records its citation
+    comparison."""
+    k = make_kernel(features=SHADOW, with_answer=True, driver=RepeatingAnswerDriver())
+
+    run = await _start(k)
+
+    assert run.state is RunState.SUCCEEDED, run.reason
+    events = await _events(k, run.run_id)
+    assert len(_of(events, RunEventType.PROPOSAL_CREATED)) == 1  # the repeat made no action
+    compared = _of(events, RunEventType.GROUNDING_COMPARED)
+    assert len(compared) == 2  # the first answer's, and the repeat's
+    assert compared[1].payload["citations"]["resolved"] == 1
+    final = _of(events, RunEventType.MESSAGE_FINAL)[-1]
+    assert (compared[1].action_id, compared[1].sequence) == (None, final.sequence + 1)

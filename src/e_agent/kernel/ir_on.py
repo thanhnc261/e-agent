@@ -54,6 +54,7 @@ from e_agent.contracts.step import StepKind, StepRecord, StepStatus
 from e_agent.contracts.task import GROUNDED_ANSWER, AcceptanceSpec, TaskDefinition, acceptance_met
 from e_agent.contracts.validation import Finding, ValidationStatus
 from e_agent.sdk.ports import DriverInput
+from e_agent.sdk.store import EventBatch
 from pydantic import ValidationError
 
 from .approval import compute_digest
@@ -74,7 +75,6 @@ from .step import finish_step, start_step
 FEATURE = "execution_ir"
 OUTSIDE_SET = "The proposed capability is not in the run's task definition."
 """The fixed message of the ``KERNEL-PLAN-CAPABILITY`` repair finding (no model text)."""
-
 
 PLAN_INTERRUPTED = "plan interrupted between steps; the remaining steps were not started"
 """The fixed reason of a plan that cannot resume between its steps (Task 2c.8): a process
@@ -184,16 +184,20 @@ class IrOnMixin(FeaturesMixin):
         )
 
     async def _repair_finding(
-        self, run: RunRecord, cont: _Continuation, findings: tuple[Finding, ...]
+        self,
+        run: RunRecord,
+        cont: _Continuation,
+        findings: tuple[Finding, ...],
+        extra: EventBatch = (),
     ) -> RunRecord | DriverInput:
-        """Kernel findings on a proposal that made no action: recorded in
-        ``validation.completed`` and returned to the driver within ``max_validation_repairs``,
-        as a blocked proposal is; past the budget the run fails ``VALIDATION_FAILED``."""
+        """Kernel findings on a proposal that made no action: in ``validation.completed``, with
+        ``extra`` (a shadow probe's events, Codex C1-1) in the same write, and returned to the
+        driver within ``max_validation_repairs``; past it the run fails ``VALIDATION_FAILED``."""
         payload = {"status": "FAIL", "findings": [f.model_dump(mode="json") for f in findings]}
         run = await self._store.update_run(
             run.model_copy(update={"revision": run.revision + 1}),
             run.revision,
-            [(RunEventType.VALIDATION_COMPLETED, payload, None)],
+            [(RunEventType.VALIDATION_COMPLETED, payload, None), *extra],
         )
         if cont.repairs >= cont.ctx.budgets.max_validation_repairs:  # as a blocked proposal
             return await self._set_run_state(
@@ -206,12 +210,12 @@ class IrOnMixin(FeaturesMixin):
         )
 
     async def _connection_refused(
-        self, run: RunRecord, cont: _Continuation
+        self, run: RunRecord, cont: _Continuation, extra: EventBatch = ()
     ) -> RunRecord | DriverInput:
-        """A proposal or plan step on a connection the run cannot use, or one without a
-        binding for its capability: the fixed ``KERNEL-CONNECTION`` repair finding, never an
-        exception that strands the run (2c.9). The kernel never picks another connection."""
-        return await self._repair_finding(run, cont, (_fixed("KERNEL-CONNECTION", NO_CONNECTION),))
+        """A step on a connection the run cannot use or without a binding: the fixed
+        ``KERNEL-CONNECTION`` repair finding (2c.9), never a stranding exception or another one."""
+        refused = (_fixed("KERNEL-CONNECTION", NO_CONNECTION),)
+        return await self._repair_finding(run, cont, refused, extra)
 
     async def _no_verifier(self, run: RunRecord) -> RunRecord:
         """An answer whose capability has no verifier: FAILED ``VERIFICATION_FAILED`` with the
@@ -474,10 +478,9 @@ class IrOnMixin(FeaturesMixin):
             )
         return await self._set_run_state(run, RunState.SUCCEEDED, reason, code=code)
 
-    async def _fail_unmet(self, run: RunRecord, message: str) -> RunRecord:
-        """The one ``ACCEPTANCE_UNMET`` ending, shared by every finish path: the kernel's
-        acceptance finding (persisted as validation findings are, in ``validation.completed``)
-        ahead of the terminal transition, in one write."""
+    async def _fail_unmet(self, run: RunRecord, message: str, extra: EventBatch = ()) -> RunRecord:
+        """The one ``ACCEPTANCE_UNMET`` ending of every finish path: the ``KERNEL-ACCEPTANCE``
+        finding in ``validation.completed``, with ``extra``, in the terminal transition's write."""
         finding = _fixed("KERNEL-ACCEPTANCE", message)
         payload = {"status": "FAIL", "findings": [finding.model_dump(mode="json")]}
         return await self._set_run_state(
@@ -485,7 +488,7 @@ class IrOnMixin(FeaturesMixin):
             RunState.FAILED,
             "acceptance unmet",
             code=ReasonCode.ACCEPTANCE_UNMET,
-            before=[(RunEventType.VALIDATION_COMPLETED, payload, None)],
+            before=[(RunEventType.VALIDATION_COMPLETED, payload, None), *extra],
         )
 
     async def _unbound_snapshot(self, run: RunRecord, cont: _Continuation) -> RunRecord | None:

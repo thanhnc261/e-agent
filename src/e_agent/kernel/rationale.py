@@ -217,9 +217,10 @@ class RationaleProbe:
             keys["step_rationales"] = steps
         return keys
 
-    def events(self, action_id: str) -> list[EventSpec]:
+    def events(self, action_id: str | None) -> list[EventSpec]:
         """``shadow`` only, with a rationale: ``grounding.compared`` or
-        ``grounding.shadow_failed``, written with the proposal's ``proposal.created``."""
+        ``grounding.shadow_failed``, written with the proposal's ``proposal.created``, or with
+        no action id in the write of a rejection after the probe ran (Codex C1-1)."""
         if self.mode is not FeatureMode.SHADOW or not self.entries:
             return []
         if self.failed or self.result is None:
