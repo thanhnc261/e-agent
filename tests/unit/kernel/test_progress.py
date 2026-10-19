@@ -22,7 +22,7 @@ from e_agent.contracts.progress import (
     StageStatus,
     TaskRefState,
 )
-from e_agent.contracts.run import RunState
+from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.contracts.step import StepKind, StepRecord, StepStatus, StepUsage
 from e_agent.kernel.progress import project_progress
 from e_agent.sdk.ports import (
@@ -380,6 +380,8 @@ async def test_failed_answer_verification_is_not_counted_as_a_failed_validation(
 ) -> None:
     k = make_kernel(driver=WrongAnswerDriver(), with_answer=True)
     run = await k.coordinator.start_run(k.requester, "count the notes", k.scope)
+    # review C3-19: the case is exercised only if the answer really failed verification
+    assert (run.state, run.reason_code) == (RunState.FAILED, ReasonCode.VERIFICATION_FAILED)
     events = await k.store.list_events(TENANT, run.run_id)
     written = sum(
         1
