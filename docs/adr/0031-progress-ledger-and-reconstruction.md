@@ -32,7 +32,7 @@ ADR 0027 requires that `off` is exactly today's behaviour, proved by a golden ev
   - `done` and `pending`: completed and open stages (reads, proposals, validation, approval wait, dispatch, verify), from step records where they exist and from events otherwise; `pending` names a wait for approval, input or reconciliation;
   - `open_findings`: rule id, rule version, status and message of the findings of the latest `validation.completed` that no later proposal has superseded;
   - `repair_turns`: the event ids of plain-text repair turns (`KERNEL-VERIFICATION`), never their text;
-  - `budgets_used`: what the events and step records show (reads, repairs, admitted writes). A budget they do not show, such as driver turns or tokens without step records, is `unknown`, never zero (PR-24).
+  - `budgets_used`: what the events and step records show (reads, failed validations, admitted writes). A budget they do not show, such as driver turns or tokens without step records, is `unknown`, never zero (PR-24).
 - The ledger holds no model text (no `message.final`, no `input.requested` question, no thinking; PR-28, ADR 0004).
 - Plan updates proposed by the model (`plan.proposed`, target §6.2) are not decided here. The `plan` items in the ledger are only the run's compiled plan steps and their kernel-observed status. A model plan-update variant of `DriverStep` needs its own ADR and `sdk_api` change.
 - The ContextAssembler (ADR 0032) renders the ledger into the dynamic suffix of the context pack; the explanation projection (ADR 0033) reads it.

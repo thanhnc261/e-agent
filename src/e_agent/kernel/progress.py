@@ -58,7 +58,7 @@ _OUTCOME_STATUS = {
     "FAILED": StageStatus.FAILED,
     "UNKNOWN": StageStatus.UNKNOWN,
 }
-_NOT_FOUND = "not_found"
+_UNRESOLVED = frozenset({"not_found", "UNKNOWN"})
 
 
 def project_progress(events: Iterable[RunEvent], steps: Iterable[StepRecord]) -> ProgressLedger:
@@ -161,33 +161,21 @@ def _budgets(events: Sequence[RunEvent], rows: Sequence[StepRecord]) -> BudgetsU
     turns = [r for r in rows if r.kind is StepKind.DRIVER_TURN]
     return BudgetsUsed(
         reads_recorded=sum(1 for e in events if e.type is RunEventType.READ_RECORDED),
-        repairs=_repairs(events),
+        failed_validations=_failed_validations(events),
         admitted_writes=sum(1 for e in events if e.type is RunEventType.ACTION_RESERVED),
         driver_turns=len(turns) if turns else UNKNOWN,
         model_tokens=sum(r.usage.model_tokens for r in turns) if turns else UNKNOWN,
     )
 
 
-def _repairs(events: Sequence[RunEvent]) -> int:
-    """A failed validation returned to the driver unless the run failed right after it."""
-    count = 0
-    for index, event in enumerate(events):
-        if event.type is not RunEventType.VALIDATION_COMPLETED:
-            continue
-        if event.payload.get("status") in (None, "PASS"):
-            continue
-        if any(f.get("rule_id") == REPAIR_RULE_ID for f in _finding_dicts(event)):
-            count += 1  # the plain-text path ends the run without a further validation event
-            continue
-        following = events[index + 1] if index + 1 < len(events) else None
-        ended = (
-            following is not None
-            and following.type is RunEventType.RUN_STATE_CHANGED
-            and following.payload.get("to") == "FAILED"
-        )
-        if not ended:
-            count += 1
-    return count
+def _failed_validations(events: Sequence[RunEvent]) -> int:
+    """``validation.completed`` events whose status is present and not ``PASS``."""
+    return sum(
+        1
+        for e in events
+        if e.type is RunEventType.VALIDATION_COMPLETED
+        and e.payload.get("status") not in (None, "PASS")
+    )
 
 
 # -- stages ----------------------------------------------------------------------------------
@@ -301,7 +289,7 @@ def _event_stages(events: Sequence[RunEvent]) -> list[tuple[RunEvent, Stage]]:
                 if waiting is not None:
                     out.pop(waiting)  # the generic wait is replaced by this action's stage
                     open_slot = {k: (i - 1 if i > waiting else i) for k, i in open_slot.items()}
-                done = found is not None and found != _NOT_FOUND
+                done = found is not None and found not in _UNRESOLVED
                 add(
                     event,
                     StageKind.RECONCILE,

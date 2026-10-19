@@ -14,6 +14,7 @@ from typing import Any
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.features import FeatureMode, Features
+from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.progress import (
     ProgressLedger,
     StageKind,
@@ -24,7 +25,13 @@ from e_agent.contracts.progress import (
 from e_agent.contracts.run import RunState
 from e_agent.contracts.step import StepKind, StepRecord, StepStatus, StepUsage
 from e_agent.kernel.progress import project_progress
-from e_agent.sdk.ports import DriverInput, FinalAnswer, ReadRequest, RequestReads
+from e_agent.sdk.ports import (
+    DriverInput,
+    FinalAnswer,
+    ProposeAction,
+    ReadRequest,
+    RequestReads,
+)
 
 from .conftest import (
     CONN,
@@ -32,6 +39,7 @@ from .conftest import (
     NOTES_TASK,
     PLAN_BUDGETS,
     READ,
+    SUMMARY,
     TENANT,
     Kernel,
     NotesPlanDriver,
@@ -106,7 +114,7 @@ async def test_progress_of_a_verified_answer_run(make_kernel: MakeKernel) -> Non
     assert ledger.open_findings == ()
     assert ledger.repair_turns == ()
     used = ledger.budgets_used
-    assert (used.repairs, used.admitted_writes) == (0, 0)
+    assert (used.failed_validations, used.admitted_writes) == (0, 0)
     assert used.reads_recorded >= 1
     assert (used.driver_turns, used.model_tokens) == ("unknown", "unknown")
 
@@ -119,7 +127,7 @@ async def test_progress_of_a_blocked_then_repaired_run(make_kernel: MakeKernel) 
 
     # the blocked proposal is superseded by the repaired one, whose validation passed
     assert ledger.open_findings == ()
-    assert ledger.budgets_used.repairs == 1
+    assert ledger.budgets_used.failed_validations == 1
     validations = [s.status for s in ledger.done if s.kind is StageKind.VALIDATE]
     assert validations == [StageStatus.BLOCKED, StageStatus.SUCCEEDED]
     assert _kinds(ledger.pending) == [(StageKind.APPROVAL_WAIT, StageStatus.WAITING)]
@@ -146,8 +154,8 @@ async def test_progress_keeps_the_findings_of_a_blocked_proposal_open(
     assert [f.rule_id for f in ledger.open_findings] == ["NOTE-001"]
     assert ledger.open_findings[0].status == "FAIL"
     assert ledger.open_findings[0].message == "text must be non-empty"
-    # the last failing validation ended the run, so only the earlier ones count as repairs
-    assert ledger.budgets_used.repairs == 2
+    # every non-PASS validation counts, including the one that ended the run
+    assert ledger.budgets_used.failed_validations == 3
 
 
 async def test_progress_of_a_two_step_plan(make_kernel: MakeKernel) -> None:
@@ -200,7 +208,7 @@ async def test_progress_shows_plain_text_repair_turns(make_kernel: MakeKernel) -
     assert len(expected) == 2  # max_validation_repairs
     ledger = await _ledger(k, run.run_id)
     assert list(ledger.repair_turns) == expected
-    assert ledger.budgets_used.repairs == 2
+    assert ledger.budgets_used.failed_validations == 2
     assert [f.rule_id for f in ledger.open_findings] == ["KERNEL-VERIFICATION"]
 
 
@@ -342,3 +350,66 @@ def test_an_unknown_receipt_waits_for_reconciliation() -> None:
     )
     assert (StageKind.RECONCILE, StageStatus.SUCCEEDED) in _kinds(done.done)
     assert (StageKind.RECONCILE, StageStatus.WAITING) not in _kinds(done.pending)
+
+
+@dataclass
+class WrongAnswerDriver:
+    """Reads, then proposes a notes answer whose count the verifier will refuse."""
+
+    driver_id: str = "wrong-answer-driver"
+
+    async def advance(self, ctx: Any, step_input: DriverInput) -> Any:
+        if step_input.action_result is not None:
+            return FinalAnswer(text="done")
+        if not step_input.observations:
+            request = ReadRequest(
+                request_id="r1", contract_id=READ.contract_id, connection_id=CONN, arguments={}
+            )
+            return RequestReads(reads=(request,))
+        return ProposeAction(
+            proposal=ActionProposal(
+                contract_id=SUMMARY.contract_id,
+                connection_id=CONN,
+                arguments={"count": "999"},
+            )
+        )
+
+
+async def test_failed_answer_verification_is_not_counted_as_a_failed_validation(
+    make_kernel: MakeKernel,
+) -> None:
+    k = make_kernel(driver=WrongAnswerDriver(), with_answer=True)
+    run = await k.coordinator.start_run(k.requester, "count the notes", k.scope)
+    events = await k.store.list_events(TENANT, run.run_id)
+    written = sum(
+        1
+        for e in events
+        if e.type is RunEventType.VALIDATION_COMPLETED and e.payload.get("status") != "PASS"
+    )
+    ledger = await _ledger(k, run.run_id)
+    assert ledger.budgets_used.failed_validations == written
+    assert not hasattr(ledger.budgets_used, "repairs")
+    assert ledger.repair_turns == ()
+
+
+def test_stale_validation_then_budget_exhausted_counts_one() -> None:
+    events = [
+        _event(1, RunEventType.VALIDATION_COMPLETED, {"status": "STALE", "findings": []}),
+        _event(2, RunEventType.BUDGET_EXHAUSTED, {"budget": "active seconds"}),
+        _event(3, RunEventType.RUN_STATE_CHANGED, {"from": "RUNNING", "to": "FAILED"}),
+    ]
+    assert project_progress(events, []).budgets_used.failed_validations == 1
+
+
+def test_an_unknown_reconciliation_stays_pending() -> None:
+    events = [
+        _event(
+            1,
+            RunEventType.RUN_STATE_CHANGED,
+            {"from": "RUNNING", "to": "NEEDS_RECONCILIATION", "reason": None},
+        ),
+        _event(2, RunEventType.RECONCILIATION_COMPLETED, {"found": "UNKNOWN"}, "a1"),
+    ]
+    ledger = project_progress(events, [])
+    assert _kinds(ledger.pending) == [(StageKind.RECONCILE, StageStatus.WAITING)]
+    assert ledger.done == ()

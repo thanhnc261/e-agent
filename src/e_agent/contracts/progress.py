@@ -88,8 +88,10 @@ class BudgetsUsed(Record):
     reads_recorded: int = Field(ge=0)
     """``read.recorded`` events, which include verifier read-backs; the read-call budget
     counts driver reads only, so this is an upper bound of it."""
-    repairs: int = Field(ge=0)
-    """Failed validations that returned to the driver (not the one that ended the run)."""
+    failed_validations: int = Field(ge=0)
+    """``validation.completed`` events whose status is not ``PASS``, including one that ended
+    the run. A failed answer verification writes no such event, so this is not the repair
+    budget's counter (that lives only in the continuation)."""
     admitted_writes: int = Field(ge=0)
     """``action.reserved`` events."""
     driver_turns: int | Literal["unknown"]
