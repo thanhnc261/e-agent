@@ -280,9 +280,7 @@ def create_app(
             "self_approval_allowed": rt.profile.operator.allow_self_approval,
             "features": rt.profile.features.model_dump(mode="json"),
             # ADR 0030: where the model route processes data, and how that is known
-            "data_boundary": rt.route.boundary if rt.route else None,
-            "data_boundary_basis": rt.route.basis if rt.route else None,
-            "data_processing_declared": rt.profile.data_processing is not None,
+            **rt.route_facts(),
             # ADR 0029 Operations: write effects admitted on defaults (fixture profiles only)
             "defaulted_declarations": defaulted_payload(rt.registry.report.defaulted_declarations),
         }
@@ -500,6 +498,7 @@ def create_app(
             versions=rt.versions,
             features=rt.profile.features,
             defaulted_declarations=rt.registry.report.defaulted_declarations,
+            route=rt.route_facts(),
         )
 
     # -- member discovery (ADR 0017): read-only projections of admitted metadata ---

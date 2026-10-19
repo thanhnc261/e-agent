@@ -50,6 +50,14 @@ class Runtime:
     route: RouteBoundary | None = None
     """The model route's data boundary and its basis (ADR 0030)."""
 
+    def route_facts(self) -> dict[str, Any]:
+        """The route boundary facts readiness and the evidence bundle both report (ADR 0030)."""
+        return {
+            "data_boundary": self.route.boundary if self.route else None,
+            "data_boundary_basis": self.route.basis if self.route else None,
+            "data_processing_declared": self.profile.data_processing is not None,
+        }
+
     def diagnostics(self) -> dict[str, dict[str, Any]]:
         """The admitted plugins' diagnostics, by plugin id (fixture runs and tests)."""
         return {pid: dict(hook()) for pid, hook in sorted(self.registry.diagnostics.items())}

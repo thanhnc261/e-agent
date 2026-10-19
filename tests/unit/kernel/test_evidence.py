@@ -114,3 +114,22 @@ async def test_evidence_v1_keys_unchanged(make_kernel: Callable[..., Kernel]) ->
     assert bundle["schema"] == "e-agent-evidence-v1"
     assert set(bundle) >= _V1_KEYS
     assert set(bundle) - _V1_KEYS == {"features"}
+
+
+async def test_evidence_reports_the_route_only_when_given(
+    make_kernel: Callable[..., Kernel],
+) -> None:
+    k = make_kernel()
+    run = await k.coordinator.start_run(k.requester, "x", k.scope)
+    facts = {
+        "data_boundary": "hosted:unknown",
+        "data_boundary_basis": "default",
+        "data_processing_declared": True,
+    }
+    with_route = await build_evidence(
+        k.store, TENANT, run.run_id, environment="fixture", versions={},
+        features=Features(), route=facts,
+    )  # fmt: skip
+    assert with_route["route"] == facts
+    without = await _bundle(make_kernel(), Features())
+    assert "route" not in without

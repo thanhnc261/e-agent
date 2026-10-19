@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +39,20 @@ def _profile(**driver: Any) -> Profile:
 )
 def test_loopback_ollama_is_local_verified(url: str) -> None:
     assert effective_boundary(_driver(provider="ollama"), url) == ("local", "verified")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://localhost@evil.com/v1",
+        "http://127.0.0.1.nip.io/v1",
+        "http://localhost./v1",
+        "http://[::ffff:127.0.0.1]/v1",
+        "http://0.0.0.0:11434/v1",
+    ],
+)
+def test_loopback_bypass_attempts_are_not_local(url: str) -> None:
+    assert effective_boundary(_driver(provider="ollama"), url) == ("hosted:unknown", "default")
 
 
 def test_scripted_driver_is_local_verified() -> None:
@@ -119,16 +132,18 @@ def test_readiness_reports_boundary_and_basis(monkeypatch: pytest.MonkeyPatch) -
     assert body["data_processing_declared"] is True
 
 
-def test_committed_profiles_are_local(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_committed_profiles_pass_the_route_rule(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The rule accepts all three without a declaration. The live example needs the
+    sandbox to start, so it gets the rule alone; the two fixture-environment profiles start."""
     monkeypatch.delenv("E_AGENT_OLLAMA_URL", raising=False)
     paths = (fixture_profile_path(), PROFILES / "dev-ollama.json", PROFILES / "live.example.json")
     checked = 0
     for path in paths:
         profile = load_profile(path)
         assert profile.data_processing is None, path
-        assert json.loads(Path(path).read_text("utf-8")).get("local_only", False) is False
-        # the startup rule: every committed profile is local without a declaration
-        route = check_route_boundary(profile)
-        assert route.boundary == "local", path
+        assert check_route_boundary(profile).boundary == "local", path
         checked += 1
     assert checked == 3, f"checked {checked} committed profiles"
+    for path in (fixture_profile_path(), PROFILES / "dev-ollama.json"):  # fixture environments
+        runtime = await build_runtime(load_profile(path))
+        assert runtime.route is not None and runtime.route.boundary == "local", path

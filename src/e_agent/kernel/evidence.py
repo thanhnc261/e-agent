@@ -168,10 +168,13 @@ async def build_evidence(
     versions: Mapping[str, Any],
     features: Features,
     defaulted_declarations: Sequence[DefaultedDeclaration] | None = None,
+    route: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """``defaulted_declarations`` is the exporting runtime's admission report: when given,
     the bundle lists it, an empty list included (ADR 0029 Operations); when omitted, the
-    bundle has no such key, as before Task 2c.8a."""
+    bundle has no such key, as before Task 2c.8a. ``route`` is the model route's data
+    boundary facts (``data_boundary``, ``data_boundary_basis``, ``data_processing_declared``;
+    ADR 0030) as plain values; when omitted the bundle has no ``route`` key."""
     run = await store.get_run(tenant_id, run_id)
     events = await _all_events(store, tenant_id, run_id)
     actions = await store.list_actions(tenant_id, run_id)
@@ -210,6 +213,8 @@ async def build_evidence(
     }
     if defaulted_declarations is not None:
         bundle["defaulted_declarations"] = defaulted_payload(defaulted_declarations)
+    if route is not None:
+        bundle["route"] = dict(route)
     plan = await _plan_section(store, tenant_id, events, actions)
     if plan is not None:
         bundle["plan"] = plan
