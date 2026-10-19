@@ -160,12 +160,12 @@ The live profile does not enable `fixture-erp`, so only the first two go into `p
 
 ## Open items for the owner
 
-1. Branch protection on `main` (PR-39): the agent's GitHub call was refused by its permission classifier, so it is the owner's (command in the session).
-2. The sandbox is left with the `on` run's draft PO `P00035` and without the task fixtures of `seed-tasks`, which the first reset removed. Undo: `odoo_sandbox.py reset`, `seed`, then `seed-tasks`, each with `--namespace e-agent-demo --expected-marker odoo19-learning --expected-company-id 1 --expected-bridge-version 19.0.0.4.0`. The reseed gives new record ids (demand `odoo/e_agent.demand/4` now); profile refs that name the old ids are stale.
+1. Branch protection on `main` (PR-39): **done 2026-10-19** by the agent on the owner's instruction after the merge (strict, the five CI checks required, no force pushes or deletions). The first attempt, before the merge, was refused by the agent's permission classifier.
+2. **Done 2026-10-19** by the agent on the owner's instruction: `info`, then `reset` (removed `P00035`), `seed` and `seed-tasks` restored the namespace; demand is now `odoo/e_agent.demand/5`. The original note: the sandbox was left with the `on` run's draft PO `P00035` and without the task fixtures of `seed-tasks`, which the first reset removed. Undo: `odoo_sandbox.py reset`, `seed`, then `seed-tasks`, each with `--namespace e-agent-demo --expected-marker odoo19-learning --expected-company-id 1 --expected-bridge-version 19.0.0.4.0`. The reseed gives new record ids (demand `odoo/e_agent.demand/4` now); profile refs that name the old ids are stale.
 3. What remains after Phase 2: plan approval in the UI (the API and UI show the plan's presentation fields but resolve no task definition, D8), live multi-step writes (Phase 5), a qualified model run for plans (ADR 0010), and the Phase 3 plan.
 4. `golden/off_model_request.json` serialises pydantic-ai's `ToolDefinition`; a pydantic-ai upgrade needs it regenerated at a baseline commit (2c.9).
 5. Secret scan: gitleaks' `generic-api-key` rule flagged the `credential_version` field (a random secret-store revision id, not key material) in five live bundles of `a05f89b`; the five exact fingerprints are in `.gitleaksignore` with the reason. Before the next live evidence commit with a write, decide whether bundles keep `credential_version` verbatim or a scoped rule is warranted (owner decision; the `.gitleaks.toml` allowlist is for test fixtures only).
-6. Delete the temporary toggle profiles `profiles/live-ir-{off,shadow,on}.local.json` when no longer needed (git-ignored, mode 0600).
+6. **Done 2026-10-19**: the agent deleted the temporary toggle profiles `profiles/live-ir-{off,shadow,on}.local.json` on the owner's instruction.
 
 ## Changes outside the repository
 
@@ -175,4 +175,5 @@ The live profile does not enable `fixture-erp`, so only the first two go into `p
 | PR #6 pushed, updated with `main` and merged on the owner's instruction | revert the merge commit |
 | `profiles/live-odoo19-learning.local.json` re-pinned by the owner; `profiles/live-ir-{off,shadow,on}.local.json` created (copies with the toggle set) | delete the three copies |
 | Live ledger: migration 0006 applied; the 2d.2 runs added | none needed; forward-only migration, normal run history |
-| Sandbox `e-agent-demo`: reset and seeded three times (identity-checked); draft POs `P00033` and `P00034` created and removed by the next reset; `P00035` left; task fixtures removed | reset, seed, seed-tasks (open item 2) |
+| Sandbox `e-agent-demo`: reset and seeded three times (identity-checked); draft POs `P00033` and `P00034` created and removed by the next reset; `P00035` left; task fixtures removed | restored 2026-10-19: reset, seed, seed-tasks (open item 2) |
+| Branch protection on `main` applied 2026-10-19 (strict, five required checks) | `gh api -X DELETE repos/thanhnc261/e-agent/branches/main/protection` |
