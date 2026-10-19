@@ -113,7 +113,8 @@
         "assembler tests pass, including injection fencing, bounded partial results and hosted-route masking",
         "approval presentation ignores the pack; full and pg pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3d.2/2026-10-19T12-38-04.517673+00-00-full.json"
     },
     {
       "id": "F-3d-3",
