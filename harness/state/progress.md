@@ -619,3 +619,8 @@
 - changed: no working-tree changes
 - next: draft-po with off, shadow and on and a read-only task with on behave as the plan's Live check says
 - open: none
+
+## 2026-10-19T06:15:29.950710+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3a.1
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3a.1.json, harness/state/evidence/gates/3a.1/2026-10-19T06-14-03.678464+00-00-full.json
+- next: G2: owner accepts ADRs 0030 (Phase 3 parts), 0031-0033 and answers the open questions (Task 3a.2)
+- open: none
