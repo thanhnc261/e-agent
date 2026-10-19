@@ -24,7 +24,9 @@
     "docs/plans/2026-10-19-phase3-cognition-context.md",
     "harness/state/**",
     ".superpowers/sdd/**",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "src/e_agent/kernel/ir_on.py",
+    "src/e_agent/kernel/continuation.py"
   ],
   "acceptance": [
     "reconstruction equals stored rows over every fixture scenario on both stores; older events marked partial",
@@ -34,5 +36,17 @@
   "gate_set": "full",
   "base_commit": "d71b175821ddd966e81519304ceb829bf886215f",
   "created_at": "2026-10-19T10:14:22+00:00",
-  "features_digest": "c700bc2331df3a162af956b889b7c8d9c0feb7c58814e7332ec1000c363c6841"
+  "features_digest": "c700bc2331df3a162af956b889b7c8d9c0feb7c58814e7332ec1000c363c6841",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/kernel/ir_on.py",
+      "reason": "3c.2: outcome.reported gains action_state (ADR 0031 §3); ir_on reads the payload back strictly as OutcomeReport and must drop the reconstruction keys first",
+      "at": "2026-10-19T10:44:44+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/continuation.py",
+      "reason": "3c.2 ruling: blocked_action_ids passed explicitly through the _set_run_state/_exhausted stubs, not via hidden per-run state (ADR 0031 §3: the same kernel call)",
+      "at": "2026-10-19T10:44:44+00:00"
+    }
+  ]
 }
