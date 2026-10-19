@@ -2,7 +2,7 @@
 
 A plugin-driven enterprise agent application designed for governed business actions, versioned domain knowledge and verifiable outcomes.
 
-**Status: MVP remediation candidate; local live release is NOT_READY.** Kernel, adapters, PostgreSQL storage, eight ERP tasks and replaceable UI are implemented. The approved review fixes have passed local source, persistent-ledger and UI checks; frozen Ollama qualification is recorded separately. The owner's exact Odoo sandbox, upgraded bridge and integrated model/API/UI runs with human approval still need qualification. The requested UI redesign is documented in the [2026-10-08 handoff](docs/handoffs/2026-10-08-ui-redesign.md), and the enterprise overlay adoption in the [2026-10-09 implementation results](docs/handoffs/2026-10-08-enterprise-overlay-implementation-results.md); both were verified against deterministic fixtures only and do not change this readiness claim. See the [remediation retest](docs/reviews/2026-10-07-mvp-remediation-retest.md); earlier implementation reports are historical evidence for their stated environments.
+**Status: MVP remediation candidate; local live release is NOT_READY.** Phase 2 (execution IR) is done and merged to `main`. Phase 3 (cognition and context) is verified on fixtures only, behind three toggles that are all `off` by default (`context_assembler`, `kernel_repeat`, `grounded_answers`; see [Phase 3 toggles](#phase-3-toggles-cognition-and-context)). Its live check (task 3g.2) is pending, and a Codex final check is deferred until after 2026-10-25; see the [Phase 3 handoff](docs/handoffs/2026-10-20-phase3-cognition-context.md) and the [roadmap](docs/roadmap.md) status column. Kernel, adapters, PostgreSQL storage, eight ERP tasks and replaceable UI are implemented. The approved review fixes have passed local source, persistent-ledger and UI checks; frozen Ollama qualification is recorded separately. The owner's exact Odoo sandbox, upgraded bridge and integrated model/API/UI runs with human approval still need qualification. The requested UI redesign is documented in the [2026-10-08 handoff](docs/handoffs/2026-10-08-ui-redesign.md), and the enterprise overlay adoption in the [2026-10-09 implementation results](docs/handoffs/2026-10-08-enterprise-overlay-implementation-results.md); both were verified against deterministic fixtures only and do not change this readiness claim. See the [remediation retest](docs/reviews/2026-10-07-mvp-remediation-retest.md); earlier implementation reports are historical evidence for their stated environments.
 
 Work is ordered by the [roadmap](docs/roadmap.md). Its status column shows the current phase, and each phase has a detailed plan in [docs/plans](docs/plans/).
 
@@ -130,15 +130,18 @@ uv run e-agent demo --task late-orders                            # ERP-06 verif
 uv run e-agent demo --task crm-lead --approve                     # ERP-07 lead
 uv run e-agent demo --task overdue-invoices                       # ERP-08 verified answer
 uv run e-agent plugins                    # discovered plugins (metadata only)
-uv run e-agent explain <run_id>           # a stored run's explanation (ids, versions, digests; no model call; durable-store profile)
+uv run e-agent --profile my-profile.json explain <run_id>  # a stored run's explanation as JSON (ids, versions, digests, statuses only; no model call)
 
 # Local model + fixture ERP qualification; pin existing weights/context explicitly
 ollama create e-agent-mvp-qwen3-coder-20261007 -f profiles/ollama-mvp.Modelfile
 uv run python scripts/qualify_model.py --model e-agent-mvp-qwen3-coder-20261007:latest --task draft-po --mode release --trials 10 --out evals/reports/draft-po.json
 # Repeat --task for shortage, recommend, amend-rfq, quotation, late-orders, crm-lead, overdue-invoices
 # Fixture/harness approval results do not satisfy the live human-approved release gate.
-uv run python scripts/release_report.py --out evals/reports/fixture-release.json   # 21-case fixture matrix: repairs, model tokens
-uv run python scripts/release_report.py --context-assembler shadow --out shadow.json # adds context columns (context.compared); fixture evidence
+uv run python scripts/release_report.py --out evals/reports/fixture-release.json   # 21-case fixture matrix: repair_rate, ends, per-case repairs and model_tokens
+uv run python scripts/release_report.py --context-assembler shadow --out shadow.json # adds the context columns (context.compared); fixture evidence
+uv run python scripts/release_report.py --kernel-repeat shadow --out shadow.json     # adds the repeat columns and repeat_disagreements
+uv run python scripts/release_report.py --grounded-answers shadow --out shadow.json  # adds the grounding columns and grounding_unresolved
+uv run python scripts/context_ablation.py --out evals/reports/phase3-context-ablation.json  # the corpus with context_assembler off and on; fixture only
 
 uv run ruff check . && uv run ruff format --check .
 uv run mypy
@@ -195,6 +198,27 @@ PY
 uv run e-agent --profile /tmp/plan-fixture.json demo --driver-mode two-step-plan            # prints every step, waits for approval
 uv run e-agent --profile /tmp/plan-fixture.json demo --driver-mode two-step-plan --approve  # one approval, two verified steps
 ```
+
+### Phase 3 toggles (cognition and context)
+
+Three profile toggles under `features`, each `off | shadow | on`, all `off` in every committed profile ([ADR 0031](docs/adr/0031-progress-ledger-and-reconstruction.md), [ADR 0032](docs/adr/0032-context-assembler.md), [ADR 0033](docs/adr/0033-explanation-and-grounded-answers.md)):
+
+- `features.context_assembler`: the kernel builds a budgeted, masked and fenced context pack for each driver call. `shadow` records `context.compared` (kernel token estimates of the pack against the same inputs unbounded) and the driver keeps its own history. `on` makes the driver render the pack; before the first write reservation a failure falls back to the driver history with `feature.fallback`, and after it the run fails closed (`CONTEXT_UNAVAILABLE`).
+- `features.kernel_repeat`: a write proposal whose digest equals an earlier validation-blocked one in the run, with the same facts, gets `KERNEL-REPEAT` without being validated again. `shadow` records `repeat.compared` and validates as today.
+- `features.grounded_answers`: answers carry citations and proposals a rationale, both checked against this run's recorded evidence and the rule inventory. `shadow` records `grounding.compared`; `on` makes a bad citation or rationale a repair finding (`KERNEL-CITATION`, `KERNEL-RATIONALE`) and admits the generic answer `grounded.answer.v1` for read-only questions. Such a run ends `SUCCEEDED` with reason code `GROUNDED`: grounded, not verified (PR-19).
+
+Each run pins its three modes when it starts, in the kernel continuation, so a profile change affects new runs only. Nothing is pinned when all three are `off`. `/health/ready` reports all four toggles under `features`, plus `data_boundary`, `data_boundary_basis` and `data_processing_declared` for the model route. The evidence bundle reports the same, plus the run's pinned `modes` (only when a mode is not `off`), `context` (the pack digest and drop log per driver turn, only for a run pinned `context_assembler: on`), `explanation` (every run) and `grounded_answer` (only after a `GROUNDED` end; free text outside the citations is labelled `unverified`).
+
+**Model route data boundary ([ADR 0030](docs/adr/0030-data-governance.md)).** The route's boundary is `local`, `hosted:<region>` or `hosted:unknown`, and readiness gives its basis:
+- `verified`: the scripted driver, or an `ollama` route on a literal loopback host (`localhost`, `127.0.0.0/8`, `::1`), also when the profile declares `local`;
+- `declared`: the operator set `driver.data_boundary` and it could not be verified (a LiteLLM route is never verified);
+- `default`: nothing declared and not loopback, so `hosted:unknown`.
+
+At startup a route that is not `local` is refused unless the profile has `data_processing` (`data_owner`, `legal_basis`, `region`) or sets `context_assembler: on`, so the route gets only the masked pack. `local_only: true` refuses every route that is not `local`, whatever the toggles say. A run not pinned `on` that resumes on such a route makes no model call and fails closed (`ROUTE_BOUNDARY_UNMET`).
+
+**Explanation.** `e-agent explain <run_id>` prints a stored run's explanation as JSON: goal, source facts, rules evaluated, proposal digest, approval, receipt and outcome, as ids, versions, digests and statuses only, with no observation values and no model call. It reads the run from the profile's store, so it needs a durable-store profile (Postgres); the fixture profile's in-memory store loses its runs when the process exits.
+
+**Fixture reports.** `scripts/release_report.py` writes `repair_rate` (the kernel's repair counter over attempts), `ends` (a `GROUNDED` end is counted apart from `verified`) and, per case, `repairs`, `model_tokens` (`unknown` with the scripted driver, never 0) and `reason_code`. `--context-assembler`, `--kernel-repeat` and `--grounded-answers` take `off` or `shadow` and add that toggle's columns. `scripts/context_ablation.py` runs the same corpus with `context_assembler` `off` and `on`. All of it is fixture evidence: the scripted driver proposes the same thing whatever its context, so equal outcomes show that the `on` path keeps the host safety path, not that typed state helps a model. That needs a qualified model run (ADR 0010).
 
 ### Model provider: Ollama (default) or LiteLLM (optional)
 

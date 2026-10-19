@@ -2,6 +2,17 @@
   "report": "e-agent-release-matrix-v1",
   "environment": "fixture",
   "note": "Deterministic host-path evidence (scripted driver, fake ERP). Not live model or live ERP evidence.",
+  "context_assembler": "off",
+  "kernel_repeat": "off",
+  "grounded_answers": "off",
+  "metrics_note": "repairs.rate is repairs / attempts: numerator is the kernel's repair counter; denominator is accepted + repaired + terminally refused attempts, so the rate is at most 1. repairs is cont.repairs read from the run's stored continuation at run end, the refusals the kernel returned to the driver within its repair budget, never derived from the events ('unknown' when the run stored none). accepted counts the kernel's success records: a first-step driver proposal its validation left VALIDATED and no verification failed, an answer that verified, and a GROUNDED end. terminal_refusals is 1 for a run that FAILED validation_failed or verification_failed; policy_denied is 1 for a run that FAILED policy_denied, and it is neither a repair nor a terminal refusal (D3-31, review 3f.2 R2). model_tokens is what the run's events record of the driver's token use ('unknown' when they record none, never 0). context is null when context_assembler is off. In shadow it holds the context.compared columns: pack_tokens and unbounded_tokens are the kernel estimator's sums over the run's driver turns, not model-reported tokens. In on it holds the context.assembled columns: the packs built (one per driver call, acknowledgement turns included), their estimated tokens and drops, and the calls that fell back to the driver's history. repeat is null unless kernel_repeat is shadow; a disagreement is a write proposal the repeat rule would have short-circuited whose validation then gave other findings. grounding is null unless grounded_answers is shadow; it sums the citation and rationale-ref counts of the run's grounding.compared events, and grounding_unresolved is every unresolved or mismatched citation and unresolved rationale ref.",
+  "repair_rate": 0.3824,
+  "repeat_disagreements": null,
+  "grounding_unresolved": null,
+  "ends": {
+    "failed": 4,
+    "verified": 17
+  },
   "versions": {
     "distributions": {
       "e-agent-adapter-agent-pydantic": "0.1.0",
@@ -74,11 +85,24 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "answered",
+      "reason_code": "answered",
       "outcomes": [
         "VERIFIED"
       ],
       "first_blocked_rules": [],
       "provider_write_calls": 0,
+      "repairs": {
+        "attempts": 1,
+        "repairs": 0,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.0
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -94,12 +118,25 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "answered",
+      "reason_code": "answered",
       "outcomes": [
         "FAILED",
         "VERIFIED"
       ],
       "first_blocked_rules": [],
       "provider_write_calls": 0,
+      "repairs": {
+        "attempts": 2,
+        "repairs": 1,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.5
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -115,11 +152,24 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "answered",
+      "reason_code": "answered",
       "outcomes": [
         "VERIFIED"
       ],
       "first_blocked_rules": [],
       "provider_write_calls": 0,
+      "repairs": {
+        "attempts": 1,
+        "repairs": 0,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.0
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -135,11 +185,24 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "outcome verified",
+      "reason_code": "verified",
       "outcomes": [
         "VERIFIED"
       ],
       "first_blocked_rules": [],
       "provider_write_calls": 1,
+      "repairs": {
+        "attempts": 1,
+        "repairs": 0,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.0
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -155,6 +218,7 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "outcome verified",
+      "reason_code": "verified",
       "outcomes": [
         "VERIFIED"
       ],
@@ -162,6 +226,18 @@
         "PR-003"
       ],
       "provider_write_calls": 1,
+      "repairs": {
+        "attempts": 2,
+        "repairs": 1,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.5
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -177,11 +253,24 @@
       "scenario": "over-budget",
       "final_state": "FAILED",
       "reason": "validation blocked",
+      "reason_code": "validation_failed",
       "outcomes": [],
       "first_blocked_rules": [
         "PR-004"
       ],
       "provider_write_calls": 0,
+      "repairs": {
+        "attempts": 3,
+        "repairs": 2,
+        "accepted": 0,
+        "terminal_refusals": 1,
+        "policy_denied": 0,
+        "rate": 0.6667
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -197,9 +286,22 @@
       "scenario": "valid",
       "final_state": "FAILED",
       "reason": "rejected by approver",
+      "reason_code": "approval_rejected",
       "outcomes": [],
       "first_blocked_rules": [],
       "provider_write_calls": 0,
+      "repairs": {
+        "attempts": 1,
+        "repairs": 0,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.0
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -215,11 +317,24 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "outcome verified",
+      "reason_code": "verified",
       "outcomes": [
         "VERIFIED"
       ],
       "first_blocked_rules": [],
       "provider_write_calls": 1,
+      "repairs": {
+        "attempts": 1,
+        "repairs": 0,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.0
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -235,11 +350,24 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "outcome verified",
+      "reason_code": "verified",
       "outcomes": [
         "VERIFIED"
       ],
       "first_blocked_rules": [],
       "provider_write_calls": 1,
+      "repairs": {
+        "attempts": 1,
+        "repairs": 0,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.0
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -255,6 +383,7 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "outcome verified",
+      "reason_code": "verified",
       "outcomes": [
         "VERIFIED"
       ],
@@ -262,6 +391,18 @@
         "AM-002"
       ],
       "provider_write_calls": 1,
+      "repairs": {
+        "attempts": 2,
+        "repairs": 1,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.5
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -277,11 +418,24 @@
       "scenario": "rfq-confirmed",
       "final_state": "FAILED",
       "reason": "validation blocked",
+      "reason_code": "validation_failed",
       "outcomes": [],
       "first_blocked_rules": [
         "AM-001"
       ],
       "provider_write_calls": 0,
+      "repairs": {
+        "attempts": 3,
+        "repairs": 2,
+        "accepted": 0,
+        "terminal_refusals": 1,
+        "policy_denied": 0,
+        "rate": 0.6667
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -297,11 +451,24 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "outcome verified",
+      "reason_code": "verified",
       "outcomes": [
         "VERIFIED"
       ],
       "first_blocked_rules": [],
       "provider_write_calls": 1,
+      "repairs": {
+        "attempts": 1,
+        "repairs": 0,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.0
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -317,6 +484,7 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "outcome verified",
+      "reason_code": "verified",
       "outcomes": [
         "VERIFIED"
       ],
@@ -324,6 +492,18 @@
         "SQ-003"
       ],
       "provider_write_calls": 1,
+      "repairs": {
+        "attempts": 2,
+        "repairs": 1,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.5
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -339,11 +519,24 @@
       "scenario": "unsaleable-product",
       "final_state": "FAILED",
       "reason": "validation blocked",
+      "reason_code": "validation_failed",
       "outcomes": [],
       "first_blocked_rules": [
         "SQ-002"
       ],
       "provider_write_calls": 0,
+      "repairs": {
+        "attempts": 3,
+        "repairs": 2,
+        "accepted": 0,
+        "terminal_refusals": 1,
+        "policy_denied": 0,
+        "rate": 0.6667
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -359,11 +552,24 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "answered",
+      "reason_code": "answered",
       "outcomes": [
         "VERIFIED"
       ],
       "first_blocked_rules": [],
       "provider_write_calls": 0,
+      "repairs": {
+        "attempts": 1,
+        "repairs": 0,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.0
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -379,12 +585,25 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "answered",
+      "reason_code": "answered",
       "outcomes": [
         "FAILED",
         "VERIFIED"
       ],
       "first_blocked_rules": [],
       "provider_write_calls": 0,
+      "repairs": {
+        "attempts": 2,
+        "repairs": 1,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.5
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -400,11 +619,24 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "outcome verified",
+      "reason_code": "verified",
       "outcomes": [
         "VERIFIED"
       ],
       "first_blocked_rules": [],
       "provider_write_calls": 1,
+      "repairs": {
+        "attempts": 1,
+        "repairs": 0,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.0
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -420,6 +652,7 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "outcome verified",
+      "reason_code": "verified",
       "outcomes": [
         "VERIFIED"
       ],
@@ -427,6 +660,18 @@
         "CL-002"
       ],
       "provider_write_calls": 1,
+      "repairs": {
+        "attempts": 2,
+        "repairs": 1,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.5
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -442,11 +687,24 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "outcome verified",
+      "reason_code": "verified",
       "outcomes": [
         "VERIFIED"
       ],
       "first_blocked_rules": [],
       "provider_write_calls": 1,
+      "repairs": {
+        "attempts": 1,
+        "repairs": 0,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.0
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -462,11 +720,24 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "answered",
+      "reason_code": "answered",
       "outcomes": [
         "VERIFIED"
       ],
       "first_blocked_rules": [],
       "provider_write_calls": 0,
+      "repairs": {
+        "attempts": 1,
+        "repairs": 0,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.0
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
@@ -482,12 +753,25 @@
       "scenario": "valid",
       "final_state": "SUCCEEDED",
       "reason": "answered",
+      "reason_code": "answered",
       "outcomes": [
         "FAILED",
         "VERIFIED"
       ],
       "first_blocked_rules": [],
       "provider_write_calls": 0,
+      "repairs": {
+        "attempts": 2,
+        "repairs": 1,
+        "accepted": 1,
+        "terminal_refusals": 0,
+        "policy_denied": 0,
+        "rate": 0.5
+      },
+      "model_tokens": "unknown",
+      "context": null,
+      "repeat": null,
+      "grounding": null,
       "checks": {
         "final_state": true,
         "outcomes": true,
