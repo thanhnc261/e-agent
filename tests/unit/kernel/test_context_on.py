@@ -29,6 +29,7 @@ from e_agent.contracts.context import TaskContext
 from e_agent.contracts.context_pack import (
     ContextLayer,
     ContextPack,
+    DroppedKind,
     DroppedReason,
     tool_return_text,
 )
@@ -854,3 +855,45 @@ async def test_numeric_dict_key_never_reaches_the_event_or_bundle(
     for text in (json.dumps(assembled), json.dumps(bundle["context"])):
         assert "123456789" not in text
         assert "SEEDED" not in text
+
+
+@pytest.mark.parametrize("shape", ["dict", "list"])
+async def test_a_numeric_dict_key_is_never_classed_as_a_list_index(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch, shape: str
+) -> None:
+    """Only a list index maps to ``items`` (review round 4). With ``/output/by_id/items``
+    declared public, a dict under ``by_id`` keyed ``"123"`` holding a personal value is an
+    undeclared key on an undeclared hosted route: key and value are left out of the pack and
+    its rendering, logged under ``by_id`` (D3-12). A list at the same path still resolves to
+    ``items`` and is kept."""
+    driver = PackNotesDriver(texts=["standup notes"])
+    k = make_kernel(features=ON, route=HOSTED_UNDECLARED, driver=driver)
+    monkeypatch.setattr(
+        k.coordinator._registry,
+        "data_classes",
+        lambda _cid: {"/output/by_id/items": DataClass.PUBLIC},
+    )
+    by_id: Any = {"123": "SEEDED-PERSONAL"} if shape == "dict" else ["SEEDED-LISTED"]
+    original = k.backend.read
+
+    async def keyed(*args: Any) -> Any:
+        return dataclasses.replace(await original(*args), data={"by_id": by_id})
+
+    monkeypatch.setattr(k.backend, "read", keyed)
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+    assert run.state is RunState.WAITING_APPROVAL, run.reason
+    [pack, *_] = [st.context for st in driver.seen if st.context is not None and st.observations]
+    [observation] = pack.observations
+    evidence_id = observation.evidence.evidence_id
+    text = pack.model_dump_json()  # the observations and every rendered layer
+    if shape == "dict":
+        assert observation.data == {"by_id": {}}
+        assert observation.masked
+        assert "123" not in text.replace(evidence_id, "")
+        assert "SEEDED" not in text
+        drops = [(d.kind, d.ref, d.reason) for d in pack.dropped]
+        assert (DroppedKind.VALUE, f"{evidence_id}#/by_id", DroppedReason.CLASS_ROUTE) in drops
+    else:
+        assert observation.data == {"by_id": ["SEEDED-LISTED"]}
+        assert not observation.masked
+        assert "SEEDED-LISTED" in text

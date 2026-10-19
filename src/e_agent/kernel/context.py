@@ -178,7 +178,7 @@ class _Walker:
             unnamed = False
             for key, item in value.items():
                 name = _key(key)
-                child = (*tokens, dc.instance_token(name))
+                child = (*tokens, name)  # a dict key is itself, numeric or not, never `items`
                 if not self.index.named(child) and self.rules[dc.UNMARKED_CLASS] is not KEEP:
                     unnamed = True  # the key may be data: the entry is left out (D3-12)
                     continue
