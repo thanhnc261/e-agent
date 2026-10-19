@@ -37,7 +37,7 @@ from ..receivables.overdue import overdue
 from ..sales import CREATE_DRAFT_QUOTATION, LATE_ORDERS_ANSWER, OPEN_ORDERS_READ, PRICING_READ
 from ..sales.api import OpenOrders
 from ..sales.late_orders import late_orders
-from .scripted_driver import ScriptedProcurementDriver
+from .scripted_driver import OUTSIDE_TOOL_SET, ScriptedProcurementDriver
 
 PROCUREMENT_KINDS = {"draft-po", "shortage", "recommend"}
 TWO_STEP_PLAN = "two-step-plan"
@@ -80,7 +80,6 @@ class ScriptedErpDriver:
     refs: Mapping[str, str] = field(default_factory=dict)
     """Overrides of the preset refs; the procurement tasks read demand_ref and product_ref."""
     driver_id: str = "scripted-erp-driver"
-    _attempts: dict[str, int] = field(default_factory=dict)
     _procurement: ScriptedProcurementDriver | None = None
 
     def __post_init__(self) -> None:
@@ -108,18 +107,27 @@ class ScriptedErpDriver:
     def ref(self, name: str) -> str:
         return {**DEFAULT_REFS, **self.refs}[name]
 
-    def _read(self, *reads: tuple[str, str, dict[str, Any]]) -> RequestReads:
-        return RequestReads(
-            reads=tuple(
-                ReadRequest(
-                    request_id=rid,
-                    contract_id=cid,
-                    connection_id=self.connection_id,
-                    arguments=args,
-                )
-                for rid, cid, args in reads
+    @staticmethod
+    def _allowed(step_input: DriverInput, contract_id: str) -> bool:
+        """Whether the run's tool set (``allowed_capabilities``; None: every tool) holds it."""
+        allowed = step_input.allowed_capabilities
+        return allowed is None or contract_id in allowed
+
+    def _read(
+        self, step_input: DriverInput, *reads: tuple[str, str, dict[str, Any]]
+    ) -> RequestReads | FinalAnswer:
+        """The reads the run's tool set holds; never an empty read request."""
+        allowed = tuple(
+            ReadRequest(
+                request_id=rid,
+                contract_id=cid,
+                connection_id=self.connection_id,
+                arguments=args,
             )
+            for rid, cid, args in reads
+            if self._allowed(step_input, cid)
         )
+        return RequestReads(reads=allowed) if allowed else FinalAnswer(text=OUTSIDE_TOOL_SET)
 
     def _propose(
         self, contract_id: str, arguments: dict[str, Any], effect: str = ""
@@ -133,12 +141,16 @@ class ScriptedErpDriver:
             )
         )
 
-    def _bad_first(self, ctx: TaskContext) -> bool:
-        attempt = self._attempts.get(ctx.run_id, 0)
-        self._attempts[ctx.run_id] = attempt + 1
+    def _bad_first(self, step_input: DriverInput) -> bool:
+        """The repair is the turn that carries findings, so the driver keeps no state and a
+        fresh instance (the kernel's resume of a driver without ``snapshot``) returns what
+        the original would (Task 3f.1)."""
         if self.mode == "always-invalid":
             return True
-        return self.mode in {"invalid-then-repair", "wrong-answer-then-correct"} and attempt == 0
+        return (
+            self.mode in {"invalid-then-repair", "wrong-answer-then-correct"}
+            and not step_input.findings
+        )
 
     @staticmethod
     def _data(observations: tuple[Observation, ...], contract_id: str) -> Mapping[str, Any] | None:
@@ -154,20 +166,20 @@ class ScriptedErpDriver:
         if step_input.action_result is not None:
             refs = ", ".join(step_input.action_result.get("external_refs", []))
             return FinalAnswer(text=f"Done and verified by the host. {refs}".strip())
-        obs = step_input.observations
-        step: DriverStep = getattr(self, "_" + self.task_kind.replace("-", "_"))(ctx, obs)
+        step: DriverStep = getattr(self, "_" + self.task_kind.replace("-", "_"))(step_input)
         return step
 
     # -- ERP-04 ----------------------------------------------------------------
-    def _amend_rfq(self, ctx: TaskContext, obs: tuple[Observation, ...]) -> DriverStep:
+    def _amend_rfq(self, step_input: DriverInput) -> DriverStep:
+        obs = step_input.observations
         rfq = self._data(obs, DRAFT_RFQ_READ)
         if not obs:
             return self._read(
-                ("r-rfq", DRAFT_RFQ_READ, {"purchase_order_ref": self.ref("rfq_ref")})
+                step_input, ("r-rfq", DRAFT_RFQ_READ, {"purchase_order_ref": self.ref("rfq_ref")})
             )
         if rfq is None:
             return FinalAnswer(text="The RFQ could not be read; nothing was changed.")
-        stale = self._bad_first(ctx)
+        stale = self._bad_first(step_input)
         return self._propose(
             AMEND_DRAFT_RFQ,
             {
@@ -180,17 +192,18 @@ class ScriptedErpDriver:
         )
 
     # -- ERP-05 ----------------------------------------------------------------
-    def _quotation(self, ctx: TaskContext, obs: tuple[Observation, ...]) -> DriverStep:
+    def _quotation(self, step_input: DriverInput) -> DriverStep:
+        obs = step_input.observations
         if not obs:
             args = {
                 "customer_ref": self.ref("customer_ref"),
                 "product_ref": self.ref("product_ref"),
             }
-            return self._read(("r-pricing", PRICING_READ, args))
+            return self._read(step_input, ("r-pricing", PRICING_READ, args))
         p = self._data(obs, PRICING_READ)
         if p is None:
             return FinalAnswer(text="Pricing could not be read; no quotation proposed.")
-        price = Decimal(p["list_price"]) - (10 if self._bad_first(ctx) else 0)
+        price = Decimal(p["list_price"]) - (10 if self._bad_first(step_input) else 0)
         qty = Decimal(3)
         return self._propose(
             CREATE_DRAFT_QUOTATION,
@@ -207,14 +220,16 @@ class ScriptedErpDriver:
         )
 
     # -- ERP-06 ----------------------------------------------------------------
-    def _late_orders(self, ctx: TaskContext, obs: tuple[Observation, ...]) -> DriverStep:
+    def _late_orders(self, step_input: DriverInput) -> DriverStep:
+        obs = step_input.observations
         if not obs:
-            return self._read(("r-orders", OPEN_ORDERS_READ, {"as_of": self.ref("as_of")}))
+            args = {"as_of": self.ref("as_of")}
+            return self._read(step_input, ("r-orders", OPEN_ORDERS_READ, args))
         data = self._data(obs, OPEN_ORDERS_READ)
         if data is None:
             return FinalAnswer(text="Orders could not be read.")
         late = late_orders(OpenOrders.model_validate(data))
-        if self._bad_first(ctx):
+        if self._bad_first(step_input):
             late = late[:-1]
         return self._propose(
             LATE_ORDERS_ANSWER,
@@ -226,13 +241,15 @@ class ScriptedErpDriver:
         )
 
     # -- ERP-07 ----------------------------------------------------------------
-    def _crm_lead(self, ctx: TaskContext, obs: tuple[Observation, ...]) -> DriverStep:
-        if not obs:
+    def _crm_lead(self, step_input: DriverInput) -> DriverStep:
+        if not step_input.observations:
             return self._read(
+                step_input,
                 ("r-contact", CONTACT_READ, {"contact_ref": self.ref("contact_ref")}),
                 ("r-teams", TEAMS_READ, {}),
             )
-        owner = self.ref("other_owner_ref") if self._bad_first(ctx) else self.ref("owner_ref")
+        bad = self._bad_first(step_input)
+        owner = self.ref("other_owner_ref") if bad else self.ref("owner_ref")
         return self._propose(
             CREATE_LEAD,
             {
@@ -247,15 +264,17 @@ class ScriptedErpDriver:
         )
 
     # -- ERP-08 ----------------------------------------------------------------
-    def _overdue_invoices(self, ctx: TaskContext, obs: tuple[Observation, ...]) -> DriverStep:
+    def _overdue_invoices(self, step_input: DriverInput) -> DriverStep:
+        obs = step_input.observations
         if not obs:
-            return self._read(("r-invoices", OPEN_INVOICES_READ, {"as_of": self.ref("as_of")}))
+            args = {"as_of": self.ref("as_of")}
+            return self._read(step_input, ("r-invoices", OPEN_INVOICES_READ, args))
         data = self._data(obs, OPEN_INVOICES_READ)
         if data is None:
             return FinalAnswer(text="Invoices could not be read.")
         refs, totals = overdue(OpenInvoices.model_validate(data))
         rows = [t.model_dump() for t in totals]
-        if self._bad_first(ctx) and rows:
+        if self._bad_first(step_input) and rows:
             rows[0] = {**rows[0], "total": format_decimal(Decimal(rows[0]["total"]) + 1)}
         return self._propose(
             OVERDUE_INVOICES_ANSWER,

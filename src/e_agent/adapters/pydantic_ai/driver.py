@@ -37,6 +37,11 @@ run's pin, decides the offer per call; the driver never reads the profile (D8). 
 ``off``, answer tools offer ``citations``, write tools and the plan tool ``rationale``, and
 ``cite_and_answer`` adds the generic grounded answer (`grounding`). With ``off`` every tool
 schema and instruction is today's.
+
+Budget and silence (Task 3f.1, driver conformance): once a run's model tokens reach
+``max_model_tokens``, every turn raises `DriverBudgetExceeded` before any model request, and
+a reply with no public text on a turn that carries findings is a clarification, never an
+empty answer.
 """
 
 from __future__ import annotations
@@ -188,6 +193,9 @@ SUFFIX_HEADER = (
 PACK_FEEDBACK_PROMPT = "Host validation feedback is in this turn's host context."
 """The persisted prompt of a pack turn that carries findings and no tool result."""
 PACK_BLOCKED_DETAILS = "this turn's host context"
+NO_USABLE_REQUEST = "The model made no usable tool request."
+"""The clarification a turn returns when the model's reply gives the host nothing to act on:
+no usable tool call, or, after a finding, no public text (never an empty answer)."""
 PACK_READ_ERROR = "the read failed; its error is in this turn's host context"
 
 
@@ -513,6 +521,8 @@ class PydanticAiDriver:
     # -- driving ----------------------------------------------------------------
     async def advance(self, ctx: TaskContext, step_input: DriverInput) -> DriverStep:
         st = self._runs.setdefault(ctx.run_id, _RunState())
+        if st.tokens >= ctx.budgets.max_model_tokens:  # spent: no further model request
+            raise DriverBudgetExceeded("model usage limit")
         pack = step_input.context
         if pack is not None:
             st.rendering = PACK_RENDERING
@@ -611,7 +621,10 @@ class PydanticAiDriver:
         st.pending_reads, st.pending_write, st.pending_input, st.rejected = {}, None, None, {}
         output = result.output
         if isinstance(output, str):
-            return FinalAnswer(text=_public_text(output))
+            text = _public_text(output)
+            if step_input.findings and not text.strip():  # a finding never meets silence
+                return AskClarification(question=NO_USABLE_REQUEST)
+            return FinalAnswer(text=text)
         return self._plan_step(st, output, self._plan_step_tools(ctx, allowed), grounding)
 
     def _cite_tools(self) -> ExternalToolset[Any]:
@@ -917,12 +930,12 @@ class PydanticAiDriver:
                 plan = self._plan_from_call(item, plan_tools, cited)
                 if isinstance(plan, str):
                     st.rejected[call_id] = plan
-                    return AskClarification(question="The model made no usable tool request.")
+                    return AskClarification(question=NO_USABLE_REQUEST)
                 st.pending_write = call_id
                 return ProposePlan(plan=plan)
             st.pending_write = call_id
             return ProposeAction(proposal=item)
-        return AskClarification(question="The model made no usable tool request.")
+        return AskClarification(question=NO_USABLE_REQUEST)
 
     def _plan_from_call(
         self, args: Mapping[str, Any], plan_tools: tuple[str, ...], cited: bool = False

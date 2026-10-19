@@ -8,12 +8,17 @@ the facts cannot be read from (masked or cut) counts as missing too.
 Grounding (ADR 0033 §5): when the kernel offers it (``DriverInput.grounding`` is not ``off``),
 an answer cites the read values it was computed from, by evidence id and RFC 6901 pointer,
 and a draft PO carries a rationale naming the reads and the procedural rules. With ``off``
-the proposals are today's."""
+the proposals are today's.
+
+Driver conformance (Task 3f.1): it reads only tools in ``DriverInput.allowed_capabilities``
+when the kernel sets it, and it keeps no state between turns: the repair of
+``invalid-then-repair`` is the turn that carries findings, so a fresh instance (the kernel's
+resume of a driver without ``snapshot``) returns what the original would."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
@@ -46,6 +51,7 @@ from ..procurement.normalizer import collect_facts
 from .fixture_validator import RULE_INVENTORY
 
 _READS = {"r-demand": DEMAND_READ, "r-stock": AVAILABILITY_READ, "r-offers": OFFERS_READ}
+OUTSIDE_TOOL_SET = "The reads this task needs are outside the run's tool set; nothing proposed."
 
 
 @dataclass
@@ -56,7 +62,6 @@ class ScriptedProcurementDriver:
     demand_ref: str = "demand:d-001"
     product_ref: str = "product:widget-a"
     driver_id: str = "scripted-procurement-driver"
-    _proposed: dict[str, int] = field(default_factory=dict)
 
     async def advance(self, ctx: TaskContext, step_input: DriverInput) -> DriverStep:
         if step_input.action_result is not None:
@@ -65,17 +70,20 @@ class ScriptedProcurementDriver:
             refs = ", ".join(step_input.action_result.get("external_refs", []))
             return FinalAnswer(text=f"Created and verified draft purchase order {refs}.")
         if not step_input.observations:
-            return RequestReads(
-                reads=tuple(
-                    ReadRequest(
-                        request_id=rid,
-                        contract_id=cid,
-                        connection_id=self.connection_id,
-                        arguments={"product_ref": self.product_ref, "demand_ref": self.demand_ref},
-                    )
-                    for rid, cid in _READS.items()
+            allowed = step_input.allowed_capabilities  # the run's tool set; None: every tool
+            reads = tuple(
+                ReadRequest(
+                    request_id=rid,
+                    contract_id=cid,
+                    connection_id=self.connection_id,
+                    arguments={"product_ref": self.product_ref, "demand_ref": self.demand_ref},
                 )
+                for rid, cid in _READS.items()
+                if allowed is None or cid in allowed
             )
+            if not reads:  # never an empty read request
+                return FinalAnswer(text=OUTSIDE_TOOL_SET)
+            return RequestReads(reads=reads)
         observed = list(_observed(step_input))
         grounded = step_input.grounding is not GroundingOffer.OFF
         try:
@@ -86,17 +94,21 @@ class ScriptedProcurementDriver:
                 raise
             # a rendering the facts cannot be read from (masked or cut) is a missing fact
             return FinalAnswer(text="Required facts are missing; no action proposed.")
-        if facts.demand is None or facts.offers is None or required is None:
+        # the shortage needs no offers; a proposal that names one does
+        needs_offers = self.task_kind == "recommend" or (
+            self.task_kind == "draft-po" and required != 0
+        )
+        if facts.demand is None or required is None or (needs_offers and facts.offers is None):
             return FinalAnswer(text="Required facts are missing; no action proposed.")
         cites = _Cites(observed) if grounded else None
         if self.task_kind != "draft-po":
             return self._answer(ctx, facts, required, bool(step_input.findings), cites)
         if required == 0:
             return self._answer(ctx, facts, required, bool(step_input.findings), cites)
-        attempt = self._proposed.get(ctx.run_id, 0)
-        self._proposed[ctx.run_id] = attempt + 1
+        assert facts.offers is not None
+        # the repair is the turn that carries findings, so a fresh driver resumes alike
         bad_first = self.mode == "always-invalid" or (
-            self.mode == "invalid-then-repair" and attempt == 0
+            self.mode == "invalid-then-repair" and not step_input.findings
         )
         offers = sorted(facts.offers.offers, key=lambda o: Decimal(o.unit_price))
         offer: Offer = (
