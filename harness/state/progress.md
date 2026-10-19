@@ -634,3 +634,8 @@
 - changed: harness/state/3/features.json, harness/state/3/handoffs/3a.2.json, harness/state/evidence/gates/3a.2/2026-10-19T06-40-56.681089+00-00-full.json
 - next: Task 3b.1: route data boundary and the startup rule
 - open: none
+
+## 2026-10-19T06:55:44.407792+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3b.1
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3b.1.json, harness/state/evidence/gates/3b.1/2026-10-19T06-54-11.575839+00-00-full.json
+- next: Task 3b.2: Phase 3 toggles, per-run pinning, ERP off golden
+- open: none

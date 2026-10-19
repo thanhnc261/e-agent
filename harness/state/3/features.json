@@ -32,7 +32,8 @@
         "test_route_boundary.py passes, including loopback verified, hosted:unknown default and the startup refusal",
         "committed profiles start; full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3b.1/2026-10-19T06-54-11.575839+00-00-full.json"
     },
     {
       "id": "F-3b-2",
