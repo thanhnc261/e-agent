@@ -10,28 +10,66 @@
       "effect": "read",
       "input_schema_id": "inventory.AvailabilityQuery.v1",
       "output_schema_id": "inventory.Availability.v1",
-      "description": "Available and inbound quantity for one product in the scoped warehouse"
+      "description": "Available and inbound quantity for one product in the scoped warehouse",
+      "data_classes": {
+        "/input/properties/product_ref": "internal",
+        "/output/properties/product_ref": "internal",
+        "/output/properties/available": "internal",
+        "/output/properties/inbound": "internal",
+        "/output/properties/unit": "internal"
+      }
     },
     {
       "contract_id": "procurement.demand.read.v1",
       "effect": "read",
       "input_schema_id": "procurement.DemandQuery.v1",
       "output_schema_id": "procurement.Demand.v1",
-      "description": "One procurement demand with requested date and budget"
+      "description": "One procurement demand with requested date and budget",
+      "data_classes": {
+        "/input/properties/demand_ref": "internal",
+        "/output/properties/demand_ref": "internal",
+        "/output/properties/product_ref": "internal",
+        "/output/properties/quantity": "internal",
+        "/output/properties/unit": "internal",
+        "/output/properties/requested_date": "internal",
+        "/output/properties/budget": "internal",
+        "/output/properties/currency": "internal"
+      }
     },
     {
       "contract_id": "procurement.open-demands.read.v1",
       "effect": "read",
       "input_schema_id": "procurement.OpenDemandsQuery.v1",
       "output_schema_id": "procurement.OpenDemands.v1",
-      "description": "List open procurement demands with their exact demand and product references; use it first when the user gives no demand reference"
+      "description": "List open procurement demands with their exact demand and product references; use it first when the user gives no demand reference",
+      "data_classes": {
+        "/output/properties/demands/items/properties/demand_ref": "internal",
+        "/output/properties/demands/items/properties/product_ref": "internal",
+        "/output/properties/demands/items/properties/product_name": "internal",
+        "/output/properties/demands/items/properties/quantity": "internal",
+        "/output/properties/demands/items/properties/unit": "internal",
+        "/output/properties/demands/items/properties/requested_date": "internal",
+        "/output/properties/complete": "internal"
+      }
     },
     {
       "contract_id": "procurement.offers.read.v1",
       "effect": "read",
       "input_schema_id": "procurement.OfferQuery.v1",
       "output_schema_id": "procurement.Offers.v1",
-      "description": "Supplier offers for a product, including approval status"
+      "description": "Supplier offers for a product, including approval status",
+      "data_classes": {
+        "/input/properties/product_ref": "internal",
+        "/output/properties/product_ref": "internal",
+        "/output/properties/offers/items/properties/offer_ref": "internal",
+        "/output/properties/offers/items/properties/supplier_ref": "internal",
+        "/output/properties/offers/items/properties/product_ref": "internal",
+        "/output/properties/offers/items/properties/unit_price": "internal",
+        "/output/properties/offers/items/properties/currency": "internal",
+        "/output/properties/offers/items/properties/unit": "internal",
+        "/output/properties/offers/items/properties/approved": "internal",
+        "/output/properties/offers/items/properties/delivery_date": "internal"
+      }
     },
     {
       "contract_id": "procurement.purchase-order.create-draft.v1",
@@ -40,7 +78,19 @@
       "output_schema_id": "procurement.DraftPurchaseOrderRef.v1",
       "description": "Create exactly one draft purchase order; never confirms",
       "risk": "write_low",
-      "reversibility": "irreversible"
+      "reversibility": "irreversible",
+      "data_classes": {
+        "/input/properties/demand_ref": "internal",
+        "/input/properties/product_ref": "internal",
+        "/input/properties/supplier_ref": "internal",
+        "/input/properties/offer_ref": "internal",
+        "/input/properties/quantity": "internal",
+        "/input/properties/unit": "internal",
+        "/input/properties/currency": "internal",
+        "/input/properties/unit_price": "internal",
+        "/input/properties/subtotal": "internal",
+        "/input/properties/requested_date": "internal"
+      }
     },
     {
       "contract_id": "procurement.purchase-order.read.v1",
@@ -48,28 +98,74 @@
       "input_schema_id": "procurement.PurchaseOrderQuery.v1",
       "output_schema_id": "procurement.PurchaseOrders.v1",
       "description": "Read purchase orders by host operation key (verification read-back)",
-      "agent_visible": false
+      "agent_visible": false,
+      "data_classes": {
+        "/input/properties/operation_key": "internal",
+        "/output/properties/orders/items/properties/external_ref": "internal",
+        "/output/properties/orders/items/properties/operation_key": "internal",
+        "/output/properties/orders/items/properties/state": "internal",
+        "/output/properties/orders/items/properties/purchase_order_ref": "internal",
+        "/output/properties/orders/items/properties/requested_date": "internal",
+        "/output/properties/orders/items/properties/line_count": "internal",
+        "/output/properties/orders/items/properties/product_ref": "internal",
+        "/output/properties/orders/items/properties/supplier_ref": "internal",
+        "/output/properties/orders/items/properties/quantity": "internal",
+        "/output/properties/orders/items/properties/unit": "internal",
+        "/output/properties/orders/items/properties/currency": "internal",
+        "/output/properties/orders/items/properties/unit_price": "internal",
+        "/output/properties/orders/items/properties/subtotal": "internal"
+      }
     },
     {
       "contract_id": "procurement.shortage.answer.v1",
       "effect": "answer",
       "input_schema_id": "procurement.ShortageAnswer.v1",
       "output_schema_id": "procurement.VerifiedAnswer.v1",
-      "description": "Report demand, available and inbound quantity and the resulting shortage; the host verifies it against fresh reads"
+      "description": "Report demand, available and inbound quantity and the resulting shortage; the host verifies it against fresh reads",
+      "data_classes": {
+        "/input/properties/demand_ref": "internal",
+        "/input/properties/product_ref": "internal",
+        "/input/properties/demand_quantity": "internal",
+        "/input/properties/available": "internal",
+        "/input/properties/inbound": "internal",
+        "/input/properties/shortage": "internal"
+      }
     },
     {
       "contract_id": "procurement.offer.recommend.v1",
       "effect": "answer",
       "input_schema_id": "procurement.OfferRecommendation.v1",
       "output_schema_id": "procurement.VerifiedAnswer.v1",
-      "description": "Recommend the eligible supplier offer for a demand (or none); the host verifies it independently"
+      "description": "Recommend the eligible supplier offer for a demand (or none); the host verifies it independently",
+      "data_classes": {
+        "/input/properties/demand_ref": "internal",
+        "/input/properties/product_ref": "internal",
+        "/input/properties/offer_ref": "internal",
+        "/input/properties/supplier_ref": "internal",
+        "/input/properties/unit_price": "internal",
+        "/input/properties/explanation": "personal"
+      }
     },
     {
       "contract_id": "procurement.draft-rfq.read.v1",
       "effect": "read",
       "input_schema_id": "procurement.DraftRfqQuery.v1",
       "output_schema_id": "procurement.DraftRfq.v1",
-      "description": "One draft request for quotation with its current lines and optimistic revision"
+      "description": "One draft request for quotation with its current lines and optimistic revision",
+      "data_classes": {
+        "/input/properties/purchase_order_ref": "internal",
+        "/output/properties/purchase_order_ref": "internal",
+        "/output/properties/external_ref": "internal",
+        "/output/properties/state": "internal",
+        "/output/properties/revision": "internal",
+        "/output/properties/supplier_ref": "internal",
+        "/output/properties/product_ref": "internal",
+        "/output/properties/quantity": "internal",
+        "/output/properties/unit": "internal",
+        "/output/properties/unit_price": "internal",
+        "/output/properties/currency": "internal",
+        "/output/properties/requested_date": "internal"
+      }
     },
     {
       "contract_id": "procurement.draft-rfq.amend.v1",
@@ -78,14 +174,32 @@
       "output_schema_id": "procurement.DraftPurchaseOrderRef.v1",
       "description": "Change quantity and/or requested date of one draft RFQ at the revision that was read; never confirms",
       "risk": "write_high",
-      "reversibility": "irreversible"
+      "reversibility": "irreversible",
+      "data_classes": {
+        "/input/properties/purchase_order_ref": "internal",
+        "/input/properties/expected_revision": "internal",
+        "/input/properties/quantity": "internal",
+        "/input/properties/requested_date": "internal"
+      }
     },
     {
       "contract_id": "sales.pricing.read.v1",
       "effect": "read",
       "input_schema_id": "sales.PricingQuery.v1",
       "output_schema_id": "sales.Pricing.v1",
-      "description": "Whether a customer can be quoted and the product's list price, unit and currency"
+      "description": "Whether a customer can be quoted and the product's list price, unit and currency",
+      "data_classes": {
+        "/input/properties/customer_ref": "internal",
+        "/input/properties/product_ref": "internal",
+        "/output/properties/customer_ref": "internal",
+        "/output/properties/customer_name": "personal",
+        "/output/properties/customer_active": "internal",
+        "/output/properties/product_ref": "internal",
+        "/output/properties/product_saleable": "internal",
+        "/output/properties/list_price": "internal",
+        "/output/properties/currency": "internal",
+        "/output/properties/unit": "internal"
+      }
     },
     {
       "contract_id": "sales.quotation.create-draft.v1",
@@ -94,7 +208,16 @@
       "output_schema_id": "sales.QuotationRef.v1",
       "description": "Create one draft customer quotation; never confirms, emails or delivers",
       "risk": "write_low",
-      "reversibility": "irreversible"
+      "reversibility": "irreversible",
+      "data_classes": {
+        "/input/properties/customer_ref": "internal",
+        "/input/properties/product_ref": "internal",
+        "/input/properties/quantity": "internal",
+        "/input/properties/unit": "internal",
+        "/input/properties/unit_price": "internal",
+        "/input/properties/currency": "internal",
+        "/input/properties/subtotal": "internal"
+      }
     },
     {
       "contract_id": "sales.quotation.read.v1",
@@ -102,35 +225,77 @@
       "input_schema_id": "sales.QuotationQuery.v1",
       "output_schema_id": "sales.Quotations.v1",
       "description": "Read quotations by host operation key (verification read-back)",
-      "agent_visible": false
+      "agent_visible": false,
+      "data_classes": {
+        "/input/properties/operation_key": "internal",
+        "/output/properties/quotations/items/properties/line_count": "internal",
+        "/output/properties/quotations/items/properties/external_ref": "internal",
+        "/output/properties/quotations/items/properties/operation_key": "internal",
+        "/output/properties/quotations/items/properties/state": "internal",
+        "/output/properties/quotations/items/properties/customer_ref": "internal",
+        "/output/properties/quotations/items/properties/product_ref": "internal",
+        "/output/properties/quotations/items/properties/quantity": "internal",
+        "/output/properties/quotations/items/properties/unit": "internal",
+        "/output/properties/quotations/items/properties/unit_price": "internal",
+        "/output/properties/quotations/items/properties/currency": "internal",
+        "/output/properties/quotations/items/properties/subtotal": "internal",
+        "/output/properties/quotations/items/properties/sent": "internal"
+      }
     },
     {
       "contract_id": "sales.open-orders.read.v1",
       "effect": "read",
       "input_schema_id": "sales.OpenOrdersQuery.v1",
       "output_schema_id": "sales.OpenOrders.v1",
-      "description": "Confirmed sales orders with promised date and delivery status, as of a date"
+      "description": "Confirmed sales orders with promised date and delivery status, as of a date",
+      "data_classes": {
+        "/input/properties/as_of": "internal",
+        "/output/properties/as_of": "internal",
+        "/output/properties/orders/items/properties/order_ref": "internal",
+        "/output/properties/orders/items/properties/external_ref": "internal",
+        "/output/properties/orders/items/properties/customer_ref": "internal",
+        "/output/properties/orders/items/properties/promised_date": "internal",
+        "/output/properties/orders/items/properties/delivery_status": "internal"
+      }
     },
     {
       "contract_id": "sales.late-orders.answer.v1",
       "effect": "answer",
       "input_schema_id": "sales.LateOrdersAnswer.v1",
       "output_schema_id": "procurement.VerifiedAnswer.v1",
-      "description": "Report the sales orders that are late as of a date; the host recomputes it"
+      "description": "Report the sales orders that are late as of a date; the host recomputes it",
+      "data_classes": {
+        "/input/properties/as_of": "internal",
+        "/input/properties/late_order_refs": "internal",
+        "/input/properties/summary": "personal"
+      }
     },
     {
       "contract_id": "crm.contact.read.v1",
       "effect": "read",
       "input_schema_id": "crm.ContactQuery.v1",
       "output_schema_id": "crm.Contact.v1",
-      "description": "One contact a lead would be about"
+      "description": "One contact a lead would be about",
+      "data_classes": {
+        "/input/properties/contact_ref": "internal",
+        "/output/properties/contact_ref": "internal",
+        "/output/properties/name": "personal",
+        "/output/properties/active": "internal"
+      }
     },
     {
       "contract_id": "crm.teams.read.v1",
       "effect": "read",
       "input_schema_id": "crm.TeamsQuery.v1",
       "output_schema_id": "crm.Teams.v1",
-      "description": "Sales teams with members, and known lead sources"
+      "description": "Sales teams with members, and known lead sources",
+      "data_classes": {
+        "/output/properties/teams/items/properties/team_ref": "internal",
+        "/output/properties/teams/items/properties/name": "internal",
+        "/output/properties/teams/items/properties/member_refs": "internal",
+        "/output/properties/sources/items/properties/source_ref": "internal",
+        "/output/properties/sources/items/properties/name": "internal"
+      }
     },
     {
       "contract_id": "crm.lead.create.v1",
@@ -139,7 +304,15 @@
       "output_schema_id": "crm.LeadRef.v1",
       "description": "Create one CRM lead; a repeated command never creates a second lead",
       "risk": "write_high",
-      "reversibility": "irreversible"
+      "reversibility": "irreversible",
+      "data_classes": {
+        "/input/properties/name": "personal",
+        "/input/properties/contact_ref": "internal",
+        "/input/properties/team_ref": "internal",
+        "/input/properties/owner_ref": "internal",
+        "/input/properties/source_ref": "internal",
+        "/input/properties/expected_revenue": "internal"
+      }
     },
     {
       "contract_id": "crm.lead.read.v1",
@@ -147,21 +320,50 @@
       "input_schema_id": "crm.LeadQuery.v1",
       "output_schema_id": "crm.Leads.v1",
       "description": "Read leads by host operation key (verification read-back)",
-      "agent_visible": false
+      "agent_visible": false,
+      "data_classes": {
+        "/input/properties/operation_key": "internal",
+        "/output/properties/leads/items/properties/external_ref": "internal",
+        "/output/properties/leads/items/properties/operation_key": "internal",
+        "/output/properties/leads/items/properties/name": "personal",
+        "/output/properties/leads/items/properties/contact_ref": "internal",
+        "/output/properties/leads/items/properties/team_ref": "internal",
+        "/output/properties/leads/items/properties/owner_ref": "internal",
+        "/output/properties/leads/items/properties/source_ref": "internal",
+        "/output/properties/leads/items/properties/expected_revenue": "internal"
+      }
     },
     {
       "contract_id": "receivables.open-invoices.read.v1",
       "effect": "read",
       "input_schema_id": "receivables.OpenInvoicesQuery.v1",
       "output_schema_id": "receivables.OpenInvoices.v1",
-      "description": "Posted customer invoices with an open residual, as of a date (read-only)"
+      "description": "Posted customer invoices with an open residual, as of a date (read-only)",
+      "data_classes": {
+        "/input/properties/as_of": "internal",
+        "/output/properties/as_of": "internal",
+        "/output/properties/company": "internal",
+        "/output/properties/invoices/items/properties/invoice_ref": "internal",
+        "/output/properties/invoices/items/properties/external_ref": "internal",
+        "/output/properties/invoices/items/properties/customer_ref": "internal",
+        "/output/properties/invoices/items/properties/due_date": "internal",
+        "/output/properties/invoices/items/properties/residual": "internal",
+        "/output/properties/invoices/items/properties/currency": "internal"
+      }
     },
     {
       "contract_id": "receivables.overdue-invoices.answer.v1",
       "effect": "answer",
       "input_schema_id": "receivables.OverdueInvoicesAnswer.v1",
       "output_schema_id": "procurement.VerifiedAnswer.v1",
-      "description": "Report overdue invoices and totals per currency as of a date; the host recomputes it"
+      "description": "Report overdue invoices and totals per currency as of a date; the host recomputes it",
+      "data_classes": {
+        "/input/properties/as_of": "internal",
+        "/input/properties/overdue_invoice_refs": "internal",
+        "/input/properties/totals/items/properties/currency": "internal",
+        "/input/properties/totals/items/properties/total": "internal",
+        "/input/properties/summary": "personal"
+      }
     }
   ],
   "provides_bindings": [],

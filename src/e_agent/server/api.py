@@ -283,6 +283,8 @@ def create_app(
             **rt.route_facts(),
             # ADR 0029 Operations: write effects admitted on defaults (fixture profiles only)
             "defaulted_declarations": defaulted_payload(rt.registry.report.defaulted_declarations),
+            # ADR 0030: properties no data class covers, which count as personal
+            "unmarked_properties": rt.registry.unmarked_properties(),
         }
 
     # -- local session (loopback only, never production auth) ---------------

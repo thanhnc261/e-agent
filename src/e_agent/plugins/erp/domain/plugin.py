@@ -21,32 +21,40 @@ from e_agent.sdk.ports import (
     TaskPreset,
 )
 
-from .crm.api import ContactQuery, CreateLead, LeadQuery, TeamsQuery
+from .crm.api import Contact, ContactQuery, CreateLead, LeadQuery, Leads, Teams, TeamsQuery
 from .crm.lead import LeadDatasetBuilder, LeadVerifier
-from .inventory.api import AvailabilityQuery
+from .inventory.api import Availability, AvailabilityQuery
 from .procurement.amend import AmendDatasetBuilder, AmendDraftRfqVerifier
 from .procurement.answers import OfferRecommendationVerifier, ShortageAnswerVerifier
 from .procurement.api import (
     AmendDraftRfq,
+    Demand,
     DemandQuery,
     DraftPurchaseOrder,
+    DraftRfq,
     DraftRfqQuery,
     OfferQuery,
     OfferRecommendation,
+    Offers,
+    OpenDemands,
     OpenDemandsQuery,
     PurchaseOrderQuery,
+    PurchaseOrders,
     ShortageAnswer,
 )
 from .procurement.validation import ProcurementDatasetBuilder
 from .procurement.verifier import DraftPurchaseOrderVerifier
-from .receivables.api import OpenInvoicesQuery, OverdueInvoicesAnswer
+from .receivables.api import OpenInvoices, OpenInvoicesQuery, OverdueInvoicesAnswer
 from .receivables.overdue import OverdueInvoicesVerifier
 from .sales.api import (
     DraftQuotation,
     LateOrdersAnswer,
+    OpenOrders,
     OpenOrdersQuery,
+    Pricing,
     PricingQuery,
     QuotationQuery,
+    Quotations,
 )
 from .sales.late_orders import LateOrdersVerifier
 from .sales.quotation import DraftQuotationVerifier, QuotationDatasetBuilder
@@ -74,6 +82,24 @@ INPUT_SCHEMAS = {
     "receivables.OpenInvoicesQuery.v1": OpenInvoicesQuery.model_json_schema(),
     "receivables.OverdueInvoicesAnswer.v1": OverdueInvoicesAnswer.model_json_schema(),
 }
+OUTPUT_SCHEMAS = {
+    "inventory.Availability.v1": Availability.model_json_schema(),
+    "procurement.Demand.v1": Demand.model_json_schema(),
+    "procurement.OpenDemands.v1": OpenDemands.model_json_schema(),
+    "procurement.Offers.v1": Offers.model_json_schema(),
+    "procurement.PurchaseOrders.v1": PurchaseOrders.model_json_schema(),
+    "procurement.DraftRfq.v1": DraftRfq.model_json_schema(),
+    "sales.Pricing.v1": Pricing.model_json_schema(),
+    "sales.Quotations.v1": Quotations.model_json_schema(),
+    "sales.OpenOrders.v1": OpenOrders.model_json_schema(),
+    "crm.Contact.v1": Contact.model_json_schema(),
+    "crm.Teams.v1": Teams.model_json_schema(),
+    "crm.Leads.v1": Leads.model_json_schema(),
+    "receivables.OpenInvoices.v1": OpenInvoices.model_json_schema(),
+}
+"""What each read returns (sdk_api 1.2). Never sent to a model: the manifest's
+``data_classes`` pointers resolve against them (ADR 0030). Write and answer outputs are
+host records (receipts, verified answers), so they have no schema here."""
 
 GUIDANCE = (
     "Procurement: if the user names no demand reference, list open demands first "
@@ -193,6 +219,7 @@ def create_plugin(services: PluginServices) -> PluginContribution:
             LeadDatasetBuilder(),
         ),
         input_schemas=INPUT_SCHEMAS,
+        output_schemas=OUTPUT_SCHEMAS,
         agent_guidance=GUIDANCE,
         task_presets=TASK_PRESETS,
         task_definitions=load_task_definitions(manifest),

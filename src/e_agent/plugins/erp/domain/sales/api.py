@@ -57,6 +57,12 @@ class QuotationView(Record):
     sent: bool
 
 
+class Quotations(Record):
+    """Quotations read back by host operation key (verification read-back)."""
+
+    quotations: tuple[QuotationView, ...]
+
+
 DeliveryStatus = Literal["pending", "partial", "delivered"]
 
 

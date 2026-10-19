@@ -15,6 +15,13 @@ from typing import Any, Literal
 
 from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor, EffectKind
 from e_agent.contracts.context import Budgets
+from e_agent.contracts.data_classes import (
+    DataClass,
+    class_of,
+    resolve_property,
+    schema_document,
+    unmarked_pointers,
+)
 from e_agent.contracts.task import TaskDefinition, check_answer_condition
 from e_agent.sdk import SDK_API_VERSION
 from e_agent.sdk.connection import ConnectionSpec
@@ -109,6 +116,8 @@ class PluginRegistry:
         self.drivers: list[AgentDriver] = []
         self.dataset_builders: list[ValidationDatasetBuilder] = []
         self.input_schemas: dict[str, Mapping[str, Any]] = {}
+        self.output_schemas: dict[str, Mapping[str, Any]] = {}
+        """For class pointers only (ADR 0030): never model-facing, not in the surface digest."""
         self.agent_guidance: list[str] = []
         self.task_presets: dict[str, TaskPreset] = {}
         self.task_definitions: dict[str, TaskDefinition] = {}
@@ -314,6 +323,17 @@ class PluginRegistry:
             if schema_id in self.input_schemas and self.input_schemas[schema_id] != schema:
                 raise _reject(f"conflicting schema definitions for {schema_id}")
             self.input_schemas[schema_id] = schema
+        for schema_id, schema in contribution.output_schemas.items():
+            if schema_id in self.output_schemas and self.output_schemas[schema_id] != schema:
+                raise _reject(f"conflicting schema definitions for {schema_id}")
+            self.output_schemas[schema_id] = schema
+        for cap in sorted(declared, key=lambda c: c.contract_id):  # ADR 0030 class pointers
+            document = self.schema_document(cap.contract_id)
+            for pointer in sorted(cap.data_classes):
+                if resolve_property(document, pointer) is None:
+                    raise _reject(
+                        f"{plugin_id}: {cap.contract_id} {pointer!r} names no property schema"
+                    )
         if contribution.agent_guidance:
             self.agent_guidance.append(contribution.agent_guidance)
         for preset in contribution.task_presets:
@@ -350,6 +370,26 @@ class PluginRegistry:
         self.report.defaulted_declarations.append(
             DefaultedDeclaration(plugin_id, subject, subject_id, defaulted)
         )
+
+    # -- data classes (ADR 0030) -------------------------------------------------
+    def schema_document(self, contract_id: str) -> dict[str, Mapping[str, Any]]:
+        """The registered schemas of a capability, as class pointers address them."""
+        cap = self.descriptor(contract_id)
+        return schema_document(
+            self.input_schemas.get(cap.input_schema_id),
+            self.output_schemas.get(cap.output_schema_id),
+        )
+
+    def data_class(self, contract_id: str, pointer: str) -> DataClass:
+        """A property's class; ``personal`` when unmarked. Task 3d.2's assembler reads it."""
+        return class_of(self.descriptor(contract_id).data_classes, pointer)
+
+    def unmarked_properties(self) -> dict[str, int]:
+        """Leaf properties no class covers, per capability; readiness reports it."""
+        return {
+            cid: len(unmarked_pointers(self.schema_document(cid), cap.data_classes))
+            for cid, cap in sorted(self.capabilities.items())
+        }
 
     # -- task definitions (ADR 0028) ----------------------------------------------
     def _stage_task_definitions(

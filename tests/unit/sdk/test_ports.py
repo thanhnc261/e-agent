@@ -1,7 +1,10 @@
-"""The driver port's plan step and the SDK API version (ADR 0025, Task 2c.7).
+"""The driver port's plan step and the SDK API version (ADR 0025, Task 2c.7; ADR 0032).
 
-`ProposePlan` and `DriverInput.allowed_capabilities` share one additive minor bump of the
-SDK API, `1.0` to `1.1`; every manifest in the repository must still admit it.
+`ProposePlan` and `DriverInput.allowed_capabilities` shared one additive minor bump of the
+SDK API, `1.0` to `1.1`. Phase 3 makes one more additive bump, `1.1` to `1.2`:
+`CapabilityDescriptor.data_classes` and `PluginContribution.output_schemas` (Task 3b.3),
+then `DriverInput.context` and `DriverInput.grounding`. Every manifest in the repository
+must still admit it.
 """
 
 from pathlib import Path
@@ -15,8 +18,23 @@ from e_agent.sdk.ports import DriverStep, ProposeAction, ProposePlan
 PLUGINS = Path(__file__).resolve().parents[3] / "src" / "e_agent" / "plugins"
 
 
-def test_sdk_api_version_is_the_plan_minor_bump() -> None:
-    assert SDK_API_VERSION == "1.1"
+def test_sdk_api_is_1_2() -> None:
+    assert SDK_API_VERSION == "1.2"
+
+
+def test_sdk_1_2_additions_have_empty_defaults() -> None:
+    """A 1.1 plugin's declaration and contribution still load unchanged."""
+    from e_agent.contracts.capability import CapabilityDescriptor, EffectKind
+    from e_agent.sdk.ports import PluginContribution
+
+    cap = CapabilityDescriptor(
+        contract_id="notes.note.read.v1",
+        effect=EffectKind.READ,
+        input_schema_id="q",
+        output_schema_id="n",
+    )
+    assert cap.data_classes == {}
+    assert PluginContribution().output_schemas == {}
 
 
 def test_sdk_api_range_admits_existing_plugins() -> None:

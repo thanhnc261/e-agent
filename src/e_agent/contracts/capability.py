@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from enum import StrEnum
 from typing import Any, Self
 
 from pydantic import Field, field_validator, model_validator
 
 from .common import Record
+from .data_classes import DataClass, check_class_pointer
 
 _CONTRACT_ID = re.compile(r"^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+\.v[0-9]+$")
 
@@ -75,11 +77,28 @@ class CapabilityDescriptor(Record):
     reversibility: Reversibility = Reversibility.IRREVERSIBLE
     compensating_contract_id: str | None = None
     """The contract that undoes this one; required exactly when ``compensable``."""
+    data_classes: Mapping[str, DataClass] = Field(default_factory=dict)
+    """Field classes beside the schemas (ADR 0030, sdk_api 1.2): an RFC 6901 pointer into
+    ``{"input": <input schema>, "output": <output schema>}`` naming a property schema, to
+    its class. The schemas are unchanged, so the model-facing tool schemas are too. An
+    unmarked property counts as ``personal``; admission refuses a pointer that names no
+    property schema."""
+
+    def __hash__(self) -> int:
+        # The mapping field is not hashable; equal descriptors share a contract id.
+        return hash((type(self), self.contract_id))
 
     @field_validator("contract_id")
     @classmethod
     def _check_contract_id(cls, value: str) -> str:
         return _check_contract_id_format(value)
+
+    @field_validator("data_classes")
+    @classmethod
+    def _check_data_class_pointers(cls, value: Mapping[str, DataClass]) -> Mapping[str, DataClass]:
+        for pointer in value:
+            check_class_pointer(pointer)
+        return value
 
     @field_validator("compensating_contract_id")
     @classmethod

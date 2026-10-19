@@ -62,3 +62,9 @@ class LeadView(Record):
     owner_ref: str
     source_ref: str | None
     expected_revenue: DecimalStr
+
+
+class Leads(Record):
+    """Leads read back by host operation key (verification read-back)."""
+
+    leads: tuple[LeadView, ...]

@@ -271,6 +271,9 @@ class PluginContribution:
     drivers: tuple[AgentDriver, ...] = ()
     input_schemas: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     """JSON Schemas keyed by CapabilityDescriptor.input_schema_id (tool parameters)."""
+    output_schemas: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+    """JSON Schemas keyed by CapabilityDescriptor.output_schema_id (sdk_api 1.2). Never
+    sent to a model: the registry resolves ``data_classes`` pointers against them."""
     agent_guidance: str = ""
     """Domain task guidance for drivers. Explanatory only: rules are enforced by validators."""
     dataset_builders: tuple[Any, ...] = ()

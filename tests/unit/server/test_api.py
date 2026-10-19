@@ -485,6 +485,16 @@ def test_ready_reports_features(client: TestClient) -> None:
         }
 
 
+def test_readiness_reports_unmarked_counts(client: TestClient) -> None:
+    """ADR 0030: readiness reports the unmarked (so `personal`) properties per capability."""
+    counts = client.get("/health/ready").json()["unmarked_properties"]
+    print(f"capabilities with an unmarked count: {len(counts)}")
+    assert counts, "no capability counted"
+    assert all(isinstance(n, int) and n >= 0 for n in counts.values())
+    assert counts["crm.contact.read.v1"] == 0
+    assert list(counts) == sorted(counts)
+
+
 def test_ready_reports_self_approval_disallowed_when_the_profile_flag_is_unset() -> None:
     from e_agent.server.profile import OperatorConfig
 

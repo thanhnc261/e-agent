@@ -117,6 +117,34 @@ NOTE_INPUT = {
     "required": ["text"],
 }
 """The create input schema the two-step plan needs: lineage types a placeholder by it."""
+NOTE_OUTPUT = {
+    "type": "object",
+    "properties": {
+        "topic": {"type": "string"},
+        "count": {"type": "string"},
+        "notes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"key": {"type": "string"}, "text": {"type": "string"}},
+            },
+        },
+    },
+}
+"""What `NotesBackend.read` returns: a summary, or the notes of one operation key."""
+CLASSED_READ = READ.model_validate(
+    {
+        **READ.model_dump(),
+        "data_classes": {
+            "/output/properties/topic": "internal",
+            "/output/properties/count": "internal",
+            "/output/properties/notes/items/properties/key": "internal",
+            # the note text is deliberately unmarked: it counts as personal (ADR 0030)
+        },
+    }
+)
+"""The notes read with its data classes beside `NOTE_OUTPUT` (ADR 0030, Task 3b.3). The
+shared `READ` stays unclassed, so packs registered without `NOTE_OUTPUT` still admit."""
 PLAN_BUDGETS = Budgets(max_admitted_writes=2)
 FIRST, FOLLOW_UP = "first", "follow-up"
 
