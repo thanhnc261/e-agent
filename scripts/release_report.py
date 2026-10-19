@@ -183,16 +183,20 @@ CASES = [
 
 
 METRICS_NOTE = (
-    "repairs.rate is (failed_validations + failed_answer_checks) / proposals: how often the "
-    "kernel sent a proposal or answer back. model_tokens is what the run's events record of "
-    "the driver's token use ('unknown' when they record none, never 0). context is null "
-    "unless context_assembler is shadow; its pack_tokens and unbounded_tokens are the "
-    "kernel estimator's sums over the run's driver turns, not model-reported tokens. repeat is "
-    "null unless kernel_repeat is shadow; a disagreement is a write proposal the repeat rule "
-    "would have short-circuited whose validation then gave other findings. grounding is null "
-    "unless grounded_answers is shadow; it sums the citation and rationale-ref counts of the "
-    "run's grounding.compared events, and grounding_unresolved is every unresolved or "
-    "mismatched citation and unresolved rationale ref."
+    "repairs.rate is (validation_repairs + answer_repairs) / proposals: how often the kernel "
+    "sent a driver proposal or answer back to the driver. A validation repair is a failed "
+    "validation of a driver proposal; a dispatch revalidation (STALE), a later plan step, a "
+    "plain-text turn and a finish check are not. The refusal that ended the run went back to "
+    "no one: it is counted in terminal_refusals, not in the rate (D3-31). model_tokens is "
+    "what the run's events record of the driver's token use ('unknown' when they record none,"
+    " never 0). context is null unless context_assembler is shadow; its pack_tokens and "
+    "unbounded_tokens are the kernel estimator's sums over the run's driver turns, not model-"
+    "reported tokens. repeat is null unless kernel_repeat is shadow; a disagreement is a "
+    "write proposal the repeat rule would have short-circuited whose validation then gave "
+    "other findings. grounding is null unless grounded_answers is shadow; it sums the "
+    "citation and rationale-ref counts of the run's grounding.compared events, and "
+    "grounding_unresolved is every unresolved or mismatched citation and unresolved rationale"
+    " ref."
 )
 
 
@@ -212,29 +216,91 @@ def fixture_profile(
     return profile.model_copy(update={"features": features})
 
 
-def repair_metrics(events: list[RunEvent]) -> dict[str, Any]:
-    """Proposals, the kernel's refusals of them, and the repair rate (METRICS_NOTE)."""
-    answers = {
-        e.action_id
-        for e in events
-        if e.type is RunEventType.PROPOSAL_CREATED and e.payload.get("kind") == "answer"
+NOT_PROPOSAL_FINDINGS = frozenset(
+    {
+        "KERNEL-PLAN-STEP-CHANGED",  # a later plan step stopped before its action exists
+        "KERNEL-PLAN-LINEAGE",
+        "KERNEL-VERIFICATION",  # a plain-text turn (ADR 0031 ``repair_turns``), no proposal
+        "KERNEL-ACCEPTANCE",  # a finish check, no proposal
     }
-    proposals = sum(e.type is RunEventType.PROPOSAL_CREATED for e in events)
-    failed_validations = sum(
-        e.type is RunEventType.VALIDATION_COMPLETED and e.payload.get("status") != "PASS"
-        for e in events
+)
+"""The kernel findings whose no-action-id ``validation.completed`` validates no proposal."""
+
+_KERNEL_RECORDS = frozenset(
+    {
+        RunEventType.PROPOSAL_CREATED,
+        RunEventType.VALIDATION_COMPLETED,
+        RunEventType.OUTCOME_REPORTED,
+        RunEventType.RUN_STATE_CHANGED,
+    }
+)
+
+
+def _ends_run(events: list[RunEvent], index: int) -> bool:
+    """Whether the refusal at ``index`` ended the run: the kernel's next record after it is
+    the FAILED state change, so nothing went back to the driver (``kernel/proposals.py``
+    fails the run past ``max_validation_repairs`` without counting a repair)."""
+    after = (e for e in events[index + 1 :] if e.type in _KERNEL_RECORDS)
+    following = next(after, None)
+    return (
+        following is not None
+        and following.type is RunEventType.RUN_STATE_CHANGED
+        and following.payload.get("to") == RunState.FAILED
     )
-    failed_answer_checks = sum(
-        e.type is RunEventType.OUTCOME_REPORTED
-        and e.payload.get("status") == "FAILED"
-        and e.action_id in answers
-        for e in events
-    )
-    repairs = failed_validations + failed_answer_checks
+
+
+def _proposal_validation_failed(event: RunEvent, later_steps: set[str]) -> bool:
+    """A failed validation of a driver's proposal (D3-31): ``status`` present and not
+    ``PASS``, as `BudgetsUsed.failed_validations` counts, but not a dispatch revalidation
+    (``STALE``), not a later plan step, and not a kernel check that validates no proposal."""
+    if event.type is not RunEventType.VALIDATION_COMPLETED:
+        return False
+    status = event.payload.get("status")
+    if status in (None, "PASS", "STALE") or event.action_id in later_steps:
+        return False
+    if event.action_id is not None:
+        return True
+    findings = event.payload.get("findings")
+    rule_ids = {f.get("rule_id") for f in findings if isinstance(f, dict)} if findings else set()
+    return not rule_ids & NOT_PROPOSAL_FINDINGS
+
+
+def repair_metrics(events: list[RunEvent]) -> dict[str, Any]:
+    """Driver proposals, the kernel's repairs of them, and the repair rate (METRICS_NOTE).
+    A repair is a refusal the kernel sent back to the driver, as ``cont.repairs`` counts; the
+    refusal that ended the run is counted apart, in ``terminal_refusals`` (D3-31)."""
+    created = [e for e in events if e.type is RunEventType.PROPOSAL_CREATED]
+    later_steps = {
+        e.action_id
+        for e in created
+        if e.action_id is not None and (e.payload.get("step_index") or 0) > 0
+    }
+    answers = {e.action_id for e in created if e.payload.get("kind") == "answer"}
+    proposals = sum(e.action_id not in later_steps for e in created)
+    validation_repairs = answer_repairs = terminal = 0
+    for index, e in enumerate(events):
+        if _proposal_validation_failed(e, later_steps):
+            kind = "validation"
+        elif (
+            e.type is RunEventType.OUTCOME_REPORTED
+            and e.payload.get("status") == "FAILED"
+            and e.action_id in answers
+        ):
+            kind = "answer"
+        else:
+            continue
+        if _ends_run(events, index):
+            terminal += 1
+        elif kind == "validation":
+            validation_repairs += 1
+        else:
+            answer_repairs += 1
+    repairs = validation_repairs + answer_repairs
     return {
         "proposals": proposals,
-        "failed_validations": failed_validations,
-        "failed_answer_checks": failed_answer_checks,
+        "validation_repairs": validation_repairs,
+        "answer_repairs": answer_repairs,
+        "terminal_refusals": terminal,
         "rate": round(repairs / proposals, 4) if proposals else None,
     }
 
@@ -408,7 +474,7 @@ def build_report(
     Operations)."""
     proposals = sum(r.get("repairs", {}).get("proposals", 0) for r in results)
     repairs = sum(
-        r["repairs"]["failed_validations"] + r["repairs"]["failed_answer_checks"]
+        r["repairs"]["validation_repairs"] + r["repairs"]["answer_repairs"]
         for r in results
         if "repairs" in r
     )
