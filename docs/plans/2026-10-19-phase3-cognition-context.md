@@ -11,7 +11,7 @@
   - 0031: progress ledger, repeat detection and run reconstruction;
   - 0032: ContextAssembler;
   - 0033: explanation and grounded answers.
-  - The Phase 3 parts of ADR 0030 (Proposed) are accepted at the same gate.
+  - The Phase 3 parts of ADR 0030 were accepted at the same gate; its Phase 5 and Phase 7 parts stay Proposed.
 - **3b (data boundary and toggles):** in order:
   - the ADR 0030 hosted-route startup rule, which that ADR requires to land first;
   - the `features` fields, per-run mode pinning and the ERP `off` model-request golden;
@@ -34,7 +34,7 @@
 - [Roadmap](../roadmap.md) row 3 ("Cognition and context").
 - [Core plan](2026-10-12-core-conversation-cognition.md) Phases 3–4 and their exit evidence. The core plan's Phase 2 shipped as roadmap Phase 2, and step records shipped in Phase 2 Task 2c.3.
 - [Target architecture](../design/target-architecture.md) §5.1, §5.6, §6.2, §6.3, §7.2, §7.4, §13.3 and fitness rows U3, Q5, G11.
-- ADRs 0004, 0007, 0018, 0022, 0027 (accepted) and 0030 (Proposed).
+- ADRs 0004, 0007, 0018, 0022, 0027, 0028, 0031, 0032, 0033 (accepted) and 0030 (Phase 3 parts accepted at G2; the rest Proposed).
 - [Threat model](../design/threat-model.md) T1, T6, T12, T13, T17, T23, T24.
 - [Principles](../design/principles.md) PR-13, PR-15, PR-19, PR-21, PR-26, PR-28, PR-32, PR-34.
 - The [Phase 2 handoff](../handoffs/2026-10-18-phase2-execution-ir.md).
@@ -653,11 +653,12 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
   - `test_grounded_answer_refused_on_bound_run_without_admission`;
   - `test_acceptance_spec_grounded_answer_requires_no_effects_or_answer`;
   - `test_release_report_counts_grounded_separately`;
+  - `tests/unit/plugins/erp/domain/test_open_pos_task.py::test_open_pos_is_read_only_and_admits_grounded_answer`: `open-pos` loads, offers only read capabilities, sets `grounded_answer` and admits `grounded.answer.v1` (owner G2 answer 5; the live check depends on it);
   - `test_free_text_answer_is_labelled_unverified`;
   - `test_grounded_answer_not_offered_unless_pinned_on`, including after a profile flip;
   - `test_grounded_answer_with_unresolved_citation_is_repaired`;
   - `test_grounding_failure_fails_closed_for_generic_answer`.
-- [ ] Run `uv run pytest -q tests/unit/kernel/test_grounded_answer.py`; expected: `ModuleNotFoundError: e_agent.kernel.grounded_answer`.
+- [ ] Run `uv run pytest -q tests/unit/kernel/test_grounded_answer.py tests/unit/plugins/erp/domain/test_open_pos_task.py`; expected: `ModuleNotFoundError: e_agent.kernel.grounded_answer`.
 - [ ] Implement.
 - [ ] Run the same command on both stores and the `off` goldens; expected: pass, unchanged.
 - [ ] Commit `feat(kernel): generic grounded answer for read-only questions (ADR 0033)`.
@@ -681,7 +682,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
   - `test_rationale_never_changes_the_approval_digest`;
   - `test_rationale_holds_no_hidden_reasoning`;
   - `test_rationale_off_action_record_unchanged`;
-  - `test_rationale_text_is_stored_as_digest_only` (owner, G2; PR-26).
+  - `test_rationale_text_is_stored_as_digest_only` (owner, G2; PR-26): no event payload holds the `summary` or alternative text; the text is kept only in the run's continuation, where the approval card reads it.
 - [ ] Run `uv run pytest -q tests/unit/kernel/test_rationale.py`; expected: fails with `ImportError` on `ProposalRationale`.
 - [ ] Implement. The approval digest covers arguments, not rationale (assert it).
 - [ ] Run the same command on both stores and the `off` goldens; expected: pass.

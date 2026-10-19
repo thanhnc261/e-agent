@@ -132,4 +132,4 @@ No other Phase 3 change uses this refinement: `context_assembler`, `kernel_repea
 
 ## Gates
 
-Gate G2 (Task 3a.2) accepts this ADR. Tasks 3c.1, 3c.2 and 3d.6 wait for it; each runs gates `full` and `pg`.
+Accepted at gate G2 (Task 3a.2, 2026-10-19). Tasks 3c.1, 3c.2 and 3d.6 implement it; each runs gates `full` and `pg`.

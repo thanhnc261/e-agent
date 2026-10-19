@@ -175,4 +175,4 @@ Nothing is released between 3b.3 and 3e.4, so the three share one version. The e
 
 ## Gates
 
-Gate G2 (Task 3a.2) accepts this ADR. Task 3b.2 waits for it (pinning and codes), and Tasks 3d.1–3d.5 build it: gates `full` and `pg`, plus `e2e` for 3d.4 and 3d.5.
+Accepted at gate G2 (Task 3a.2, 2026-10-19). Task 3b.2 implements its pinning and codes, and Tasks 3d.1–3d.5 build the rest: gates `full` and `pg`, plus `e2e` for 3d.4 and 3d.5.

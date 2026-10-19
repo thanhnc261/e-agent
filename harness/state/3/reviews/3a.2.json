@@ -1,0 +1,45 @@
+{
+  "task": "3a.2",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "G-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Plan still called ADR 0030 Proposed in the architecture and spec lines; reworded.",
+      "evidence": "docs/plans/2026-10-19-phase3-cognition-context.md:14, :37"
+    },
+    {
+      "id": "G-2",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "ADR 0033 kept the old 3e.2 test name; renamed to match the plan.",
+      "evidence": "docs/adr/0033-explanation-and-grounded-answers.md:110"
+    },
+    {
+      "id": "G-3",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "ADR closing lines said G2 accepts and tasks wait; reworded to accepted.",
+      "evidence": "docs/adr/0031:135; 0032:178; 0033:117"
+    },
+    {
+      "id": "G-4",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "The open-pos ERP task definition had no test; 3e.2 adds test_open_pos_is_read_only_and_admits_grounded_answer and names it as the owner's G2 answer.",
+      "evidence": "docs/plans/2026-10-19-phase3-cognition-context.md Task 3e.2"
+    },
+    {
+      "id": "G-5",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "3e.3 now says rationale text is kept only in the continuation and the digest-only test checks no payload holds it.",
+      "evidence": "docs/plans/2026-10-19-phase3-cognition-context.md Task 3e.3"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

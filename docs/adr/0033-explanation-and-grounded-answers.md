@@ -107,11 +107,11 @@ CQ01–CQ05 (entity mapping, valid time, conflicting sources, viewing rights) ne
 ## Verification
 
 - 3e.1: `test_citation_to_another_run_is_unresolved`, `test_citation_value_is_not_stored`, `test_grounded_off_drops_citations_and_action_record_unchanged`, `test_verifier_still_decides`, and the post-reservation test.
-- 3e.2: `test_grounded_is_never_reported_as_verified`, `test_free_text_answer_is_labelled_unverified`, `test_grounded_answer_not_offered_when_pinned_off`, and the admission tests `test_grounded_answer_not_offered_beside_a_typed_answer`, `test_grounded_answer_refused_on_bound_run_without_admission` and `test_release_report_counts_grounded_separately`.
+- 3e.2: `test_grounded_is_never_reported_as_verified`, `test_free_text_answer_is_labelled_unverified`, `test_grounded_answer_not_offered_unless_pinned_on`, and the admission tests `test_grounded_answer_not_offered_beside_a_typed_answer`, `test_grounded_answer_refused_on_bound_run_without_admission` and `test_release_report_counts_grounded_separately`.
 - 3e.3: `test_rationale_never_changes_the_approval_digest`, `test_rationale_holds_no_hidden_reasoning`.
 - 3c.3: `test_explanation_answers_competency_questions`, with one case per question above and its case count; `test_explanation_makes_no_model_call`; `test_explanation_holds_no_observation_values`.
 - Revisit when a citation must point into a document span rather than structured data (knowledge layer), or when a grounded answer is proposed as an acceptance item.
 
 ## Gates
 
-Gate G2 (Task 3a.2) accepts this ADR. Tasks 3c.3 and 3e.1–3e.4 wait for it; gates `full` and `pg`, plus `e2e` for 3e.4.
+Accepted at gate G2 (Task 3a.2, 2026-10-19). Tasks 3c.3 and 3e.1–3e.4 implement it; gates `full` and `pg`, plus `e2e` for 3e.4.
