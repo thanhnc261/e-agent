@@ -26,7 +26,7 @@ from e_agent.kernel.reconstruct import BLOCKED_KEY, reconstruct
 
 from tests.conformance.test_reconstruction import _approve, _assert_equal, _rows
 from tests.unit.kernel import conftest as notes
-from tests.unit.kernel.conftest import TENANT, Kernel
+from tests.unit.kernel.conftest import TENANT, Kernel, NotesDriver
 from tests.unit.kernel.test_context_on import StatefulDriver
 
 run_store = notes.run_store  # the kernel suite's fixtures: both stores (ENG-STORE-1)
@@ -40,9 +40,9 @@ class Crash(BaseException):
     """A process dying mid-call."""
 
 
-def _restart(k: Kernel) -> tuple[RunCoordinator, StatefulDriver]:
+def _restart(k: Kernel, driver: Any = None) -> tuple[RunCoordinator, Any]:
     """A new process on the same store and backend, with a driver holding no run."""
-    driver = StatefulDriver(notes=True)
+    driver = driver or StatefulDriver(notes=True)
     fresh = RunCoordinator(
         store=k.store,
         registry=k.coordinator._registry,
@@ -219,3 +219,26 @@ async def test_the_handler_blocks_every_blockable_action(make_kernel: MakeKernel
     changes = [e.payload for e in rows.events if e.type is RunEventType.RUN_STATE_CHANGED]
     [failed] = [c for c in changes if c["to"] == RunState.FAILED]
     assert failed[BLOCKED_KEY] == [action.action_id]
+
+
+async def test_a_driver_without_restore_keeps_the_stored_snapshot(
+    make_kernel: MakeKernel,
+) -> None:
+    """Codex's case (review D3-70): a run started on a driver that snapshots, restarted on
+    one with no ``restore``; the approval read and cancel write the stored snapshot back
+    unchanged, never the new driver's null."""
+    k = make_kernel(driver=StatefulDriver(notes=True))  # no marker: no mismatch involved
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+    assert run.state is RunState.WAITING_APPROVAL
+    stored = await _driver_state(k, run.run_id)
+    assert stored is not None
+
+    driver = NotesDriver(texts=[])
+    assert not hasattr(driver, "restore")
+    fresh, _ = _restart(k, driver)
+    await fresh.pending_approval(TENANT, run.run_id)
+    assert await _driver_state(k, run.run_id) == stored
+    cancelled = await fresh.cancel(k.requester, run.run_id)
+    assert cancelled.state is RunState.CANCELLED
+    assert await _driver_state(k, run.run_id) == stored
+    await _reconstructs(k, run.run_id, "cancel without restore")

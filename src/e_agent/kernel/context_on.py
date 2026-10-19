@@ -10,9 +10,10 @@ pack digests and drop log ADR 0032 §13 names. A turn that fell back records it 
 ``fallback: true`` and no pack keys, so ages stay exact (review D3-52, D3-51).
 
 The drop log keeps each ``Dropped`` as (kind, ref, reason). A ref into observation data is
-cut at the first token no class declaration names literally (an array index is kept): a key
-no declaration names may be data (review D3-12), so the log never names one, whatever the
-route. Other refs (evidence ids, ``finding:<n>#/…``, ``read_error:<id>``) are kernel ids.
+cut at the first token no class declaration names literally; an index into a list the data
+holds is kept, a numeric dict key is not (review D3-71): a key no declaration names may be
+data (review D3-12), so the log never names one, whatever the route. Other refs (evidence
+ids, ``finding:<n>#/…``, ``read_error:<id>``) are kernel ids.
 
 Failure handling (ADR 0032 §7, ADR 0027). When the pack cannot be built:
 
@@ -65,26 +66,42 @@ def _named_paths(classes: Mapping[str, dc.DataClass]) -> frozenset[dc.Path]:
     return frozenset(tokens[:end] for tokens in parsed for end in range(1, len(tokens) + 1))
 
 
-def safe_ref(ref: str, named: Mapping[str, frozenset[dc.Path]]) -> str:
-    """``ref`` as the drop log records it: a pointer into an observation (its evidence id in
-    ``named``) is cut before the first token no declaration names; any other ref is kept."""
+Named = Mapping[str, tuple[frozenset[dc.Path], Any]]
+"""Per evidence id of the run: the property names its declarations write (`_named_paths`)
+and the observation's data, whose structure says whether a token indexes a list."""
+
+
+def safe_ref(ref: str, named: Named) -> str:
+    """``ref`` as the drop log records it. A pointer into an observation (its evidence id in
+    ``named``) is walked through the observation's data and cut before the first token that
+    is neither a list index nor a dict key some declaration names; any other ref is kept. A
+    numeric token is a list index only where the data holds a list: a numeric dict key is
+    data like any other key (review D3-71)."""
     evidence, sep, pointer = ref.partition("#")
     if not sep or evidence not in named:
         return ref
-    names = named[evidence]
+    names, node = named[evidence]
     path: dc.Path = ("output",)
     kept: list[str] = []
     for token in dc.parse_pointer(pointer) if pointer else ():
-        step = dc.instance_token(token)
-        child = (*path, step)
-        if step != dc.ITEMS and child not in names:
+        if isinstance(node, list):
+            if dc.instance_token(token) != dc.ITEMS or int(token) >= len(node):
+                break
+            child: dc.Path = (*path, dc.ITEMS)
+            node = node[int(token)]
+        elif isinstance(node, Mapping):
+            child = (*path, token)
+            if child not in names or token not in node:
+                break
+            node = node[token]
+        else:
             break
         kept.append(token)
         path = child
     return f"{evidence}#{dc.format_pointer(kept)}"
 
 
-def drop_log(pack: ContextPack, named: Mapping[str, frozenset[dc.Path]]) -> list[dict[str, str]]:
+def drop_log(pack: ContextPack, named: Named) -> list[dict[str, str]]:
     return [
         {"kind": d.kind.value, "ref": safe_ref(d.ref, named), "reason": d.reason.value}
         for d in pack.dropped
@@ -96,7 +113,7 @@ def assembled_payload(
     *,
     turn: int,
     acknowledgement: bool,
-    named: Mapping[str, frozenset[dc.Path]] = MappingProxyType({}),
+    named: Named = MappingProxyType({}),
 ) -> dict[str, Any]:
     """The ``context.assembled`` payload: ids, counts, a digest, the kernel's estimates and
     the drop log, never a value (PR-26). A fallback turn (no pack) records its turn only."""
@@ -179,7 +196,10 @@ class ContextOnMixin(ContextShadowMixin):
             return run
         pack = step_input.context
         named = {
-            o.evidence.evidence_id: _named_paths(self._registry.data_classes(o.contract_id))
+            o.evidence.evidence_id: (
+                _named_paths(self._registry.data_classes(o.contract_id)),
+                o.data,
+            )
             for o in cont.observations.values()
         }
         ack = acknowledgement

@@ -135,9 +135,10 @@ class _Continuation(BaseModel):
     only that route may see, so a call on a stricter one is refused. None, and left out of
     the stored continuation, for every other run."""
     _unrestored: dict[str, Any] | None = PrivateAttr(default=None)
-    """The stored driver state this entry was loaded with, until a driver turn restores it
-    (`_restore_for_turn`, review D3-60): never serialized, and written back verbatim by
-    `_snapshot` meanwhile, so a kernel-only load leaves the stored driver state as it was."""
+    """The stored driver state this entry was loaded with, whatever the current driver
+    supports, until a driver turn restores it or the driver starts fresh (`_restore_for_turn`,
+    reviews D3-60, D3-70): never serialized, and written back verbatim by `_snapshot`
+    meanwhile, so a kernel-only save leaves the stored driver state as it was."""
 
     @model_serializer(mode="wrap")
     def _omit_unbound_task(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -344,19 +345,22 @@ class ContinuationMixin:
         if cont is not None:
             return cont
         cont, driver_state = await self._read_cont(tenant_id, run_id)
-        if getattr(self._driver, "restore", None) is not None:
-            cont._unrestored = driver_state
+        cont._unrestored = driver_state  # kept whatever the driver supports (review D3-70)
         self._runs[run_id] = cont
         return cont
 
     def _restore_for_turn(self, cont: _Continuation) -> bool:
         """Restore the driver state a load left pending, once per load, before the run's next
-        driver turn (`_drive`, the acknowledgement turn). False on the typed refusal (D8): the
-        kernel's ``rendering`` marker check, or the driver's own; nothing is restored, and the
-        stored driver state stays as it was."""
+        driver turn (`_drive`, the acknowledgement turn). A driver without ``restore`` starts
+        fresh: the stored state is released, and the turn's snapshot replaces it. False on the
+        typed refusal (D8): the kernel's ``rendering`` marker check, or the driver's own;
+        nothing is restored, and the stored driver state stays as it was."""
         driver_state = cont._unrestored
+        if driver_state is None:
+            return True
         restore = getattr(self._driver, "restore", None)
-        if driver_state is None or restore is None:
+        if restore is None:  # the driver keeps no history: it starts fresh
+            cont._unrestored = None
             return True
         try:
             if rendering_mismatch(cont, driver_state):

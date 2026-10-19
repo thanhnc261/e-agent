@@ -15,6 +15,7 @@ Runs over both stores through the ``run_store`` fixture (ENG-STORE-1).
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -737,16 +738,28 @@ async def test_fallback_turns_keep_observation_ages_exact(
 # -- the drop log (review D3-52) ----------------------------------------------------------
 def test_drop_log_refs_never_name_an_undeclared_key() -> None:
     """A ref into observation data is cut before the first token no declaration names; an
-    array index is kept; kernel refs are kept as they are (3d.2 ruling D3-12)."""
-    named = {
-        "ev1": context_on._named_paths(
-            {"/output/notes/items/key": DataClass.INTERNAL, "/output/by_email": DataClass.INTERNAL}
-        )
+    index into a list the data holds is kept, a numeric dict key is not (review D3-71); kernel
+    refs are kept as they are (3d.2 ruling D3-12)."""
+    data = {
+        "notes": [{"key": f"k{i}", "text": "t"} for i in range(4)],
+        "by_email": {"alice@example.com": "x"},
+        "by_id": {"123456789": "v", "0": "w"},
+        "alice@example.com": {"x": 1},
     }
+    classes = {
+        "/output/notes/items/key": DataClass.INTERNAL,
+        "/output/by_email": DataClass.INTERNAL,
+        "/output/by_id": DataClass.INTERNAL,
+    }
+    named = {"ev1": (context_on._named_paths(classes), data)}
     cases = {
         "ev1#/notes/3/key": "ev1#/notes/3/key",
         "ev1#/notes/3/text": "ev1#/notes/3",  # unmarked: may be data
+        "ev1#/notes/9/key": "ev1#/notes",  # no such index in the data
+        "ev1#/notes/03/key": "ev1#/notes",  # not a canonical index
         "ev1#/by_email/alice@example.com": "ev1#/by_email",  # a dict key is data
+        "ev1#/by_id/123456789": "ev1#/by_id",  # a numeric dict key is data (D3-71)
+        "ev1#/by_id/0": "ev1#/by_id",
         "ev1#/alice@example.com/x": "ev1#",
         "ev1#": "ev1#",
         "ev1": "ev1",  # an observation stub: its evidence id
@@ -802,3 +815,42 @@ async def test_masked_run_drop_log_is_in_the_bundle(make_kernel: MakeKernel) -> 
         off.store, TENANT, off_run.run_id, environment="fixture", versions={}, features=ON
     )
     assert "context" not in off_bundle
+
+
+async def test_numeric_dict_key_never_reaches_the_event_or_bundle(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Codex's case (review D3-71): only ``/output/by_id`` is declared, and the observation
+    holds a dict keyed by a numeric id whose long value the bound cuts; the drop log names
+    ``by_id``, never the key."""
+    driver = PackNotesDriver(texts=["standup notes"])
+    k = make_kernel(features=ON, route=LOCAL, driver=driver)
+    registry = k.coordinator._registry
+    monkeypatch.setattr(
+        registry, "data_classes", lambda _cid: {"/output/by_id": DataClass.INTERNAL}
+    )
+    original = k.backend.read
+
+    async def keyed(*args: Any) -> Any:
+        obs = await original(*args)
+        return dataclasses.replace(obs, data={"by_id": {"123456789": "SEEDED " * 20_000}})
+
+    monkeypatch.setattr(k.backend, "read", keyed)
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+    events = await _events(k, run.run_id)
+    [observation] = (await k.coordinator._load_cont(TENANT, run.run_id)).observations.values()
+    evidence_id = observation.evidence.evidence_id
+    packs = [st.context for st in driver.seen if st.context is not None]
+    raw = [d.ref for p in packs for d in p.dropped if d.ref.startswith(f"{evidence_id}#/by_id/")]
+    assert raw, "the pack drops a value under the numeric key"
+    assembled = [e.payload for e in events if e.type is RunEventType.CONTEXT_ASSEMBLED]
+    logged = [entry["ref"] for p in assembled for entry in p.get("drop_log", [])]
+    bundle = await build_evidence(
+        k.store, TENANT, run.run_id, environment="fixture", versions={}, features=ON
+    )
+    in_bundle = [entry["ref"] for c in bundle["context"] for entry in c["drop_log"]]
+    assert f"{evidence_id}#/by_id" in logged
+    assert f"{evidence_id}#/by_id" in in_bundle
+    for text in (json.dumps(assembled), json.dumps(bundle["context"])):
+        assert "123456789" not in text
+        assert "SEEDED" not in text
