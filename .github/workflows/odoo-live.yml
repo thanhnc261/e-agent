@@ -31,9 +31,10 @@ jobs:
       PGPASSWORD: odoo
       ODOO_SRC: ${{ github.workspace }}/../odoo
       ODOO_VENV: ${{ github.workspace }}/../odoo-venv
-      ODOO_KEYS_FILE: ${{ runner.temp }}/odoo-keys.json
     steps:
       - uses: actions/checkout@v4
+      # the runner context is not available in job-level env
+      - run: echo "ODOO_KEYS_FILE=$RUNNER_TEMP/odoo-keys.json" >> "$GITHUB_ENV"
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
