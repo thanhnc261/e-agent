@@ -694,3 +694,8 @@
 - changed: harness/state/3/reviews/3d.5-codex.json, harness/state/3/tasks/3d.5.json, harness/state/evidence/gates/3d.5/2026-10-19T14-29-45.988516+00-00-full.json, harness/state/evidence/gates/3d.5/2026-10-19T14-31-08.978769+00-00-pg.json
 - next: fallback only before a reservation on a local or declared route; terminal code otherwise
 - open: none
+
+## 2026-10-19T16:06:34.302073+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3d.5
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3d.5.json, harness/state/3/reviews/3d.5-r2.json, harness/state/evidence/gates/3d.5/2026-10-19T16-01-25.715092+00-00-full.json, harness/state/evidence/gates/3d.5/2026-10-19T16-02-47.593053+00-00-pg.json
+- next: Task 3d.6
+- open: none

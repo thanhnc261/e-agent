@@ -1,0 +1,40 @@
+{
+  "task": "3d.5",
+  "changed": "context_assembler: on in the kernel (ADR 0032): every driver call of a pinned-on run (run loop and acknowledgement) passes the assembled pack; reservation-aware failure handling (fallback with feature.fallback only before a reservation and only on a local route; an undeclared hosted route fails closed; after a reservation no fallback); the loosest route boundary used is kept and a stricter later call fails ROUTE_BOUNDARY_UNMET (D3-41); context.assembled is the turn marker and the durable pack digest and drop log, exported in the evidence bundle (ADR 0032 \u00a711 amended); the startup on exemption with masking (ADR 0030). Driver state is restored only for a driver turn and the stored snapshot kept until advance starts; kernel-only paths (reconcile, crash rules, cancel, approval reads, input) never restore (ADR 0032 \u00a78 amended); a mismatch fails the run closed with blocked_action_ids, or skips the acknowledgement turn. Masking: numeric dict keys are keys, a dict key 'items' is walked under the marker floored at personal, drop-log refs never name an undeclared key. Driver: cleared stub with action_result (D3-40), typed missing-rendering error to CONTEXT_UNAVAILABLE (D3-42). Commits 6379337, 2cccc2f, d042b33, 4b79662, dbedf0e, b5cf235, f821e46; reviews harness/state/3/reviews/3d.5-codex.json, 3d.5.json, 3d.5-codex-r1.json, 3d.5-codex-r2.json, 3d.5-r2.json.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3d.5/2026-10-19T16-01-25.715092+00-00-full.json",
+    "harness/state/evidence/gates/3d.5/2026-10-19T16-02-47.593053+00-00-pg.json"
+  ],
+  "open_items": [
+    "Owner: accept the ADR 0032 amendments made in 3d.5 (\u00a78 restore check before a driver turn, not on load; \u00a711 context.assembled and the DRIVER_STATE_MISMATCH cell) before the phase merges.",
+    "A schema property literally named items is always at least personal (ADR 0030 key format reserves items); no ERP schema has one.",
+    "Drop-log refs are cut at the first undeclared token (often the observation root); detail is lost by design.",
+    "A run in NEEDS_RECONCILIATION with a driver-state mismatch reconciles; after resolution the acknowledgement turn is skipped. No operator runbook entry yet.",
+    "T1 injection test proves kernel-side invariants with a scripted driver only, not live-model behaviour.",
+    "Codex final pass on rounds 5-6 did not complete (usage limit); a Claude review accepted them."
+  ],
+  "rulings": [
+    {
+      "ruling": "Driver state is restored only before a driver turn; kernel-only operations load the continuation without restoring (D3-60, D3-61; ADR 0032 \u00a78 amended).",
+      "cost_if_wrong": "A mismatch is found at the first driver turn rather than on load."
+    },
+    {
+      "ruling": "The continuation keeps the loosest boundary any call used and refuses a stricter one, stricter than the literal first-call rule.",
+      "cost_if_wrong": "A run whose route tightens fails instead of continuing."
+    },
+    {
+      "ruling": "A dict key named items is walked under the array-marker declarations with a personal floor (most restrictive wins on an ambiguous token).",
+      "cost_if_wrong": "A property named items can never be classed below personal."
+    },
+    {
+      "ruling": "After the five-round breaker, a confirmed load-bearing regression (a secret kept under an items key) was fixed by a fresh implementer and reviewed by Claude, with Codex rate-limited.",
+      "cost_if_wrong": "Rounds 5-6 lack a Codex pass; the phase-end review can include them."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "Postgres test database e_agent_test used by the gates and tests.",
+      "undo": "none needed; test data only"
+    }
+  ]
+}

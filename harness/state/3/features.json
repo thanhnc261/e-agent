@@ -149,7 +149,8 @@
         "off-to-on flip and restore mismatch tests pass; 12- and 20-turn budget tests pass",
         "full, pg and make e2e pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3d.5/2026-10-19T16-01-25.715092+00-00-full.json"
     },
     {
       "id": "F-3d-6",
