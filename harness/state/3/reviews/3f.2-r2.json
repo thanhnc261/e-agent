@@ -1,0 +1,38 @@
+{
+  "task": "3f.2",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R2-1",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "Plan-time KERNEL-PLAN-LINEAGE refusals, returned to the driver and counted in cont.repairs, are dropped (NOT_REFUSALS intersection also drops mixed findings).",
+      "evidence": "kernel/plan_flow.py:116, :159; kernel/ir.py:390-402; kernel/ir_on.py:202-206; scripts/release_report.py NOT_REFUSALS, _refusal_kind."
+    },
+    {
+      "id": "R2-2",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "An answer outcome with status UNKNOWN (verifier raised) is a kernel repair or terminal refusal but the report counts only FAILED.",
+      "evidence": "kernel/grounding.py:440-496; kernel/verification.py:38-43; scripts/release_report.py _refusal_kind."
+    },
+    {
+      "id": "R2-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The profile repair budget limitation is stated only in a code comment, not in METRICS_NOTE or the design doc.",
+      "evidence": "scripts/release_report.py:531-532; kernel/ir_on.py:121-124."
+    },
+    {
+      "id": "R2-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Later plan steps out of the denominator and the STALE next-state test are accepted.",
+      "evidence": "kernel/dispatch.py:96-121."
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}
