@@ -656,7 +656,8 @@
           "repeat_unavailable",
           "grounding_unavailable",
           "driver_state_mismatch",
-          "route_boundary_unmet"
+          "route_boundary_unmet",
+          "grounded"
         ],
         "title": "ReasonCode",
         "type": "string"

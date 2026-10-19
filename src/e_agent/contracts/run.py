@@ -67,6 +67,10 @@ class ReasonCode(StrEnum):
     ROUTE_BOUNDARY_UNMET = "route_boundary_unmet"
     """The model route is not ``local`` and has no ``data_processing`` declaration, and the
     run is not pinned ``context_assembler: on``, so no model call is made (T23)."""
+    # Phase 3 success code (ADR 0033 §3, Task 3e.2): it ends a run SUCCEEDED.
+    GROUNDED = "grounded"
+    """A ``grounded.answer.v1`` run: every citation resolved against this run's evidence (ADR
+    0033 §3). Never ``verified``, which needs a typed verifier's fresh read-back (PR-19)."""
 
 
 TERMINAL_RUN_STATES = frozenset({RunState.SUCCEEDED, RunState.FAILED, RunState.CANCELLED})

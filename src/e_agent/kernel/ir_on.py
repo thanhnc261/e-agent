@@ -51,7 +51,7 @@ from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.run import ReasonCode, RunRecord, RunState
 from e_agent.contracts.step import StepKind, StepRecord, StepStatus
-from e_agent.contracts.task import AcceptanceSpec, TaskDefinition, acceptance_met
+from e_agent.contracts.task import GROUNDED_ANSWER, AcceptanceSpec, TaskDefinition, acceptance_met
 from e_agent.contracts.validation import Finding, ValidationStatus
 from e_agent.sdk.ports import DriverInput
 from pydantic import ValidationError
@@ -93,6 +93,7 @@ ACCEPTANCE_MESSAGES = MappingProxyType(
         "nor the required verified answer.",
         "unavailable": "The run's admitted task definition is unavailable, "
         "so its acceptance cannot be met.",
+        "grounded": "The run ended without a grounded answer.",
     }
 )
 """The fixed messages of the ``KERNEL-ACCEPTANCE`` finding, by the alternative left unmet."""
@@ -102,6 +103,8 @@ def acceptance_gap(spec: AcceptanceSpec | None) -> str:
     """The fixed message naming the alternative an unmet ``spec`` left unmet (no model text)."""
     if spec is None:
         return ACCEPTANCE_MESSAGES["unavailable"]
+    if spec.grounded_answer:
+        return ACCEPTANCE_MESSAGES["grounded"]
     if spec.required_effects and spec.required_answer is not None:
         return ACCEPTANCE_MESSAGES["either"]
     return ACCEPTANCE_MESSAGES["effects" if spec.required_effects else "answer"]
@@ -424,7 +427,11 @@ class IrOnMixin(FeaturesMixin):
                         reports.append(OutcomeReport.model_validate(report))
                     except ValidationError:  # the verifier-unavailable shape is no report
                         continue
-        if acceptance_met(task.acceptance, counts, reports):
+        grounded = task.acceptance.grounded_answer and any(  # its own record (ADR 0033 §3)
+            e.type is RunEventType.MESSAGE_FINAL and e.payload.get("contract_id") == GROUNDED_ANSWER
+            for e in await self._store.list_events(run.tenant_id, run.run_id)
+        )
+        if acceptance_met(task.acceptance, counts, reports, grounded=grounded):
             return None
         return acceptance_gap(task.acceptance)
 

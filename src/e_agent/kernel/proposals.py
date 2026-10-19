@@ -1,5 +1,6 @@
 """Proposal handling and validation (Phase 1 split of coordinator.py). Typed answers are
-handled in `grounding.py`, with their citation check (ADR 0033, Task 3e.1)."""
+handled in `grounding.py`, with their citation check (ADR 0033, Task 3e.1), and the generic
+grounded answer in `grounded_answer.py` (Task 3e.2)."""
 
 from __future__ import annotations
 
@@ -36,7 +37,7 @@ from .approval import (
 from .context import KERNEL_RULE_PREFIX
 from .continuation import _Continuation
 from .errors import KernelError
-from .grounding import GroundingMixin
+from .grounded_answer import GroundedAnswerMixin
 from .ir import StepDigestContext
 from .ir_on import _fixed
 from .reconstruct import proposal_keys
@@ -71,12 +72,14 @@ def _validator_error(validator_id: str, message: str) -> ValidationResult:
     )
 
 
-class ProposalsMixin(GroundingMixin):
+class ProposalsMixin(GroundedAnswerMixin):
     # ------------------------------------------------------------- proposals
     async def _handle_proposal(
         self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
     ) -> RunRecord | DriverInput:
         ctx = cont.ctx
+        if self._grounded_branch(cont, proposal):  # before the task set (ADR 0033 §3)
+            return await self._handle_grounded_answer(run, cont, proposal)
         refused = await self._outside_task_set(run, cont, proposal)  # `on` only (D6)
         if refused is not None:
             return refused

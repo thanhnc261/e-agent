@@ -18,7 +18,9 @@ per driver turn, its ``context.assembled`` record (turn, fallback, pack digest, 
 kinds, kernel refs and reasons; ADR 0032 §13). Nothing else of the continuation is exported.
 Every bundle carries the additive ``explanation`` key, the projection of its events and
 steps (ADR 0033 §6): ids, versions, digests and statuses, no observation values or model
-text.
+text. A run that ended ``GROUNDED`` (``grounded.answer.v1``, ADR 0033 §3) carries the additive
+``grounded_answer`` key: its summary, the model's free text outside the citations, labelled
+``unverified``, and each at-rest citation labelled ``grounded``; no other bundle has it.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.explain import Explanation
 from e_agent.contracts.features import FeatureMode, Features, RunModes
 from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode
+from e_agent.contracts.task import GROUNDED_ANSWER
 from e_agent.sdk.store import RunStore
 
 from .explain import explain
@@ -197,6 +200,20 @@ def _context_section(events: Sequence[RunEvent]) -> list[dict[str, Any]]:
     ]
 
 
+def _grounded_section(events: Sequence[RunEvent]) -> dict[str, Any] | None:
+    """The kernel's ``message.final`` of a ``GROUNDED`` end with its labels: the summary is
+    model-authored and ``unverified``, each citation ``grounded`` in this run's evidence,
+    never ``verified`` (PR-19). None when the run wrote no such record."""
+    for e in events:
+        if e.type is RunEventType.MESSAGE_FINAL and e.payload.get("contract_id") == GROUNDED_ANSWER:
+            return {
+                "contract_id": GROUNDED_ANSWER,
+                "summary": {"text": e.payload["text"], "label": "unverified"},
+                "citations": [{**c, "label": "grounded"} for c in e.payload["citations"]],
+            }
+    return None
+
+
 async def build_evidence(
     store: RunStore,
     tenant_id: str,
@@ -258,6 +275,9 @@ async def build_evidence(
         bundle["modes"] = modes.model_dump(mode="json")
         if modes.context_assembler is FeatureMode.ON:
             bundle["context"] = _context_section(events)
+    grounded = _grounded_section(events)
+    if grounded is not None:
+        bundle["grounded_answer"] = grounded
     plan = await _plan_section(store, tenant_id, events, actions)
     if plan is not None:
         bundle["plan"] = plan

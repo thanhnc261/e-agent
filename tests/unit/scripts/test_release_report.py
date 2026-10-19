@@ -158,3 +158,24 @@ async def test_release_report_repeat_disagreements_only_in_shadow() -> None:
     assert (report["kernel_repeat"], report["repeat_disagreements"]) == ("shadow", 1)
     off = await rr.run_case(rr.CASES[4])  # ERP-03 blocked by PR-003, then repaired
     assert off["passed"] and off["repeat"] is None
+
+
+# -- Task 3e.2: a GROUNDED end is counted apart from VERIFIED (ADR 0033 §3, PR-19) ----------
+async def test_release_report_counts_grounded_separately() -> None:
+    """A grounded run writes no ``outcome.reported``: the report counts it as its own end,
+    never as ``verified``, even if a result also lists a VERIFIED outcome."""
+    rt = await build_runtime(load_profile(fixture_profile_path()))
+    results = [
+        {"final_state": "SUCCEEDED", "reason_code": "verified", "outcomes": ["VERIFIED"]},
+        {"final_state": "SUCCEEDED", "reason_code": "answered", "outcomes": ["FAILED", "VERIFIED"]},
+        {"final_state": "SUCCEEDED", "reason_code": "grounded", "outcomes": []},
+        {"final_state": "SUCCEEDED", "reason_code": "grounded", "outcomes": ["VERIFIED"]},
+        {"final_state": "FAILED", "reason_code": "validation_failed", "outcomes": []},
+    ]
+    ends = [rr.end_class(r) for r in results]
+    assert ends == ["verified", "verified", "grounded", "grounded", "failed"]
+    report = rr.build_report(rt, [{**r, "passed": True} for r in results])
+    assert report["ends"] == {"failed": 1, "grounded": 2, "verified": 2}
+    case = await rr.run_case(rr.CASES[0])  # ERP-01: a verified shortage answer
+    assert (case["reason_code"], rr.end_class(case)) == ("answered", "verified")
+    print(f"release report ends counted over {len(results)} results")

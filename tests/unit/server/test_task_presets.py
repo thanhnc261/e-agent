@@ -51,7 +51,8 @@ def test_profile_accepts_non_erp_task_kind_string() -> None:
 
 async def test_task_kind_choices_come_from_presets() -> None:
     contributed = {preset.kind for preset in TASK_PRESETS}
-    assert contributed == set(TASKS)
+    # The demo prompt golden predates the Phase 3 read-only kind (Task 3e.2).
+    assert contributed == set(TASKS) | {"open-pos"}
     rt = await build_runtime(load_profile(fixture_profile_path()))
     assert set(rt.registry.task_presets) == contributed
     # The parser holds no list of kinds; the admitted presets decide at startup.
@@ -79,6 +80,10 @@ BASELINE_PROMPTS = {
         "from source:website."
     ),
     "overdue-invoices": "Report overdue customer invoices as of 2026-10-06.",
+    "open-pos": (  # Task 3e.2
+        "List the open purchase orders, such as draft RFQ rfq:po-100, citing the ERP records "
+        "you read; propose no change."
+    ),
 }
 BASELINE_REFS = {
     "rfq_ref": "rfq:po-100",

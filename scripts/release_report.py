@@ -9,7 +9,9 @@ evidence from scripts/qualify_model.py (ADR 0010).
 
     uv run python scripts/release_report.py --out evals/reports/fixture-release.json
 
-Each case also reports its repairs and token use, and, with ``--context-assembler shadow``,
+Each case also reports its reason code, and the report counts the cases by how they ended
+(``ends``): a ``GROUNDED`` end (ADR 0033 §3) is its own category, never ``verified``
+(PR-19). Each case also reports its repairs and token use, and, with ``--context-assembler shadow``,
 the context columns from the run's ``context.compared`` events (ADR 0032 §7, Task 3d.3), and,
 with ``--kernel-repeat shadow``, the repeat columns and disagreement count from its
 ``repeat.compared`` events (ADR 0031 §5, Task 3d.6). The Phase 3 ``off`` baseline is this
@@ -24,13 +26,14 @@ import argparse
 import asyncio
 import json
 import sys
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.features import FeatureMode
-from e_agent.contracts.run import RunState
+from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.kernel.evidence import defaulted_payload
 from e_agent.kernel.progress import project_progress
 from e_agent.plugins.erp.simulator import fixture_profile_path
@@ -225,6 +228,18 @@ def repair_metrics(events: list[RunEvent]) -> dict[str, Any]:
     }
 
 
+def end_class(result: dict[str, Any]) -> str:
+    """How a case ended, for the ``ends`` counts. ``grounded`` for a ``GROUNDED`` end, whose
+    citations resolved against the run's own evidence and which no verifier read back (ADR
+    0033 §3), so it is never ``verified`` (PR-19); ``verified`` for a success with a VERIFIED
+    outcome report; otherwise the final state."""
+    if result.get("reason_code") == ReasonCode.GROUNDED:
+        return "grounded"
+    if result.get("final_state") == "SUCCEEDED" and "VERIFIED" in result.get("outcomes", ()):
+        return "verified"
+    return str(result.get("final_state", "unknown")).lower()
+
+
 def context_columns(events: list[RunEvent]) -> dict[str, Any] | None:
     """The ``context.compared`` columns of a shadow run; None when the run recorded none."""
     compared = [e.payload for e in events if e.type is RunEventType.CONTEXT_COMPARED]
@@ -312,6 +327,7 @@ async def run_case(
         "scenario": case.scenario or "valid",
         "final_state": run.state.value,
         "reason": run.reason,
+        "reason_code": run.reason_code.value if run.reason_code else None,
         "outcomes": list(outcomes),
         "first_blocked_rules": sorted(blocked[0]) if blocked else [],
         "provider_write_calls": writes,
@@ -363,6 +379,7 @@ def build_report(
         "metrics_note": METRICS_NOTE,
         "repair_rate": round(repairs / proposals, 4) if proposals else None,
         "repeat_disagreements": sum(r["disagreements"] for r in repeats) if repeats else None,
+        "ends": dict(sorted(Counter(end_class(r) for r in results).items())),
         "versions": rt.versions,
         "defaulted_declarations": defaulted_payload(rt.registry.report.defaulted_declarations),
         "passed": sum(r["passed"] for r in results),

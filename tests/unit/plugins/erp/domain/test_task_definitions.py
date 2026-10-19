@@ -44,6 +44,9 @@ ERP_KINDS = (
     "overdue-invoices",
 )
 ASSISTANT = "assistant"
+OPEN_POS = "open-pos"
+"""The read-only grounded-answer definition of Phase 3 (Task 3e.2). The Phase 2 golden
+predates it, so its capabilities are pinned in `test_open_pos_task.py` instead."""
 
 # Chosen per target §6.4.2; the report of Task 2c.2 justifies each value.
 EXPECTED_WRITE_EFFECTS = {
@@ -74,18 +77,18 @@ def _pinned_live() -> Profile:
 
 def test_eight_task_definitions_load_from_resources() -> None:
     root = files("e_agent.plugins.erp.domain").joinpath("tasks")
-    for task_id in (*ERP_KINDS, ASSISTANT):
+    for task_id in (*ERP_KINDS, ASSISTANT, OPEN_POS):
         resource = json.loads(root.joinpath(f"{task_id}.json").read_text("utf-8"))
         assert resource["task_id"] == task_id
     definitions = plugin.load_task_definitions()
-    assert tuple(d.task_id for d in definitions) == (*ERP_KINDS, ASSISTANT)
+    assert tuple(d.task_id for d in definitions) == (*ERP_KINDS, ASSISTANT, OPEN_POS)
     manifest = plugin.load_manifest()
     assert [(t.task_id, t.version) for t in manifest.provides_task_definitions] == [
         (d.task_id, d.version) for d in definitions
     ]
     # One catalogue: each preset is its definition's projection (D8: task_id is the kind).
     by_id = {d.task_id: d for d in definitions}
-    assert tuple(p.kind for p in plugin.TASK_PRESETS) == ERP_KINDS
+    assert tuple(p.kind for p in plugin.TASK_PRESETS) == (*ERP_KINDS, OPEN_POS)
     for preset in plugin.TASK_PRESETS:
         definition = by_id[preset.kind]
         assert preset.prompt == definition.goal_template
@@ -108,14 +111,15 @@ def test_task_capabilities_match_golden() -> None:
     assert today, "today's tool set is empty"
     assert golden["today"] == today
     chosen = {tid: sorted(d.capabilities) for tid, d in registry.task_definitions.items()}
+    phase3 = {OPEN_POS: chosen.pop(OPEN_POS)}  # pinned in test_open_pos_task.py
     assert chosen == golden["definitions"]
     cases = 0
-    for task_id, capabilities in sorted(chosen.items()):
+    for task_id, capabilities in sorted({**chosen, **phase3}.items()):
         outside = sorted(set(capabilities) - set(today))
         assert not outside, f"{task_id} names capabilities outside today's set: {outside}"
         cases += 1
     print(f"task capability subsets checked: {cases}")
-    assert cases == len(ERP_KINDS) + 1
+    assert cases == len(ERP_KINDS) + 2
 
 
 def test_assistant_definition_is_read_only() -> None:

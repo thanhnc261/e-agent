@@ -404,6 +404,10 @@
     {
       "task_id": "assistant",
       "version": "1"
+    },
+    {
+      "task_id": "open-pos",
+      "version": "1"
     }
   ],
   "settings_schema": {
