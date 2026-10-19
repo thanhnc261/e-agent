@@ -20,7 +20,9 @@
     "docs/plans/2026-10-19-phase3-cognition-context.md",
     "harness/state/**",
     ".superpowers/sdd/**",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "src/e_agent/kernel/proposals.py",
+    "src/e_agent/kernel/ir.py"
   ],
   "acceptance": [
     "assembler tests pass, including injection fencing, bounded partial results and hosted-route masking",
@@ -29,5 +31,17 @@
   "gate_set": "full",
   "base_commit": "a7bbdfb19815f00e7bd5ee1627e291eae290d056",
   "created_at": "2026-10-19T11:47:48+00:00",
-  "features_digest": "79a49d62068aa0f4f25bc863d2682cfe59d952379498dfb5ca8e10b109447328"
+  "features_digest": "79a49d62068aa0f4f25bc863d2682cfe59d952379498dfb5ca8e10b109447328",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/kernel/proposals.py",
+      "reason": "Review D3-10: a validator finding that claims a KERNEL- rule id fails closed at the one merge point, so the assembler's kernel exemption cannot be spoofed",
+      "at": "2026-10-19T12:24:48+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/ir.py",
+      "reason": "Review D3-14: KERNEL-PLAN-STRUCTURE must not embed model input values, because ADR 0032 §5 exempts kernel finding text from masking",
+      "at": "2026-10-19T12:24:48+00:00"
+    }
+  ]
 }

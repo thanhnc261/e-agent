@@ -505,6 +505,11 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 - [ ] Implement. The assembler imports no plugin or adapter.
 - [ ] Run the same command on both stores; expected: pass.
 - [ ] Commit `feat(kernel): context assembler with budgets, drop log, minimization and fencing (ADR 0032)`.
+- Rulings from review (2026-10-19, D3-10 to D3-16):
+  - The kernel exemption of ADR 0032 §5 holds only for kernel-authored findings. A validator result that carries a `KERNEL-*` rule id is a validator error at the merge point (`kernel/proposals.py` `_validate`): it fails closed as `KERNEL-VALIDATOR-ERROR` with a fixed message (D3-10). Kernel finding text carries no input value, so `KERNEL-PLAN-STRUCTURE` omits pydantic's input values (D3-14).
+  - On a hosted route without `data_processing`, a key that no declaration names is data, not a property name, so its entry is masked and logged without naming the key (D3-12). A removed secret marks the rendering `masked` and `partial` (D3-11, PR-21).
+  - Assembly fails when the stable prefix, the ledger, the open findings and the evidence that a finding or proposal refers to do not fit `max_input_tokens`. Referenced evidence is never dropped silently (D3-15).
+  - 3d.3 and 3d.4 pass `referenced_evidence`, `deferred_pending` and `observation_turns` from real sources, and decide whether cited evidence survives clearing (D3-16).
 
 ### Task 3d.3: `context_assembler: shadow` and the baseline
 
