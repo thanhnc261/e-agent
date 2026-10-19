@@ -13,6 +13,7 @@ from typing import Any, Protocol, runtime_checkable
 from e_agent.contracts.action import ActionRecord
 from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor
 from e_agent.contracts.context import TaskContext
+from e_agent.contracts.context_pack import ContextPack
 from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.plan import ActionPlan, ActionProposal
@@ -55,6 +56,9 @@ class DriverInput:
     # the driver offers only these tools on this turn. None offers every tool, as today. The
     # kernel refuses anything outside the set; this field only shapes what the model sees.
     allowed_capabilities: tuple[str, ...] | None = None
+    # The kernel-assembled context for this turn (ADR 0032, sdk_api 1.2). None keeps the
+    # driver's own history, as in sdk_api 1.1.
+    context: ContextPack | None = None
 
 
 @dataclass(frozen=True)

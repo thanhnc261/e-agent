@@ -77,3 +77,13 @@ def test_propose_plan_is_a_driver_step() -> None:
         ),
     )
     assert ProposePlan(plan=plan).plan is plan
+
+
+def test_driver_input_context_defaults_none() -> None:
+    """A driver built for sdk_api 1.1 keeps working: ``context`` is optional."""
+    from e_agent.contracts.context_pack import ContextLayer, ContextPack
+    from e_agent.sdk.ports import DriverInput
+
+    assert DriverInput(task="t").context is None
+    pack = ContextPack.build(stable_prefix={ContextLayer.INSTRUCTIONS: "i"}, dynamic_suffix={})
+    assert DriverInput(task="t", context=pack).context is pack
