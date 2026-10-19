@@ -114,7 +114,7 @@ These are failure modes the tests below do not fully exercise. Each item names t
    - The reviewer checks that the fence cannot be closed from inside the data (delimiter escaping).
 2. **Clearing that breaks a tool call/return pair** (target §7.4). Clearing an old tool result must keep its call, its return id and its `EvidenceRef`, or the provider rejects the request. Nothing is cleared while a deferred call is pending (§7.4 rule 4). Task 3d.4 tests both on the replay corpus; the reviewer checks the parallel-tool-call case.
 3. **Masking that reaches the approval card** (ADR 0030, ADR 0006, T9). Masking governs model context and exports only. Task 3d.2 tests that the approval presentation is built from the unmasked action; the reviewer checks that no code path builds the card from a pack.
-4. **Personal data in the actual model request** (T23). In `on`, every path that sends observation data renders it from the masked pack: the deferred tool returns and the post-write acknowledgement turn. On a route that is neither local nor declared, an assembly failure fails closed instead of falling back. Task 3d.4 asserts that a seeded `personal` value is absent from the captured model request and listed in `ContextPack.dropped`. The reviewer checks for any other path that passes `Observation.data` to the model.
+4. **Personal data in the actual model request** (T23). In `on`, every path that sends observation data renders it from the masked pack: the deferred tool returns and the post-write acknowledgement turn. On a route that is neither local nor declared, an assembly failure fails closed instead of falling back. Task 3d.4 asserts that a seeded `personal` value is absent from the captured model request and listed in `ContextPack.dropped`. Task 3b.2 adds the per-call route check for runs not pinned `on`, in `_with_tools`, the single choke point both driver call sites use. The reviewer checks for any other path that passes `Observation.data` to the model, or calls the driver outside `_with_tools`.
 5. **A citation that resolves to another run's evidence** (T6, PR-24). Task 3e.1 tests a citation naming an `evidence_id` from a second run of the same tenant; the reviewer checks that the lookup is scoped by run, not only by tenant.
 6. **`KERNEL-REPEAT` after the facts changed** (PR-15). A repeated blocked digest is short-circuited only while every fact it depends on has the same revision. Task 3d.6 tests a changed revision; the reviewer checks that the compared revision set is the full one the original validation used.
 7. **Fallback after a reservation** (ADR 0027). No toggle's fallback code appears after the run's first reservation. Tasks 3d.5, 3d.6 and 3e.1 test the post-reservation path of their toggle; the reviewer checks every model call and check site against the run's reservation state.
@@ -308,6 +308,8 @@ No runtime code. The ADRs are written, the target sections they decide are recon
 - `src/e_agent/server/api.py`: readiness fields.
 - `tests/unit/server/test_route_boundary.py`.
 
+Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and has no `data_processing` whatever `context_assembler` says, so `on` never covers an unbuilt path (ADR 0027). Task 3d.5 adds ADR 0030's `on` exemption with its masking test.
+
 **Interfaces:** produces `effective_boundary(driver_config, base_url) -> (boundary, basis)` (D2) and the readiness keys `data_boundary`, `data_boundary_basis` and `data_processing_declared`.
 
 - [ ] Failing tests:
@@ -315,7 +317,7 @@ No runtime code. The ADRs are written, the target sections they decide are recon
   - `test_undeclared_remote_route_is_hosted_unknown`;
   - `test_litellm_defaults_to_hosted_unknown`;
   - `test_declared_boundary_is_reported_declared`;
-  - `test_hosted_route_without_data_processing_fails_startup`;
+  - `test_hosted_route_without_data_processing_fails_startup`, also with `context_assembler: on`;
   - `test_local_only_refuses_hosted_route`;
   - `test_readiness_reports_boundary_and_basis`;
   - `test_committed_profiles_are_local`: all three committed profiles start.
@@ -332,7 +334,9 @@ No runtime code. The ADRs are written, the target sections they decide are recon
 - `src/e_agent/contracts/run.py`: the eight reason codes.
 - `src/e_agent/kernel/features.py`: mode properties and fixed messages.
 - `src/e_agent/kernel/continuation.py`: the pin, written only when a mode is not `off` (D8).
-- `src/e_agent/kernel/run_loop.py`: the route check before every model call (D8, T23).
+- `src/e_agent/kernel/ir_on.py`: the route check in `_with_tools`, which both driver call sites use (`kernel/run_loop.py` and the acknowledgement turn in `kernel/verification.py`) (D8, T23).
+- `src/e_agent/kernel/verification.py`: an acknowledgement turn refused by the route check is skipped, recorded with `ROUTE_BOUNDARY_UNMET`, and the run keeps its verified outcome.
+- `tests/conformance/test_driver_call_sites.py`: fails if a `_driver.advance` call bypasses `_with_tools`.
 - New ERP `off` golden: `tests/unit/plugins/erp/simulator/golden/off_model_request_erp.json`, with its recording script, and `tests/unit/plugins/erp/simulator/test_off_model_request_erp.py`.
 - Tests: `tests/unit/contracts/test_features.py`, `tests/unit/server/test_committed_profiles.py`, `tests/unit/kernel/test_feature_fallback.py`, `tests/unit/kernel/test_mode_pinning.py`.
 
@@ -349,7 +353,9 @@ No runtime code. The ADRs are written, the target sections they decide are recon
   - `test_off_run_writes_no_pin`: the continuation is byte-identical to today's;
   - `test_absent_pin_means_off`;
   - `test_pinned_off_run_on_undeclared_hosted_route_fails_closed`: a run started on a local route resumes after a restart onto an undeclared hosted route with `context_assembler: on`; it makes no model call and ends `ROUTE_BOUNDARY_UNMET` (T23, Review Focus 4);
-  - `test_route_check_with_unresolved_reservation_goes_to_reconciliation`.
+  - `test_route_check_with_unresolved_reservation_goes_to_reconciliation`;
+  - `test_route_check_skips_ack_turn_and_keeps_verified`: the acknowledgement turn of a verified write on an undeclared hosted route makes no model call;
+  - `test_every_driver_call_goes_through_with_tools`: prints how many call sites it checked and fails on zero.
 - [ ] Run `uv run pytest -q tests/unit/contracts/test_features.py tests/unit/server/test_committed_profiles.py tests/unit/kernel/test_feature_fallback.py tests/unit/kernel/test_mode_pinning.py`; expected: fails on the unknown field `context_assembler`.
 - [ ] Implement; nothing reads the new modes yet except readiness, evidence and the pin.
 - [ ] Run the same command, the `off` baselines (`tests/unit/kernel/test_off_baseline.py`, `tests/unit/plugins/erp/simulator/test_off_baseline_erp.py`) and both `off` model-request goldens; expected: all pass, goldens unchanged. Run the first command with `E_AGENT_TEST_STORE=postgres`; expected: pass.
@@ -551,6 +557,7 @@ No runtime code. The ADRs are written, the target sections they decide are recon
 - `src/e_agent/kernel/verification.py`: the acknowledgement turn passes the pack; on failure the turn is skipped.
 - `src/e_agent/kernel/continuation.py`: a `_load_cont` handler for a typed restore refusal → `DRIVER_STATE_MISMATCH` through an allowed transition (D8).
 - `src/e_agent/kernel/features.py`: fallback or terminal, by reservation state and boundary.
+- `src/e_agent/server/bootstrap.py`: the startup rule's `on` exemption (ADR 0030).
 - `tests/unit/kernel/test_context_on.py`.
 - `tests/unit/kernel/test_context_budget_turns.py`.
 
@@ -565,6 +572,7 @@ No runtime code. The ADRs are written, the target sections they decide are recon
   - `test_off_to_on_flip_keeps_inflight_run_on_history` (D8);
   - `test_restore_rendering_mismatch_fails_closed` (D8): through the handler, not an uncaught `ValueError`; with an unresolved reservation it goes to reconciliation;
   - `test_injected_fixture_run_proposes_the_same_action` (T1, Review Focus 1);
+  - `test_on_exempts_undeclared_hosted_route_at_startup`: ADR 0030's exemption, added here with masking;
   - `test_twelve_turn_conversation_respects_budget` and `test_twenty_turn_conversation_stays_under_budget`: scripted driver; core plan exit evidence.
 - [ ] Run `uv run pytest -q tests/unit/kernel/test_context_on.py tests/unit/kernel/test_context_budget_turns.py`; expected: fails, no pack reaches the driver.
 - [ ] Implement.
@@ -628,7 +636,7 @@ No runtime code. The ADRs are written, the target sections they decide are recon
 ### Task 3e.2: the generic grounded answer
 
 **Files:**
-- `src/e_agent/kernel/grounded_answer.py` (new): the core `grounded.answer.v1` capability (`summary`, `citations`), registered by the kernel only when `grounded_answers` is not `off`. Its result is verification `grounded`.
+- `src/e_agent/kernel/grounded_answer.py` (new): the core `grounded.answer.v1` capability (`summary`, `citations`), registered by the kernel and left out of a run's offered tools when that run's pinned `grounded_answers` mode is `off`, so an in-flight run's tool set does not change on a profile flip. Its result is verification `grounded`.
 - `src/e_agent/contracts/run.py`: verification value `grounded`.
 - `src/e_agent/kernel/evidence.py`: free text outside citations marked `unverified`.
 - `tests/unit/kernel/test_grounded_answer.py`.
@@ -639,7 +647,7 @@ No runtime code. The ADRs are written, the target sections they decide are recon
   - `test_read_only_question_ends_grounded_without_bespoke_contract`;
   - `test_grounded_is_never_reported_as_verified` (PR-19);
   - `test_free_text_answer_is_labelled_unverified`;
-  - `test_grounded_answer_not_offered_when_off`;
+  - `test_grounded_answer_not_offered_when_pinned_off`, including after a profile flip;
   - `test_grounded_answer_with_unresolved_citation_is_repaired`;
   - `test_grounding_failure_fails_closed_for_generic_answer`.
 - [ ] Run `uv run pytest -q tests/unit/kernel/test_grounded_answer.py`; expected: `ModuleNotFoundError: e_agent.kernel.grounded_answer`.

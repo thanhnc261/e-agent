@@ -139,8 +139,8 @@
       "id": "P3-R1",
       "severity": "High",
       "affects": "correctness",
-      "summary": "Re-review: a run pinned off could resume onto an undeclared hosted route that startup accepted because the profile is on; a per-call route check now fails it closed with ROUTE_BOUNDARY_UNMET (3b.2).",
-      "evidence": "plan D8, Task 3b.1; driver.py:543; verification.py:193; threat-model.md:51"
+      "summary": "Re-review: a run pinned off could resume onto an undeclared hosted route that startup accepted because the profile is on; a per-call route check now fails it closed with ROUTE_BOUNDARY_UNMET (3b.2). The check sits in _with_tools (kernel/ir_on.py:149), which both driver call sites use, so the acknowledgement turn is covered; 3b.1 refuses unconditionally until 3d.5 adds the on exemption.",
+      "evidence": "plan D8, Task 3b.1; driver.py:543; verification.py:193; threat-model.md:51; run_loop.py:49; verification.py:186-188"
     },
     {
       "id": "P3-R2",
