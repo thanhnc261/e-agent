@@ -29,7 +29,8 @@
     "harness/state/**",
     ".superpowers/sdd/**",
     "docs/handoffs/**",
-    "docs/design/target-architecture.md"
+    "docs/design/target-architecture.md",
+    "docs/adr/0030-data-governance.md"
   ],
   "acceptance": [
     "record-class conformance test runs on both stores, prints its count and fails on zero",
@@ -45,6 +46,11 @@
       "glob": "docs/design/target-architecture.md",
       "reason": "owner decision 2026-10-19: data_classes keyed by instance path, not schema pointer (review C3-1..13)",
       "at": "2026-10-19T08:47:39+00:00"
+    },
+    {
+      "glob": "docs/adr/0030-data-governance.md",
+      "reason": "owner decision 2026-10-19: data_classes keyed by instance path (amendment committed in bcc4829)",
+      "at": "2026-10-19T08:47:48+00:00"
     }
   ]
 }
