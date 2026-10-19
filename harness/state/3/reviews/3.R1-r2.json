@@ -1,0 +1,24 @@
+{
+  "task": "3.R1",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "R2-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The drift guard only sees whole-string ast.Constant literals that match KERNEL-[A-Z][A-Z0-9-]*. An id built by an f-string (f\"KERNEL-{x}\") or by concatenation (KERNEL_RULE_PREFIX + \"X\") gets past it without any failure. A scratch probe of the same scan logic confirmed this; it found only the implicitly concatenated literal. No product code builds an id that way today: a grep of src/e_agent finds 27 literal ids, exactly KERNEL_FINDING_IDS, and no f-string or prefix concatenation. A missed id also fails safe, because rule_stored stores it as a digest and nothing leaks. So this costs only readability in explain, not correctness. Optional hardening: have the test also fail on any JoinedStr or BinOp that starts with \"KERNEL-\" or KERNEL_RULE_PREFIX.",
+      "evidence": "tests/unit/kernel/test_at_rest.py:431-445; src/e_agent/kernel/at_rest.py:39-77, src/e_agent/kernel/at_rest.py:91-94"
+    },
+    {
+      "id": "R2-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "A KERNEL-* id that resolves only by its prefix still counts as resolved: RationaleCounts.rules.resolved counts it and it raises no repair, as R1-1 required. At rest, though, it goes under unresolved_rule_digests. RationaleRef's docstrings now overstate this: rules_considered says 'The rule ids that resolved' and unresolved_rule_digests says 'each rule id that resolved nothing'. Stored counts can therefore exceed len(rules_considered); the pure test has resolved == 3 with 2 ids listed. A docstring note would settle it: 'resolved and stored verbatim' / 'unresolved, or a KERNEL-* id the kernel does not emit'. This needs no behaviour change.",
+      "evidence": "src/e_agent/contracts/explain.py:134-137; tests/unit/kernel/test_at_rest.py:468; src/e_agent/kernel/rationale.py:181, src/e_agent/kernel/rationale.py:105"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}

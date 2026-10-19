@@ -132,9 +132,12 @@ class RationaleRef(Record):
     unresolved_evidence_digests: tuple[str, ...] = ()
     """The digest of each evidence id that resolved nothing, never the id."""
     rules_considered: tuple[str, ...]
-    """The rule ids that resolved, in order."""
+    """The rule ids stored as ids, in order: admitted rule ids and the kernel's own finding
+    ids."""
     unresolved_rule_digests: tuple[str, ...] = ()
-    """The digest of each rule id that resolved nothing, never the id."""
+    """The digest of each other rule id, never the id: one that resolved nothing, or a
+    ``KERNEL-*`` id the kernel never emits (it resolves by prefix, so it counts as resolved
+    and raises no repair, but is stored only as its digest)."""
     alternatives: tuple[AlternativeRef, ...]
     summary_digest: str
     label: ValueLabel = ValueLabel.MODEL_AUTHORED
