@@ -90,7 +90,8 @@ class Validation(Record):
     by rule id, version and status. Their message is validator free text and their
     ``expected`` and ``observed`` values are read data; all stay out (PR-26)."""
     rules_evaluated: tuple[RuleRef, ...]
-    """Every rule that validation evaluated, ``PASS`` included (research 03 CQ07)."""
+    """Every rule evaluated in this run (across every validation), latest status per rule
+    version (research 03 CQ07)."""
     input_requests: tuple[InputRequest, ...]
 
 

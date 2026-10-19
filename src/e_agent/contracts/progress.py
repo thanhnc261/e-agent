@@ -118,8 +118,8 @@ class ProgressLedger(Record):
     pending: tuple[Stage, ...]
     open_findings: tuple[OpenFinding, ...]
     rules_evaluated: tuple[RuleRef, ...]
-    """Every rule of the same validation as ``open_findings``, ``PASS`` included, once each in
-    the order recorded; empty when no validation is current."""
+    """Every rule evaluated in this run (across every validation), latest status per rule
+    version: one entry per rule id and version, in first-seen order, never a message."""
     repair_turns: tuple[str, ...]
     """Event ids of the plain-text repair turns (``KERNEL-VERIFICATION``), never their text."""
     budgets_used: BudgetsUsed

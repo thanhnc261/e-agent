@@ -18,6 +18,7 @@ from typing import Any
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.explain import Completeness, Explanation, ValueLabel
+from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.progress import RuleRef, StageStatus, TaskRefState
 from e_agent.contracts.run import ReasonCode, RunRecord, RunState
 from e_agent.kernel import explain as explain_module
@@ -26,7 +27,18 @@ from e_agent.kernel.progress import project_progress
 from e_agent.kernel.reconstruct import reconstruct, without_reconstruction_keys
 from e_agent.sdk.ports import AskClarification, DriverInput, DriverStep, FinalAnswer
 
-from .conftest import CONN, CREATE, READ, TENANT, Kernel, NotesDriver
+from .conftest import (
+    CONN,
+    CREATE,
+    NOTE_INPUT,
+    NOTES_TASK,
+    PLAN_BUDGETS,
+    READ,
+    TENANT,
+    Kernel,
+    NotesDriver,
+    NotesPlanDriver,
+)
 from .test_progress import WrongAnswerDriver
 
 MakeKernel = Callable[..., Kernel]
@@ -340,6 +352,53 @@ def _event(sequence: int, type_: RunEventType, payload: dict[str, Any]) -> RunEv
         occurred_at=AT,
         payload=payload,
     )
+
+
+async def test_explanation_of_a_two_step_plan_names_its_rules(make_kernel: MakeKernel) -> None:
+    """The plan's later step revalidates with no findings at dispatch; the rules the run
+    evaluated before it stay named (review C3-27)."""
+    k = make_kernel(
+        features=Features(execution_ir=FeatureMode.ON),
+        budgets=PLAN_BUDGETS,
+        driver=NotesPlanDriver(),
+        input_schemas={"c": NOTE_INPUT, "p": NOTE_INPUT},
+    )
+    run = await k.coordinator.start_run(
+        k.requester, "write standup note", k.scope, task_kind=NOTES_TASK.task_id
+    )
+    run = await _approve(k, run.run_id)
+    assert run.state is RunState.SUCCEEDED
+    events = await k.store.list_events(TENANT, run.run_id)
+    validations = [e for e in events if e.type is RunEventType.VALIDATION_COMPLETED]
+    assert validations[-1].payload["findings"] == []  # the case this test is about
+    explained = await _explained(k, run.run_id)
+    assert explained.validation.rules_evaluated == (
+        RuleRef(rule_id="NOTE-001", rule_version="1", status="PASS"),
+    )
+    assert explained.validation.open_findings == ()
+
+
+def test_rules_keep_first_seen_order_and_latest_status() -> None:
+    def validation(sequence: int, *findings: tuple[str, str, str]) -> RunEvent:
+        payload = [
+            {"rule_id": r, "rule_version": v, "status": s, "message": SENTINEL}
+            for r, v, s in findings
+        ]
+        return _event(sequence, RunEventType.VALIDATION_COMPLETED, {"findings": payload})
+
+    events = [
+        validation(1, ("A", "1", "FAIL"), ("B", "1", "PASS")),
+        _event(2, RunEventType.PROPOSAL_CREATED, {}),
+        validation(3, ("C", "1", "PASS"), ("A", "1", "PASS"), ("A", "2", "FAIL")),
+    ]
+    rules = _explain(events).validation.rules_evaluated
+    assert [(r.rule_id, r.rule_version, r.status) for r in rules] == [
+        ("A", "1", "PASS"),
+        ("B", "1", "PASS"),
+        ("C", "1", "PASS"),
+        ("A", "2", "FAIL"),
+    ]
+    assert SENTINEL not in _explain(events).model_dump_json()
 
 
 def test_explanation_of_no_events_is_unknown() -> None:

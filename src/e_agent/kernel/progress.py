@@ -130,19 +130,27 @@ def _text(value: Any) -> str | None:
 def _findings(
     events: Sequence[RunEvent],
 ) -> tuple[tuple[OpenFinding, ...], tuple[RuleRef, ...], tuple[str, ...]]:
-    """The current validation is the latest one that no later proposal superseded: its open
-    findings, and every rule it evaluated (``PASS`` included)."""
+    """Open findings are those of the latest validation that no later proposal superseded.
+    The evaluated rules come from every validation of the run: one per rule id and version,
+    in first-seen order, with the latest status seen (``PASS`` included)."""
     latest: RunEvent | None = None
     repairs: list[str] = []
+    statuses: dict[tuple[str, str], str] = {}  # insertion order is first-seen order
     for event in events:
         if event.type is RunEventType.PROPOSAL_CREATED:
             latest = None
         elif event.type is RunEventType.VALIDATION_COMPLETED:
             latest = event
+            for f in _finding_dicts(event):
+                statuses[(str(f.get("rule_id")), str(f.get("rule_version")))] = str(f.get("status"))
             if any(f.get("rule_id") == REPAIR_RULE_ID for f in _finding_dicts(event)):
                 repairs.append(event.event_id)
+    rules = tuple(
+        RuleRef(rule_id=rule_id, rule_version=version, status=status)
+        for (rule_id, version), status in statuses.items()
+    )
     if latest is None:
-        return (), (), tuple(repairs)
+        return (), rules, tuple(repairs)
     open_findings = tuple(
         OpenFinding(
             rule_id=str(f.get("rule_id")),
@@ -153,15 +161,7 @@ def _findings(
         for f in _finding_dicts(latest)
         if f.get("status") != "PASS"
     )
-    rules = dict.fromkeys(
-        RuleRef(
-            rule_id=str(f.get("rule_id")),
-            rule_version=str(f.get("rule_version")),
-            status=str(f.get("status")),
-        )
-        for f in _finding_dicts(latest)
-    )
-    return open_findings, tuple(rules), tuple(repairs)
+    return open_findings, rules, tuple(repairs)
 
 
 def _finding_dicts(event: RunEvent) -> list[dict[str, Any]]:
