@@ -719,3 +719,8 @@
 - changed: harness/state/3/features.json, harness/state/3/handoffs/3e.2.json, harness/state/evidence/gates/3e.2/2026-10-19T18-28-16.825817+00-00-full.json, harness/state/evidence/gates/3e.2/2026-10-19T18-29-35.686952+00-00-pg.json
 - next: Task 3e.3
 - open: none
+
+## 2026-10-19T19:24:37.174841+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3e.3
+- changed: src/e_agent/kernel/continuation.py, src/e_agent/kernel/ir_on.py, src/e_agent/kernel/verification.py, tests/unit/kernel/test_rationale.py
+- next: rationale tests pass on both stores; approval digest unchanged by rationale
+- open: none
