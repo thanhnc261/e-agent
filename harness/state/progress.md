@@ -649,3 +649,8 @@
 - changed: harness/state/3/features.json, harness/state/3/handoffs/3b.3.json, harness/state/evidence/gates/3b.3/2026-10-19T09-04-04.754935+00-00-full.json, harness/state/evidence/gates/3b.3/2026-10-19T09-05-19.128354+00-00-pg.json
 - next: Task 3c.1: progress ledger projection
 - open: none
+
+## 2026-10-19T09:58:00.547034+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3c.1
+- changed: harness/state/evidence/gates/3c.1/2026-10-19T09-53-46.705196+00-00-full.json, harness/state/evidence/gates/3c.1/2026-10-19T09-55-02.448910+00-00-pg.json
+- next: test_progress.py passes on both stores, including plain-text repair turns and no model text
+- open: none

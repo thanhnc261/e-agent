@@ -16,7 +16,8 @@
     "harness/state/**",
     ".superpowers/sdd/**",
     "docs/handoffs/**",
-    "pyproject.toml"
+    "pyproject.toml",
+    "docs/adr/0031-progress-ledger-and-reconstruction.md"
   ],
   "acceptance": [
     "test_progress.py passes on both stores, including plain-text repair turns and no model text",
@@ -31,6 +32,11 @@
       "glob": "pyproject.toml",
       "reason": "tighten the facade import contract: e_agent.kernel.progress joins the modules forbidden to import the coordinator (test_structure requires every kernel module listed)",
       "at": "2026-10-19T09:52:34+00:00"
+    },
+    {
+      "glob": "docs/adr/0031-progress-ledger-and-reconstruction.md",
+      "reason": "Review C3-15: the budgets_used field list names repairs, which the events cannot show exactly; rename to failed_validations",
+      "at": "2026-10-19T10:05:56+00:00"
     }
   ]
 }
