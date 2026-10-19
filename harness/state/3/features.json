@@ -193,7 +193,8 @@
         "rationale tests pass on both stores; approval digest unchanged by rationale",
         "full and pg pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3e.3/2026-10-19T19-32-28.407633+00-00-full.json"
     },
     {
       "id": "F-3e-4",
