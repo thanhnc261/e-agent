@@ -131,7 +131,7 @@ Phase 3 adds nine `ReasonCode` members in `contracts/run.py`: the eight toggle, 
 | `REPEAT_UNAVAILABLE` | terminal | ADR 0031 | run state change | infrastructure-or-budget |
 | `GROUNDING_CHECK_FAILED` | fallback | ADR 0033 | `feature.fallback` only | never ends a run |
 | `GROUNDING_UNAVAILABLE` | terminal | ADR 0033 | run state change | infrastructure-or-budget |
-| `DRIVER_STATE_MISMATCH` | terminal | this ADR | run state change | failed |
+| `DRIVER_STATE_MISMATCH` | terminal | this ADR | run state change; `context.failed` for a skipped acknowledgement turn | failed |
 | `ROUTE_BOUNDARY_UNMET` | terminal | this ADR | run state change; `context.failed` for a skipped acknowledgement turn | blocked-by-design |
 | `GROUNDED` | success | ADR 0033 | the `SUCCEEDED` state change of a grounded answer | succeeded, but counted apart from `VERIFIED` in the release report and qualification (ADR 0033) |
 

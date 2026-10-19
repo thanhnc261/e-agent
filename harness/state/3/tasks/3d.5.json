@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-3d-5"
   ],
-  "context_digest": "3a59af3c32f9182cc9f841fdf957ab7634a27e2ffd501d46b7ff3b8daa88c589",
+  "context_digest": "856429048caeb2c7226d3e4ba5cab9c778b886e562c6132233cf5604b5210020",
   "allowed_paths": [
     "src/e_agent/kernel/run_loop.py",
     "src/e_agent/kernel/verification.py",

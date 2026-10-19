@@ -567,7 +567,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 **Files:**
 - `src/e_agent/kernel/run_loop.py`: pass the pack on every driver call of a pinned-`on` run.
 - `src/e_agent/kernel/verification.py`: the acknowledgement turn passes the pack; on failure the turn is skipped.
-- `src/e_agent/kernel/continuation.py`: a `_load_cont` handler for a typed restore refusal → `DRIVER_STATE_MISMATCH` through an allowed transition (D8).
+- `src/e_agent/kernel/continuation.py`: driver state is restored only before a driver turn, and a typed restore refusal there goes to `DRIVER_STATE_MISMATCH` through an allowed transition (D8). Kernel-only operations (reconcile, the crash rules, cancel, the approval read) load the kernel continuation without restoring it. Ruling 2026-10-19 (review D3-60, D3-61): a check on every load stranded reconciliation (PR-18). Cost if wrong: a mismatch is found at the first driver turn rather than on load.
 - `src/e_agent/kernel/features.py`: fallback or terminal, by reservation state and boundary.
 - `src/e_agent/server/bootstrap.py`: the startup rule's `on` exemption (ADR 0030).
 - `tests/unit/kernel/test_context_on.py`.
