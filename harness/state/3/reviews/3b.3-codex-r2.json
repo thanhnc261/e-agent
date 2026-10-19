@@ -1,0 +1,38 @@
+{
+  "task": "3b.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "C3-1",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "Not resolved: a terminal $ref to a leaf under $defs loses the leaf's class, and a conflicting alias declaration is admitted.",
+      "evidence": "src/e_agent/contracts/data_classes.py:208, :257"
+    },
+    {
+      "id": "C3-7",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "A same-named sibling property next to $ref hides the restrictive class of the referenced schema.",
+      "evidence": "src/e_agent/contracts/data_classes.py:208, :324"
+    },
+    {
+      "id": "C3-8",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Valid declarations through a $ref into an anyOf branch now fail admission.",
+      "evidence": "src/e_agent/contracts/data_classes.py:186"
+    },
+    {
+      "id": "C3-9",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Declarations under then/else/patternProperties are rejected though they name property schemas.",
+      "evidence": "src/e_agent/contracts/data_classes.py:117, :121, :239"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}
