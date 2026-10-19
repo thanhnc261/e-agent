@@ -22,7 +22,7 @@ export function RunStatus() {
   return (
     <div className="ea-run-status" data-testid="run-status">
       <StatusBadge
-        tone={status === "status.phase.UNKNOWN" ? "unknown" : runStateTone(run.state)}
+        tone={status === "status.phase.UNKNOWN" ? "unknown" : runStateTone(run.state, run.reason_code)}
         className={`ea-state-pill ea-state-${run.state.toLowerCase()}`}
         data-testid="run-state"
         data-state={run.state}

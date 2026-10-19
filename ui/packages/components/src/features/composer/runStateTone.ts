@@ -13,6 +13,8 @@ const TONES: Record<string, StatusTone> = {
   CANCELLED: "neutral",
 };
 
-export function runStateTone(state: string | undefined): StatusTone {
+/** A run the server ended `grounded` is never shown with the verified tone (PR-19). */
+export function runStateTone(state: string | undefined, reasonCode?: string | null): StatusTone {
+  if (state === "SUCCEEDED" && reasonCode === "grounded") return "neutral";
   return (state && TONES[state]) || "neutral";
 }
