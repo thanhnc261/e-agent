@@ -48,7 +48,7 @@ Status tags follow the target architecture: **[I]** implemented, **[Pa]** partia
 | PR-18 | An unknown outcome stays unknown | No blind replay; reconciliation; no exactly-once claim | ADR 0014; MVP §9 | ENG-TRUST-5 | `test_lost_response_reconciles_without_a_second_write` (`tests/unit/server/test_erp_tasks.py:82`); `test_lost_response_is_unknown_until_reconciled` (`tests/unit/server/test_walking_skeleton.py:66`) | [I] |
 | PR-19 | Outcomes are verified by independent read-back | Committed effect is distinct from verified business success | MVP §7–§8 | ENG-TRUST-5 | `test_verifier_rejects_inexact_readback` (`tests/unit/plugins/erp/domain/test_procurement.py:266`) | [I] |
 | PR-20 | Every capability declares its effect | `risk`, `reversibility` on contracts; `idempotency` on bindings; live profiles refuse defaults | Adoption review XA-01; ADR 0029 | none | **none** | [P] |
-| PR-21 | Results are never fabricated | An error is never an empty result; a bounded result is marked partial | Adoption review AP-15; ADR 0030 | none | Completeness `COMPLETE/PARTIAL/UNKNOWN` (`contracts/evidence.py:11-14`); truncation markers have **none** | [Pa] |
+| PR-21 | Results are never fabricated | An error is never an empty result; a bounded result is marked partial | Adoption review AP-15; ADR 0030 | none | Completeness `COMPLETE/PARTIAL/UNKNOWN` (`contracts/evidence.py:11-14`); truncation markers have **none** (the check lands in Phase 3 Task 3d.2: `test_bounded_observation_is_partial_with_truncated_marker`, `test_error_is_never_rendered_as_empty_result`) | [Pa] |
 | PR-40 | Auto-approval is a benchmark-only setting | Only a profile marked benchmark-only (`operator.benchmark_auto_approve`) may auto-approve, only `read` and `write_low` steps with explicit (not defaulted) declarations, and never with `environment: live` | Owner D-3; ADR 0024 | ENG-TRUST-3 | **none** (no auto-approve setting exists yet) | [P] |
 
 ## Toggles
@@ -64,7 +64,7 @@ Status tags follow the target architecture: **[I]** implemented, **[Pa]** partia
 |---|---|---|---|---|---|---|
 | PR-24 | Tenant scope on every row and query; a foreign record looks absent | Composite tenant keys; host-derived scope; FORBIDDEN maps to 404 | AGENTS.md; MVP §9 | none | Composite keys (`src/e_agent/adapters/postgres/migrations/0001_initial.sql`); `test_other_tenant_cannot_use_connection` (`tests/unit/kernel/test_lifecycle.py:256`); `test_requests_without_session_or_csrf_are_rejected` (`tests/unit/server/test_api.py:36`); RLS is Phase 7 | [Pa] |
 | PR-25 | Credentials never appear in logs, prompts, traces, evidence or the repository; plugins never hold a raw credential | Secret refs only; redacted `repr`; no `materialize()` | AGENTS.md; owner D-1 | ENG-BOUND-3, ENG-EVID-3 | `test_secret_repr_is_redacted` (`tests/unit/adapters/secretstore_local/test_local_store.py:40`); the plugin HTTP helper never logs or chains a header or body (`test_http_never_echoes_credentials`, `tests/unit/sdk/test_http.py`); harness redaction (`tools/harness/src/e_agent_harness/gate.py`, `redact`); repository secret scan: the `security` job in `.github/workflows/ci.yml` runs gitleaks 8.28.0 (pinned, checksum verified) over the full history with `.gitleaks.toml`, and fails when it scans zero commits (local baseline 2026-10-17: 453 commits, no findings after one fixture allowlist entry; green on PR #4, [run 39032815905](https://github.com/thanhnc261/e-agent/actions/runs/39032815905), 2026-10-17) | [I] |
-| PR-26 | Run data is classified, minimized toward models, exported by class, retained and deletable | Field and record classes; route data boundary; purge keeps the audit skeleton | DR-05; ADR 0030 | none | **none** | [P] |
+| PR-26 | Run data is classified, minimized toward models, exported by class, retained and deletable | Field and record classes; route data boundary; purge keeps the audit skeleton | DR-05; ADR 0030 | none | **none** (the first check lands in Phase 3 Task 3b.3: `test_unmarked_property_counts_as_personal`, `test_every_store_record_kind_declares_a_class`) | [P] |
 | PR-27 | Every API route carries an authorization dependency | Session today, capability grants in Phase 7 | Adoption review XA-12 | none | **none** | [Pa] |
 
 ## Evidence and verification
@@ -82,7 +82,7 @@ Status tags follow the target architecture: **[I]** implemented, **[Pa]** partia
 | ID | Principle | In practice | Decided in | ENG | Check | Status |
 |---|---|---|---|---|---|---|
 | PR-33 | Ontology belongs to domain packs, engines to adapters, and there is one rule inventory | Every rule declares its enforcement engine | AGENTS.md; ADR 0009 | none | `test_rule_inventory_lists_every_rule_with_an_engine` (`tests/unit/plugins/erp/domain/test_procurement.py:155`); `test_rule_inventory_matches_shapes` (`tests/integration/test_procurement_rules.py:226`) | [I] |
-| PR-34 | Untrusted content is data; facts come from structure or people, and model output only creates candidates | Retrieved text, tool output and memory never become instructions or approved facts; fact-source mode is reported | AGENTS.md; target §7.2 rule 5, §9; owner D-2 | ENG-TRUST-1 | **none** (threat T1's injection fixtures are designed, not found as tests) | [Pa] |
+| PR-34 | Untrusted content is data; facts come from structure or people, and model output only creates candidates | Retrieved text, tool output and memory never become instructions or approved facts; fact-source mode is reported | AGENTS.md; target §7.2 rule 5, §9; owner D-2 | ENG-TRUST-1 | **none** (threat T1's injection fixtures are designed, not found as tests; the fence tests land in Phase 3 Task 3d.2: `test_untrusted_values_are_fenced`, `test_fence_cannot_be_closed_from_inside`) | [Pa] |
 
 ## Process and boundaries
 
@@ -113,9 +113,9 @@ Status tags follow the target architecture: **[I]** implemented, **[Pa]** partia
 | PR-12, PR-13 | Model cannot choose a connection or mark a plan verified | Phase 2 Tasks 2c.6 and 2c.9 |
 | PR-16 | Guardrail modification rule | First guardrail ADR |
 | PR-20 | Effect declarations and live refusal | Phase 2 Tasks 2c.1, 2c.2 (ADR 0029) |
-| PR-21, PR-26 | Bounded-result markers; data classes and minimization | Phase 3 (ADR 0030); markers per capability in Phase 5; retention and deletion in Phase 7 |
+| PR-21, PR-26 | Bounded-result markers; data classes and minimization | Phase 3: PR-21 in Task 3d.2, PR-26 in Task 3b.3 (ADRs 0030, 0032); markers per capability in Phase 5; retention and deletion in Phase 7 |
 | PR-40 | Startup refuses auto-approve outside a benchmark profile, above `write_low` or with a defaulted declaration | Phase 5 evaluation, after ADR 0029 declarations exist (ADR 0024) |
 | PR-22, PR-23 | Toggle tests (default `off`, shadow cost, fallback boundary, readiness) | Phase 2 Part 2b (ADR 0027) |
 | PR-27 | OpenAPI route enumeration test | Before Phase 7 (XA-12) |
-| PR-34 | Injection fixtures (threat T1) | Phase 3 with the ContextAssembler |
+| PR-34 | Injection fixtures (threat T1) | Phase 3 Task 3d.2, with the ContextAssembler (ADR 0032) |
 | PR-04, PR-06, PR-11 | Review-only by nature | No machine check planned; reviewers cite the row |

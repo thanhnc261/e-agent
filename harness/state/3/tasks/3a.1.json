@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-3a-1"
   ],
-  "context_digest": "a89f3173be09396d12d88f7c19a89c7056c54096d423209070ee86829c3956cc",
+  "context_digest": "7d194b655ceb5ab009f93c7bd67ae4a993321b779f444e5544cf1c7bdfcc849a",
   "allowed_paths": [
     "docs/adr/0031-*.md",
     "docs/adr/0032-*.md",
