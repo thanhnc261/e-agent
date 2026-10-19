@@ -1,8 +1,13 @@
 """Scripted, deterministic driver (no model). Stands in for the Pydantic AI
-driver until I04 so the kernel path can be tested end to end."""
+driver until I04 so the kernel path can be tested end to end.
+
+Given a context pack (``DriverInput.context``, ADR 0032), it reads its facts from the pack's
+rendered observations, as a model would: a left-out observation is missing, and a rendering
+the facts cannot be read from (masked or cut) counts as missing too."""
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
@@ -18,6 +23,7 @@ from e_agent.sdk.ports import (
     ReadRequest,
     RequestReads,
 )
+from pydantic import ValidationError
 
 from ..inventory import AVAILABILITY_READ
 from ..procurement import (
@@ -62,10 +68,14 @@ class ScriptedProcurementDriver:
                     for rid, cid in _READS.items()
                 )
             )
-        facts = collect_facts(
-            (o.contract_id, o.data, o.evidence.evidence_id) for o in step_input.observations
-        )
-        required = facts.required_quantity
+        try:
+            facts = collect_facts(_observed(step_input))
+            required = facts.required_quantity
+        except (ValidationError, KeyError, ArithmeticError):
+            if step_input.context is None:
+                raise
+            # a rendering the facts cannot be read from (masked or cut) is a missing fact
+            return FinalAnswer(text="Required facts are missing; no action proposed.")
         if facts.demand is None or facts.offers is None or required is None:
             return FinalAnswer(text="Required facts are missing; no action proposed.")
         if self.task_kind != "draft-po":
@@ -139,3 +149,16 @@ class ScriptedProcurementDriver:
                 },
             )
         )
+
+
+def _observed(step_input: DriverInput) -> Iterable[tuple[str, Mapping[str, Any], str]]:
+    """(contract id, data, evidence id) of what the driver may see: the pack's renderings
+    when there is a pack, without the observations it left out; else the observations."""
+    if step_input.context is None:
+        return [(o.contract_id, o.data, o.evidence.evidence_id) for o in step_input.observations]
+    contracts = {o.evidence.evidence_id: o.contract_id for o in step_input.observations}
+    return [
+        (contracts[r.evidence.evidence_id], r.data, r.evidence.evidence_id)
+        for r in step_input.context.observations
+        if r.evidence.evidence_id in contracts and not (r.truncated and set(r.data) == {"omitted"})
+    ]
