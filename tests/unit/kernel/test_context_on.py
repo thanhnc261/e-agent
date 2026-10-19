@@ -892,7 +892,7 @@ async def test_a_numeric_dict_key_is_never_classed_as_a_list_index(
     if shape == "dict":
         assert observation.data == {"by_id": {}}
         assert observation.masked
-        assert "123" not in text.replace(evidence_id, "")
+        assert '"123"' not in text and "/123" not in text  # as a JSON key or pointer segment
         assert "SEEDED" not in text
         drops = [(d.kind, d.ref, d.reason) for d in pack.dropped]
         assert (DroppedKind.VALUE, f"{evidence_id}#/by_id", DroppedReason.CLASS_ROUTE) in drops
@@ -947,5 +947,67 @@ async def test_a_dict_key_named_items_is_never_the_array_marker(
     assert "SEEDED" not in text
     assert '"items"' not in text
     ref = f"{observation.evidence.evidence_id}#/x"
+    drops = [(d.kind, d.ref, d.reason) for d in pack.dropped]
+    assert (DroppedKind.VALUE, ref, DroppedReason.CLASS_ROUTE) in drops
+
+
+@pytest.mark.parametrize(
+    ("declared", "shape", "route", "expected"),
+    [
+        (DataClass.SECRET, "dict", LOCAL, {"x": {"items": {}}}),
+        (DataClass.SECRET, "list", LOCAL, {"x": [{}]}),
+        (DataClass.PUBLIC, "dict", LOCAL, {"x": {"items": {"label": "SEEDED-VALUE"}}}),
+        (
+            DataClass.SENSITIVE_PERSONAL,
+            "dict",
+            HOSTED_DECLARED,
+            {"x": {"items": {"label": "[masked:sensitive_personal]"}}},
+        ),
+    ],
+    ids=["secret-dict-local", "secret-list-local", "public-dict-local", "sensitive-dict-declared"],
+)
+async def test_a_dict_key_named_items_keeps_the_markers_classes_floored_at_personal(
+    make_kernel: MakeKernel,
+    monkeypatch: pytest.MonkeyPatch,
+    declared: DataClass,
+    shape: str,
+    route: dict[str, Any],
+    expected: dict[str, Any],
+) -> None:
+    """A dict key ``items`` is walked under the array marker with a floor of ``personal``
+    (ADR 0030 "most restrictive wins", 3d.5 post-review): a ``secret`` declared at
+    ``/output/x/items/label`` is removed on a route that keeps unmarked values, as it is
+    under a real list; a ``sensitive_personal`` one is masked on a declared hosted route; a
+    ``public`` one is raised to ``personal``, which a local route keeps."""
+    driver = PackNotesDriver(texts=["standup notes"])
+    k = make_kernel(features=ON, route=route, driver=driver)
+    monkeypatch.setattr(
+        k.coordinator._registry,
+        "data_classes",
+        lambda _cid: {"/output/x/items/label": declared},
+    )
+    label = {"label": "SEEDED-VALUE"}
+    x: Any = {"items": label} if shape == "dict" else [label]
+    original = k.backend.read
+
+    async def shaped(*args: Any) -> Any:
+        return dataclasses.replace(await original(*args), data={"x": x})
+
+    monkeypatch.setattr(k.backend, "read", shaped)
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+    assert run.state is RunState.WAITING_APPROVAL, run.reason
+    [pack, *_] = [st.context for st in driver.seen if st.context is not None and st.observations]
+    [observation] = pack.observations
+    text = pack.model_dump_json()  # the observations and every rendered layer
+    assert observation.data == expected
+    if declared is DataClass.PUBLIC:
+        assert not observation.masked
+        assert "SEEDED-VALUE" in text
+        return
+    assert observation.masked
+    assert observation.partial
+    assert "SEEDED" not in text
+    member = "items" if shape == "dict" else "0"
+    ref = f"{observation.evidence.evidence_id}#/x/{member}/label"
     drops = [(d.kind, d.ref, d.reason) for d in pack.dropped]
     assert (DroppedKind.VALUE, ref, DroppedReason.CLASS_ROUTE) in drops

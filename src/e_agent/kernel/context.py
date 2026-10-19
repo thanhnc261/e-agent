@@ -15,9 +15,8 @@ evidence is never dropped for the budget).
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
-from decimal import Decimal
 from types import MappingProxyType
 from typing import Any
 
@@ -35,7 +34,6 @@ from e_agent.contracts.context_pack import (
     fence,
     json_text,
     masked_marker,
-    number_text,
     tool_return_payload,
     tool_return_text,
 )
@@ -45,6 +43,7 @@ from e_agent.contracts.task import TaskDefinition
 from e_agent.contracts.validation import Finding
 from e_agent.sdk.ports import Observation
 
+from .context_walk import Walker
 from .errors import ErrorCode, KernelError
 
 ClassLookup = Callable[[str], Mapping[str, dc.DataClass]]
@@ -64,12 +63,6 @@ KERNEL_RULE_PREFIX = "KERNEL-"
 _CODE = re.compile(r"[A-Za-z][A-Za-z0-9_.-]{0,63}")
 _EMPTY: Mapping[str, Any] = MappingProxyType({})
 _MASKED_TEXT = masked_marker(dc.DataClass.PERSONAL)
-KEEP = ClassAction.KEEP
-_UNNAMEABLE = "0"
-"""The class-lookup token of a dict key named ``items``: ADR 0030's key format reserves
-``items`` for array members, and a class key never writes a numeric token, so no declaration
-names it (review D3-81). Its ancestors' classes still apply. The cost: a schema property
-literally named ``items`` is always ``personal``; no ERP schema has one."""
 
 
 def context_route(route: Mapping[str, Any]) -> ContextRoute:
@@ -110,183 +103,13 @@ def _stub(source: Observation, reason: DroppedReason) -> _Rendered:
     return _Rendered(source, rendered, [drop], stub=True)
 
 
-def _plain(value: Any) -> Any:
-    """A JSON value with every number as its canonical decimal string."""
-    if value is None or isinstance(value, bool | str):
-        return value
-    if isinstance(value, int | float | Decimal):
-        return number_text(value)
-    if isinstance(value, Mapping):
-        return {_key(k): _plain(v) for k, v in value.items()}
-    if isinstance(value, list | tuple):
-        return [_plain(v) for v in value]
-    raise KernelError(ErrorCode.INVALID_REQUEST, "observation data holds a value outside JSON")
-
-
-def _key(key: Any) -> str:
-    if not isinstance(key, str):
-        raise KernelError(ErrorCode.INVALID_REQUEST, "observation data has a non-string key")
-    return key
-
-
-Pointer = tuple[str, ...]
-
-
-class _Walker:
-    """Renders one observation's data through its class declarations and the route's row,
-    then bounds it. Pointers in drops are into the original data."""
-
-    def __init__(
-        self, index: dc.ClassIndex, rules: Mapping[dc.DataClass, ClassAction], evidence_id: str
-    ) -> None:
-        self.index, self.rules, self.evidence_id = index, rules, evidence_id
-        self.drops: list[Dropped] = []
-        self.masked = False
-        self.mask_pointers: set[Pointer] = set()
-        """Where the kernel wrote a mask marker; a provider string never poses as one."""
-        self.positions: dict[int, list[int]] = {}
-        """Original indices of each rendered list, by the list's id."""
-
-    def ref(self, pointer: Sequence[str]) -> str:
-        return f"{self.evidence_id}#{dc.format_pointer(pointer)}"
-
-    def _drop(self, kind: DroppedKind, pointer: Sequence[str], reason: DroppedReason) -> None:
-        self.drops.append(Dropped(kind=kind, ref=self.ref(pointer), reason=reason))
-
-    # rendering ----------------------------------------------------------------------
-    def root(self, data: Mapping[str, Any]) -> dict[str, Any]:
-        rendered: dict[str, Any] = self._children(data, ("output",), ())
-        return rendered
-
-    def _node(self, value: Any, tokens: dc.Path, pointer: Pointer) -> tuple[bool, Any]:
-        declared = self.index.declared(tokens)
-        if isinstance(value, Mapping | list | tuple) and self.index.declared_below(tokens):
-            action = KEEP if declared is None else self.rules[declared]
-            if action is KEEP:
-                return True, self._children(value, tokens, pointer)
-        # a leaf, or a container no declaration reaches into: one value of one class, so
-        # an undeclared dict's keys are masked with it (ADR 0030)
-        data_class = dc.UNMARKED_CLASS if declared is None else declared
-        action = self.rules[data_class]
-        if action is KEEP:
-            return True, self._track(_plain(value))
-        self._drop(DroppedKind.VALUE, pointer, DroppedReason.CLASS_ROUTE)
-        self.masked = True  # a removed secret too: the rendering is not the whole (D3-11)
-        if action is ClassAction.ABSENT:
-            return False, None
-        self.mask_pointers.add(pointer)
-        return True, masked_marker(data_class)
-
-    def _children(self, value: Any, tokens: dc.Path, pointer: Pointer) -> Any:
-        if isinstance(value, Mapping):
-            out: dict[str, Any] = {}
-            unnamed = False
-            for key, item in value.items():
-                name = _key(key)
-                # a dict key is itself, numeric or not, and never the array marker (D3-81)
-                child = (*tokens, _UNNAMEABLE if name == dc.ITEMS else name)
-                if not self.index.named(child) and self.rules[dc.UNMARKED_CLASS] is not KEEP:
-                    unnamed = True  # the key may be data: the entry is left out (D3-12)
-                    continue
-                kept, rendered = self._node(item, child, (*pointer, name))
-                if kept:
-                    out[name] = rendered
-            if unnamed:  # one drop naming the parent, never the key
-                self.masked = True
-                self._drop(DroppedKind.VALUE, pointer, DroppedReason.CLASS_ROUTE)
-            return out
-        members: list[Any] = []
-        positions: list[int] = []
-        for index, item in enumerate(value):
-            kept, rendered = self._node(item, (*tokens, dc.ITEMS), (*pointer, str(index)))
-            if kept:
-                members.append(rendered)
-                positions.append(index)
-        self.positions[id(members)] = positions
-        return members
-
-    def _track(self, value: Any) -> Any:
-        """Record the original indices of every list in a value rendered whole."""
-        if isinstance(value, list):
-            self.positions[id(value)] = list(range(len(value)))
-            for item in value:
-                self._track(item)
-        elif isinstance(value, dict):
-            for item in value.values():
-                self._track(item)
-        return value
-
-    # bounding -----------------------------------------------------------------------
-    def _lists(self, value: Any, pointer: Pointer) -> Iterator[tuple[Pointer, list[Any]]]:
-        """Every non-empty list in document order, with its original pointer."""
-        if isinstance(value, dict):
-            for key, item in value.items():
-                yield from self._lists(item, (*pointer, key))
-        elif isinstance(value, list):
-            if value:
-                yield pointer, value
-            positions = self.positions[id(value)]
-            for index, item in enumerate(value):
-                yield from self._lists(item, (*pointer, str(positions[index])))
-
-    def _strings(self, value: Any, pointer: Pointer) -> Iterator[tuple[Pointer, Any, Any]]:
-        """Every cuttable string as (original pointer, parent, key), in document order."""
-        if isinstance(value, dict):
-            entries = [(key, item, key) for key, item in value.items()]
-        elif isinstance(value, list):
-            positions = self.positions[id(value)]
-            entries = [(i, item, str(positions[i])) for i, item in enumerate(value)]
-        else:
-            return
-        for key, item, token in entries:
-            if isinstance(item, str) and item and (*pointer, token) not in self.mask_pointers:
-                yield (*pointer, token), value, key
-            else:
-                yield from self._strings(item, (*pointer, token))
-
-    def bound(
-        self, data: dict[str, Any], size: Callable[[dict[str, Any]], int], limit: int
-    ) -> bool:
-        """Cut ``data`` in place to ``limit`` bytes of tool return: list members from the end
-        (the longest list first, the first in document order on a tie), then long strings
-        at their end. Each removed member and each cut string is a ``bound`` drop. False
-        when nothing is left to cut and it still does not fit."""
-        cut: set[str] = set()
-        current = size(data)
-        while current > limit:
-            if lists := sorted(self._lists(data, ()), key=lambda found: -len(found[1])):
-                pointer, target = lists[0]
-                runner_up = len(lists[1][1]) if len(lists) > 1 else 0
-                while True:  # one member per round at least, so equal lists alternate
-                    member = target.pop()
-                    original = self.positions[id(target)].pop()
-                    self._drop(DroppedKind.ITEM, (*pointer, str(original)), DroppedReason.BOUND)
-                    current -= len(json_text(member).encode("utf-8")) + (1 if target else 0)
-                    if current <= limit or len(target) <= runner_up:
-                        break
-                if current <= limit:
-                    current = size(data)  # the accounting is exact; confirm it anyway
-                continue
-            strings = list(self._strings(data, ()))
-            if not strings:
-                return False
-            pointer, parent, key = max(strings, key=lambda found: len(found[1][found[2]]))
-            text: str = parent[key]
-            parent[key] = text[: max(0, len(text) - max(current - limit, 1))]
-            if self.ref(pointer) not in cut:
-                cut.add(self.ref(pointer))
-                self._drop(DroppedKind.VALUE, pointer, DroppedReason.BOUND)
-            current = size(data)
-        return True
-
-
 def _render(
     source: Observation,
     policy: ContextPolicy,
     rules: Mapping[dc.DataClass, ClassAction],
     index: dc.ClassIndex,
 ) -> _Rendered:
-    walker = _Walker(index, rules, source.evidence.evidence_id)
+    walker = Walker(index, rules, source.evidence.evidence_id)
     data = walker.root(source.data)
     incomplete = source.evidence.completeness is not Completeness.COMPLETE
 
