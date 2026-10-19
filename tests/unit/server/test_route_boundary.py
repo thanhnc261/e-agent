@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 from e_agent.contracts.data import DataProcessing
+from e_agent.contracts.features import FeatureMode, Features
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.api import create_app
@@ -95,12 +96,39 @@ async def test_hosted_route_without_data_processing_fails_startup(
     assert err.value.code is ErrorCode.STARTUP_REJECTED
     assert "data_processing" in str(err.value)
     assert "secret-host" not in str(err.value)  # names the setting, never its value
-    # context_assembler does not exist yet (Task 3b.2) and no toggle exempts the rule (Task 3d.5)
+    # no toggle exempts the rule until masking lands (Task 3d.5)
     # the adapter only dials loopback, where a LiteLLM proxy is hosted:unknown unless declared
     monkeypatch.delenv("E_AGENT_LITELLM_URL", raising=False)
     declared = _profile(provider="litellm").model_copy(update={"data_processing": DECLARATION})
     runtime = await build_runtime(declared)
     assert runtime.route is not None and runtime.route.boundary == "hosted:unknown"
+
+
+async def test_hosted_route_refused_at_startup_even_with_context_assembler_on(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR 0030's ``on`` exemption waits for masking (Task 3d.5): until then ``on`` changes
+    nothing at startup (review ruling B1-2)."""
+    monkeypatch.setenv("E_AGENT_OLLAMA_URL", "http://secret-host.example.com:11434/v1")
+    on = Features(context_assembler=FeatureMode.ON)
+    with pytest.raises(KernelError) as err:
+        await build_runtime(_profile(provider="ollama").model_copy(update={"features": on}))
+    assert err.value.code is ErrorCode.STARTUP_REJECTED
+    assert "data_processing" in str(err.value) and "secret-host" not in str(err.value)
+
+
+async def test_runtime_hands_the_route_facts_to_the_kernel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The per-call route check (ADR 0032 §9) reads the facts readiness reports."""
+    runtime = await build_runtime(load_profile(fixture_profile_path()))
+    assert runtime.coordinator._route == runtime.route_facts()
+    monkeypatch.delenv("E_AGENT_LITELLM_URL", raising=False)
+    declared = _profile(provider="litellm").model_copy(update={"data_processing": DECLARATION})
+    runtime = await build_runtime(declared)
+    assert runtime.coordinator._route == runtime.route_facts()
+    assert runtime.coordinator._route["data_boundary"] == "hosted:unknown"
+    assert runtime.coordinator._route["data_processing_declared"] is True
 
 
 async def test_local_only_refuses_hosted_route(monkeypatch: pytest.MonkeyPatch) -> None:

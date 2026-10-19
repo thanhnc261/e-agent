@@ -488,6 +488,7 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
         with_pin: bool = False,
         with_answer: bool = False,
         answer_verifier: bool = True,
+        route: dict[str, Any] | None = None,
     ) -> Kernel:
         backend, validator, verifier = NotesBackend(), NotesValidator(), NotesVerifier()
         driver = driver or NotesDriver(texts=list(texts or ["standup notes"]))
@@ -541,6 +542,7 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
             allow_self_approval=allow_self_approval,
             features=features,
             **({} if approval_ttl is None else {"approval_ttl": approval_ttl}),
+            **({} if route is None else {"route": route}),
         )
         return Kernel(
             coordinator,

@@ -25,6 +25,7 @@ from e_agent.sdk.ports import (
 )
 
 from .errors import ErrorCode, KernelError
+from .features import RouteRefused
 from .gateway import GatewayMixin
 
 
@@ -49,6 +50,8 @@ class RunLoopMixin(GatewayMixin):
                     partial(self._driver.advance, ctx, self._with_tools(run, cont, step_input)),
                     ctx.budgets.model_timeout_seconds,
                 )
+            except RouteRefused:  # no model call on this route (ADR 0032 §9, T23)
+                return await self._route_unmet(run)
             except DriverBudgetExceeded:
                 return await self._exhausted(run, "model usage")
             except TimeoutError:

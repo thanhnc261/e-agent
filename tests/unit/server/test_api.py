@@ -468,11 +468,21 @@ def test_ready_reports_whether_self_approval_is_allowed(client: TestClient) -> N
 
 
 def test_ready_reports_features(client: TestClient) -> None:
-    assert client.get("/health/ready").json()["features"] == {"execution_ir": "off"}
+    assert client.get("/health/ready").json()["features"] == {
+        "execution_ir": "off",
+        "context_assembler": "off",
+        "kernel_repeat": "off",
+        "grounded_answers": "off",
+    }
     profile = load_profile(fixture_profile_path())
     shadow = profile.model_copy(update={"features": Features(execution_ir=FeatureMode.SHADOW)})
     with TestClient(create_app(lambda: build_runtime(shadow))) as c:
-        assert c.get("/health/ready").json()["features"] == {"execution_ir": "shadow"}
+        assert c.get("/health/ready").json()["features"] == {
+            "execution_ir": "shadow",
+            "context_assembler": "off",
+            "kernel_repeat": "off",
+            "grounded_answers": "off",
+        }
 
 
 def test_ready_reports_self_approval_disallowed_when_the_profile_flag_is_unset() -> None:

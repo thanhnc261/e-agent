@@ -104,9 +104,15 @@ async def _bundle(k: Kernel, features: Features) -> dict[str, Any]:
 
 async def test_evidence_records_features(make_kernel: Callable[..., Kernel]) -> None:
     off = await _bundle(make_kernel(), Features())
-    assert off["features"] == {"execution_ir": "off"}
+    assert off["features"] == {
+        "execution_ir": "off",
+        "context_assembler": "off",
+        "kernel_repeat": "off",
+        "grounded_answers": "off",
+    }
+    assert "modes" not in off  # an all-off run pins nothing (ADR 0032 §8)
     shadow = await _bundle(make_kernel(), Features(execution_ir=FeatureMode.SHADOW))
-    assert shadow["features"] == {"execution_ir": "shadow"}
+    assert shadow["features"]["execution_ir"] == "shadow"
 
 
 async def test_evidence_v1_keys_unchanged(make_kernel: Callable[..., Kernel]) -> None:

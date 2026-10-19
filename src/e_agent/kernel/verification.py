@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
 from e_agent.contracts.action import ActionRecord, ActionState
@@ -21,6 +22,7 @@ from e_agent.sdk.ports import (
 from e_agent.sdk.store import EventSpec
 
 from .continuation import NextStep, _Continuation, _GatewayReader
+from .features import RouteRefused, context_failed_event
 from .ir_on import IrOnMixin
 
 OUTCOME_STEP = {
@@ -183,7 +185,8 @@ class VerificationMixin(IrOnMixin):
             ):
                 final = await self._timed(
                     cont,
-                    lambda: self._driver.advance(
+                    partial(
+                        self._driver.advance,
                         ctx,
                         self._with_tools(
                             run,
@@ -200,6 +203,13 @@ class VerificationMixin(IrOnMixin):
                     ),
                     ctx.budgets.model_timeout_seconds,
                 )
+        except RouteRefused:  # skipped, recorded; the run keeps its outcome (ADR 0032 §9)
+            run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
+            run = await self._store.update_run(
+                run.model_copy(update={"revision": run.revision + 1}),
+                run.revision,
+                [context_failed_event(ReasonCode.ROUTE_BOUNDARY_UNMET)],
+            )
         except Exception as exc:
             run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
             run = await self._store.update_run(

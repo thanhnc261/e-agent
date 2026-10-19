@@ -11,7 +11,9 @@ status, and a run with step records carries ``steps``. Neither key appears witho
 data, so an ``off`` bundle is unchanged (ENG-TOGGLE-1). The read-back values a plan's
 lineage copies from stay out of the bundle (PR-26). An exporter that passes its admission
 report's defaulted effect declarations gets the additive ``defaulted_declarations`` key
-(ADR 0029 Operations).
+(ADR 0029 Operations). A run that pinned a Phase 3 mode carries the additive ``modes`` key,
+the pin read from its kernel continuation (ADR 0032 §8, §13); an all-``off`` run pins
+nothing, so its bundle has no such key. Nothing else of the continuation is exported.
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ from typing import Any
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.common import utc_now
 from e_agent.contracts.events import RunEvent, RunEventType
-from e_agent.contracts.features import Features
+from e_agent.contracts.features import Features, RunModes
 from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode
 from e_agent.sdk.store import RunStore
 
@@ -45,14 +47,20 @@ BLOCKED_BY_DESIGN = frozenset(
         ReasonCode.APPROVAL_REJECTED,
         ReasonCode.OPERATION_RESERVED,
         ReasonCode.PLAN_LINEAGE_REJECTED,
+        ReasonCode.ROUTE_BOUNDARY_UNMET,  # no model call was made (ADR 0032 §11)
     }
 )
+# The Phase 3 `*_UNAVAILABLE` codes are infrastructure (ADR 0032 §11); DRIVER_STATE_MISMATCH
+# is `failed`, and the Phase 3 fallback codes never end a run.
 INFRASTRUCTURE_OR_BUDGET = frozenset(
     {
         ReasonCode.BUDGET_EXHAUSTED,
         ReasonCode.INTERRUPTED,
         ReasonCode.PROVIDER_ERROR,
         ReasonCode.CONNECTION_BUSY,
+        ReasonCode.CONTEXT_UNAVAILABLE,
+        ReasonCode.REPEAT_UNAVAILABLE,
+        ReasonCode.GROUNDING_UNAVAILABLE,
     }
 )
 
@@ -159,6 +167,15 @@ async def _plan_section(
     }
 
 
+async def _pinned_modes(store: RunStore, tenant_id: str, run_id: str) -> RunModes | None:
+    """The run's pinned Phase 3 modes from its kernel continuation, None when it pinned none."""
+    stored = await store.load_continuation(tenant_id, run_id)
+    if stored is None:
+        return None
+    pin = stored[0].get("data", {}).get("modes")
+    return None if pin is None else RunModes.model_validate(pin)
+
+
 async def build_evidence(
     store: RunStore,
     tenant_id: str,
@@ -215,6 +232,9 @@ async def build_evidence(
         bundle["defaulted_declarations"] = defaulted_payload(defaulted_declarations)
     if route is not None:
         bundle["route"] = dict(route)
+    modes = await _pinned_modes(store, tenant_id, run_id)
+    if modes is not None:
+        bundle["modes"] = modes.model_dump(mode="json")
     plan = await _plan_section(store, tenant_id, events, actions)
     if plan is not None:
         bundle["plan"] = plan

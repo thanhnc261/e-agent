@@ -27,6 +27,9 @@ failure or a validation failure records ``feature.fallback`` with a fixed messag
 proposal continues on today's path, unlinked; after the reservation nothing falls back. A run
 that resolves no definition at admission falls back there, once, and then runs as ``off``.
 Only the pure IR calls are guarded; a store error propagates.
+
+`_with_tools`, the one function both driver call sites use, also runs the per-call route
+check (`FeaturesMixin._check_route`, ADR 0032 §9, T23).
 """
 
 from __future__ import annotations
@@ -149,7 +152,9 @@ class IrOnMixin(FeaturesMixin):
     def _with_tools(
         self, run: RunRecord, cont: _Continuation, step_input: DriverInput
     ) -> DriverInput:
-        """The driver input for one turn, carrying the run's tool set in ``on`` (D6)."""
+        """The driver input for one turn, carrying the run's tool set in ``on`` (D6). Every
+        model call is built here, so the route check runs here first (ADR 0032 §9)."""
+        self._check_route(cont)
         allowed = self._allowed(run, cont)
         if allowed is None:
             return step_input

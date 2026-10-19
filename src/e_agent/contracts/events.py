@@ -39,6 +39,8 @@ class RunEventType(StrEnum):
     IR_SHADOW_FAILED = "ir.shadow_failed"
     IR_LINEAGE_RESOLVED = "ir.lineage_resolved"
     IR_STEP_VERIFIED = "ir.step_verified"
+    # Context assembly (ADR 0032 §11): an acknowledgement turn skipped, with its code.
+    CONTEXT_FAILED = "context.failed"
 
 
 class RunEvent(Record):

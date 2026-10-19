@@ -10,20 +10,28 @@ proposal, `_shadow_plan` compiles it into a 1-step plan, validates it, computes 
 and records the comparison with the action digest. It acts on nothing: no driver call, no
 provider read, no budget use, and the run, the action and the approval are today's.
 
+Phase 3 (ADR 0032 §8, §11): a run pins ``context_assembler``, ``kernel_repeat`` and
+``grounded_answers`` in its continuation when it is prepared (`RunModes`, written only when a
+mode is not ``off``), and every later toggle site reads the pin through `_run_modes`, never
+the profile. The three Phase 3 fallback codes and five terminal codes each have one fixed
+message here.
+
 No event here carries caller text: each message is a fixed one, so no provider, compiler,
 validator or model string reaches the ledger or the evidence export (PR-25, PR-28).
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from types import MappingProxyType
+from typing import Any
 
-from e_agent.contracts.action import ActionRecord
+from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.common import new_id
 from e_agent.contracts.events import RunEventType
-from e_agent.contracts.features import FeatureMode, Features
+from e_agent.contracts.features import FeatureMode, Features, RunModes
 from e_agent.contracts.plan import ActionProposal
-from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode, RunRecord
+from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode, RunRecord, RunState
 from e_agent.contracts.step import StepKind, StepStatus
 from e_agent.contracts.task import TaskDefinition
 from e_agent.sdk.store import EventSpec
@@ -46,9 +54,48 @@ FALLBACK_MESSAGES = MappingProxyType(
         ReasonCode.IR_TASK_UNRESOLVED: "The run names no task definition.",
         ReasonCode.IR_COMPILE_FAILED: "The proposal could not be compiled into a plan.",
         ReasonCode.IR_VALIDATION_FAILED: "The compiled plan did not pass validation.",
+        ReasonCode.CONTEXT_ASSEMBLY_FAILED: "The context pack could not be assembled; "
+        "the turn used the run history.",
+        ReasonCode.REPEAT_CHECK_FAILED: "The repeated-call check could not run; "
+        "the call continued on the existing path.",
+        ReasonCode.GROUNDING_CHECK_FAILED: "The grounding check could not run; "
+        "the answer continued on the existing path.",
     }
 )
-"""The fallback codes (ADR 0025 names them for ``execution_ir``) and each one's fixed message."""
+"""The fallback codes and each one's fixed message: ADR 0025 names the ``execution_ir`` ones,
+ADR 0031, 0032 and 0033 the Phase 3 ones."""
+
+FALLBACK_FEATURES = MappingProxyType(
+    {
+        ReasonCode.IR_TASK_UNRESOLVED: "execution_ir",
+        ReasonCode.IR_COMPILE_FAILED: "execution_ir",
+        ReasonCode.IR_VALIDATION_FAILED: "execution_ir",
+        ReasonCode.CONTEXT_ASSEMBLY_FAILED: "context_assembler",
+        ReasonCode.REPEAT_CHECK_FAILED: "kernel_repeat",
+        ReasonCode.GROUNDING_CHECK_FAILED: "grounded_answers",
+    }
+)
+"""The feature each fallback code belongs to; `fallback_event` refuses any other pair."""
+
+TERMINAL_MESSAGES = MappingProxyType(
+    {
+        ReasonCode.CONTEXT_UNAVAILABLE: "The context pack could not be assembled, "
+        "and the run cannot fall back.",
+        ReasonCode.REPEAT_UNAVAILABLE: "The repeated-call check is unavailable, "
+        "and the run cannot fall back.",
+        ReasonCode.GROUNDING_UNAVAILABLE: "The grounding check is unavailable, "
+        "and the run cannot fall back.",
+        ReasonCode.DRIVER_STATE_MISMATCH: "The driver state does not match the run's pinned modes.",
+        ReasonCode.ROUTE_BOUNDARY_UNMET: "The model route is not local and has no data "
+        "processing declaration, so no model call was made.",
+    }
+)
+"""The Phase 3 terminal codes (ADR 0032 §11) and each one's fixed message: the reason of the
+run state change it ends, and of ``context.failed``. No message names a route or setting
+value."""
+
+CONTEXT_FAILED_CODES = frozenset({ReasonCode.CONTEXT_UNAVAILABLE, ReasonCode.ROUTE_BOUNDARY_UNMET})
+"""The codes ``context.failed`` carries for a skipped acknowledgement turn (ADR 0032 §11)."""
 
 SHADOW_MESSAGES = MappingProxyType(
     {
@@ -59,6 +106,28 @@ SHADOW_MESSAGES = MappingProxyType(
 """Each shadow stage's fixed ``ir.shadow_failed`` message; the event carries no reason code."""
 
 
+LOCAL_ROUTE = MappingProxyType(
+    {"data_boundary": "local", "data_boundary_basis": "verified", "data_processing_declared": False}
+)
+"""The route facts of a coordinator built without any (ADR 0030: the scripted driver's)."""
+
+UNRESOLVED_RESERVATION = frozenset(
+    {ActionState.RESERVED, ActionState.DISPATCHING, ActionState.UNKNOWN, ActionState.COMMITTED}
+)
+"""Action states of a write reservation not yet resolved by a decisive outcome (ADR 0032 §8)."""
+
+
+class RouteRefused(Exception):
+    """`_with_tools` refused a model call on the current route (ADR 0032 §9); never escapes
+    the kernel's two driver call sites."""
+
+
+def unmasked_allowed(route: Mapping[str, Any]) -> bool:
+    """Whether unmasked run data may reach the route: it is ``local``, or the profile declares
+    ``data_processing`` for it (ADR 0030). Missing facts allow nothing."""
+    return route.get("data_boundary") == "local" or route.get("data_processing_declared") is True
+
+
 def fallback_event(feature: str, reason: ReasonCode) -> EventSpec:
     """The ``feature.fallback`` event: a typed reason and its fixed message, no caller text."""
     if feature not in Features.model_fields:
@@ -66,8 +135,23 @@ def fallback_event(feature: str, reason: ReasonCode) -> EventSpec:
     message = FALLBACK_MESSAGES.get(reason)
     if message is None:
         raise KernelError(ErrorCode.INVALID_REQUEST, f"{reason} is not a fallback code")
+    if FALLBACK_FEATURES[reason] != feature:
+        raise KernelError(ErrorCode.INVALID_REQUEST, f"{reason} is not a {feature} fallback code")
     payload = {"feature": feature, "reason_code": reason, "message": message}
     return (RunEventType.FEATURE_FALLBACK, payload, None)
+
+
+def context_failed_event(reason: ReasonCode) -> EventSpec:
+    """``context.failed`` for a skipped acknowledgement turn: the code, its fixed message and
+    the turn, no caller text (ADR 0032 §11)."""
+    if reason not in CONTEXT_FAILED_CODES:
+        raise KernelError(ErrorCode.INVALID_REQUEST, f"{reason} is not a context.failed code")
+    payload = {
+        "reason_code": reason,
+        "message": TERMINAL_MESSAGES[reason],
+        "turn": "acknowledgement",
+    }
+    return (RunEventType.CONTEXT_FAILED, payload, None)
 
 
 def _task_unresolved(action_id: str | None) -> EventSpec:
@@ -86,10 +170,47 @@ def _shadow_failed(stage: str, action_id: str) -> EventSpec:
 
 class FeaturesMixin(ContinuationMixin):
     _features: Features
+    _route: Mapping[str, Any]
+    """The model route's boundary facts as plain values (ADR 0030), from bootstrap."""
 
     @property
     def _ir_shadow(self) -> bool:
         return self._features.execution_ir is FeatureMode.SHADOW
+
+    def _pin_modes(self) -> RunModes | None:
+        """The pin a run prepared now stores: None when every Phase 3 mode is ``off``, so an
+        ``off`` continuation is byte-identical (ADR 0032 §8)."""
+        modes = RunModes.from_features(self._features)
+        return None if modes.all_off else modes
+
+    def _check_route(self, cont: _Continuation) -> None:
+        """The per-call route check (ADR 0032 §9, T23), run by `_with_tools` before every
+        model call: the route is not pinned, so a run that resumes after a restart on a route
+        that may not receive unmasked data makes no model call unless it is pinned
+        ``context_assembler: on``."""
+        pinned_on = self._run_modes(cont).context_assembler is FeatureMode.ON
+        if not pinned_on and not unmasked_allowed(self._route):
+            raise RouteRefused
+
+    async def _route_unmet(self, run: RunRecord) -> RunRecord:
+        """End a run whose model call the route check refused (ADR 0032 §9, §10): FAILED, or
+        NEEDS_RECONCILIATION when a write reservation is unresolved, both with
+        ``ROUTE_BOUNDARY_UNMET`` through an existing pair of the table."""
+        run = await self._store.get_run(run.tenant_id, run.run_id)
+        actions = await self._store.list_actions(run.tenant_id, run.run_id)
+        unresolved = any(a.state in UNRESOLVED_RESERVATION for a in actions)
+        return await self._set_run_state(
+            run,
+            RunState.NEEDS_RECONCILIATION if unresolved else RunState.FAILED,
+            TERMINAL_MESSAGES[ReasonCode.ROUTE_BOUNDARY_UNMET],
+            code=ReasonCode.ROUTE_BOUNDARY_UNMET,
+        )
+
+    @staticmethod
+    def _run_modes(cont: _Continuation) -> RunModes:
+        """The run's pinned modes; an absent pin means every mode is ``off``. Every toggle
+        site of the three Phase 3 features reads this, never the profile."""
+        return cont.modes if cont.modes is not None else RunModes()
 
     def _admit_task(
         self, run: RunRecord, task_kind: str | None

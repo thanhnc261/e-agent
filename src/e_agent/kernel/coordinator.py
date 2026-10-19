@@ -8,7 +8,7 @@ report findings; executors only execute admitted invocations.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -37,7 +37,7 @@ from .continuation import _Continuation as _Continuation
 from .continuation import _GatewayReader as _GatewayReader
 from .dispatch import DispatchMixin
 from .errors import ErrorCode, KernelError
-from .features import FeaturesMixin
+from .features import LOCAL_ROUTE, FeaturesMixin
 from .gateway import GatewayMixin
 from .ir_on import merged_budgets
 from .plan_flow import PlanFlowMixin
@@ -75,7 +75,12 @@ class RunCoordinator(
         budgets: Budgets | None = None,
         credentials: CredentialVersionProvider | None = None,
         features: Features | None = None,
+        route: Mapping[str, Any] | None = None,
     ) -> None:
+        """``route`` is the model route's boundary facts as plain values (ADR 0030:
+        ``data_boundary``, ``data_boundary_basis``, ``data_processing_declared``), which the
+        per-call route check reads (ADR 0032 §9). Bootstrap passes the profile's; without
+        it the route is ``local``, as the scripted driver's is."""
         self._store = store
         self._registry = registry
         self._connections = connections
@@ -87,6 +92,7 @@ class RunCoordinator(
         self._allow_self_approval = allow_self_approval
         self._budgets = budgets or Budgets()
         self._features = features or Features()  # profile toggles (ADR 0027)
+        self._route = dict(LOCAL_ROUTE if route is None else route)
         self._runs: dict[str, _Continuation] = {}
         self._active_calls: dict[str, asyncio.Task[Any]] = {}
 
@@ -137,7 +143,10 @@ class RunCoordinator(
                 "dropped_hints": dropped,
             }
         cont = _Continuation(
-            ctx=ctx, surface_digest=self._registry.surface_digest(), task=definition
+            ctx=ctx,
+            surface_digest=self._registry.surface_digest(),
+            task=definition,
+            modes=self._pin_modes(),  # ADR 0032 §8: None when every Phase 3 mode is off
         )
         return run, cont, [(RunEventType.RUN_CREATED, created, None), *admitted]
 

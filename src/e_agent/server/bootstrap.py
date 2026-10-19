@@ -52,15 +52,21 @@ class Runtime:
 
     def route_facts(self) -> dict[str, Any]:
         """The route boundary facts readiness and the evidence bundle both report (ADR 0030)."""
-        return {
-            "data_boundary": self.route.boundary if self.route else None,
-            "data_boundary_basis": self.route.basis if self.route else None,
-            "data_processing_declared": self.profile.data_processing is not None,
-        }
+        return route_facts(self.profile, self.route)
 
     def diagnostics(self) -> dict[str, dict[str, Any]]:
         """The admitted plugins' diagnostics, by plugin id (fixture runs and tests)."""
         return {pid: dict(hook()) for pid, hook in sorted(self.registry.diagnostics.items())}
+
+
+def route_facts(profile: Profile, route: RouteBoundary | None) -> dict[str, Any]:
+    """The route boundary facts as plain values (ADR 0030): what readiness and the evidence
+    bundle report, and what the kernel's per-call route check reads (ADR 0032 §9)."""
+    return {
+        "data_boundary": route.boundary if route else None,
+        "data_boundary_basis": route.basis if route else None,
+        "data_processing_declared": profile.data_processing is not None,
+    }
 
 
 def runtime_versions(
@@ -490,6 +496,7 @@ async def build_runtime(
         budgets=profile.budgets,
         credentials=credentials,
         features=profile.features,
+        route=route_facts(profile, route),  # the per-call route check (ADR 0032 §9)
     )
     return Runtime(
         profile,

@@ -24,6 +24,7 @@ from e_agent.contracts.common import new_id
 from e_agent.contracts.context import Budgets, TaskContext
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import Completeness
+from e_agent.contracts.features import RunModes
 from e_agent.contracts.plan import ActionPlan, ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import (
@@ -115,13 +116,16 @@ class _Continuation(BaseModel):
     acceptance for the whole run, whatever the registry later holds (ADR 0028, Codex C-1)."""
     plan: _PlanState | None = None
     """The multi-step plan in flight (execution IR ``on``, Task 2c.7); None otherwise."""
+    modes: RunModes | None = None
+    """The Phase 3 modes pinned when the run was prepared (ADR 0032 §8); None, and left out
+    of the stored continuation, when every mode is ``off``."""
 
     @model_serializer(mode="wrap")
     def _omit_unbound_task(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        """Leave ``task`` and ``plan`` out when unset, so an ``off`` or ``shadow``
-        continuation is stored exactly as before Task 2c.6."""
+        """Leave ``task``, ``plan`` and ``modes`` out when unset, so an ``off`` or ``shadow``
+        continuation is stored exactly as before Task 2c.6 and Task 3b.2."""
         data: dict[str, Any] = handler(self)
-        for name in ("task", "plan"):
+        for name in ("task", "plan", "modes"):
             if getattr(self, name) is None:
                 data.pop(name, None)
         return data
