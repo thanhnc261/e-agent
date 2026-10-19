@@ -614,3 +614,8 @@
 - changed: harness/state/2/features.json, harness/state/2/handoffs/2d.2.json, harness/state/evidence/gates/2d.2/2026-10-19T00-22-45.359971+00-00-live.json
 - next: merge PR #6 on the owner's ok once CI is green
 - open: none
+
+## 2026-10-19T05:00:22.055911+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2d.2
+- changed: no working-tree changes
+- next: draft-po with off, shadow and on and a read-only task with on behave as the plan's Live check says
+- open: none
