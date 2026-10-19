@@ -452,19 +452,10 @@ class PydanticAiDriver:
             ]
             + [clarification]
         )
-        # The same tools with the grounding envelope (ADR 0033 §5): deep copies, offered only
-        # on a call whose ``grounding`` is not ``off``, so `_toolset` stays today's.
-        self._cite_toolset = ExternalToolset(
-            [
-                ToolDefinition(
-                    name=t.name,
-                    description=t.description,
-                    parameters_json_schema=_grounded_schema(t),
-                )
-                for t in tools
-            ]
-            + [clarification]
-        )
+        self._clarification = clarification
+        # The same tools with the grounding envelope (ADR 0033 §5), built on the first call
+        # whose ``grounding`` is not ``off`` (`_cite_tools`), so `off` builds as before.
+        self._cite_toolset: ExternalToolset[Any] | None = None
         instructions = "\n\n".join([BASE_INSTRUCTIONS, *guidance])
         self._agent: Agent[None, str | DeferredToolRequests] = Agent(
             model,
@@ -568,7 +559,7 @@ class PydanticAiDriver:
         allowed = step_input.allowed_capabilities  # the run's tool set (D6); None: all tools
         grounding = step_input.grounding  # the kernel's offer from the run's pin (D8)
         cited = grounding is not GroundingOffer.OFF
-        base = self._cite_toolset if cited else self._toolset
+        base = self._cite_tools() if cited else self._toolset
         toolset: Any = (
             base
             if allowed is None
@@ -622,6 +613,22 @@ class PydanticAiDriver:
         if isinstance(output, str):
             return FinalAnswer(text=_public_text(output))
         return self._plan_step(st, output, self._plan_step_tools(ctx, allowed), grounding)
+
+    def _cite_tools(self) -> ExternalToolset[Any]:
+        """The tools with their offered envelope: deep copies, so `_toolset` stays today's."""
+        if self._cite_toolset is None:
+            self._cite_toolset = ExternalToolset(
+                [
+                    ToolDefinition(
+                        name=t.name,
+                        description=t.description,
+                        parameters_json_schema=_grounded_schema(t),
+                    )
+                    for t in self._tools.values()
+                ]
+                + [self._clarification]
+            )
+        return self._cite_toolset
 
     def _plan_step_tools(
         self, ctx: TaskContext, allowed: tuple[str, ...] | None
@@ -869,6 +876,10 @@ class PydanticAiDriver:
                 st.rejected[call.tool_call_id] = "unknown tool"
                 continue
             args = self._coerced_args(spec, call.args_as_dict())
+            envelope = _envelope(spec, args, cited)  # undeclared keys never stay arguments
+            if isinstance(envelope, str):  # a fixed refusal, never model text
+                st.rejected[call.tool_call_id] = envelope
+                continue
             if spec.effect is EffectKind.READ:
                 st.pending_reads[call.tool_call_id] = spec.contract_id
                 reads.append(
@@ -880,10 +891,6 @@ class PydanticAiDriver:
                     )
                 )
             else:
-                envelope = _envelope(spec, args) if cited else {}
-                if isinstance(envelope, str):  # a fixed refusal, never model text
-                    st.rejected[call.tool_call_id] = envelope
-                    continue
                 writes.append(
                     (
                         call.tool_call_id,
@@ -958,6 +965,7 @@ class PydanticAiDriver:
             if spec is None or spec.name not in plan_tools:
                 return PLAN_TOOL_REFUSAL
             values = self._coerced_args(spec, arguments)
+            _envelope(spec, values, cited=False)  # a step's undeclared envelope keys: dropped
             sources: list[str] = []
             for name, ref in lineage.items():
                 if (
@@ -1004,29 +1012,49 @@ class PydanticAiDriver:
         return {k: _coerce(v, props.get(k)) for k, v in args.items()}
 
 
-def _grounded_schema(spec: ToolSpec) -> dict[str, Any]:
-    """A deep copy of the tool's schema with its grounding envelope: ``citations`` beside an
-    answer's arguments, ``rationale`` beside a write's (ADR 0033 §1, §4). A tool that already
-    names the field is refused, so the envelope is never mistaken for an argument."""
+def _offered(spec: ToolSpec) -> str | None:
+    """The envelope field offered on this tool (ADR 0033 §1, §4): ``citations`` beside an
+    answer's arguments, ``rationale`` beside a write's. None for a read, and for a tool whose
+    own schema declares that name: it keeps it as its own argument and is offered no
+    grounding."""
     name = {EffectKind.ANSWER: CITATIONS, EffectKind.WRITE: RATIONALE}.get(spec.effect)
+    if name is None or name in spec.parameters.get("properties", {}):
+        return None
+    return name
+
+
+def _grounded_schema(spec: ToolSpec) -> dict[str, Any]:
+    """A deep copy of the tool's schema, with its offered envelope field when it has one."""
+    name = _offered(spec)
     if name is None:
         return copy.deepcopy(dict(spec.parameters))
-    if name in spec.parameters.get("properties", {}):
-        raise ValueError(f"{spec.contract_id}: argument {name!r} is the grounding envelope's")
     field = CITATIONS_SCHEMA if name == CITATIONS else RATIONALE_SCHEMA
     return with_field(spec.parameters, name, field)
 
 
-def _envelope(spec: ToolSpec, args: dict[str, Any]) -> dict[str, Any] | str:
-    """Move a grounded call's envelope out of its arguments, into proposal fields; a fixed
-    refusal when the records refuse it. ``args`` loses the envelope key in place."""
-    if spec.effect is EffectKind.ANSWER and CITATIONS in args:
-        citations: tuple[Citation, ...] | str = citations_of(args.pop(CITATIONS))
-        return citations if isinstance(citations, str) else {"citations": citations}
-    if spec.effect is EffectKind.WRITE and RATIONALE in args:
-        rationale: ProposalRationale | str = rationale_of(args.pop(RATIONALE))
-        return rationale if isinstance(rationale, str) else {"rationale": rationale}
-    return {}
+def _envelope(spec: ToolSpec, args: dict[str, Any], cited: bool) -> dict[str, Any] | str:
+    """Take the envelope keys out of a call's arguments, in place (fix round 1, PR-26).
+
+    A top-level ``citations`` or ``rationale`` the tool's own schema does not declare never
+    stays an argument, in any mode. It becomes the proposal's envelope field only where that
+    field is offered on this call (``cited``, and `_offered` for the tool); otherwise it is
+    dropped unread. A field the records refuse is a fixed refusal, never model text."""
+    declared = spec.parameters.get("properties", {})
+    offered = _offered(spec) if cited else None
+    envelope: dict[str, Any] = {}
+    for key in (CITATIONS, RATIONALE):
+        if key in declared or key not in args:
+            continue
+        raw = args.pop(key)
+        if key != offered:
+            continue  # dropped: no event, log or export ever holds it
+        parsed: tuple[Citation, ...] | ProposalRationale | str = (
+            citations_of(raw) if key == CITATIONS else rationale_of(raw)
+        )
+        if isinstance(parsed, str):
+            return parsed
+        envelope[key] = parsed
+    return envelope
 
 
 def _refusal_for_keys(keys: set[Any]) -> str:

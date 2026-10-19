@@ -41,6 +41,7 @@ from e_agent.sdk.ports import (
     GroundingOffer,
     ProposeAction,
     ProposePlan,
+    RequestReads,
 )
 from e_agent.server.bootstrap import build_runtime, tool_specs
 from e_agent.server.profile import load_profile
@@ -248,18 +249,37 @@ async def test_grounded_calls_become_envelope_fields() -> None:
     assert all(s.proposal.rationale is None for s in step.plan.steps)
 
 
+async def test_undeclared_envelope_keys_never_reach_arguments() -> None:
+    """Fix round 1 (C1-1, PR-26): a top-level ``citations`` or ``rationale`` key that the
+    tool's own schema does not declare is never forwarded as an argument, in any mode. In
+    ``off`` it is dropped; otherwise it becomes the envelope only where that field is offered
+    for the tool's kind (citations on an answer, rationale on a write), and is dropped
+    elsewhere."""
+    both = {"citations": CITED, "rationale": RATIONALE}
+    cases = 0
+    for offer in GroundingOffer:
+        cited = offer is not GroundingOffer.OFF
+        for spec in (ANSWER, WRITE):
+            step, _ = await _call(
+                offer, spec.name, {"text": "a", **both}, run_id=f"r_{offer}_{spec.name}"
+            )
+            assert isinstance(step, ProposeAction), (offer, spec.name)
+            assert step.proposal.arguments == {"text": "a"}, (offer, spec.name)
+            wants_cites = cited and spec is ANSWER
+            wants_rationale = cited and spec is WRITE
+            assert bool(step.proposal.citations) is wants_cites, (offer, spec.name)
+            assert (step.proposal.rationale is not None) is wants_rationale, (offer, spec.name)
+            cases += 1
+        step, _ = await _call(offer, READ.name, {"text": "a", **both}, run_id=f"r_{offer}_read")
+        assert isinstance(step, RequestReads)
+        assert dict(step.reads[0].arguments) == {"text": "a"}, offer
+        cases += 1
+    print(f"undeclared envelope cases: {cases}")
+    assert cases == 9
+
+
 async def test_off_keeps_todays_parsing() -> None:
-    """With ``off`` nothing is moved: a ``citations`` key stays an argument for the domain
-    model to refuse, the generic answer is an unknown tool, and a plan rationale is refused."""
-    args = {"text": "0 notes", "citations": CITED}
-    step, _ = await _call(GroundingOffer.OFF, ANSWER.name, args, run_id="r_off_a")
-    assert isinstance(step, ProposeAction)
-    assert step.proposal.arguments == args and step.proposal.citations == ()
-    step, _ = await _call(
-        GroundingOffer.OFF, WRITE.name, {"text": "a", "rationale": RATIONALE}, run_id="r_off_w"
-    )
-    assert isinstance(step, ProposeAction) and step.proposal.rationale is None
-    assert "rationale" in step.proposal.arguments
+    """With ``off`` the generic answer is an unknown tool and a plan rationale is refused."""
     # Offered only for cite_and_answer: pydantic-ai refuses a tool it was not given, and the
     # driver's own parse refuses the call too if it ever arrives.
     for offer in (GroundingOffer.OFF, GroundingOffer.CITE):
@@ -334,13 +354,58 @@ def test_refusal_case_count() -> None:
     print(f"refused envelopes: {len(REFUSED)}")
 
 
-def test_reserved_envelope_argument_is_refused() -> None:
-    """A tool whose own arguments name the envelope field is refused when the driver is
-    built, so the envelope is never mistaken for an argument."""
-    params = {"type": "object", "properties": {"citations": {"type": "array"}}}
-    clash = dataclasses.replace(ANSWER, parameters=params)
-    with pytest.raises(ValueError, match="grounding envelope"):
-        PydanticAiDriver(FunctionModel(lambda m, i: ModelResponse([])), (READ, clash))
+async def test_tool_declaring_an_envelope_name_keeps_it() -> None:
+    """Fix round 1 (C1-2): a tool whose own schema declares ``citations`` (an answer) or
+    ``rationale`` (a write) builds and works in ``off`` exactly as before, and is offered no
+    grounding in ``on``: its schema is its own, and the key stays its domain argument."""
+    own_cites = dataclasses.replace(
+        ANSWER,
+        contract_id="notes.cited.answer.v1",
+        parameters={
+            "type": "object",
+            "properties": {"text": {"type": "string"}, "citations": {"type": "array"}},
+            "required": ["text"],
+        },
+    )
+    own_rationale = dataclasses.replace(
+        WRITE,
+        contract_id="notes.reasoned.create.v1",
+        parameters={
+            "type": "object",
+            "properties": {"text": {"type": "string"}, "rationale": {"type": "string"}},
+            "required": ["text"],
+        },
+    )
+    specs = (READ, own_cites, own_rationale)
+    seen: list[dict[str, Any]] = []
+
+    def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        seen.append(_request_view(info))
+        return ModelResponse(parts=[TextPart("done")])
+
+    driver = PydanticAiDriver(FunctionModel(model), specs)  # builds, as before
+    for index, offer in enumerate(GroundingOffer):
+        await driver.advance(_ctx(f"r_own_{index}"), DriverInput(task="t", grounding=offer))
+        tools = _tools(seen[-1])
+        for spec in (own_cites, own_rationale):
+            assert tools[spec.name]["parameters_json_schema"] == dict(spec.parameters), offer
+    arguments = {"text": "a", "citations": ["mine"], "rationale": "mine"}
+    for offer in GroundingOffer:
+        for spec in (own_cites, own_rationale):
+
+            def call(
+                messages: list[ModelMessage], info: AgentInfo, name: str = spec.name
+            ) -> ModelResponse:
+                return ModelResponse(parts=[ToolCallPart(name, arguments, "call-1")])
+
+            calling = PydanticAiDriver(FunctionModel(call), specs)
+            step = await calling.advance(
+                _ctx(f"r_own_call_{offer}"), DriverInput(task="t", grounding=offer)
+            )
+            assert isinstance(step, ProposeAction), (offer, spec.name)
+            own = "citations" if spec is own_cites else "rationale"
+            assert step.proposal.arguments == {"text": "a", own: arguments[own]}, offer
+            assert step.proposal.citations == () and step.proposal.rationale is None
 
 
 # -- the pin across a profile flip (D8) --------------------------------------------------
@@ -386,3 +451,146 @@ async def test_inflight_off_run_schema_unchanged_after_flip() -> None:
     assert "citations" in tools["procurement_shortage_answer_v1"]
     assert "rationale" in tools["procurement_purchase_order_create_draft_v1"]
     assert GROUNDED_TOOL not in tools  # the fixture's typed answers keep the generic one out
+
+
+# -- no dropped key reaches the ledger or an export (fix round 1, C1-1, PR-26) ------------
+CANARY = "CANARY-3e4"
+READ_EXTRAS = {"citations": f"{CANARY}-read-citations", "rationale": f"{CANARY}-read-rationale"}
+SHORTAGE_ARGS = {
+    "demand_ref": "demand:d-001",
+    "product_ref": "product:widget-a",
+    "demand_quantity": "12",
+    "available": "5",
+    "inbound": "0",
+    "shortage": "7",
+}
+PO_ARGS = {
+    "demand_ref": "demand:d-001",
+    "product_ref": "product:widget-a",
+    "supplier_ref": "supplier:approved-co",
+    "offer_ref": "offer:a",
+    "quantity": "7",
+    "unit": "Units",
+    "currency": "VND",
+    "unit_price": "100",
+    "subtotal": "700",
+    "requested_date": "2026-10-20",
+}
+CANARY_RUNS = {
+    "shortage": [
+        [
+            ("procurement_demand_read_v1", {"demand_ref": "demand:d-001", **READ_EXTRAS}),
+            ("inventory_availability_read_v1", {"product_ref": "product:widget-a", **READ_EXTRAS}),
+        ],
+        [
+            (
+                "procurement_shortage_answer_v1",
+                {
+                    **SHORTAGE_ARGS,
+                    "citations": [
+                        {"evidence_id": "ev-none", "pointer": "/quantity", "value": f"{CANARY}-v"}
+                    ],
+                    "rationale": {"goal_ref": "run", "summary": f"{CANARY}-answer-rationale"},
+                },
+            )
+        ],
+        [("procurement_shortage_answer_v1", dict(SHORTAGE_ARGS))],
+    ],
+    "draft-po": [
+        [
+            ("procurement_demand_read_v1", {"demand_ref": "demand:d-001", **READ_EXTRAS}),
+            ("inventory_availability_read_v1", {"product_ref": "product:widget-a", **READ_EXTRAS}),
+            ("procurement_offers_read_v1", {"product_ref": "product:widget-a", **READ_EXTRAS}),
+        ],
+        [
+            (
+                "procurement_purchase_order_create_draft_v1",
+                {
+                    **PO_ARGS,
+                    "citations": f"{CANARY}-write-citations",
+                    "rationale": {
+                        "goal_ref": "run",
+                        "rules_considered": ["PR-003"],
+                        "summary": f"{CANARY}-write-rationale",
+                    },
+                },
+            )
+        ],
+    ],
+}
+
+
+@pytest.mark.parametrize("mode", list(FeatureMode))
+async def test_no_canary_reaches_events_or_evidence(mode: FeatureMode) -> None:
+    """Canary text in envelope keys the tools do not declare (on reads, an answer's
+    rationale, a write's citations, and the offered fields themselves) reaches no event, no
+    action record and no evidence bundle, in ``off``, ``shadow`` and ``on``: dropped keys
+    are dropped, and the offered ones are stored as ids and digests only."""
+    from e_agent.contracts.approval import ApprovalDecision
+    from e_agent.kernel.evidence import build_evidence
+
+    searched = 0
+    for task, turns in CANARY_RUNS.items():
+        cursor = 0
+
+        def respond(
+            messages: list[ModelMessage], info: AgentInfo, turns: Any = turns
+        ) -> ModelResponse:
+            nonlocal cursor
+            cursor += 1
+            if cursor > len(turns):
+                return ModelResponse(parts=[TextPart("Done.")])
+            calls = turns[cursor - 1]
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(name, dict(args), f"c{cursor}-{i}")
+                    for i, (name, args) in enumerate(calls)
+                ]
+            )
+
+        profile = load_profile(fixture_profile_path())
+        profile = profile.model_copy(
+            update={"features": profile.features.model_copy(update={"grounded_answers": mode})}
+        )
+        rt = await build_runtime(
+            profile,
+            driver_factory=lambda registry, p=profile, r=respond: PydanticAiDriver(
+                FunctionModel(r), tool_specs(registry, p), guidance=registry.agent_guidance
+            ),
+        )
+        run = await rt.coordinator.start_run(rt.operator, f"canary {task}", rt.scope)
+        if run.state is RunState.WAITING_APPROVAL:
+            pres = await rt.coordinator.pending_approval(rt.operator.tenant_id, run.run_id)
+            run = await rt.coordinator.decide(
+                actor=rt.operator,
+                run_id=run.run_id,
+                action_id=pres.action_id,
+                action_digest=pres.digest,
+                expected_run_revision=pres.run_revision,
+                decision=ApprovalDecision.APPROVED,
+            )
+        assert run.state is RunState.SUCCEEDED, (mode, task, run.reason)
+        tenant = rt.operator.tenant_id
+        events = await rt.store.list_events(tenant, run.run_id)
+        actions = await rt.store.list_actions(tenant, run.run_id)
+        bundle = await build_evidence(
+            rt.store,
+            tenant,
+            run.run_id,
+            environment="fixture",
+            versions={},
+            features=profile.features,
+        )
+        text = json.dumps(
+            [
+                [e.model_dump(mode="json") for e in events],
+                [a.model_dump(mode="json") for a in actions],
+                bundle,
+            ],
+            default=str,
+        )
+        assert events and actions
+        assert CANARY not in text, (mode, task)
+        assert "rationale" not in json.dumps([a.arguments for a in actions]), (mode, task)
+        searched += len(events)
+    print(f"{mode.value}: no canary in {searched} events and 2 bundles")

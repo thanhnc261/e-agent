@@ -12,12 +12,15 @@ instruction is today's, byte for byte (ENG-TOGGLE-1). Otherwise:
 
 A call's envelope fields leave its arguments before they reach a proposal: ``citations``
 becomes `ActionProposal.citations` and ``rationale`` `ActionProposal.rationale` or
-`ActionPlan.rationale`. An envelope the records refuse is a fixed refusal returned to the
-model as the call's error, never an exception and never model text. The rationale schema
-carries the record's id pattern and summary bound, so a model that follows it is not refused
-(3e.3 open item). It offers no ``alternatives``: a rejected alternative names a proposal
-digest that the model is never shown. Citations and rationale are model claims the kernel
-checks; they grant nothing (PR-13).
+`ActionPlan.rationale`. A top-level ``citations`` or ``rationale`` that a tool's own schema
+does not declare never stays an argument in any mode: where the field is not offered it is
+dropped unread, so no event, log or export holds it (PR-26). A tool that declares the name
+keeps it as its own argument and is offered no grounding. An envelope the records refuse is
+a fixed refusal returned to the model as the call's error, never an exception and never
+model text. The rationale schema carries the record's id pattern and summary bound, so a
+model that follows it is not refused (3e.3 open item). It offers no ``alternatives``: a
+rejected alternative names a proposal digest that the model is never shown. Citations and
+rationale are model claims the kernel checks; they grant nothing (PR-13).
 """
 
 from __future__ import annotations
@@ -161,7 +164,7 @@ def grounded_arguments(
 ) -> tuple[dict[str, Any], tuple[Citation, ...]] | str:
     """The generic answer's arguments and citations, or `GROUNDED_REFUSAL`. The kernel
     checks the summary and every citation again; this only makes the refusal precise."""
-    arguments = {k: v for k, v in args.items() if k != CITATIONS}
+    arguments = {k: v for k, v in args.items() if k not in {CITATIONS, RATIONALE}}
     citations = citations_of(args.get(CITATIONS))
     if isinstance(citations, str) or not citations:
         return GROUNDED_REFUSAL

@@ -415,19 +415,37 @@ async def test_driver_input_carries_the_pinned_offer(
 
 
 async def test_profile_flip_keeps_the_offer_pinned(make_kernel: MakeKernel) -> None:
-    """A run pinned ``off`` is offered nothing after the profile flips ``on`` mid-run, and a
-    run pinned ``on`` keeps its offer after the profile flips back (D8)."""
-    k = _kernel(make_kernel, _own(("/count", "0")), None)
-    k.driver.on_answer = lambda: setattr(k.coordinator, "_features", ON)
-    await _start(k)
-    assert len(k.driver.seen) > 1  # calls after the flip
-    assert {step.grounding for step in k.driver.seen} == {GroundingOffer.OFF}
+    """A run pinned ``off`` is offered nothing on the calls made after the profile flips
+    ``on``, and a run pinned ``on`` keeps its offer on the repair call made after the profile
+    flips back (D8). The flip runs inside the answer turn, so each assertion reads only the
+    calls whose input was built after it."""
+    k = _kernel(make_kernel, _wrong_then_right, None)
+    flips: list[int] = []
+
+    def flip(features: Features) -> Callable[[], None]:
+        def apply() -> None:
+            if not flips:
+                flips.append(len(k.driver.seen))  # this call's input was built before the flip
+                k.coordinator._features = features
+
+        return apply
+
+    k.driver.on_answer = flip(ON)
+    await _start(k)  # pinned `off`
+    after = k.driver.seen[flips[0] :]
+    assert after, "no driver call after the flip"
+    assert {step.grounding for step in after} == {GroundingOffer.OFF}
+
     k.driver.seen.clear()
     k.driver.attempts = 0
-    k.driver.on_answer = lambda: setattr(k.coordinator, "_features", Features())
-    await _start(k)  # pinned `on` at its start
-    assert len(k.driver.seen) > 1
-    assert {step.grounding for step in k.driver.seen} == {GroundingOffer.CITE_AND_ANSWER}
+    flips.clear()
+    k.driver.on_answer = flip(Features())
+    run = await _start(k)  # pinned `on` at its start; the first answer is refused
+    after = k.driver.seen[flips[0] :]
+    assert after, "no driver call after the flip"
+    assert {step.grounding for step in after} == {GroundingOffer.CITE_AND_ANSWER}
+    assert run.reason_code is ReasonCode.GROUNDED  # the repaired answer, after the flip
+    print(f"calls after the flip: pinned on {len(after)}")
 
 
 # -- repair and failure -------------------------------------------------------------------
