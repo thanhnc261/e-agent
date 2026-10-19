@@ -1,0 +1,17 @@
+{
+  "task": "3e.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "C1-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Rejected multi-step plans silently lose their shadow grounding results: the rationale probe at plan_flow.py:109 is discarded by the early returns at :115 and :118; reasons.events() runs only at :273 after validation succeeds.",
+      "evidence": "src/e_agent/kernel/plan_flow.py:109, :115, :118, :273; ADR 0033 \u00a75; ENG-TOGGLE-1. Static (uv cache blocked the reviewer's commands)."
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}

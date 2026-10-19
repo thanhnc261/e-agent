@@ -43,7 +43,9 @@
     "tests/unit/sdk/**",
     "tests/unit/plugins/erp/**",
     "src/e_agent/kernel/reconstruct.py",
-    "src/e_agent/sdk/validation.py"
+    "src/e_agent/sdk/validation.py",
+    "src/e_agent/kernel/ir_on.py",
+    "src/e_agent/kernel/verification.py"
   ],
   "acceptance": [
     "rationale tests pass on both stores; approval digest unchanged by rationale",
@@ -118,6 +120,16 @@
       "glob": "src/e_agent/sdk/validation.py",
       "reason": "ADR 0033 §4 + ADR 0009: validators may declare their rule inventory",
       "at": "2026-10-19T19:03:16+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/ir_on.py",
+      "reason": "Codex 3e.3 C1-1: rejected plans write their shadow grounding events in the same batch as the repair finding (_repair_finding extra batch)",
+      "at": "2026-10-19T19:23:40+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/verification.py",
+      "reason": "3e.1 R1-2 / Codex 3e.3 C1-1: the verified-answer shortcut writes its shadow grounding events (_finish_verified)",
+      "at": "2026-10-19T19:23:40+00:00"
     }
   ]
 }
