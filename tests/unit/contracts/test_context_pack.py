@@ -32,7 +32,7 @@ def _pack(**kw: object) -> ContextPack:
     base: dict[str, object] = {
         "stable_prefix": {ContextLayer.INSTRUCTIONS: "be careful"},
         "dynamic_suffix": {ContextLayer.LEDGER: "step 1"},
-        "observations": (RenderedObservation(evidence=_ref(), data={"n": 3}, partial=False),),
+        "observations": (RenderedObservation(evidence=_ref(), data={"n": "3"}, partial=False),),
     }
     base.update(kw)
     return ContextPack.build(**base)  # type: ignore[arg-type]
@@ -47,7 +47,7 @@ def test_pack_digest_is_stable() -> None:
 
 
 def test_pack_rejects_unknown_layer() -> None:
-    with pytest.raises(ValueError, match="holds only"):
+    with pytest.raises(ValueError, match="not a valid ContextLayer"):
         _pack(stable_prefix={"memory": "x"})
     with pytest.raises(ValueError, match="holds only"):
         _pack(stable_prefix={ContextLayer.LEDGER: "dynamic layer in the prefix"})
@@ -112,3 +112,38 @@ def test_policy_refuses_a_secret_that_may_be_present() -> None:
     rules[ContextRoute.LOCAL][DataClass.SECRET] = ClassAction.KEEP
     with pytest.raises(ValidationError):
         ContextPolicy(class_rules=rules)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"n": 1},
+        {"n": 1.5},
+        {"a": {"b": [1]}},
+        {"a": [{"b": 2.0}]},
+        {"n": float("nan")},
+        {"n": float("inf")},
+    ],
+)
+def test_rendered_observation_refuses_json_numbers(data: dict[str, object]) -> None:
+    with pytest.raises(ValidationError, match="JSON number"):
+        RenderedObservation(evidence=_ref(), data=data, partial=False)
+
+
+def test_rendered_observation_accepts_booleans_and_strings() -> None:
+    RenderedObservation(evidence=_ref(), data={"ok": True, "n": "1", "x": None}, partial=False)
+
+
+def test_tagged_object_is_ordinary_data_with_its_own_digest() -> None:
+    def pack(data: dict[str, object]) -> ContextPack:
+        return _pack(observations=(RenderedObservation(evidence=_ref(), data=data, partial=False),))
+
+    assert pack({"n": {"$number": "1"}}).digest != pack({"n": "1"}).digest
+
+
+def test_policy_budgets_must_cover_every_layer() -> None:
+    with pytest.raises(ValidationError, match="cover every context layer"):
+        ContextPolicy(layer_budgets={ContextLayer.LEDGER: 10})
+    budgets = dict.fromkeys(ContextLayer, 1) | {ContextLayer.LEDGER: -1}
+    with pytest.raises(ValidationError, match="must not be negative"):
+        ContextPolicy(layer_budgets=budgets)

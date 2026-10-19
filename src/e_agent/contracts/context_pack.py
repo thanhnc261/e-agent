@@ -1,9 +1,9 @@
 """Context policy and pack: what the model may see on a turn (ADR 0032 §1, ADR 0030).
 
 The kernel assembles a ``ContextPack`` from the run's typed state; the driver renders it.
-The pack holds rendered facts and ids, never model reasoning (PR-28). Numbers in a pack
-digest travel as tagged strings, because the ``jcs-sha256-v1`` profile (ADR 0006) has no
-JSON numbers.
+The pack holds rendered facts and ids, never model reasoning (PR-28). Its digest is the
+plain ``jcs-sha256-v1`` digest (ADR 0006), which has no JSON numbers, so a rendered
+observation carries none: the kernel renders numbers as strings.
 """
 
 from __future__ import annotations
@@ -91,7 +91,10 @@ def _default_layer_budgets() -> dict[ContextLayer, int]:
 
 
 class ContextPolicy(Record):
-    """Budgets and the class-per-route rule. In Phase 3 every run uses the defaults."""
+    """Budgets and the class-per-route rule. In Phase 3 every run uses the defaults.
+
+    The default budgets are starting values (ADR 0032 consequences): the ablation and the
+    release report's context columns are the evidence for changing them."""
 
     max_input_tokens: int = Field(default=32000, gt=0)
     layer_budgets: Mapping[ContextLayer, int] = Field(default_factory=_default_layer_budgets)
@@ -104,8 +107,10 @@ class ContextPolicy(Record):
 
     @model_validator(mode="after")
     def _complete(self) -> Self:
+        if set(self.layer_budgets) != set(ContextLayer):
+            raise ValueError("layer_budgets must cover every context layer")
         if any(v < 0 for v in self.layer_budgets.values()):
-            raise ValueError("a layer budget is not negative")
+            raise ValueError("a layer budget must not be negative")
         for route in ContextRoute:
             rule = self.class_rules.get(route)
             if rule is None or set(rule) != set(DataClass):
@@ -113,6 +118,25 @@ class ContextPolicy(Record):
             if rule[DataClass.SECRET] is not ClassAction.ABSENT:
                 raise ValueError("a secret value is never present on any route")
         return self
+
+
+def _first_number(value: Any, pointer: str) -> str | None:
+    """The RFC 6901 pointer of the first JSON number in ``value``, or None. A bool is a
+    JSON boolean, not a number."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int | float):
+        return pointer
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            token = str(key).replace("~", "~0").replace("/", "~1")
+            if (found := _first_number(item, f"{pointer}/{token}")) is not None:
+                return found
+    elif isinstance(value, list | tuple):
+        for index, item in enumerate(value):
+            if (found := _first_number(item, f"{pointer}/{index}")) is not None:
+                return found
+    return None
 
 
 class RenderedObservation(Record):
@@ -123,6 +147,15 @@ class RenderedObservation(Record):
     partial: bool
     truncated: bool = False
     masked: bool = False
+
+    @model_validator(mode="after")
+    def _no_numbers(self) -> Self:
+        if (where := _first_number(self.data, "")) is not None:
+            raise ValueError(
+                f"data must not hold a JSON number (found at {where or '/'}); "
+                "render numbers as strings"
+            )
+        return self
 
     @model_validator(mode="after")
     def _partial_says_why(self) -> Self:
@@ -153,33 +186,13 @@ class DroppedReason(StrEnum):
 
 class Dropped(Record):
     """Something left out of the pack. ``ref`` names it and never carries a value: an
-    evidence id, an evidence id with an RFC 6901 pointer, or an event id."""
+    evidence id, an evidence id with an RFC 6901 pointer, an event id, or (ADR 0032 §5)
+    ``finding:<index>#/expected``, ``finding:<index>#/observed`` or
+    ``read_error:<request_id>``."""
 
     kind: DroppedKind
     ref: str = Field(min_length=1)
     reason: DroppedReason
-
-
-def _digestible(value: Any) -> Any:
-    """JSON-mode data with numbers as tagged strings (the profile has no numbers)."""
-    if isinstance(value, bool) or value is None or isinstance(value, str):
-        return value
-    if isinstance(value, int | float):
-        return {"$number": repr(value)}
-    if isinstance(value, Mapping):
-        return {k: _digestible(v) for k, v in value.items()}
-    if isinstance(value, list | tuple):
-        return [_digestible(v) for v in value]
-    return value
-
-
-def _check_layers(stable: Mapping[Any, str], dynamic: Mapping[Any, str]) -> None:
-    if not set(stable) <= STABLE_LAYERS:
-        raise ValueError("stable_prefix holds only instructions, task, tools and skills")
-    if not set(dynamic) <= DYNAMIC_LAYERS:
-        raise ValueError(
-            "dynamic_suffix holds only ledger, findings, evidence, knowledge and recent_turns"
-        )
 
 
 class ContextPack(Record):
@@ -199,14 +212,9 @@ class ContextPack(Record):
             raise ValueError(
                 "dynamic_suffix holds only ledger, findings, evidence, knowledge and recent_turns"
             )
-        if self.digest != self.compute_digest():
+        if self.digest != pack_digest(self):
             raise ValueError("digest does not match the pack content")
         return self
-
-    def compute_digest(self) -> str:
-        """The ``jcs-sha256-v1`` digest of the pack without its digest."""
-        body = self.model_dump(mode="json", exclude={"digest"})
-        return jcs_digest(_digestible(body))
 
     @classmethod
     def build(
@@ -218,18 +226,21 @@ class ContextPack(Record):
         dropped: tuple[Dropped, ...] = (),
     ) -> Self:
         """A pack with its digest computed."""
-        _check_layers(stable_prefix, dynamic_suffix)
-        draft = cls.model_construct(
-            stable_prefix=stable_prefix,
-            dynamic_suffix=dynamic_suffix,
-            observations=observations,
-            dropped=dropped,
-            digest="",
-        )
+        body = {
+            "stable_prefix": {ContextLayer(k).value: v for k, v in stable_prefix.items()},
+            "dynamic_suffix": {ContextLayer(k).value: v for k, v in dynamic_suffix.items()},
+            "observations": [o.model_dump(mode="json") for o in observations],
+            "dropped": [d.model_dump(mode="json") for d in dropped],
+        }
         return cls(
             stable_prefix=stable_prefix,
             dynamic_suffix=dynamic_suffix,
             observations=observations,
             dropped=dropped,
-            digest=draft.compute_digest(),
+            digest=jcs_digest(body),
         )
+
+
+def pack_digest(pack: ContextPack) -> str:
+    """The ``jcs-sha256-v1`` digest of the pack without its digest field."""
+    return jcs_digest(pack.model_dump(mode="json", exclude={"digest"}))
