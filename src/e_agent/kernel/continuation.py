@@ -249,6 +249,11 @@ class ContinuationMixin:
         ) -> RunRecord | DriverInput:
             raise NotImplementedError
 
+        def _with_grounding(
+            self, run: RunRecord, cont: _Continuation, step_input: DriverInput
+        ) -> DriverInput:
+            raise NotImplementedError
+
         async def _after_step_verified(
             self, cont: _Continuation, action: ActionRecord, *, next_step: NextStep
         ) -> RunRecord:

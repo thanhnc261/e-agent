@@ -56,6 +56,7 @@ class RunLoopMixin(GatewayMixin, ContextOnMixin):
             shadow = await self._context_shadow(run, cont, step_input)  # pinned shadow only
             try:
                 run, turn_input = await self._context_input(run, cont, step_input)  # pinned on
+                turn_input = self._with_grounding(run, cont, turn_input)  # pin (ADR 0033 §5)
                 step = await self._timed(
                     cont,
                     partial(self._driver.advance, ctx, self._with_tools(run, cont, turn_input)),

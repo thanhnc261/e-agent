@@ -179,3 +179,74 @@ async def test_release_report_counts_grounded_separately() -> None:
     case = await rr.run_case(rr.CASES[0])  # ERP-01: a verified shortage answer
     assert (case["reason_code"], rr.end_class(case)) == ("answered", "verified")
     print(f"release report ends counted over {len(results)} results")
+
+
+# -- Task 3e.4: the grounding counts (ADR 0033 §5) --------------------------------------------
+def test_grounding_columns_sum_counts() -> None:
+    from datetime import UTC, datetime
+
+    from e_agent.contracts.events import RunEvent, RunEventType
+    from e_agent.contracts.grounding import CitationCounts, GroundingCompared, RefCounts
+
+    def event(seq: int, kind: RunEventType, payload: dict) -> RunEvent:
+        return RunEvent(
+            event_id=f"e{seq}",
+            tenant_id="t",
+            run_id="r",
+            sequence=seq,
+            type=kind,
+            occurred_at=datetime(2026, 10, 20, tzinfo=UTC),
+            payload=payload,
+        )
+
+    cited = CitationCounts(cited=3, resolved=1, unresolved=1, mismatched=1)
+    answer = GroundingCompared(citations=cited).model_dump(mode="json")
+    write = GroundingCompared().model_dump(mode="json")
+    write["rationale"]["rules"] = RefCounts(cited=2, resolved=1, unresolved=1).model_dump()
+    compared, failed = RunEventType.GROUNDING_COMPARED, RunEventType.GROUNDING_SHADOW_FAILED
+    events = [
+        event(1, compared, answer),
+        event(2, compared, write),
+        event(3, failed, {"stage": "check", "message": "m"}),
+    ]
+    columns = rr.grounding_columns(events)
+    assert columns == {
+        "compared": 2,
+        "shadow_failures": 1,
+        "citations": {"cited": 3, "resolved": 1, "unresolved": 1, "mismatched": 1},
+        "rationale_evidence": {"cited": 0, "resolved": 0, "unresolved": 0},
+        "rationale_rules": {"cited": 2, "resolved": 1, "unresolved": 1},
+    }
+    assert rr.unresolved_refs(columns) == 3
+    assert rr.grounding_columns(events[:0]) is None
+
+
+async def test_release_report_grounding_counts_only_in_shadow() -> None:
+    """With ``grounded_answers: shadow`` the scripted driver cites its answers and gives its
+    draft PO a rationale; every case still passes and every ref resolves. In ``off`` the
+    report has no grounding columns."""
+    from e_agent.contracts.features import FeatureMode
+
+    off = await rr.run_case(rr.CASES[0])
+    assert off["passed"] and off["grounding"] is None
+    procurement = [c for c in rr.CASES if c.kind in {"shortage", "recommend", "draft-po"}]
+    results = [await rr.run_case(c, grounded_answers=FeatureMode.SHADOW) for c in procurement]
+    assert results and all(r["passed"] for r in results)
+    grounding = [r["grounding"] for r in results]
+    assert all(g is not None and g["compared"] > 0 for g in grounding)
+    cited = sum(g["citations"]["cited"] for g in grounding)
+    refs = sum(g["rationale_evidence"]["cited"] + g["rationale_rules"]["cited"] for g in grounding)
+    assert cited > 0 and refs > 0
+    rt = await build_runtime(load_profile(fixture_profile_path()))
+    report = rr.build_report(rt, results, grounded_answers=FeatureMode.SHADOW)
+    assert (report["grounded_answers"], report["grounding_unresolved"]) == ("shadow", 0)
+    assert rr.build_report(rt, [off])["grounding_unresolved"] is None
+    print(f"grounding counts: {len(results)} cases, {cited} citations, {refs} rationale refs")
+
+
+def test_phase3_baseline_has_no_grounding_columns() -> None:
+    import json
+
+    report = json.loads(BASELINE.read_text(encoding="utf-8"))
+    assert report["grounded_answers"] == "off" and report["grounding_unresolved"] is None
+    assert report["cases"] and all(c["grounding"] is None for c in report["cases"])

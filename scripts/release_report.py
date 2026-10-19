@@ -14,8 +14,10 @@ Each case also reports its reason code, and the report counts the cases by how t
 (PR-19). Each case also reports its repairs and token use, and, with ``--context-assembler shadow``,
 the context columns from the run's ``context.compared`` events (ADR 0032 §7, Task 3d.3), and,
 with ``--kernel-repeat shadow``, the repeat columns and disagreement count from its
-``repeat.compared`` events (ADR 0031 §5, Task 3d.6). The Phase 3 ``off`` baseline is this
-report recorded with the toggles ``off``:
+``repeat.compared`` events (ADR 0031 §5, Task 3d.6), and, with ``--grounded-answers shadow``,
+the grounding columns from its ``grounding.compared`` events: citation and rationale counts
+(ADR 0033 §5, Task 3e.4). The Phase 3 ``off`` baseline is this report recorded with the
+toggles ``off``:
 
     uv run python scripts/release_report.py --out evals/reports/phase3-baseline.json
 """
@@ -187,16 +189,25 @@ METRICS_NOTE = (
     "unless context_assembler is shadow; its pack_tokens and unbounded_tokens are the "
     "kernel estimator's sums over the run's driver turns, not model-reported tokens. repeat is "
     "null unless kernel_repeat is shadow; a disagreement is a write proposal the repeat rule "
-    "would have short-circuited whose validation then gave other findings."
+    "would have short-circuited whose validation then gave other findings. grounding is null "
+    "unless grounded_answers is shadow; it sums the citation and rationale-ref counts of the "
+    "run's grounding.compared events, and grounding_unresolved is every unresolved or "
+    "mismatched citation and unresolved rationale ref."
 )
 
 
 def fixture_profile(
-    context_assembler: FeatureMode = FeatureMode.OFF, kernel_repeat: FeatureMode = FeatureMode.OFF
+    context_assembler: FeatureMode = FeatureMode.OFF,
+    kernel_repeat: FeatureMode = FeatureMode.OFF,
+    grounded_answers: FeatureMode = FeatureMode.OFF,
 ) -> Any:
     profile = load_profile(fixture_profile_path())
     features = profile.features.model_copy(
-        update={"context_assembler": context_assembler, "kernel_repeat": kernel_repeat}
+        update={
+            "context_assembler": context_assembler,
+            "kernel_repeat": kernel_repeat,
+            "grounded_answers": grounded_answers,
+        }
     )
     return profile.model_copy(update={"features": features})
 
@@ -276,13 +287,46 @@ def repeat_columns(events: list[RunEvent]) -> dict[str, Any] | None:
     }
 
 
+def _summed(counts: list[dict[str, Any]], keys: tuple[str, ...]) -> dict[str, int]:
+    return {key: sum(int(c.get(key, 0)) for c in counts) for key in keys}
+
+
+def grounding_columns(events: list[RunEvent]) -> dict[str, Any] | None:
+    """The ``grounding.compared`` columns of a ``grounded_answers: shadow`` run; None when the
+    run recorded none. Counts only, never a value or model text (PR-26)."""
+    compared = [e.payload for e in events if e.type is RunEventType.GROUNDING_COMPARED]
+    failed = [e for e in events if e.type is RunEventType.GROUNDING_SHADOW_FAILED]
+    if not compared and not failed:
+        return None
+    refs = ("cited", "resolved", "unresolved")
+    return {
+        "compared": len(compared),
+        "shadow_failures": len(failed),
+        "citations": _summed([p["citations"] for p in compared], (*refs, "mismatched")),
+        "rationale_evidence": _summed([p["rationale"]["evidence"] for p in compared], refs),
+        "rationale_rules": _summed([p["rationale"]["rules"] for p in compared], refs),
+    }
+
+
+def unresolved_refs(grounding: dict[str, Any]) -> int:
+    """A case's unresolved or mismatched citations and unresolved rationale refs."""
+    citations = grounding["citations"]
+    return (
+        citations["unresolved"]
+        + citations["mismatched"]
+        + grounding["rationale_evidence"]["unresolved"]
+        + grounding["rationale_rules"]["unresolved"]
+    )
+
+
 async def run_case(
     case: Case,
     context_assembler: FeatureMode = FeatureMode.OFF,
     kernel_repeat: FeatureMode = FeatureMode.OFF,
+    grounded_answers: FeatureMode = FeatureMode.OFF,
 ) -> dict[str, Any]:
     rt = await build_runtime(
-        fixture_profile(context_assembler, kernel_repeat),
+        fixture_profile(context_assembler, kernel_repeat, grounded_answers),
         driver_mode=case.mode,
         plugin_settings={
             "fixture-erp": {
@@ -335,6 +379,7 @@ async def run_case(
         "model_tokens": project_progress(events, []).budgets_used.model_tokens,
         "context": context_columns(events),
         "repeat": repeat_columns(events),
+        "grounding": grounding_columns(events),
         "checks": checks,
         "passed": all(checks.values()),
     }
@@ -356,6 +401,7 @@ def build_report(
     results: list[dict[str, Any]],
     context_assembler: FeatureMode = FeatureMode.OFF,
     kernel_repeat: FeatureMode = FeatureMode.OFF,
+    grounded_answers: FeatureMode = FeatureMode.OFF,
 ) -> dict[str, Any]:
     """The release report: the case results, the runtime's versions, and the write effects
     its admission accepted on their defaults, which release evidence lists (ADR 0029
@@ -367,6 +413,7 @@ def build_report(
         if "repairs" in r
     )
     repeats = [r["repeat"] for r in results if r.get("repeat") is not None]
+    grounding = [r["grounding"] for r in results if r.get("grounding") is not None]
     return {
         "report": "e-agent-release-matrix-v1",
         "environment": "fixture",
@@ -376,9 +423,11 @@ def build_report(
         ),
         "context_assembler": context_assembler.value,
         "kernel_repeat": kernel_repeat.value,
+        "grounded_answers": grounded_answers.value,
         "metrics_note": METRICS_NOTE,
         "repair_rate": round(repairs / proposals, 4) if proposals else None,
         "repeat_disagreements": sum(r["disagreements"] for r in repeats) if repeats else None,
+        "grounding_unresolved": sum(map(unresolved_refs, grounding)) if grounding else None,
         "ends": dict(sorted(Counter(end_class(r) for r in results).items())),
         "versions": rt.versions,
         "defaulted_declarations": defaulted_payload(rt.registry.report.defaulted_declarations),
@@ -403,11 +452,18 @@ async def main() -> int:
         default=FeatureMode.OFF.value,
         help="the kernel_repeat mode the cases run with (shadow adds the repeat columns)",
     )
+    parser.add_argument(
+        "--grounded-answers",
+        choices=[FeatureMode.OFF.value, FeatureMode.SHADOW.value],
+        default=FeatureMode.OFF.value,
+        help="the grounded_answers mode the cases run with (shadow adds the grounding columns)",
+    )
     args = parser.parse_args()
     mode, repeat = FeatureMode(args.context_assembler), FeatureMode(args.kernel_repeat)
-    results = [await run_case(c, mode, repeat) for c in CASES]
-    rt = await build_runtime(fixture_profile(mode, repeat))
-    report = build_report(rt, results, mode, repeat)
+    grounded = FeatureMode(args.grounded_answers)
+    results = [await run_case(c, mode, repeat, grounded) for c in CASES]
+    rt = await build_runtime(fixture_profile(mode, repeat, grounded))
+    report = build_report(rt, results, mode, repeat, grounded)
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, ensure_ascii=False)
         fh.write("\n")

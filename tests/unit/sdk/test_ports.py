@@ -87,3 +87,12 @@ def test_driver_input_context_defaults_none() -> None:
     assert DriverInput(task="t").context is None
     pack = ContextPack.build(stable_prefix={ContextLayer.INSTRUCTIONS: "i"}, dynamic_suffix={})
     assert DriverInput(task="t", context=pack).context is pack
+
+
+def test_driver_input_grounding_defaults_off() -> None:
+    """A driver built for sdk_api 1.1 keeps working: ``grounding`` defaults to ``off``, the
+    value under which a driver offers nothing new (ADR 0033 §5)."""
+    from e_agent.sdk.ports import DriverInput, GroundingOffer
+
+    assert DriverInput(task="t").grounding is GroundingOffer.OFF
+    assert [o.value for o in GroundingOffer] == ["off", "cite", "cite_and_answer"]

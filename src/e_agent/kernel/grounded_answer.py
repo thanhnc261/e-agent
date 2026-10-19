@@ -19,8 +19,13 @@ snapshot admits nothing); and its offered tool set (the snapshot's capabilities,
 agent-visible capability) holds no typed answer (``EffectKind.ANSWER``), so where a typed
 answer exists its verifier decides (PR-19). A call the run does not admit is the fixed repair
 finding ``KERNEL-GROUNDED-ANSWER`` (`_repair_finding`: recorded in ``validation.completed``
-with no action id, within ``max_validation_repairs``). 3e.4 derives
-``DriverInput.grounding`` from the same predicate.
+with no action id, within ``max_validation_repairs``).
+
+**The offer** (`_grounding_offer`, Task 3e.4). Every run-loop driver call carries
+``DriverInput.grounding``, derived from the same pin and predicate, never the profile (D8):
+pinned ``off`` is ``off`` (the input is today's, byte for byte), ``shadow`` is ``cite``, and
+``on`` is ``cite_and_answer`` when the run admits the generic answer, ``cite`` otherwise. The
+post-write acknowledgement turn keeps ``off``: the kernel takes only its final text.
 
 **The check.** Arguments other than one non-empty ``summary`` are ``KERNEL-ARGS``, no citation
 is ``KERNEL-CITATION``, and the citations are checked by `check_citations` against this run's
@@ -40,13 +45,15 @@ carries exception text.
 
 from __future__ import annotations
 
+import dataclasses
+
 from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.run import ReasonCode, RunRecord
 from e_agent.contracts.task import GROUNDED_ANSWER
-from e_agent.sdk.ports import DriverInput
+from e_agent.sdk.ports import DriverInput, GroundingOffer
 
 from .continuation import _Continuation
 from .grounding import KERNEL_CITATION, ClassView, GroundingMixin, check_citations
@@ -88,6 +95,24 @@ class GroundedAnswerMixin(GroundingMixin):
         return not any(
             cid in capabilities and capabilities[cid].effect is EffectKind.ANSWER for cid in offered
         )
+
+    def _grounding_offer(self, run: RunRecord, cont: _Continuation) -> GroundingOffer:
+        """What this run's driver calls offer (ADR 0033 §5), from its pin, never the profile."""
+        mode = self._run_modes(cont).grounded_answers
+        if mode is FeatureMode.OFF:
+            return GroundingOffer.OFF
+        if mode is FeatureMode.ON and self._admits_grounded_answer(run, cont):
+            return GroundingOffer.CITE_AND_ANSWER
+        return GroundingOffer.CITE
+
+    def _with_grounding(
+        self, run: RunRecord, cont: _Continuation, step_input: DriverInput
+    ) -> DriverInput:
+        """``step_input`` carrying the run's offer; unchanged for a run pinned ``off``."""
+        offer = self._grounding_offer(run, cont)
+        if offer is GroundingOffer.OFF:
+            return step_input
+        return dataclasses.replace(step_input, grounding=offer)
 
     async def _handle_grounded_answer(
         self, run: RunRecord, cont: _Continuation, proposal: ActionProposal

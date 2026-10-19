@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
 from e_agent.contracts.action import ActionRecord
@@ -42,6 +43,20 @@ class Observation:
     evidence: EvidenceRef
 
 
+class GroundingOffer(StrEnum):
+    """What the driver offers the model for grounding on one call (ADR 0033 §5, sdk_api 1.2).
+
+    The kernel derives it per call from the run's pinned ``grounded_answers`` mode and the
+    generic answer's admission; a driver never reads the profile (plan D8). ``off`` offers
+    nothing new, so tool schemas and instructions are today's."""
+
+    OFF = "off"
+    CITE = "cite"
+    """Answer tools offer ``citations``; write and plan tools offer ``rationale``."""
+    CITE_AND_ANSWER = "cite_and_answer"
+    """``cite``, plus the generic grounded answer ``grounded.answer.v1``."""
+
+
 @dataclass(frozen=True)
 class DriverInput:
     task: str
@@ -59,6 +74,9 @@ class DriverInput:
     # The kernel-assembled context for this turn (ADR 0032, sdk_api 1.2). None keeps the
     # driver's own history, as in sdk_api 1.1.
     context: ContextPack | None = None
+    # What this call offers for grounding (ADR 0033 §5, sdk_api 1.2), set by the kernel from
+    # the run's pinned mode. OFF keeps every tool schema and instruction as in sdk_api 1.1.
+    grounding: GroundingOffer = GroundingOffer.OFF
 
 
 @dataclass(frozen=True)

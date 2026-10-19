@@ -50,6 +50,7 @@ from e_agent.sdk.manifest import BindingTemplate, TaskDeclaration
 from e_agent.sdk.ports import (
     DriverInput,
     DriverStep,
+    GroundingOffer,
     Observation,
     PluginContribution,
     ProposeAction,
@@ -382,6 +383,51 @@ async def test_grounded_answer_not_offered_unless_pinned_on(
     _assert_grounded_end(pinned_on, await _events(k, pinned_on.run_id))
     assert k.coordinator._features.grounded_answers is pinned
     assert await _admits(k, pinned_on.run_id)
+
+
+# -- the driver's offer (Task 3e.4, ADR 0033 §5) -------------------------------------------
+@pytest.mark.parametrize(
+    ("features", "task", "offer"),
+    [
+        (None, None, GroundingOffer.OFF),
+        (SHADOW, None, GroundingOffer.CITE),
+        (ON, None, GroundingOffer.CITE_AND_ANSWER),
+        (BOUND_ON, NOTES_TASK, GroundingOffer.CITE),
+        (BOUND_ON, NOTES_QUESTION, GroundingOffer.CITE_AND_ANSWER),
+    ],
+    ids=["off", "shadow", "on-admitted", "on-bound-not-admitted", "on-bound-admitted"],
+)
+async def test_driver_input_carries_the_pinned_offer(
+    make_kernel: MakeKernel,
+    features: Features | None,
+    task: TaskDefinition | None,
+    offer: GroundingOffer,
+) -> None:
+    """Every run-loop call carries the offer derived from the run's pin and the generic
+    answer's admission (D8): ``off`` is today's input, ``shadow`` cites, and ``on`` adds the
+    generic answer only where the run admits it."""
+    kw = {} if task is None else {"task": task}
+    k = _kernel(make_kernel, _own(("/count", "0")), features, **kw)
+    await _start(k, None if task is None else task.task_id)
+    assert k.driver.seen, "the driver was never called"
+    assert {step.grounding for step in k.driver.seen} == {offer}
+    print(f"{offer.value}: {len(k.driver.seen)} driver calls")
+
+
+async def test_profile_flip_keeps_the_offer_pinned(make_kernel: MakeKernel) -> None:
+    """A run pinned ``off`` is offered nothing after the profile flips ``on`` mid-run, and a
+    run pinned ``on`` keeps its offer after the profile flips back (D8)."""
+    k = _kernel(make_kernel, _own(("/count", "0")), None)
+    k.driver.on_answer = lambda: setattr(k.coordinator, "_features", ON)
+    await _start(k)
+    assert len(k.driver.seen) > 1  # calls after the flip
+    assert {step.grounding for step in k.driver.seen} == {GroundingOffer.OFF}
+    k.driver.seen.clear()
+    k.driver.attempts = 0
+    k.driver.on_answer = lambda: setattr(k.coordinator, "_features", Features())
+    await _start(k)  # pinned `on` at its start
+    assert len(k.driver.seen) > 1
+    assert {step.grounding for step in k.driver.seen} == {GroundingOffer.CITE_AND_ANSWER}
 
 
 # -- repair and failure -------------------------------------------------------------------

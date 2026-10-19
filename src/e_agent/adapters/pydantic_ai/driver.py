@@ -31,10 +31,17 @@ by the kernel where the route requires it. Clearing replaces a returned observat
 pack's stub and keeps every call and return pair; it does not run while a write is pending
 (the kernel's ``pending_action_id``). A run that rendered a pack marks its snapshot
 ``rendering: "pack"`` for good. Without a pack the driver is exactly what it was.
+
+Grounding (Task 3e.4, ADR 0033 §5): ``DriverInput.grounding``, set by the kernel from the
+run's pin, decides the offer per call; the driver never reads the profile (D8). Unless it is
+``off``, answer tools offer ``citations``, write tools and the plan tool ``rationale``, and
+``cite_and_answer`` adds the generic grounded answer (`grounding`). With ``off`` every tool
+schema and instruction is today's.
 """
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import json
 import re
@@ -54,13 +61,16 @@ from e_agent.contracts.context_pack import (
     DroppedReason,
     tool_return_text,
 )
+from e_agent.contracts.grounding import Citation, ProposalRationale
 from e_agent.contracts.plan import ActionPlan, ActionProposal, LineageRef, PlannedStep
+from e_agent.contracts.task import GROUNDED_ANSWER
 from e_agent.sdk.errors import ContextNotRendered, DriverBudgetExceeded
 from e_agent.sdk.ports import (
     AskClarification,
     DriverInput,
     DriverStep,
     FinalAnswer,
+    GroundingOffer,
     ProposeAction,
     ProposePlan,
     ReadRequest,
@@ -97,6 +107,22 @@ from pydantic_ai.messages import (
 from pydantic_ai.models import Model, ModelRequestContext
 from pydantic_ai.tools import RunContext
 from pydantic_ai.usage import RunUsage, UsageLimits
+
+from .grounding import (
+    CITATIONS,
+    CITATIONS_SCHEMA,
+    GROUNDED_CONNECTION,
+    GROUNDED_TOOL,
+    GROUNDING_INSTRUCTIONS,
+    RATIONALE,
+    RATIONALE_REFUSAL,
+    RATIONALE_SCHEMA,
+    citations_of,
+    grounded_arguments,
+    grounded_tool,
+    rationale_of,
+    with_field,
+)
 
 STATE_SCHEMA = "pydantic-ai-driver-v1"
 PACK_RENDERING = "pack"
@@ -402,6 +428,19 @@ class PydanticAiDriver:
         model_settings: Mapping[str, Any] | None = None,
     ) -> None:
         self._tools = {t.name: t for t in tools}
+        clarification = ToolDefinition(
+            name="request_clarification",
+            description=(
+                "Ask the user for required missing task details. "
+                "This grants no approval or authority."
+            ),
+            parameters_json_schema={
+                "type": "object",
+                "properties": {"question": {"type": "string", "minLength": 1, "maxLength": 4000}},
+                "required": ["question"],
+                "additionalProperties": False,
+            },
+        )
         self._toolset = ExternalToolset(
             [
                 ToolDefinition(
@@ -411,23 +450,20 @@ class PydanticAiDriver:
                 )
                 for t in tools
             ]
-            + [
+            + [clarification]
+        )
+        # The same tools with the grounding envelope (ADR 0033 §5): deep copies, offered only
+        # on a call whose ``grounding`` is not ``off``, so `_toolset` stays today's.
+        self._cite_toolset = ExternalToolset(
+            [
                 ToolDefinition(
-                    name="request_clarification",
-                    description=(
-                        "Ask the user for required missing task details. "
-                        "This grants no approval or authority."
-                    ),
-                    parameters_json_schema={
-                        "type": "object",
-                        "properties": {
-                            "question": {"type": "string", "minLength": 1, "maxLength": 4000}
-                        },
-                        "required": ["question"],
-                        "additionalProperties": False,
-                    },
+                    name=t.name,
+                    description=t.description,
+                    parameters_json_schema=_grounded_schema(t),
                 )
+                for t in tools
             ]
+            + [clarification]
         )
         instructions = "\n\n".join([BASE_INSTRUCTIONS, *guidance])
         self._agent: Agent[None, str | DeferredToolRequests] = Agent(
@@ -530,16 +566,19 @@ class PydanticAiDriver:
 
         handler: Any = public_text if self._text_sink is not None else None
         allowed = step_input.allowed_capabilities  # the run's tool set (D6); None: all tools
+        grounding = step_input.grounding  # the kernel's offer from the run's pin (D8)
+        cited = grounding is not GroundingOffer.OFF
+        base = self._cite_toolset if cited else self._toolset
         toolset: Any = (
-            self._toolset
+            base
             if allowed is None
-            else self._toolset.filtered(
+            else base.filtered(
                 lambda _ctx, tool: (
                     tool.name not in self._tools or self._tools[tool.name].contract_id in allowed
                 )
             )
         )
-        plan_tool = self._plan_tool(ctx, allowed)
+        plan_tool = self._plan_tool(ctx, allowed, cited)
         toolsets: list[Any] = [toolset]
         extra: dict[str, Any] = {}
         instructions: list[str] = []
@@ -548,6 +587,10 @@ class PydanticAiDriver:
         if plan_tool is not None:  # `on`, more than one write: offer the plan (Task 2c.9)
             toolsets.append(ExternalToolset([plan_tool]))
             instructions.append(PLAN_INSTRUCTIONS)
+        if grounding is GroundingOffer.CITE_AND_ANSWER:  # admitted by the kernel (ADR 0033 §3)
+            toolsets.append(ExternalToolset([grounded_tool()]))
+        if cited:
+            instructions.append(GROUNDING_INSTRUCTIONS)
         if instructions:
             extra["instructions"] = "\n\n".join(instructions)
         suffix = _suffix_text(pack) if pack is not None else ""
@@ -578,7 +621,7 @@ class PydanticAiDriver:
         output = result.output
         if isinstance(output, str):
             return FinalAnswer(text=_public_text(output))
-        return self._plan_step(st, output, self._plan_step_tools(ctx, allowed))
+        return self._plan_step(st, output, self._plan_step_tools(ctx, allowed), grounding)
 
     def _plan_step_tools(
         self, ctx: TaskContext, allowed: tuple[str, ...] | None
@@ -598,11 +641,19 @@ class PydanticAiDriver:
         )
 
     def _plan_tool(
-        self, ctx: TaskContext, allowed: tuple[str, ...] | None
+        self, ctx: TaskContext, allowed: tuple[str, ...] | None, cited: bool = False
     ) -> ToolDefinition | None:
         names = self._plan_step_tools(ctx, allowed)
         if not names:
             return None
+        tool = self._plan_definition(ctx, names)
+        if not cited:
+            return tool
+        schema = with_field(tool.parameters_json_schema, RATIONALE, RATIONALE_SCHEMA)
+        return dataclasses.replace(tool, parameters_json_schema=schema)
+
+    @staticmethod
+    def _plan_definition(ctx: TaskContext, names: tuple[str, ...]) -> ToolDefinition:
         return ToolDefinition(
             name=PLAN_TOOL,
             description=(
@@ -776,13 +827,29 @@ class PydanticAiDriver:
         st: _RunState,
         requests: DeferredToolRequests,
         plan_tools: tuple[str, ...] = (),
+        grounding: GroundingOffer = GroundingOffer.OFF,
     ) -> DriverStep:
         reads: list[ReadRequest] = []
-        # A write call (its spec and arguments) or a plan call (spec None, its raw arguments).
-        writes: list[tuple[str, ToolSpec | None, dict[str, Any]]] = []
+        # A write or answer call (its proposal) or a plan call (its raw arguments).
+        writes: list[tuple[str, ActionProposal | dict[str, Any]]] = []
+        cited = grounding is not GroundingOffer.OFF
         for call in requests.calls:
             if call.tool_name == PLAN_TOOL and plan_tools:
-                writes.append((call.tool_call_id, None, call.args_as_dict()))
+                writes.append((call.tool_call_id, call.args_as_dict()))
+                continue
+            if call.tool_name == GROUNDED_TOOL and grounding is GroundingOffer.CITE_AND_ANSWER:
+                parsed = grounded_arguments(call.args_as_dict())
+                if isinstance(parsed, str):
+                    st.rejected[call.tool_call_id] = parsed
+                    continue
+                arguments, citations = parsed
+                proposal = ActionProposal(
+                    contract_id=GROUNDED_ANSWER,
+                    connection_id=GROUNDED_CONNECTION,
+                    arguments=arguments,
+                    citations=citations,
+                )
+                writes.append((call.tool_call_id, proposal))
                 continue
             if call.tool_name == "request_clarification":
                 question = call.args_as_dict().get("question")
@@ -813,37 +880,45 @@ class PydanticAiDriver:
                     )
                 )
             else:
-                writes.append((call.tool_call_id, spec, args))
+                envelope = _envelope(spec, args) if cited else {}
+                if isinstance(envelope, str):  # a fixed refusal, never model text
+                    st.rejected[call.tool_call_id] = envelope
+                    continue
+                writes.append(
+                    (
+                        call.tool_call_id,
+                        ActionProposal(
+                            contract_id=spec.contract_id,
+                            connection_id=spec.connection_id,
+                            arguments=args,
+                            expected_effects=(spec.description,),
+                            **envelope,
+                        ),
+                    )
+                )
         for call in requests.approvals:  # never used for business actions
             st.rejected[call.tool_call_id] = "approval-style tools are not supported"
         if reads:
-            for call_id, _, _ in writes:
+            for call_id, _ in writes:
                 st.rejected[call_id] = "read facts first; propose the write in a later step"
             return RequestReads(reads=tuple(reads))
         if writes:
-            call_id, spec, args = writes[0]
-            for extra_id, _, _ in writes[1:]:
+            call_id, item = writes[0]
+            for extra_id, _ in writes[1:]:
                 st.rejected[extra_id] = "only one write may be proposed at a time"
-            if spec is None:  # the plan call: the turn's one proposal (Task 2c.9)
-                plan = self._plan_from_call(args, plan_tools)
+            if not isinstance(item, ActionProposal):  # the plan call (Task 2c.9)
+                plan = self._plan_from_call(item, plan_tools, cited)
                 if isinstance(plan, str):
                     st.rejected[call_id] = plan
                     return AskClarification(question="The model made no usable tool request.")
                 st.pending_write = call_id
                 return ProposePlan(plan=plan)
             st.pending_write = call_id
-            return ProposeAction(
-                proposal=ActionProposal(
-                    contract_id=spec.contract_id,
-                    connection_id=spec.connection_id,
-                    arguments=args,
-                    expected_effects=(spec.description,),
-                )
-            )
+            return ProposeAction(proposal=item)
         return AskClarification(question="The model made no usable tool request.")
 
     def _plan_from_call(
-        self, args: Mapping[str, Any], plan_tools: tuple[str, ...]
+        self, args: Mapping[str, Any], plan_tools: tuple[str, ...], cited: bool = False
     ) -> ActionPlan | str:
         """The plan a ``propose_plan`` call proposes, or the fixed refusal for the model.
 
@@ -851,9 +926,14 @@ class PydanticAiDriver:
         boundary. Each connection is the host's tool spec's. A placeholder is a `LineageRef`
         built from the typed ``lineage`` field; argument values pass through as they came, so
         a literal ``$lineage`` key reaches the records, which refuse it (ADR 0025). The
-        kernel assigns the plan id and the task definition (`ProposePlan`)."""
-        if set(args) != {"steps"}:
-            return _refusal_for_keys(set(args) - {"steps"})
+        kernel assigns the plan id and the task definition (`ProposePlan`). A grounded call
+        may add the plan's ``rationale`` (ADR 0033 §4)."""
+        keys = {"steps", RATIONALE} if cited else {"steps"}
+        if "steps" not in args or set(args) - keys:
+            return _refusal_for_keys(set(args) - keys)
+        rationale = rationale_of(args[RATIONALE]) if RATIONALE in args else None
+        if isinstance(rationale, str):
+            return RATIONALE_REFUSAL
         raw_steps = args["steps"]
         if not isinstance(raw_steps, list) or not raw_steps:
             return PLAN_SHAPE_REFUSAL
@@ -913,6 +993,7 @@ class PydanticAiDriver:
                 task_id="driver-proposed",
                 task_version="0",
                 steps=tuple(steps),
+                rationale=rationale,
             )
         except (ValidationError, ValueError):
             return PLAN_STRUCTURE_REFUSAL
@@ -921,6 +1002,31 @@ class PydanticAiDriver:
     def _coerced_args(spec: ToolSpec, args: dict[str, Any]) -> dict[str, Any]:
         props = spec.parameters.get("properties", {})
         return {k: _coerce(v, props.get(k)) for k, v in args.items()}
+
+
+def _grounded_schema(spec: ToolSpec) -> dict[str, Any]:
+    """A deep copy of the tool's schema with its grounding envelope: ``citations`` beside an
+    answer's arguments, ``rationale`` beside a write's (ADR 0033 §1, §4). A tool that already
+    names the field is refused, so the envelope is never mistaken for an argument."""
+    name = {EffectKind.ANSWER: CITATIONS, EffectKind.WRITE: RATIONALE}.get(spec.effect)
+    if name is None:
+        return copy.deepcopy(dict(spec.parameters))
+    if name in spec.parameters.get("properties", {}):
+        raise ValueError(f"{spec.contract_id}: argument {name!r} is the grounding envelope's")
+    field = CITATIONS_SCHEMA if name == CITATIONS else RATIONALE_SCHEMA
+    return with_field(spec.parameters, name, field)
+
+
+def _envelope(spec: ToolSpec, args: dict[str, Any]) -> dict[str, Any] | str:
+    """Move a grounded call's envelope out of its arguments, into proposal fields; a fixed
+    refusal when the records refuse it. ``args`` loses the envelope key in place."""
+    if spec.effect is EffectKind.ANSWER and CITATIONS in args:
+        citations: tuple[Citation, ...] | str = citations_of(args.pop(CITATIONS))
+        return citations if isinstance(citations, str) else {"citations": citations}
+    if spec.effect is EffectKind.WRITE and RATIONALE in args:
+        rationale: ProposalRationale | str = rationale_of(args.pop(RATIONALE))
+        return rationale if isinstance(rationale, str) else {"rationale": rationale}
+    return {}
 
 
 def _refusal_for_keys(keys: set[Any]) -> str:
