@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-3a-2"
   ],
-  "context_digest": "1798277db41ab8cf1c291ca722620283d1a73eea3dab7d9e2f05cd411c62c8e1",
+  "context_digest": "28c3bfb9c36166dca7a9af75477ed1132cd3dc33ae45c930c28caf3b47d85b46",
   "allowed_paths": [
     "docs/adr/0030-data-governance.md",
     "docs/adr/0031-*.md",

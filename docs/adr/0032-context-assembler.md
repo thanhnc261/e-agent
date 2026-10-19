@@ -1,6 +1,6 @@
 # ADR 0032: ContextAssembler, per-run mode pinning and the per-call route check
 
-Date: 2026-10-19. Status: Proposed (2026-10-19); the owner accepts or amends it at gate G2 (Phase 3 Task 3a.2). Refines ADRs 0004, 0027 and 0030; [target architecture](../design/target-architecture.md) §7.1–§7.4, §13.3, §17 C9. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D1, D3, D8, Tasks 3b.2, 3d.1–3d.5.
+Date: 2026-10-19. Status: Accepted (2026-10-19, owner, gate G2, Phase 3 Task 3a.2). Refines ADRs 0004, 0027 and 0030; [target architecture](../design/target-architecture.md) §7.1–§7.4, §13.3, §17 C9. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D1, D3, D8, Tasks 3b.2, 3d.1–3d.5.
 
 ## Context
 

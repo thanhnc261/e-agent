@@ -1,6 +1,6 @@
 # e-agent: target architecture (v2)
 
-**Status:** Proposed. **Date:** 2026-10-11, revised 2026-10-12 after three review rounds; revised 2026-10-14 (merge markers, §6.4, §9, §13.3, §18). **Verified against:** commit `af50c62` plus the uncommitted working-tree changes present on 2026-10-12; every `[I]` tag and `file:line` reference refers to that tree and must be re-checked after the next commit. §15 and §16 were re-checked against the Phase 1 layout (2026-10-13); their paths are the moved ones. WP1 Tasks 2–8 and 10 re-verified against commit `591f3c6`. Unchanged `file:line` references were taken at `af50c62` and may have drifted after WP1. §6.4 and §13.3 were written on 2026-10-14 against `main` (`8bc7b1f`); the `af50c62` and `591f3c6` caveats still apply to the other sections, which were not re-verified then. On 2026-10-19 (Phase 3 Task 3a.1) the `file:line` references in §5.1, §5.6, §6.2, §6.3, §7 and §13.3 were re-checked against `51c6c15`; those sections are tagged with the ADR that decides them (ADRs 0031–0033, Proposed, and ADR 0030's Phase 3 parts), all for owner gate G2 of the [Phase 3 plan](../plans/2026-10-19-phase3-cognition-context.md). **Baseline:** the [high-level design](high-level-design.md), the [MVP detailed design](mvp-detailed-design.md) and the accepted ADRs remain authoritative. ADRs 0018–0022 were accepted on 2026-10-14 and merged into the MVP design §7, §9, §10 and §11; the sections here that they cover are marked "merged" and the MVP text wins where they differ. The remaining §17 candidates stay proposals until their ADRs are accepted. This document does not change contracts or code. When an ADR candidate is accepted, its content moves into the HLD or MVP design and the matching section here is marked "merged", so this document does not become a second architecture specification.
+**Status:** Proposed. **Date:** 2026-10-11, revised 2026-10-12 after three review rounds; revised 2026-10-14 (merge markers, §6.4, §9, §13.3, §18). **Verified against:** commit `af50c62` plus the uncommitted working-tree changes present on 2026-10-12; every `[I]` tag and `file:line` reference refers to that tree and must be re-checked after the next commit. §15 and §16 were re-checked against the Phase 1 layout (2026-10-13); their paths are the moved ones. WP1 Tasks 2–8 and 10 re-verified against commit `591f3c6`. Unchanged `file:line` references were taken at `af50c62` and may have drifted after WP1. §6.4 and §13.3 were written on 2026-10-14 against `main` (`8bc7b1f`); the `af50c62` and `591f3c6` caveats still apply to the other sections, which were not re-verified then. On 2026-10-19 (Phase 3 Task 3a.1) the `file:line` references in §5.1, §5.6, §6.2, §6.3, §7 and §13.3 were re-checked against `51c6c15`; those sections are tagged with the ADR that decides them (ADRs 0031–0033 and ADR 0030's Phase 3 parts), all accepted by the owner at gate G2 on 2026-10-19, per the [Phase 3 plan](../plans/2026-10-19-phase3-cognition-context.md). **Baseline:** the [high-level design](high-level-design.md), the [MVP detailed design](mvp-detailed-design.md) and the accepted ADRs remain authoritative. ADRs 0018–0022 were accepted on 2026-10-14 and merged into the MVP design §7, §9, §10 and §11; the sections here that they cover are marked "merged" and the MVP text wins where they differ. The remaining §17 candidates stay proposals until their ADRs are accepted. This document does not change contracts or code. When an ADR candidate is accepted, its content moves into the HLD or MVP design and the matching section here is marked "merged", so this document does not become a second architecture specification.
 
 **Implementation:** [WP1 correctness plan](../../archive/docs/superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) (verified defects D1–D7, ADRs 0018–0021, accepted 2026-10-14) and the WP2–WP5 map in its Part A.
 
@@ -311,7 +311,7 @@ The market evidence is that topology, not framework, dominates cost: about 2.1×
 
 ### 5.1 Principles
 
-*Merged: principle 1 and actor attribution are in MVP §7 (ADR 0018, accepted 2026-10-14); same-transaction event appends are in MVP §9; reconstruction from the log stays [P]. The MVP design is authoritative for this part. Reconstruction (item 2) is decided in [ADR 0031](../adr/0031-progress-ledger-and-reconstruction.md) (Proposed, 2026-10-19), structured rationale (item 4) in [ADR 0033](../adr/0033-explanation-and-grounded-answers.md) (Proposed).*
+*Merged: principle 1 and actor attribution are in MVP §7 (ADR 0018, accepted 2026-10-14); same-transaction event appends are in MVP §9; reconstruction from the log stays [P]. The MVP design is authoritative for this part. Reconstruction (item 2) is decided in [ADR 0031](../adr/0031-progress-ledger-and-reconstruction.md) (Accepted, 2026-10-19), structured rationale (item 4) in [ADR 0033](../adr/0033-explanation-and-grounded-answers.md) (Accepted).*
 
 1. **State is typed and transitions are tabled.** Both run and action states change only through allowed transitions with compare-and-swap revisions. The action table exists (`contracts/action.py: ALLOWED_ACTION_TRANSITIONS`). The run table exists (`contracts/run.py: ALLOWED_RUN_TRANSITIONS`) and `_set_run_state` enforces it [I] (ADR 0018).
 2. **The event log is the audit truth.** Every state change appends a typed, versioned `RunEvent` in the same short transaction [I]. Current-state rows stay authoritative for compare-and-swap concurrency control. Making those rows fully reconstructable from the log is a [P] target, tested by the U3 fitness row; it is not guaranteed today. ADR 0031 lists the additive event keys it needs and leaves the compare-and-swap `revision` fields outside reconstruction.
@@ -438,7 +438,7 @@ Redaction rules for the export stay as in MVP §11. HLD §9 requires export auth
 
 ### 5.6 Explanation contract
 
-*Merged: `ReasonCode` and the `reason_code` column are in MVP §7 and §11; `ProposalRationale` and the explanation projection stay [P] (ADR 0018, accepted 2026-10-14). The MVP design is authoritative for this part. `ProposalRationale`, citations, the generic grounded answer and the explanation projection are decided in [ADR 0033](../adr/0033-explanation-and-grounded-answers.md) (Proposed, 2026-10-19), whose record shapes replace the sketch below.*
+*Merged: `ReasonCode` and the `reason_code` column are in MVP §7 and §11; `ProposalRationale` and the explanation projection stay [P] (ADR 0018, accepted 2026-10-14). The MVP design is authoritative for this part. `ProposalRationale`, citations, the generic grounded answer and the explanation projection are decided in [ADR 0033](../adr/0033-explanation-and-grounded-answers.md) (Accepted, 2026-10-19), whose record shapes replace the sketch below.*
 
 Three readers need explanations: the approver before a write, the requester after the outcome and the auditor afterwards. Three rules apply:
 
@@ -492,7 +492,7 @@ Intrinsic self-critique ("reflect on your answer") may be used inside a driver f
 
 ### 6.2 Progress ledger
 
-*Decided in [ADR 0031](../adr/0031-progress-ledger-and-reconstruction.md) (Proposed, 2026-10-19): the ledger is a pure kernel projection over events and step records, and its Phase 3 fields replace the sketch below. Model-proposed plan updates (`plan.proposed`) are not decided there and stay [P].*
+*Decided in [ADR 0031](../adr/0031-progress-ledger-and-reconstruction.md) (Accepted, 2026-10-19): the ledger is a pure kernel projection over events and step records, and its Phase 3 fields replace the sketch below. Model-proposed plan updates (`plan.proposed`) are not decided there and stay [P].*
 
 The kernel renders a compact, typed **progress ledger** for every driver turn. It is a projection of steps, actions and findings, not a new source of truth. The model may propose plan updates through a structured output. They are recorded as proposals (`plan.proposed`) and never become facts. Adding a plan-update variant to `DriverStep` changes the SDK port. It needs a plugin API version bump, an event-catalog schema snapshot update and an extension of the driver conformance suite (ADR C8).
 
@@ -707,7 +707,7 @@ Nothing modifies an action after its approval digest is computed. A rule, guardr
 
 ### 7.1 Ownership split
 
-*§7 is decided in [ADR 0032](../adr/0032-context-assembler.md) (Proposed, 2026-10-19), with minimization from [ADR 0030](../adr/0030-data-governance.md) (Phase 3 parts, for G2).*
+*§7 is decided in [ADR 0032](../adr/0032-context-assembler.md) (Accepted, 2026-10-19), with minimization from [ADR 0030](../adr/0030-data-governance.md) (Phase 3 parts accepted 2026-10-19).*
 
 | Concern | Owner | Why |
 |---|---|---|
@@ -1091,7 +1091,7 @@ Rejected or deferred: an external policy decision point (OPA, Cedar) [C]. Trigge
 
 ### 13.3 Data governance [P]
 
-Decided by [ADR 0030](../adr/0030-data-governance.md) (Proposed; amended 2026-10-19 with the loopback rule, the boundary basis and classes beside the schema; its Phase 3 parts are for owner gate G2). Minimization and the per-call route check are mechanised in [ADR 0032](../adr/0032-context-assembler.md). Closes DR-05 of the [design principles review](../reviews/2026-10-14-design-principles-review.md) and folds in XA-13 and AP-15 of the [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md). Knowledge and memory governance stays in §8–§9; this section covers run, evidence and model-context data.
+Decided by [ADR 0030](../adr/0030-data-governance.md) (Proposed; amended 2026-10-19 with the loopback rule, the boundary basis and classes beside the schema; its Phase 3 parts accepted by the owner at gate G2 on 2026-10-19). Minimization and the per-call route check are mechanised in [ADR 0032](../adr/0032-context-assembler.md). Closes DR-05 of the [design principles review](../reviews/2026-10-14-design-principles-review.md) and folds in XA-13 and AP-15 of the [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md). Knowledge and memory governance stays in §8–§9; this section covers run, evidence and model-context data.
 
 **Today.**
 - Observation data reaches the model unchanged (`adapters/pydantic_ai/driver.py:543`).
@@ -1299,8 +1299,8 @@ Paths are relative to `src/e_agent/`.
 | C5 | HTTP framework stays FastAPI; revisit trigger | — |
 | C6 | Run transition table; no graph runtime in the kernel; LangGraph only as a driver adapter — table merged into MVP §7 (ADR 0018, accepted); widened by ADR 0025 (accepted 2026-10-18) | ADR 0004; MVP §7 |
 | C7 | Swappable-runtime boundary: trust anchor vs ports (§4) | HLD §6 |
-| C8 | Step records and progress ledger as kernel projections; plan updates are proposals; `KERNEL-REPEAT` finding for repeated blocked proposals (§6) — step records and action plans: ADR 0025 (accepted 2026-10-18, §6.4); ledger, `KERNEL-REPEAT` and reconstruction: [ADR 0031](../adr/0031-progress-ledger-and-reconstruction.md) (Proposed 2026-10-19, Phase 3) | MVP §4, §7 |
-| C9 | ContextAssembler ownership split and context rules (§7) — [ADR 0032](../adr/0032-context-assembler.md) (Proposed 2026-10-19, Phase 3) | ADR 0004 |
+| C8 | Step records and progress ledger as kernel projections; plan updates are proposals; `KERNEL-REPEAT` finding for repeated blocked proposals (§6) — step records and action plans: ADR 0025 (accepted 2026-10-18, §6.4); ledger, `KERNEL-REPEAT` and reconstruction: [ADR 0031](../adr/0031-progress-ledger-and-reconstruction.md) (Accepted 2026-10-19, Phase 3) | MVP §4, §7 |
+| C9 | ContextAssembler ownership split and context rules (§7) — [ADR 0032](../adr/0032-context-assembler.md) (Accepted 2026-10-19, Phase 3) | ADR 0004 |
 | C10 | Memory model, promotion path and `MemoryStore` port (§8) | HLD §7 |
 | C11 | Task definitions with acceptance specs (AR-01) as the unit of specialization; per-task approval TTL; skill and task-definition versions recorded per run (§13) — ADR 0028 (accepted 2026-10-18, §6.4.1) | ADR 0017 |
 | C12 | MCP as a capability binding type (§10.2) | ADR 0012, 0013 |
@@ -1309,8 +1309,8 @@ Paths are relative to `src/e_agent/`.
 | C15 | Tenancy hardening: RLS with a control role and a tenant role (§13.1), OIDC, vault adapter | HLD §9 |
 | C16 | Authorization bundle: role mappings, task and capability grants, approval scopes, self-approval rule, run visibility (§13.2) — self-approval rule merged into MVP §10 (ADR 0019, accepted) | HLD §3, §9; ADR 0006 (digest golden vectors); threat model T3, T19 |
 | C17 | Audit integrity: actor and correlation id on every event, database-enforced append-only, access audit; hash chain and control-plane log when triggered (§5.5) — actor attribution merged into MVP §7 (ADR 0018, accepted) | HLD §9; threat model §4 |
-| C18 | Explanation contract: `ProposalRationale`, `ReasonCode`, deterministic explanation projection (§5.6) — `ReasonCode` merged into MVP §7 and §11 (ADR 0018, accepted); rationale, citations, grounded answers and the projection: [ADR 0033](../adr/0033-explanation-and-grounded-answers.md) (Proposed 2026-10-19, Phase 3) | ADR 0004; HLD §9 |
-| C19 | Data governance for run, evidence and model-context data: field and record classes, route data boundaries, minimization, class-aware export, retention and deletion (§13.3) — ADR 0030 (Proposed; amended 2026-10-19; Phase 3 parts for G2) | ADRs 0004, 0008, 0021; HLD §8, §9 |
+| C18 | Explanation contract: `ProposalRationale`, `ReasonCode`, deterministic explanation projection (§5.6) — `ReasonCode` merged into MVP §7 and §11 (ADR 0018, accepted); rationale, citations, grounded answers and the projection: [ADR 0033](../adr/0033-explanation-and-grounded-answers.md) (Accepted 2026-10-19, Phase 3) | ADR 0004; HLD §9 |
+| C19 | Data governance for run, evidence and model-context data: field and record classes, route data boundaries, minimization, class-aware export, retention and deletion (§13.3) — ADR 0030 (Proposed; amended 2026-10-19; Phase 3 parts accepted 2026-10-19) | ADRs 0004, 0008, 0021; HLD §8, §9 |
 
 ---
 

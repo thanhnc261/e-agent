@@ -1,6 +1,6 @@
 # ADR 0031: Progress ledger, repeat detection and run reconstruction
 
-Date: 2026-10-19. Status: Proposed (2026-10-19); the owner accepts or amends it at gate G2 (Phase 3 Task 3a.2). Refines ADRs 0007, 0018, 0025 and 0027; [target architecture](../design/target-architecture.md) §5.1 item 2, §6.2, §6.3, §17 C8. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D7, D9, Tasks 3c.1, 3c.2, 3d.6.
+Date: 2026-10-19. Status: Accepted (2026-10-19, owner, gate G2, Phase 3 Task 3a.2). Refines ADRs 0007, 0018, 0025 and 0027; [target architecture](../design/target-architecture.md) §5.1 item 2, §6.2, §6.3, §17 C8. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D7, D9, Tasks 3c.1, 3c.2, 3d.6.
 
 ## Context
 

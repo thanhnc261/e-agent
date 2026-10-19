@@ -1,6 +1,6 @@
 # ADR 0033: Explanation contract, citations and grounded answers
 
-Date: 2026-10-19. Status: Proposed (2026-10-19); the owner accepts or amends it at gate G2 (Phase 3 Task 3a.2). Refines ADRs 0004, 0018, 0027 and 0028 (section 3 adds `AcceptanceSpec.grounded_answer` to the accepted ADR 0028 contract); [target architecture](../design/target-architecture.md) §5.6, §17 C18. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D4, D5, D6, D10, Tasks 3c.3, 3e.1–3e.4.
+Date: 2026-10-19. Status: Accepted (2026-10-19, owner, gate G2, Phase 3 Task 3a.2). At G2 the owner chose the digest-only rationale storage (section 4). Refines ADRs 0004, 0018, 0027 and 0028 (section 3 adds `AcceptanceSpec.grounded_answer` to the accepted ADR 0028 contract); [target architecture](../design/target-architecture.md) §5.6, §17 C18. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D4, D5, D6, D10, Tasks 3c.3, 3e.1–3e.4.
 
 ## Context
 
@@ -58,8 +58,8 @@ class ProposalRationale(Record):            # contracts/grounding.py
 - A `summary` over 400 characters is refused by the record.
 - `goal_ref` is recorded and shown, not checked, in Phase 3.
 - Rationale is never an approval input and never enters the approval digest (target §5.6). The approval card shows the canonical proposal first and the rationale second, labelled model-authored (threat T9); the card UI is later work (D10).
-- At rest the rationale is stored in the `proposal.created` payload under `rationale`, with evidence ids, rule ids, digests and codes, plus the two model-authored texts (`summary` and each alternative's line).
-- **Exception to the ids-only payload rule.** The Phase 3 plan's Global Constraint says new event payloads carry ids, pointers, counts, digests and reason codes only. These two texts are an explicit exception. They are model output, not observation values, but they can echo one. They are classed `business_payload`, like arguments and `message.final` text (ADR 0030), are treated as `personal` by default, and are masked by the class-aware evidence export when it lands (ADR 0030, Phase 5). They are not hidden reasoning: the driver emits them as a structured output field, and thinking parts stay stripped (ADR 0004, PR-28). The alternative, open to the owner at G2, stores only a `jcs-sha256-v1` digest of each text plus the evidence ids; the approval card would then show the rationale text only while the run's continuation holds it.
+- At rest the rationale is stored in the `proposal.created` payload under `rationale` as evidence ids, rule ids, codes and a `jcs-sha256-v1` digest of each model-authored text (`summary` and each alternative's line), never the texts themselves (owner, G2). This keeps the plan's ids-only payload rule (PR-26) without an exception.
+- **Rationale text is transient.** The texts live only in the run's continuation, like observation values. The approval card shows the rationale text while the continuation holds it; the explanation and the evidence export show the evidence ids, rule ids and text digests. Storing the texts as `business_payload`, masked by the Phase 5 class-aware export, was the alternative the owner declined at G2. Thinking parts stay stripped (ADR 0004, PR-28).
 
 ### 5. Toggle `features.grounded_answers` (D1)
 
@@ -75,7 +75,7 @@ class ProposalRationale(Record):            # contracts/grounding.py
 ### 6. The explanation projection (Task 3c.3)
 
 - `explain(ledger, reconstructed) -> Explanation` (`kernel/explain.py`) is pure and deterministic over the progress ledger and the reconstruction (ADR 0031). It makes no model call. It renders: goal → source facts (evidence ids and revisions) → validation findings by rule id → proposal (digest, then the rationale once Task 3e.3 lands) → approval (actor, policy version) → receipt → verified or grounded outcome.
-- It holds no observation values and no model reasoning. Model-authored text (rationale, grounded summary) is labelled as such and shown after the facts.
+- It holds no observation values and no model reasoning. Model-authored text (the grounded summary) is labelled as such and shown after the facts; a rationale appears as its evidence ids, rule ids and text digests.
 - It is an additive `explanation` key of the evidence bundle and `e-agent explain <run_id>` on the CLI (D10). A run whose events predate ADR 0031's keys gives a `partial` explanation.
 - It answers these research 03 §5 competency questions (translated from the Vietnamese table, research 03 lines 96-100), each for one run:
 

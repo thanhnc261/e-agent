@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** Approved by the owner on 2026-10-19 ("Approved"), with every recommended default in the decisions table (D1–D10). Written after Phase 2 merged (PR #6, `3ec2d70`) and revised the same day after a fresh-context plan review and a scoped re-review (findings P3-1 to P3-19 and P3-R1 to P3-R4 in `harness/state/3/reviews/3-plan.json`). Part 3a may start. Runtime work (3b onward) waits for the owner to accept ADRs 0031–0033 and ADR 0030's Phase 3 parts at gate G2 (Task 3a.2).
+**Status:** Approved by the owner on 2026-10-19 ("Approved"), with every recommended default in the decisions table (D1–D10). Gate G2 passed on 2026-10-19 ("Accept"): the owner accepted ADRs 0031, 0032 and 0033 and ADR 0030's Phase 3 parts, with every recommended answer to the open questions, including digest-only rationale storage. This plan was amended in the same commit for the ADRs (G-7). Written after Phase 2 merged (PR #6, `3ec2d70`) and revised after a fresh-context plan review and a scoped re-review (findings P3-1 to P3-19 and P3-R1 to P3-R4 in `harness/state/3/reviews/3-plan.json`); the ADR reviews are in `harness/state/3/reviews/3a.1.json`.
 
 **Goal:** the kernel decides what reaches the model: a budgeted, minimized, fenced context pack built from a progress ledger. Answers carry citations, which the kernel checks against this run's recorded evidence. Every proposal can carry a checked rationale. Any run can be reconstructed and explained from `run_events` alone. The new runtime paths sit behind toggles. Before a write is reserved, they fall back to today's driver history. After a reservation they fail closed (ADR 0027).
 
@@ -49,8 +49,8 @@ Each row has a recommended default. "Approve" accepts every default; name a row 
 | D2 | Route boundary (ADR 0030) | The declared `data_boundary` decides, as ADR 0030 says. One amendment: an undeclared `ollama` route whose base URL host is loopback (`localhost`, `127.0.0.0/8`, `::1`) is `local`. Any other undeclared route, `litellm` included, is `hosted:unknown`, never refused for that alone. Readiness reports the boundary and its basis: `verified` for loopback, `declared` for an operator assertion. The owner's live profile uses a loopback Ollama, so it needs no edit |
 | D3 | Bounded results | Bounding happens in the context pack, not in the gateway. The continuation keeps the full observation. The pack carries at most the capability's bound and marks the rendered observation `PARTIAL` with `truncated` (PR-21) |
 | D4 | Grounded answer shape | Citations travel in a kernel envelope beside the answer arguments: `ActionProposal.citations: tuple[Citation, ...] = ()`. Each `Citation(evidence_id, pointer, value)` has `pointer` as an RFC 6901 JSON pointer into the observation's data.<br>The domain answer models in `plugins/erp/domain/*/api.py` and the notes test answer stay unchanged, and their verifiers still decide.<br>The driver offers `citations` on answer tools only when `grounded_answers` is not `off`, so `off` tool schemas are byte-identical.<br>At rest, a citation is stored as `evidence_id`, `pointer` and a digest of the canonical value, never the value (PR-26) |
-| D5 | Generic read-only question | A core answer `grounded.answer.v1` (`summary`, `citations`), offered only with `grounded_answers` not `off`. It ends `SUCCEEDED` with verification `grounded`: every citation resolved against this run's recorded evidence. It is never `verified`, which needs a typed verifier's fresh read-back (PR-19). Text outside citations is labelled `unverified`. The core plan asked for `verified`; this default keeps the PR-19 distinction |
-| D6 | Rationale finding | `ProposalRationale` is optional on `ActionProposal` and on `ActionPlan`. With `grounded_answers: on`, a rationale is the repair finding `KERNEL-RATIONALE`, within `max_validation_repairs`, when its evidence ref is not in this run or its rule is not in the inventory. Rationale is never an approval input and never enters the approval digest (target §5.6) |
+| D5 | Generic read-only question | A core answer `grounded.answer.v1` (`summary`, at least one citation), admitted only when the run is pinned `on`, its offered tools hold no typed answer contract, and the run is unbound or its task definition sets `AcceptanceSpec.grounded_answer` (ADR 0033 §3, refining ADR 0028). A call that is not admitted is the repair finding `KERNEL-GROUNDED-ANSWER`. It ends `SUCCEEDED` with reason code `GROUNDED`: every citation resolved against this run's recorded evidence; the release report counts it apart from verified runs. It is never `verified`, which needs a typed verifier's fresh read-back (PR-19). Text outside citations is labelled `unverified`. The core plan asked for `verified`; this default keeps the PR-19 distinction |
+| D6 | Rationale finding | `ProposalRationale` is optional on `ActionProposal` and on `ActionPlan`. With `grounded_answers: on`, a rationale is the repair finding `KERNEL-RATIONALE`, within `max_validation_repairs`, when its evidence ref is not in this run or its rule is not in the inventory. Rationale is never an approval input and never enters the approval digest (target §5.6). At rest it is evidence ids, rule ids, codes and a digest of each model-authored text, never the text (owner, G2); the text lives only in the continuation |
 | D7 | Event keys for reconstruction | Events gain the payload keys reconstruction needs, additively (Task 3c.2). ADR 0031 records this as a refinement of ADR 0027's `off` proof:<br>– The Phase 2 goldens stay frozen.<br>– A new golden is recorded beside them.<br>– A test proves the old golden is a projection of the new one: same order, same keys, same values, plus only ADR 0031's listed keys.<br>Events written before this change are reconstructed and marked `partial` |
 | D8 | Per-run mode pinning and continuation | A run pins the three Phase 3 modes when it starts, in the kernel continuation. The pin is written only when a mode is not `off`; when it is absent, every mode is `off`. So a profile flip affects new runs only, and an in-flight `off` run keeps its history continuation.<br>The driver snapshot gains `rendering: "pack"` only for pinned-`on` runs, so `STATE_SCHEMA` is unchanged and `off` snapshots are byte-identical.<br>A restore whose `rendering` disagrees with the pin fails the run closed with `DRIVER_STATE_MISMATCH`, or sends it to reconciliation when a reservation is unresolved, through a handler in `_load_cont` and an allowed transition (today a restore `ValueError` propagates uncaught).<br>The route is not pinned, so the startup rule alone cannot protect a resumed run. Before every model call, the kernel checks the run's pinned `context_assembler` mode against the current route. A run not pinned `on`, on a route that is not `local` and has no `data_processing`, makes no model call and fails closed with `ROUTE_BOUNDARY_UNMET`, or goes to reconciliation when a reservation is unresolved (T23).<br>The driver learns the pinned `grounded_answers` mode only from `DriverInput.grounding`, never from the profile<br>`execution_ir` keeps reading the profile per call, as Phase 2 shipped |
 | D9 | Phase size and cut line | Must-have: 3a–3c, 3d.1–3d.5 and 3e. The cut line is the core plan's Phase 4 items: 3d.6 (`KERNEL-REPEAT`), 3f.1 (driver conformance) and 3f.2 (ablation). If the phase runs long, they move to a Phase 3′ with their own plan rather than being skipped |
@@ -137,26 +137,23 @@ These are failure modes the tests below do not fully exercise. Each item names t
 
 | ADR | Status | Decides | Needed by |
 |---|---|---|---|
-| 0030 Data classification, minimization, retention and deletion | Proposed. Its Phase 3 parts (startup rule, classes, minimization, bounded results) are accepted at G2; retention (Phase 7) and export authorization (Phase 5) stay Proposed | route boundary with D2's loopback amendment, `local_only`, `data_processing`, field classes declared beside the schema (amends the `x-data-class` wording, below), record classes, class-per-route rule, bounded results | 3b.1, 3b.3, 3d.2 |
-| 0031 Progress ledger, repeat detection and run reconstruction (new, C8) | to write in 3a.1 | `ProgressLedger` as a kernel projection; `KERNEL-REPEAT` and its revision check; the event payload keys reconstruction needs, and the D7 refinement of ADR 0027's `off` proof | 3c.1, 3c.2, 3d.6 |
-| 0032 ContextAssembler (new, C9) | to write in 3a.1 | `ContextPolicy`, `ContextPack`, layers, per-layer budgets, drop log, clearing, fencing, the class-per-route mechanism, §7.4 rendering, per-run mode pinning and `rendering` (D8), the context reason codes, `sdk_api` 1.2 | 3b.2, 3d.1–3d.5 |
-| 0033 Explanation contract and grounded answers (new, C18) | to write in 3a.1 | `ProposalRationale`, `Citation`, the citation envelope (D4), `grounded.answer.v1` and verification `grounded` (D5), `KERNEL-CITATION`, `KERNEL-RATIONALE`, the grounding reason codes, the explanation projection and its competency questions | 3c.3, 3e.1–3e.4 |
+| 0030 Data classification, minimization, retention and deletion | Phase 3 parts (startup rule, classes, minimization, bounded results) accepted 2026-10-19 at G2; retention (Phase 7) and export authorization (Phase 5) stay Proposed | route boundary with D2's loopback amendment, `local_only`, `data_processing`, field classes declared beside the schema (amends the `x-data-class` wording, below), record classes, class-per-route rule, bounded results | 3b.1, 3b.3, 3d.2 |
+| 0031 Progress ledger, repeat detection and run reconstruction (new, C8) | Accepted 2026-10-19 (G2) | `ProgressLedger` as a kernel projection; `KERNEL-REPEAT` and its revision check; the event payload keys reconstruction needs, and the D7 refinement of ADR 0027's `off` proof | 3c.1, 3c.2, 3d.6 |
+| 0032 ContextAssembler (new, C9) | Accepted 2026-10-19 (G2) | `ContextPolicy`, `ContextPack`, layers, per-layer budgets, drop log, clearing, fencing, the class-per-route mechanism, §7.4 rendering, per-run mode pinning and `rendering` (D8), the context reason codes, `sdk_api` 1.2 | 3b.2, 3d.1–3d.5 |
+| 0033 Explanation contract and grounded answers (new, C18) | Accepted 2026-10-19 (G2) | `ProposalRationale`, `Citation`, the citation envelope (D4), `grounded.answer.v1`, its admission and `AcceptanceSpec.grounded_answer` (refining ADR 0028) and `GROUNDED` (D5), `KERNEL-CITATION`, `KERNEL-RATIONALE`, `KERNEL-GROUNDED-ANSWER`, the grounding reason codes, the explanation projection and its competency questions | 3c.3, 3e.1–3e.4 |
 | 0027 Feature toggles | Accepted | the toggle and reservation rules the three new toggles follow; refined by 0031 for D7 only | 3b.2 |
+| 0028 Task definitions | Accepted | `AcceptanceSpec`, refined by 0033 with `grounded_answer` | 3e.2 |
 | 0004, 0007, 0018, 0022 | Accepted | no persisted reasoning; durable events; reason codes and attribution; rejected reads as feedback | throughout |
 
-**ADR 0030 amendment:** fields are classed by `data_classes: Mapping[<JSON pointer>, DataClass]` on the capability declaration, not by `x-data-class` inside the JSON schema. This keeps model-facing schemas, and the `off` model request, unchanged. ADR 0030 is Proposed, so 3a.1 amends it and G2 accepts the amended text.
+**ADR 0030 amendment:** fields are classed by `data_classes: Mapping[<JSON pointer>, DataClass]` on the capability declaration, not by `x-data-class` inside the JSON schema. This keeps model-facing schemas, and the `off` model request, unchanged. 3a.1 amended ADR 0030, and G2 accepted the amended Phase 3 parts.
 
-A Proposed ADR blocks the work that needs it:
-- 3b.1 and 3b.3 wait for 0030 (Phase 3 parts); 3b.2 waits for 0032 (pinning and codes);
-- 3c.1, 3c.2 and 3d.6 wait for 0031;
-- 3d.1–3d.5 wait for 0032;
-- 3c.3 and 3e wait for 0033.
+Every ADR this phase needs was accepted at G2 on 2026-10-19, so no task waits on an ADR. Which ADR each task implements: 3b.1 and 3b.3 → 0030 (Phase 3 parts); 3b.2 → 0032 (pinning and codes); 3c.1, 3c.2 and 3d.6 → 0031; 3d.1–3d.5 → 0032; 3c.3 and 3e → 0033.
 
 ## Toggles and fallback
 
 Three toggles (D1), each pinned per run at start (D8). The projections in 3c and the startup rule in 3b.1 have no toggle: the projections change no run, and the startup rule is a safety refusal that only applies to a route that is not `local`, which no committed profile uses.
 
-Reason codes (named in 3b.2, decided by ADRs 0032 and 0033):
+Reason codes. ADR 0031 decides the `kernel_repeat` pair, ADR 0032 the others and the cross-reference table, ADR 0033 `GROUNDED`. Task 3b.2 adds the eight in this table; Task 3e.2 adds `GROUNDED`, which ends a `grounded.answer.v1` run (nine new codes in all):
 
 | Toggle | Fallback code (`feature.fallback`, before the first reservation only, never ends a run) | Terminal code (ends the run, or marks a skipped turn) |
 |---|---|---|
@@ -198,12 +195,12 @@ Failure handling: before the first reservation, `feature.fallback` with `REPEAT_
 | Mode | Behaviour |
 |---|---|
 | `off` | Today. Answer tools offer no `citations` and `grounded.answer.v1` is not offered. Any citations or rationale a driver sends anyway are dropped and not stored. |
-| `shadow` | The kernel checks citations and rationale and records `grounding.compared` (resolved, unresolved and mismatched counts). The answer's verifier decides as today. Real consumer: `test_grounding_shadow_agrees_with_on` over the authored grounded replays (Task 3e.4) asserts that shadow's verdicts equal `on`'s, and the release report shows the counts. |
-| `on` | An unresolved or mismatched citation is `KERNEL-CITATION`; an unresolved rationale ref or rule is `KERNEL-RATIONALE` (D6). Both are repair findings within `max_validation_repairs`. The verifier still decides whether a typed answer is verified; `grounded.answer.v1` ends `grounded` (D5). |
+| `shadow` | Citations and rationale are offered (`DriverInput.grounding` is `cite`), and `grounded.answer.v1` is not. The kernel checks citations and rationale and records `grounding.compared` (resolved, unresolved and mismatched counts). The answer's verifier decides as today. Real consumer: `test_grounding_shadow_agrees_with_on` over the authored grounded replays (Task 3e.4) asserts that shadow's verdicts equal `on`'s, and the release report shows the counts. |
+| `on` | An unresolved or mismatched citation is `KERNEL-CITATION`; an unresolved rationale ref or rule is `KERNEL-RATIONALE` (D6). Both are repair findings within `max_validation_repairs`. A generic answer that is not admitted is `KERNEL-GROUNDED-ANSWER`. The verifier still decides whether a typed answer is verified; an admitted `grounded.answer.v1` ends `GROUNDED` (D5). |
 
 Failure handling: before the first reservation, `feature.fallback` with `GROUNDING_CHECK_FAILED`, and a typed answer goes to its verifier as today. A `grounded.answer.v1` has no verifier, so it fails closed with `GROUNDING_UNAVAILABLE`. After a reservation, every case fails closed with `GROUNDING_UNAVAILABLE`, or goes to reconciliation when a reservation is unresolved.
 
-**Observability** (ENG-TOGGLE-3): `/health/ready` and the evidence bundle report all four toggles under `features`, plus the route's `data_boundary`, its basis (`verified` or `declared`) and whether `data_processing` is declared. The evidence bundle also reports the run's pinned modes.
+**Observability** (ENG-TOGGLE-3): `/health/ready` and the evidence bundle report all four toggles under `features`, plus the route's `data_boundary`, its basis (`verified`, `declared` or `default`) and whether `data_processing` is declared. The evidence bundle also reports the run's pinned modes.
 
 ## Gate
 
@@ -231,7 +228,7 @@ Run in Task 3g.2 on the owner's instruction through the `live-sandbox` skill, wi
   - `shadow` records `context.compared`;
   - `on` renders from the pack, and the evidence bundle shows the pack digest and drop log.
 - "List the open demands and their shortage" (core plan exit) with `grounded_answers: on`: the answer carries citations that resolve to this run's `read.recorded` evidence, and the verifier verifies it.
-- "List the open purchase orders" with `grounded_answers: on`: `grounded.answer.v1` ends `SUCCEEDED`, verification `grounded`, with no bespoke answer contract.
+- "List the open purchase orders" with `grounded_answers: on`, bound to the read-only ERP task definition `open-pos` (Task 3e.2, `grounded_answer: true`): `grounded.answer.v1` ends `SUCCEEDED` with reason code `GROUNDED`, with no bespoke answer contract.
 - Task 3 (draft PO for a seeded shortage, after reset and seed) with `context_assembler: on`: the existing write path (validation, approval, reservation, dispatch, read-back) is unchanged, and the acknowledgement turn renders from the pack.
 - The explanation projection of one live run answers the competency questions without a model call.
 
@@ -261,9 +258,9 @@ No runtime code. The ADRs are written, the target sections they decide are recon
 
 **Interfaces:** produces the record shapes and codes every later task uses:
 - records: `ProgressLedger`, `ContextPolicy`, `ContextPack`, `ContextLayer`, `Dropped`, `Citation`, `ProposalRationale`;
-- the `grounded.answer.v1` contract and verification value `grounded`;
-- the eight reason codes in the table above;
-- the findings `KERNEL-REPEAT`, `KERNEL-CITATION` and `KERNEL-RATIONALE`;
+- the `grounded.answer.v1` contract and `AcceptanceSpec.grounded_answer`;
+- the nine reason codes above (eight in the table plus `GROUNDED`);
+- the findings `KERNEL-REPEAT`, `KERNEL-CITATION`, `KERNEL-RATIONALE` and `KERNEL-GROUNDED-ANSWER`;
 - the event types `context.compared`, `context.failed`, `context.shadow_failed`, `repeat.compared`, `repeat.shadow_failed`, `grounding.compared` and `grounding.shadow_failed`.
 
 - [ ] Write ADR 0031 from target §5.1 item 2, §6.2 and §6.3:
@@ -314,8 +311,8 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 
 - [ ] Failing tests:
   - `test_loopback_ollama_is_local_verified`;
-  - `test_undeclared_remote_route_is_hosted_unknown`;
-  - `test_litellm_defaults_to_hosted_unknown`;
+  - `test_undeclared_remote_route_is_hosted_unknown`: basis `default`;
+  - `test_litellm_defaults_to_hosted_unknown`: basis `default`, never `verified`;
   - `test_declared_boundary_is_reported_declared`;
   - `test_hosted_route_without_data_processing_fails_startup`, also with `context_assembler: on`;
   - `test_local_only_refuses_hosted_route`;
@@ -331,7 +328,8 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 **Files:**
 - `src/e_agent/contracts/features.py`: `context_assembler`, `kernel_repeat`, `grounded_answers`, each `FeatureMode.OFF`.
 - The three committed profiles.
-- `src/e_agent/contracts/run.py`: the eight reason codes.
+- `src/e_agent/contracts/run.py`: the eight reason codes of the table.
+- `src/e_agent/contracts/events.py`: `context.failed` (ADR 0032).
 - `src/e_agent/kernel/features.py`: mode properties and fixed messages.
 - `src/e_agent/kernel/continuation.py`: the pin, written only when a mode is not `off` (D8).
 - `src/e_agent/kernel/ir_on.py`: the route check in `_with_tools`, which both driver call sites use (`kernel/run_loop.py` and the acknowledgement turn in `kernel/verification.py`) (D8, T23).
@@ -434,7 +432,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 ### Task 3c.3: explanation projection (Q5, G11)
 
 **Files:**
-- `src/e_agent/kernel/explain.py` (new): `explain(ledger, reconstructed) -> Explanation`, covering goal → source facts (evidence ids and revisions) → validation findings by rule id → proposal (digest, plus the rationale once 3e.3 lands) → approval (actor, policy version) → receipt → verified outcome.
+- `src/e_agent/kernel/explain.py` (new): `explain(ledger, reconstructed) -> Explanation`, covering goal → source facts (evidence ids and revisions) → validation findings by rule id → proposal (digest, plus the rationale's evidence ids, rule ids and text digests once 3e.3 lands) → approval (actor, policy version) → receipt → verified or grounded outcome.
 - `src/e_agent/kernel/evidence.py`: additive bundle key `explanation`.
 - `src/e_agent/server/cli.py`: `e-agent explain <run_id>`.
 - `tests/unit/kernel/test_explain.py` and `tests/unit/kernel/test_evidence.py`.
@@ -461,7 +459,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 - `src/e_agent/contracts/context_pack.py` (new):
   - `ContextPolicy`, with per-layer token budgets and class-per-route rules;
   - `ContextLayer`;
-  - `RenderedObservation(evidence, data, partial, truncated)`;
+  - `RenderedObservation(evidence, data, partial, truncated, masked)`, with `partial` true exactly when the observation is truncated, masked or its evidence is not COMPLETE (ADR 0032);
   - `ContextPack`, with `stable_prefix`, `dynamic_suffix`, `observations: tuple[RenderedObservation, ...]`, `dropped: tuple[Dropped, ...]` and `digest`;
   - `Dropped(kind, ref, reason)`.
 - `src/e_agent/sdk/ports.py`: `DriverInput.context: ContextPack | None = None`, part of `sdk_api` 1.2 (3b.3).
@@ -491,6 +489,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
   - `test_bounded_observation_is_partial_with_truncated_marker` (PR-21, D3);
   - `test_error_is_never_rendered_as_empty_result` (PR-21);
   - `test_personal_value_masked_on_hosted_route_and_logged` (ADR 0030, T23);
+  - `test_finding_and_read_error_text_masked_on_hosted_route` and `test_finding_message_rendered_from_inventory_on_hosted_route` (ADR 0032 §5, T23);
   - `test_local_route_keeps_personal_values`;
   - `test_untrusted_values_are_fenced` and `test_fence_cannot_be_closed_from_inside` (T1, PR-34; Review Focus 1);
   - `test_cleared_result_keeps_evidence_ref`;
@@ -636,18 +635,26 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 ### Task 3e.2: the generic grounded answer
 
 **Files:**
-- `src/e_agent/kernel/grounded_answer.py` (new): the core `grounded.answer.v1` capability (`summary`, `citations`), registered by the kernel and left out of a run's offered tools when that run's pinned `grounded_answers` mode is `off`, so an in-flight run's tool set does not change on a profile flip. Its result is verification `grounded`.
-- `src/e_agent/contracts/run.py`: verification value `grounded`.
+- `src/e_agent/kernel/grounded_answer.py` (new): the core `grounded.answer.v1` (`summary`, at least one citation). It is not a registry capability: the kernel branches on it before `_outside_task_set` and the capability lookup, and admits it per ADR 0033 §3 from the run's pinned mode, so an in-flight run's tool set does not change on a profile flip. It creates no `ActionRecord`; `message.final` gains `contract_id` and the at-rest citations.
+- `src/e_agent/contracts/run.py`: `ReasonCode.GROUNDED`.
+- `src/e_agent/contracts/task.py`: `AcceptanceSpec.grounded_answer: bool = False`, valid only when `required_effects` and `required_answer` are empty (refines ADR 0028).
+- `src/e_agent/kernel/ir_on.py`: the acceptance gate accepts a `GROUNDED` end only with the flag set, from the kernel's own `message.final` record.
+- `scripts/release_report.py`: counts `GROUNDED` apart from `VERIFIED`.
+- `src/e_agent/plugins/erp/domain/tasks/` and `e_agent_plugin.json`: the read-only task definition `open-pos` (read capabilities only, `grounded_answer: true`) for the live check.
 - `src/e_agent/kernel/evidence.py`: free text outside citations marked `unverified`.
 - `tests/unit/kernel/test_grounded_answer.py`.
 
-**Interfaces:** consumes `check_citations` (3e.1); produces the `grounded` outcome.
+**Interfaces:** consumes `check_citations` (3e.1); produces the `GROUNDED` end and the `KERNEL-GROUNDED-ANSWER` finding.
 
 - [ ] Failing tests:
   - `test_read_only_question_ends_grounded_without_bespoke_contract`;
   - `test_grounded_is_never_reported_as_verified` (PR-19);
+  - `test_grounded_answer_not_offered_beside_a_typed_answer`;
+  - `test_grounded_answer_refused_on_bound_run_without_admission`;
+  - `test_acceptance_spec_grounded_answer_requires_no_effects_or_answer`;
+  - `test_release_report_counts_grounded_separately`;
   - `test_free_text_answer_is_labelled_unverified`;
-  - `test_grounded_answer_not_offered_when_pinned_off`, including after a profile flip;
+  - `test_grounded_answer_not_offered_unless_pinned_on`, including after a profile flip;
   - `test_grounded_answer_with_unresolved_citation_is_repaired`;
   - `test_grounding_failure_fails_closed_for_generic_answer`.
 - [ ] Run `uv run pytest -q tests/unit/kernel/test_grounded_answer.py`; expected: `ModuleNotFoundError: e_agent.kernel.grounded_answer`.
@@ -673,7 +680,8 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
   - `test_rationale_summary_over_400_is_refused`;
   - `test_rationale_never_changes_the_approval_digest`;
   - `test_rationale_holds_no_hidden_reasoning`;
-  - `test_rationale_off_action_record_unchanged`.
+  - `test_rationale_off_action_record_unchanged`;
+  - `test_rationale_text_is_stored_as_digest_only` (owner, G2; PR-26).
 - [ ] Run `uv run pytest -q tests/unit/kernel/test_rationale.py`; expected: fails with `ImportError` on `ProposalRationale`.
 - [ ] Implement. The approval digest covers arguments, not rationale (assert it).
 - [ ] Run the same command on both stores and the `off` goldens; expected: pass.
@@ -682,9 +690,9 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 ### Task 3e.4: drivers emit citations and rationale
 
 **Files:**
-- `src/e_agent/sdk/ports.py`: `DriverInput.grounding: bool = False`, set by the kernel from the pinned mode (part of the unreleased `sdk_api` 1.2).
+- `src/e_agent/sdk/ports.py`: `DriverInput.grounding: GroundingOffer = GroundingOffer.OFF` (`off`, `cite`, `cite_and_answer`), set by the kernel per call from the pinned mode and the ADR 0033 §3 admission (part of the unreleased `sdk_api` 1.2).
 - `src/e_agent/kernel/run_loop.py`: sets `grounding` per call.
-- `src/e_agent/adapters/pydantic_ai/driver.py`: answer tools gain a sibling `citations`, and write and plan tools gain `rationale`, only when `DriverInput.grounding` is true; the driver never reads the profile.
+- `src/e_agent/adapters/pydantic_ai/driver.py`: answer tools gain a sibling `citations`, and write and plan tools gain `rationale`, unless `DriverInput.grounding` is `off`, and `grounded.answer.v1` only for `cite_and_answer`; the driver never reads the profile.
 - `src/e_agent/plugins/erp/domain/testing/scripted_driver.py`: the scripted driver emits citations.
 - `tests/replays/erp-authored-grounded-calls/`: an authored recording, provenance "authored".
 - `tests/unit/server/test_recorded_model_replays.py`.
@@ -753,7 +761,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 - [ ] Write the handoff with `eng-handoff`. State plainly that:
   - recordings are authored, not captured, unless a qualified model run exists (ADR 0010);
   - token counts in shadow are estimates;
-  - `grounded` is not `verified`;
+  - a `GROUNDED` end is not `verified`;
   - the UI for citations and rationale is not built (D10).
 - [ ] Commit `docs: Phase 3 handoff and roadmap status`.
 
@@ -781,7 +789,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
     - 12- and 20-turn budgets → 3d.5;
     - repair rate and token cost against a baseline → 3d.3, 3g.1;
     - "list the open demands" with citations → live check;
-    - any read-only question without a bespoke contract → 3e.2 (as `grounded`, D5);
+    - any read-only question without a bespoke contract → 3e.2 (ending `GROUNDED`, D5);
     - free text labelled unverified → 3e.2;
     - plain-text repair turns in the ledger → 3c.1;
     - research 03 §8 ablation → 3f.2.

@@ -1,6 +1,6 @@
 # ADR 0030: Data classification, minimization, retention and deletion for run data
 
-Date: 2026-10-14. Status: Proposed. Amended 2026-10-19 (Phase 3 Task 3a.1): the loopback rule and the boundary basis (Phase 3 plan D2), and field classes declared beside the schema instead of inside it. **At gate G2 (Phase 3 Task 3a.2) the owner accepts or amends the parts marked [Phase 3]**: the route boundary and startup rule, field and record classes, minimization and bounded results. The parts marked [Phase 5] (class markers on new capabilities, export authorization) and [Phase 7] (retention and deletion) stay Proposed after G2. Refines ADRs 0004, 0008, 0021; HLD §8, §9; MVP design §10, §11; [target architecture](../design/target-architecture.md) §7, §13.2, §13.3.
+Date: 2026-10-14. Status: Proposed; **the parts marked [Phase 3] were accepted by the owner on 2026-10-19 at gate G2** (Phase 3 Task 3a.2). Amended 2026-10-19 (Phase 3 Task 3a.1): the loopback rule and the boundary basis (Phase 3 plan D2), and field classes declared beside the schema instead of inside it. **At gate G2 (Phase 3 Task 3a.2) the owner accepts or amends the parts marked [Phase 3]**: the route boundary and startup rule, field and record classes, minimization and bounded results. The parts marked [Phase 5] (class markers on new capabilities, export authorization) and [Phase 7] (retention and deletion) stay Proposed after G2. Refines ADRs 0004, 0008, 0021; HLD §8, §9; MVP design §10, §11; [target architecture](../design/target-architecture.md) §7, §13.2, §13.3.
 
 ## Context
 
