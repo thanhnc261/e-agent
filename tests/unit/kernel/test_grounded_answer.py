@@ -59,7 +59,7 @@ from e_agent.sdk.ports import (
 from pydantic import ValidationError
 
 from .conftest import CONN, CREATE, NOTES_TASK, READ, SUMMARY, TENANT, Kernel
-from .test_grounding import CLASSED_DATA, CLASSES, PINNED_ON
+from .test_grounding import CLASSED_DATA, CLASSES, PINNED_ON, CitingDriver
 from .test_mode_pinning import HOSTED_UNDECLARED
 
 MakeKernel = Callable[..., Kernel]
@@ -273,6 +273,23 @@ async def test_free_text_answer_is_labelled_unverified(make_kernel: MakeKernel) 
         off.store, TENANT, off_run.run_id, environment="fixture", versions={}, features=Features()
     )
     assert "grounded_answer" not in off_bundle
+
+
+async def test_typed_answer_final_text_is_not_a_grounded_section(
+    make_kernel: MakeKernel,
+) -> None:
+    """A typed answer's run ends ``ANSWERED`` with a text-only ``message.final``: the
+    bundle's grounded section reads only the kernel's ``contract_id`` record, so it has none."""
+    driver = CitingDriver(_own(("/count", "0")))
+    k = make_kernel(features=ON, with_answer=True, driver=driver)
+    run = await _start(k)
+    assert (run.state, run.reason_code) == (RunState.SUCCEEDED, ReasonCode.ANSWERED)
+    (final,) = _of(await _events(k, run.run_id), RunEventType.MESSAGE_FINAL)
+    assert "contract_id" not in final.payload
+    bundle = await build_evidence(
+        k.store, TENANT, run.run_id, environment="fixture", versions={}, features=ON
+    )
+    assert "grounded_answer" not in bundle
 
 
 # -- admission (ADR 0033 §3) --------------------------------------------------------------
