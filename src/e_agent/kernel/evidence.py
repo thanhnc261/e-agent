@@ -33,7 +33,7 @@ from e_agent.contracts.common import utc_now
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.explain import Explanation
 from e_agent.contracts.features import FeatureMode, Features, RunModes
-from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode
+from e_agent.contracts.run import TERMINAL_RUN_STATES, ReasonCode, RunRecord
 from e_agent.contracts.task import GROUNDED_ANSWER
 from e_agent.sdk.store import RunStore
 
@@ -200,10 +200,13 @@ def _context_section(events: Sequence[RunEvent]) -> list[dict[str, Any]]:
     ]
 
 
-def _grounded_section(events: Sequence[RunEvent]) -> dict[str, Any] | None:
+def _grounded_section(run: RunRecord, events: Sequence[RunEvent]) -> dict[str, Any] | None:
     """The kernel's ``message.final`` of a ``GROUNDED`` end with its labels: the summary is
     model-authored and ``unverified``, each citation ``grounded`` in this run's evidence,
-    never ``verified`` (PR-19). None when the run wrote no such record."""
+    never ``verified`` (PR-19). None unless the run ended ``GROUNDED`` and wrote that
+    record (review R1-3)."""
+    if run.reason_code is not ReasonCode.GROUNDED:
+        return None
     for e in events:
         if e.type is RunEventType.MESSAGE_FINAL and e.payload.get("contract_id") == GROUNDED_ANSWER:
             return {
@@ -275,7 +278,7 @@ async def build_evidence(
         bundle["modes"] = modes.model_dump(mode="json")
         if modes.context_assembler is FeatureMode.ON:
             bundle["context"] = _context_section(events)
-    grounded = _grounded_section(events)
+    grounded = _grounded_section(run, events)
     if grounded is not None:
         bundle["grounded_answer"] = grounded
     plan = await _plan_section(store, tenant_id, events, actions)

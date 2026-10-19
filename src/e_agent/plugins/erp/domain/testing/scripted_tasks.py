@@ -85,7 +85,7 @@ class ScriptedErpDriver:
     _procurement: ScriptedProcurementDriver | None = None
 
     def __post_init__(self) -> None:
-        if self.task_kind not in TASK_KINDS:
+        if self.task_kind not in TASK_KINDS or not self.handles(self.task_kind):
             raise ValueError(f"unknown task kind {self.task_kind!r}")
         self._procurement = ScriptedProcurementDriver(
             connection_id=self.connection_id,
@@ -94,6 +94,12 @@ class ScriptedErpDriver:
             demand_ref=self.ref("demand_ref"),
             product_ref=self.ref("product_ref"),
         )
+
+    @classmethod
+    def handles(cls, kind: str) -> bool:
+        """Whether the driver has a scenario for ``kind``: a kind without one is refused at
+        construction, never left to fail on its first turn."""
+        return kind in PROCUREMENT_KINDS or hasattr(cls, "_" + kind.replace("-", "_"))
 
     def ref(self, name: str) -> str:
         return {**DEFAULT_REFS, **self.refs}[name]

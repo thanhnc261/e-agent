@@ -75,7 +75,7 @@ def _pinned_live() -> Profile:
     return Profile.model_validate(data)
 
 
-def test_eight_task_definitions_load_from_resources() -> None:
+def test_task_definitions_load_from_resources() -> None:
     root = files("e_agent.plugins.erp.domain").joinpath("tasks")
     for task_id in (*ERP_KINDS, ASSISTANT, OPEN_POS):
         resource = json.loads(root.joinpath(f"{task_id}.json").read_text("utf-8"))
@@ -88,7 +88,7 @@ def test_eight_task_definitions_load_from_resources() -> None:
     ]
     # One catalogue: each preset is its definition's projection (D8: task_id is the kind).
     by_id = {d.task_id: d for d in definitions}
-    assert tuple(p.kind for p in plugin.TASK_PRESETS) == (*ERP_KINDS, OPEN_POS)
+    assert tuple(p.kind for p in plugin.TASK_PRESETS) == ERP_KINDS  # open-pos has none
     for preset in plugin.TASK_PRESETS:
         definition = by_id[preset.kind]
         assert preset.prompt == definition.goal_template
@@ -285,3 +285,28 @@ def test_fixture_profile_reports_simulator_defaults() -> None:
         ("fixture-erp", "fixture-erp.sales.quotation-create", ("idempotency",)),
         ("fixture-erp", "fixture-erp.crm.lead-create", ("idempotency",)),
     }
+
+
+async def test_every_scripted_kind_has_a_scenario() -> None:
+    """No preset can crash the fixture driver (3e.2 review R1-2): every preset kind is one the
+    scripted driver has a scenario for, a fixture run of each leaves RUNNING, and every
+    definition without a preset is an unscripted one."""
+    from e_agent.contracts.run import RunState
+    from e_agent.plugins.erp.domain.testing.scripted_tasks import TASK_KINDS, ScriptedErpDriver
+    from e_agent.server.bootstrap import build_runtime
+
+    kinds = {p.kind for p in plugin.TASK_PRESETS}
+    assert kinds == set(TASK_KINDS) == set(ERP_KINDS)
+    definitions = {d.task_id for d in plugin.load_task_definitions()}
+    assert definitions - kinds == plugin.UNSCRIPTED_TASKS == {ASSISTANT, OPEN_POS}
+    cases = 0
+    for kind in sorted(kinds):
+        assert ScriptedErpDriver.handles(kind), kind
+        rt = await build_runtime(load_profile(fixture_profile_path()), task_kind=kind)
+        run = await rt.coordinator.start_run(rt.operator, kind, rt.scope, task_kind=kind)
+        assert run.state is not RunState.RUNNING, (kind, run.state)
+        cases += 1
+    for kind in plugin.UNSCRIPTED_TASKS:
+        assert not ScriptedErpDriver.handles(kind), kind
+    print(f"scripted kinds with a scenario: {cases}")
+    assert cases == len(ERP_KINDS)

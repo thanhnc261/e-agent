@@ -15,7 +15,7 @@ from typing import Any, Literal
 from e_agent.contracts import data_classes as dc
 from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor, EffectKind
 from e_agent.contracts.context import Budgets
-from e_agent.contracts.task import TaskDefinition, check_answer_condition
+from e_agent.contracts.task import GROUNDED_ANSWER, TaskDefinition, check_answer_condition
 from e_agent.sdk import SDK_API_VERSION
 from e_agent.sdk.connection import ConnectionSpec
 from e_agent.sdk.discovery import DiscoveredPlugin, DiscoveryError, artifact_digest
@@ -231,6 +231,8 @@ class PluginRegistry:
         declared = set(declared_capabilities)
         if set(contribution.capabilities) != declared:
             raise _reject(f"{plugin_id}: registered capabilities differ from manifest")
+        if any(cap.contract_id == GROUNDED_ANSWER for cap in declared):  # PR-09, ADR 0033 §3
+            raise _reject(f"{plugin_id}: {GROUNDED_ANSWER} is the kernel's own answer contract")
         self._stage_task_definitions(plugin_id, tuple(declared_task_definitions), contribution)
         for cap in sorted(declared, key=lambda c: c.contract_id):
             existing = self.capabilities.get(cap.contract_id)

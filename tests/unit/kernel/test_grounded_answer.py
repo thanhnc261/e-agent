@@ -571,3 +571,71 @@ def test_acceptance_spec_grounded_answer_requires_no_effects_or_answer() -> None
                 contribution=PluginContribution(capabilities=(READ,), task_definitions=(task,)),
             )
     print(f"refused acceptance specs: {len(bad)}")
+
+
+# -- fix round 1 ---------------------------------------------------------------------------
+async def test_grounded_section_needs_the_grounded_end(make_kernel: MakeKernel) -> None:
+    """R1-3: the bundle's grounded section is gated on the run's ``GROUNDED`` reason code,
+    not only on a ``message.final`` that carries the contract id."""
+    k = make_kernel(features=ON)
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+    assert run.reason_code is not ReasonCode.GROUNDED
+    current = await k.store.get_run(TENANT, run.run_id)
+    forged = {"text": "x", "contract_id": GROUNDED_ANSWER, "citations": []}  # white box
+    await k.store.update_run(
+        current.model_copy(update={"revision": current.revision + 1}),
+        current.revision,
+        [(RunEventType.MESSAGE_FINAL, forged, None)],
+    )
+    bundle = await build_evidence(
+        k.store, TENANT, run.run_id, environment="fixture", versions={}, features=ON
+    )
+    assert "grounded_answer" not in bundle
+
+
+def test_plugin_capability_named_grounded_answer_is_refused() -> None:
+    """R1-4 (PR-09): ``grounded.answer.v1`` is the kernel's own contract, so admission
+    refuses a plugin capability that declares that id, before registering anything."""
+    impostor = SUMMARY.model_copy(update={"contract_id": GROUNDED_ANSWER})
+    registry = PluginRegistry({})
+    with pytest.raises(KernelError, match=r"grounded\.answer\.v1 is the kernel's own"):
+        registry.register(
+            plugin_id="impostor",
+            plugin_version="0.1.0",
+            declared_capabilities=(READ, impostor),
+            binding_templates=(),
+            contribution=PluginContribution(capabilities=(READ, impostor)),
+        )
+    assert registry.capabilities == {}
+
+
+def test_acceptance_spec_omits_a_false_grounded_answer() -> None:
+    """R1-5: a definition without the flag serializes as before ADR 0033 (its stored form,
+    its continuation snapshot and the context pack's task layer), and both forms
+    round-trip."""
+    cases = 0
+    for task in (NOTES_TASK, NOTES_QUESTION):
+        dumped = task.model_dump(mode="json")
+        assert ("grounded_answer" in dumped["acceptance"]) is task.acceptance.grounded_answer
+        assert TaskDefinition.model_validate(dumped) == task
+        assert TaskDefinition.model_validate_json(task.model_dump_json()) == task
+        cases += 1
+    assert NOTES_TASK.acceptance.model_dump(mode="json") == {
+        "required_effects": [{"contract_id": CREATE.contract_id, "min_verified": 1}],
+        "required_answer": None,
+        "answer_condition": None,
+    }
+    assert NOTES_QUESTION.acceptance.model_dump()["grounded_answer"] is True
+    print(f"acceptance round trips: {cases}")
+
+
+async def test_bound_snapshot_without_the_flag_is_stored_as_before(
+    make_kernel: MakeKernel,
+) -> None:
+    """R1-5: the continuation's task snapshot of a definition without the flag has no
+    ``grounded_answer`` key."""
+    k = make_kernel(features=Features(execution_ir=FeatureMode.ON), task=NOTES_TASK)
+    run = await _start(k, NOTES_TASK.task_id)
+    stored = await k.store.load_continuation(TENANT, run.run_id)
+    assert stored is not None
+    assert "grounded_answer" not in stored[0]["data"]["task"]["acceptance"]

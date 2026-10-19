@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+import pytest
 from e_agent.contracts.capability import EffectKind, Risk
 from e_agent.contracts.context import TaskContext
 from e_agent.contracts.events import RunEventType
@@ -22,6 +23,7 @@ from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.contracts.task import GROUNDED_ANSWER, AcceptanceSpec
 from e_agent.kernel.registry import PluginRegistry
 from e_agent.plugins.erp.domain import plugin
+from e_agent.plugins.erp.domain.testing.scripted_tasks import TASK_KINDS, ScriptedErpDriver
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.sdk.ports import DriverInput, DriverStep, ProposeAction, ReadRequest, RequestReads
 from e_agent.server.bootstrap import Runtime, build_runtime
@@ -76,9 +78,9 @@ def _profile(features: Features) -> Profile:
 
 
 async def _runtime(features: Features) -> Runtime:
-    return await build_runtime(
-        _profile(features), driver_factory=lambda _registry: RfqDriver(), task_kind=OPEN_POS
-    )
+    # open-pos is no preset (the scripted driver has no scenario for it); the run binds it
+    # by task kind, as `start_run` resolves any admitted definition (ADR 0028).
+    return await build_runtime(_profile(features), driver_factory=lambda _registry: RfqDriver())
 
 
 def _read_only(registry: PluginRegistry, capabilities: tuple[str, ...]) -> None:
@@ -139,3 +141,12 @@ def _grounded_flag(definitions: Any) -> list[str]:
 
 def test_only_open_pos_sets_grounded_answer() -> None:
     assert _grounded_flag(plugin.load_task_definitions()) == [OPEN_POS]
+
+
+def test_open_pos_is_no_scripted_preset() -> None:
+    """The scripted driver has no open-pos scenario, so it is no preset and the driver
+    refuses the kind at construction (3e.2 review R1-2)."""
+    assert OPEN_POS not in {p.kind for p in plugin.TASK_PRESETS}
+    assert OPEN_POS not in TASK_KINDS
+    with pytest.raises(ValueError, match="unknown task kind"):
+        ScriptedErpDriver(connection_id=CONN, task_kind=OPEN_POS)

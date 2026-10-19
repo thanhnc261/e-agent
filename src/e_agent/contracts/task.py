@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from datetime import timedelta
-from typing import Self
+from typing import Any, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import (
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from .common import Record
 from .context import Budgets
@@ -68,6 +74,16 @@ class AcceptanceSpec(Record):
     def _check_condition(self) -> Self:
         check_answer_condition(self)
         return self
+
+    @model_serializer(mode="wrap")
+    def _omit_false_grounded(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        """Leave ``grounded_answer`` out when false, so every definition without it, its
+        snapshot in a continuation and the context pack's task layer, serializes exactly as
+        before ADR 0033 (review R1-5)."""
+        data: dict[str, Any] = handler(self)
+        if not self.grounded_answer:
+            data.pop("grounded_answer", None)
+        return data
 
 
 def check_answer_condition(spec: AcceptanceSpec) -> None:
