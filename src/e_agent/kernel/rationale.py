@@ -4,17 +4,15 @@
 **The check** (`check_rationale`, pure). A rationale's evidence id resolves when it names an
 observation of **this run** (the kernel passes the run's continuation observations, never
 the store or the tenant: Review Focus 5, threat T6). A rule id resolves when it is a kernel
-finding id (``KERNEL-*``) or a rule the admitted validators evaluated for this proposal: the
-rule ids of the validation result the kernel just received, ``PASS`` findings included,
-since an engine reports every rule it evaluated (`evaluated_rules`). The kernel cannot read a
-plugin's rule inventory without importing it (PR-01), so the validators' own report is the
-inventory's admitted view; that is why the check runs after validation, before an action
-exists, rather than before validation. It makes no provider read and no model call.
+finding id (``KERNEL-*``) or a rule of the admitted rule inventory (ADR 0009): the union of
+every admitted plugin's ``PluginContribution.rule_inventory`` (`PluginRegistry`). The check
+runs before the proposal is validated and before an action exists, so a refused rationale
+never reaches a validator. It makes no provider read and no model call.
 
 **Per the run's pinned mode** (`_run_modes`, `_rationale_probe`):
 
-- ``off``: today. The rationale is dropped before validation: nothing is checked, recorded or
-  stored, and no validator, digest or plan sees it.
+- ``off``: today. The rationale is dropped: nothing is checked, recorded or stored, and no
+  validator, digest or plan sees it.
 - ``shadow``: the proposal takes today's path. Its own write (``proposal.created``) carries
   the rationale at rest and ``grounding.compared`` (counts only). A check error records
   ``grounding.shadow_failed`` (stage ``rationale``, a fixed message) and changes nothing else.
@@ -49,10 +47,15 @@ from typing import Any
 from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode
-from e_agent.contracts.grounding import ProposalRationale
+from e_agent.contracts.grounding import (
+    GroundingCompared,
+    ProposalRationale,
+    RationaleCounts,
+    RefCounts,
+)
 from e_agent.contracts.plan import ActionPlan, ActionProposal
 from e_agent.contracts.run import ReasonCode, RunRecord
-from e_agent.contracts.validation import Finding, ValidationResult, ValidationStatus
+from e_agent.contracts.validation import Finding, ValidationStatus
 from e_agent.sdk.ports import DriverInput
 from e_agent.sdk.store import EventSpec
 
@@ -72,8 +75,8 @@ RATIONALE_MESSAGES = MappingProxyType(
     {
         RefKind.EVIDENCE: "This rationale names evidence that is not an observation of this "
         "run; cite the evidence ids this run read.",
-        RefKind.RULE: "This rationale names a rule that no validator evaluated for this "
-        "proposal and that is no kernel finding id.",
+        RefKind.RULE: "This rationale names a rule that is not in the admitted rule "
+        "inventory and is no kernel finding id.",
     }
 )
 """The fixed message of each ``KERNEL-RATIONALE`` repair finding, by the kind of id."""
@@ -102,11 +105,6 @@ def at_rest(rationale: ProposalRationale) -> dict[str, Any]:
     }
 
 
-def evaluated_rules(validation: ValidationResult) -> frozenset[str]:
-    """The rule ids a validation result reports, ``PASS`` findings included."""
-    return frozenset(f.rule_id for f in validation.findings)
-
-
 @dataclass(frozen=True)
 class RationaleResult:
     """Each named id and whether it resolved, in rationale order."""
@@ -118,12 +116,12 @@ class RationaleResult:
     def resolved(self) -> bool:
         return all(ok for _, ok in (*self.evidence, *self.rules))
 
-    def counts(self) -> dict[str, dict[str, int]]:
-        def count(refs: tuple[tuple[str, bool], ...]) -> dict[str, int]:
+    def counts(self) -> RationaleCounts:
+        def count(refs: tuple[tuple[str, bool], ...]) -> RefCounts:
             resolved = sum(ok for _, ok in refs)
-            return {"cited": len(refs), "resolved": resolved, "unresolved": len(refs) - resolved}
+            return RefCounts(cited=len(refs), resolved=resolved, unresolved=len(refs) - resolved)
 
-        return {"evidence": count(self.evidence), "rules": count(self.rules)}
+        return RationaleCounts(evidence=count(self.evidence), rules=count(self.rules))
 
     def findings(self) -> tuple[Finding, ...]:
         """One ``KERNEL-RATIONALE`` per id that did not resolve: the id, never model text."""
@@ -227,7 +225,8 @@ class RationaleProbe:
         if self.failed or self.result is None:
             payload = {"stage": "rationale", "message": RATIONALE_SHADOW_MESSAGE}
             return [(RunEventType.GROUNDING_SHADOW_FAILED, payload, action_id)]
-        return [(RunEventType.GROUNDING_COMPARED, {"rationale": self.result.counts()}, action_id)]
+        payload = GroundingCompared(rationale=self.result.counts()).model_dump(mode="json")
+        return [(RunEventType.GROUNDING_COMPARED, payload, action_id)]
 
     def keep(self, cont: _Continuation) -> None:
         """Keep the texts in the continuation for the approval card, or clear the last."""
@@ -242,10 +241,9 @@ class RationaleMixin(GroundedAnswerMixin):
         run: RunRecord,
         cont: _Continuation,
         entries: Sequence[Entry],
-        validation: ValidationResult,
     ) -> RationaleProbe | RunRecord | DriverInput:
-        """Check a proposal's or plan's rationales after validation, before its action
-        exists. A `RationaleProbe` continues today's path; in ``on`` an id that does not
+        """Check a proposal's or plan's rationales before it is validated and before its
+        action exists. A `RationaleProbe` continues today's path; in ``on`` an id that does not
         resolve returns its ``KERNEL-RATIONALE`` repair, and a check that cannot run after a
         reservation returns the closed run."""
         mode = self._run_modes(cont).grounded_answers
@@ -255,7 +253,7 @@ class RationaleMixin(GroundedAnswerMixin):
         try:
             evidence = {o.evidence.evidence_id for o in cont.observations.values()}
             rationales = [r for _, r in entries]
-            result = check_rationale(rationales, evidence, evaluated_rules(validation))
+            result = check_rationale(rationales, evidence, self._registry.rule_inventory)
         except Exception:  # no exception text reaches an event (PR-25, PR-28)
             if mode is FeatureMode.SHADOW:
                 return RationaleProbe(mode, entries, failed=True)

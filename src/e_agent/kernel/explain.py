@@ -4,8 +4,10 @@
 (`kernel/progress.py`) and its reconstruction (`kernel/reconstruct.py`). It reads nothing
 else, writes nothing and calls no model. It renders goal → source facts → validation
 findings → proposals → approvals → receipts → outcomes, as ids, versions, digests and
-statuses (`contracts/explain.py`). A run that ended ``GROUNDED`` names a grounded outcome,
-never a verified one (PR-19, ADR 0033 §6).
+statuses (`contracts/explain.py`). Each proposal shows its rationale second, after its
+facts, as the evidence ids, rule ids, codes and text digests ``proposal.created`` stored
+(ADR 0033 §4); the texts were never stored. A run that ended ``GROUNDED`` names a grounded
+outcome, never a verified one (PR-19, ADR 0033 §6).
 
 What it leaves out is a rule, not an omission: the proposal's arguments and the receipt's
 provider error text (they can carry read data), each finding's message and its expected and
@@ -21,12 +23,14 @@ from enum import Enum
 from typing import Any
 
 from e_agent.contracts.explain import (
+    AlternativeRef,
     ApprovalRef,
     Completeness,
     Explanation,
     InputRequest,
     OutcomeRef,
     ProposalRef,
+    RationaleRef,
     ReceiptRef,
     RunHeader,
     SourceFact,
@@ -90,7 +94,7 @@ def explain(ledger: ProgressLedger, reconstructed: Reconstructed) -> Explanation
         run=_header(ledger, reconstructed),
         sources=tuple(SourceFact.of(f) for f in ledger.facts),
         validation=_validation(ledger),
-        proposals=tuple(_proposal(row) for row in reconstructed.actions),
+        proposals=tuple(_proposal(row, reconstructed.rationales) for row in reconstructed.actions),
         approvals=tuple(_entry(ApprovalRef, row, _APPROVAL) for row in reconstructed.approvals),
         receipts=tuple(_entry(ReceiptRef, row, _RECEIPT) for row in reconstructed.receipts),
         outcomes=_outcomes(ledger, reconstructed),
@@ -127,9 +131,32 @@ def _validation(ledger: ProgressLedger) -> Validation:
     )
 
 
-def _proposal(row: Rebuilt) -> ProposalRef:
+def _proposal(row: Rebuilt, rationales: Mapping[str, Mapping[str, Any]]) -> ProposalRef:
     values, partial, unknown = _flatten(row, _PROPOSAL)
-    return ProposalRef(**values, partial_fields=partial, unknown_fields=unknown)
+    stored = rationales.get(str(values["action_id"]), {})
+    try:
+        refs = _rationales(stored)
+    except (ValueError, AttributeError, KeyError, TypeError):  # not as the kernel wrote it
+        refs, unknown = (), (*unknown, "rationales")
+    return ProposalRef(**values, partial_fields=partial, unknown_fields=unknown, rationales=refs)
+
+
+def _rationales(stored: Mapping[str, Any]) -> tuple[RationaleRef, ...]:
+    """The at-rest rationale (ADR 0033 §4) as refs: the proposal's or plan's own, then each
+    step's. Ids, codes and digests only; the texts were never stored."""
+    entries = [(None, stored["rationale"])] if "rationale" in stored else []
+    entries.extend((step, r) for step, r in (stored.get("step_rationales") or {}).items())
+    return tuple(
+        RationaleRef(
+            step_id=step,
+            goal_ref=r["goal_ref"],
+            cited_evidence=tuple(r["cited_evidence"]),
+            rules_considered=tuple(r["rules_considered"]),
+            alternatives=tuple(AlternativeRef.model_validate(a) for a in r["alternatives"]),
+            summary_digest=r["summary_digest"],
+        )
+        for step, r in entries
+    )
 
 
 def _entry(model: type[Any], row: Rebuilt, names: Mapping[str, str]) -> Any:

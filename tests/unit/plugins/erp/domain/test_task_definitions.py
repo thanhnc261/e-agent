@@ -18,6 +18,7 @@ from e_agent.contracts.task import AnswerCondition, answer_condition_met
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.registry import PluginRegistry
 from e_agent.plugins.erp.domain import plugin
+from e_agent.plugins.erp.domain.plugin import load_rule_inventory
 from e_agent.plugins.erp.domain.procurement import SHORTAGE_ANSWER
 from e_agent.plugins.erp.domain.procurement.answers import ShortageAnswerVerifier
 from e_agent.plugins.erp.simulator import fixture_profile_path
@@ -311,3 +312,11 @@ async def test_every_scripted_kind_has_a_scenario() -> None:
         ran += 1
     print(f"scripted presets: {ran} ran, {refused} refused at build")
     assert (ran, refused) == (len(ERP_KINDS), 1)
+
+
+def test_admitted_fixture_registry_holds_the_rule_inventory() -> None:
+    """ADR 0009, ADR 0033 §4: admitting the fixture profile through discovery gives the
+    registry the domain pack's whole rule inventory, the set a rationale is checked against."""
+    _, registry = _fixture()
+    assert registry.rule_inventory == load_rule_inventory()
+    assert registry.rule_inventory["PR-002"] == "1"

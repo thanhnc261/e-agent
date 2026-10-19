@@ -33,7 +33,7 @@ from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.features import FeatureMode, Features
-from e_agent.contracts.grounding import Citation
+from e_agent.contracts.grounding import Citation, GroundingCompared
 from e_agent.contracts.plan import ActionPlan, ActionProposal, PlannedStep, plan_to_wire
 from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.kernel import grounding
@@ -56,6 +56,10 @@ MakeKernel = Callable[..., Kernel]
 ON = Features(grounded_answers=FeatureMode.ON)
 SHADOW = Features(grounded_answers=FeatureMode.SHADOW)
 GROUNDING_EVENTS = {RunEventType.GROUNDING_COMPARED, RunEventType.GROUNDING_SHADOW_FAILED}
+NO_RATIONALE_COUNTS = {
+    "evidence": {"cited": 0, "resolved": 0, "unresolved": 0},
+    "rules": {"cited": 0, "resolved": 0, "unresolved": 0},
+}
 SENTINEL = "SENTINEL-3e1-cited-value"
 AT_REST_KEYS = {"evidence_id", "pointer", "value_digest"}
 
@@ -441,12 +445,15 @@ async def test_grounded_shadow_records_comparison(make_kernel: MakeKernel) -> No
     ]
     assert _verifier(k).calls == 1  # the mismatch did not stop the verifier
     (compared,) = _of(events, RunEventType.GROUNDING_COMPARED)
-    assert compared.payload == {
-        "cited": 3,
-        "resolved": 1,
-        "unresolved": 1,
-        "mismatched": 1,
-        "verdicts": ["resolved", "mismatched", "unresolved"],
+    assert compared.payload == {  # the one shape for answers and proposals (3e.3)
+        "citations": {
+            "cited": 3,
+            "resolved": 1,
+            "unresolved": 1,
+            "mismatched": 1,
+            "verdicts": ["resolved", "mismatched", "unresolved"],
+        },
+        "rationale": NO_RATIONALE_COUNTS,
     }
     index = events.index(compared)  # the comparison follows its proposal in the same write
     created = events[index - 1]
@@ -461,7 +468,8 @@ async def test_grounded_shadow_without_citations_records_zero(make_kernel: MakeK
     run = await _start(k)
     events = await _events(k, run.run_id)
     (compared,) = _of(events, RunEventType.GROUNDING_COMPARED)
-    assert compared.payload["cited"] == 0
+    assert compared.payload["citations"]["cited"] == 0
+    assert compared.payload == GroundingCompared().model_dump(mode="json")
     assert "citations" not in _of(events, RunEventType.PROPOSAL_CREATED)[0].payload
 
 

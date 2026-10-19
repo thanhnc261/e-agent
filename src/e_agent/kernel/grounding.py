@@ -57,7 +57,7 @@ from e_agent.contracts.data_classes import parse_pointer
 from e_agent.contracts.digest import CanonicalizationError, digest
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode
-from e_agent.contracts.grounding import Citation
+from e_agent.contracts.grounding import Citation, CitationCounts, GroundingCompared
 from e_agent.contracts.outcome import OutcomeReport, OutcomeStatus
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.run import ReasonCode, RunRecord, RunState
@@ -331,10 +331,9 @@ class GroundingProbe:
         if self.failed or self.result is None:
             payload: dict[str, Any] = {"stage": "check", "message": GROUNDING_SHADOW_MESSAGE}
             return [(RunEventType.GROUNDING_SHADOW_FAILED, payload, action_id)]
-        payload = {
-            **self.result.counts(),
-            "verdicts": [v.status.value for v in self.result.verdicts],
-        }
+        verdicts = tuple(v.status.value for v in self.result.verdicts)
+        cited = CitationCounts(**self.result.counts(), verdicts=verdicts)
+        payload = GroundingCompared(citations=cited).model_dump(mode="json")
         return [(RunEventType.GROUNDING_COMPARED, payload, action_id)]
 
 

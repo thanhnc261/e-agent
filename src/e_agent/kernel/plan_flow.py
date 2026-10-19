@@ -91,7 +91,7 @@ class PlanFlowMixin(ProposalsMixin):
         refusal = self._plan_refusal(run, cont)
         if refusal is not None:
             return await self._repair_finding(run, cont, (refusal,))
-        entries = plan_entries(plan)  # checked after validation (ADR 0033 §4, Task 3e.3)
+        entries = plan_entries(plan)  # checked before validation (ADR 0033 §4, Task 3e.3)
         if len(plan.steps) == 1:  # a 1-step plan is today's proposal (target §6.4.3)
             return await self._handle_proposal(
                 run, cont, plan.steps[0].proposal, rationales=entries
@@ -106,6 +106,10 @@ class PlanFlowMixin(ProposalsMixin):
                 "task_version": task.version,
             }
         )
+        reasons = await self._rationale_probe(run, cont, entries)
+        if not isinstance(reasons, RationaleProbe):  # `on`: KERNEL-RATIONALE, or closed
+            return reasons
+        run = reasons.run or run  # a fallback moved the revision
         findings = self._plan_findings(plan, task, cont)
         if findings:
             return await self._repair_finding(run, cont, findings)
@@ -113,10 +117,6 @@ class PlanFlowMixin(ProposalsMixin):
         if not isinstance(built, tuple):
             return built
         contexts, validation = built
-        reasons = await self._rationale_probe(run, cont, entries, validation)
-        if not isinstance(reasons, RationaleProbe):  # `on`: KERNEL-RATIONALE, or closed
-            return reasons
-        run = reasons.run or run  # a fallback moved the revision
         try:
             canonical = plan_digest_input(plan, contexts, run_operation_id=run.logical_operation_id)
             digest = compute_digest(canonical)

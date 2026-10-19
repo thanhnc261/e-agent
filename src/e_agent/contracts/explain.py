@@ -14,6 +14,9 @@ value never look alike.
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Any
+
+from pydantic import SerializerFunctionWrapHandler, model_serializer
 
 from .common import Record
 from .progress import FactRef, RuleRef, Stage, StageStatus, TaskRefState
@@ -44,6 +47,8 @@ class ValueLabel(StrEnum):
     """An outcome an independent read-back verified."""
     NOT_VERIFIED = "not_verified"
     """An outcome the read-back did not verify: failed, unknown or not finished."""
+    MODEL_AUTHORED = "model_authored"
+    """Model-authored text, shown only by its digest (a rationale, ADR 0033 §4)."""
     GROUNDED_ANSWER = "grounded_answer"
     """A ``grounded.answer.v1`` end: every citation resolved against this run's evidence.
     Grounded, never verified: no independent read-back took place (PR-19, ADR 0033 §3)."""
@@ -98,9 +103,31 @@ class Validation(Record):
     input_requests: tuple[InputRequest, ...]
 
 
+class AlternativeRef(Record):
+    proposal_digest: str
+    reason_code: str
+    line_digest: str
+    """The digest of the model's one line, never the line."""
+
+
+class RationaleRef(Record):
+    """A proposal's rationale as stored (ADR 0033 §4, §6): the goal, evidence ids, rule ids
+    and codes it names and the digest of each model-authored text, never the text. It is a
+    model's claim the kernel checked, shown after the facts it names."""
+
+    step_id: str | None
+    """The plan step it belongs to; None for the proposal's or the plan's own."""
+    goal_ref: str
+    cited_evidence: tuple[str, ...]
+    rules_considered: tuple[str, ...]
+    alternatives: tuple[AlternativeRef, ...]
+    summary_digest: str
+    label: ValueLabel = ValueLabel.MODEL_AUTHORED
+
+
 class ProposalRef(Record):
-    """One proposed action. The rationale of ADR 0033 §4 (Task 3e.3) joins this record as
-    its evidence ids, rule ids and text digests; the arguments never do."""
+    """One proposed action: its facts, then its rationale (ADR 0033 §4) as evidence ids,
+    rule ids and text digests; the arguments never appear."""
 
     action_id: str | None
     contract_id: str | None
@@ -120,6 +147,16 @@ class ProposalRef(Record):
     partial_fields: tuple[str, ...] = ()
     """Fields whose value is only what the events show and may be behind the row."""
     unknown_fields: tuple[str, ...] = ()
+    rationales: tuple[RationaleRef, ...] = ()
+    """Shown after the facts: the proposal's or plan's own rationale first, then each step's.
+    Left out when empty, so a run without one explains as before Task 3e.3."""
+
+    @model_serializer(mode="wrap")
+    def _omit_no_rationale(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        if not self.rationales:
+            data.pop("rationales", None)
+        return data
 
 
 class ApprovalRef(Record):

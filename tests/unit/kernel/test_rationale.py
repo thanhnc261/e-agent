@@ -5,12 +5,13 @@ A write proposal or a plan may carry a rationale: the goal it serves, the eviden
 this run it rests on, the rule ids it considered, the alternatives it rejected and a short
 summary. It is model output, a claim the kernel checks, never an approval input and never in
 the approval digest (target §5.6). In ``on`` an evidence id that is not an observation of
-this run, or a rule id that is neither a kernel finding id nor a rule the admitted
-validators evaluated for the proposal, is the repair finding ``KERNEL-RATIONALE`` before an
-action exists. In ``shadow`` the proposal takes today's path and the kernel records
-``grounding.compared``. In ``off`` the rationale is dropped and nothing changes. At rest the
-rationale is ids, codes and a digest of each model-authored text, never the text (owner,
-G2, PR-26); the text lives only in the run's continuation. Runs over both stores through
+this run, or a rule id that is neither a kernel finding id nor in the admitted rule
+inventory (ADR 0009; here the notes fixture's neutral `NOTES_RULES`), is the repair finding
+``KERNEL-RATIONALE`` before validation and before an action exists. In ``shadow`` the
+proposal takes today's path and the kernel records ``grounding.compared``. In ``off`` the
+rationale is dropped and nothing changes. At rest the rationale is ids, codes and a digest
+of each model-authored text, never the text (owner, G2, PR-26); the text lives only in the
+run's continuation. Runs over both stores through
 the ``run_store`` fixture (ENG-STORE-1).
 """
 
@@ -28,6 +29,7 @@ from e_agent.contracts.context import Budgets, TaskContext
 from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.evidence import EvidenceRef
+from e_agent.contracts.explain import ValueLabel
 from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.grounding import Citation, ProposalRationale, RejectedAlternative
 from e_agent.contracts.plan import ActionPlan, ActionProposal, plan_to_wire
@@ -35,14 +37,17 @@ from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.kernel import rationale
 from e_agent.kernel.approval import compute_digest
 from e_agent.kernel.continuation import _Continuation
+from e_agent.kernel.errors import KernelError
 from e_agent.kernel.evidence import run_explanation
 from e_agent.kernel.features import FALLBACK_MESSAGES, TERMINAL_MESSAGES
 from e_agent.kernel.ir import StepDigestContext, plan_digest_input
+from e_agent.kernel.registry import PluginRegistry
 from e_agent.sdk.ports import (
     DriverInput,
     DriverStep,
     FinalAnswer,
     Observation,
+    PluginContribution,
     ProposeAction,
     ReadRequest,
     RequestReads,
@@ -55,6 +60,7 @@ from .conftest import (
     FIRST,
     FOLLOW_UP,
     NOTE_INPUT,
+    NOTES_RULES,
     NOTES_TASK,
     PLAN_BUDGETS,
     READ,
@@ -226,10 +232,14 @@ async def test_rationale_with_unknown_evidence_is_kernel_rationale(
     make_kernel: MakeKernel,
 ) -> None:
     """An evidence id that names no observation of this run is ``KERNEL-RATIONALE``, before
-    an action exists, within the repair budget; the repaired proposal takes today's path."""
+    validation and before an action exists, within the repair budget; the repaired proposal
+    takes today's path."""
     k = _kernel(make_kernel, _wrong_then_right(), ON)
+    seen = _validated(k)
 
     run = await _start(k)
+
+    assert len(seen) == 1  # the refused proposal never reached a validator
 
     assert run.state is RunState.WAITING_APPROVAL, run.reason
     events = await _events(k, run.run_id)
@@ -268,12 +278,15 @@ async def test_rationale_evidence_of_another_run_is_unresolved(make_kernel: Make
 
 
 async def test_rationale_with_unknown_rule_is_kernel_rationale(make_kernel: MakeKernel) -> None:
-    """A rule id the admitted validators did not evaluate for the proposal, and that is no
-    kernel finding id, is ``KERNEL-RATIONALE``; ``NOTE-001`` (the notes validator's rule)
-    and a ``KERNEL-*`` id resolve."""
+    """A rule id that is in no admitted inventory and is no kernel finding id is
+    ``KERNEL-RATIONALE``, before validation; ``NOTE-001`` (an inventory rule) and a
+    ``KERNEL-*`` id resolve."""
     k = _kernel(make_kernel, _wrong_then_right(evidence=None, rule="NOTE-999"), ON)
+    seen = _validated(k)
 
     run = await _start(k)
+
+    assert len(seen) == 1  # validation did not run for the refused proposal
 
     assert run.state is RunState.WAITING_APPROVAL, run.reason
     events = await _events(k, run.run_id)
@@ -315,6 +328,52 @@ async def test_resolved_rationale_changes_nothing(make_kernel: MakeKernel) -> No
     assert run.state is RunState.WAITING_APPROVAL
     assert _repairs(await _events(k, run.run_id)) == []
     assert [(p.rationale, p.citations) for p in seen] == [(None, ())]
+
+
+async def test_inventory_rule_not_evaluated_by_the_validators_is_accepted(
+    make_kernel: MakeKernel,
+) -> None:
+    """The check reads the admitted inventory, not what this proposal's validators report:
+    ``NOTE-002`` is a notes inventory rule `NotesValidator` never evaluates, and resolves."""
+    k = _kernel(make_kernel, _own("NOTE-002"), ON)
+    assert k.coordinator._registry.rule_inventory == NOTES_RULES
+
+    run = await _start(k)
+
+    assert run.state is RunState.WAITING_APPROVAL, run.reason
+    events = await _events(k, run.run_id)
+    assert _repairs(events) == []
+    evaluated = {
+        f["rule_id"]
+        for e in _of(events, RunEventType.VALIDATION_COMPLETED)
+        for f in e.payload["findings"]
+    }
+    assert evaluated == {"NOTE-001"}
+
+
+def _registered(*inventories: dict[str, str]) -> PluginRegistry:
+    registry = PluginRegistry({})
+    for n, inventory in enumerate(inventories):
+        registry.register(
+            plugin_id=f"plugin-{n}",
+            plugin_version="0.1.0",
+            declared_capabilities=(),
+            binding_templates=(),
+            contribution=PluginContribution(rule_inventory=inventory),
+        )
+    return registry
+
+
+def test_registry_admits_the_union_of_rule_inventories() -> None:
+    """ADR 0009, PR-09: the admitted inventory is every plugin's rules; a rule id two
+    plugins declare, or one that claims a kernel finding id, is refused at admission."""
+    registry = _registered({"A-001": "1"}, {"B-001": "2"})
+    assert registry.rule_inventory == {"A-001": "1", "B-001": "2"}
+    with pytest.raises(KernelError, match="declared twice"):
+        _registered({"A-001": "1"}, {"A-001": "1"})
+    with pytest.raises(KernelError, match="kernel finding id"):
+        _registered({"KERNEL-RATIONALE": "1"})
+    assert _registered().rule_inventory == {}
 
 
 # -- the plan path -------------------------------------------------------------------------
@@ -368,17 +427,46 @@ async def test_plan_rationale_is_checked(
 ) -> None:
     """A plan's own rationale and each step's are checked like a proposal's, a 1-step plan's
     too: an unresolved one is ``KERNEL-RATIONALE`` before the plan or an action is stored.
-    The driver repeats the plan, so the run exhausts its repairs."""
+    The driver repeats the plan, so the run exhausts its repairs; no step is ever validated."""
     k = _plan_kernel(make_kernel, build)
+    seen = _validated(k)
 
     run = await _start(k, NOTES_TASK.task_id)
 
     assert (run.state, run.reason_code) == (RunState.FAILED, ReasonCode.VALIDATION_FAILED), case
+    assert seen == []
     events = await _events(k, run.run_id)
     assert {f["rule_id"] for f in _repairs(events)} == {rationale.KERNEL_RATIONALE}
     assert await k.store.list_actions(TENANT, run.run_id) == []
     assert not _of(events, RunEventType.IR_PLAN_COMPILED)
     _no_text(events)
+
+
+async def test_placeholder_step_rationale_accepts_inventory_rules(make_kernel: MakeKernel) -> None:
+    """The rules come from the admitted inventory, not from a step's validation, so the
+    follow-up step, whose lineage placeholder defers its domain validation, may name any
+    inventory rule: ``NOTE-002`` there and ``NOTE-001`` on the plan both resolve."""
+
+    def build(obs: Observation) -> ActionPlan:
+        plan = _plan(obs, plan=_good(obs), step=None)
+        first, follow = plan.steps
+        reasoned = _rationale((obs.evidence.evidence_id,), ("NOTE-002",))
+        follow = follow.model_copy(
+            update={"proposal": follow.proposal.model_copy(update={"rationale": reasoned})}
+        )
+        return plan.model_copy(update={"steps": (first, follow)})
+
+    k = _plan_kernel(make_kernel, build)
+
+    run = await _start(k, NOTES_TASK.task_id)
+
+    assert run.state is RunState.WAITING_APPROVAL, run.reason
+    events = await _events(k, run.run_id)
+    assert _repairs(events) == []
+    (created,) = _of(events, RunEventType.PROPOSAL_CREATED)
+    assert set(created.payload["step_rationales"]) == {FOLLOW_UP}
+    assert created.payload["step_rationales"][FOLLOW_UP]["rules_considered"] == ["NOTE-002"]
+    assert created.payload["rationale"]["rules_considered"] == ["NOTE-001"]
 
 
 @pytest.mark.parametrize("steps", [1, 2])
@@ -514,6 +602,37 @@ async def test_rationale_is_absent_from_driver_snapshot_and_explanation(
         assert text not in json.dumps(rest, default=str)
 
 
+async def test_explanation_shows_the_rationale_after_the_facts(make_kernel: MakeKernel) -> None:
+    """ADR 0033 §4, §6: the reconstruction carries the at-rest rationale of each
+    ``proposal.created``, and the explanation shows it second, after the proposal's facts,
+    as evidence ids, rule ids, codes and text digests, labelled model-authored; a run without
+    a rationale explains exactly as before (no ``rationales`` key)."""
+    k = _kernel(make_kernel, _own("NOTE-001"), ON)
+    run = await _start(k)
+    cont = await k.coordinator._load_cont(TENANT, run.run_id)
+    evidence_id = next(iter(cont.observations.values())).evidence.evidence_id
+
+    explained = await run_explanation(k.store, TENANT, run.run_id)
+
+    (proposal,) = explained.proposals
+    (ref,) = proposal.rationales
+    assert (ref.step_id, ref.goal_ref, ref.label) == (None, "run", ValueLabel.MODEL_AUTHORED)
+    assert (ref.cited_evidence, ref.rules_considered) == ((evidence_id,), ("NOTE-001",))
+    assert ref.summary_digest == digest(SUMMARY_TEXT)
+    assert [a.line_digest for a in ref.alternatives] == [digest(ALT_TEXT)]
+    assert proposal.evidence_ids == (evidence_id,)  # the facts it names
+    dumped = proposal.model_dump(mode="json")
+    keys = list(dumped)
+    assert keys.index("rationales") > keys.index("evidence_ids")  # second, after the facts
+    for text in SECRETS:
+        assert text not in json.dumps(dumped)
+
+    plain = _kernel(make_kernel, lambda obs, n: None, ON)
+    other = await _start(plain)
+    (bare,) = (await run_explanation(plain.store, TENANT, other.run_id)).proposals
+    assert "rationales" not in bare.model_dump(mode="json")
+
+
 # -- the approval digest -------------------------------------------------------------------
 def _normalized(canonical: dict[str, Any]) -> dict[str, Any]:
     """The digest input without its per-run ids (operation id, evidence ids)."""
@@ -618,11 +737,12 @@ async def test_rationale_shadow_records_comparison(make_kernel: MakeKernel) -> N
     (created,) = _of(events, RunEventType.PROPOSAL_CREATED)
     (compared,) = _of(events, RunEventType.GROUNDING_COMPARED)
     assert compared.action_id == created.action_id
-    assert compared.payload == {
+    assert compared.payload == {  # the one shape answers record too (3e.1)
+        "citations": {"cited": 0, "resolved": 0, "unresolved": 0, "mismatched": 0, "verdicts": []},
         "rationale": {
             "evidence": {"cited": 1, "resolved": 0, "unresolved": 1},
             "rules": {"cited": 1, "resolved": 0, "unresolved": 1},
-        }
+        },
     }
     assert set(created.payload["rationale"]) == AT_REST_KEYS
     _no_text(events)

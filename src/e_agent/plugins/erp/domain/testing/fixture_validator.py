@@ -8,7 +8,9 @@ I03; it must never be enabled for live runs (ADR 0009, AGENTS.md).
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from decimal import Decimal
+from types import MappingProxyType
 
 from e_agent.contracts.common import format_decimal
 from e_agent.contracts.context import TaskContext
@@ -21,6 +23,9 @@ from ..procurement.api import DraftPurchaseOrder
 from ..procurement.normalizer import collect_facts
 
 BUNDLE_VERSION = "procurement-rules@0.1.0+fixture"
+RULE_INVENTORY: Mapping[str, str] = MappingProxyType({f"PR-00{n}": "1" for n in range(1, 6)})
+"""The inventory rules this checker evaluates, rule id to version, declared as a plugin
+declares its ``rule_inventory`` (sdk_api 1.2): a subset of the procurement inventory."""
 
 
 def _f(
@@ -33,6 +38,7 @@ def _f(
 
 class FixtureRuleValidator:
     validator_id = "fixture-procedural-rules"
+    rule_inventory = RULE_INVENTORY
 
     def supports(self, contract_id: str) -> bool:
         return contract_id == CREATE_DRAFT_PO

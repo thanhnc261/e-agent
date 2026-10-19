@@ -34,6 +34,7 @@ from e_agent.sdk.ports import (
 from e_agent.sdk.validation import ValidationDatasetBuilder
 from pydantic import ValidationError
 
+from .context import KERNEL_RULE_PREFIX
 from .errors import ErrorCode, KernelError
 from .registry_records import AdmissionReport, DefaultedDeclaration, EnabledPlugin
 
@@ -102,6 +103,9 @@ class PluginRegistry:
         self.plugin_executors: dict[str, tuple[ActionExecutor, ...]] = {}
         self.diagnostics: dict[str, Callable[[], Mapping[str, Any]]] = {}
         """Admitted plugins' diagnostics hooks, by plugin id (fixture runs and tests)."""
+        self.rule_inventory: dict[str, str] = {}
+        """The admitted rule inventory (ADR 0009): every admitted plugin's rule ids, to their
+        versions. A rationale's rule ids are checked against it (ADR 0033 §4)."""
 
     def surface_digest(self) -> str:
         """Digest of the tool surface a run is planned against (threat model T17):
@@ -312,6 +316,12 @@ class PluginRegistry:
             if kind in self.driver_factories:
                 raise _reject(f"driver kind {kind!r} contributed by two plugins")
             self.driver_factories[kind] = factory
+        for rule_id in contribution.rule_inventory:  # PR-09: one owner per rule id
+            if rule_id.startswith(KERNEL_RULE_PREFIX):
+                raise _reject(f"{plugin_id}: rule id {rule_id!r} is a kernel finding id")
+            if rule_id in self.rule_inventory:
+                raise _reject(f"{plugin_id}: rule id {rule_id!r} is declared twice")
+        self.rule_inventory.update(contribution.rule_inventory)
         self._staged_tasks.extend(contribution.task_definitions)
         for task in contribution.task_definitions:
             self._task_owner[task.task_id] = plugin_id

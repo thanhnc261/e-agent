@@ -324,6 +324,11 @@ class NotesBackend:
         )
 
 
+NOTES_RULES = {"NOTE-001": "1", "NOTE-002": "1"}
+"""The notes fixture's neutral rule inventory (ADR 0009): `NotesValidator` evaluates
+``NOTE-001`` only, so ``NOTE-002`` is an admitted rule no validator of a note evaluates."""
+
+
 class NotesValidator:
     validator_id = "notes-rules"
 
@@ -542,6 +547,7 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
                 verifiers=verifiers,
                 task_definitions=(task,),
                 input_schemas=input_schemas or {},
+                rule_inventory=NOTES_RULES,
             ),
         )
         registry.admit_task_definitions()

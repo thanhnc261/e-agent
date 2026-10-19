@@ -167,6 +167,26 @@ def load_task_definitions(manifest: PluginManifest | None = None) -> tuple[TaskD
     )
 
 
+def load_rule_inventory() -> dict[str, str]:
+    """The pack's authoritative rule inventory (ADR 0009, PR-33), rule id to rule version:
+    every rule of each bounded context's ``rules/*inventory.json``, the one source the
+    shapes, the engines and the kernel's rationale check share. A rule id that two files
+    declare is refused."""
+    inventory: dict[str, str] = {}
+    for context in sorted(files(__package__).iterdir(), key=lambda p: p.name):
+        rules = context.joinpath("rules")
+        if not rules.is_dir():
+            continue
+        for path in sorted(rules.iterdir(), key=lambda p: p.name):
+            if not path.name.endswith("inventory.json"):
+                continue
+            for rule in json.loads(path.read_text("utf-8"))["rules"]:
+                if rule["id"] in inventory:
+                    raise ValueError(f"rule {rule['id']!r} is declared twice")
+                inventory[rule["id"]] = str(rule["version"])
+    return inventory
+
+
 TASK_DEFINITIONS = load_task_definitions()
 # One catalogue (Task 2c.2): each preset is its definition's kind, prompt and title (D8).
 TASK_PRESETS = tuple(
@@ -224,4 +244,5 @@ def create_plugin(services: PluginServices) -> PluginContribution:
         task_presets=TASK_PRESETS,
         task_definitions=load_task_definitions(manifest),
         driver_factories=dict(DRIVER_FACTORIES),
+        rule_inventory=load_rule_inventory(),
     )

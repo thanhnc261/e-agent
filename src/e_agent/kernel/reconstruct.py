@@ -32,7 +32,7 @@ from e_agent.contracts.common import Record
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import RunRecord, RunState
-from pydantic import TypeAdapter, ValidationError
+from pydantic import Field, TypeAdapter, ValidationError
 
 # -- the payload keys of ADR 0031 §3 ---------------------------------------------------------
 RUN_CREATED_KEYS = ("requester_id", "logical_operation_id", "created_at", "task_id", "task_version")
@@ -162,6 +162,11 @@ class Reconstructed(Record):
     """The driver id ``run.created`` records (``driver``); ``unknown`` when it records none.
     It is not a run row field (``RunRecord`` has no driver), so it is outside ``run`` and
     outside ``state``."""
+    rationales: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    """The at-rest rationale (ADR 0033 §4) each ``proposal.created`` holds, by action id:
+    its ``rationale`` and ``step_rationales`` keys, ids, codes and digests only, never text.
+    Not an action row field (``ActionRecord`` has none), so it is outside ``state``; a
+    proposal without one is absent."""
 
     @property
     def state(self) -> FieldState:
@@ -226,11 +231,14 @@ def reconstruct(events: Iterable[RunEvent]) -> Reconstructed:
     run = _run(ordered, created)
     actions: dict[str, dict[str, Slot]] = {}
     answers: set[str] = set()
+    rationales: dict[str, dict[str, Any]] = {}
     approvals: list[Rebuilt] = []
     receipts: list[Rebuilt] = []
     for event in ordered:
         if event.type is RunEventType.PROPOSAL_CREATED and event.action_id is not None:
             actions[event.action_id] = _proposed(event)
+            if stored := _rationale(event):
+                rationales[event.action_id] = stored
             if event.payload.get("kind") == "answer":
                 answers.add(event.action_id)
             continue
@@ -266,6 +274,7 @@ def reconstruct(events: Iterable[RunEvent]) -> Reconstructed:
         approvals=tuple(approvals),
         receipts=tuple(receipts),
         driver=_driver(created),
+        rationales=rationales,
     )
 
 
@@ -301,6 +310,15 @@ def _run(events: list[RunEvent], created: RunEvent | None) -> Rebuilt:
             reason = code = UNKNOWN_SLOT
     fields.update(state=state, reason=reason, reason_code=code)
     return Rebuilt(fields=fields)
+
+
+RATIONALE_KEYS = ("rationale", "step_rationales")
+"""The ``proposal.created`` keys of the at-rest rationale (ADR 0033 §4, Task 3e.3)."""
+
+
+def _rationale(event: RunEvent) -> dict[str, Any]:
+    """The at-rest rationale keys of a ``proposal.created``, as recorded."""
+    return {key: event.payload[key] for key in RATIONALE_KEYS if key in event.payload}
 
 
 def _proposed(event: RunEvent) -> dict[str, Slot]:

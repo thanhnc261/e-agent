@@ -291,8 +291,13 @@ class PluginContribution:
     reached it. Never business data, and never read by the kernel's run logic."""
     output_schemas: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     """JSON Schemas keyed by CapabilityDescriptor.output_schema_id (sdk_api 1.2). Never sent
-    to a model; the registry resolves ``data_classes`` pointers against them. Last, so a
-    1.1 positional construction keeps its meaning."""
+    to a model; the registry resolves ``data_classes`` pointers against them. After the 1.1
+    fields, so a 1.1 positional construction keeps its meaning."""
+    rule_inventory: Mapping[str, str] = field(default_factory=dict)
+    """The plugin's authoritative rule inventory (ADR 0009) as rule id to rule version
+    (sdk_api 1.2), read from its packaged inventory resources. The registry admits the union
+    and refuses a rule id two plugins declare (PR-09); the kernel checks a rationale's rule
+    ids against it (ADR 0033 §4). Never sent to a model. Last, like ``output_schemas``."""
 
 
 class PluginFactory(Protocol):

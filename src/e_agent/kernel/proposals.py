@@ -1,7 +1,7 @@
 """Proposal handling and validation (Phase 1 split of coordinator.py). Typed answers are
 handled in `grounding.py`, with their citation check (ADR 0033, Task 3e.1), the generic
 grounded answer in `grounded_answer.py` (Task 3e.2), and a write proposal's rationale is
-checked by `rationale.py` after validation, before its action exists (Task 3e.3)."""
+checked by `rationale.py` before validation and before its action exists (Task 3e.3)."""
 
 from __future__ import annotations
 
@@ -144,11 +144,11 @@ class ProposalsMixin(RationaleMixin):
         probe = await self._repeat_probe(run, cont, canonical_for, permitted=decision.permitted)
         if not isinstance(probe, RepeatProbe):  # `on`: KERNEL-REPEAT, or closed (ADR 0031 §5)
             return probe
-        validation = await self._validate(ctx, cont, proposal, binding)
-        reasons = await self._rationale_probe(run, cont, entries, validation)
+        reasons = await self._rationale_probe(run, cont, entries)  # before validation (§4)
         if not isinstance(reasons, RationaleProbe):  # `on`: KERNEL-RATIONALE, or closed
             return reasons
         run = reasons.run or run  # a fallback moved the revision
+        validation = await self._validate(ctx, cont, proposal, binding)
         canonical = canonical_for(rule_bundle_version=validation.rule_bundle_version)
         try:
             action_digest = compute_digest(canonical)

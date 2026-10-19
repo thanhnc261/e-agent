@@ -101,3 +101,31 @@ class ProposalRationale(Record):
     alternatives: tuple[RejectedAlternative, ...] = ()
     summary: str = Field(max_length=SUMMARY_MAX)
     """Model-authored text: shown as such, stored only as its digest."""
+
+
+class RefCounts(Record):
+    """How many named refs of one kind resolved."""
+
+    cited: int = 0
+    resolved: int = 0
+    unresolved: int = 0
+
+
+class CitationCounts(RefCounts):
+    mismatched: int = 0
+    verdicts: tuple[str, ...] = ()
+    """Each citation's status, in citation order; never a value."""
+
+
+class RationaleCounts(Record):
+    evidence: RefCounts = RefCounts()
+    rules: RefCounts = RefCounts()
+
+
+class GroundingCompared(Record):
+    """The one ``grounding.compared`` payload (ADR 0033 §5), for a typed answer's citations
+    and for a write proposal's or plan's rationale alike: counts and statuses only, never a
+    value or model text (PR-26). The part a proposal does not carry is all zeros."""
+
+    citations: CitationCounts = CitationCounts()
+    rationale: RationaleCounts = RationaleCounts()
