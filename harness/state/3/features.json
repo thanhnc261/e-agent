@@ -57,7 +57,8 @@
         "ERP read outputs marked; both off model-request goldens unchanged",
         "full and pg pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3b.3/2026-10-19T09-04-04.754935+00-00-full.json"
     },
     {
       "id": "F-3c-1",

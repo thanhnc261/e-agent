@@ -1,0 +1,33 @@
+{
+  "task": "3b.3",
+  "changed": "Data classes (ADR 0030): contracts/data_classes.py (DataClass, RecordClass, RetentionClass, the store-neutral registry of 12 stored record kinds, instance-path class keys, the supported-schema subset), CapabilityDescriptor.data_classes keyed by instance path (owner decision 2026-10-19), PluginContribution.output_schemas appended after the existing fields, sdk_api 1.2, 13 ERP read output schemas and their classes, the notes pack's classes, readiness unmarked_properties (null for a missing or unsupported side) and unsupported_schemas, a validated frozen copy of each capability's classes at admission, and the PR-26 row tag [Pa]. Commits f5cd4b6, 5c5ed0c, e891799, cbeaa4e, 4f21f71; ADR 0030, target 13.3 and the plan amended in bcc4829.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3b.3/2026-10-19T09-04-04.754935+00-00-full.json",
+    "harness/state/evidence/gates/3b.3/2026-10-19T09-05-19.128354+00-00-pg.json"
+  ],
+  "open_items": [
+    "Owner: the domain-erp artifact digest changed; refresh the local live profile's pin before the Phase 3 live check (B3-6).",
+    "3d.2: cache class_for per capability; turn observation value paths into instance paths with array indices as items; a value whose shape differs from its schema falls back to personal.",
+    "registry.py is at 499 of 500 lines: move code out before adding any (3d.2)."
+  ],
+  "rulings": [
+    {
+      "ruling": "After three Codex rounds found schema-aliasing ways to lower a class, the agent asked the owner, who chose instance-path keys (\"ok\").",
+      "cost_if_wrong": "Declarations no longer follow $ref; a shared definition is classed at each use site."
+    },
+    {
+      "ruling": "Round 4 found a post-admission mutation path (C3-14), a different class of defect; the agent fixed it directly with a frozen copy and a test rather than asking the owner, as the stop rule intended for design non-convergence.",
+      "cost_if_wrong": "None found; the fix only narrows."
+    },
+    {
+      "ruling": "Data classes are declarable only on schemas inside a supported subset; elsewhere every value is personal and readiness lists the side.",
+      "cost_if_wrong": "A plugin with an unusual schema cannot lower any class until the subset grows."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "Postgres test database e_agent_test used by the pg gate.",
+      "undo": "none needed; test data only"
+    }
+  ]
+}

@@ -644,3 +644,8 @@
 - changed: harness/state/3/features.json, harness/state/3/handoffs/3b.2.json, harness/state/3/reviews/3b.2-codex.json, harness/state/3/reviews/3b.2.json, harness/state/evidence/gates/3b.2/2026-10-19T07-24-17.308812+00-00-full.json, harness/state/evidence/gates/3b.2/2026-10-19T07-25-31.463028+00-00-pg.json
 - next: Task 3b.3: data classes on capability declarations and stored records
 - open: none
+
+## 2026-10-19T09:06:38.705060+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3b.3
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3b.3.json, harness/state/evidence/gates/3b.3/2026-10-19T09-04-04.754935+00-00-full.json, harness/state/evidence/gates/3b.3/2026-10-19T09-05-19.128354+00-00-pg.json
+- next: Task 3c.1: progress ledger projection
+- open: none
