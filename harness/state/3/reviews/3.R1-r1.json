@@ -1,0 +1,28 @@
+{
+  "task": "3.R1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R1-1",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "A rules_considered id counts as resolved on the KERNEL- prefix alone, so a value-shaped id such as KERNEL-buyer@example.com or KERNEL-84901234567 (allowed by RefId) is stored verbatim in proposal.created rationale/step_rationales, and from there in the evidence bundle and explain. The prefix does not resolve it to anything real, which is the gap P-1 was meant to close (PR-26, ADR 0033 §4). Reproduced: check_rationale([r], set(), set(), {'run'}) gives resolved=True, and at_rest stores rules_considered=['KERNEL-buyer@example.com']. Fix only the at-rest split: store a KERNEL-* id verbatim only when it is one of the kernel's real finding ids, else as its digest. Leave check_rationale's startswith resolution unchanged, because the brief forbids a new repair finding.",
+      "evidence": "src/e_agent/kernel/rationale.py:173, src/e_agent/kernel/rationale.py:97, src/e_agent/kernel/at_rest.py:82-92"
+    },
+    {
+      "id": "R1-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "No test puts a value-shaped or unresolved ref in a plan's step rationale and checks that step_rationales in proposal.created (plan_flow.py:278 via RationaleProbe.stored) holds only digests. The digest-only sink tests cover just the single-proposal path and typed or grounded answer citations, so the plan sink depends on code being shared, not on a test.",
+      "evidence": "src/e_agent/kernel/plan_flow.py:278; tests/unit/kernel/test_at_rest.py:1221-1253; tests/unit/kernel/test_rationale.py:477-513"
+    },
+    {
+      "id": "R1-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "ADR 0033 §4 and the target architecture still describe goal_ref as task definition id@version plus acceptance item, recorded and shown, and the old verbatim at-rest form. The contract docstrings now state the narrowed closed set and the digest keys, so design and code disagree. Both paths were outside this task's scope, so this needs a follow-up edit or ADR note (AGENTS.md: update designs when contracts change).",
+      "evidence": "docs/adr/0033-explanation-and-grounded-answers.md:49, docs/adr/0033-explanation-and-grounded-answers.md:59, docs/design/target-architecture.md:451"
+    }
+  ],
+  "reviewer": {"provider": "claude-opus", "fresh_context": true}
+}
