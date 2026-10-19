@@ -22,7 +22,7 @@
         "active_plan switched; validate-context prints ok"
       ],
       "passes": true,
-      "evidence": "harness/state/evidence/gates/3a.2/2026-10-19T06-38-02.537797+00-00-full.json"
+      "evidence": "harness/state/evidence/gates/3a.2/2026-10-19T06-40-56.681089+00-00-full.json"
     },
     {
       "id": "F-3b-1",
