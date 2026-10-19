@@ -256,7 +256,8 @@
         "uv run pytest -q tests/unit/kernel tests/unit/contracts tests/unit/adapters/pydantic_ai tests/conformance passes, with tests that a value-shaped goal_ref, unresolved rule/evidence ref and unresolved pointer are stored only as digests",
         "uv run e-agent-harness gate full and gate pg pass on a clean tree"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3.R1/2026-10-19T23-09-31.685102+00-00-full.json"
     }
   ]
 }
