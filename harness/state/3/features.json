@@ -137,7 +137,8 @@
         "on_model_request.json golden recorded; off goldens unchanged",
         "full, pg and make e2e pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3d.4/2026-10-19T13-53-18.939382+00-00-full.json"
     },
     {
       "id": "F-3d-5",
