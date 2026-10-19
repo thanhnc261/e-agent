@@ -1,0 +1,1161 @@
+{
+  "report": "e-agent-context-ablation-v1",
+  "environment": "fixture",
+  "evidence": "fixture: scripted driver and fake ERP, no model",
+  "note": "Fixture evidence (scripted driver, fake ERP): the release-report corpus run with context_assembler off and on. Not live model or live ERP evidence, and no qualified model took part. The scripted driver proposes the same thing whatever its context, so equal outcomes show the on path keeps the host safety path, not that typed state helps a model. The report makes no claim beyond this corpus.",
+  "design": "evals/ablation/context-history-vs-typed.md",
+  "corpus": "scripts/release_report.py CASES",
+  "metrics_note": "repairs.rate is (validation_repairs + answer_repairs) / proposals: how often the kernel sent a driver proposal or answer back to the driver. A validation repair is a failed validation of a driver proposal; a dispatch revalidation (STALE), a later plan step, a plain-text turn and a finish check are not. The refusal that ended the run went back to no one: it is counted in terminal_refusals, not in the rate (D3-31). model_tokens is what the run's events record of the driver's token use ('unknown' when they record none, never 0). context is null when context_assembler is off. In shadow it holds the context.compared columns: pack_tokens and unbounded_tokens are the kernel estimator's sums over the run's driver turns, not model-reported tokens. In on it holds the context.assembled columns: the pack's estimated tokens, its drops and the turns that fell back to the driver's history. repeat is null unless kernel_repeat is shadow; a disagreement is a write proposal the repeat rule would have short-circuited whose validation then gave other findings. grounding is null unless grounded_answers is shadow; it sums the citation and rationale-ref counts of the run's grounding.compared events, and grounding_unresolved is every unresolved or mismatched citation and unresolved rationale ref.",
+  "token_note": "pack_tokens_estimate is the kernel estimator's sum over a run's driver turns (estimate_tokens, ADR 0032), an estimate, not model-reported tokens. The off arm records no pack, so its estimate is 'unknown', never 0; model_tokens is 'unknown' in both arms because the scripted driver reports no token use. This run cannot compare token cost between the arms.",
+  "drop_note": "dropped, masked and omitted_observations count the on arm's drop log (context.assembled). The off arm keeps no drop log, so they are 'unknown' there.",
+  "other_toggles": {
+    "kernel_repeat": "off",
+    "grounded_answers": "off"
+  },
+  "arms": {
+    "off": {
+      "context_assembler": "off",
+      "rendering": "history",
+      "cases": 21,
+      "passed": 21,
+      "ends": {
+        "failed": 4,
+        "verified": 17
+      },
+      "proposals": 34,
+      "validation_repairs": 10,
+      "answer_repairs": 3,
+      "terminal_refusals": 3,
+      "repair_rate": 0.3824,
+      "provider_write_calls": 10,
+      "model_tokens": "unknown",
+      "context_turns": "unknown",
+      "fallbacks": "unknown",
+      "context_failures": "unknown",
+      "pack_tokens_estimate": "unknown",
+      "dropped": "unknown",
+      "masked": "unknown",
+      "omitted_observations": "unknown"
+    },
+    "on": {
+      "context_assembler": "on",
+      "rendering": "pack",
+      "cases": 21,
+      "passed": 21,
+      "ends": {
+        "failed": 4,
+        "verified": 17
+      },
+      "proposals": 34,
+      "validation_repairs": 10,
+      "answer_repairs": 3,
+      "terminal_refusals": 3,
+      "repair_rate": 0.3824,
+      "provider_write_calls": 10,
+      "model_tokens": "unknown",
+      "context_turns": 72,
+      "fallbacks": 0,
+      "context_failures": 0,
+      "pack_tokens_estimate": 53216,
+      "dropped": 0,
+      "masked": 0,
+      "omitted_observations": 0
+    }
+  },
+  "paired": {
+    "cases": 21,
+    "same_outcome_and_repairs": 21,
+    "differing": []
+  },
+  "versions": {
+    "distributions": {
+      "e-agent-adapter-agent-pydantic": "0.1.0",
+      "e-agent-adapter-erp-simulator": "0.1.0",
+      "e-agent-adapter-odoo": "0.1.0",
+      "e-agent-adapter-postgres": "0.1.0",
+      "e-agent-adapter-secretstore-local": "0.1.0",
+      "e-agent-adapter-shacl": "0.1.0",
+      "e-agent-contracts": "0.1.0",
+      "e-agent-domain-erp": "0.1.0",
+      "e-agent-erp": "0.1.0",
+      "e-agent-harness": "0.1.0",
+      "e-agent-kernel": "0.1.0",
+      "e-agent-plugin-sdk": "0.1.0",
+      "e-agent-server": "0.1.0",
+      "pydantic-ai-slim": "2.54.0",
+      "pyshacl": "0.40.1"
+    },
+    "plugins": [
+      "domain-erp",
+      "fixture-erp"
+    ],
+    "driver": "scripted-erp-driver",
+    "driver_versions": {},
+    "model": null,
+    "model_provider": null,
+    "profile_environment": "fixture"
+  },
+  "cases": [
+    {
+      "task": "ERP-01",
+      "case": "verified shortage answer",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": {
+          "turns": 3,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 2213,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-01",
+      "case": "wrong answer fails verification, then corrected",
+      "driver_mode": "wrong-answer-then-correct",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "FAILED",
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 0,
+          "answer_repairs": 1,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "FAILED",
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 0,
+          "answer_repairs": 1,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": {
+          "turns": 4,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 3575,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-02",
+      "case": "verified offer recommendation",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": {
+          "turns": 3,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 2280,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-03",
+      "case": "draft PO approved and verified",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": {
+          "turns": 3,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 2549,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-03",
+      "case": "unapproved offer blocked by PR-003, then repaired",
+      "driver_mode": "invalid-then-repair",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 1,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 1,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": {
+          "turns": 4,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 3870,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-03",
+      "case": "over budget blocked",
+      "driver_mode": "valid",
+      "scenario": "over-budget",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "FAILED",
+        "reason_code": "validation_failed",
+        "outcomes": [],
+        "provider_write_calls": 0,
+        "end": "failed",
+        "passed": true,
+        "repairs": {
+          "proposals": 3,
+          "validation_repairs": 2,
+          "answer_repairs": 0,
+          "terminal_refusals": 1,
+          "rate": 0.6667
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "FAILED",
+        "reason_code": "validation_failed",
+        "outcomes": [],
+        "provider_write_calls": 0,
+        "end": "failed",
+        "passed": true,
+        "repairs": {
+          "proposals": 3,
+          "validation_repairs": 2,
+          "answer_repairs": 0,
+          "terminal_refusals": 1,
+          "rate": 0.6667
+        },
+        "context": {
+          "turns": 4,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 3741,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-03",
+      "case": "rejection writes nothing",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "FAILED",
+        "reason_code": "approval_rejected",
+        "outcomes": [],
+        "provider_write_calls": 0,
+        "end": "failed",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "FAILED",
+        "reason_code": "approval_rejected",
+        "outcomes": [],
+        "provider_write_calls": 0,
+        "end": "failed",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": {
+          "turns": 2,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 1179,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-03",
+      "case": "lost response reconciled without a second write",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": {
+          "turns": 3,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 2605,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-04",
+      "case": "draft RFQ amended and verified",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": {
+          "turns": 3,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 1820,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-04",
+      "case": "stale revision blocked by AM-002, then repaired",
+      "driver_mode": "invalid-then-repair",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 1,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 1,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": {
+          "turns": 4,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 2822,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-04",
+      "case": "confirmed RFQ blocked by AM-001",
+      "driver_mode": "valid",
+      "scenario": "rfq-confirmed",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "FAILED",
+        "reason_code": "validation_failed",
+        "outcomes": [],
+        "provider_write_calls": 0,
+        "end": "failed",
+        "passed": true,
+        "repairs": {
+          "proposals": 3,
+          "validation_repairs": 2,
+          "answer_repairs": 0,
+          "terminal_refusals": 1,
+          "rate": 0.6667
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "FAILED",
+        "reason_code": "validation_failed",
+        "outcomes": [],
+        "provider_write_calls": 0,
+        "end": "failed",
+        "passed": true,
+        "repairs": {
+          "proposals": 3,
+          "validation_repairs": 2,
+          "answer_repairs": 0,
+          "terminal_refusals": 1,
+          "rate": 0.6667
+        },
+        "context": {
+          "turns": 4,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 2717,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-05",
+      "case": "draft quotation created and verified",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": {
+          "turns": 3,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 1773,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-05",
+      "case": "off-list price blocked by SQ-003, then repaired",
+      "driver_mode": "invalid-then-repair",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 1,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 1,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": {
+          "turns": 4,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 2837,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-05",
+      "case": "unsaleable product blocked by SQ-002",
+      "driver_mode": "valid",
+      "scenario": "unsaleable-product",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "FAILED",
+        "reason_code": "validation_failed",
+        "outcomes": [],
+        "provider_write_calls": 0,
+        "end": "failed",
+        "passed": true,
+        "repairs": {
+          "proposals": 3,
+          "validation_repairs": 2,
+          "answer_repairs": 0,
+          "terminal_refusals": 1,
+          "rate": 0.6667
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "FAILED",
+        "reason_code": "validation_failed",
+        "outcomes": [],
+        "provider_write_calls": 0,
+        "end": "failed",
+        "passed": true,
+        "repairs": {
+          "proposals": 3,
+          "validation_repairs": 2,
+          "answer_repairs": 0,
+          "terminal_refusals": 1,
+          "rate": 0.6667
+        },
+        "context": {
+          "turns": 4,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 2645,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-06",
+      "case": "verified late-orders answer",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": {
+          "turns": 3,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 1739,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-06",
+      "case": "wrong answer fails verification, then corrected",
+      "driver_mode": "wrong-answer-then-correct",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "FAILED",
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 0,
+          "answer_repairs": 1,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "FAILED",
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 0,
+          "answer_repairs": 1,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": {
+          "turns": 4,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 2774,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-07",
+      "case": "lead created and verified",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": {
+          "turns": 3,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 2091,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-07",
+      "case": "owner outside team blocked by CL-002, then repaired",
+      "driver_mode": "invalid-then-repair",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 1,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 1,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": {
+          "turns": 4,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 3214,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-07",
+      "case": "lost response reconciled without a duplicate lead",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "verified",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 1,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": {
+          "turns": 3,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 2152,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-08",
+      "case": "verified overdue-invoices answer",
+      "driver_mode": "valid",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 1,
+          "validation_repairs": 0,
+          "answer_repairs": 0,
+          "terminal_refusals": 0,
+          "rate": 0.0
+        },
+        "context": {
+          "turns": 3,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 1779,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    },
+    {
+      "task": "ERP-08",
+      "case": "wrong totals fail verification, then corrected",
+      "driver_mode": "wrong-answer-then-correct",
+      "scenario": "valid",
+      "same_outcome_and_repairs": true,
+      "off": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "FAILED",
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 0,
+          "answer_repairs": 1,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": null
+      },
+      "on": {
+        "final_state": "SUCCEEDED",
+        "reason_code": "answered",
+        "outcomes": [
+          "FAILED",
+          "VERIFIED"
+        ],
+        "provider_write_calls": 0,
+        "end": "verified",
+        "passed": true,
+        "repairs": {
+          "proposals": 2,
+          "validation_repairs": 0,
+          "answer_repairs": 1,
+          "terminal_refusals": 0,
+          "rate": 0.5
+        },
+        "context": {
+          "turns": 4,
+          "fallbacks": 0,
+          "failures": 0,
+          "pack_tokens": 2841,
+          "dropped": 0,
+          "masked": 0,
+          "omitted_observations": 0
+        }
+      }
+    }
+  ]
+}

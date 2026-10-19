@@ -16,7 +16,9 @@ the context columns from the run's ``context.compared`` events (ADR 0032 §7, Ta
 with ``--kernel-repeat shadow``, the repeat columns and disagreement count from its
 ``repeat.compared`` events (ADR 0031 §5, Task 3d.6), and, with ``--grounded-answers shadow``,
 the grounding columns from its ``grounding.compared`` events: citation and rationale counts
-(ADR 0033 §5, Task 3e.4). The Phase 3 ``off`` baseline is this report recorded with the
+(ADR 0033 §5, Task 3e.4). A case run with ``context_assembler: on`` (the context ablation,
+``scripts/context_ablation.py``, Task 3f.2) has the ``context.assembled`` columns instead.
+The Phase 3 ``off`` baseline is this report recorded with the
 toggles ``off``:
 
     uv run python scripts/release_report.py --out evals/reports/phase3-baseline.json
@@ -189,14 +191,16 @@ METRICS_NOTE = (
     "plain-text turn and a finish check are not. The refusal that ended the run went back to "
     "no one: it is counted in terminal_refusals, not in the rate (D3-31). model_tokens is "
     "what the run's events record of the driver's token use ('unknown' when they record none,"
-    " never 0). context is null unless context_assembler is shadow; its pack_tokens and "
-    "unbounded_tokens are the kernel estimator's sums over the run's driver turns, not model-"
-    "reported tokens. repeat is null unless kernel_repeat is shadow; a disagreement is a "
-    "write proposal the repeat rule would have short-circuited whose validation then gave "
-    "other findings. grounding is null unless grounded_answers is shadow; it sums the "
-    "citation and rationale-ref counts of the run's grounding.compared events, and "
-    "grounding_unresolved is every unresolved or mismatched citation and unresolved rationale"
-    " ref."
+    " never 0). context is null when context_assembler is off. In shadow it holds the "
+    "context.compared columns: pack_tokens and unbounded_tokens are the kernel estimator's "
+    "sums over the run's driver turns, not model-reported tokens. In on it holds the "
+    "context.assembled columns: the pack's estimated tokens, its drops and the turns that "
+    "fell back to the driver's history. repeat is null unless kernel_repeat is shadow; a "
+    "disagreement is a write proposal the repeat rule would have short-circuited whose "
+    "validation then gave other findings. grounding is null unless grounded_answers is "
+    "shadow; it sums the citation and rationale-ref counts of the run's grounding.compared "
+    "events, and grounding_unresolved is every unresolved or mismatched citation and "
+    "unresolved rationale ref."
 )
 
 
@@ -336,6 +340,27 @@ def context_columns(events: list[RunEvent]) -> dict[str, Any] | None:
     }
 
 
+def assembled_columns(events: list[RunEvent]) -> dict[str, Any] | None:
+    """The ``context.assembled`` columns of a ``context_assembler: on`` run (ADR 0032 §7,
+    Task 3d.5); None when the run recorded none. ``on`` builds one pack per turn, so there is
+    no unbounded pack and no driver token delta to compare: only the pack's estimates, its
+    drops and the turns that fell back to the driver's history. Counts only (PR-26)."""
+    assembled = [e.payload for e in events if e.type is RunEventType.CONTEXT_ASSEMBLED]
+    failed = [e for e in events if e.type is RunEventType.CONTEXT_FAILED]
+    if not assembled and not failed:
+        return None
+    packs = [p for p in assembled if p.get("fallback") is not True]
+    return {
+        "turns": len(assembled),
+        "fallbacks": len(assembled) - len(packs),
+        "failures": len(failed),
+        "pack_tokens": sum(sum(p["pack_tokens"].values()) for p in packs),
+        "dropped": sum(sum(p["dropped"].values()) for p in packs),
+        "masked": sum(p["drop_reasons"]["class_route"] for p in packs),
+        "omitted_observations": sum(len(p["omitted_evidence"]) for p in packs),
+    }
+
+
 def repeat_columns(events: list[RunEvent]) -> dict[str, Any] | None:
     """The ``repeat.compared`` columns of a ``kernel_repeat: shadow`` run; None when the run
     recorded none. A disagreement: the rule would have repeated, validation differed."""
@@ -443,7 +468,7 @@ async def run_case(
         "provider_write_calls": writes,
         "repairs": repair_metrics(events),
         "model_tokens": project_progress(events, []).budgets_used.model_tokens,
-        "context": context_columns(events),
+        "context": context_columns(events) or assembled_columns(events),
         "repeat": repeat_columns(events),
         "grounding": grounding_columns(events),
         "checks": checks,
