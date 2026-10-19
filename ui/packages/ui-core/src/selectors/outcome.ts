@@ -8,7 +8,7 @@
  * with reason code `grounded` (ADR 0033 §3: its citations resolved against the run's own
  * evidence, no independent read-back) is `grounded`, never `verified` (PR-19).
  */
-import { statusKey } from "../presentation.ts";
+import { resultStatusKey } from "../presentation.ts";
 import { selectVerifiedResults, type RunView } from "../store.ts";
 
 export const RESULT_STATES = [
@@ -82,7 +82,7 @@ export function selectOutcome(view: RunView): OutcomeView {
     state,
     status,
     reasonCode,
-    labelKey: grounded ? "status.SUCCEEDED.grounded" : statusKey(state ?? undefined),
+    labelKey: resultStatusKey(state ?? undefined, reasonCode),
     unresolved: state === "NEEDS_RECONCILIATION",
     reason: run?.reason ?? null,
     verified: selectVerifiedResults(view),

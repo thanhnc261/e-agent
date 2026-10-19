@@ -148,11 +148,6 @@ TASK_REFS = {
 ASSISTANT_TASK = "assistant"
 """The general read-only definition for open questions (ADR 0028). It has no preset:
 the scripted driver has no assistant scenario."""
-OPEN_POS_TASK = "open-pos"
-"""The read-only grounded-answer definition (ADR 0033 §3, Task 3e.2). It has no preset:
-the scripted driver has no scenario for it."""
-UNSCRIPTED_TASKS = frozenset({ASSISTANT_TASK, OPEN_POS_TASK})
-"""Definitions that are not task presets, because the scripted driver cannot run them."""
 
 
 def load_manifest() -> PluginManifest:
@@ -182,7 +177,7 @@ TASK_PRESETS = tuple(
         help=definition.title,
     )
     for definition in TASK_DEFINITIONS
-    if definition.task_id not in UNSCRIPTED_TASKS
+    if definition.task_id != ASSISTANT_TASK
 )
 
 

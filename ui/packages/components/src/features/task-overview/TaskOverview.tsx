@@ -1,6 +1,6 @@
 /** Trusted summary of the current task: its text, state and recorded host milestones. */
 import { useI18n, useRun, useTimeline } from "@e-agent/ui-react";
-import { statusKey } from "@e-agent/ui-core";
+import { resultStatusKey } from "@e-agent/ui-core";
 
 const MILESTONE_TYPES = [
   "read.recorded",
@@ -23,7 +23,9 @@ export function TaskOverview() {
     >
       <p className="ea-eyebrow">{t("overview.title")}</p>
       <h2 className="ea-overview-task">{run?.task ?? t("overview.empty")}</h2>
-      <p className="ea-muted ea-small">{run ? t(statusKey(run.state)) : t("workspace.safe")}</p>
+      <p className="ea-muted ea-small">
+        {run ? t(resultStatusKey(run.state, run.reason_code)) : t("workspace.safe")}
+      </p>
       {milestones.length > 0 && (
         <ol className="ea-milestones">
           {milestones.map(item => (

@@ -78,9 +78,10 @@ def _profile(features: Features) -> Profile:
 
 
 async def _runtime(features: Features) -> Runtime:
-    # open-pos is no preset (the scripted driver has no scenario for it); the run binds it
-    # by task kind, as `start_run` resolves any admitted definition (ADR 0028).
-    return await build_runtime(_profile(features), driver_factory=lambda _registry: RfqDriver())
+    # The CLI path: `--task open-pos` with a non-scripted driver (3e.2 review R1-2).
+    return await build_runtime(
+        _profile(features), driver_factory=lambda _registry: RfqDriver(), task_kind=OPEN_POS
+    )
 
 
 def _read_only(registry: PluginRegistry, capabilities: tuple[str, ...]) -> None:
@@ -143,10 +144,19 @@ def test_only_open_pos_sets_grounded_answer() -> None:
     assert _grounded_flag(plugin.load_task_definitions()) == [OPEN_POS]
 
 
-def test_open_pos_is_no_scripted_preset() -> None:
-    """The scripted driver has no open-pos scenario, so it is no preset and the driver
-    refuses the kind at construction (3e.2 review R1-2)."""
-    assert OPEN_POS not in {p.kind for p in plugin.TASK_PRESETS}
+async def test_open_pos_is_a_preset_the_scripted_driver_refuses() -> None:
+    """open-pos is a preset, so `--task open-pos` reaches a model driver through the server
+    path; the scripted driver has no scenario for it and refuses it when the runtime is
+    built, before any run (3e.2 review R1-2), and model qualification does not offer it."""
+    assert OPEN_POS in {p.kind for p in plugin.TASK_PRESETS}
     assert OPEN_POS not in TASK_KINDS
-    with pytest.raises(ValueError, match="unknown task kind"):
+    with pytest.raises(ValueError, match="no scenario for task kind 'open-pos'"):
         ScriptedErpDriver(connection_id=CONN, task_kind=OPEN_POS)
+    profile = load_profile(fixture_profile_path())
+    with pytest.raises(ValueError, match="no scenario for task kind 'open-pos'"):
+        await build_runtime(profile, task_kind=OPEN_POS)
+    rt = await _runtime(Features())  # the server path with a non-scripted driver
+    assert (
+        rt.registry.task_presets[OPEN_POS].prompt
+        == rt.registry.task_definitions[OPEN_POS].goal_template
+    )

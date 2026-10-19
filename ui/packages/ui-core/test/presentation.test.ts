@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { catalogKeys } from "../src/i18n.ts";
-import { actionStatusKey, presentationMatchesCanonical, runStatusKey } from "../src/presentation.ts";
+import {
+  actionStatusKey,
+  presentationMatchesCanonical,
+  resultStatusKey,
+  runStatusKey,
+} from "../src/presentation.ts";
 import { presentation } from "./fixtures.ts";
 
 describe("human-visible approval integrity", () => {
@@ -62,6 +67,21 @@ describe("run status keeps working, sending, recorded and unconfirmed apart", ()
       for (const state of states) expect(catalogKeys(locale)).toContain(actionStatusKey(state));
       for (const phase of ["DISPATCHING", "COMMITTED", "UNKNOWN"])
         expect(catalogKeys(locale)).toContain(`status.phase.${phase}`);
+    }
+  });
+});
+
+describe("resultStatusKey", () => {
+  it("labels a grounded run apart from a verified one (PR-19, ADR 0033)", () => {
+    expect(resultStatusKey("SUCCEEDED", "grounded")).toBe("status.SUCCEEDED.grounded");
+    expect(resultStatusKey("SUCCEEDED", "verified")).toBe("status.SUCCEEDED");
+    expect(resultStatusKey("SUCCEEDED", "answered")).toBe("status.SUCCEEDED");
+    expect(resultStatusKey("SUCCEEDED", null)).toBe("status.SUCCEEDED");
+    expect(resultStatusKey("SUCCEEDED")).toBe("status.SUCCEEDED");
+    expect(resultStatusKey("FAILED", "grounded")).toBe("status.FAILED");
+    expect(resultStatusKey(undefined, "grounded")).toBe("status.idle");
+    for (const locale of ["en", "vi"] as const) {
+      expect(catalogKeys(locale)).toContain("status.SUCCEEDED.grounded");
     }
   });
 });

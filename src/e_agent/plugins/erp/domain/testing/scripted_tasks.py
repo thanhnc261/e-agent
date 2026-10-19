@@ -68,8 +68,7 @@ def two_step_po_plan(first: ActionProposal) -> ActionPlan:
     )
 
 
-# The domain pack's task presets are the one list of kinds and default refs.
-TASK_KINDS = frozenset(preset.kind for preset in TASK_PRESETS)
+PRESET_KINDS = frozenset(preset.kind for preset in TASK_PRESETS)
 DEFAULT_REFS = dict(TASK_REFS)
 
 
@@ -85,7 +84,12 @@ class ScriptedErpDriver:
     _procurement: ScriptedProcurementDriver | None = None
 
     def __post_init__(self) -> None:
-        if self.task_kind not in TASK_KINDS or not self.handles(self.task_kind):
+        if self.task_kind in PRESET_KINDS and not self.handles(self.task_kind):
+            raise ValueError(
+                f"the scripted driver has no scenario for task kind {self.task_kind!r}; "
+                "run it with a model driver"
+            )
+        if self.task_kind not in TASK_KINDS:
             raise ValueError(f"unknown task kind {self.task_kind!r}")
         self._procurement = ScriptedProcurementDriver(
             connection_id=self.connection_id,
@@ -262,3 +266,9 @@ class ScriptedErpDriver:
                 "summary": f"{len(refs)} overdue",
             },
         )
+
+
+# The domain pack's task presets are the one list of kinds and default refs; the scripted
+# kinds are those it has a scenario for. A preset without one (``open-pos``, run only by a
+# model driver) is refused when the driver is built, before any run (3e.2 review R1-2).
+TASK_KINDS = frozenset(kind for kind in PRESET_KINDS if ScriptedErpDriver.handles(kind))
