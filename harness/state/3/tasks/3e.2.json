@@ -39,7 +39,13 @@
     "src/e_agent/plugins/erp/domain/plugin.py",
     "src/e_agent/plugins/erp/domain/testing/scripted_tasks.py",
     "scripts/qualify_model.py",
-    "src/e_agent/kernel/registry.py"
+    "src/e_agent/kernel/registry.py",
+    "ui/packages/components/src/features/outcome/OutcomePanel.tsx",
+    "ui/packages/components/src/features/task-navigation/TaskNavigation.tsx",
+    "ui/packages/components/src/features/task-overview/TaskOverview.tsx",
+    "ui/packages/components/src/features/timeline/Timeline.tsx",
+    "ui/packages/ui-core/src/presentation.ts",
+    "ui/packages/components/test/**"
   ],
   "acceptance": [
     "a read-only question ends grounded without a bespoke contract; grounded never reported as verified",
@@ -84,6 +90,36 @@
       "glob": "src/e_agent/kernel/registry.py",
       "reason": "review 3e.2 R1-4 (PR-09): reserve grounded.answer.v1 so no plugin capability can declare it",
       "at": "2026-10-19T18:08:31+00:00"
+    },
+    {
+      "glob": "ui/packages/components/src/features/outcome/OutcomePanel.tsx",
+      "reason": "review 3e.2 R1-1 (PR-19): every surface that renders a run's final state must not show verified for a GROUNDED run",
+      "at": "2026-10-19T18:14:25+00:00"
+    },
+    {
+      "glob": "ui/packages/components/src/features/task-navigation/TaskNavigation.tsx",
+      "reason": "review 3e.2 R1-1 (PR-19): every surface that renders a run's final state must not show verified for a GROUNDED run",
+      "at": "2026-10-19T18:14:25+00:00"
+    },
+    {
+      "glob": "ui/packages/components/src/features/task-overview/TaskOverview.tsx",
+      "reason": "review 3e.2 R1-1 (PR-19): every surface that renders a run's final state must not show verified for a GROUNDED run",
+      "at": "2026-10-19T18:14:25+00:00"
+    },
+    {
+      "glob": "ui/packages/components/src/features/timeline/Timeline.tsx",
+      "reason": "review 3e.2 R1-1 (PR-19): every surface that renders a run's final state must not show verified for a GROUNDED run",
+      "at": "2026-10-19T18:14:25+00:00"
+    },
+    {
+      "glob": "ui/packages/ui-core/src/presentation.ts",
+      "reason": "review 3e.2 R1-1 (PR-19): every surface that renders a run's final state must not show verified for a GROUNDED run",
+      "at": "2026-10-19T18:14:25+00:00"
+    },
+    {
+      "glob": "ui/packages/components/test/**",
+      "reason": "review 3e.2 R1-1 (PR-19): every surface that renders a run's final state must not show verified for a GROUNDED run",
+      "at": "2026-10-19T18:14:25+00:00"
     }
   ]
 }
