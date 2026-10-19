@@ -64,6 +64,27 @@
       "affects": "style",
       "summary": "Rationale check before validation is a semantic change to target 5.6; point the owner at ADR 0033's alternative at G2.",
       "evidence": "docs/adr/0033-explanation-and-grounded-answers.md:51,91"
+    },
+    {
+      "id": "A-10",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "Re-review: a domain finding's message was kept unmasked on the unchecked assumption that it is rule text; SHACL resultMessage and extra_findings can carry values. It is now rendered from the inventory by rule_id on unprotected routes, or masked.",
+      "evidence": "docs/adr/0032-context-assembler.md:73; src/e_agent/adapters/shacl/engine.py; src/e_agent/sdk/validation.py:58"
+    },
+    {
+      "id": "A-11",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "Re-review: KERNEL-* expected/observed now stated to carry only ids, pointers, digests, counts and codes.",
+      "evidence": "docs/adr/0032-context-assembler.md:67"
+    },
+    {
+      "id": "A-12",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Re-review: ADR 0033 and its index row now name ADR 0028 as refined (AcceptanceSpec.grounded_answer).",
+      "evidence": "docs/adr/0033-explanation-and-grounded-answers.md:3; docs/adr/README.md:38"
     }
   ],
   "reviewer": {

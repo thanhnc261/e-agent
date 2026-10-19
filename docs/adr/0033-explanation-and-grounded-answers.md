@@ -1,6 +1,6 @@
 # ADR 0033: Explanation contract, citations and grounded answers
 
-Date: 2026-10-19. Status: Proposed (2026-10-19); the owner accepts or amends it at gate G2 (Phase 3 Task 3a.2). Refines ADRs 0004, 0018 and 0027; [target architecture](../design/target-architecture.md) §5.6, §17 C18. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D4, D5, D6, D10, Tasks 3c.3, 3e.1–3e.4.
+Date: 2026-10-19. Status: Proposed (2026-10-19); the owner accepts or amends it at gate G2 (Phase 3 Task 3a.2). Refines ADRs 0004, 0018, 0027 and 0028 (section 3 adds `AcceptanceSpec.grounded_answer` to the accepted ADR 0028 contract); [target architecture](../design/target-architecture.md) §5.6, §17 C18. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D4, D5, D6, D10, Tasks 3c.3, 3e.1–3e.4.
 
 ## Context
 

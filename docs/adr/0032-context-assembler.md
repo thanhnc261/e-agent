@@ -64,11 +64,11 @@ ADR 0030 (its Phase 3 parts are accepted at the same gate) decides field classes
 A masked value is replaced by the string `[masked:<class>]` and recorded as a `Dropped` entry of kind `value` with reason `class_route` and its pointer; the rendered observation is `partial` and `masked`.
 
 **Free text outside observations (threat T23).** Finding `expected` and `observed` fields (`contracts/validation.py`, `Finding`) and read-error text can echo observation values, and they have no schema to carry a class. On a route that is neither `local` nor hosted with `data_processing` declared:
-- the `expected` and `observed` text of a finding is masked to `[masked:personal]`, unless the finding's validator declares the class of those fields. No validator declares one in Phase 3, so they are always masked there. Kernel findings (`KERNEL-*`) are kernel-authored with fixed text and keep their fields;
+- the `expected` and `observed` text of a finding is masked to `[masked:personal]`, unless the finding's validator declares the class of those fields. No validator declares one in Phase 3, so they are always masked there. Kernel findings (`KERNEL-*`) are kernel-authored and keep their fields, so their `expected` and `observed` carry only ids, JSON pointers, digests, counts and codes, never an observed value (a `KERNEL-CITATION` names the evidence id and pointer, not the value it found);
 - a read error keeps its kernel code, and the provider's message after it is masked to `[masked:personal]`;
 - each mask is a `Dropped` entry of kind `value`, reason `class_route`, whose `ref` names the finding (`finding:<index>#/expected` or `#/observed`) or the read request (`read_error:<request_id>`).
 
-A finding's `rule_id`, `status` and `message` (the rule text from the pack's inventory, ADR 0009) are kept, so the model can still repair. Masking governs the model context only; the approval card is always built from the unmasked action (ADR 0030, ADR 0006, threat T9, Review Focus 3).
+A finding's `rule_id` and `status` are kept. Its `message` is not trusted to be rule text: a SHACL result copies `sh:resultMessage` verbatim (`adapters/shacl/engine.py`), and `ValidationDataset.extra_findings` (`sdk/validation.py`) lets a validator write free-form messages. So on the same routes a non-`KERNEL-*` finding's `message` is rendered from the admitted rule inventory by `rule_id` (ADR 0009), or masked to `[masked:personal]` and logged in `dropped` when the rule is not in the inventory. The model can still repair from the rule id and the inventory text. Masking governs the model context only; the approval card is always built from the unmasked action (ADR 0030, ADR 0006, threat T9, Review Focus 3).
 
 ### 6. Rendering (target §7.4, Task 3d.4)
 
@@ -168,7 +168,7 @@ Nothing is released between 3b.3 and 3e.4, so the three share one version. The e
 
 ## Verification
 
-- 3d.2: `test_finding_and_read_error_text_masked_on_hosted_route`, `test_layer_over_budget_drops_oldest_and_logs_it`, `test_bounded_observation_is_partial_with_truncated_marker`, `test_error_is_never_rendered_as_empty_result`, `test_personal_value_masked_on_hosted_route_and_logged`, `test_untrusted_values_are_fenced`, `test_fence_cannot_be_closed_from_inside`, `test_approval_presentation_ignores_the_pack`.
+- 3d.2: `test_finding_and_read_error_text_masked_on_hosted_route`, `test_finding_message_rendered_from_inventory_on_hosted_route`, `test_layer_over_budget_drops_oldest_and_logs_it`, `test_bounded_observation_is_partial_with_truncated_marker`, `test_error_is_never_rendered_as_empty_result`, `test_personal_value_masked_on_hosted_route_and_logged`, `test_untrusted_values_are_fenced`, `test_fence_cannot_be_closed_from_inside`, `test_approval_presentation_ignores_the_pack`.
 - 3d.4: `test_clearing_keeps_call_return_pairs` (parallel calls included), `test_no_clearing_with_pending_deferred_call`, `test_masked_value_absent_from_model_request`.
 - 3b.2 and 3d.5: `test_modes_are_pinned_at_start`, `test_off_run_writes_no_pin`, `test_pinned_off_run_on_undeclared_hosted_route_fails_closed`, `test_every_driver_call_goes_through_with_tools`, `test_restore_rendering_mismatch_fails_closed`, and the post-reservation tests (Review Focus 7).
 - Revisit when a profile needs its own budgets, when summarization is proposed, or when a second driver renders the pack.
