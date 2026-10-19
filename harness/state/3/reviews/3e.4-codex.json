@@ -1,0 +1,31 @@
+{
+  "task": "3e.4",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "C1-1",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "Grounding fields can leak raw values and rationale text into events and exports: off-mode citations and an on-mode answer's unexpected rationale remain ordinary arguments, persisted before verification and exported.",
+      "evidence": "src/e_agent/adapters/pydantic_ai/driver.py:883, :1023; kernel/grounding.py:428; kernel/evidence.py:270; tests/unit/adapters/pydantic_ai/test_driver_grounding.py:251."
+    },
+    {
+      "id": "C1-2",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Grounding schema construction breaks otherwise valid tools even when grounding is off: a tool with an answer argument named citations or a write argument named rationale cannot initialize.",
+      "evidence": "driver.py:457, :1014; test_driver_grounding.py:337."
+    },
+    {
+      "id": "C1-3",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "The on-to-off pinning test checks no driver call after the flip.",
+      "evidence": "tests/unit/kernel/test_grounded_answer.py:112, :427-430."
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}
