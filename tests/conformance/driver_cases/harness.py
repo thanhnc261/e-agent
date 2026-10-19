@@ -5,18 +5,46 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any, Protocol
 
 from e_agent.sdk.ports import AgentDriver
 
 
 class NoModel(AssertionError):
-    """A case asked for the model view of a driver that has no model. Raised, never
-    swallowed: such a case must be declared not applicable for that driver."""
+    """A case asked for the model view of a driver that has no model. Never caught by a
+    case: it fails the case, unless the adapter declared that case not applicable with
+    `NotApplicable.NO_MODEL`, which the suite checks and which skips the whole case."""
 
 
 class NoContinuation(AssertionError):
     """A case asked for the snapshot of a driver without ``snapshot`` and ``restore``."""
+
+
+class NotApplicable(StrEnum):
+    """The closed set of reasons a case may not apply to a driver. Each is a structural
+    claim the suite checks against the adapter's subject (`runner.check_claim`) before it
+    accepts the declaration, and a case accepts only the reasons it names (`Case.needs`)."""
+
+    NO_MODEL = "NO_MODEL"
+    """The subject's ``views()`` raises `NoModel`."""
+    NO_CONTINUATION = "NO_CONTINUATION"
+    """The driver has neither ``snapshot`` nor ``restore``, and ``snapshot()`` of the
+    subject raises `NoContinuation`."""
+    NO_TOKEN_SPEND = "NO_TOKEN_SPEND"
+    """The driver has no model (``views()`` raises `NoModel`) and reports no token usage:
+    no ``tokens_used``, or zero after a full run."""
+
+
+REASON_TEXT: Mapping[NotApplicable, str] = {
+    NotApplicable.NO_MODEL: "no model: it offers no tools and sends no model request",
+    NotApplicable.NO_CONTINUATION: (
+        "declares neither snapshot nor restore: the kernel starts it fresh at its next turn "
+        "(continuation._restore_for_turn)"
+    ),
+    NotApplicable.NO_TOKEN_SPEND: "makes no model call, so it spends no model tokens",
+}
+"""The human text of each reason, printed with the declaration."""
 
 
 @dataclass(frozen=True)
@@ -47,7 +75,11 @@ class Subject(Protocol):
     """One driver instance under test, with what the case may inspect."""
 
     driver: AgentDriver
-    connection_id: str
+
+    @property
+    def connection_id(self) -> str:
+        """The host connection every read and proposal must name."""
+        ...
 
     def views(self) -> list[ModelView]:
         """Every model request so far, oldest first; `NoModel` for a driver without one."""
@@ -68,8 +100,8 @@ class DriverAdapter(Protocol):
     """How a driver joins the suite."""
 
     name: str
-    not_applicable: Mapping[str, str]
-    """Case id to the reason the case does not apply to this driver."""
+    not_applicable: Mapping[str, NotApplicable]
+    """Case id to the typed reason the case does not apply to this driver."""
 
     def subject(self, scenario: str) -> Subject:
         """A fresh subject for ``scenario``: its recorded model responses or its scripted

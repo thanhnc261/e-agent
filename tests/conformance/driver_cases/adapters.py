@@ -9,8 +9,9 @@ raises when a scenario runs out of responses, so a driver that calls the model m
 than the recording fails the case instead of drifting.
 
 ``scripted`` is the ERP scripted driver (`ScriptedErpDriver`): a scenario is its task kind
-and mode. It has no model and no continuation, so the cases about what a model receives or
-what a snapshot holds are declared not applicable, each with its reason.
+and mode. It has no model, no continuation and no token spend, so the cases that need one
+are declared not applicable with the typed reason (`NotApplicable`), which the suite checks
+against its subject.
 """
 
 from __future__ import annotations
@@ -38,7 +39,7 @@ from pydantic_ai import (
 from pydantic_ai.messages import ThinkingPart, ToolReturnPart, UserPromptPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
-from .harness import ModelView, NoContinuation, NoModel
+from .harness import ModelView, NoContinuation, NoModel, NotApplicable
 from .world import World, evidence_id
 
 models.ALLOW_MODEL_REQUESTS = False  # the suite never calls a real model
@@ -246,7 +247,7 @@ class PydanticSubject:
 class PydanticAdapter:
     world: World
     name: str = "pydantic-ai"
-    not_applicable: Mapping[str, str] = dataclasses.field(default_factory=dict)
+    not_applicable: Mapping[str, NotApplicable] = dataclasses.field(default_factory=dict)
 
     def subject(self, scenario: str) -> PydanticSubject:
         names = {spec.name: spec.contract_id for spec in self.world.specs}
@@ -265,27 +266,26 @@ SCRIPTED: dict[str, tuple[str, str]] = {
 }
 """Scenario to the scripted driver's task kind and mode."""
 
-NO_MODEL = "no model: it offers no tools and sends no model request"
-NO_HISTORY = "keeps no call and return history: each step is computed from DriverInput alone"
-SCRIPTED_NOT_APPLICABLE = {
-    "tools.offered_equals_allowed": (
-        f"{NO_MODEL}; the calls it makes are checked by tools.calls_within_allowed"
-    ),
-    "deferred.mixed_turn_defers_write": (
-        "no model: its fixed code never asks for reads and a write in one step"
-    ),
-    "resume.rendering_marker": (
-        "declares neither snapshot nor restore: the kernel starts it fresh at its next turn "
-        "(continuation._restore_for_turn), so it has no snapshot to mark"
-    ),
-    "pack.stable_prefix_unchanged": f"{NO_MODEL}, so it renders no stable prefix",
-    "clearing.keeps_call_return_pairs": NO_HISTORY,
-    "clearing.not_while_pending": NO_HISTORY,
-    "findings.in_suffix_not_history": f"{NO_MODEL}, and it persists no history",
-    "repair.never_silent": "no model reply: each of its answers is a fixed, non-empty text",
-    "budget.tokens_respected": "makes no model call, so it spends no model tokens",
-    "hygiene.no_hidden_reasoning": "no model: it produces no reasoning and persists nothing",
+_NO_MODEL = (
+    "tools.offered_equals_allowed",
+    "deferred.write_returns_only_host_result",
+    "deferred.mixed_turn_defers_write",
+    "pack.only_pack_reaches_model",
+    "pack.stable_prefix_unchanged",
+    "clearing.cleared_is_not_sent",
+    "clearing.keeps_call_return_pairs",
+    "clearing.not_while_pending",
+    "findings.in_suffix_not_history",
+    "repair.never_silent",
+    "grounding.off_schemas_unchanged",
+    "hygiene.no_hidden_reasoning",
+)
+SCRIPTED_NOT_APPLICABLE: dict[str, NotApplicable] = {
+    **dict.fromkeys(_NO_MODEL, NotApplicable.NO_MODEL),
+    "resume.rendering_marker": NotApplicable.NO_CONTINUATION,
+    "budget.tokens_respected": NotApplicable.NO_TOKEN_SPEND,
 }
+"""The scripted driver's declarations; the suite checks each claim against its subject."""
 
 
 @dataclasses.dataclass
@@ -321,7 +321,7 @@ class ScriptedSubject:
 class ScriptedAdapter:
     world: World
     name: str = "scripted"
-    not_applicable: Mapping[str, str] = dataclasses.field(
+    not_applicable: Mapping[str, NotApplicable] = dataclasses.field(
         default_factory=lambda: dict(SCRIPTED_NOT_APPLICABLE)
     )
 
@@ -334,7 +334,7 @@ ADAPTERS: dict[str, Callable[[World], Any]] = {
     "pydantic-ai": PydanticAdapter,
     "scripted": ScriptedAdapter,
 }
-NOT_APPLICABLE: dict[str, Mapping[str, str]] = {
+NOT_APPLICABLE: dict[str, Mapping[str, NotApplicable]] = {
     "pydantic-ai": {},
     "scripted": SCRIPTED_NOT_APPLICABLE,
 }

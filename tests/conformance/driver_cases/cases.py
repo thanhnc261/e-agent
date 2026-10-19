@@ -30,7 +30,7 @@ from e_agent.sdk.ports import (
 )
 
 from . import world
-from .harness import DriverAdapter, ModelView, NoModel, Subject
+from .harness import DriverAdapter, NotApplicable, Subject
 from .world import (
     CREATE_DRAFT_PO,
     DRAFT_PO_TASK,
@@ -71,29 +71,39 @@ class Case:
     topic: str
     checks: str
     run: CaseRun
+    needs: frozenset[NotApplicable] = frozenset()
+    """The reasons a driver may declare this case not applicable for: what the case needs
+    of a driver. Empty: every driver runs it."""
 
 
 CASES: list[Case] = []
+MODEL = frozenset({NotApplicable.NO_MODEL})
 
 
-def case(case_id: str, checks: str) -> Callable[[CaseRun], CaseRun]:
+def case(
+    case_id: str, checks: str, needs: frozenset[NotApplicable] = frozenset()
+) -> Callable[[CaseRun], CaseRun]:
+    """Register a case. A case calls ``subject.views()`` only when ``needs`` holds
+    ``NO_MODEL``: `NoModel` is never caught, so a model-side check is either run or the
+    whole case is declared not applicable, never skipped inside the case."""
     topic = case_id.split(".", 1)[0]
     assert topic in TOPICS, f"{case_id}: unknown topic"
 
     def register(run: CaseRun) -> CaseRun:
         assert all(c.case_id != case_id for c in CASES), f"{case_id} registered twice"
-        CASES.append(Case(case_id, topic, checks, run))
+        CASES.append(Case(case_id, topic, checks, run, needs))
         return run
 
     return register
 
 
-def _views(subject: Subject) -> list[ModelView] | None:
-    """The subject's model views, or None for a driver without a model."""
-    try:
-        return subject.views()
-    except NoModel:
-        return None
+def _persisted(subject: Subject, run_id: str) -> str:
+    """What the driver persists for ``run_id``, as JSON. A driver with neither ``snapshot``
+    nor ``restore`` (the protocol's structural marker, checked by
+    ``resume.continuation_both_or_neither``) persists nothing."""
+    if not hasattr(subject.driver, "snapshot"):
+        return ""
+    return json.dumps(subject.snapshot(run_id))
 
 
 def _proposal(step: DriverStep) -> ProposeAction:
@@ -108,6 +118,7 @@ REPAIR_STEPS = (ProposeAction, ProposePlan, AskClarification)
 @case(
     "tools.offered_equals_allowed",
     "every model request offers exactly the run's allowed_capabilities as business tools",
+    MODEL,
 )
 async def offered_equals_allowed(adapter: DriverAdapter, w: World) -> None:
     subject = adapter.subject("shortage-off-tool")
@@ -153,19 +164,33 @@ async def reads_then_write(adapter: DriverAdapter, w: World) -> None:
     proposal = _proposal(steps[-1]).proposal
     assert proposal.contract_id == CREATE_DRAFT_PO
     assert w.effects[proposal.contract_id] is EffectKind.WRITE
-    before = _views(subject)
     final = await advance(subject.driver, run, host, action_result=VERIFIED)
     assert isinstance(final, FinalAnswer) and final.text.strip()
-    if before is not None:  # the write's return is the host's result, and only after it
-        last = (_views(subject) or [])[-1]
-        [write] = set(last.call_ids) - set(before[-1].call_ids)
-        assert last.returns[write] == VERIFIED
-        assert not any(write in view.return_ids for view in before)
+
+
+@case(
+    "deferred.write_returns_only_host_result",
+    "the model sees a proposed write's return only after the host's result, and it is that "
+    "result: nothing ran inside the framework",
+    MODEL,
+)
+async def write_return(adapter: DriverAdapter, w: World) -> None:
+    subject = adapter.subject("draft-po")
+    run = ctx("run-deferred-return")
+    host = Host(DRAFT_PO_TASK)
+    _proposal((await to_proposal(subject.driver, run, host))[-1])
+    before = subject.views()
+    await advance(subject.driver, run, host, action_result=VERIFIED)
+    last = subject.views()[-1]
+    [write] = set(last.call_ids) - set(before[-1].call_ids)
+    assert last.returns[write] == VERIFIED
+    assert not any(write in view.return_ids for view in before)
 
 
 @case(
     "deferred.mixed_turn_defers_write",
     "a write asked together with reads is not proposed until the reads have returned",
+    MODEL,
 )
 async def mixed_turn(adapter: DriverAdapter, w: World) -> None:
     subject = adapter.subject("mixed")
@@ -176,11 +201,10 @@ async def mixed_turn(adapter: DriverAdapter, w: World) -> None:
     assert {w.effects[read.contract_id] for read in first.reads} == {EffectKind.READ}
     second = await advance(subject.driver, run, host)
     assert _proposal(second).proposal.contract_id == CREATE_DRAFT_PO
-    views = _views(subject)
-    if views is not None:  # the early write was answered with a refusal, never run
-        early = set(views[1].call_ids) - {read.request_id for read in first.reads}
-        refused = [views[1].returns[call_id] for call_id in early]
-        assert refused and all("error" in r for r in refused), refused
+    views = subject.views()  # the early write was answered with a refusal, never run
+    early = set(views[1].call_ids) - {read.request_id for read in first.reads}
+    refused = [views[1].returns[call_id] for call_id in early]
+    assert refused and all("error" in r for r in refused), refused
 
 
 # --------------------------------------------------------------------------- resume
@@ -212,6 +236,7 @@ async def after_restart(adapter: DriverAdapter, w: World) -> None:
     "resume.rendering_marker",
     "a run that rendered a pack keeps rendering: pack through a restore and a later turn "
     "without one; a run that never did has no marker, and a restore changes nothing",
+    frozenset({NotApplicable.NO_CONTINUATION}),
 )
 async def rendering_marker(adapter: DriverAdapter, w: World) -> None:
     subject = adapter.subject("draft-po")
@@ -263,22 +288,35 @@ def _corrupted(observation: Observation) -> Observation:
     )
 
 
-@case(
-    "pack.only_pack_reaches_model",
-    "with a pack, the driver reads observations only from it: Observation.data never reaches "
-    "the model or the step, and each tool return is the pack's tool_return_text",
-)
-async def only_pack(adapter: DriverAdapter, w: World) -> None:
-    subject = adapter.subject("draft-po")
-    run = ctx("run-pack-only")
+async def _pack_run(subject: Subject, run_id: str) -> tuple[Host, list[DriverStep]]:
+    """A draft-po run rendered from packs, its observations handed `_corrupted`."""
+    run = ctx(run_id)
     host = Host(DRAFT_PO_TASK, packed=True, handed=_corrupted)
     steps = await to_proposal(subject.driver, run, host)
     steps.append(await advance(subject.driver, run, host, action_result=VERIFIED))
+    return host, steps
+
+
+@case(
+    "pack.steps_read_only_the_pack",
+    "with a pack, the driver's steps come from the pack: Observation.data never reaches a step",
+)
+async def steps_from_pack(adapter: DriverAdapter, w: World) -> None:
+    _, steps = await _pack_run(adapter.subject("draft-po"), "run-pack-steps")
     assert SENTINEL not in repr([shape(step) for step in steps])
     assert _proposal(steps[-2]).proposal.arguments["supplier_ref"] == "supplier:approved-co"
-    views = _views(subject)
-    if views is None:
-        return
+
+
+@case(
+    "pack.only_pack_reaches_model",
+    "with a pack, Observation.data never reaches the model, and each tool return is the "
+    "pack's tool_return_text",
+    MODEL,
+)
+async def only_pack(adapter: DriverAdapter, w: World) -> None:
+    subject = adapter.subject("draft-po")
+    host, _ = await _pack_run(subject, "run-pack-only")
+    views = subject.views()
     rendered = {o.evidence.evidence_id: tool_return_text(o) for o in host.packs[-1].observations}
     for view in views:
         assert SENTINEL not in view.sent
@@ -291,6 +329,7 @@ async def only_pack(adapter: DriverAdapter, w: World) -> None:
     "pack.stable_prefix_unchanged",
     "every request of a pack run has the same instructions, holding the stable prefix and "
     "never the dynamic suffix, which is the request's last user prompt",
+    MODEL,
 )
 async def stable_prefix(adapter: DriverAdapter, w: World) -> None:
     subject = adapter.subject("draft-po-repair")
@@ -312,31 +351,47 @@ async def stable_prefix(adapter: DriverAdapter, w: World) -> None:
 
 
 # ------------------------------------------------------------------------- clearing
-@case(
-    "clearing.cleared_is_not_read",
-    "a cleared observation is not read as a fact: its data reaches neither the model nor a "
-    "proposal",
-)
-async def cleared_not_read(adapter: DriverAdapter, w: World) -> None:
-    subject = adapter.subject("draft-po")
-    run = ctx("run-cleared")
-    host = Host(DRAFT_PO_TASK, packed=True)
+UNREAD = "supplier:unvetted-co"
+"""A value only in the offers read's data: never in a recorded proposal."""
+
+
+async def _cleared_run(subject: Subject, run_id: str) -> DriverStep:
+    """A pack run whose reads the pack clears on the turn they return, its observations
+    handed `_corrupted`."""
+    run = ctx(run_id)
+    host = Host(DRAFT_PO_TASK, packed=True, handed=_corrupted)
     await advance(subject.driver, run, host)
     step = await advance(subject.driver, run, host, pack_turn=host.turn + 9)
     assert all(o.truncated for o in host.packs[-1].observations), "the pack cleared nothing"
-    unread = "supplier:unvetted-co"  # only in the offers read's data
-    assert unread not in repr(shape(step))
-    views = _views(subject)
-    if views is None:  # no model: a proposal could only come from the cleared data
-        assert isinstance(step, FinalAnswer | AskClarification), f"proposed from it: {step!r}"
-    else:  # a model may still propose; it never saw the data
-        assert unread not in views[-1].sent
+    return step
+
+
+@case(
+    "clearing.cleared_is_not_read",
+    "a cleared observation's data reaches no step: neither the pack's cleared values nor "
+    "Observation.data",
+)
+async def cleared_not_read(adapter: DriverAdapter, w: World) -> None:
+    step = await _cleared_run(adapter.subject("draft-po"), "run-cleared")
+    assert UNREAD not in repr(shape(step)) and SENTINEL not in repr(shape(step))
+
+
+@case(
+    "clearing.cleared_is_not_sent",
+    "a cleared observation's data never reaches the model: the request holds the stub",
+    MODEL,
+)
+async def cleared_not_sent(adapter: DriverAdapter, w: World) -> None:
+    subject = adapter.subject("draft-po")
+    await _cleared_run(subject, "run-cleared-sent")
+    assert UNREAD not in subject.views()[-1].sent
 
 
 @case(
     "clearing.keeps_call_return_pairs",
     "clearing keeps every tool call and its return, ids and order unchanged, with the pack's "
     "stub as the return",
+    MODEL,
 )
 async def keeps_pairs(adapter: DriverAdapter, w: World) -> None:
     subject = adapter.subject("draft-po")
@@ -362,6 +417,7 @@ async def keeps_pairs(adapter: DriverAdapter, w: World) -> None:
     "clearing.not_while_pending",
     "while a write is pending nothing is cleared, even when the pack asks; the write's result "
     "ends the wait",
+    MODEL,
 )
 async def not_while_pending(adapter: DriverAdapter, w: World) -> None:
     subject = adapter.subject("draft-po-repair")
@@ -396,6 +452,7 @@ async def not_while_pending(adapter: DriverAdapter, w: World) -> None:
     "findings.in_suffix_not_history",
     "with a pack, a finding's text reaches the model in the request-only suffix, never in a "
     "tool return or the persisted history",
+    MODEL,
 )
 async def findings_in_suffix(adapter: DriverAdapter, w: World) -> None:
     subject = adapter.subject("draft-po-repair")
@@ -409,10 +466,10 @@ async def findings_in_suffix(adapter: DriverAdapter, w: World) -> None:
     assert text in view.prompts[-1]
     assert text not in json.dumps(view.returns, default=str)
     assert text not in "".join(view.prompts[:-1])
-    assert text not in json.dumps(subject.snapshot(run.run_id))
+    assert text not in _persisted(subject, run.run_id)
     await advance(subject.driver, run, host, action_result=VERIFIED)
     assert text not in subject.views()[-1].sent
-    assert text not in json.dumps(subject.snapshot(run.run_id))
+    assert text not in _persisted(subject, run.run_id)
 
 
 # --------------------------------------------------------------------------- repair
@@ -433,6 +490,7 @@ async def repair(adapter: DriverAdapter, w: World) -> None:
 @case(
     "repair.never_silent",
     "a reply with no public content after a finding is a clarification, never an empty answer",
+    MODEL,
 )
 async def never_silent(adapter: DriverAdapter, w: World) -> None:
     for packed in (False, True):
@@ -502,7 +560,22 @@ async def grounding_off(adapter: DriverAdapter, w: World) -> None:
         step = _proposal((await to_proposal(subject.driver, run, Host(task)))[-1])
         _no_envelope_arguments(step)
         assert step.proposal.citations == () and step.proposal.rationale is None
-        for view in _views(subject) or []:
+
+
+@case(
+    "grounding.off_schemas_unchanged",
+    "with grounding off, no tool the model is offered has a citations or rationale field",
+    MODEL,
+)
+async def grounding_off_schemas(adapter: DriverAdapter, w: World) -> None:
+    for scenario, task, writes in (
+        ("shortage-cited", SHORTAGE_TASK, 0),
+        ("draft-po-rationale", DRAFT_PO_TASK, 1),
+    ):
+        subject = adapter.subject(scenario)
+        run = ctx(f"run-off-schemas-{scenario}", max_admitted_writes=writes)
+        await to_proposal(subject.driver, run, Host(task))
+        for view in subject.views():
             for schema in view.schemas.values():
                 assert not {"citations", "rationale"} & set(schema.get("properties", {}))
 
@@ -528,6 +601,7 @@ async def mode_per_call(adapter: DriverAdapter, w: World) -> None:
     "budget.tokens_respected",
     "once the run's model tokens reach max_model_tokens, every turn raises "
     "DriverBudgetExceeded without another model request",
+    frozenset({NotApplicable.NO_TOKEN_SPEND}),
 )
 async def tokens(adapter: DriverAdapter, w: World) -> None:
     subject = adapter.subject("draft-po")
@@ -556,6 +630,7 @@ async def tokens(adapter: DriverAdapter, w: World) -> None:
     "hygiene.no_hidden_reasoning",
     "thinking parts and reasoning tags reach no step, no persisted snapshot and no later "
     "request, with and without a pack",
+    MODEL,
 )
 async def no_reasoning(adapter: DriverAdapter, w: World) -> None:
     from .adapters import SECRET_TAG, SECRET_THINKING
@@ -567,7 +642,7 @@ async def no_reasoning(adapter: DriverAdapter, w: World) -> None:
         steps = await to_proposal(subject.driver, run, host)
         steps.append(await advance(subject.driver, run, host, action_result=VERIFIED))
         assert isinstance(steps[-1], FinalAnswer) and steps[-1].text.strip()
-        persisted = json.dumps(subject.snapshot(run.run_id))
+        persisted = _persisted(subject, run.run_id)
         for secret in (SECRET_THINKING, SECRET_TAG, "<think>"):
             assert secret not in repr([shape(s) for s in steps])
             assert secret not in persisted
