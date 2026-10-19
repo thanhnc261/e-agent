@@ -6,7 +6,8 @@ already knows, and otherwise only as its ``jcs-sha256-v1`` digest under a key th
 
 - a rationale's ``goal_ref`` when it is ``run`` or the run's task definition ``id@version``
   (`known_goals`), else ``goal_ref_digest`` (`goal_at_rest`);
-- its evidence and rule ids the check resolved, in order, else only their digests under
+- its evidence and rule ids the check resolved, in order, a ``KERNEL-*`` rule id only when
+  it is one the kernel emits (`KERNEL_FINDING_IDS`), else only their digests under
   ``unresolved_evidence_digests`` and ``unresolved_rule_digests``, left out when empty and
   never mixed into the id lists (`refs_at_rest`);
 - a citation's evidence id and pointer when they named a value of this run's evidence,
@@ -31,9 +32,48 @@ from e_agent.contracts.run import RunRecord
 from e_agent.contracts.validation import Finding
 from e_agent.sdk.ports import DriverInput
 
+from .context import KERNEL_RULE_PREFIX
 from .continuation import _Continuation
 
 RUN_GOAL = "run"
+KERNEL_FINDING_IDS = frozenset(
+    {
+        "KERNEL-ACCEPTANCE",
+        "KERNEL-ARGS",
+        "KERNEL-ARGUMENTS-CHANGED",
+        "KERNEL-CITATION",
+        "KERNEL-CONNECTION",
+        "KERNEL-EVIDENCE",
+        "KERNEL-GROUNDED-ANSWER",
+        "KERNEL-NO-VALIDATOR",
+        "KERNEL-PLAN-ANSWER-STEP",
+        "KERNEL-PLAN-CAPABILITY",
+        "KERNEL-PLAN-DIGEST-MISMATCH",
+        "KERNEL-PLAN-LINEAGE",
+        "KERNEL-PLAN-READ-STEP",
+        "KERNEL-PLAN-STEP-CHANGED",
+        "KERNEL-PLAN-STEP-UNVALIDATABLE",
+        "KERNEL-PLAN-STRUCTURE",
+        "KERNEL-PLAN-TASK",
+        "KERNEL-PLAN-UNKNOWN-CAPABILITY",
+        "KERNEL-PLAN-UNSUPPORTED",
+        "KERNEL-PLAN-WRITES",
+        "KERNEL-PROPOSAL-KIND",
+        "KERNEL-RATIONALE",
+        "KERNEL-REPEAT",
+        "KERNEL-STALE",
+        "KERNEL-VALIDATOR-ERROR",
+        "KERNEL-VERIFICATION",
+        "KERNEL-VERIFIER",
+    }
+)
+"""Every finding rule id the kernel emits (review R1-1). The check resolves any
+``KERNEL-*`` rule id by its prefix, so the prefix alone is no repair; at rest only these
+are stored verbatim, and ``KERNEL-buyer@example.com`` is stored as its digest. Most of these
+ids are literals at their emitting sites, and the modules that name one as a constant
+(rationale, grounding, grounded_answer) import this module, so the set cannot import them
+and is written here. ``tests/unit/kernel/test_at_rest.py`` fails when a kernel module emits
+an id that is not in it, or when it holds one that no module emits."""
 
 Repair = Callable[
     [RunRecord, _Continuation, tuple[Finding, ...]], Awaitable[RunRecord | DriverInput]
@@ -46,6 +86,12 @@ def known_goals(task_id: str | None, task_version: str | None) -> frozenset[str]
     if task_id is None:
         return frozenset({RUN_GOAL})
     return frozenset({RUN_GOAL, f"{task_id}@{task_version}"})
+
+
+def rule_stored(rule_id: str) -> bool:
+    """Whether a resolved rule id may be stored verbatim: an inventory rule (the registry
+    refuses an inventory id with the kernel prefix), or a kernel finding id the kernel emits."""
+    return not rule_id.startswith(KERNEL_RULE_PREFIX) or rule_id in KERNEL_FINDING_IDS
 
 
 def goal_at_rest(goal_ref: str, goals: Collection[str]) -> dict[str, str]:

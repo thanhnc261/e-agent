@@ -60,7 +60,14 @@ from e_agent.contracts.validation import Finding, ValidationStatus
 from e_agent.sdk.ports import DriverInput
 from e_agent.sdk.store import EventSpec
 
-from .at_rest import finding_at_rest, goal_at_rest, known_goals, refs_at_rest, repair_at_rest
+from .at_rest import (
+    finding_at_rest,
+    goal_at_rest,
+    known_goals,
+    refs_at_rest,
+    repair_at_rest,
+    rule_stored,
+)
 from .context import KERNEL_RULE_PREFIX
 from .continuation import _Continuation
 from .grounded_answer import GroundedAnswerMixin
@@ -92,9 +99,10 @@ Entry = tuple[str | None, ProposalRationale]
 def at_rest(rationale: ProposalRationale, result: RationaleResult) -> dict[str, Any]:
     """The stored form (owner G2, Task 3.R1): codes and a digest of each model-authored text;
     the goal verbatim only when ``result`` knows it, and the evidence and rule ids verbatim
-    only when they resolved, else only their digests (`kernel/at_rest.py`)."""
+    only when they resolved (a ``KERNEL-*`` id only when the kernel emits it), else only
+    their digests (`kernel/at_rest.py`)."""
     evidence = {ref for ref, ok in result.evidence if ok}
-    rules = {ref for ref, ok in result.rules if ok}
+    rules = {ref for ref, ok in result.rules if ok and rule_stored(ref)}  # review R1-1
     return {
         **goal_at_rest(rationale.goal_ref, result.goals),
         **refs_at_rest(

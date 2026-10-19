@@ -13,8 +13,11 @@ into a ref. Runs over both stores through the ``run_store`` fixture (ENG-STORE-1
 
 from __future__ import annotations
 
+import ast
 import json
+import re
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -29,9 +32,10 @@ from e_agent.contracts.grounding import (
     Citation,
     ProposalRationale,
 )
+from e_agent.contracts.plan import ActionPlan
 from e_agent.contracts.run import RunState
 from e_agent.contracts.validation import Finding, ValidationStatus
-from e_agent.kernel import at_rest, grounding, rationale
+from e_agent.kernel import at_rest, grounded_answer, grounding, progress, rationale, repeat
 from e_agent.kernel.evidence import build_evidence, run_explanation
 from e_agent.kernel.explain import explain
 from e_agent.kernel.progress import project_progress
@@ -39,10 +43,11 @@ from e_agent.kernel.reconstruct import reconstruct
 from e_agent.sdk.ports import Observation
 from pydantic import ValidationError
 
-from .conftest import READ, TENANT, Kernel
+from .conftest import FIRST, FOLLOW_UP, NOTES_TASK, PLAN_BUDGETS, READ, TENANT, Kernel
 from .test_grounded_answer import GroundedDriver
 from .test_grounding import CitingDriver, _evidence
-from .test_rationale import RationaleDriver
+from .test_rationale import SCHEMAS as PLAN_SCHEMAS
+from .test_rationale import PlanRationaleDriver, RationaleDriver, _plan
 
 MakeKernel = Callable[..., Kernel]
 ON = Features(grounded_answers=FeatureMode.ON)
@@ -416,3 +421,135 @@ async def test_grounded_answer_unresolved_citation_is_a_digest(make_kernel: Make
     (final,) = _of(events, RunEventType.MESSAGE_FINAL)
     assert [c["pointer"] for c in final.payload["citations"]] == ["/count"]
     _absent(await _persisted(k, run.run_id, ON), PHONE)
+
+
+# -- review R1-1: a KERNEL-* rule id is verbatim only when the kernel emits it ---------------
+KERNEL_VALUE = "KERNEL-" + EMAIL  # resolves by the prefix, names nothing the kernel emits
+GOAL_VALUE = "so00042@1"  # a pattern like id@version would admit it
+
+
+def _emitted_kernel_ids() -> set[str]:
+    """Every ``KERNEL-*`` rule id literal in the product code, outside the set's own module."""
+    pattern = re.compile(r"KERNEL-[A-Z][A-Z0-9-]*")
+    root = Path(at_rest.__file__).resolve().parents[1]  # src/e_agent
+    found: set[str] = set()
+    sources = [p for p in root.rglob("*.py") if p.resolve() != Path(at_rest.__file__).resolve()]
+    for path in sources:
+        for node in ast.walk(ast.parse(path.read_text())):
+            text = node.value if isinstance(node, ast.Constant) else None
+            if isinstance(text, str) and pattern.fullmatch(text):
+                found.add(text)
+    print(f"kernel finding ids: {len(found)} emitted in {len(sources)} modules")
+    return found
+
+
+def test_kernel_finding_ids_are_the_ids_the_kernel_emits() -> None:
+    """The closed set equals the ``KERNEL-*`` rule ids the product code emits: a new kernel
+    finding missing from it, or a stale entry, fails here."""
+    emitted = _emitted_kernel_ids()
+    assert len(emitted) >= 20  # an empty or broken scan is a failure, never a pass
+    assert emitted == set(at_rest.KERNEL_FINDING_IDS)
+    named = {
+        rationale.KERNEL_RATIONALE,
+        grounding.KERNEL_CITATION,
+        repeat.KERNEL_REPEAT,
+        grounded_answer.KERNEL_GROUNDED_ANSWER,
+        progress.REPAIR_RULE_ID,
+    }
+    assert named <= at_rest.KERNEL_FINDING_IDS
+
+
+def test_kernel_prefix_alone_is_stored_as_a_digest() -> None:
+    """The check is unchanged: the prefix resolves the id, so there is no repair finding.
+    At rest only a kernel finding id the kernel emits is verbatim."""
+    r = _rationale("run", (), (KERNEL_VALUE, "KERNEL-RATIONALE", "NOTE-001"))
+    result = rationale.check_rationale([r], set(), {"NOTE-001"}, frozenset({"run"}))
+    assert result.resolved and result.findings() == ()
+    assert result.counts().rules.resolved == 3
+    stored = rationale.at_rest(r, result)
+    assert stored["rules_considered"] == ["KERNEL-RATIONALE", "NOTE-001"]
+    assert stored["unresolved_rule_digests"] == [digest(KERNEL_VALUE)]
+    _absent({"stored": json.dumps(stored)}, EMAIL)
+
+
+@pytest.mark.parametrize("features", [SHADOW, ON], ids=["shadow", "on"])
+async def test_kernel_value_rule_id_is_a_digest_at_rest(
+    make_kernel: MakeKernel, features: Features
+) -> None:
+    def make(obs: Observation, attempt: int) -> ProposalRationale:
+        return _rationale("run", (obs.evidence.evidence_id,), (KERNEL_VALUE,))
+
+    k = make_kernel(features=features, driver=RationaleDriver(make))
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+
+    assert run.state is RunState.WAITING_APPROVAL, run.reason
+    events = await _events(k, run.run_id)
+    assert _repairs(events) == []  # the prefix still resolves: no new repair finding
+    (created,) = _of(events, RunEventType.PROPOSAL_CREATED)
+    stored = created.payload["rationale"]
+    assert (stored["rules_considered"], stored["unresolved_rule_digests"]) == (
+        [],
+        [digest(KERNEL_VALUE)],
+    )
+    _absent(await _persisted(k, run.run_id, features), EMAIL)
+
+
+# -- review R1-2: a plan's step rationales ---------------------------------------------------
+PLAN_SHADOW = Features(execution_ir=FeatureMode.ON, grounded_answers=FeatureMode.SHADOW)
+PLAN_ON = Features(execution_ir=FeatureMode.ON, grounded_answers=FeatureMode.ON)
+
+
+@pytest.mark.parametrize("features", [PLAN_SHADOW, PLAN_ON], ids=["shadow", "on"])
+async def test_plan_step_rationale_refs_are_digests_at_rest(
+    make_kernel: MakeKernel, features: Features
+) -> None:
+    """Each step of a two-step plan names a value-shaped goal, a phone-number evidence id
+    (first attempt only) and a ``KERNEL-`` rule id holding an email. ``step_rationales`` in
+    ``proposal.created`` holds only their digests, in ``shadow`` and ``on``; in ``on`` the
+    unresolved evidence id is a repair recorded as its digest."""
+    attempts: list[int] = []
+
+    def build(obs: Observation) -> ActionPlan:
+        attempts.append(1)
+        evidence = (PHONE,) if len(attempts) == 1 else (obs.evidence.evidence_id,)
+        step = _rationale(GOAL_VALUE, evidence, (KERNEL_VALUE,))
+        return _plan(obs, plan=None, step=step)
+
+    driver = PlanRationaleDriver(build=build)
+    k = make_kernel(
+        features=features, budgets=PLAN_BUDGETS, driver=driver, input_schemas=PLAN_SCHEMAS
+    )
+    run = await k.coordinator.start_run(
+        k.requester, "write standup note", k.scope, task_kind=NOTES_TASK.task_id
+    )
+
+    assert run.state is RunState.WAITING_APPROVAL, run.reason
+    events = await _events(k, run.run_id)
+    (created,) = _of(events, RunEventType.PROPOSAL_CREATED)
+    assert "rationale" not in created.payload  # the plan has none of its own
+    steps = created.payload["step_rationales"]
+    assert set(steps) == {FIRST, FOLLOW_UP}
+    cont = await k.coordinator._load_cont(TENANT, run.run_id)
+    evidence_id = next(iter(cont.observations.values())).evidence.evidence_id
+    for stored in steps.values():
+        assert "goal_ref" not in stored and stored["goal_ref_digest"] == digest(GOAL_VALUE)
+        assert stored["rules_considered"] == []
+        assert stored["unresolved_rule_digests"] == [digest(KERNEL_VALUE)]
+        if features is PLAN_SHADOW:
+            assert stored["cited_evidence"] == []
+            assert stored["unresolved_evidence_digests"] == [digest(PHONE)]
+        else:
+            assert stored["cited_evidence"] == [evidence_id]
+            assert "unresolved_evidence_digests" not in stored
+    if features is PLAN_ON:
+        repairs = _repairs(events)
+        assert [(f["rule_id"], f["observed"], f["evidence_ids"]) for f in repairs] == [
+            (rationale.KERNEL_RATIONALE, digest(PHONE), [])
+        ] * 2
+    else:
+        assert _repairs(events) == []
+    refs = (await run_explanation(k.store, TENANT, run.run_id)).proposals[0].rationales
+    assert {r.step_id for r in refs} == {FIRST, FOLLOW_UP}
+    assert all(r.goal_ref is None and r.goal_ref_digest == digest(GOAL_VALUE) for r in refs)
+    assert all(r.unresolved_rule_digests == (digest(KERNEL_VALUE),) for r in refs)
+    _absent(await _persisted(k, run.run_id, features), GOAL_VALUE, PHONE, EMAIL)
