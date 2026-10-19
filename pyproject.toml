@@ -143,6 +143,7 @@ source_modules = [
     "e_agent.kernel.explain",
     "e_agent.kernel.features",
     "e_agent.kernel.gateway",
+    "e_agent.kernel.grounding",
     "e_agent.kernel.ir",
     "e_agent.kernel.ir_on",
     "e_agent.kernel.memory_store",

@@ -1,0 +1,400 @@
+"""``features.grounded_answers`` for typed answers: checked citations (ADR 0033 §1, §2, §5,
+Task 3e.1, Review Focus 5 and 7).
+
+**The check** (`check_citations`, pure). A citation resolves when its ``evidence_id`` names
+an observation of **this run** (the observations passed in, which the kernel takes from the
+run's continuation only, never from the store or the tenant: Review Focus 5, threat T6), its
+RFC 6901 ``pointer`` exists in that observation's ``data``, and the value there equals the
+cited value: equal ``jcs-sha256-v1`` digests (ADR 0006), with every JSON number written as
+its canonical decimal string first, as the context pack renders it (``number_text``). A
+pointer that names nothing, or is not RFC 6901, is unresolved. The check makes no provider
+read and no model call.
+
+**The answer path** (`_handle_answer`, per the run's pinned mode, `_run_modes`):
+
+- ``off``: today. Citations are dropped: nothing is checked, recorded or stored.
+- ``shadow``: the answer goes to its verifier as today. Its own write (``proposal.created``)
+  carries the citations at rest and ``grounding.compared`` (counts and per-citation
+  verdicts), so the run's revision is today's. A check error records
+  ``grounding.shadow_failed`` with its stage and a fixed message instead, and changes
+  nothing else.
+- ``on``: before the answer's action exists and before its verifier reads, an unresolved or
+  mismatched citation is the repair finding ``KERNEL-CITATION`` (one per citation, its
+  evidence id and pointer, never a value), recorded in ``validation.completed`` with no
+  action id and returned within ``max_validation_repairs`` (`_repair_finding`). When every
+  citation resolves the answer takes today's path and its verifier decides (PR-19).
+
+**At rest** a citation is ``evidence_id``, ``pointer`` and ``value_digest``, never the value
+(PR-26), under ``citations`` in ``proposal.created``, only for a run pinned ``shadow`` or
+``on`` with at least one checked citation. ``ActionRecord`` gains no field, and the domain
+answer's arguments never hold the citations.
+
+**Failure** (ADR 0027): a check that cannot run in ``on`` records ``feature.fallback``
+``GROUNDING_CHECK_FAILED`` before the run's first reservation (no ``action.reserved``
+event), and the answer goes to its verifier as today with its citations dropped; after one,
+the run fails closed with ``GROUNDING_UNAVAILABLE``, in reconciliation while a reservation
+is unresolved (`_end_closed`). No event carries exception text, a cited value or an
+observed value.
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
+from enum import StrEnum
+from types import MappingProxyType
+from typing import Any
+
+from e_agent.contracts.action import ActionRecord, ActionState
+from e_agent.contracts.common import new_id
+from e_agent.contracts.data_classes import parse_pointer
+from e_agent.contracts.digest import CanonicalizationError, digest
+from e_agent.contracts.events import RunEventType
+from e_agent.contracts.features import FeatureMode
+from e_agent.contracts.grounding import Citation
+from e_agent.contracts.outcome import OutcomeReport, OutcomeStatus
+from e_agent.contracts.plan import ActionProposal
+from e_agent.contracts.run import ReasonCode, RunRecord, RunState
+from e_agent.contracts.validation import Finding, ValidationStatus
+from e_agent.sdk.ports import DriverInput, Observation
+from e_agent.sdk.store import EventSpec
+
+from .approval import compute_digest
+from .context_walk import _plain
+from .continuation import _Continuation, _GatewayReader
+from .errors import KernelError
+from .reconstruct import proposal_keys
+from .repeat import INVALID_DIGEST, RepeatMixin
+from .verification import outcome_payload
+
+KERNEL_CITATION = "KERNEL-CITATION"
+
+
+class CitationStatus(StrEnum):
+    RESOLVED = "resolved"
+    UNRESOLVED = "unresolved"
+    """No observation of this run has the evidence id, or its data has no value at the
+    pointer (or the pointer is not RFC 6901)."""
+    MISMATCHED = "mismatched"
+    """The value at the pointer is not the cited value."""
+
+
+CITATION_MESSAGES = MappingProxyType(
+    {
+        CitationStatus.UNRESOLVED: "This citation names no evidence of this run, or no value "
+        "at its pointer; cite a value this run read.",
+        CitationStatus.MISMATCHED: "The cited value is not the value at the pointer in the "
+        "cited evidence.",
+    }
+)
+"""The fixed message of each ``KERNEL-CITATION`` repair finding, by status."""
+GROUNDING_SHADOW_MESSAGE = "The grounding check could not run."
+"""The fixed ``grounding.shadow_failed`` message of the ``check`` stage."""
+
+_INDEX = re.compile(r"0|[1-9][0-9]*")
+_MISSING = object()
+
+
+def value_digest(value: Any) -> str:
+    """The ``jcs-sha256-v1`` digest of a JSON value, every number as its canonical decimal
+    string (ADR 0006). Raises `KernelError` or `CanonicalizationError` for a value outside
+    the profile."""
+    return digest(_plain(value))
+
+
+def _value_at(data: Any, pointer: str) -> Any:
+    """The value at an RFC 6901 pointer, or ``_MISSING``."""
+    if pointer == "":
+        return data
+    try:
+        tokens = parse_pointer(pointer)
+    except ValueError:
+        return _MISSING
+    node = data
+    for token in tokens:
+        if isinstance(node, Mapping):
+            if token not in node:
+                return _MISSING
+            node = node[token]
+        elif isinstance(node, list | tuple):
+            if not _INDEX.fullmatch(token) or int(token) >= len(node):
+                return _MISSING
+            node = node[int(token)]
+        else:
+            return _MISSING
+    return node
+
+
+@dataclass(frozen=True)
+class CitationVerdict:
+    """One citation's verdict, holding no value: its evidence id, pointer and value digest
+    (``invalid`` for a value outside the digest profile)."""
+
+    evidence_id: str
+    pointer: str
+    value_digest: str
+    status: CitationStatus
+
+    def at_rest(self) -> dict[str, str]:
+        return {
+            "evidence_id": self.evidence_id,
+            "pointer": self.pointer,
+            "value_digest": self.value_digest,
+        }
+
+
+@dataclass(frozen=True)
+class GroundingResult:
+    """The verdicts of a proposal's citations, in citation order."""
+
+    verdicts: tuple[CitationVerdict, ...]
+
+    @property
+    def grounded(self) -> bool:
+        """Whether every citation resolved (vacuously, when there is none)."""
+        return all(v.status is CitationStatus.RESOLVED for v in self.verdicts)
+
+    def counts(self) -> dict[str, int]:
+        statuses = [v.status for v in self.verdicts]
+        return {
+            "cited": len(statuses),
+            **{status.value: statuses.count(status) for status in CitationStatus},
+        }
+
+    def at_rest(self) -> list[dict[str, str]]:
+        return [v.at_rest() for v in self.verdicts]
+
+    def findings(self) -> tuple[Finding, ...]:
+        """One ``KERNEL-CITATION`` per citation that did not resolve: the evidence id and
+        the pointer, never a value (ADR 0032 §5)."""
+        return tuple(
+            Finding(
+                rule_id=KERNEL_CITATION,
+                rule_version="1",
+                status=ValidationStatus.FAIL,
+                message=CITATION_MESSAGES[v.status],
+                observed=v.pointer,
+                evidence_ids=(v.evidence_id,),
+            )
+            for v in self.verdicts
+            if v.status is not CitationStatus.RESOLVED
+        )
+
+
+def _verdict(by_id: Mapping[str, list[Observation]], citation: Citation) -> CitationVerdict:
+    def verdict(status: CitationStatus, cited: str) -> CitationVerdict:
+        return CitationVerdict(citation.evidence_id, citation.pointer, cited, status)
+
+    try:
+        cited = value_digest(citation.value)
+    except (KernelError, CanonicalizationError):
+        return verdict(CitationStatus.MISMATCHED, INVALID_DIGEST)  # equals no stored value
+    found = [_value_at(o.data, citation.pointer) for o in by_id.get(citation.evidence_id, ())]
+    found = [value for value in found if value is not _MISSING]
+    if not found:
+        return verdict(CitationStatus.UNRESOLVED, cited)
+    for value in found:
+        try:
+            if value_digest(value) == cited:
+                return verdict(CitationStatus.RESOLVED, cited)
+        except (KernelError, CanonicalizationError):
+            continue  # a provider value outside the profile equals no cited value
+    return verdict(CitationStatus.MISMATCHED, cited)
+
+
+def check_citations(
+    observations: Iterable[Observation], citations: Iterable[Citation]
+) -> GroundingResult:
+    """Each citation's verdict against ``observations``: the caller passes this run's
+    continuation observations, so evidence of another run never resolves (Review Focus 5).
+    Pure: no provider read, no model call."""
+    by_id: dict[str, list[Observation]] = {}
+    for observation in observations:
+        by_id.setdefault(observation.evidence.evidence_id, []).append(observation)
+    return GroundingResult(tuple(_verdict(by_id, c) for c in citations))
+
+
+@dataclass(frozen=True)
+class GroundingProbe:
+    """What the check found before the answer's action: the mode it acts in (``off`` when
+    nothing is recorded or stored), its result, and whether a shadow check failed."""
+
+    mode: FeatureMode
+    result: GroundingResult | None = None
+    failed: bool = False
+
+    def stored(self) -> dict[str, Any]:
+        """The ``proposal.created`` key: the at-rest citations, when any were checked."""
+        if self.mode is FeatureMode.OFF or self.result is None or not self.result.verdicts:
+            return {}
+        return {"citations": self.result.at_rest()}
+
+    def events(self, action_id: str) -> list[EventSpec]:
+        """``shadow`` only: the answer's ``grounding.compared``, or
+        ``grounding.shadow_failed``; written with its ``proposal.created``."""
+        if self.mode is not FeatureMode.SHADOW:
+            return []
+        if self.failed or self.result is None:
+            payload: dict[str, Any] = {"stage": "check", "message": GROUNDING_SHADOW_MESSAGE}
+            return [(RunEventType.GROUNDING_SHADOW_FAILED, payload, action_id)]
+        payload = {
+            **self.result.counts(),
+            "verdicts": [v.status.value for v in self.result.verdicts],
+        }
+        return [(RunEventType.GROUNDING_COMPARED, payload, action_id)]
+
+
+class GroundingMixin(RepeatMixin):
+    async def _grounding_probe(
+        self, run: RunRecord, cont: _Continuation, citations: tuple[Citation, ...]
+    ) -> GroundingProbe | RunRecord | DriverInput:
+        """Check a typed answer's citations before its action exists. A `GroundingProbe`
+        continues today's path; in ``on`` a citation that does not resolve returns its
+        ``KERNEL-CITATION`` repair, and a check that cannot run after a reservation returns
+        the closed run."""
+        mode = self._run_modes(cont).grounded_answers
+        if mode is FeatureMode.OFF:
+            return GroundingProbe(FeatureMode.OFF)  # dropped, never stored
+        try:
+            result = check_citations(cont.observations.values(), citations)
+        except Exception:  # no exception text reaches an event (PR-25, PR-28)
+            if mode is FeatureMode.SHADOW:
+                return GroundingProbe(mode, failed=True)
+            events = await self._store.list_events(run.tenant_id, run.run_id)
+            if any(e.type is RunEventType.ACTION_RESERVED for e in events):
+                return await self._end_closed(run, ReasonCode.GROUNDING_UNAVAILABLE)
+            current = await self._store.get_run(run.tenant_id, run.run_id)
+            await self.record_fallback(
+                current, "grounded_answers", ReasonCode.GROUNDING_CHECK_FAILED
+            )
+            return GroundingProbe(FeatureMode.OFF)  # verified as today, citations dropped
+        if mode is FeatureMode.ON and not result.grounded:
+            cont.findings = result.findings()
+            current = await self._store.get_run(run.tenant_id, run.run_id)
+            return await self._repair_finding(current, cont, cont.findings)
+        return GroundingProbe(mode, result)
+
+    async def _handle_answer(
+        self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
+    ) -> RunRecord | DriverInput:
+        """Structured answers: no approval or dispatch; the domain verifier recomputes
+        the answer from fresh, independent reads. Its citations are checked first, per the
+        run's pinned ``grounded_answers`` mode (`_grounding_probe`)."""
+        ctx = cont.ctx
+        try:  # as a write proposal: a repair finding, never an exception (2c.8c)
+            connection = self._connections.usable(ctx, proposal.connection_id)
+        except KernelError:
+            return await self._connection_refused(run, cont)
+        verifier = self._registry.verifier_for(proposal.contract_id)
+        if verifier is None:  # it can never be verified: fail, never claim it (review P-1)
+            return await self._no_verifier(run)
+        probe = await self._grounding_probe(run, cont, proposal.citations)
+        if not isinstance(probe, GroundingProbe):  # `on`: KERNEL-CITATION, or closed
+            return probe
+        try:
+            action_digest = compute_digest(
+                {"contract_id": proposal.contract_id, "arguments": dict(proposal.arguments)}
+            )
+        except CanonicalizationError:
+            action_digest = INVALID_DIGEST
+        if await self._repeats_verified_answer(
+            cont, proposal, connection.connection_id, action_digest
+        ):
+            return await self._finish_verified(
+                cont, (), "The structured answer was independently verified.", acknowledge=False
+            )
+        action = ActionRecord(
+            action_id=new_id("act"),
+            tenant_id=ctx.tenant_id,
+            run_id=run.run_id,
+            logical_operation_id=run.logical_operation_id,
+            contract_id=proposal.contract_id,
+            binding_id="answer",
+            connection_id=connection.connection_id,
+            connection_version=connection.version,
+            credential_subject=connection.credential_subject(),
+            arguments=dict(proposal.arguments),
+            digest=action_digest,
+            state=ActionState.PROPOSED,
+            revision=1,
+            supersedes_action_id=cont.last_action_id,
+        )
+        await self._store.put_action(
+            action,
+            None,
+            [
+                (
+                    RunEventType.PROPOSAL_CREATED,
+                    {
+                        "contract_id": action.contract_id,
+                        "arguments": action.arguments,
+                        "kind": "answer",
+                        "supersedes": cont.last_action_id,
+                        **proposal_keys(action),
+                        **probe.stored(),  # ADR 0033 §1: shadow and on only
+                    },
+                    action.action_id,
+                ),
+                *probe.events(action.action_id),
+            ],
+        )
+        cont.last_action_id = action.action_id
+        action = await self._transition(action, ActionState.VALIDATED)
+        reader = _GatewayReader(self, cont, connection.connection_id)
+        try:
+            report = await verifier.verify(ctx, action, None, reader)
+        except Exception as exc:  # verification unavailable: never claim the answer
+            report = OutcomeReport(
+                run_id=ctx.run_id,
+                action_id=action.action_id,
+                status=OutcomeStatus.UNKNOWN,
+                checks=(),
+                verifier_id=verifier.verifier_id,
+                verifier_version=type(exc).__name__,
+                reported_at=self._clock(),
+            )
+        report = self._kept(report)
+        verified = report.status is OutcomeStatus.VERIFIED
+        target = ActionState.VERIFIED if verified else ActionState.VERIFICATION_FAILED
+        await self._store.record_outcome(
+            ctx.tenant_id,
+            report,
+            action.model_copy(update={"state": target, "revision": action.revision + 1}),
+            action.revision,
+            [(RunEventType.OUTCOME_REPORTED, outcome_payload(report, target), action.action_id)],
+        )
+        if verified:
+            return DriverInput(
+                task=run.task,
+                observations=tuple(cont.observations.values()),
+                action_result={"status": "VERIFIED"},
+            )
+        run = await self._store.get_run(run.tenant_id, run.run_id)
+        if cont.repairs >= ctx.budgets.max_validation_repairs:
+            return await self._set_run_state(
+                run, RunState.FAILED, "answer not verified", code=ReasonCode.VERIFICATION_FAILED
+            )
+        cont.repairs += 1
+        findings = tuple(
+            Finding(
+                rule_id=f"VERIFY-{c.name}",
+                rule_version="1",
+                status=ValidationStatus.FAIL,
+                message=f"answer check {c.name} failed",
+                expected=c.expected,
+                observed=c.observed,
+            )
+            for c in report.checks
+            if not c.passed
+        ) or (
+            Finding(
+                rule_id="VERIFY",
+                rule_version="1",
+                status=ValidationStatus.UNKNOWN,
+                message="answer could not be verified",
+            ),
+        )
+        return DriverInput(
+            task=run.task, observations=tuple(cont.observations.values()), findings=findings
+        )

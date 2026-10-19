@@ -826,7 +826,9 @@
           "context.shadow_failed",
           "context.assembled",
           "repeat.compared",
-          "repeat.shadow_failed"
+          "repeat.shadow_failed",
+          "grounding.compared",
+          "grounding.shadow_failed"
         ],
         "title": "RunEventType",
         "type": "string"

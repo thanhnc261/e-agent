@@ -1,4 +1,5 @@
-"""Proposal and answer handling and validation (Phase 1 split of coordinator.py)."""
+"""Proposal handling and validation (Phase 1 split of coordinator.py). Typed answers are
+handled in `grounding.py`, with their citation check (ADR 0033, Task 3e.1)."""
 
 from __future__ import annotations
 
@@ -13,7 +14,6 @@ from e_agent.contracts.context import TaskContext
 from e_agent.contracts.digest import CanonicalizationError
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import ApprovedFact, Completeness
-from e_agent.contracts.outcome import OutcomeReport, OutcomeStatus
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.run import (
     ReasonCode,
@@ -34,8 +34,9 @@ from .approval import (
     fact_digest,
 )
 from .context import KERNEL_RULE_PREFIX
-from .continuation import _Continuation, _GatewayReader
+from .continuation import _Continuation
 from .errors import KernelError
+from .grounding import GroundingMixin
 from .ir import StepDigestContext
 from .ir_on import _fixed
 from .reconstruct import proposal_keys
@@ -44,10 +45,8 @@ from .repeat import (
     EVIDENCE_BUNDLE,
     INVALID_DIGEST,
     NO_VALIDATOR_BUNDLE,
-    RepeatMixin,
     RepeatProbe,
 )
-from .verification import outcome_payload
 
 PROPOSAL_KIND = "The proposed capability is not a write or an answer this run can use."
 """The fixed message of the ``KERNEL-PROPOSAL-KIND`` repair finding (2c.8c round 2)."""
@@ -72,7 +71,7 @@ def _validator_error(validator_id: str, message: str) -> ValidationResult:
     )
 
 
-class ProposalsMixin(RepeatMixin):
+class ProposalsMixin(GroundingMixin):
     # ------------------------------------------------------------- proposals
     async def _handle_proposal(
         self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
@@ -83,7 +82,8 @@ class ProposalsMixin(RepeatMixin):
             return refused
         descriptor = self._registry.capabilities.get(proposal.contract_id)
         if descriptor is not None and descriptor.effect is EffectKind.ANSWER:
-            return await self._handle_answer(run, cont, proposal)
+            return await self._handle_answer(run, cont, proposal)  # `kernel/grounding.py`
+        proposal = proposal.model_copy(update={"citations": ()})  # answers only (ADR 0033 §2)
         if descriptor is None or descriptor.effect is not EffectKind.WRITE:  # 2c.8c round 2
             kind = _fixed("KERNEL-PROPOSAL-KIND", PROPOSAL_KIND)
             return await self._repair_finding(run, cont, (kind,))
@@ -313,124 +313,6 @@ class ProposalsMixin(RepeatMixin):
             ],
         )
         return waiting
-
-    async def _handle_answer(
-        self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
-    ) -> RunRecord | DriverInput:
-        """Structured answers: no approval or dispatch; the domain verifier recomputes
-        the answer from fresh, independent reads."""
-        ctx = cont.ctx
-        try:  # as a write proposal: a repair finding, never an exception (2c.8c)
-            connection = self._connections.usable(ctx, proposal.connection_id)
-        except KernelError:
-            return await self._connection_refused(run, cont)
-        verifier = self._registry.verifier_for(proposal.contract_id)
-        if verifier is None:  # it can never be verified: fail, never claim it (review P-1)
-            return await self._no_verifier(run)
-        try:
-            action_digest = compute_digest(
-                {"contract_id": proposal.contract_id, "arguments": dict(proposal.arguments)}
-            )
-        except CanonicalizationError:
-            action_digest = INVALID_DIGEST
-        if await self._repeats_verified_answer(
-            cont, proposal, connection.connection_id, action_digest
-        ):
-            return await self._finish_verified(
-                cont, (), "The structured answer was independently verified.", acknowledge=False
-            )
-        action = ActionRecord(
-            action_id=new_id("act"),
-            tenant_id=ctx.tenant_id,
-            run_id=run.run_id,
-            logical_operation_id=run.logical_operation_id,
-            contract_id=proposal.contract_id,
-            binding_id="answer",
-            connection_id=connection.connection_id,
-            connection_version=connection.version,
-            credential_subject=connection.credential_subject(),
-            arguments=dict(proposal.arguments),
-            digest=action_digest,
-            state=ActionState.PROPOSED,
-            revision=1,
-            supersedes_action_id=cont.last_action_id,
-        )
-        await self._store.put_action(
-            action,
-            None,
-            [
-                (
-                    RunEventType.PROPOSAL_CREATED,
-                    {
-                        "contract_id": action.contract_id,
-                        "arguments": action.arguments,
-                        "kind": "answer",
-                        "supersedes": cont.last_action_id,
-                        **proposal_keys(action),
-                    },
-                    action.action_id,
-                )
-            ],
-        )
-        cont.last_action_id = action.action_id
-        action = await self._transition(action, ActionState.VALIDATED)
-        reader = _GatewayReader(self, cont, connection.connection_id)
-        try:
-            report = await verifier.verify(ctx, action, None, reader)
-        except Exception as exc:  # verification unavailable: never claim the answer
-            report = OutcomeReport(
-                run_id=ctx.run_id,
-                action_id=action.action_id,
-                status=OutcomeStatus.UNKNOWN,
-                checks=(),
-                verifier_id=verifier.verifier_id,
-                verifier_version=type(exc).__name__,
-                reported_at=self._clock(),
-            )
-        report = self._kept(report)
-        verified = report.status is OutcomeStatus.VERIFIED
-        target = ActionState.VERIFIED if verified else ActionState.VERIFICATION_FAILED
-        await self._store.record_outcome(
-            ctx.tenant_id,
-            report,
-            action.model_copy(update={"state": target, "revision": action.revision + 1}),
-            action.revision,
-            [(RunEventType.OUTCOME_REPORTED, outcome_payload(report, target), action.action_id)],
-        )
-        if verified:
-            return DriverInput(
-                task=run.task,
-                observations=tuple(cont.observations.values()),
-                action_result={"status": "VERIFIED"},
-            )
-        run = await self._store.get_run(run.tenant_id, run.run_id)
-        if cont.repairs >= ctx.budgets.max_validation_repairs:
-            return await self._set_run_state(
-                run, RunState.FAILED, "answer not verified", code=ReasonCode.VERIFICATION_FAILED
-            )
-        cont.repairs += 1
-        findings = tuple(
-            Finding(
-                rule_id=f"VERIFY-{c.name}",
-                rule_version="1",
-                status=ValidationStatus.FAIL,
-                message=f"answer check {c.name} failed",
-                expected=c.expected,
-                observed=c.observed,
-            )
-            for c in report.checks
-            if not c.passed
-        ) or (
-            Finding(
-                rule_id="VERIFY",
-                rule_version="1",
-                status=ValidationStatus.UNKNOWN,
-                message="answer could not be verified",
-            ),
-        )
-        return DriverInput(
-            task=run.task, observations=tuple(cont.observations.values()), findings=findings
-        )
 
     async def _validate(
         self,

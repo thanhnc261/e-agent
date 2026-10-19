@@ -53,6 +53,11 @@ class RunEventType(StrEnum):
     # or the stage at which the comparison failed.
     REPEAT_COMPARED = "repeat.compared"
     REPEAT_SHADOW_FAILED = "repeat.shadow_failed"
+    # `grounded_answers: shadow` (ADR 0033 §5, Task 3e.1): a typed answer's citations checked
+    # against this run's evidence (counts and verdicts, never a value), or the stage at which
+    # the check failed.
+    GROUNDING_COMPARED = "grounding.compared"
+    GROUNDING_SHADOW_FAILED = "grounding.shadow_failed"
 
 
 class RunEvent(Record):
