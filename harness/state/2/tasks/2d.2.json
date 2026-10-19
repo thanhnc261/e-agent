@@ -1,0 +1,26 @@
+{
+  "id": "2d.2",
+  "phase": "2",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-2d-2"
+  ],
+  "context_digest": "1e1867e4838cb3f2f43ab0a6923096aca83da62489b52c7cf5ff519733ce3303",
+  "allowed_paths": [
+    "docs/handoffs/**",
+    "harness/state/**",
+    "docs/roadmap.md",
+    "README.md",
+    "docs/design/target-architecture.md",
+    "docs/adr/README.md",
+    "docs/plans/2026-10-14-phase2-execution-ir.md"
+  ],
+  "acceptance": [
+    "draft-po with off, shadow and on and a read-only task with on behave as the plan's Live check says",
+    "results recorded in the handoff, labelled live"
+  ],
+  "gate_set": "live",
+  "base_commit": "21a675d22ec1fd6e804ebc223fd3e0d01faf9e35",
+  "created_at": "2026-10-18T23:16:20+00:00",
+  "features_digest": "8600d96abf20dfc9608ad8573d99681a29768fdaf7b15e90a8c9356f69cdfb4e"
+}
