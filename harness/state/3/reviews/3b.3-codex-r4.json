@@ -1,0 +1,17 @@
+{
+  "task": "3b.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "C3-14",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "The registry read the descriptor's mutable data_classes dict, so a post-admission edit could store an unchecked key and lower a class; fixed by a validated frozen copy taken at admission.",
+      "evidence": "src/e_agent/kernel/registry.py:378; src/e_agent/contracts/capability.py:102"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}
