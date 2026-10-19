@@ -1,0 +1,59 @@
+{
+  "task": "3g.1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "P-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Model-authored rationale ids that can hold values (goal_ref unchecked; unresolved cited_evidence and rules_considered in shadow) are stored verbatim in proposal.created, the evidence bundle and the explanation; RefId admits value-shaped tokens (emails, phone numbers, SO numbers).",
+      "evidence": "src/e_agent/contracts/grounding.py:74, :94-96; src/e_agent/kernel/rationale.py:90-105, ~:206-217; src/e_agent/kernel/explain.py:150-155."
+    },
+    {
+      "id": "P-2",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Citation.pointer and evidence_id are unconstrained; an unresolved pointer (model text) is stored verbatim at rest and as KERNEL-CITATION observed.",
+      "evidence": "src/e_agent/contracts/grounding.py:60-62; kernel/grounding.py:221-226, :247-248, :259; kernel/grounded_answer.py:140."
+    },
+    {
+      "id": "P-3",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "3f.1 changed driver behaviour with all toggles off (silence after a finding parks WAITING_INPUT; token budget pre-check); goldens unchanged; owner decision R1-3 open.",
+      "evidence": "commit 4944e07; adapters/pydantic_ai/driver.py:524-525, :624-627."
+    },
+    {
+      "id": "P-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "No test pins kernel_repeat on together with grounded_answers on; ordering and shared repair budget read as correct.",
+      "evidence": "kernel/proposals.py:144-151; ir_on.py:202-206."
+    },
+    {
+      "id": "P-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Kernel modules at the ~500-line limit with no gate enforcing it.",
+      "evidence": "wc -l src/e_agent/kernel/*.py."
+    },
+    {
+      "id": "P-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Several kernel task rounds lack the Codex review the plan requires (Codex quota).",
+      "evidence": "harness/state/3/handoffs/*.json."
+    },
+    {
+      "id": "P-7",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "not reviewed: Postgres behaviour directly, close-check, make e2e, /health/ready toggle report, Review Focus 2 and 3.",
+      "evidence": "Tool budget."
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}

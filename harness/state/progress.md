@@ -744,3 +744,8 @@
 - changed: harness/state/3/features.json, harness/state/3/handoffs/3f.2.json, harness/state/3/reviews/3f.2-r3.json, harness/state/evidence/gates/3f.2/2026-10-19T22-08-00.049288+00-00-full.json, harness/state/evidence/gates/3f.2/2026-10-19T22-09-32.265668+00-00-pg.json
 - next: Task 3g.1
 - open: none
+
+## 2026-10-19T22:23:54.165036+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3g.1
+- changed: harness/state/3/reviews/3g.1-phase.json
+- next: levels 1-3 recorded on a clean tree
+- open: none

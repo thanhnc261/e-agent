@@ -247,6 +247,16 @@
         "live results recorded in the handoff, labelled live and separate from fixture results"
       ],
       "passes": false
+    },
+    {
+      "id": "F-3-R1",
+      "category": "kernel",
+      "description": "Phase review P-1/P-2: model-authored rationale and citation refs are never stored verbatim unless they resolve or match a closed id grammar",
+      "steps": [
+        "uv run pytest -q tests/unit/kernel tests/unit/contracts tests/unit/adapters/pydantic_ai tests/conformance passes, with tests that a value-shaped goal_ref, unresolved rule/evidence ref and unresolved pointer are stored only as digests",
+        "uv run e-agent-harness gate full and gate pg pass on a clean tree"
+      ],
+      "passes": false
     }
   ]
 }
