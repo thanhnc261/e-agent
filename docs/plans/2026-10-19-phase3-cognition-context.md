@@ -590,6 +590,11 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 - [ ] Implement.
 - [ ] Run the same command on both stores, the replay suite, the `off` goldens and `make e2e`; expected: pass, `off` goldens unchanged.
 - [ ] Commit `feat(kernel): context_assembler on, with reservation-aware failure handling (ADR 0032)`.
+- Carried from the Task 3d.4 review (2026-10-19), to close before `on` ships:
+  - D3-41: the stored driver history is masked only for the route it was built on (pack-less fallback turns and the model's own arguments echo values). A pinned-`on` run records the boundary of its first driver call; a later call on a stricter boundary fails closed with `ROUTE_BOUNDARY_UNMET` instead of scrubbing the history. Test: `test_on_refuses_a_stricter_route_than_an_earlier_turn`.
+  - D3-40: the driver applies a `cleared` stub whenever an `action_result` is present, so the acknowledgement turn never shows an earlier turn's rendering (`adapters/pydantic_ai/driver.py` joins this task's files).
+  - D3-42: the driver's missing-rendering refusal becomes a typed error beside the restore refusal (`sdk/errors.py`), mapped fail-closed to `CONTEXT_UNAVAILABLE`.
+  - D3-43: the `action_result` tool return stays ids, status and external refs only.
 
 ### Task 3d.6: `KERNEL-REPEAT` (cut line, D9)
 
