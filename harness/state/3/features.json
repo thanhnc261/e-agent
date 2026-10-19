@@ -91,7 +91,8 @@
         "competency-question cases pass with their count; no model call; no observation values",
         "evidence bundle carries the explanation; full and pg pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3c.3/2026-10-19T11-30-58.328566+00-00-full.json"
     },
     {
       "id": "F-3d-1",
