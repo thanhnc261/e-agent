@@ -2,10 +2,10 @@
 
 ## Summary
 
-- **Plan:** [Phase 2 plan](../plans/2026-10-14-phase2-execution-ir.md), Parts 2a to 2d; [roadmap](../roadmap.md) row 2; [ADR 0024](../adr/0024-plan-approval-model.md), [ADR 0025](../adr/0025-execution-ir.md), [ADR 0027](../adr/0027-feature-toggles.md), [ADR 0028](../adr/0028-task-definitions.md) and [ADR 0029](../adr/0029-capability-effect-declarations.md); [target architecture §6.4](../design/target-architecture.md#64-execution-ir-p).
-- **Branch:** `phase2/execution-ir`, cut from `main` at `6f7ec70`. Pushed to draft PR #6 on the owner's instruction; not merged.
+- **Plan:** [Phase 2 plan](../plans/2026-10-14-phase2-execution-ir.md), Parts 2a to 2d; [roadmap](../roadmap.md) row 2; [ADR 0024](../adr/0024-plan-approval-model.md), [ADR 0025](../adr/0025-execution-ir.md), [ADR 0027](../adr/0027-feature-toggles.md), [ADR 0028](../adr/0028-task-definitions.md) and [ADR 0029](../adr/0029-capability-effect-declarations.md); [target architecture §6.4](../design/target-architecture.md#64-execution-ir-i).
+- **Branch:** `phase2/execution-ir`, cut from `main` at `6f7ec70`. Pushed to PR #6 on the owner's instruction and merged to `main` on the owner's instruction (2026-10-19).
 - **Execution:** the development harness ran every task, 2a.1 to 2c.9 (with the inserted 2c.5a and 2c.8a to 2c.8c) and 2d.1, through contract, `check-scope`, gate evidence on a clean commit, feature flip, handoff and `close-check`. Every task has committed review records in `harness/state/2/reviews/`: Codex for 2b.1 to 2b.3, 2c.1, 2c.5a, 2c.6, 2c.8 (re-check), 2c.8b (partial), 2c.9 and the final check of 2c.8b and 2c.8c (accept, below); Claude reviewers for the others and for the scoped re-reviews after fixes. The whole-phase review ran in a fresh Claude context (`2d.1-phase.json`, eight findings, below).
-- **Result:** behind the profile toggle `features.execution_ir` (`off` by default), a run's tools come from the admitted task definition, a validated proposal runs as a 1-step plan with the same approval digest as today, and a multi-step plan is approved once and dispatched step by step. Each step is re-validated, its arguments re-checked against the approved digest and its outcome independently verified before the next step starts. `off` is byte-identical to the pre-phase behaviour on the recorded goldens (event types, transitions, states, digests and payload key sets). All of it is fixture evidence. The live check 2d.2 is the owner's.
+- **Result:** behind the profile toggle `features.execution_ir` (`off` by default), a run's tools come from the admitted task definition, a validated proposal runs as a 1-step plan with the same approval digest as today, and a multi-step plan is approved once and dispatched step by step. Each step is re-validated, its arguments re-checked against the approved digest and its outcome independently verified before the next step starts. `off` is byte-identical to the pre-phase behaviour on the recorded goldens (event types, transitions, states, digests and payload key sets). All of it is fixture evidence. The live check 2d.2 passed on `odoo19-learning` on 2026-10-19 (Level 4 below).
 
 ## What changed
 
@@ -70,9 +70,29 @@ Also on the fixture:
 - The README two-step demo, run verbatim: `demo --driver-mode two-step-plan` stops at WAITING_APPROVAL with both steps shown (step 2's `requested_date` from step 1, and the plan digest); with `--approve` one approval dispatches both steps and the run ends `SUCCEEDED (outcome verified)`, "Created and verified draft purchase order PO/FIXTURE/0002."
 - The recorded-model replay suite (`tests/unit/server/test_recorded_model_replays.py`, part of the full gate's pytest): 13 passed, none skipped (PR-32).
 
-### Level 4: live check
+### Level 4: live check (2d.2, 2026-10-19), labelled live
 
-Not run. It is Task 2d.2, the owner's, through `live-sandbox` (open items below).
+Live results against the `odoo19-learning` sandbox (bridge 19.0.0.4.0, Postgres ledger `e-agent-ledger`, Ollama driver), on `21a675d`. They are not fixture results (ENG-EVID-2). Redacted evidence: `harness/state/evidence/live/2d.2-*.json` and `harness/state/evidence/live/2d.2-sandbox.log`.
+
+- **Identity gate** (the harness `live` set, run by the owner on `21a675d`): passed three times (`harness/state/evidence/live/2026-10-18T23-*-live.json`); `info` reports marker `odoo19-learning`, database `training19_demo`, company 1 "My Company (San Francisco)", bridge `19.0.0.4.0`, server 19.0.1.3. The agent ran `info` again before the first reset, with the same identity.
+- **Pins.** The owner re-pinned `domain-erp` and `odoo19` with the pins below; all three toggle profiles start with them.
+- **Ledger.** `migrate` applied migration 0006 (resume work) to the live ledger.
+- **Readiness**, one `serve` per mode: `{"status": "ready", "environment": "live", "plugins": ["domain-erp", "odoo19"], "store": "postgres", "self_approval_allowed": true, "features": {"execution_ir": "<mode>"}, "defaulted_declarations": []}` for `off`, `shadow` and `on`. `on` started, so no capability is bound on two connections.
+- **Task 3 with a real shortage.** Before each mode the agent reset and seeded the `e-agent-demo` namespace with the identity flags (owner ruling below), which gives demand 12, available 5, inbound 0, shortage 7. Prompt: "Draft a purchase order for any shortage from the approved supplier", approved with `--approve`.
+
+| Mode | Run | Result |
+|---|---|---|
+| `off` | `2d.2-task3-off-seeded.json` | Draft PO `P00033`, 7 units at 100: validation PASS (PR-001, PR-002), approval, reservation, dispatch COMMITTED, read-back VERIFIED; SUCCEEDED `verified`. The pre-phase path |
+| `shadow` | `2d.2-task3-shadow-seeded.json` | `ir.plan_compiled` with `digest_matches: true`; the plan digest equals the approval digest (`jcs-sha256-v1:d59cad9f…`); draft PO `P00034` VERIFIED; SUCCEEDED `verified`, the same outcome as `off`; the bundle has `steps` (the shadow validate step) |
+| `on`, try 1 | `2d.2-task3-on-seeded-try1.json` | The model proposed only an offer answer ("does not meet the requested delivery date") and no PO. The run-end acceptance check failed it: FAILED `acceptance_unmet` (KERNEL-ACCEPTANCE). No write |
+| `on`, try 2 | `2d.2-task3-on-seeded.json` | Same seeded shortage (try 1 wrote nothing). A 1-step plan: `ir.plan_compiled`, plan digest equal to the approval digest (`jcs-sha256-v1:18963b7f…`), approval, reservation, dispatch COMMITTED, draft PO `P00035` VERIFIED; SUCCEEDED `verified`. The bundle has `plan` and `steps`: step-1 `validate`, `approval_wait`, `validate` (revalidation), `dispatch` and `verify`, each started and succeeded |
+
+- **Task 1 with `on`** ("Which products are short for open demand?", `2d.2-task1-on.json`, before the reseed): SUCCEEDED `answered`; `procurement.shortage.answer.v1` VERIFIED (demand 12, available 4, inbound 10, shortage 0). Every read the model made is inside the `shortage` definition's capabilities; the evidence records the reads, not the offered tool list.
+- **Evidence bundles** contain `features` in every run; the `on` write run also `plan` and `steps`. No credential string appears in them.
+
+Also observed live, before the reseed (sandbox shortage 0; `*-preset.json` with the presets' fixture refs, which Odoo rejects as `E_AGENT_INVALID_REF`, and `2d.2-task3-{off,shadow,on}.json` with the plan's prompt):
+- With the plan's prompt the model invented a shortage of 2 in `shadow` and `on` and proposed a 2-unit PO; PR-002 ("quantity must equal the derived shortage") blocked it before approval, and its later wrong answers failed independent verification (FAILED `verification_failed`). No write was sent. `off` answered the zero shortage correctly.
+- These are the live model's behaviour (unqualified for plans; ADR 0010), not toggle effects: the kernel refused or failed each wrong proposal in every mode.
 
 ## Phase review
 
@@ -81,7 +101,7 @@ The whole-phase review ran in a fresh Claude context on the branch head after 2c
 | Id | Severity | Finding | Handled |
 |---|---|---|---|
 | P-1 | Medium | An answer proposal or read on an unusable connection, or an answer with no verifier, raised out of `start_run`; the run was left non-terminal or classified INTERRUPTED | Fixed in 2c.8c (`8d76782`, `a87f63e`) |
-| P-2 | Low | Target §6.4.6 lacked the fenced resume work and the VERIFYING-until-startup window | Fixed in 2d.1 (`7531592`). The `[P]` tag stays in the heading, since the ADR index links that anchor; the status line says what is implemented |
+| P-2 | Low | Target §6.4.6 lacked the fenced resume work and the VERIFYING-until-startup window | Fixed in 2d.1 (`7531592`); the heading tag became `[I]` at the merge (2d.2) |
 | P-3 | Low | A step's integrity check compared with snapshot inputs that nothing tied to `approval.action_digest` | Fixed in 2c.8c (`81c20ac`, `e9610b2`) |
 | P-4 | Low | No end-of-phase Postgres evidence for `tests/conformance` and `tests/unit/adapters/postgres` | The `pg` gate set now covers them (`harness/context.toml`, `7531592`); evidence below |
 | P-5 | Low | Comments still said "a plan resume is attempted at most once" | Fixed in 2c.8c (`f9b2d8d`) |
@@ -109,7 +129,9 @@ Limits of that check, as Codex reported them: it ran the memory store only (34 f
 - **Argument integrity before every `reserve_operation`**: `KERNEL-ARGUMENTS-CHANGED` for a single action, `KERNEL-PLAN-DIGEST-MISMATCH` for a plan digest recomputed from inputs, failing closed when the plan state is missing; both end STALE. Cost if wrong: one extra `get_plan` read per plan step dispatch in `on`.
 - **Refused reads return fixed refusals to the driver** (`CONNECTION_NOT_AVAILABLE`, `READ_NOT_PERMITTED`, `UNKNOWN_CAPABILITY`, `NOT_A_READ_CAPABILITY`); a proposal on an unusable connection or of an unknown kind is a repair finding (`KERNEL-CONNECTION`, `KERNEL-PROPOSAL-KIND`); a missing verifier ends the run VERIFICATION_FAILED (`KERNEL-VERIFIER`). Cost if wrong: a driver sees a refusal code where it saw an exception before.
 - **`verified_values` only in `on`**; real versions in the digest; a sentinel version is refused (`KERNEL-PLAN-STEP-UNVALIDATABLE`); a changed stored step ends STALE (`KERNEL-PLAN-STEP-CHANGED`) (2c.7). Cost if wrong: a plan with an unvalidatable step is refused rather than run.
-- **The §6.4 heading keeps `[P]`** because `docs/adr/README.md` links `#64-execution-ir-p`; the status line carries the state (2d.1). Cost if wrong: a reader skimming headings sees "proposal"; the anchor is renamed at merge.
+- **§6.4 is tagged `[I]` at the merge** (2d.2): it is implemented and live-checked; its anchor changed to `#64-execution-ir-i` in the ADR index, README and this handoff in the same commit. It is not marked "merged" in that document's sense, because the HLD and MVP design do not restate it yet. Cost if wrong: a later doc pass moves the content into the MVP design.
+- **Reset and seed before each Task 3 mode** (owner ruling 2026-10-19): the sandbox had no shortage, so no valid write existed; one mode's draft PO would cover the next mode's shortage. Cost if wrong: three namespace resets in the sandbox, undone by reset, seed and seed-tasks.
+- **`on` was run a second time** on the same seeded shortage after try 1 proposed no PO and failed `acceptance_unmet`; both tries are recorded. Cost if wrong: one extra live run; the model's choice, not the kernel, decided try 1.
 
 ## Stated limits
 
@@ -138,22 +160,18 @@ The live profile does not enable `fixture-erp`, so only the first two go into `p
 
 ## Open items for the owner
 
-1. Re-pin `domain-erp` and `odoo19` in `profiles/live-odoo19-learning.local.json` with the pins above (`draft-po.json` and the ERP capability declarations changed).
-2. Run the live check 2d.2 on `odoo19-learning` through the `live-sandbox` skill, as the plan's "Live check" section states (the results go into this handoff, labelled live and separate from the fixture results):
-   - `/health/ready` reports `features.execution_ir` for each mode used.
-   - Task 3 ("Draft a purchase order for any shortage from the approved supplier") through the CLI (`--task <kind>`), because API and UI runs resolve no task definition in Phase 2 (D8), once each with `off`, `shadow` and `on`. Expected: `off` matches the pre-phase behaviour; `shadow` records `ir.plan_compiled` with the step digest equal to the action digest and the same outcome as `off`; `on` runs a 1-step plan through approval, reservation, dispatch and read-back verification, with step records for each stage.
-   - Task 1 (read-only shortage question) with `on`: the tool set equals the task definition's capabilities, and the answer passes the acceptance check.
-   - The evidence bundle of each run contains `features`; the `on` runs also `plan` and `steps`.
-   - It may not touch `odoo-bench` or any container outside `odoo19-learning-*` and `e-agent-ledger`, live business data, or multi-step writes (the live guard refuses them).
-   - Before the `on` legs, check one possible surprise: `on` refuses startup when a capability is bound on two connections (2c.6), and the agent could not read the live profile to check its bindings.
-3. Branch protection on `main` (PR-39).
-4. Merge PR #6 when 2d.2 passes. At merge, §6.4 of the target architecture becomes merged and its `[P]` tag and the ADR index anchor change together.
-5. What remains after Phase 2: plan approval in the UI (the API and UI show the plan's presentation fields but resolve no task definition, D8), live multi-step writes (Phase 5) and the Phase 3 items in the roadmap.
-6. `golden/off_model_request.json` serialises pydantic-ai's `ToolDefinition`; a pydantic-ai upgrade needs it regenerated at a baseline commit (2c.9).
+1. Branch protection on `main` (PR-39): the agent's GitHub call was refused by its permission classifier, so it is the owner's (command in the session).
+2. The sandbox is left with the `on` run's draft PO `P00035` and without the task fixtures of `seed-tasks`, which the first reset removed. Undo: `odoo_sandbox.py reset`, `seed`, then `seed-tasks`, each with `--namespace e-agent-demo --expected-marker odoo19-learning --expected-company-id 1 --expected-bridge-version 19.0.0.4.0`. The reseed gives new record ids (demand `odoo/e_agent.demand/4` now); profile refs that name the old ids are stale.
+3. What remains after Phase 2: plan approval in the UI (the API and UI show the plan's presentation fields but resolve no task definition, D8), live multi-step writes (Phase 5), a qualified model run for plans (ADR 0010), and the Phase 3 plan.
+4. `golden/off_model_request.json` serialises pydantic-ai's `ToolDefinition`; a pydantic-ai upgrade needs it regenerated at a baseline commit (2c.9).
+5. Delete the temporary toggle profiles `profiles/live-ir-{off,shadow,on}.local.json` when no longer needed (git-ignored, mode 0600).
 
 ## Changes outside the repository
 
 | Change | Undo |
 |---|---|
 | The `pg` runs truncated only the `e_agent_test` database in `e-agent-ledger` | none needed |
-| Draft PR #6 opened and `phase2/execution-ir` pushed on the owner's instruction | close the PR, delete the remote branch |
+| PR #6 pushed, updated with `main` and merged on the owner's instruction | revert the merge commit |
+| `profiles/live-odoo19-learning.local.json` re-pinned by the owner; `profiles/live-ir-{off,shadow,on}.local.json` created (copies with the toggle set) | delete the three copies |
+| Live ledger: migration 0006 applied; the 2d.2 runs added | none needed; forward-only migration, normal run history |
+| Sandbox `e-agent-demo`: reset and seeded three times (identity-checked); draft POs `P00033` and `P00034` created and removed by the next reset; `P00035` left; task fixtures removed | reset, seed, seed-tasks (open item 2) |

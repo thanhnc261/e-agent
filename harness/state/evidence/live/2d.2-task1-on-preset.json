@@ -1,0 +1,195 @@
+{
+  "schema": "e-agent-evidence-v1",
+  "generated_at": "2026-10-18T23:18:17.348142+00:00",
+  "environment": "live",
+  "classification": "live:unresolved",
+  "versions": {
+    "distributions": {
+      "e-agent-adapter-agent-pydantic": "0.1.0",
+      "e-agent-adapter-erp-simulator": "0.1.0",
+      "e-agent-adapter-odoo": "0.1.0",
+      "e-agent-adapter-postgres": "0.1.0",
+      "e-agent-adapter-secretstore-local": "0.1.0",
+      "e-agent-adapter-shacl": "0.1.0",
+      "e-agent-contracts": "0.1.0",
+      "e-agent-domain-erp": "0.1.0",
+      "e-agent-erp": "0.1.0",
+      "e-agent-harness": "0.1.0",
+      "e-agent-kernel": "0.1.0",
+      "e-agent-plugin-sdk": "0.1.0",
+      "e-agent-server": "0.1.0",
+      "pydantic-ai-slim": "2.54.0",
+      "pyshacl": "0.40.1"
+    },
+    "plugins": [
+      "domain-erp",
+      "odoo19"
+    ],
+    "driver": "pydantic-ai",
+    "driver_versions": {
+      "pydantic_ai": "2.54.0"
+    },
+    "model": "e-agent-mvp-qwen3-coder-20261007",
+    "model_provider": "ollama",
+    "profile_environment": "live"
+  },
+  "features": {
+    "execution_ir": "on"
+  },
+  "rules_evaluated": [
+    "KERNEL-VERIFICATION@1"
+  ],
+  "run": {
+    "run_id": "run_1a8445d866f64a2a8ad47424b5973a6d",
+    "tenant_id": "tenant-local",
+    "requester_id": "local-operator",
+    "task": "Calculate the shortage of product:widget-a for demand:d-001.",
+    "state": "WAITING_INPUT",
+    "revision": 7,
+    "logical_operation_id": "op_956173f1b4994eb9a6705ec9f922de82",
+    "created_at": "2026-10-18T23:18:13.316181Z",
+    "reason": null,
+    "reason_code": null,
+    "task_id": "shortage",
+    "task_version": "1"
+  },
+  "actions": [],
+  "approvals": [],
+  "receipts": [],
+  "outcomes": [],
+  "events": [
+    {
+      "event_id": "evt_8d082c0a586e4dbba588afb218ae21f9",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_1a8445d866f64a2a8ad47424b5973a6d",
+      "sequence": 1,
+      "type": "run.created",
+      "occurred_at": "2026-10-18T23:18:13.320538Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "task": "Calculate the shortage of product:widget-a for demand:d-001.",
+        "driver": "pydantic-ai"
+      }
+    },
+    {
+      "event_id": "evt_cfa8ccb2100545fa9e6fbe0c0b243920",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_1a8445d866f64a2a8ad47424b5973a6d",
+      "sequence": 2,
+      "type": "run.state_changed",
+      "occurred_at": "2026-10-18T23:18:13.326543Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "to": "RUNNING",
+        "from": "CREATED",
+        "reason": null,
+        "reason_code": null
+      }
+    },
+    {
+      "event_id": "evt_9aaaf7002f1841f38ba2e13a16ef09b4",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_1a8445d866f64a2a8ad47424b5973a6d",
+      "sequence": 3,
+      "type": "read.rejected",
+      "occurred_at": "2026-10-18T23:18:15.560096Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "code": "E_AGENT_INVALID_REF",
+        "message": "Odoo rejected the request",
+        "request_id": "call_1lvintme",
+        "contract_id": "procurement.demand.read.v1",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_59a30826339c49deb827179b9a67bc1d",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_1a8445d866f64a2a8ad47424b5973a6d",
+      "sequence": 4,
+      "type": "read.rejected",
+      "occurred_at": "2026-10-18T23:18:15.593144Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "code": "E_AGENT_INVALID_REF",
+        "message": "Odoo rejected the request",
+        "request_id": "call_bk27xi8x",
+        "contract_id": "inventory.availability.read.v1",
+        "connection_id": "conn-odoo"
+      }
+    },
+    {
+      "event_id": "evt_8e8c0740b2a544369303bcdc5e96a97a",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_1a8445d866f64a2a8ad47424b5973a6d",
+      "sequence": 5,
+      "type": "validation.completed",
+      "occurred_at": "2026-10-18T23:18:16.352679Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "status": "FAIL",
+        "findings": [
+          {
+            "status": "FAIL",
+            "message": "Plain text cannot complete this task. Propose a structured answer for independent verification, propose the requested action, or request clarification for missing user details.",
+            "rule_id": "KERNEL-VERIFICATION",
+            "expected": null,
+            "observed": null,
+            "evidence_ids": [],
+            "rule_version": "1"
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "evt_3f8b2890eabd42078e9d5446737490cc",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_1a8445d866f64a2a8ad47424b5973a6d",
+      "sequence": 6,
+      "type": "input.requested",
+      "occurred_at": "2026-10-18T23:18:17.323804Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "kind": "clarification",
+        "question": "Could you please provide the correct demand reference and product reference for which you want to calculate the shortage?"
+      }
+    },
+    {
+      "event_id": "evt_b1504c8517fa4e73b941d4af842bfd23",
+      "schema_version": "1",
+      "tenant_id": "tenant-local",
+      "run_id": "run_1a8445d866f64a2a8ad47424b5973a6d",
+      "sequence": 7,
+      "type": "run.state_changed",
+      "occurred_at": "2026-10-18T23:18:17.334994Z",
+      "action_id": null,
+      "correlation_id": null,
+      "actor": "system:kernel",
+      "payload": {
+        "to": "WAITING_INPUT",
+        "from": "RUNNING",
+        "reason": null,
+        "reason_code": null
+      }
+    }
+  ],
+  "defaulted_declarations": []
+}

@@ -175,9 +175,9 @@ uv run e-agent --profile my-profile.json recover
 E_AGENT_TEST_PG_DSN=$E_AGENT_PG_DSN E_AGENT_TEST_STORE=postgres uv run pytest -q tests/unit/kernel
 ```
 
-### Execution IR toggle (Phase 2, on the phase branch)
+### Execution IR toggle (Phase 2)
 
-`features.execution_ir` in a profile is `off` (default, today's single-action loop, byte-identical), `shadow` (records `ir.plan_compiled` beside the old path and acts on the old path) or `on` (the admitted task definition sets the tools; a validated proposal runs as a 1-step plan; a multi-step plan is approved once and dispatched step by step). `/health/ready` and the evidence bundle report the toggle and any defaulted effect declarations. A `live` profile refuses `budgets.max_admitted_writes > 1`, so multi-step writes run only against fixtures until Phase 5 ([ADR 0025](docs/adr/0025-execution-ir.md), [target §6.4](docs/design/target-architecture.md#64-execution-ir-p)).
+`features.execution_ir` in a profile is `off` (default, today's single-action loop, byte-identical), `shadow` (records `ir.plan_compiled` beside the old path and acts on the old path) or `on` (the admitted task definition sets the tools; a validated proposal runs as a 1-step plan; a multi-step plan is approved once and dispatched step by step). `/health/ready` and the evidence bundle report the toggle and any defaulted effect declarations. A `live` profile refuses `budgets.max_admitted_writes > 1`, so multi-step writes run only against fixtures until Phase 5 ([ADR 0025](docs/adr/0025-execution-ir.md), [target §6.4](docs/design/target-architecture.md#64-execution-ir-i)).
 
 A two-step plan on the fixture simulator. This is a lineage demonstration: two draft POs for one demand, not a procurement scenario.
 
