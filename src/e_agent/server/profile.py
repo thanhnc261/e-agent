@@ -10,6 +10,7 @@ from typing import Any, Literal
 from e_agent.contracts.common import Record
 from e_agent.contracts.connection import ConnectionDescriptor
 from e_agent.contracts.context import Budgets
+from e_agent.contracts.data import DataBoundary, DataProcessing
 from e_agent.contracts.features import Features
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.server.environment import optional_env
@@ -61,6 +62,9 @@ class DriverConfig(Record):
     temperature: str | None = None
     task_kind: str = "draft-po"
     """A task preset kind contributed by an admitted plugin; startup refuses any other."""
+    data_boundary: DataBoundary | None = None
+    """Operator declaration of where the route processes data: ``local`` or ``hosted:<region>``
+    (ADR 0030). Unset, the boundary is derived from the provider and endpoint."""
     refs: dict[str, str] = Field(default_factory=dict)
     """Refs that replace the task preset's defaults in the demo prompt and scripted driver."""
 
@@ -103,6 +107,10 @@ class Profile(Record):
     fixture: FixtureConfig | None = None
     features: Features = Features()
     """Feature toggles, all ``off`` unless the profile names them (ADR 0027)."""
+    local_only: bool = False
+    """Refuse startup when the model route is not ``local`` (ADR 0030)."""
+    data_processing: DataProcessing | None = None
+    """Data owner, legal basis and region for a hosted model route (ADR 0030)."""
 
 
 def load_profile(path: str | Path | None = None) -> Profile:

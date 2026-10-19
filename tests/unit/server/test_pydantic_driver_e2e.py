@@ -149,7 +149,9 @@ LITELLM_KEY = "sk-test-123"
 def _with_driver(**driver: object):  # type: ignore[no-untyped-def]
     profile = load_profile(fixture_profile_path())
     raw = profile.model_dump(mode="json")
-    raw["driver"] = {**raw["driver"], "kind": "pydantic-ai", **driver}
+    # declared local so these tests exercise the adapter's own endpoint checks, not the
+    # ADR 0030 startup rule (covered in test_route_boundary.py)
+    raw["driver"] = {**raw["driver"], "kind": "pydantic-ai", "data_boundary": "local", **driver}
     return Profile.model_validate(raw)  # validates, so the provider literal is exercised
 
 
