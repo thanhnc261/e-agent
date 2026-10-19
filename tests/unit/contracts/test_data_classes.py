@@ -1,5 +1,13 @@
-"""Field data classes beside the schema, and the stored record kinds (ADR 0030, Task 3b.3)."""
+"""Field data classes keyed by instance path, and the stored record kinds (ADR 0030,
+Task 3b.3; instance-path keys by owner decision 2026-10-19).
 
+A value's class is the most restrictive class declared on its instance path or an
+ancestor path, ``personal`` when none. Lookup never walks a schema; schemas serve
+admission (the path must exist) and readiness counts only.
+"""
+
+import random
+from collections.abc import Iterator
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
@@ -10,50 +18,26 @@ from e_agent.contracts.capability import CapabilityDescriptor
 from e_agent.contracts.common import Record
 from e_agent.contracts.data_classes import (
     RECORD_KINDS,
+    RESTRICTIVENESS,
     UNMARKED_CLASS,
-    ClassIndex,
     DataClass,
     RecordClass,
     RetentionClass,
-    leaf_property_pointers,
+    check_class_key,
+    check_declarations,
+    class_for,
+    format_pointer,
+    leaf_instance_paths,
+    most_restrictive,
     parse_pointer,
     record_kind,
-    resolve_property,
+    unmarked_counts,
     unsupported_construct,
+    unsupported_sides,
 )
 from pydantic import Field, ValidationError
 
-LINE = {
-    "type": "object",
-    "properties": {"ref": {"type": "string"}, "email": {"type": "string"}},
-}
-DOCUMENT: dict[str, Any] = {
-    "input": {"type": "object", "properties": {"partner_ref": {"type": "string"}}},
-    "output": {
-        "$defs": {"Line": LINE},
-        "type": "object",
-        "properties": {
-            "name": {"type": "string", "examples": [{"properties": {"x": {}}}]},
-            "note": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-            "lines": {"type": "array", "items": {"$ref": "#/$defs/Line"}},
-            "a/b": {"type": "string"},
-        },
-    },
-}
-PERSON = {"type": "object", "properties": {"token": {"type": "string"}, "nick": {}}}
-ALIASED: dict[str, Any] = {
-    "output": {
-        "$defs": {"Person": PERSON},
-        "type": "object",
-        "properties": {
-            "person": {"$ref": "#/$defs/Person"},
-            "other": {"$ref": "#/$defs/Person", "description": "an annotation sibling"},
-            "tags": {"type": "object", "additionalProperties": {"$ref": "#/$defs/Person"}},
-        },
-    }
-}
-TOKEN = "/output/properties/person/properties/token"
-DEFS_TOKEN = "/output/$defs/Person/properties/token"
+S, INT, P = DataClass.SECRET, DataClass.INTERNAL, DataClass.PERSONAL
 
 
 def _capability(**declared: Any) -> CapabilityDescriptor:
@@ -68,254 +52,321 @@ def _capability(**declared: Any) -> CapabilityDescriptor:
     )
 
 
-def test_unmarked_property_counts_as_personal() -> None:
-    index = ClassIndex(DOCUMENT, {"/output/properties/name": DataClass.INTERNAL})
-    assert UNMARKED_CLASS is DataClass.PERSONAL
-    assert index.class_of("/output/properties/name") is DataClass.INTERNAL
-    assert index.class_of("/output/properties/note") is DataClass.PERSONAL
-    assert index.class_of("/input/properties/partner_ref") is DataClass.PERSONAL
-    assert index.class_of("/output/properties/not-in-schema") is DataClass.PERSONAL
-    unmarked = index.unmarked()
-    assert "/output/properties/name" not in unmarked
-    assert "/output/properties/note" in unmarked
-    print(f"unmarked leaf properties: {len(unmarked)}")
-    assert len(unmarked) == len(leaf_property_pointers(DOCUMENT)) - 1
-    assert index.unmarked_counts() == {"input": 1, "output": 4}
-
-
-def test_a_missing_schema_side_counts_none_not_zero() -> None:
-    classes = {"/input/properties/partner_ref": DataClass.INTERNAL}
-    index = ClassIndex({"input": DOCUMENT["input"]}, classes)
-    assert index.unmarked_counts() == {"input": 0, "output": None}
-
-
-def test_items_step_classes_every_array_element_through_a_ref() -> None:
-    email = "/output/properties/lines/items/properties/email"
-    assert resolve_property(DOCUMENT, email) == ("output", "$defs", "Line", "properties", "email")
-    index = ClassIndex(
-        DOCUMENT, {email: DataClass.PERSONAL, "/output/properties/lines": DataClass.INTERNAL}
-    )
-    assert index.class_of(email) is DataClass.PERSONAL
-    # a container class covers the rest of its subtree
-    assert index.class_of("/output/properties/lines/items/properties/ref") is DataClass.INTERNAL
-    assert email not in index.unmarked()
-    assert "/output/properties/lines/items/properties/ref" not in index.unmarked()
-
-
-def test_a_deeper_declaration_never_lowers_a_class() -> None:
-    index = ClassIndex(
-        ALIASED,
-        {"/output/properties/person": DataClass.SECRET, TOKEN: DataClass.INTERNAL},
-    )
-    assert index.class_of(TOKEN) is DataClass.SECRET
-
-
-@pytest.mark.parametrize(("declared", "looked_up"), [(DEFS_TOKEN, TOKEN), (TOKEN, DEFS_TOKEN)])
-def test_a_ref_alias_reaches_the_same_class(declared: str, looked_up: str) -> None:
-    """C3-1: a class under ``$defs`` applies through every path that references it."""
-    index = ClassIndex(ALIASED, {declared: DataClass.SECRET})
-    assert index.class_of(looked_up) is DataClass.SECRET
-    assert index.class_of("/output/properties/other/properties/token") is DataClass.SECRET
-    assert index.class_of("/output/properties/tags/additionalProperties/properties/token") is (
-        DataClass.SECRET
-    )
-    assert TOKEN not in index.unmarked()
-
-
-def test_two_pointers_reaching_one_schema_with_different_classes_fail() -> None:
-    with pytest.raises(ValueError, match="classed differently"):
-        ClassIndex(ALIASED, {TOKEN: DataClass.SECRET, DEFS_TOKEN: DataClass.INTERNAL})
-    same = ClassIndex(ALIASED, {TOKEN: DataClass.SECRET, DEFS_TOKEN: DataClass.SECRET})
-    assert same.class_of(TOKEN) is DataClass.SECRET
-
-
-def test_additional_properties_are_walked_and_counted() -> None:
-    """C3-4 (round 1): properties under ``additionalProperties`` are leaves, resolve and
-    count when unmarked."""
-    leaves = leaf_property_pointers(ALIASED)
-    nick = "/output/properties/tags/additionalProperties/properties/nick"
-    assert nick in leaves
-    assert resolve_property(ALIASED, nick) == ("output", "$defs", "Person", "properties", "nick")
-    assert nick in ClassIndex(ALIASED, {}).unmarked()
-    print(f"leaf property pointers: {len(leaves)}")
-    assert len(leaves) == len(set(leaves)) == 6
-
-
 def _output(properties: dict[str, Any], **root: Any) -> dict[str, Any]:
     return {"output": {"type": "object", "properties": properties, **root}}
 
 
-DEFS = {"$defs": {"Person": PERSON, "U": {"anyOf": [PERSON, {"type": "null"}]}}}
-UNSUPPORTED = {
-    # round 1 C3-3: a $ref beside sibling properties
-    "C3-3": _output({"other": {"$ref": "#/$defs/Person", "properties": {"extra": {}}}}, **DEFS),
-    # round 2 C3-1: a terminal $ref into a definition, to one of its leaves
-    "C3-1": _output(
-        {"person": {"$ref": "#/$defs/Person"}, "tok": {"$ref": "#/$defs/Person/properties/token"}},
-        **DEFS,
-    ),
-    # round 2 C3-7: a same-named sibling next to a $ref
-    "C3-7": _output(
-        {"person": {"$ref": "#/$defs/Person", "properties": {"token": {"type": "string"}}}},
-        **DEFS,
-    ),
-    # round 2 C3-8: a $ref into an anyOf branch
-    "C3-8": _output({"u": {"$ref": "#/$defs/U/anyOf/0"}}, **DEFS),
-    # round 2 C3-9: then / else / patternProperties name property schemas, unsupported
-    "C3-9-then": _output({"p": {"if": {}, "then": {"properties": {"token": {"type": "string"}}}}}),
-    "C3-9-patternProperties": _output(
-        {"p": {"patternProperties": {"^t": {"properties": {"token": {"type": "string"}}}}}}
-    ),
-    "nested-$defs": _output({"p": {"$defs": {"X": {}}, "type": "object"}}),
-    "other-$ref": _output({"p": {"$ref": "https://example.com/schema"}}),
-    "not": _output({"p": {"not": {"type": "string"}}}),
-}
-DECLARED = {
-    "C3-3": "/output/properties/other/properties/extra",
-    "C3-1": "/output/$defs/Person/properties/token",
-    "C3-7": "/output/$defs/Person/properties/token",
-    "C3-8": "/output/$defs/Person/properties/token",
-    "C3-9-then": "/output/properties/p/then/properties/token",
-    "C3-9-patternProperties": "/output/properties/p/patternProperties/^t/properties/token",
-    "nested-$defs": "/output/properties/p",
-    "other-$ref": "/output/properties/p",
-    "not": "/output/properties/p",
-}
+# -- lookup: string work over declared paths -----------------------------------------------
+def test_unmarked_property_counts_as_personal() -> None:
+    classes = {"/output/name": INT}
+    assert UNMARKED_CLASS is P
+    assert class_for(classes, "/output/name") is INT
+    assert class_for(classes, "/output/note") is P
+    assert class_for({}, "/input/partner_ref") is P
+    assert class_for(classes, "/output") is P
 
 
-@pytest.mark.parametrize("probe", sorted(UNSUPPORTED))
-def test_a_declaration_on_an_unsupported_schema_is_refused(probe: str) -> None:
-    """Every Codex probe that leaves the supported subset fails admission by design; the
-    message names the side and the construct, never a value."""
-    document = UNSUPPORTED[probe]
-    assert unsupported_construct(document["output"]) is not None, probe
-    with pytest.raises(ValueError, match="outside the supported subset") as err:
-        ClassIndex(document, {DECLARED[probe]: DataClass.SECRET})
-    assert "output schema" in str(err.value)
+def test_an_index_is_written_items_and_a_dict_is_classed_by_its_property() -> None:
+    classes = {"/output/lines/items/email": P, "/output/lines": INT, "/output/tags": S}
+    assert class_for(classes, "/output/lines/0/email") is P
+    assert class_for(classes, "/output/lines/12/email") is P
+    assert class_for(classes, "/output/lines/items/email") is P
+    assert class_for(classes, "/output/lines/3/ref") is INT  # the container's class
+    # keys of a dict-valued property are data: the dict property classes all of it
+    assert class_for(classes, "/output/tags/any key/deeper") is S
+    assert class_for(classes, "/output/tags/0") is S
 
 
-@pytest.mark.parametrize("probe", sorted(UNSUPPORTED))
-def test_an_unsupported_side_classes_every_value_personal(probe: str) -> None:
-    """With no declaration possible there, every value is personal and the side's count
-    is None, with the construct listed."""
-    index = ClassIndex(UNSUPPORTED[probe], {})
-    assert index.class_of(DECLARED[probe]) is DataClass.PERSONAL
-    assert index.unmarked_counts() == {"input": None, "output": None}
-    assert set(index.unsupported) == {"output"}
-
-
-def test_the_construct_is_named_by_keyword() -> None:
-    assert unsupported_construct(UNSUPPORTED["C3-9-then"]["output"]) == "the keyword 'if'"
-    assert unsupported_construct(UNSUPPORTED["C3-7"]["output"]) == (
-        "a $ref beside the keyword 'properties'"
-    )
-    assert "#/$defs/<Name>" in str(unsupported_construct(UNSUPPORTED["C3-8"]["output"]))
-
-
-def test_c3_7_a_ref_class_is_never_hidden() -> None:
-    """Round 2 C3-7, in the supported subset: a $ref can have no schema-bearing sibling,
-    so the class declared on the definition always applies through it."""
-    document = _output({"person": {"$ref": "#/$defs/Person", "title": "P"}}, **DEFS)
-    index = ClassIndex(document, {"/output/$defs/Person/properties/token": DataClass.SECRET})
-    assert index.class_of("/output/properties/person/properties/token") is DataClass.SECRET
-
-
-def test_c3_8_a_whole_definition_union_classes_its_branch() -> None:
-    """Round 2 C3-8, supported form: a $ref to the whole union definition."""
-    document = _output({"u": {"$ref": "#/$defs/U"}}, **DEFS)
-    pointer = "/output/properties/u/anyOf/0/properties/token"
-    index = ClassIndex(document, {"/output/$defs/U/anyOf/0/properties/token": DataClass.SECRET})
-    assert index.class_of(pointer) is DataClass.SECRET
-    assert index.class_of("/output/$defs/Person/properties/token") is DataClass.PERSONAL
-
-
-def test_leaf_pointers_resolve_and_escape_per_rfc_6901() -> None:
-    leaves = leaf_property_pointers(DOCUMENT)
-    assert "/output/properties/a~1b" in leaves
-    assert "/output/properties/lines" not in leaves  # a container, not a leaf
-    assert all(resolve_property(DOCUMENT, p) is not None for p in leaves)
-    assert len(leaves) == 6
+def test_the_most_restrictive_declaration_wins() -> None:
+    classes = {"/output/person": S, "/output/person/token": INT, "/output/a": INT, "/output/a/b": S}
+    assert class_for(classes, "/output/person/token") is S  # a deeper key never lowers
+    assert class_for(classes, "/output/a/b") is S
+    assert class_for(classes, "/output/a/c") is INT
+    assert most_restrictive([]) is None
 
 
 @pytest.mark.parametrize(
-    "pointer",
+    "key",
     [
-        "/output",
-        "/output/properties",
-        "/output/properties/missing",
-        "/output/properties/lines/items",
-        "/output/type",
-        "/result/properties/name",
-        "/output/properties/lines/items/properties/ref/extra",
-        # C3-5: data keywords are not schema context
-        "/output/properties/name/examples/0/properties/x",
-        "/output/properties/name/default/properties/x",
-        "/output/properties/name/const/properties/x",
-        "/output/properties/name/enum/0/properties/x",
-        # C3-6: non-canonical array tokens
-        "/output/properties/note/anyOf/00/properties/x",
-        "/output/properties/note/anyOf/+0/properties/x",
-        "/output/properties/note/anyOf/-1/properties/x",
+        "output/name",  # not a pointer
+        "/result/name",  # not under /input or /output
+        "/output",  # names the whole side, not a property
+        "/output//name",  # empty token
+        "/output/name/",  # empty token
+        "/output/lines/0/email",  # an index is written `items`
+        "/output/a~2b",  # malformed escape
+        "/output/a~",  # malformed escape
     ],
 )
-def test_a_pointer_must_name_a_property_schema(pointer: str) -> None:
-    assert resolve_property(DOCUMENT, pointer) is None
-    with pytest.raises(ValueError, match="names no property schema"):
-        ClassIndex(DOCUMENT, {pointer: DataClass.INTERNAL})
-
-
-@pytest.mark.parametrize("pointer", ["/output/properties/a~2b", "/output/properties/a~", "/x~y"])
-def test_a_malformed_escape_is_refused(pointer: str) -> None:
-    """C3-6: a ``~`` not followed by 0 or 1 is malformed (RFC 6901)."""
-    with pytest.raises(ValueError, match="escape"):
-        parse_pointer(pointer)
-    assert resolve_property(DOCUMENT, pointer) is None
+def test_a_malformed_key_is_refused(key: str) -> None:
+    with pytest.raises(ValueError, match=r"pointer|key"):
+        check_class_key(key)
     with pytest.raises(ValidationError):
-        _capability(data_classes={pointer: "internal"})
+        _capability(data_classes={key: "internal"})
 
 
-def test_pointer_into_an_absent_schema_names_nothing() -> None:
-    assert resolve_property({"input": DOCUMENT["input"]}, "/output/properties/name") is None
+def test_rfc_6901_escapes_round_trip() -> None:
+    assert parse_pointer("/output/a~1b/c~0d") == ("output", "a/b", "c~d")
+    assert format_pointer(("output", "a/b", "c~d")) == "/output/a~1b/c~0d"
+    assert class_for({"/output/a~1b": S}, "/output/a~1b/0") is S
 
 
 def test_descriptor_declares_classes_beside_the_schema() -> None:
-    declared = _capability(data_classes={"/output/properties/name": "personal"})
-    assert declared.data_classes == {"/output/properties/name": DataClass.PERSONAL}
+    declared = _capability(data_classes={"/output/name": "personal"})
+    assert declared.data_classes == {"/output/name": P}
     assert _capability().data_classes == {}  # an existing declaration still loads
     # it stays hashable, as registration compares declared capability sets
-    assert len({declared, _capability(data_classes={"/output/properties/name": "personal"})}) == 1
+    assert len({declared, _capability(data_classes={"/output/name": "personal"})}) == 1
     assert declared != _capability()
-
-
-@pytest.mark.parametrize(
-    "bad",
-    [
-        {"/output/properties/name": "confidential"},
-        {"output/properties/name": "internal"},
-        {"/result/properties/name": "internal"},
-        {"/output": "internal"},
-    ],
-)
-def test_descriptor_rejects_bad_class_declarations(bad: dict[str, str]) -> None:
     with pytest.raises(ValidationError):
-        _capability(data_classes=bad)
+        _capability(data_classes={"/output/name": "confidential"})
 
 
-def test_record_kinds_are_declared_once_with_both_classes() -> None:
-    assert RECORD_KINDS, "no record kinds declared"
-    for name, kind in RECORD_KINDS.items():
-        assert kind.kind == name
-        assert isinstance(kind.record_class, RecordClass)
-        assert isinstance(kind.retention, RetentionClass)
-        assert kind.holds
-    print(f"record kinds declared: {len(RECORD_KINDS)}")
-    assert record_kind("runs").record_class is RecordClass.AUDIT_SKELETON
-    assert record_kind("continuations").record_class is RecordClass.BUSINESS_PAYLOAD
-    assert record_kind("run_work").record_class is RecordClass.INFRA
-    with pytest.raises(KeyError):
-        record_kind("unknown")
+# -- the invariant: randomized shapes and declarations -------------------------------------
+KEYS = ("a", "b", "name", "items", "x/y", "t~z", "email")
+SEEDS = 300
 
 
+def _shape(rng: random.Random, depth: int = 0) -> Any:
+    roll = rng.random()
+    if depth >= 4 or roll < 0.3:
+        return rng.choice(("s", 1, None, True, 2.5))
+    if roll < 0.65:
+        return {k: _shape(rng, depth + 1) for k in rng.sample(KEYS, rng.randint(1, 3))}
+    return [_shape(rng, depth + 1) for _ in range(rng.randint(0, 3))]
+
+
+def _values(
+    value: Any, concrete: tuple[str, ...], canonical: tuple[str, ...]
+) -> Iterator[tuple[tuple[str, ...], tuple[str, ...]]]:
+    """Every value's concrete path (real indices) and canonical path (``items``)."""
+    yield concrete, canonical
+    if isinstance(value, dict):
+        for key, child in value.items():
+            yield from _values(child, (*concrete, key), (*canonical, key))
+    elif isinstance(value, list):
+        for i, child in enumerate(value):
+            yield from _values(child, (*concrete, str(i)), (*canonical, "items"))
+
+
+def _expected(
+    value: Any,
+    concrete: tuple[str, ...],
+    canonical: tuple[str, ...],
+    declared: dict[tuple[str, ...], DataClass],
+    floor: DataClass | None,
+) -> Iterator[tuple[tuple[str, ...], DataClass | None]]:
+    """The oracle, independent of the implementation: walk the data top-down carrying
+    the most restrictive class declared so far."""
+    here = most_restrictive(c for c in (floor, declared.get(canonical)) if c is not None)
+    yield concrete, here
+    if isinstance(value, dict):
+        for key, child in value.items():
+            yield from _expected(child, (*concrete, key), (*canonical, key), declared, here)
+    elif isinstance(value, list):
+        for i, child in enumerate(value):
+            yield from _expected(child, (*concrete, str(i)), (*canonical, "items"), declared, here)
+
+
+def test_a_value_class_is_never_lower_than_any_declaration_above_it() -> None:
+    cases = 0
+    for seed in range(SEEDS):
+        rng = random.Random(seed)
+        data = _shape(rng)
+        canonical = sorted({c for _, c in _values(data, ("output",), ("output",)) if len(c) > 1})
+        chosen = rng.sample(canonical, min(len(canonical), rng.randint(0, 4)))
+        declared = {c: rng.choice(RESTRICTIVENESS) for c in chosen}
+        classes = {format_pointer(c): k for c, k in declared.items()}
+        for key in classes:
+            check_class_key(key)
+        for concrete, floor in _expected(data, ("output",), ("output",), declared, None):
+            got = class_for(classes, format_pointer(concrete))
+            want = UNMARKED_CLASS if floor is None else floor
+            assert RESTRICTIVENESS.index(got) >= RESTRICTIVENESS.index(want), (seed, concrete)
+            assert got is want, (seed, concrete, classes)
+            cases += 1
+    print(f"invariant cases: {cases} over {SEEDS} seeds")
+    assert cases > 0, "0 cases is a failure (PR-31)"
+
+
+# -- admission: a path must exist through at least one schema branch -----------------------
+PERSON = {"type": "object", "properties": {"token": {"type": "string"}, "nick": {}}}
+DEFS = {"$defs": {"Person": PERSON, "U": {"anyOf": [PERSON, {"type": "null"}]}}}
+
+
+def test_admission_follows_properties_items_refs_and_branches() -> None:
+    document = _output(
+        {
+            "person": {"$ref": "#/$defs/Person"},
+            "maybe": {"anyOf": [{"$ref": "#/$defs/Person"}, {"type": "null"}]},
+            "u": {"$ref": "#/$defs/U"},
+            "list": {"type": "array", "items": {"$ref": "#/$defs/Person"}},
+            "pair": {"type": "array", "prefixItems": [{"type": "string"}, PERSON]},
+            "both": {"allOf": [{"properties": {"left": {}}}, {"properties": {"right": {}}}]},
+        },
+        **DEFS,
+    )
+    ok = [
+        "/output/person/token",
+        "/output/maybe/token",
+        "/output/u/nick",
+        "/output/list/items/token",
+        "/output/pair/items/token",
+        "/output/both/left",
+        "/output/both/right",
+        "/output/list",
+    ]
+    check_declarations(document, dict.fromkeys(ok, S))
+    for bad in ("/output/person/missing", "/output/list/items", "/output/person/token/x"):
+        with pytest.raises(ValueError, match="resolves to no property"):
+            check_declarations(document, {bad: S})
+    with pytest.raises(ValueError, match="resolves to no property"):
+        check_declarations({}, {"/input/a": S})
+
+
+def test_readiness_counts_leaves_and_treats_a_dict_as_a_leaf() -> None:
+    document = _output(
+        {
+            "name": {"type": "string"},
+            "lines": {"type": "array", "items": {"$ref": "#/$defs/Person"}},
+            "by_name": {"type": "object", "additionalProperties": {"$ref": "#/$defs/Person"}},
+        },
+        **DEFS,
+    )
+    leaves = leaf_instance_paths(document)
+    assert leaves == (
+        "/output/name",
+        "/output/lines/items/token",
+        "/output/lines/items/nick",
+        "/output/by_name",
+    )
+    assert unmarked_counts(document, {"/output/name": INT}) == {"input": None, "output": 3}
+    assert (
+        unmarked_counts(
+            document, {"/output/lines": INT, "/output/name": INT, "/output/by_name": S}
+        )["output"]
+        == 0
+    )
+
+
+def test_a_recursive_schema_terminates() -> None:
+    tree = {"properties": {"name": {}, "children": {"items": {"$ref": "#/$defs/T"}}}}
+    document = _output({"tree": {"$ref": "#/$defs/T"}}, **{"$defs": {"T": tree}})
+    assert "/output/tree/name" in leaf_instance_paths(document)
+    check_declarations(document, {"/output/tree/children/items/children/items/name": S})
+
+
+# -- every Codex probe of rounds 1-3, as instance paths ------------------------------------
+UNSUPPORTED = {
+    "r1-C3-3": _output({"other": {"$ref": "#/$defs/Person", "properties": {"extra": {}}}}, **DEFS),
+    "r2-C3-1": _output({"tok": {"$ref": "#/$defs/Person/properties/token"}}, **DEFS),
+    "r2-C3-7": _output(
+        {"person": {"$ref": "#/$defs/Person", "properties": {"token": {"type": "string"}}}},
+        **DEFS,
+    ),
+    "r2-C3-8": _output({"u": {"$ref": "#/$defs/U/anyOf/0"}}, **DEFS),
+    "r2-C3-9-then": _output({"p": {"if": {}, "then": {"properties": {"token": {}}}}}),
+    "r2-C3-9-patternProperties": _output(
+        {"p": {"patternProperties": {"^t": {"properties": {"token": {}}}}}}
+    ),
+    "r3-C3-13": _output(
+        {"person": {"$ref": "#/$defs/Per%73on"}},
+        **{"$defs": {"Per%73on": {"properties": {"token": {}}}, "Person": PERSON}},
+    ),
+}
+PROBE_PATH = {
+    "r1-C3-3": "/output/other/extra",
+    "r2-C3-1": "/output/tok",
+    "r2-C3-7": "/output/person/token",
+    "r2-C3-8": "/output/u/token",
+    "r2-C3-9-then": "/output/p/token",
+    "r2-C3-9-patternProperties": "/output/p/token",
+    "r3-C3-13": "/output/person/token",
+}
+
+
+@pytest.mark.parametrize("probe", sorted(UNSUPPORTED))
+def test_a_probe_outside_the_supported_subset_is_refused(probe: str) -> None:
+    """Refused by design: a declaration on that side fails admission, the side is listed
+    with its construct, and its count is None. Lookup, which never reads the schema,
+    still gives the declared value its class, never lower."""
+    document = UNSUPPORTED[probe]
+    assert unsupported_construct(document["output"]) is not None
+    assert set(unsupported_sides(document)) == {"output"}
+    with pytest.raises(ValueError, match="outside the supported subset") as err:
+        check_declarations(document, {PROBE_PATH[probe]: S})
+    assert "output schema" in str(err.value)
+    assert unmarked_counts(document, {}) == {"input": None, "output": None}
+    assert class_for({PROBE_PATH[probe]: S}, PROBE_PATH[probe]) is S
+    assert class_for({}, PROBE_PATH[probe]) is P
+
+
+def test_r1_c3_1_a_value_under_a_ref_keeps_its_class() -> None:
+    document = _output({"person": {"$ref": "#/$defs/Person"}}, **DEFS)
+    classes = {"/output/person/token": S}
+    check_declarations(document, classes)
+    assert class_for(classes, "/output/person/token") is S
+
+
+def test_r1_c3_4_a_dict_under_additional_properties_is_classed_by_its_property() -> None:
+    document = _output({"tags": {"additionalProperties": {"$ref": "#/$defs/Person"}}}, **DEFS)
+    classes = {"/output/tags": S}
+    check_declarations(document, classes)
+    assert class_for(classes, "/output/tags/k/token") is S
+    assert unmarked_counts(document, {}) == {"input": None, "output": 1}
+
+
+def test_r1_c3_5_a_data_keyword_is_not_a_path() -> None:
+    document = _output({"name": {"type": "string", "examples": [{"x": 1}], "default": {}}})
+    for key in ("/output/name/examples", "/output/name/default", "/output/name/x"):
+        with pytest.raises(ValueError, match="resolves to no property"):
+            check_declarations(document, {key: S})
+
+
+def test_r1_c3_6_indices_and_escapes() -> None:
+    classes = {"/output/lines/items/email": S}
+    assert class_for(classes, "/output/lines/0/email") is S
+    assert class_for(classes, "/output/lines/7/email") is S
+    with pytest.raises(ValueError, match="escape"):
+        class_for(classes, "/output/lines/0/e~2mail")
+    with pytest.raises(ValueError, match="items"):
+        check_class_key("/output/lines/00/email")
+
+
+def test_r3_c3_10_overlapping_all_of_properties_keep_the_class() -> None:
+    document = _output(
+        {
+            "v": {
+                "allOf": [
+                    {"properties": {"token": {"type": "string"}}},
+                    {"properties": {"token": {}}},
+                ]
+            }
+        }
+    )
+    classes = {"/output/v/token": S}
+    check_declarations(document, classes)
+    assert class_for(classes, "/output/v/token") is S
+    assert class_for({"/output/v": S, "/output/v/token": INT}, "/output/v/token") is S
+
+
+def test_r3_c3_11_a_boolean_true_property_keeps_its_ancestor_class() -> None:
+    document = _output({"p": {"type": "object", "properties": {"x": True}}})
+    check_declarations(document, {"/output/p": S, "/output/p/x": INT})
+    assert class_for({"/output/p": S}, "/output/p/x") is S
+    assert class_for({"/output/p": S, "/output/p/x": INT}, "/output/p/x") is S
+
+
+def test_r3_c3_12_a_long_ref_chain_keeps_its_declaration() -> None:
+    defs: dict[str, Any] = {f"A{i}": {"$ref": f"#/$defs/A{i + 1}"} for i in range(40)}
+    defs["A40"] = PERSON
+    document = _output({"x": {"$ref": "#/$defs/A0"}}, **{"$defs": defs})
+    classes = {"/output/x/token": S}
+    check_declarations(document, classes)
+    assert class_for(classes, "/output/x/token") is S
+
+
+# -- pydantic output inside the subset -----------------------------------------------------
 class _Kind(StrEnum):
     A = "a"
 
@@ -359,19 +410,28 @@ class _Everything(Record):
 def test_pydantic_schemas_fall_inside_the_supported_subset() -> None:
     """The shapes pydantic v2's ``model_json_schema()`` emits: nested and optional models,
     annotated and defaulted refs, dicts, fixed tuples, discriminated and plain unions,
-    enums, recursion and constrained scalars."""
-    schema = _Everything.model_json_schema()
-    assert unsupported_construct(schema) is None
-    leaves = leaf_property_pointers({"output": schema})
-    print(f"pydantic leaf properties: {len(leaves)}")
-    assert "/output/properties/by_name/additionalProperties/properties/token" in leaves
-    index = ClassIndex(
-        {"output": schema}, {"/output/$defs/_Leaf/properties/token": DataClass.SECRET}
-    )
-    for pointer in (
-        "/output/properties/leaf/properties/token",
-        "/output/properties/described/properties/token",
-        "/output/properties/maybe/anyOf/0/properties/token",
-        "/output/properties/by_name/additionalProperties/properties/token",
-    ):
-        assert index.class_of(pointer) is DataClass.SECRET, pointer
+    enums, recursion and constrained scalars. Every leaf path is admissible."""
+    document = {"output": _Everything.model_json_schema()}
+    assert unsupported_construct(document["output"]) is None
+    leaves = leaf_instance_paths(document)
+    print(f"pydantic leaf paths: {len(leaves)}")
+    for path in ("/output/maybe/token", "/output/pet/leaves/items/token", "/output/by_name"):
+        assert path in leaves, path
+    check_declarations(document, dict.fromkeys(leaves, INT))
+    assert unmarked_counts(document, dict.fromkeys(leaves, INT)) == {"input": None, "output": 0}
+
+
+# -- stored record kinds -------------------------------------------------------------------
+def test_record_kinds_are_declared_once_with_both_classes() -> None:
+    assert RECORD_KINDS, "no record kinds declared"
+    for name, kind in RECORD_KINDS.items():
+        assert kind.kind == name
+        assert isinstance(kind.record_class, RecordClass)
+        assert isinstance(kind.retention, RetentionClass)
+        assert kind.holds
+    print(f"record kinds declared: {len(RECORD_KINDS)}")
+    assert record_kind("runs").record_class is RecordClass.AUDIT_SKELETON
+    assert record_kind("continuations").record_class is RecordClass.BUSINESS_PAYLOAD
+    assert record_kind("run_work").record_class is RecordClass.INFRA
+    with pytest.raises(KeyError):
+        record_kind("unknown")

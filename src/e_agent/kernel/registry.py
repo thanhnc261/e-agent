@@ -13,9 +13,9 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from e_agent.contracts import data_classes as dc
 from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor, EffectKind
 from e_agent.contracts.context import Budgets
-from e_agent.contracts.data_classes import ClassIndex, DataClass, schema_document
 from e_agent.contracts.task import TaskDefinition, check_answer_condition
 from e_agent.sdk import SDK_API_VERSION
 from e_agent.sdk.connection import ConnectionSpec
@@ -112,7 +112,6 @@ class PluginRegistry:
         self.input_schemas: dict[str, Mapping[str, Any]] = {}
         self.output_schemas: dict[str, Mapping[str, Any]] = {}
         """For class pointers only (ADR 0030): never model-facing, not in the surface digest."""
-        self._class_indexes: dict[str, ClassIndex] = {}
         self.agent_guidance: list[str] = []
         self.task_presets: dict[str, TaskPreset] = {}
         self.task_definitions: dict[str, TaskDefinition] = {}
@@ -322,12 +321,11 @@ class PluginRegistry:
             if schema_id in self.output_schemas and self.output_schemas[schema_id] != schema:
                 raise _reject(f"conflicting schema definitions for {schema_id}")
             self.output_schemas[schema_id] = schema
-        for cap in sorted(declared, key=lambda c: c.contract_id):  # ADR 0030 class pointers
+        for cap in sorted(declared, key=lambda c: c.contract_id):  # ADR 0030 class paths
             try:
-                index = ClassIndex(self.schema_document(cap.contract_id), cap.data_classes)
+                dc.check_declarations(self.schema_document(cap.contract_id), cap.data_classes)
             except ValueError as exc:
                 raise _reject(f"{plugin_id}: {cap.contract_id} {exc}") from None
-            self._class_indexes[cap.contract_id] = index
         if contribution.agent_guidance:
             self.agent_guidance.append(contribution.agent_guidance)
         for preset in contribution.task_presets:
@@ -367,29 +365,29 @@ class PluginRegistry:
 
     # -- data classes (ADR 0030) -------------------------------------------------
     def schema_document(self, contract_id: str) -> dict[str, Mapping[str, Any]]:
-        """The registered schemas of a capability, as class pointers address them."""
+        """The registered schemas of a capability, as ``{"input": ..., "output": ...}``."""
         cap = self.descriptor(contract_id)
-        return schema_document(
+        return dc.schema_document(
             self.input_schemas.get(cap.input_schema_id),
             self.output_schemas.get(cap.output_schema_id),
         )
 
-    def data_class(self, contract_id: str, pointer: str) -> DataClass:
-        """A value's class; ``personal`` when unmarked. Task 3d.2's assembler reads it.
-        ``ValueError`` for a malformed pointer."""
-        self.descriptor(contract_id)  # an unknown capability is INVALID_REQUEST
-        return self._class_indexes[contract_id].class_of(pointer)
+    def data_class(self, contract_id: str, instance_path: str) -> dc.DataClass:
+        """The most restrictive class declared on the path or an ancestor, ``personal``
+        when none; string work, no schema walk. Task 3d.2's assembler reads it."""
+        return dc.class_for(self.descriptor(contract_id).data_classes, instance_path)
 
     def unmarked_properties(self) -> dict[str, dict[str, int | None]]:
         """Unmarked leaves per capability and side; None: no schema, or an unsupported one."""
+        caps = sorted(self.capabilities.items())
         return {
-            cid: self._class_indexes[cid].unmarked_counts() for cid in sorted(self.capabilities)
+            cid: dc.unmarked_counts(self.schema_document(cid), c.data_classes) for cid, c in caps
         }
 
     def unsupported_schemas(self) -> dict[str, dict[str, str]]:
         """Sides whose schema leaves the data-class subset (every value there is personal)."""
-        found = {cid: self._class_indexes[cid].unsupported for cid in sorted(self.capabilities)}
-        return {cid: sides for cid, sides in found.items() if sides}
+        found = {cid: dc.unsupported_sides(self.schema_document(cid)) for cid in self.capabilities}
+        return {cid: sides for cid, sides in sorted(found.items()) if sides}
 
     # -- task definitions (ADR 0028) ----------------------------------------------
     def _stage_task_definitions(

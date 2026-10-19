@@ -136,9 +136,9 @@ CLASSED_READ = READ.model_validate(
     {
         **READ.model_dump(),
         "data_classes": {
-            "/output/properties/topic": "internal",
-            "/output/properties/count": "internal",
-            "/output/properties/notes/items/properties/key": "internal",
+            "/output/topic": "internal",
+            "/output/count": "internal",
+            "/output/notes/items/key": "internal",
             # the note text is deliberately unmarked: it counts as personal (ADR 0030)
         },
     }

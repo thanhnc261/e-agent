@@ -10,7 +10,7 @@ from typing import Any, Self
 from pydantic import Field, field_validator, model_validator
 
 from .common import Record
-from .data_classes import DataClass, check_class_pointer
+from .data_classes import DataClass, check_class_key
 
 _CONTRACT_ID = re.compile(r"^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+\.v[0-9]+$")
 
@@ -78,11 +78,12 @@ class CapabilityDescriptor(Record):
     compensating_contract_id: str | None = None
     """The contract that undoes this one; required exactly when ``compensable``."""
     data_classes: Mapping[str, DataClass] = Field(default_factory=dict)
-    """Field classes beside the schemas (ADR 0030, sdk_api 1.2): an RFC 6901 pointer into
-    ``{"input": <input schema>, "output": <output schema>}`` naming a property schema, to
-    its class. The schemas are unchanged, so the model-facing tool schemas are too. An
-    unmarked property counts as ``personal``; admission refuses a pointer that names no
-    property schema."""
+    """Field classes beside the schemas (ADR 0030, sdk_api 1.2), keyed by instance path:
+    an RFC 6901 pointer under ``/input`` or ``/output`` into the data, with ``items`` for
+    every array index (``/output/orders/items/partner_name``). A value's class is the most
+    restrictive one declared on its path or an ancestor; an undeclared value is
+    ``personal``. The schemas are unchanged, so the model-facing tool schemas are too;
+    admission refuses a path that resolves to no property of the schema."""
 
     def __hash__(self) -> int:
         # The mapping field is not hashable; equal descriptors share a contract id.
@@ -95,9 +96,9 @@ class CapabilityDescriptor(Record):
 
     @field_validator("data_classes")
     @classmethod
-    def _check_data_class_pointers(cls, value: Mapping[str, DataClass]) -> Mapping[str, DataClass]:
-        for pointer in value:
-            check_class_pointer(pointer)
+    def _check_data_class_keys(cls, value: Mapping[str, DataClass]) -> Mapping[str, DataClass]:
+        for key in value:
+            check_class_key(key)
         return value
 
     @field_validator("compensating_contract_id")

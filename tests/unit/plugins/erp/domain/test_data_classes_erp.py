@@ -1,11 +1,15 @@
-"""The ERP pack's data classes (ADR 0030, Task 3b.3): declared beside the schemas, every
-pointer resolves at admission, and every read output property is classed."""
+"""The ERP pack's data classes (ADR 0030, Task 3b.3): declared beside the schemas by
+instance path, every path resolves at admission, and every read output property is
+classed."""
+
+import json
+from pathlib import Path
 
 from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.data_classes import (
-    ClassIndex,
     DataClass,
-    leaf_property_pointers,
+    declared_class,
+    leaf_instance_paths,
     unsupported_construct,
 )
 from e_agent.kernel.registry import PluginRegistry
@@ -18,41 +22,41 @@ from e_agent.plugins.erp.domain.plugin import (
 from e_agent.sdk.ports import PluginServices
 
 PARTNER_NAMES = {
-    "crm.contact.read.v1": "/output/properties/name",
-    "sales.pricing.read.v1": "/output/properties/customer_name",
-    "crm.lead.read.v1": "/output/properties/leads/items/properties/name",
+    "crm.contact.read.v1": "/output/name",
+    "sales.pricing.read.v1": "/output/customer_name",
+    "crm.lead.read.v1": "/output/leads/items/name",
 }
 INTERNAL = {
     "procurement.demand.read.v1": (
-        "/output/properties/quantity",
-        "/output/properties/budget",
-        "/output/properties/demand_ref",
-        "/output/properties/product_ref",
+        "/output/quantity",
+        "/output/budget",
+        "/output/demand_ref",
+        "/output/product_ref",
     ),
     "inventory.availability.read.v1": (
-        "/output/properties/available",
-        "/output/properties/inbound",
-        "/output/properties/product_ref",
+        "/output/available",
+        "/output/inbound",
+        "/output/product_ref",
     ),
     "procurement.offers.read.v1": (
-        "/output/properties/offers/items/properties/offer_ref",
-        "/output/properties/offers/items/properties/supplier_ref",
-        "/output/properties/offers/items/properties/unit_price",
+        "/output/offers/items/offer_ref",
+        "/output/offers/items/supplier_ref",
+        "/output/offers/items/unit_price",
     ),
     "procurement.open-demands.read.v1": (
-        "/output/properties/demands/items/properties/quantity",
-        "/output/properties/demands/items/properties/demand_ref",
+        "/output/demands/items/quantity",
+        "/output/demands/items/demand_ref",
     ),
-    "sales.open-orders.read.v1": ("/output/properties/orders/items/properties/customer_ref",),
+    "sales.open-orders.read.v1": ("/output/orders/items/customer_ref",),
     "receivables.open-invoices.read.v1": (
-        "/output/properties/invoices/items/properties/residual",
-        "/output/properties/invoices/items/properties/invoice_ref",
+        "/output/invoices/items/residual",
+        "/output/invoices/items/invoice_ref",
     ),
 }
 
 
 def _registry() -> PluginRegistry:
-    """The ERP pack registered alone: admission resolves every declared pointer."""
+    """The ERP pack registered alone: admission resolves every declared path."""
     manifest = load_manifest()
     reg = PluginRegistry({})
     reg.register(
@@ -73,10 +77,9 @@ def test_erp_read_outputs_are_marked() -> None:
     for cap in reads:
         document = reg.schema_document(cap.contract_id)
         assert "output" in document, f"{cap.contract_id}: no output schema registered"
-        outputs = [p for p in leaf_property_pointers(document) if p.startswith("/output/")]
+        outputs = [p for p in leaf_instance_paths(document) if p.startswith("/output/")]
         assert outputs, cap.contract_id
-        index = ClassIndex(document, cap.data_classes)
-        unclassed = [p for p in outputs if index.declared(p) is None]
+        unclassed = [p for p in outputs if declared_class(cap.data_classes, p) is None]
         assert not unclassed, (cap.contract_id, unclassed)
         checked += len(outputs)
     print(f"ERP read capabilities: {len(reads)}, output properties classed: {checked}")
@@ -94,7 +97,7 @@ def test_every_email_or_partner_name_property_is_personal() -> None:
     reg = _registry()
     seen = 0
     for cid in reg.capabilities:
-        for pointer in leaf_property_pointers(reg.schema_document(cid)):
+        for pointer in leaf_instance_paths(reg.schema_document(cid)):
             leaf = pointer.rsplit("/", 1)[-1]
             if "email" in leaf or leaf in {"customer_name", "contact_name", "partner_name"}:
                 assert reg.data_class(cid, pointer) is DataClass.PERSONAL, (cid, pointer)
@@ -132,3 +135,22 @@ def test_every_erp_schema_is_inside_the_supported_subset() -> None:
     assert len(schemas) == len(INPUT_SCHEMAS) + len(OUTPUT_SCHEMAS) == 34
     assert outside == dict.fromkeys(schemas)
     assert _registry().unsupported_schemas() == {}
+
+
+GOLDEN = Path(__file__).parent / "golden" / "data_classes_by_value.json"
+"""The class of every ERP leaf value under the schema-pointer keys of rounds 0-2,
+recorded at 24289b0 before the instance-path migration (owner decision, Task 3b.3)."""
+
+
+def test_instance_path_migration_keeps_every_class() -> None:
+    golden: dict[str, dict[str, str]] = json.loads(GOLDEN.read_text("utf-8"))
+    reg = _registry()
+    compared = 0
+    for cid, values in golden.items():
+        declared = reg.capabilities[cid].data_classes
+        assert set(declared) == set(values), cid  # one declaration per recorded value
+        for path, data_class in values.items():
+            assert reg.data_class(cid, path) == data_class, (cid, path)
+            compared += 1
+    print(f"ERP values compared: {compared}")
+    assert compared == 160 and set(golden) == set(reg.capabilities)

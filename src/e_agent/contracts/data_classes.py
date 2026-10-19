@@ -1,12 +1,21 @@
 """Data classes for capability fields and stored records (ADR 0030, target §13.3).
 
 Field classes are pack data declared beside the schema, never inside it:
-``CapabilityDescriptor.data_classes`` maps an RFC 6901 pointer into the document
-``{"input": <input schema>, "output": <output schema>}`` to a ``DataClass``. A pointer
-names a property schema; an ``items`` step matches every array index, and a local
-``$ref`` is followed against the schema it appears in. A class applies to the property
-and to every property below it that has no class of its own. An unmarked property counts
-as ``personal``, the conservative default.
+``CapabilityDescriptor.data_classes`` maps an *instance path* to a ``DataClass``. An
+instance path says where a value sits in the capability's input or output data: an
+RFC 6901 pointer under ``/input`` or ``/output`` whose tokens are property names, with
+``items`` standing for every array index (``/output/orders/items/partner_name``).
+
+A value's class is the most restrictive class declared on its path or on any ancestor
+path; an undeclared value is ``personal``, the conservative default. Lookup is string
+work over the declared paths and never walks a schema, so no schema alias can lower a
+class (owner decision 2026-10-19, Task 3b.3). Keys of a dict-valued property are data,
+not paths: a dict and everything in it are classed by a declaration on the dict property
+itself, through the ancestor rule.
+
+Schemas serve admission and readiness only: admission refuses a path that resolves to
+no property through any branch of the schema, and readiness counts the leaf paths no
+declaration covers. Neither decides a class, so an incomplete walk can only refuse.
 
 The stored record kinds of the run ledger are declared once here, store-neutrally, with
 a record class and a retention class. A conformance test compares them with what each
@@ -110,16 +119,14 @@ def record_kind(kind: str) -> RecordKind:
     return RECORD_KINDS[kind]
 
 
-# -- pointers into {"input": <schema>, "output": <schema>} --------------------------------
-_MAX_REFS = 32
+# -- instance paths ---------------------------------------------------------------------
+ITEMS = "items"
+"""The path token that stands for every array index."""
 _BAD_ESCAPE = re.compile(r"~(?![01])")
 _INDEX = re.compile(r"0|[1-9][0-9]*")
-_NAMED = frozenset({"properties", "$defs"})
-"""Keywords whose value maps a name to a schema (``$defs`` only at a schema root)."""
+_NUMERIC = re.compile(r"[+-]?[0-9]+")
 _INDEXED = ("prefixItems", "anyOf", "oneOf", "allOf")
-"""Keywords whose value is a list of schemas."""
 _SINGLE = ("items", "additionalProperties")
-"""Keywords whose value is one schema."""
 RESTRICTIVENESS = (
     DataClass.PUBLIC,
     DataClass.INTERNAL,
@@ -128,9 +135,9 @@ RESTRICTIVENESS = (
     DataClass.SECRET,
 )
 """Classes from least to most restrictive."""
-
-_DEF_REF = re.compile(r"#/\$defs/([^/~]+)")
-"""The one supported ``$ref`` form: a whole definition of the same schema's root."""
+_DEF_REF = re.compile(r"#/\$defs/([^/~%]+)")
+"""The one supported ``$ref`` form: a whole definition of the same schema's root. No
+``%``: a percent-encoded name would name a definition other than the literal key."""
 REF_ANNOTATIONS = frozenset(
     {"title", "description", "default", "examples", "deprecated", "readOnly", "writeOnly"}
     | {"$comment"}
@@ -159,11 +166,10 @@ _NON_SCHEMA = REF_ANNOTATIONS | {
 }
 """Keywords whose values are data or assertions, never schemas (``x-`` extensions too)."""
 
-Location = tuple[str, ...]
-"""Where a schema sits in the document, ``$ref`` hops resolved: its identity."""
+Path = tuple[str, ...]
 
 
-def parse_pointer(pointer: str) -> tuple[str, ...]:
+def parse_pointer(pointer: str) -> Path:
     """The reference tokens of an RFC 6901 pointer (``~1`` is ``/``, ``~0`` is ``~``).
     A ``~`` followed by anything else is malformed and refused."""
     if not pointer.startswith("/"):
@@ -177,20 +183,43 @@ def format_pointer(tokens: Sequence[str]) -> str:
     return "".join("/" + t.replace("~", "~0").replace("/", "~1") for t in tokens)
 
 
-def _class_pointer_tokens(pointer: str) -> tuple[str, ...]:
-    tokens = parse_pointer(pointer)
-    if len(tokens) < 3 or tokens[0] not in SCHEMA_ROOTS or tokens[-2] != "properties":
-        raise ValueError(
-            f"a data class pointer names a property under /input or /output: {pointer!r}"
-        )
-    return tokens
+def check_class_key(key: str) -> str:
+    """A declaration key: an instance path under ``/input`` or ``/output`` with at least
+    one property token, no empty token, and ``items`` (never a number) for an index."""
+    tokens = parse_pointer(key)
+    if len(tokens) < 2 or tokens[0] not in SCHEMA_ROOTS:
+        raise ValueError(f"a data class key is an instance path under /input or /output: {key!r}")
+    if any(not t for t in tokens):
+        raise ValueError(f"a data class key has an empty token: {key!r}")
+    if any(_NUMERIC.fullmatch(t) for t in tokens):
+        raise ValueError(f"a data class key writes array indices as 'items': {key!r}")
+    return key
 
 
-def check_class_pointer(pointer: str) -> str:
-    """Syntax only: a pointer into one of the two schemas that ends at a property name.
-    Whether it resolves needs the schemas; the registry checks that at admission."""
-    _class_pointer_tokens(pointer)
-    return pointer
+def instance_tokens(path: str) -> Path:
+    """The tokens of a value's path, every array index written as ``items``."""
+    return tuple(ITEMS if _INDEX.fullmatch(t) else t for t in parse_pointer(path))
+
+
+def most_restrictive(classes: Iterable[DataClass]) -> DataClass | None:
+    ranked = [RESTRICTIVENESS.index(c) for c in classes]
+    return RESTRICTIVENESS[max(ranked)] if ranked else None
+
+
+def declared_class(classes: Mapping[str, DataClass], path: str) -> DataClass | None:
+    """The most restrictive class declared on ``path`` or an ancestor path, or None.
+    ``ValueError`` for a malformed path."""
+    tokens = instance_tokens(path)
+    by_tokens = {parse_pointer(key): data_class for key, data_class in classes.items()}
+    return most_restrictive(
+        by_tokens[tokens[:end]] for end in range(1, len(tokens) + 1) if tokens[:end] in by_tokens
+    )
+
+
+def class_for(classes: Mapping[str, DataClass], path: str) -> DataClass:
+    """The class of the value at ``path``; ``personal`` when no declaration covers it."""
+    found = declared_class(classes, path)
+    return UNMARKED_CLASS if found is None else found
 
 
 def schema_document(
@@ -257,189 +286,124 @@ def unsupported_construct(schema: Mapping[str, Any]) -> str | None:
     return None
 
 
-def _ref_target(
-    node: Mapping[str, Any], document: Mapping[str, Any], loc: Location
-) -> tuple[Mapping[str, Any], Location] | None:
-    """The definition a supported ``$ref`` names, in the schema ``loc`` is in."""
+def unsupported_sides(document: Mapping[str, Any]) -> dict[str, str]:
+    """The sides whose schema leaves the supported subset, with the construct."""
+    return {
+        side: found
+        for side in SCHEMA_ROOTS
+        if side in document and (found := unsupported_construct(document[side])) is not None
+    }
+
+
+# -- schema walks for admission and readiness (never for a class) -----------------------
+def _expand(node: Any, root: Mapping[str, Any], seen: set[int]) -> Iterator[Mapping[str, Any]]:
+    """``node`` and every schema it stands for at the same instance path: whole-definition
+    ``$ref`` targets and ``anyOf``/``oneOf``/``allOf`` branches, each once."""
+    if not isinstance(node, Mapping) or id(node) in seen:
+        return
+    seen.add(id(node))
+    yield node
     ref = node.get("$ref")
     match = _DEF_REF.fullmatch(ref) if isinstance(ref, str) else None
-    defs = document[loc[0]].get("$defs")
-    if match is None or not isinstance(defs, Mapping):
-        return None
-    target = defs.get(match.group(1))
-    return (target, (loc[0], "$defs", match.group(1))) if isinstance(target, Mapping) else None
-
-
-def _child(node: Mapping[str, Any], keyword: str, name: str | None) -> Any:
-    value = node.get(keyword)
-    if keyword in _SINGLE:
-        return value
-    if keyword in _NAMED:
-        return value.get(name) if isinstance(value, Mapping) and name is not None else None
-    if isinstance(value, list) and name is not None and _INDEX.fullmatch(name):
-        return value[int(name)] if int(name) < len(value) else None
-    return None
-
-
-def _step(
-    node: Mapping[str, Any], loc: Location, keyword: str, name: str | None, document: Any
-) -> tuple[Mapping[str, Any], Location] | None:
-    """One schema keyword step, through ``$ref`` hops (a supported ``$ref`` has no
-    schema-bearing sibling, so a node either holds the keyword or refers on)."""
-    for _ in range(_MAX_REFS):
-        found = _child(node, keyword, name)
-        if isinstance(found, Mapping):
-            return found, (*loc, keyword) if name is None else (*loc, keyword, name)
-        hop = _ref_target(node, document, loc)
-        if hop is None:
-            return None
-        node, loc = hop
-    return None
-
-
-def _property_locations(document: Mapping[str, Any], pointer: str) -> list[Location] | None:
-    """The location of every property schema along ``pointer``, outermost first, or None
-    when the pointer leaves schema context (``examples``, ``default`` and other data
-    keywords are not schemas) or names nothing."""
-    tokens = parse_pointer(pointer)
-    if not tokens or tokens[0] not in SCHEMA_ROOTS:
-        return None
-    root = document.get(tokens[0])
-    if not isinstance(root, Mapping):
-        return None
-    node: Mapping[str, Any] = root
-    loc: Location = (tokens[0],)
-    found: list[Location] = []
-    i = 1
-    while i < len(tokens):
-        keyword = tokens[i]
-        if keyword in _SINGLE:
-            name, i = None, i + 1
-        elif (keyword in _NAMED or keyword in _INDEXED) and i + 1 < len(tokens):
-            name, i = tokens[i + 1], i + 2
-        else:
-            return None
-        step = _step(node, loc, keyword, name, document)
-        if step is None:
-            return None
-        node, loc = step
-        if keyword == "properties":
-            found.append(loc)
-    return found
-
-
-def resolve_property(document: Mapping[str, Any], pointer: str) -> Location | None:
-    """The location of the property schema ``pointer`` names, or None when it names none."""
-    try:
-        _class_pointer_tokens(pointer)
-        found = _property_locations(document, pointer)
-    except ValueError:
-        return None
-    # the pointer ends at ``properties/<name>``, so the last location is the one it names
-    return found[-1] if found else None
-
-
-def _walk(
-    node: Any, document: Mapping[str, Any], loc: Location, path: Location, refs: frozenset[str]
-) -> Iterator[tuple[Location, bool]]:
-    """Yield ``(pointer tokens, is_leaf)`` for every property schema below ``node``,
-    through sibling keywords and ``$ref`` alike."""
-    if not isinstance(node, Mapping):
-        return
-    if isinstance(node.get("$ref"), str) and node["$ref"] not in refs:
-        hop = _ref_target(node, document, loc)
-        if hop is not None:
-            yield from _walk(hop[0], document, hop[1], path, refs | {node["$ref"]})
-    properties = node.get("properties")
-    if isinstance(properties, Mapping):
-        for name, child in properties.items():
-            here = (*path, "properties", str(name))
-            below = list(_walk(child, document, (*loc, "properties", str(name)), here, refs))
-            yield here, not below
-            yield from below
-    for keyword in _SINGLE:
-        yield from _walk(node.get(keyword), document, (*loc, keyword), (*path, keyword), refs)
-    for keyword in _INDEXED:
+    defs = root.get("$defs")
+    if match is not None and isinstance(defs, Mapping):
+        yield from _expand(defs.get(match.group(1)), root, seen)
+    for keyword in ("anyOf", "oneOf", "allOf"):
         branches = node.get(keyword)
-        for i, branch in enumerate(branches if isinstance(branches, list) else ()):
-            step = (keyword, str(i))
-            yield from _walk(branch, document, (*loc, *step), (*path, *step), refs)
+        for branch in branches if isinstance(branches, list) else ():
+            yield from _expand(branch, root, seen)
 
 
-def leaf_property_pointers(document: Mapping[str, Any]) -> tuple[str, ...]:
-    """Every property schema with no property below it, as a pointer, in schema order."""
+def _children(node: Mapping[str, Any], token: str) -> Iterator[tuple[Any, bool]]:
+    """The schemas one path token leads to from ``node``, each with whether it is a
+    property (as opposed to an array element)."""
+    properties = node.get("properties")
+    if isinstance(properties, Mapping) and token in properties:
+        yield properties[token], True
+    if token == ITEMS:
+        if isinstance(node.get("items"), Mapping):
+            yield node["items"], False
+        prefix = node.get("prefixItems")
+        for element in prefix if isinstance(prefix, list) else ():
+            yield element, False
+
+
+def path_exists(schema: Mapping[str, Any], tokens: Sequence[str]) -> bool:
+    """Whether the instance path ``tokens`` (below the side) resolves to a property
+    through at least one branch of ``schema``."""
+    frontier: list[tuple[Any, bool]] = [(schema, False)]
+    for token in tokens:
+        frontier = [
+            child
+            for node, _ in frontier
+            for expanded in _expand(node, schema, set())
+            for child in _children(expanded, token)
+        ]
+        if not frontier:
+            return False
+    return any(is_property for _, is_property in frontier)
+
+
+def check_declarations(document: Mapping[str, Any], classes: Mapping[str, DataClass]) -> None:
+    """Admission: ``ValueError`` for a declaration on a side outside the supported subset
+    or a path that resolves to no property. The message names the side, the construct or
+    the path, never a value."""
+    unsupported = unsupported_sides(document)
+    for key in sorted(classes):
+        tokens = parse_pointer(check_class_key(key))
+        side = tokens[0]
+        if side in unsupported:
+            raise ValueError(
+                f"declares data classes on its {side} schema, which uses "
+                f"{unsupported[side]}; that is outside the supported subset"
+            )
+        schema = document.get(side)
+        if not isinstance(schema, Mapping) or not path_exists(schema, tokens[1:]):
+            raise ValueError(f"{key!r} resolves to no property of its {side} schema")
+
+
+def _collect(
+    node: Any, root: Mapping[str, Any], path: Path, out: dict[Path, None], stack: frozenset[int]
+) -> None:
+    for expanded in _expand(node, root, set()):
+        if id(expanded) in stack:  # a recursive schema: stop rather than loop
+            continue
+        below = stack | {id(expanded)}
+        properties = expanded.get("properties")
+        for name, child in properties.items() if isinstance(properties, Mapping) else ():
+            out[(*path, str(name))] = None
+            _collect(child, root, (*path, str(name)), out, below)
+        prefix = expanded.get("prefixItems")
+        elements = [expanded.get("items"), *(prefix if isinstance(prefix, list) else ())]
+        for element in elements:
+            if isinstance(element, Mapping):
+                _collect(element, root, (*path, ITEMS), out, below)
+
+
+def leaf_instance_paths(document: Mapping[str, Any]) -> tuple[str, ...]:
+    """Every property path of the schemas with no property path below it, in schema
+    order. A dict-valued property is a leaf: its keys are data."""
     leaves: list[str] = []
-    for name in SCHEMA_ROOTS:
-        root = document.get(name)
-        walked = _walk(root, document, (name,), (name,), frozenset())
-        leaves.extend(dict.fromkeys(format_pointer(t) for t, leaf in walked if leaf))
+    for side in SCHEMA_ROOTS:
+        if not isinstance(schema := document.get(side), Mapping):
+            continue
+        found: dict[Path, None] = {}
+        _collect(schema, schema, (side,), found, frozenset())
+        inner = {p[:end] for p in found for end in range(1, len(p))}
+        leaves.extend(format_pointer(p) for p in found if p not in inner)
     return tuple(leaves)
 
 
-def most_restrictive(classes: Iterable[DataClass]) -> DataClass | None:
-    ranked = [RESTRICTIVENESS.index(c) for c in classes]
-    return RESTRICTIVENESS[max(ranked)] if ranked else None
-
-
-class ClassIndex:
-    """A capability's classes keyed by the location of the schema each one names, so a
-    declaration and a lookup that reach one schema through different ``$ref`` paths
-    agree. A value's class is the most restrictive class declared on its property or on
-    any property above it: a deeper declaration never lowers a class. A side whose
-    schema leaves the supported subset (``unsupported_construct``) admits no declaration
-    and classes every value ``personal``."""
-
-    def __init__(self, document: Mapping[str, Any], classes: Mapping[str, DataClass]) -> None:
-        """Raises ``ValueError`` for a declaration on an unsupported side, a pointer that
-        names no property schema, or two pointers that reach one schema with different
-        classes. The message names the side and construct, never a value."""
-        self._document = document
-        self.unsupported: dict[str, str] = {
-            side: found
-            for side in SCHEMA_ROOTS
-            if side in document and (found := unsupported_construct(document[side]))
-        }
-        self._by_location: dict[Location, DataClass] = {}
-        for pointer, data_class in sorted(classes.items()):
-            side = pointer.split("/", 2)[1] if pointer.startswith("/") else ""
-            if side in self.unsupported:
-                raise ValueError(
-                    f"declares data classes on its {side} schema, which uses "
-                    f"{self.unsupported[side]}; that is outside the supported subset"
-                )
-            loc = resolve_property(document, pointer)
-            if loc is None:
-                raise ValueError(f"{pointer!r} names no property schema")
-            if self._by_location.setdefault(loc, data_class) != data_class:
-                raise ValueError(f"{pointer!r} reaches a schema already classed differently")
-
-    def declared(self, pointer: str) -> DataClass | None:
-        """The class declarations give the value at ``pointer``, or None when none does
-        (also when the pointer names nothing, or its side is unsupported)."""
-        tokens = parse_pointer(pointer)
-        if tokens[0] in self.unsupported:
-            return None
-        found = _property_locations(self._document, pointer) or []
-        return most_restrictive(self._by_location[at] for at in found if at in self._by_location)
-
-    def class_of(self, pointer: str) -> DataClass:
-        """The class of the value at ``pointer``; ``personal`` when unmarked. ``ValueError``
-        for a malformed pointer."""
-        found = self.declared(pointer)
-        return UNMARKED_CLASS if found is None else found
-
-    def unmarked(self) -> tuple[str, ...]:
-        """The leaf properties of the supported sides that no declaration covers."""
-        supported = {k: v for k, v in self._document.items() if k not in self.unsupported}
-        return tuple(p for p in leaf_property_pointers(supported) if self.declared(p) is None)
-
-    def unmarked_counts(self) -> dict[str, int | None]:
-        """Unmarked leaves per side; None for a side with no schema or an unsupported one
-        (``unsupported`` says which), so readiness tells "fully classed" from "unknown"."""
-        unmarked = self.unmarked()
-        return {
-            side: None
-            if side not in self._document or side in self.unsupported
-            else sum(p.startswith(f"/{side}/") for p in unmarked)
-            for side in SCHEMA_ROOTS
-        }
+def unmarked_counts(
+    document: Mapping[str, Any], classes: Mapping[str, DataClass]
+) -> dict[str, int | None]:
+    """Leaf paths no declaration covers, per side; None for a side with no schema or an
+    unsupported one, so readiness tells "fully classed" from "unknown". Informational."""
+    unsupported = unsupported_sides(document)
+    unmarked = [p for p in leaf_instance_paths(document) if declared_class(classes, p) is None]
+    return {
+        side: None
+        if side not in document or side in unsupported
+        else sum(p.startswith(f"/{side}/") for p in unmarked)
+        for side in SCHEMA_ROOTS
+    }

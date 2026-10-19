@@ -40,17 +40,15 @@ def _register(
 def test_unmarked_property_counts_as_personal() -> None:
     reg = _register()
     rid = CLASSED_READ.contract_id
-    assert reg.data_class(rid, "/output/properties/topic") is DataClass.INTERNAL
-    assert reg.data_class(rid, "/output/properties/notes/items/properties/key") is (
-        DataClass.INTERNAL
-    )
+    assert reg.data_class(rid, "/output/topic") is DataClass.INTERNAL
+    # an instance path names array indices as numbers or `items`; both resolve alike
+    assert reg.data_class(rid, "/output/notes/3/key") is DataClass.INTERNAL
+    assert reg.data_class(rid, "/output/notes/items/key") is DataClass.INTERNAL
     # the note text is left unmarked in the notes pack: it counts as personal
-    assert reg.data_class(rid, "/output/properties/notes/items/properties/text") is (
-        DataClass.PERSONAL
-    )
-    assert reg.data_class(CREATE.contract_id, "/input/properties/text") is DataClass.PERSONAL
+    assert reg.data_class(rid, "/output/notes/0/text") is DataClass.PERSONAL
+    assert reg.data_class(CREATE.contract_id, "/input/text") is DataClass.PERSONAL
     with pytest.raises(KernelError) as err:
-        reg.data_class("notes.note.purge.v1", "/input/properties/text")
+        reg.data_class("notes.note.purge.v1", "/input/text")
     assert err.value.code is ErrorCode.INVALID_REQUEST
 
 
@@ -65,27 +63,44 @@ def test_registry_counts_unmarked_properties_per_capability() -> None:
 
 
 @pytest.mark.parametrize(
-    "pointer",
+    "path",
     [
-        "/output/properties/missing",
-        "/output/properties/notes/items/properties/missing",
-        "/output/properties/topic/properties/inner",
-        "/input/properties/text",  # the read registers no input schema
+        "/output/missing",
+        "/output/notes/items/missing",
+        "/output/topic/inner",
+        "/output/notes/items",  # an array element is not a property
+        "/output/properties/topic",  # a schema pointer, not an instance path
+        "/input/text",  # the read registers no input schema
     ],
 )
-def test_data_class_pointer_must_exist_in_schema(pointer: str) -> None:
+def test_data_class_pointer_must_exist_in_schema(path: str) -> None:
     bad = CLASSED_READ.model_validate(
-        {**CLASSED_READ.model_dump(), "data_classes": {pointer: "internal"}}
+        {**CLASSED_READ.model_dump(), "data_classes": {path: "internal"}}
     )
     with pytest.raises(KernelError) as err:
         _register(bad)
     assert err.value.code is ErrorCode.STARTUP_REJECTED
-    assert "names no property schema" in str(err.value)
+    assert "resolves to no property" in str(err.value)
 
 
-def test_a_pointer_into_an_unregistered_output_schema_fails_admission() -> None:
-    with pytest.raises(KernelError, match="names no property schema"):
+def test_a_path_into_an_unregistered_output_schema_fails_admission() -> None:
+    with pytest.raises(KernelError, match="resolves to no property"):
         _register(output_schemas={})
+
+
+def test_notes_migration_keeps_every_class() -> None:
+    """The schema-pointer keys of rounds 0-2 and the instance paths give the same class."""
+    old = {
+        "/output/properties/topic": DataClass.INTERNAL,
+        "/output/properties/count": DataClass.INTERNAL,
+        "/output/properties/notes/items/properties/key": DataClass.INTERNAL,
+        "/output/properties/notes/items/properties/text": DataClass.PERSONAL,
+    }
+    reg = _register()
+    for pointer, data_class in old.items():
+        path = pointer.replace("/properties/", "/")
+        assert reg.data_class(CLASSED_READ.contract_id, path) is data_class, path
+    print(f"notes values compared: {len(old)}")
 
 
 def test_output_schemas_conflict_fails_closed() -> None:
@@ -132,6 +147,4 @@ def test_a_declaration_on_an_unsupported_output_fails_admission() -> None:
         CLASSED_READ.contract_id: {"output": "the keyword 'patternProperties'"}
     }
     assert reg.unmarked_properties()[CLASSED_READ.contract_id] == {"input": None, "output": None}
-    assert reg.data_class(CLASSED_READ.contract_id, "/output/properties/topic") is (
-        DataClass.PERSONAL
-    )
+    assert reg.data_class(CLASSED_READ.contract_id, "/output/topic") is DataClass.PERSONAL

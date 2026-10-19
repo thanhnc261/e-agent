@@ -12,11 +12,11 @@
       "output_schema_id": "inventory.Availability.v1",
       "description": "Available and inbound quantity for one product in the scoped warehouse",
       "data_classes": {
-        "/input/properties/product_ref": "internal",
-        "/output/properties/product_ref": "internal",
-        "/output/properties/available": "internal",
-        "/output/properties/inbound": "internal",
-        "/output/properties/unit": "internal"
+        "/input/product_ref": "internal",
+        "/output/product_ref": "internal",
+        "/output/available": "internal",
+        "/output/inbound": "internal",
+        "/output/unit": "internal"
       }
     },
     {
@@ -26,14 +26,14 @@
       "output_schema_id": "procurement.Demand.v1",
       "description": "One procurement demand with requested date and budget",
       "data_classes": {
-        "/input/properties/demand_ref": "internal",
-        "/output/properties/demand_ref": "internal",
-        "/output/properties/product_ref": "internal",
-        "/output/properties/quantity": "internal",
-        "/output/properties/unit": "internal",
-        "/output/properties/requested_date": "internal",
-        "/output/properties/budget": "internal",
-        "/output/properties/currency": "internal"
+        "/input/demand_ref": "internal",
+        "/output/demand_ref": "internal",
+        "/output/product_ref": "internal",
+        "/output/quantity": "internal",
+        "/output/unit": "internal",
+        "/output/requested_date": "internal",
+        "/output/budget": "internal",
+        "/output/currency": "internal"
       }
     },
     {
@@ -43,13 +43,13 @@
       "output_schema_id": "procurement.OpenDemands.v1",
       "description": "List open procurement demands with their exact demand and product references; use it first when the user gives no demand reference",
       "data_classes": {
-        "/output/properties/demands/items/properties/demand_ref": "internal",
-        "/output/properties/demands/items/properties/product_ref": "internal",
-        "/output/properties/demands/items/properties/product_name": "internal",
-        "/output/properties/demands/items/properties/quantity": "internal",
-        "/output/properties/demands/items/properties/unit": "internal",
-        "/output/properties/demands/items/properties/requested_date": "internal",
-        "/output/properties/complete": "internal"
+        "/output/demands/items/demand_ref": "internal",
+        "/output/demands/items/product_ref": "internal",
+        "/output/demands/items/product_name": "internal",
+        "/output/demands/items/quantity": "internal",
+        "/output/demands/items/unit": "internal",
+        "/output/demands/items/requested_date": "internal",
+        "/output/complete": "internal"
       }
     },
     {
@@ -59,16 +59,16 @@
       "output_schema_id": "procurement.Offers.v1",
       "description": "Supplier offers for a product, including approval status",
       "data_classes": {
-        "/input/properties/product_ref": "internal",
-        "/output/properties/product_ref": "internal",
-        "/output/properties/offers/items/properties/offer_ref": "internal",
-        "/output/properties/offers/items/properties/supplier_ref": "internal",
-        "/output/properties/offers/items/properties/product_ref": "internal",
-        "/output/properties/offers/items/properties/unit_price": "internal",
-        "/output/properties/offers/items/properties/currency": "internal",
-        "/output/properties/offers/items/properties/unit": "internal",
-        "/output/properties/offers/items/properties/approved": "internal",
-        "/output/properties/offers/items/properties/delivery_date": "internal"
+        "/input/product_ref": "internal",
+        "/output/product_ref": "internal",
+        "/output/offers/items/offer_ref": "internal",
+        "/output/offers/items/supplier_ref": "internal",
+        "/output/offers/items/product_ref": "internal",
+        "/output/offers/items/unit_price": "internal",
+        "/output/offers/items/currency": "internal",
+        "/output/offers/items/unit": "internal",
+        "/output/offers/items/approved": "internal",
+        "/output/offers/items/delivery_date": "internal"
       }
     },
     {
@@ -80,16 +80,16 @@
       "risk": "write_low",
       "reversibility": "irreversible",
       "data_classes": {
-        "/input/properties/demand_ref": "internal",
-        "/input/properties/product_ref": "internal",
-        "/input/properties/supplier_ref": "internal",
-        "/input/properties/offer_ref": "internal",
-        "/input/properties/quantity": "internal",
-        "/input/properties/unit": "internal",
-        "/input/properties/currency": "internal",
-        "/input/properties/unit_price": "internal",
-        "/input/properties/subtotal": "internal",
-        "/input/properties/requested_date": "internal"
+        "/input/demand_ref": "internal",
+        "/input/product_ref": "internal",
+        "/input/supplier_ref": "internal",
+        "/input/offer_ref": "internal",
+        "/input/quantity": "internal",
+        "/input/unit": "internal",
+        "/input/currency": "internal",
+        "/input/unit_price": "internal",
+        "/input/subtotal": "internal",
+        "/input/requested_date": "internal"
       }
     },
     {
@@ -100,20 +100,20 @@
       "description": "Read purchase orders by host operation key (verification read-back)",
       "agent_visible": false,
       "data_classes": {
-        "/input/properties/operation_key": "internal",
-        "/output/properties/orders/items/properties/external_ref": "internal",
-        "/output/properties/orders/items/properties/operation_key": "internal",
-        "/output/properties/orders/items/properties/state": "internal",
-        "/output/properties/orders/items/properties/purchase_order_ref": "internal",
-        "/output/properties/orders/items/properties/requested_date": "internal",
-        "/output/properties/orders/items/properties/line_count": "internal",
-        "/output/properties/orders/items/properties/product_ref": "internal",
-        "/output/properties/orders/items/properties/supplier_ref": "internal",
-        "/output/properties/orders/items/properties/quantity": "internal",
-        "/output/properties/orders/items/properties/unit": "internal",
-        "/output/properties/orders/items/properties/currency": "internal",
-        "/output/properties/orders/items/properties/unit_price": "internal",
-        "/output/properties/orders/items/properties/subtotal": "internal"
+        "/input/operation_key": "internal",
+        "/output/orders/items/external_ref": "internal",
+        "/output/orders/items/operation_key": "internal",
+        "/output/orders/items/state": "internal",
+        "/output/orders/items/purchase_order_ref": "internal",
+        "/output/orders/items/requested_date": "internal",
+        "/output/orders/items/line_count": "internal",
+        "/output/orders/items/product_ref": "internal",
+        "/output/orders/items/supplier_ref": "internal",
+        "/output/orders/items/quantity": "internal",
+        "/output/orders/items/unit": "internal",
+        "/output/orders/items/currency": "internal",
+        "/output/orders/items/unit_price": "internal",
+        "/output/orders/items/subtotal": "internal"
       }
     },
     {
@@ -123,12 +123,12 @@
       "output_schema_id": "procurement.VerifiedAnswer.v1",
       "description": "Report demand, available and inbound quantity and the resulting shortage; the host verifies it against fresh reads",
       "data_classes": {
-        "/input/properties/demand_ref": "internal",
-        "/input/properties/product_ref": "internal",
-        "/input/properties/demand_quantity": "internal",
-        "/input/properties/available": "internal",
-        "/input/properties/inbound": "internal",
-        "/input/properties/shortage": "internal"
+        "/input/demand_ref": "internal",
+        "/input/product_ref": "internal",
+        "/input/demand_quantity": "internal",
+        "/input/available": "internal",
+        "/input/inbound": "internal",
+        "/input/shortage": "internal"
       }
     },
     {
@@ -138,12 +138,12 @@
       "output_schema_id": "procurement.VerifiedAnswer.v1",
       "description": "Recommend the eligible supplier offer for a demand (or none); the host verifies it independently",
       "data_classes": {
-        "/input/properties/demand_ref": "internal",
-        "/input/properties/product_ref": "internal",
-        "/input/properties/offer_ref": "internal",
-        "/input/properties/supplier_ref": "internal",
-        "/input/properties/unit_price": "internal",
-        "/input/properties/explanation": "personal"
+        "/input/demand_ref": "internal",
+        "/input/product_ref": "internal",
+        "/input/offer_ref": "internal",
+        "/input/supplier_ref": "internal",
+        "/input/unit_price": "internal",
+        "/input/explanation": "personal"
       }
     },
     {
@@ -153,18 +153,18 @@
       "output_schema_id": "procurement.DraftRfq.v1",
       "description": "One draft request for quotation with its current lines and optimistic revision",
       "data_classes": {
-        "/input/properties/purchase_order_ref": "internal",
-        "/output/properties/purchase_order_ref": "internal",
-        "/output/properties/external_ref": "internal",
-        "/output/properties/state": "internal",
-        "/output/properties/revision": "internal",
-        "/output/properties/supplier_ref": "internal",
-        "/output/properties/product_ref": "internal",
-        "/output/properties/quantity": "internal",
-        "/output/properties/unit": "internal",
-        "/output/properties/unit_price": "internal",
-        "/output/properties/currency": "internal",
-        "/output/properties/requested_date": "internal"
+        "/input/purchase_order_ref": "internal",
+        "/output/purchase_order_ref": "internal",
+        "/output/external_ref": "internal",
+        "/output/state": "internal",
+        "/output/revision": "internal",
+        "/output/supplier_ref": "internal",
+        "/output/product_ref": "internal",
+        "/output/quantity": "internal",
+        "/output/unit": "internal",
+        "/output/unit_price": "internal",
+        "/output/currency": "internal",
+        "/output/requested_date": "internal"
       }
     },
     {
@@ -176,10 +176,10 @@
       "risk": "write_high",
       "reversibility": "irreversible",
       "data_classes": {
-        "/input/properties/purchase_order_ref": "internal",
-        "/input/properties/expected_revision": "internal",
-        "/input/properties/quantity": "internal",
-        "/input/properties/requested_date": "internal"
+        "/input/purchase_order_ref": "internal",
+        "/input/expected_revision": "internal",
+        "/input/quantity": "internal",
+        "/input/requested_date": "internal"
       }
     },
     {
@@ -189,16 +189,16 @@
       "output_schema_id": "sales.Pricing.v1",
       "description": "Whether a customer can be quoted and the product's list price, unit and currency",
       "data_classes": {
-        "/input/properties/customer_ref": "internal",
-        "/input/properties/product_ref": "internal",
-        "/output/properties/customer_ref": "internal",
-        "/output/properties/customer_name": "personal",
-        "/output/properties/customer_active": "internal",
-        "/output/properties/product_ref": "internal",
-        "/output/properties/product_saleable": "internal",
-        "/output/properties/list_price": "internal",
-        "/output/properties/currency": "internal",
-        "/output/properties/unit": "internal"
+        "/input/customer_ref": "internal",
+        "/input/product_ref": "internal",
+        "/output/customer_ref": "internal",
+        "/output/customer_name": "personal",
+        "/output/customer_active": "internal",
+        "/output/product_ref": "internal",
+        "/output/product_saleable": "internal",
+        "/output/list_price": "internal",
+        "/output/currency": "internal",
+        "/output/unit": "internal"
       }
     },
     {
@@ -210,13 +210,13 @@
       "risk": "write_low",
       "reversibility": "irreversible",
       "data_classes": {
-        "/input/properties/customer_ref": "internal",
-        "/input/properties/product_ref": "internal",
-        "/input/properties/quantity": "internal",
-        "/input/properties/unit": "internal",
-        "/input/properties/unit_price": "internal",
-        "/input/properties/currency": "internal",
-        "/input/properties/subtotal": "internal"
+        "/input/customer_ref": "internal",
+        "/input/product_ref": "internal",
+        "/input/quantity": "internal",
+        "/input/unit": "internal",
+        "/input/unit_price": "internal",
+        "/input/currency": "internal",
+        "/input/subtotal": "internal"
       }
     },
     {
@@ -227,19 +227,19 @@
       "description": "Read quotations by host operation key (verification read-back)",
       "agent_visible": false,
       "data_classes": {
-        "/input/properties/operation_key": "internal",
-        "/output/properties/quotations/items/properties/line_count": "internal",
-        "/output/properties/quotations/items/properties/external_ref": "internal",
-        "/output/properties/quotations/items/properties/operation_key": "internal",
-        "/output/properties/quotations/items/properties/state": "internal",
-        "/output/properties/quotations/items/properties/customer_ref": "internal",
-        "/output/properties/quotations/items/properties/product_ref": "internal",
-        "/output/properties/quotations/items/properties/quantity": "internal",
-        "/output/properties/quotations/items/properties/unit": "internal",
-        "/output/properties/quotations/items/properties/unit_price": "internal",
-        "/output/properties/quotations/items/properties/currency": "internal",
-        "/output/properties/quotations/items/properties/subtotal": "internal",
-        "/output/properties/quotations/items/properties/sent": "internal"
+        "/input/operation_key": "internal",
+        "/output/quotations/items/line_count": "internal",
+        "/output/quotations/items/external_ref": "internal",
+        "/output/quotations/items/operation_key": "internal",
+        "/output/quotations/items/state": "internal",
+        "/output/quotations/items/customer_ref": "internal",
+        "/output/quotations/items/product_ref": "internal",
+        "/output/quotations/items/quantity": "internal",
+        "/output/quotations/items/unit": "internal",
+        "/output/quotations/items/unit_price": "internal",
+        "/output/quotations/items/currency": "internal",
+        "/output/quotations/items/subtotal": "internal",
+        "/output/quotations/items/sent": "internal"
       }
     },
     {
@@ -249,13 +249,13 @@
       "output_schema_id": "sales.OpenOrders.v1",
       "description": "Confirmed sales orders with promised date and delivery status, as of a date",
       "data_classes": {
-        "/input/properties/as_of": "internal",
-        "/output/properties/as_of": "internal",
-        "/output/properties/orders/items/properties/order_ref": "internal",
-        "/output/properties/orders/items/properties/external_ref": "internal",
-        "/output/properties/orders/items/properties/customer_ref": "internal",
-        "/output/properties/orders/items/properties/promised_date": "internal",
-        "/output/properties/orders/items/properties/delivery_status": "internal"
+        "/input/as_of": "internal",
+        "/output/as_of": "internal",
+        "/output/orders/items/order_ref": "internal",
+        "/output/orders/items/external_ref": "internal",
+        "/output/orders/items/customer_ref": "internal",
+        "/output/orders/items/promised_date": "internal",
+        "/output/orders/items/delivery_status": "internal"
       }
     },
     {
@@ -265,9 +265,9 @@
       "output_schema_id": "procurement.VerifiedAnswer.v1",
       "description": "Report the sales orders that are late as of a date; the host recomputes it",
       "data_classes": {
-        "/input/properties/as_of": "internal",
-        "/input/properties/late_order_refs": "internal",
-        "/input/properties/summary": "personal"
+        "/input/as_of": "internal",
+        "/input/late_order_refs": "internal",
+        "/input/summary": "personal"
       }
     },
     {
@@ -277,10 +277,10 @@
       "output_schema_id": "crm.Contact.v1",
       "description": "One contact a lead would be about",
       "data_classes": {
-        "/input/properties/contact_ref": "internal",
-        "/output/properties/contact_ref": "internal",
-        "/output/properties/name": "personal",
-        "/output/properties/active": "internal"
+        "/input/contact_ref": "internal",
+        "/output/contact_ref": "internal",
+        "/output/name": "personal",
+        "/output/active": "internal"
       }
     },
     {
@@ -290,11 +290,11 @@
       "output_schema_id": "crm.Teams.v1",
       "description": "Sales teams with members, and known lead sources",
       "data_classes": {
-        "/output/properties/teams/items/properties/team_ref": "internal",
-        "/output/properties/teams/items/properties/name": "internal",
-        "/output/properties/teams/items/properties/member_refs": "internal",
-        "/output/properties/sources/items/properties/source_ref": "internal",
-        "/output/properties/sources/items/properties/name": "internal"
+        "/output/teams/items/team_ref": "internal",
+        "/output/teams/items/name": "internal",
+        "/output/teams/items/member_refs": "internal",
+        "/output/sources/items/source_ref": "internal",
+        "/output/sources/items/name": "internal"
       }
     },
     {
@@ -306,12 +306,12 @@
       "risk": "write_high",
       "reversibility": "irreversible",
       "data_classes": {
-        "/input/properties/name": "personal",
-        "/input/properties/contact_ref": "internal",
-        "/input/properties/team_ref": "internal",
-        "/input/properties/owner_ref": "internal",
-        "/input/properties/source_ref": "internal",
-        "/input/properties/expected_revenue": "internal"
+        "/input/name": "personal",
+        "/input/contact_ref": "internal",
+        "/input/team_ref": "internal",
+        "/input/owner_ref": "internal",
+        "/input/source_ref": "internal",
+        "/input/expected_revenue": "internal"
       }
     },
     {
@@ -322,15 +322,15 @@
       "description": "Read leads by host operation key (verification read-back)",
       "agent_visible": false,
       "data_classes": {
-        "/input/properties/operation_key": "internal",
-        "/output/properties/leads/items/properties/external_ref": "internal",
-        "/output/properties/leads/items/properties/operation_key": "internal",
-        "/output/properties/leads/items/properties/name": "personal",
-        "/output/properties/leads/items/properties/contact_ref": "internal",
-        "/output/properties/leads/items/properties/team_ref": "internal",
-        "/output/properties/leads/items/properties/owner_ref": "internal",
-        "/output/properties/leads/items/properties/source_ref": "internal",
-        "/output/properties/leads/items/properties/expected_revenue": "internal"
+        "/input/operation_key": "internal",
+        "/output/leads/items/external_ref": "internal",
+        "/output/leads/items/operation_key": "internal",
+        "/output/leads/items/name": "personal",
+        "/output/leads/items/contact_ref": "internal",
+        "/output/leads/items/team_ref": "internal",
+        "/output/leads/items/owner_ref": "internal",
+        "/output/leads/items/source_ref": "internal",
+        "/output/leads/items/expected_revenue": "internal"
       }
     },
     {
@@ -340,15 +340,15 @@
       "output_schema_id": "receivables.OpenInvoices.v1",
       "description": "Posted customer invoices with an open residual, as of a date (read-only)",
       "data_classes": {
-        "/input/properties/as_of": "internal",
-        "/output/properties/as_of": "internal",
-        "/output/properties/company": "internal",
-        "/output/properties/invoices/items/properties/invoice_ref": "internal",
-        "/output/properties/invoices/items/properties/external_ref": "internal",
-        "/output/properties/invoices/items/properties/customer_ref": "internal",
-        "/output/properties/invoices/items/properties/due_date": "internal",
-        "/output/properties/invoices/items/properties/residual": "internal",
-        "/output/properties/invoices/items/properties/currency": "internal"
+        "/input/as_of": "internal",
+        "/output/as_of": "internal",
+        "/output/company": "internal",
+        "/output/invoices/items/invoice_ref": "internal",
+        "/output/invoices/items/external_ref": "internal",
+        "/output/invoices/items/customer_ref": "internal",
+        "/output/invoices/items/due_date": "internal",
+        "/output/invoices/items/residual": "internal",
+        "/output/invoices/items/currency": "internal"
       }
     },
     {
@@ -358,11 +358,11 @@
       "output_schema_id": "procurement.VerifiedAnswer.v1",
       "description": "Report overdue invoices and totals per currency as of a date; the host recomputes it",
       "data_classes": {
-        "/input/properties/as_of": "internal",
-        "/input/properties/overdue_invoice_refs": "internal",
-        "/input/properties/totals/items/properties/currency": "internal",
-        "/input/properties/totals/items/properties/total": "internal",
-        "/input/properties/summary": "personal"
+        "/input/as_of": "internal",
+        "/input/overdue_invoice_refs": "internal",
+        "/input/totals/items/currency": "internal",
+        "/input/totals/items/total": "internal",
+        "/input/summary": "personal"
       }
     }
   ],
