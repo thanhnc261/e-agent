@@ -1,0 +1,42 @@
+{
+  "id": "3b.3",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3b-3"
+  ],
+  "context_digest": "07a656f1594f2753ca784e4a2012619f884d2fa1fadfdd1161d049c10bd0fdba",
+  "allowed_paths": [
+    "src/e_agent/contracts/data_classes.py",
+    "src/e_agent/contracts/capability.py",
+    "src/e_agent/contracts/__init__.py",
+    "src/e_agent/sdk/**",
+    "src/e_agent/kernel/registry.py",
+    "src/e_agent/kernel/evidence.py",
+    "src/e_agent/plugins/erp/**",
+    "src/e_agent/plugins/**/e_agent_plugin.json",
+    "src/e_agent/server/api.py",
+    "src/e_agent/server/bootstrap.py",
+    "tests/unit/contracts/**",
+    "tests/unit/sdk/**",
+    "tests/unit/kernel/**",
+    "tests/unit/plugins/**",
+    "tests/unit/server/**",
+    "tests/conformance/**",
+    "docs/design/principles.md",
+    "ui/packages/client/**",
+    "docs/plans/2026-10-19-phase3-cognition-context.md",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "record-class conformance test runs on both stores, prints its count and fails on zero",
+    "ERP read outputs marked; both off model-request goldens unchanged",
+    "full and pg pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "46834d90314d3e5ff4e5944a38c8f82c2be3212b",
+  "created_at": "2026-10-19T07:32:19+00:00",
+  "features_digest": "fecbab6dedc753faf5493984f8c1f5afa6e2f9d8ea83803acc43a8375a95236a"
+}
