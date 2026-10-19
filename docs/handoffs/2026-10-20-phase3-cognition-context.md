@@ -51,13 +51,15 @@ End-of-phase levels 1 to 3, on a clean tree. All results are fixture evidence; n
 
 ```text
 # Level 1: full
-<level-1>
+uv run e-agent-harness gate full  -> ok, 2051 passed, 30 skipped (commit 4c137c4, clean tree)
+harness/state/evidence/gates/3g.1/2026-10-19T23-24-55.111258+00-00-full.json
 
 # Level 2: pg
-<level-2>
+uv run e-agent-harness gate pg    -> ok, 1160 passed on Postgres e_agent_test (commit 4c137c4, clean tree)
+harness/state/evidence/gates/3g.1/2026-10-19T23-26-22.129629+00-00-pg.json
 
 # Level 3: make e2e
-<level-3>
+make e2e                          -> exit 0, 150 passed, 4 skipped (1.4m), commit 4c137c4; log in the session scratchpad, not committed
 ```
 
 ### Fixture release report
