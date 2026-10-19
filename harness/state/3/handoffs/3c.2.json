@@ -1,0 +1,34 @@
+{
+  "task": "3c.2",
+  "changed": "Run reconstruction from run_events (U3, ADR 0031 \u00a72-\u00a74): new kernel/reconstruct.py (reconstruct(events) -> Reconstructed, each field known/partial/unknown; the \u00a73 key table; without_reconstruction_keys for strict readers). Additive payload keys in coordinator.py, run_loop.py, transitions.py, proposals.py, plan_flow.py, approval_flow.py, dispatch.py, verification.py; blocked_action_ids passed explicitly through _set_run_state/_exhausted (stubs in continuation.py) at the four event-less BLOCKED sites; ir_on._acceptance_gap strips the reconstruction keys before OutcomeReport validation. v3 goldens beside the byte-identical (sha256-pinned) Phase 2 goldens, with the recorders extended; test_off_projection.py proves Phase 2 = v3 minus the listed keys; tests/conformance/test_reconstruction.py runs 14 scenarios on both stores. pyproject.toml adds kernel.reconstruct to the facade contract (a tightening). ADR 0031 Consequences wording fixed (C3-20). Commits dee7802, cb5c11d, 5951eac; review harness/state/3/reviews/3c.2.json (Claude; Codex rate-limited).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3c.2/2026-10-19T11-01-21.261572+00-00-full.json",
+    "harness/state/evidence/gates/3c.2/2026-10-19T11-02-36.256377+00-00-pg.json"
+  ],
+  "open_items": [
+    "Not covered by a scenario: the DuplicateOperation block branch and startup recovery blocking several actions (C3-22); the accept_input remap in phase2_projection (C3-23).",
+    "plan_flow.py 496, ir_on.py 490, proposals.py 488 lines: move code out before 3c.3/3d.6 add to them (C3-24).",
+    "Known gap (ADR 0031): a crash between an event-less BLOCKED write and its state change leaves the log one write behind the row.",
+    "Lenient readers now see the new keys: server/cli.py:141 shows RUNNING after answered input; the evidence export outcomes include action_state (a state code). UI readers grep-checked as lenient and type-checked by the gate (pnpm check)."
+  ],
+  "rulings": [
+    {
+      "ruling": "blocked_action_ids is an explicit keyword on _set_run_state/_exhausted rather than hidden per-run coordinator state, matching ADR 0031's 'the same kernel call'.",
+      "cost_if_wrong": "Two signatures widened; scope grew by continuation.py."
+    },
+    {
+      "ruling": "The unavailable-verifier outcome.reported gains action_state null because the \u00a73 table is the binding list; the ADR prose was corrected to match.",
+      "cost_if_wrong": "One extra null key on an error event."
+    },
+    {
+      "ruling": "Strict payload readers drop the reconstruction keys via one helper (without_reconstruction_keys) instead of loosening OutcomeReport (PR-06).",
+      "cost_if_wrong": "A future strict reader that skips the helper discards reports; only ir_on reads strictly today."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "Postgres test database e_agent_test used by the pg gate.",
+      "undo": "none needed; test data only"
+    }
+  ]
+}

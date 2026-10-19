@@ -80,7 +80,8 @@
         "Phase 2 goldens frozen and shown to be a projection of the v3 goldens",
         "full and pg pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3c.2/2026-10-19T11-01-21.261572+00-00-full.json"
     },
     {
       "id": "F-3c-3",
