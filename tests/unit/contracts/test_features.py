@@ -44,7 +44,7 @@ def test_phase3_toggles_default_off() -> None:
     assert len(PHASE3_TOGGLES) == 3
 
 
-def test_run_modes_pin_exactly_the_phase3_toggles() -> None:
+def test_run_modes_pin_exactly_the_runtime_toggles() -> None:
     """``execution_ir`` is not pinned (ADR 0032 §8); an absent pin means every mode is off.
     ``conversations`` is pinned with the Phase 3 modes (ADR 0023 §9)."""
     assert list(RunModes.model_fields) == [*PHASE3_TOGGLES, "conversations"]

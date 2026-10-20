@@ -1,0 +1,35 @@
+{
+  "task": "4c.1",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "R1-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "README toggle section miscounts after the follow-up commit 0538e6e: the heading is still 'Phase 3 toggles' and the intro still says 'Three profile toggles under features', but the list now carries a fourth bullet for features.conversations (Phase 4). Retitle or split the section so the count matches.",
+      "evidence": "README.md:202-204 (heading and intro) vs README.md:209 (new conversations bullet), commit 0538e6e; ENG-DOC-1"
+    },
+    {
+      "id": "R1-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "test_run_modes_pin_exactly_the_phase3_toggles now asserts the Phase 3 modes plus conversations; its name no longer says what it checks.",
+      "evidence": "tests/unit/contracts/test_features.py:47-50"
+    },
+    {
+      "id": "R1-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Until 4d.2/4d.3 land, a profile may set conversations: shadow (or on with context_assembler: on); startup accepts it and readiness reports it, but nothing compares or carries anything. This is the plan's ordering (brief: 'Nothing reads the mode yet'), committed profiles stay off, and the seam's consumers are in this phase, so it is not a stub under PR-23 as long as the phase does not merge before 4d.2/4d.3. Noted so the phase-end review checks it.",
+      "evidence": "src/e_agent/server/bootstrap.py:256-270 is the only reader of features.conversations (git grep); task-4c.1-brief.md 'Implement' step; PR-23; ENG-TOGGLE-1"
+    },
+    {
+      "id": "R1-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Gate evidence is not yet recorded: close-check reports no progress entry, F-4c-1 not passing and no handoff, and the Postgres tests skipped locally (no E_AGENT_TEST_PG_DSN). The pin is a field inside the existing JSON continuation, so no migration is implied, but ENG-STORE-1 is not demonstrated by this review. This accept rests on the diff and the unit evidence; the close ritual must still supply the full gate.",
+      "evidence": "uv run e-agent-harness close-check (progress log has no entry for task 4c.1; feature F-4c-1 does not pass yet; handoff missing: harness/state/4/handoffs/4c.1.json); task-4c.1-report.md Commands; ENG-EVID-1, ENG-STORE-1"
+    }
+  ],
+  "reviewer": {"provider": "claude-opus", "fresh_context": true}
+}

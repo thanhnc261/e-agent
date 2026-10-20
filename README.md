@@ -199,9 +199,9 @@ uv run e-agent --profile /tmp/plan-fixture.json demo --driver-mode two-step-plan
 uv run e-agent --profile /tmp/plan-fixture.json demo --driver-mode two-step-plan --approve  # one approval, two verified steps
 ```
 
-### Phase 3 toggles (cognition and context)
+### Phase 3 and 4 toggles (cognition, context and conversations)
 
-Three profile toggles under `features`, each `off | shadow | on`, all `off` in every committed profile ([ADR 0031](docs/adr/0031-progress-ledger-and-reconstruction.md), [ADR 0032](docs/adr/0032-context-assembler.md), [ADR 0033](docs/adr/0033-explanation-and-grounded-answers.md)):
+Four profile toggles under `features`, each `off | shadow | on`, all `off` in every committed profile ([ADR 0031](docs/adr/0031-progress-ledger-and-reconstruction.md), [ADR 0032](docs/adr/0032-context-assembler.md), [ADR 0033](docs/adr/0033-explanation-and-grounded-answers.md)):
 
 - `features.context_assembler`: the kernel builds a budgeted, masked and fenced context pack for each driver call. `shadow` records `context.compared` (kernel token estimates of the pack against the same inputs unbounded) and the driver keeps its own history. `on` makes the driver render the pack; before the first write reservation a failure falls back to the driver history with `feature.fallback`, and after it the run fails closed (`CONTEXT_UNAVAILABLE`).
 - `features.kernel_repeat`: a write proposal whose digest equals an earlier validation-blocked one in the run, with the same facts, gets `KERNEL-REPEAT` without being validated again. `shadow` records `repeat.compared` and validates as today.
