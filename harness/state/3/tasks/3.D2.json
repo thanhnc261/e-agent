@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-3-D2"
   ],
-  "context_digest": "0110e0dc664ad8a1efe78c0a9c29a03115cbde49cce0857632d9a185ce434a8d",
+  "context_digest": "25d59ed7c8c0e8e6bb1b439806717335c529ee876dee9b9931b8ee88989e6c66",
   "allowed_paths": [
     "src/e_agent/plugins/erp/domain/tasks/open-pos.json",
     "src/e_agent/plugins/erp/domain/e_agent_plugin.json",
