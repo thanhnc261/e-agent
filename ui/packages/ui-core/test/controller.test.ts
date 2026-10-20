@@ -171,3 +171,36 @@ it("keeps an unsent draft in the shared controller across presentation mounts", 
   expect(c.getState().draft).toBe("Draft business request");
   c.dispose();
 });
+
+describe("task history reply state", () => {
+  it("history entry records a pending reply", async () => {
+    const { client } = fakeClient(async () => snapshot("WAITING_INPUT", null, 1));
+    client.listEvents.mockImplementation(async () => [ev(1, "input.requested", { question: "Hello! What next?", kind: "reply" })]);
+    const c = new RunController({ client: client as unknown as EAgentClient, storage: null });
+    await c.start("hi");
+    expect(c.getState().history).toMatchObject([{ runId: "run-1", state: "WAITING_INPUT", replyPending: true }]);
+    c.dispose();
+  });
+
+  it("records no pending reply for a clarification question", async () => {
+    const { client } = fakeClient(async () => snapshot("WAITING_INPUT", null, 1));
+    client.listEvents.mockImplementation(async () => [ev(1, "input.requested", { question: "Which supplier?" })]);
+    const c = new RunController({ client: client as unknown as EAgentClient, storage: null });
+    await c.start("restock");
+    expect(c.getState().history[0]?.replyPending).toBeFalsy();
+    c.dispose();
+  });
+
+  it("a stored entry without replyPending still loads", async () => {
+    const store = new Map<string, string>([
+      ["e-agent.run.history", JSON.stringify([{ runId: "run-0", task: "old", state: "WAITING_INPUT", reasonCode: null }])],
+    ]);
+    const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) };
+    const { client } = fakeClient(async () => snapshot("SUCCEEDED", null));
+    const c = new RunController({ client: client as unknown as EAgentClient, storage });
+    await c.init();
+    expect(c.getState().history).toMatchObject([{ runId: "run-0", task: "old", state: "WAITING_INPUT" }]);
+    expect(c.getState().history[0]?.replyPending).toBeUndefined();
+    c.dispose();
+  });
+});

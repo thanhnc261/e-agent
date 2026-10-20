@@ -16,7 +16,7 @@ import {
 import { translate } from "./i18n.ts";
 import { verifyDigest } from "./digest.ts";
 import type { Locale } from "./i18n.ts";
-import { emptyRunView, reduceRunView, TERMINAL_STATES, type RunView, type RunViewAction } from "./store.ts";
+import { emptyRunView, reduceRunView, TERMINAL_STATES, selectPendingReply, type RunView, type RunViewAction } from "./store.ts";
 
 export type ConnectionStatus = "idle" | "connecting" | "open" | "reconnecting" | "closed";
 
@@ -38,7 +38,7 @@ export interface ControllerState {
   catalog: DiscoveryState<TaskTemplateView>;
 }
 
-export interface TaskHistoryEntry { runId: string; task: string; state: string; reasonCode?: string | null }
+export interface TaskHistoryEntry { runId: string; task: string; state: string; reasonCode?: string | null; replyPending?: boolean }
 
 type KeyValueStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
@@ -215,7 +215,7 @@ export class RunController {
   private remember(): void {
     const run = this.state.view.run;
     if (!run) return;
-    const history = [{ runId: run.run_id, task: run.task, state: run.state, reasonCode: run.reason_code ?? null }, ...this.state.history.filter(h => h.runId !== run.run_id)].slice(0, 20);
+    const history = [{ runId: run.run_id, task: run.task, state: run.state, reasonCode: run.reason_code ?? null, replyPending: selectPendingReply(this.state.view) }, ...this.state.history.filter(h => h.runId !== run.run_id)].slice(0, 20);
     this.set({ history });
     this.storage?.setItem(this.storageKey + ".history", JSON.stringify(history));
   }

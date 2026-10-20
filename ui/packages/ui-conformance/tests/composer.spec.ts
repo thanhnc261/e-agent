@@ -73,3 +73,14 @@ test("a later reply keeps a quiet not-verified hint", async ({ page }) => {
   await expect(hint).toHaveText("Reply · not a verified result");
   await expect(hint).toHaveClass(/ea-visually-hidden/);
 });
+
+test("sidebar says Your turn after a reply", async ({ page }) => {
+  await twoReplies(page);
+  await expect(page.getByTestId("pending-reply")).toContainText("Hello again! What next?");
+  const history = page.locator(".ea-task-history");
+  if (!(await history.evaluate(el => (el as HTMLDetailsElement).open)))
+    await history.locator(":scope > summary").click();
+  const item = page.getByTestId("history-task").first();
+  await expect(item).toContainText("Your turn");
+  await expect(item).not.toContainText("Your answer is needed");
+});
