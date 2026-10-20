@@ -1,0 +1,26 @@
+{
+  "task": "3f.1",
+  "changed": "Driver conformance suite tests/conformance/test_driver_conformance.py with shared cases in tests/conformance/driver_cases/ (28 cases over the plan's 3f.1 list), parametrized over the pydantic-ai driver (recorded and authored responses) and the scripted ERP driver: pydantic-ai 28 passed; scripted 14 passed and 14 not applicable with typed reasons (12 NO_MODEL, 1 NO_CONTINUATION, 1 NO_TOKEN_SPEND) that the suite checks structurally; a meta-test fails an adapter that declares a false reason; zero cases, or a case that runs on no driver, fails (PR-31). Driver fixes for the first failures: pydantic-ai repair.never_silent (a reply with no public text on a turn with findings becomes a clarification) and budget.tokens_respected; scripted tools.calls_within_allowed and resume.after_restart (ERP-04..08 task kinds stateless and tool-set aware). No golden changed; replays pass (PR-32). Commits 4944e07, fedd8e2, 224b419; review harness/state/3/reviews/3f.1-r1.json (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3f.1/2026-10-19T21-17-39.359886+00-00-full.json",
+    "harness/state/evidence/gates/3f.1/2026-10-19T21-19-03.122102+00-00-pg.json"
+  ],
+  "open_items": [
+    "Owner decision (R1-3): in every rollout including off, a reasoning-only reply after a finding now parks the run in WAITING_INPUT with the fixed question 'The model made no usable tool request.' instead of a bounded re-drive or VERIFICATION_FAILED; keep, or prefer a bounded model retry.",
+    "R1-2: repair.new_proposal_or_clarification accepts an identical re-proposal (bounded by the repair budget and KERNEL-REPEAT).",
+    "R1-4: OUTSIDE_TOOL_SET as a FinalAnswer on a run with no reads becomes an INPUT_REQUESTED reply (fixture-only edge).",
+    "Four authored model responses in tests/conformance/driver_cases/adapters.py are fixture input, not model evidence (PR-29).",
+    "Fix round 1 (224b419, test-only) was checked by the controller, not a fresh reviewer (Codex out until 2026-10-25)."
+  ],
+  "rulings": [
+    {
+      "ruling": "Not-applicable declarations are typed and structurally checked, because the suite is the contract a third-party driver must pass.",
+      "cost_if_wrong": "a test-only change"
+    },
+    {
+      "ruling": "The silence-after-finding clarification is kept as the plan's case requires; the run-level effect goes to the owner.",
+      "cost_if_wrong": "switch to a bounded retry"
+    }
+  ],
+  "outside_repo": []
+}

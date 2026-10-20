@@ -1,0 +1,38 @@
+{
+  "task": "3b.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "C3-10",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "Overlapping allOf properties let the same instance value resolve to a lower class.",
+      "evidence": "src/e_agent/contracts/data_classes.py:422"
+    },
+    {
+      "id": "C3-11",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "A boolean true property loses its ancestor's class.",
+      "evidence": "src/e_agent/contracts/data_classes.py:291, :324"
+    },
+    {
+      "id": "C3-12",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "A reference chain past the 32-hop limit silently loses its declaration.",
+      "evidence": "src/e_agent/contracts/data_classes.py:289, :297"
+    },
+    {
+      "id": "C3-13",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "Percent-encoded $ref names bypass the whole-definition restriction.",
+      "evidence": "src/e_agent/contracts/data_classes.py:213, :269"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}

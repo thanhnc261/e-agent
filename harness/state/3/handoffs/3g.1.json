@@ -1,0 +1,30 @@
+{
+  "task": "3g.1",
+  "changed": "End of Phase 3. The phase review (harness/state/3/reviews/3g.1-phase.json, rework) found P-1 (Medium) and P-2 (Low), both fixed by task 3.R1. README: Status, Phase 3 toggles, the ADR 0030 data-boundary startup rule, /health/ready and evidence-bundle reporting, explain, and the release_report and context_ablation commands. Roadmap Phase 3 status: verified on fixtures, not merged. The handoff is docs/handoffs/2026-10-20-phase3-cognition-context.md. evals/reports/fixture-release.json was regenerated and is identical to phase3-baseline.json. Repair rate is 0.3824 (13/34) against 0.4706 at 3d.3; the drop comes from the 3f.2 metric change, and behaviour is the same. Token cost cannot be compared, because model_tokens is unknown with the scripted driver. Levels 1-3 ran at 4c137c4 on a clean tree: full 2051 passed, 30 skipped; pg 1160 passed; make e2e 150 passed, 4 skipped. full and pg re-ran at b92e4f5 after the handoff doc was filled in. Commits 3fa630f and b92e4f5.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3g.1/2026-10-19T23-29-52.045979+00-00-full.json",
+    "harness/state/evidence/gates/3g.1/2026-10-19T23-31-16.885217+00-00-pg.json",
+    "harness/state/evidence/gates/3g.1/2026-10-19T23-24-55.111258+00-00-full.json",
+    "harness/state/evidence/gates/3g.1/2026-10-19T23-26-22.129629+00-00-pg.json"
+  ],
+  "open_items": [
+    "Codex final check across the kernel tasks deferred until Codex is available (after 2026-10-25), before the owner merges. Codex reviewed 3b.2, 3b.3, 3d.5 (r1-r2), 3e.3 and 3e.4 r1; 3c.1, 3c.2, 3c.3, 3d.2, 3d.3, 3d.6, 3e.1, 3e.2, 3d.5 later rounds, 3e.4 r2, 3f.1, 3f.2 and 3.R1 had Claude reviewers only.",
+    "Task 3g.2, the live check on odoo19-learning, runs only on the owner's instruction. The operational items in the handoff must be settled first.",
+    "The owner must decide the ADR and design amendments listed in the handoff (0031, 0032, 0033, 0009, 0030, 0006, target-architecture, PR-34).",
+    "Owner decisions: silence after a finding (keep the clarification or use a bounded retry, P-3); open POs (add a list read or reword the question); rule_bundle_version (add or skip); numbers (Tag, optional).",
+    "P-4: no test runs kernel_repeat and grounded_answers both on. P-5: there is no line-count gate (kernel/grounding.py is at 500 lines). P-7: not reviewed: the pg store directly, the /health/ready toggle report, Review Focus 2 and 3.",
+    "The pydantic_ai stored message history keeps raw model tool args (3.R1, parked).",
+    "The 3d.5 handoff records no make e2e run; the level-3 e2e at 4c137c4 covers the phase."
+  ],
+  "rulings": [
+    {
+      "ruling": "3g.1 was re-created after 3.R1 with its original base kept (by harness design); 3.R1's 14 committed files are recorded as explicit scope changes that name 3.R1, rather than resetting the base.",
+      "cost_if_wrong": "a scope record reads wider than 3g.1's own edits"
+    },
+    {
+      "ruling": "The Codex final check is deferred to before the merge rather than replaced by another Claude review, because Codex is out of usage until 2026-10-25.",
+      "cost_if_wrong": "a kernel defect found later, before the merge"
+    }
+  ],
+  "outside_repo": []
+}

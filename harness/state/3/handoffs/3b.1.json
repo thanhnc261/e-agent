@@ -1,0 +1,24 @@
+{
+  "task": "3b.1",
+  "changed": "Model route data boundary (ADR 0030): contracts/data.py (DataProcessing, boundary literal), DriverConfig.data_boundary, Profile.local_only and data_processing, effective_boundary with the literal loopback rule and basis verified/declared/default, and the startup rule refusing a non-local route without data_processing (unconditionally until 3d.5) and every non-local route under local_only. /health/ready and the evidence bundle (additive route key) report data_boundary, data_boundary_basis and data_processing_declared. Four LiteLLM e2e tests declare data_boundary local. Review fixes B1-1, B1-3, B1-4, B1-6 in e9b790d; review record harness/state/3/reviews/3b.1.json.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3b.1/2026-10-19T06-54-11.575839+00-00-full.json",
+    "harness/state/evidence/gates/3b.1/2026-10-19T06-46-41.551113+00-00-full.json"
+  ],
+  "open_items": [
+    "Owner: a local live profile whose model route is not a loopback Ollama now needs data_boundary or data_processing to start; the agent cannot read profiles/*.local.json to check.",
+    "Low (re-review): no server or CLI test asserts route in an exported bundle; the wiring is three one-line arguments.",
+    "Startup refusal with context_assembler on moves to 3b.2 (ruling B1-2)."
+  ],
+  "rulings": [
+    {
+      "ruling": "The startup-refusal case with context_assembler on moves to 3b.2, where the field lands (review B1-2).",
+      "cost_if_wrong": "None; the rule refuses unconditionally today."
+    },
+    {
+      "ruling": "A declared local on loopback ollama reports verified; the scripted driver always reports local/verified (ADR 0030 line 35).",
+      "cost_if_wrong": "A contradicting declaration on the scripted driver is ignored rather than refused."
+    }
+  ],
+  "outside_repo": []
+}

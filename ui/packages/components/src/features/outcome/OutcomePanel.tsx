@@ -4,14 +4,7 @@
  * verified one, a check without a recorded verdict is shown as unknown rather than
  * as a failure, and nothing here retries a possibly committed write.
  */
-import {
-  actionStatusKey,
-  formatFieldValue,
-  hasResult,
-  readableLabel,
-  selectOutcome,
-  statusKey,
-} from "@e-agent/ui-core";
+import { actionStatusKey, formatFieldValue, hasResult, readableLabel, selectOutcome } from "@e-agent/ui-core";
 import { useController, useI18n, useRunState } from "@e-agent/ui-react";
 import { ActionButton } from "../../primitives/ActionButton.tsx";
 import { Disclosure } from "../../primitives/Disclosure.tsx";
@@ -48,7 +41,7 @@ export function OutcomePanel() {
           data-state={outcome.state}
           data-status={outcome.status}
         >
-          {t(statusKey(outcome.state ?? undefined))}
+          {t(outcome.labelKey)}
         </StatusBadge>
       </p>
       {outcome.unresolved && (

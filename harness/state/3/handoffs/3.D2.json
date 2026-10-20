@@ -1,0 +1,21 @@
+{
+  "task": "3.D2",
+  "changed": "Owner rulings of 2026-10-20. (c) Reword: the ERP task open-pos moves to version 2 and now asks 'Which procurement demands are open, and which draft RFQ (such as rfq:po-100) or vendor offers cover them? Cite the ERP records you read; propose no change.' Its capabilities, grounded_answer and max_admitted_writes 0 are unchanged, and all five reads are bound in Odoo. The tests, the authored replay prompt, the UI test and the plan follow the new wording. (d) Skip: ADR 0031 §3, ADR 0033 CQ07, the ADR index and the plan record that no event carries rule_bundle_version. Each finding carries its rule_version, and the profile pins artifact_sha256. The Phase 3 handoff moves both to Ruled. Commits f58bc3d and c3caedd (D2-1 line ref). Review: harness/state/3/reviews/3.D2-r1.json (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3.D2/2026-10-20T03-41-33.144041+00-00-full.json",
+    "harness/state/evidence/gates/3.D2/2026-10-20T03-38-12.378680+00-00-full.json",
+    "harness/state/evidence/gates/3.D2/2026-10-20T03-39-46.974583+00-00-pg.json"
+  ],
+  "open_items": [
+    "Before 3g.2, re-pin domain-erp artifact_sha256 in the live profile from a trusted wheel build, because the domain wheel changed.",
+    "On the sandbox, the draft-RFQ part of the question can be answered only if driver.refs.rfq_ref names a real draft RFQ.",
+    "A list-POs read is still planned for Phase 5 (Odoo tools); odoo19.procurement.po-read exists as a single-PO read."
+  ],
+  "rulings": [
+    {
+      "ruling": "Keep task_id open-pos and bump it to version 2, rather than renaming the task.",
+      "cost_if_wrong": "one more task version"
+    }
+  ],
+  "outside_repo": []
+}

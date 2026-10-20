@@ -1,0 +1,31 @@
+{
+  "task": "3e.1",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "R2-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "ClassView docstring says a container holding a removed key is no value, but only containers holding a masked value are rejected; a pointer above an ABSENT removal resolves against the reduced container (e.g. '/s'=[] when the raw list held secrets). Not an oracle, but a grounded claim the provider data contradicts.",
+      "evidence": "src/e_agent/kernel/grounding.py:169-170 vs :187; src/e_agent/kernel/context_walk.py:102-104, :119-121."
+    },
+    {
+      "id": "R2-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Allowed by ruling: a fallback turn's raw view is still checked through the class view (stricter); bound and budget stubs are not applied.",
+      "evidence": "src/e_agent/kernel/grounding.py:337-338; context_on.py:171-183; context.py:111-131."
+    },
+    {
+      "id": "R2-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Coverage confirmed: R1-1 closed, rules identical to the assembler's except bound/budget, off unchanged, no golden changed. Nits: _run_modes computed twice; no kernel test for shadow with context_assembler on; unused '[masked:secret]' marker.",
+      "evidence": "36 passed (test_grounding, test_off_projection)."
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}

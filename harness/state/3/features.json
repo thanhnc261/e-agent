@@ -1,0 +1,320 @@
+{
+  "phase": "3",
+  "entries": [
+    {
+      "id": "F-3a-1",
+      "category": "adr",
+      "description": "Task 3a.1: ADRs 0031-0033, ADR 0030's Phase 3 parts and the target sections they decide",
+      "steps": [
+        "ADRs 0031, 0032 and 0033 written; ADR 0030 amended with the loopback rule, the declared/verified basis and data_classes beside the schema",
+        "target 5.1, 5.6, 6.2, 6.3, 7.2, 7.4, 13.3 and 17 rows C8, C9, C18, C19 tagged with their ADRs",
+        "repo_move.py check reports no broken links; full gate passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3a.1/2026-10-19T06-14-03.678464+00-00-full.json"
+    },
+    {
+      "id": "F-3a-2",
+      "category": "adr",
+      "description": "Task 3a.2: owner acceptance of the Phase 3 plan and ADRs (gate G2)",
+      "steps": [
+        "owner's answers recorded in the decisions table and ADR status lines",
+        "active_plan switched; validate-context prints ok"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3a.2/2026-10-19T06-40-56.681089+00-00-full.json"
+    },
+    {
+      "id": "F-3b-1",
+      "category": "server",
+      "description": "Task 3b.1: model route data boundary and the hosted-route startup rule (ADR 0030)",
+      "steps": [
+        "test_route_boundary.py passes, including loopback verified, hosted:unknown default and the startup refusal",
+        "committed profiles start; full gate passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3b.1/2026-10-19T06-54-11.575839+00-00-full.json"
+    },
+    {
+      "id": "F-3b-2",
+      "category": "contracts",
+      "description": "Task 3b.2: Phase 3 toggles default off, pinned per run, and the ERP off model-request golden",
+      "steps": [
+        "off_model_request_erp.json committed before any Phase 3 change",
+        "toggle, code and pinning tests pass on both stores",
+        "a run pinned off fails closed with ROUTE_BOUNDARY_UNMET on an undeclared hosted route",
+        "off baselines and both off model-request goldens unchanged; full and pg pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3b.2/2026-10-19T07-24-17.308812+00-00-full.json"
+    },
+    {
+      "id": "F-3b-3",
+      "category": "contracts",
+      "description": "Task 3b.3: data classes on capability declarations and stored records; sdk_api 1.2",
+      "steps": [
+        "record-class conformance test runs on both stores, prints its count and fails on zero",
+        "ERP read outputs marked; both off model-request goldens unchanged",
+        "full and pg pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3b.3/2026-10-19T09-04-04.754935+00-00-full.json"
+    },
+    {
+      "id": "F-3c-1",
+      "category": "kernel",
+      "description": "Task 3c.1: progress ledger projection (ADR 0031)",
+      "steps": [
+        "test_progress.py passes on both stores, including plain-text repair turns and no model text",
+        "full and pg pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3c.1/2026-10-19T10-10-27.334721+00-00-full.json"
+    },
+    {
+      "id": "F-3c-2",
+      "category": "kernel",
+      "description": "Task 3c.2: run reconstruction from run_events (U3, ADR 0031)",
+      "steps": [
+        "reconstruction equals stored rows over every fixture scenario on both stores; older events marked partial",
+        "Phase 2 goldens frozen and shown to be a projection of the v3 goldens",
+        "full and pg pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3c.2/2026-10-19T11-01-21.261572+00-00-full.json"
+    },
+    {
+      "id": "F-3c-3",
+      "category": "kernel",
+      "description": "Task 3c.3: deterministic explanation projection (Q5, ADR 0033)",
+      "steps": [
+        "competency-question cases pass with their count; no model call; no observation values",
+        "evidence bundle carries the explanation; full and pg pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3c.3/2026-10-19T11-30-58.328566+00-00-full.json"
+    },
+    {
+      "id": "F-3d-1",
+      "category": "contracts",
+      "description": "Task 3d.1: context policy and pack contracts; DriverInput.context",
+      "steps": [
+        "test_context_pack.py and test_ports.py pass",
+        "full and pg pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3d.1/2026-10-19T11-44-51.560745+00-00-full.json"
+    },
+    {
+      "id": "F-3d-2",
+      "category": "kernel",
+      "description": "Task 3d.2: context assembler with budgets, drop log, minimization and fencing (ADR 0032)",
+      "steps": [
+        "assembler tests pass, including injection fencing, bounded partial results and hosted-route masking",
+        "approval presentation ignores the pack; full and pg pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3d.2/2026-10-19T12-38-04.517673+00-00-full.json"
+    },
+    {
+      "id": "F-3d-3",
+      "category": "kernel",
+      "description": "Task 3d.3: context_assembler shadow comparison and the off baseline",
+      "steps": [
+        "context.compared recorded per turn with no added model call, read or budget",
+        "replay consumer passes with its count; phase3-baseline.json recorded",
+        "off goldens unchanged; full and pg pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3d.3/2026-10-19T13-21-08.686134+00-00-full.json"
+    },
+    {
+      "id": "F-3d-4",
+      "category": "driver",
+      "description": "Task 3d.4: the pydantic-ai driver renders the context pack per target 7.4",
+      "steps": [
+        "rendering, clearing, rule-4 and masked-request tests pass",
+        "on_model_request.json golden recorded; off goldens unchanged",
+        "full, pg and make e2e pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3d.4/2026-10-19T13-53-18.939382+00-00-full.json"
+    },
+    {
+      "id": "F-3d-5",
+      "category": "kernel",
+      "description": "Task 3d.5: context_assembler on in the kernel with reservation-aware failure handling",
+      "steps": [
+        "fallback only before a reservation on a local or declared route; terminal code otherwise",
+        "off-to-on flip and restore mismatch tests pass; 12- and 20-turn budget tests pass",
+        "full, pg and make e2e pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3d.5/2026-10-19T16-01-25.715092+00-00-full.json"
+    },
+    {
+      "id": "F-3d-6",
+      "category": "kernel",
+      "description": "Task 3d.6: KERNEL-REPEAT for a repeated blocked proposal (ADR 0031)",
+      "steps": [
+        "repeat tests pass on both stores, including a changed revision and the post-reservation path",
+        "shadow consumer reports zero disagreements with its count; full and pg pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3d.6/2026-10-19T16-39-15.108026+00-00-full.json"
+    },
+    {
+      "id": "F-3e-1",
+      "category": "kernel",
+      "description": "Task 3e.1: checked citations on typed answers (ADR 0033)",
+      "steps": [
+        "citation tests pass on both stores, including another run's evidence and value not stored",
+        "off action records unchanged; full and pg pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3e.1/2026-10-19T17-32-33.749841+00-00-full.json"
+    },
+    {
+      "id": "F-3e-2",
+      "category": "kernel",
+      "description": "Task 3e.2: generic grounded answer for read-only questions",
+      "steps": [
+        "a read-only question ends grounded without a bespoke contract; grounded never reported as verified",
+        "free text labelled unverified; full and pg pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3e.2/2026-10-19T18-28-16.825817+00-00-full.json"
+    },
+    {
+      "id": "F-3e-3",
+      "category": "kernel",
+      "description": "Task 3e.3: checked proposal and plan rationale (ADR 0033)",
+      "steps": [
+        "rationale tests pass on both stores; approval digest unchanged by rationale",
+        "full and pg pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3e.3/2026-10-19T19-32-28.407633+00-00-full.json"
+    },
+    {
+      "id": "F-3e-4",
+      "category": "driver",
+      "description": "Task 3e.4: drivers emit citations and rationale",
+      "steps": [
+        "both off model-request goldens unchanged; authored grounded replay verifies",
+        "grounding shadow agrees with on over the replays; full, pg and make e2e pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3e.4/2026-10-19T20-26-30.824243+00-00-full.json"
+    },
+    {
+      "id": "F-3f-1",
+      "category": "conformance",
+      "description": "Task 3f.1: driver conformance suite over the scripted and pydantic-ai drivers",
+      "steps": [
+        "test_every_driver_passes_conformance passes for both drivers, prints its count and fails on zero",
+        "full and pg pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3f.1/2026-10-19T21-17-39.359886+00-00-full.json"
+    },
+    {
+      "id": "F-3f-2",
+      "category": "evals",
+      "description": "Task 3f.2: context ablation design and first fixture run (research 03 section 8)",
+      "steps": [
+        "ablation design written; both arms run with their counts",
+        "phase3-context-ablation.json recorded, labelled fixture; full passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3f.2/2026-10-19T22-08-00.049288+00-00-full.json"
+    },
+    {
+      "id": "F-3g-1",
+      "category": "verification",
+      "description": "Task 3g.1: end-of-phase levels 1-3, phase review and handoff",
+      "steps": [
+        "levels 1-3 recorded on a clean tree",
+        "phase review findings fixed or ruled; handoff written"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3g.1/2026-10-19T23-29-52.045979+00-00-full.json"
+    },
+    {
+      "id": "F-3g-2",
+      "category": "verification",
+      "description": "Task 3g.2: Phase 3 live check on odoo19-learning",
+      "steps": [
+        "live results recorded in the handoff, labelled live and separate from fixture results"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3g.2/2026-10-20T11-17-45.010958+00-00-full.json"
+    },
+    {
+      "id": "F-3-R1",
+      "category": "kernel",
+      "description": "Phase review P-1/P-2: model-authored rationale and citation refs are never stored verbatim unless they resolve or match a closed id grammar",
+      "steps": [
+        "uv run pytest -q tests/unit/kernel tests/unit/contracts tests/unit/adapters/pydantic_ai tests/conformance passes, with tests that a value-shaped goal_ref, unresolved rule/evidence ref and unresolved pointer are stored only as digests",
+        "uv run e-agent-harness gate full and gate pg pass on a clean tree"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3.R1/2026-10-19T23-09-31.685102+00-00-full.json"
+    },
+    {
+      "id": "F-3-D1",
+      "category": "docs",
+      "description": "Owner-accepted Phase 3 design amendments (2026-10-20): ADRs 0006, 0009, 0030, 0031, 0032, 0033, target architecture and principles PR-34 match the built code",
+      "steps": [
+        "every amendment in the phase review notes is applied or listed as pending an owner decision (open-pos, rule_bundle_version)",
+        "uv run e-agent-harness gate full passes on a clean tree"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3.D1/2026-10-20T01-36-35.424236+00-00-full.json"
+    },
+    {
+      "id": "F-3-D2",
+      "category": "domain",
+      "description": "Owner rulings 2026-10-20: open-pos reworded to a question the bound read capabilities can answer (version 2); rule_bundle_version not recorded in events (ADR 0031 Skip)",
+      "steps": [
+        "uv run pytest -q tests/unit/plugins/erp tests/unit/server tests/unit/adapters/pydantic_ai ui-free tests pass, including the recorded-model replay suite",
+        "uv run e-agent-harness gate full and gate pg pass on a clean tree"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3.D2/2026-10-20T03-41-33.144041+00-00-full.json"
+    },
+    {
+      "id": "F-3-R2",
+      "category": "kernel",
+      "description": "Final check FA-1/FA-2/FB-3: the grounded answer is admitted only for a run that cannot write; fallback keeps the returned run; docs record the final check",
+      "steps": [
+        "uv run pytest -q tests/unit/kernel tests/conformance passes with tests that a write-capable run is never offered grounded.answer.v1, a definition with grounded_answer and a write is refused, and FB-3 (a) and (b)",
+        "uv run e-agent-harness gate full and gate pg pass on a clean tree"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3.R2/2026-10-20T08-58-05.537660+00-00-full.json"
+    },
+    {
+      "id": "F-3-D3",
+      "category": "docs",
+      "description": "Owner accepted the ADR 0033 §3 fourth admission condition (2026-10-20); live-write ruling recorded",
+      "steps": [
+        "no doc says the ADR 0033 §3 amendment is pending; the handoff records the live-write ruling",
+        "uv run e-agent-harness gate full passes on a clean tree"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3.D3/2026-10-20T12-19-43.975717+00-00-full.json"
+    },
+    {
+      "id": "F-3-R3",
+      "category": "tooling",
+      "description": "CI independent wheel install: check_wheels.py expects the 10 ERP task definitions after open-pos (3e.2)",
+      "steps": [
+        "uv run python scripts/check_wheels.py passes locally",
+        "uv run e-agent-harness gate full passes on a clean tree"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3.R3/2026-10-20T12-28-32.878734+00-00-full.json"
+    }
+  ]
+}

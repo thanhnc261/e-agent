@@ -1,0 +1,46 @@
+{
+  "id": "3e.4",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3e-4"
+  ],
+  "context_digest": "856429048caeb2c7226d3e4ba5cab9c778b886e562c6132233cf5604b5210020",
+  "allowed_paths": [
+    "src/e_agent/sdk/ports.py",
+    "src/e_agent/kernel/run_loop.py",
+    "src/e_agent/kernel/grounding.py",
+    "src/e_agent/kernel/grounded_answer.py",
+    "src/e_agent/kernel/rationale.py",
+    "src/e_agent/kernel/continuation.py",
+    "src/e_agent/kernel/features.py",
+    "src/e_agent/kernel/context_on.py",
+    "src/e_agent/adapters/pydantic_ai/**",
+    "src/e_agent/plugins/erp/domain/testing/**",
+    "scripts/release_report.py",
+    "evals/reports/phase3-baseline.json",
+    "tests/replays/erp-authored-grounded-calls/**",
+    "tests/unit/adapters/pydantic_ai/**",
+    "tests/unit/server/**",
+    "tests/unit/kernel/**",
+    "tests/unit/sdk/**",
+    "tests/unit/scripts/**",
+    "tests/unit/plugins/erp/**",
+    "tests/conformance/**",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "pyproject.toml",
+    "docs/plans/2026-10-19-phase3-cognition-context.md",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "both off model-request goldens unchanged; authored grounded replay verifies",
+    "grounding shadow agrees with on over the replays; full, pg and make e2e pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "3075488f20dd02705ebfc4c81f8a928363089e51",
+  "created_at": "2026-10-19T19:36:16+00:00",
+  "features_digest": "f8e07be704027746f2e18aad3c2efabdb602326e78d9302351b769f5617bfd19"
+}

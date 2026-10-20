@@ -1,0 +1,66 @@
+{
+  "task": "3d.4",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "D3-40",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "On the acknowledgement turn the driver keeps a cleared return's earlier rendering while pending_write is set; leaks only after 3d.5 wires on and the route changes. Carried to 3d.5.",
+      "evidence": "src/e_agent/adapters/pydantic_ai/driver.py:682,691"
+    },
+    {
+      "id": "D3-41",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Persisted history from pack-less turns and model arguments reaches a stricter route unmasked after a fallback or route change; 3d.5 must refuse a stricter route (plan ruling).",
+      "evidence": "src/e_agent/adapters/pydantic_ai/driver.py:499,709-728; docs/adr/0032-context-assembler.md \u00a77, \u00a79"
+    },
+    {
+      "id": "D3-42",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The missing-rendering refusal is a plain ValueError reachable only through a kernel bug; 3d.5 types it and maps it to CONTEXT_UNAVAILABLE.",
+      "evidence": "src/e_agent/adapters/pydantic_ai/driver.py:491,750"
+    },
+    {
+      "id": "D3-43",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "action_result is the one return not built from the pack; it holds ids only today and must stay so.",
+      "evidence": "src/e_agent/adapters/pydantic_ai/driver.py:757"
+    },
+    {
+      "id": "D3-44",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Adapter tests import kernel assemble; the on golden must be re-recorded when kernel/context.py rendering changes.",
+      "evidence": "tests/unit/adapters/pydantic_ai/record_on_model_request.py:37"
+    },
+    {
+      "id": "D3-45",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The scripted driver's pack mode maps broad exceptions to facts missing, which could hide a test-double bug.",
+      "evidence": "src/e_agent/plugins/erp/domain/testing/scripted_driver.py:74"
+    },
+    {
+      "id": "D3-46",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Suffix non-persistence relies on pydantic-ai 2.54 request-only message reassignment; guarded by tests; rerun on upgrade.",
+      "evidence": "src/e_agent/adapters/pydantic_ai/driver.py"
+    },
+    {
+      "id": "D3-47",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "pg and the harness gate are due in the close ritual.",
+      "evidence": "harness/state/3/tasks/3d.4.json"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

@@ -18,6 +18,7 @@ from e_agent.contracts.task import AnswerCondition, answer_condition_met
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.registry import PluginRegistry
 from e_agent.plugins.erp.domain import plugin
+from e_agent.plugins.erp.domain.plugin import load_rule_inventory
 from e_agent.plugins.erp.domain.procurement import SHORTAGE_ANSWER
 from e_agent.plugins.erp.domain.procurement.answers import ShortageAnswerVerifier
 from e_agent.plugins.erp.simulator import fixture_profile_path
@@ -44,6 +45,9 @@ ERP_KINDS = (
     "overdue-invoices",
 )
 ASSISTANT = "assistant"
+OPEN_POS = "open-pos"
+"""The read-only grounded-answer definition of Phase 3 (Task 3e.2). The Phase 2 golden
+predates it, so its capabilities are pinned in `test_open_pos_task.py` instead."""
 
 # Chosen per target §6.4.2; the report of Task 2c.2 justifies each value.
 EXPECTED_WRITE_EFFECTS = {
@@ -72,20 +76,20 @@ def _pinned_live() -> Profile:
     return Profile.model_validate(data)
 
 
-def test_eight_task_definitions_load_from_resources() -> None:
+def test_task_definitions_load_from_resources() -> None:
     root = files("e_agent.plugins.erp.domain").joinpath("tasks")
-    for task_id in (*ERP_KINDS, ASSISTANT):
+    for task_id in (*ERP_KINDS, ASSISTANT, OPEN_POS):
         resource = json.loads(root.joinpath(f"{task_id}.json").read_text("utf-8"))
         assert resource["task_id"] == task_id
     definitions = plugin.load_task_definitions()
-    assert tuple(d.task_id for d in definitions) == (*ERP_KINDS, ASSISTANT)
+    assert tuple(d.task_id for d in definitions) == (*ERP_KINDS, ASSISTANT, OPEN_POS)
     manifest = plugin.load_manifest()
     assert [(t.task_id, t.version) for t in manifest.provides_task_definitions] == [
         (d.task_id, d.version) for d in definitions
     ]
     # One catalogue: each preset is its definition's projection (D8: task_id is the kind).
     by_id = {d.task_id: d for d in definitions}
-    assert tuple(p.kind for p in plugin.TASK_PRESETS) == ERP_KINDS
+    assert tuple(p.kind for p in plugin.TASK_PRESETS) == (*ERP_KINDS, OPEN_POS)
     for preset in plugin.TASK_PRESETS:
         definition = by_id[preset.kind]
         assert preset.prompt == definition.goal_template
@@ -108,14 +112,15 @@ def test_task_capabilities_match_golden() -> None:
     assert today, "today's tool set is empty"
     assert golden["today"] == today
     chosen = {tid: sorted(d.capabilities) for tid, d in registry.task_definitions.items()}
+    phase3 = {OPEN_POS: chosen.pop(OPEN_POS)}  # pinned in test_open_pos_task.py
     assert chosen == golden["definitions"]
     cases = 0
-    for task_id, capabilities in sorted(chosen.items()):
+    for task_id, capabilities in sorted({**chosen, **phase3}.items()):
         outside = sorted(set(capabilities) - set(today))
         assert not outside, f"{task_id} names capabilities outside today's set: {outside}"
         cases += 1
     print(f"task capability subsets checked: {cases}")
-    assert cases == len(ERP_KINDS) + 1
+    assert cases == len(ERP_KINDS) + 2
 
 
 def test_assistant_definition_is_read_only() -> None:
@@ -281,3 +286,37 @@ def test_fixture_profile_reports_simulator_defaults() -> None:
         ("fixture-erp", "fixture-erp.sales.quotation-create", ("idempotency",)),
         ("fixture-erp", "fixture-erp.crm.lead-create", ("idempotency",)),
     }
+
+
+async def test_every_scripted_kind_has_a_scenario() -> None:
+    """No preset can leave a stuck run on the fixture (3e.2 review R1-2): each preset either
+    runs with the scripted driver and leaves RUNNING, or, having no scenario (``open-pos``,
+    for a model driver), is refused when the runtime is built, before any run exists."""
+    from e_agent.contracts.run import RunState
+    from e_agent.plugins.erp.domain.testing.scripted_tasks import TASK_KINDS, ScriptedErpDriver
+    from e_agent.server.bootstrap import build_runtime
+
+    kinds = [p.kind for p in plugin.TASK_PRESETS]
+    assert set(TASK_KINDS) == set(ERP_KINDS) == set(kinds) - {OPEN_POS}
+    ran = refused = 0
+    for kind in kinds:
+        profile = load_profile(fixture_profile_path())
+        if not ScriptedErpDriver.handles(kind):
+            with pytest.raises(ValueError, match="no scenario for task kind"):
+                await build_runtime(profile, task_kind=kind)
+            refused += 1
+            continue
+        rt = await build_runtime(profile, task_kind=kind)
+        run = await rt.coordinator.start_run(rt.operator, kind, rt.scope, task_kind=kind)
+        assert run.state is not RunState.RUNNING, (kind, run.state)
+        ran += 1
+    print(f"scripted presets: {ran} ran, {refused} refused at build")
+    assert (ran, refused) == (len(ERP_KINDS), 1)
+
+
+def test_admitted_fixture_registry_holds_the_rule_inventory() -> None:
+    """ADR 0009, ADR 0033 §4: admitting the fixture profile through discovery gives the
+    registry the domain pack's whole rule inventory, the set a rationale is checked against."""
+    _, registry = _fixture()
+    assert registry.rule_inventory == load_rule_inventory()
+    assert registry.rule_inventory["PR-002"] == "1"

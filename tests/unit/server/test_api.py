@@ -468,11 +468,48 @@ def test_ready_reports_whether_self_approval_is_allowed(client: TestClient) -> N
 
 
 def test_ready_reports_features(client: TestClient) -> None:
-    assert client.get("/health/ready").json()["features"] == {"execution_ir": "off"}
+    assert client.get("/health/ready").json()["features"] == {
+        "execution_ir": "off",
+        "context_assembler": "off",
+        "kernel_repeat": "off",
+        "grounded_answers": "off",
+    }
     profile = load_profile(fixture_profile_path())
     shadow = profile.model_copy(update={"features": Features(execution_ir=FeatureMode.SHADOW)})
     with TestClient(create_app(lambda: build_runtime(shadow))) as c:
-        assert c.get("/health/ready").json()["features"] == {"execution_ir": "shadow"}
+        assert c.get("/health/ready").json()["features"] == {
+            "execution_ir": "shadow",
+            "context_assembler": "off",
+            "kernel_repeat": "off",
+            "grounded_answers": "off",
+        }
+
+
+def test_readiness_reports_unmarked_counts() -> None:
+    """ADR 0030: readiness reports the unmarked (so `personal`) properties per capability
+    and side, with None for a side that has no schema. One capability's classes are
+    dropped after startup, so a non-zero count proves readiness reads the registry."""
+
+    async def runtime() -> Any:
+        rt = await build_runtime(load_profile(fixture_profile_path()))
+        caps = rt.registry.capabilities
+        cid = "crm.contact.read.v1"
+        caps[cid] = caps[cid].model_copy(update={"data_classes": {}})
+        odd = {"type": "object", "properties": {"p": {"not": {"type": "string"}}}}
+        rt.registry.output_schemas[caps["crm.teams.read.v1"].output_schema_id] = odd
+        return rt
+
+    with TestClient(create_app(runtime)) as c:
+        body = c.get("/health/ready").json()
+    counts = body["unmarked_properties"]
+    print(f"capabilities with unmarked counts: {len(counts)}")
+    assert counts["crm.contact.read.v1"] == {"input": 1, "output": 3}
+    assert counts["sales.pricing.read.v1"] == {"input": 0, "output": 0}
+    assert counts["crm.lead.create.v1"] == {"input": 0, "output": None}
+    # a side outside the supported subset counts None and is listed with its construct
+    assert counts["crm.teams.read.v1"] == {"input": 0, "output": None}
+    assert body["unsupported_schemas"] == {"crm.teams.read.v1": {"output": "the keyword 'not'"}}
+    assert list(counts) == sorted(counts)
 
 
 def test_ready_reports_self_approval_disallowed_when_the_profile_flag_is_unset() -> None:

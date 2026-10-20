@@ -1,0 +1,31 @@
+{
+  "task": "3b.2",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "C2-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Driver call-site scan matches only the literal _driver.advance; an alias would escape it. None exists today.",
+      "evidence": "tests/conformance/test_driver_call_sites.py:18-24, :63-65"
+    },
+    {
+      "id": "C2-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Reconciliation test exercises NEEDS_RECONCILIATION->NEEDS_RECONCILIATION, not the live RUNNING->NEEDS_RECONCILIATION pair; both are allowed.",
+      "evidence": "tests/unit/kernel/test_mode_pinning.py:267-292"
+    },
+    {
+      "id": "C2-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "cont.turns counts a refused turn; no budget, event or outcome effect, same as existing pre-call exits. Not a defect.",
+      "evidence": "src/e_agent/kernel/run_loop.py:41-53"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

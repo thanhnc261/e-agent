@@ -100,6 +100,9 @@
     "max_validation_repairs": 4
   },
   "features": {
-    "execution_ir": "off"
+    "execution_ir": "off",
+    "context_assembler": "off",
+    "kernel_repeat": "off",
+    "grounded_answers": "off"
   }
 }

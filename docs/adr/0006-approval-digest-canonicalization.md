@@ -1,6 +1,6 @@
 # ADR 0006: approval digest uses an RFC 8785 (JCS) profile
 
-Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06).
+Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06). Amended 2026-10-20 (Phase 3 review, owner accepted; Task 3.D1): observation numbers are rendered as canonical decimal strings (Decision 5).
 
 ## Context
 
@@ -12,6 +12,7 @@ MVP design §4 specifies a home-grown canonical JSON: sorted keys, no NaN, canon
 2. Digest = `sha256` over the UTF-8 bytes. The stored value is `"jcs-sha256-v1:" + lowercase hex`.
 3. The profile version (`v1`) is part of the stored digest and of `ApprovalRecord`.
 4. A shared golden vector file (input → canonical bytes → digest) lives in the contracts package and is tested by both the Python and the TypeScript implementations.
+5. **Observation numbers** (amended 2026-10-20). Provider data can hold JSON numbers. Where the kernel digests or renders it under this profile (the context pack, ADR 0032 §1, and a citation's value, ADR 0033 §1), every number is first written as its canonical decimal string (`number_text`, `contracts/context_pack.py`, through `format_decimal`): no exponent, no trailing zeros, `-0` as `0`, and a float through its shortest round-trip text. A non-finite value, which has no canonical decimal, is written `NaN`, `Infinity` or `-Infinity`. The approval digest input is unchanged: observations enter it only by evidence id, source, revision, completeness and `fact_digest` (`digest_input`, `kernel/approval.py`).
 
 ## Alternatives considered
 

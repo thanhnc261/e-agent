@@ -49,10 +49,10 @@ PACKAGES = {
         "[files('e_agent.plugins.erp.domain').joinpath(p).read_text() for p in ("
         "'procurement/shapes/amend-shapes.ttl', 'sales/shapes/quotation-shapes.ttl', "
         "'crm/shapes/lead-shapes.ttl', 'receivables/rules/inventory.json')]; "
-        # Task definitions ship as tasks/*.json resources (Task 2c.2).
+        # Task definitions ship as tasks/*.json resources (Task 2c.2); open-pos made it 10 (3e.2).
         "from e_agent.plugins.erp.domain.plugin import load_task_definitions; "
         "ts = load_task_definitions(); "
-        "assert len(ts) == 9 and all(files('e_agent.plugins.erp.domain').joinpath("
+        "assert len(ts) == 10 and all(files('e_agent.plugins.erp.domain').joinpath("
         "'tasks', t.task_id + '.json').is_file() for t in ts), 'task definitions missing'; "
         # The simulator ships in its own wheel since Task 1d.5.
         "assert not any(files('e_agent.plugins.erp.domain').joinpath('testing', f).is_file() "

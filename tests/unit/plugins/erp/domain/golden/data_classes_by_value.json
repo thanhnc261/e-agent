@@ -1,0 +1,204 @@
+{
+  "crm.contact.read.v1": {
+    "/input/contact_ref": "internal",
+    "/output/active": "internal",
+    "/output/contact_ref": "internal",
+    "/output/name": "personal"
+  },
+  "crm.lead.create.v1": {
+    "/input/contact_ref": "internal",
+    "/input/expected_revenue": "internal",
+    "/input/name": "personal",
+    "/input/owner_ref": "internal",
+    "/input/source_ref": "internal",
+    "/input/team_ref": "internal"
+  },
+  "crm.lead.read.v1": {
+    "/input/operation_key": "internal",
+    "/output/leads/items/contact_ref": "internal",
+    "/output/leads/items/expected_revenue": "internal",
+    "/output/leads/items/external_ref": "internal",
+    "/output/leads/items/name": "personal",
+    "/output/leads/items/operation_key": "internal",
+    "/output/leads/items/owner_ref": "internal",
+    "/output/leads/items/source_ref": "internal",
+    "/output/leads/items/team_ref": "internal"
+  },
+  "crm.teams.read.v1": {
+    "/output/sources/items/name": "internal",
+    "/output/sources/items/source_ref": "internal",
+    "/output/teams/items/member_refs": "internal",
+    "/output/teams/items/name": "internal",
+    "/output/teams/items/team_ref": "internal"
+  },
+  "inventory.availability.read.v1": {
+    "/input/product_ref": "internal",
+    "/output/available": "internal",
+    "/output/inbound": "internal",
+    "/output/product_ref": "internal",
+    "/output/unit": "internal"
+  },
+  "procurement.demand.read.v1": {
+    "/input/demand_ref": "internal",
+    "/output/budget": "internal",
+    "/output/currency": "internal",
+    "/output/demand_ref": "internal",
+    "/output/product_ref": "internal",
+    "/output/quantity": "internal",
+    "/output/requested_date": "internal",
+    "/output/unit": "internal"
+  },
+  "procurement.draft-rfq.amend.v1": {
+    "/input/expected_revision": "internal",
+    "/input/purchase_order_ref": "internal",
+    "/input/quantity": "internal",
+    "/input/requested_date": "internal"
+  },
+  "procurement.draft-rfq.read.v1": {
+    "/input/purchase_order_ref": "internal",
+    "/output/currency": "internal",
+    "/output/external_ref": "internal",
+    "/output/product_ref": "internal",
+    "/output/purchase_order_ref": "internal",
+    "/output/quantity": "internal",
+    "/output/requested_date": "internal",
+    "/output/revision": "internal",
+    "/output/state": "internal",
+    "/output/supplier_ref": "internal",
+    "/output/unit": "internal",
+    "/output/unit_price": "internal"
+  },
+  "procurement.offer.recommend.v1": {
+    "/input/demand_ref": "internal",
+    "/input/explanation": "personal",
+    "/input/offer_ref": "internal",
+    "/input/product_ref": "internal",
+    "/input/supplier_ref": "internal",
+    "/input/unit_price": "internal"
+  },
+  "procurement.offers.read.v1": {
+    "/input/product_ref": "internal",
+    "/output/offers/items/approved": "internal",
+    "/output/offers/items/currency": "internal",
+    "/output/offers/items/delivery_date": "internal",
+    "/output/offers/items/offer_ref": "internal",
+    "/output/offers/items/product_ref": "internal",
+    "/output/offers/items/supplier_ref": "internal",
+    "/output/offers/items/unit": "internal",
+    "/output/offers/items/unit_price": "internal",
+    "/output/product_ref": "internal"
+  },
+  "procurement.open-demands.read.v1": {
+    "/output/complete": "internal",
+    "/output/demands/items/demand_ref": "internal",
+    "/output/demands/items/product_name": "internal",
+    "/output/demands/items/product_ref": "internal",
+    "/output/demands/items/quantity": "internal",
+    "/output/demands/items/requested_date": "internal",
+    "/output/demands/items/unit": "internal"
+  },
+  "procurement.purchase-order.create-draft.v1": {
+    "/input/currency": "internal",
+    "/input/demand_ref": "internal",
+    "/input/offer_ref": "internal",
+    "/input/product_ref": "internal",
+    "/input/quantity": "internal",
+    "/input/requested_date": "internal",
+    "/input/subtotal": "internal",
+    "/input/supplier_ref": "internal",
+    "/input/unit": "internal",
+    "/input/unit_price": "internal"
+  },
+  "procurement.purchase-order.read.v1": {
+    "/input/operation_key": "internal",
+    "/output/orders/items/currency": "internal",
+    "/output/orders/items/external_ref": "internal",
+    "/output/orders/items/line_count": "internal",
+    "/output/orders/items/operation_key": "internal",
+    "/output/orders/items/product_ref": "internal",
+    "/output/orders/items/purchase_order_ref": "internal",
+    "/output/orders/items/quantity": "internal",
+    "/output/orders/items/requested_date": "internal",
+    "/output/orders/items/state": "internal",
+    "/output/orders/items/subtotal": "internal",
+    "/output/orders/items/supplier_ref": "internal",
+    "/output/orders/items/unit": "internal",
+    "/output/orders/items/unit_price": "internal"
+  },
+  "procurement.shortage.answer.v1": {
+    "/input/available": "internal",
+    "/input/demand_quantity": "internal",
+    "/input/demand_ref": "internal",
+    "/input/inbound": "internal",
+    "/input/product_ref": "internal",
+    "/input/shortage": "internal"
+  },
+  "receivables.open-invoices.read.v1": {
+    "/input/as_of": "internal",
+    "/output/as_of": "internal",
+    "/output/company": "internal",
+    "/output/invoices/items/currency": "internal",
+    "/output/invoices/items/customer_ref": "internal",
+    "/output/invoices/items/due_date": "internal",
+    "/output/invoices/items/external_ref": "internal",
+    "/output/invoices/items/invoice_ref": "internal",
+    "/output/invoices/items/residual": "internal"
+  },
+  "receivables.overdue-invoices.answer.v1": {
+    "/input/as_of": "internal",
+    "/input/overdue_invoice_refs": "internal",
+    "/input/summary": "personal",
+    "/input/totals/items/currency": "internal",
+    "/input/totals/items/total": "internal"
+  },
+  "sales.late-orders.answer.v1": {
+    "/input/as_of": "internal",
+    "/input/late_order_refs": "internal",
+    "/input/summary": "personal"
+  },
+  "sales.open-orders.read.v1": {
+    "/input/as_of": "internal",
+    "/output/as_of": "internal",
+    "/output/orders/items/customer_ref": "internal",
+    "/output/orders/items/delivery_status": "internal",
+    "/output/orders/items/external_ref": "internal",
+    "/output/orders/items/order_ref": "internal",
+    "/output/orders/items/promised_date": "internal"
+  },
+  "sales.pricing.read.v1": {
+    "/input/customer_ref": "internal",
+    "/input/product_ref": "internal",
+    "/output/currency": "internal",
+    "/output/customer_active": "internal",
+    "/output/customer_name": "personal",
+    "/output/customer_ref": "internal",
+    "/output/list_price": "internal",
+    "/output/product_ref": "internal",
+    "/output/product_saleable": "internal",
+    "/output/unit": "internal"
+  },
+  "sales.quotation.create-draft.v1": {
+    "/input/currency": "internal",
+    "/input/customer_ref": "internal",
+    "/input/product_ref": "internal",
+    "/input/quantity": "internal",
+    "/input/subtotal": "internal",
+    "/input/unit": "internal",
+    "/input/unit_price": "internal"
+  },
+  "sales.quotation.read.v1": {
+    "/input/operation_key": "internal",
+    "/output/quotations/items/currency": "internal",
+    "/output/quotations/items/customer_ref": "internal",
+    "/output/quotations/items/external_ref": "internal",
+    "/output/quotations/items/line_count": "internal",
+    "/output/quotations/items/operation_key": "internal",
+    "/output/quotations/items/product_ref": "internal",
+    "/output/quotations/items/quantity": "internal",
+    "/output/quotations/items/sent": "internal",
+    "/output/quotations/items/state": "internal",
+    "/output/quotations/items/subtotal": "internal",
+    "/output/quotations/items/unit": "internal",
+    "/output/quotations/items/unit_price": "internal"
+  }
+}

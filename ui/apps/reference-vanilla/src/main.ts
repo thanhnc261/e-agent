@@ -64,7 +64,7 @@ form.addEventListener("submit", (e) => {
 app.append(header, messages, form, approval, outcome, timeline, evidence);
 
 function renderHeader(s: ControllerState) {
-  const state = s.view.run ? el("span", { "data-testid": "run-state", "data-state": s.view.run.state }, t(runStatusKey(s.view.run.state, s.view.actions))) : null;
+  const state = s.view.run ? el("span", { "data-testid": "run-state", "data-state": s.view.run.state }, t(runStatusKey(s.view.run.state, s.view.actions, false, s.view.run.reason_code))) : null;
   header.replaceChildren(
     el("h1", {}, `${t("app.title")} — reference`),
     el("span", { "data-testid": "connection-status", "data-status": s.connection, role: "status" }, t(`connection.${s.connection}`)),

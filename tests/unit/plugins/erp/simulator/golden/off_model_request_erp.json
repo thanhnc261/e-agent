@@ -1,0 +1,3084 @@
+{
+  "erp-draft-po": {
+    "run_state": "SUCCEEDED",
+    "requests": [
+      {
+        "function_tools": [
+          {
+            "name": "crm_contact_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read one contact (person or company) that a lead would be about.",
+              "properties": {
+                "contact_ref": {
+                  "title": "Contact Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "contact_ref"
+              ],
+              "title": "ContactQuery",
+              "type": "object"
+            },
+            "description": "One contact a lead would be about",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "crm_lead_create_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-07 arguments: one new lead/opportunity; a repeated command never duplicates it.",
+              "properties": {
+                "name": {
+                  "maxLength": 200,
+                  "minLength": 3,
+                  "title": "Name",
+                  "type": "string"
+                },
+                "contact_ref": {
+                  "title": "Contact Ref",
+                  "type": "string"
+                },
+                "team_ref": {
+                  "title": "Team Ref",
+                  "type": "string"
+                },
+                "owner_ref": {
+                  "title": "Owner Ref",
+                  "type": "string"
+                },
+                "source_ref": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Source Ref"
+                },
+                "expected_revenue": {
+                  "title": "Expected Revenue",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "contact_ref",
+                "team_ref",
+                "owner_ref",
+                "expected_revenue"
+              ],
+              "title": "CreateLead",
+              "type": "object"
+            },
+            "description": "Create one CRM lead; a repeated command never creates a second lead",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "crm_teams_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read sales teams with their members, and the known lead sources.",
+              "properties": {},
+              "title": "TeamsQuery",
+              "type": "object"
+            },
+            "description": "Sales teams with members, and known lead sources",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "inventory_availability_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read available and inbound stock for one product.",
+              "properties": {
+                "product_ref": {
+                  "title": "Product Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "product_ref"
+              ],
+              "title": "AvailabilityQuery",
+              "type": "object"
+            },
+            "description": "Available and inbound quantity for one product in the scoped warehouse",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_demand_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read one procurement demand (quantity, unit, requested date, budget).",
+              "properties": {
+                "demand_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Demand Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "demand_ref"
+              ],
+              "title": "DemandQuery",
+              "type": "object"
+            },
+            "description": "One procurement demand with requested date and budget",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_draft_rfq_amend_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-04 arguments: change only quantity and/or requested date of a draft RFQ.\n\n``expected_revision`` is the revision that was read; the provider rejects the\nchange if the RFQ moved on since (optimistic concurrency).",
+              "properties": {
+                "purchase_order_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Purchase Order Ref",
+                  "type": "string"
+                },
+                "expected_revision": {
+                  "title": "Expected Revision",
+                  "type": "string"
+                },
+                "quantity": {
+                  "title": "Quantity",
+                  "type": "string"
+                },
+                "requested_date": {
+                  "format": "date",
+                  "title": "Requested Date",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "purchase_order_ref",
+                "expected_revision",
+                "quantity",
+                "requested_date"
+              ],
+              "title": "AmendDraftRfq",
+              "type": "object",
+              "x-presentation": {
+                "baseline_reference": "purchase_order_ref"
+              }
+            },
+            "description": "Change quantity and/or requested date of one draft RFQ at the revision that was read; never confirms",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_draft_rfq_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read one draft request for quotation (draft purchase order) by reference.",
+              "properties": {
+                "purchase_order_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Purchase Order Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "purchase_order_ref"
+              ],
+              "title": "DraftRfqQuery",
+              "type": "object"
+            },
+            "description": "One draft request for quotation with its current lines and optimistic revision",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_offer_recommend_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-02 answer: the eligible offer to use, or none (offer_ref null).",
+              "properties": {
+                "demand_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Demand Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Product Ref",
+                  "type": "string"
+                },
+                "offer_ref": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Offer Ref"
+                },
+                "supplier_ref": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Supplier Ref"
+                },
+                "unit_price": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Unit Price"
+                },
+                "explanation": {
+                  "title": "Explanation",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "demand_ref",
+                "product_ref",
+                "offer_ref",
+                "supplier_ref",
+                "unit_price",
+                "explanation"
+              ],
+              "title": "OfferRecommendation",
+              "type": "object"
+            },
+            "description": "Recommend the eligible supplier offer for a demand (or none); the host verifies it independently",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_offers_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read supplier offers for a product, including approval status.",
+              "properties": {
+                "product_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Product Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "product_ref"
+              ],
+              "title": "OfferQuery",
+              "type": "object"
+            },
+            "description": "Supplier offers for a product, including approval status",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_open_demands_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "List open procurement demands; takes no arguments.",
+              "properties": {},
+              "title": "OpenDemandsQuery",
+              "type": "object"
+            },
+            "description": "List open procurement demands with their exact demand and product references; use it first when the user gives no demand reference",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_purchase_order_create_draft_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Arguments of procurement.purchase-order.create-draft.v1.",
+              "properties": {
+                "demand_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Demand Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Product Ref",
+                  "type": "string"
+                },
+                "supplier_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Supplier Ref",
+                  "type": "string"
+                },
+                "offer_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Offer Ref",
+                  "type": "string"
+                },
+                "quantity": {
+                  "title": "Quantity",
+                  "type": "string"
+                },
+                "unit": {
+                  "title": "Unit",
+                  "type": "string"
+                },
+                "currency": {
+                  "title": "Currency",
+                  "type": "string"
+                },
+                "unit_price": {
+                  "title": "Unit Price",
+                  "type": "string"
+                },
+                "subtotal": {
+                  "title": "Subtotal",
+                  "type": "string"
+                },
+                "requested_date": {
+                  "format": "date",
+                  "title": "Requested Date",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "demand_ref",
+                "product_ref",
+                "supplier_ref",
+                "offer_ref",
+                "quantity",
+                "unit",
+                "currency",
+                "unit_price",
+                "subtotal",
+                "requested_date"
+              ],
+              "title": "DraftPurchaseOrder",
+              "type": "object"
+            },
+            "description": "Create exactly one draft purchase order; never confirms",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_shortage_answer_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-01 answer: availability for a demand and the resulting shortage.",
+              "properties": {
+                "demand_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Demand Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Product Ref",
+                  "type": "string"
+                },
+                "demand_quantity": {
+                  "title": "Demand Quantity",
+                  "type": "string"
+                },
+                "available": {
+                  "title": "Available",
+                  "type": "string"
+                },
+                "inbound": {
+                  "title": "Inbound",
+                  "type": "string"
+                },
+                "shortage": {
+                  "title": "Shortage",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "demand_ref",
+                "product_ref",
+                "demand_quantity",
+                "available",
+                "inbound",
+                "shortage"
+              ],
+              "title": "ShortageAnswer",
+              "type": "object"
+            },
+            "description": "Report demand, available and inbound quantity and the resulting shortage; the host verifies it against fresh reads",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "receivables_open_invoices_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read posted customer invoices with an open residual amount.",
+              "properties": {
+                "as_of": {
+                  "format": "date",
+                  "title": "As Of",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "as_of"
+              ],
+              "title": "OpenInvoicesQuery",
+              "type": "object"
+            },
+            "description": "Posted customer invoices with an open residual, as of a date (read-only)",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "receivables_overdue_invoices_answer_v1",
+            "parameters_json_schema": {
+              "$defs": {
+                "CurrencyTotal": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "currency": {
+                      "title": "Currency",
+                      "type": "string"
+                    },
+                    "total": {
+                      "title": "Total",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "currency",
+                    "total"
+                  ],
+                  "title": "CurrencyTotal",
+                  "type": "object"
+                }
+              },
+              "additionalProperties": false,
+              "description": "ERP-08 answer: invoices due before ``as_of`` with residual > 0, totals per currency.",
+              "properties": {
+                "as_of": {
+                  "format": "date",
+                  "title": "As Of",
+                  "type": "string"
+                },
+                "overdue_invoice_refs": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Overdue Invoice Refs",
+                  "type": "array"
+                },
+                "totals": {
+                  "items": {
+                    "$ref": "#/$defs/CurrencyTotal"
+                  },
+                  "title": "Totals",
+                  "type": "array"
+                },
+                "summary": {
+                  "title": "Summary",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "as_of",
+                "overdue_invoice_refs",
+                "totals",
+                "summary"
+              ],
+              "title": "OverdueInvoicesAnswer",
+              "type": "object"
+            },
+            "description": "Report overdue invoices and totals per currency as of a date; the host recomputes it",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "sales_late_orders_answer_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-06 answer: confirmed orders promised before ``as_of`` and not fully delivered.",
+              "properties": {
+                "as_of": {
+                  "format": "date",
+                  "title": "As Of",
+                  "type": "string"
+                },
+                "late_order_refs": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Late Order Refs",
+                  "type": "array"
+                },
+                "summary": {
+                  "title": "Summary",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "as_of",
+                "late_order_refs",
+                "summary"
+              ],
+              "title": "LateOrdersAnswer",
+              "type": "object"
+            },
+            "description": "Report the sales orders that are late as of a date; the host recomputes it",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "sales_open_orders_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read confirmed sales orders with their promised date and delivery status.",
+              "properties": {
+                "as_of": {
+                  "format": "date",
+                  "title": "As Of",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "as_of"
+              ],
+              "title": "OpenOrdersQuery",
+              "type": "object"
+            },
+            "description": "Confirmed sales orders with promised date and delivery status, as of a date",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "sales_pricing_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read whether a customer may be quoted and the list price of a product.",
+              "properties": {
+                "customer_ref": {
+                  "title": "Customer Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "title": "Product Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "customer_ref",
+                "product_ref"
+              ],
+              "title": "PricingQuery",
+              "type": "object"
+            },
+            "description": "Whether a customer can be quoted and the product's list price, unit and currency",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "sales_quotation_create_draft_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-05 arguments: one draft quotation with one line; never confirmed or sent.",
+              "properties": {
+                "customer_ref": {
+                  "title": "Customer Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "title": "Product Ref",
+                  "type": "string"
+                },
+                "quantity": {
+                  "title": "Quantity",
+                  "type": "string"
+                },
+                "unit": {
+                  "title": "Unit",
+                  "type": "string"
+                },
+                "unit_price": {
+                  "title": "Unit Price",
+                  "type": "string"
+                },
+                "currency": {
+                  "title": "Currency",
+                  "type": "string"
+                },
+                "subtotal": {
+                  "title": "Subtotal",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "customer_ref",
+                "product_ref",
+                "quantity",
+                "unit",
+                "unit_price",
+                "currency",
+                "subtotal"
+              ],
+              "title": "DraftQuotation",
+              "type": "object"
+            },
+            "description": "Create one draft customer quotation; never confirms, emails or delivers",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "request_clarification",
+            "parameters_json_schema": {
+              "type": "object",
+              "properties": {
+                "question": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                }
+              },
+              "required": [
+                "question"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Ask the user for required missing task details. This grants no approval or authority.",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          }
+        ],
+        "output_tools": [],
+        "allow_text_output": true,
+        "instructions": "You are e-agent, an enterprise assistant that works only through the tools provided. Use read tools to obtain facts; never invent facts or tool results. Resource references are opaque identifiers: copy their complete exact value from tool data or the user, including every prefix before a colon or slash. Never shorten them to display names. To change anything, call exactly one write tool with complete arguments; it is a proposal that a human must approve, and you will receive its result or the rule findings that blocked it. Do not claim an action happened until a tool result says it was verified. Use a structured answer tool when one is provided for the task, before final text; the host must verify the answer. If necessary user details are missing, call request_clarification with one concise question. Answer briefly in the user's language.\n\nProcurement: if the user names no demand reference, list open demands first and copy the exact demand_ref and product_ref from that result. Then read the demand, current stock and supplier offers. The quantity to order is demand minus available minus inbound stock (never negative). Copy complete resource references from read results, including their prefixes. For a request to create an order, use the purchase order proposal tool after reading. If nothing is needed, report the zero shortage with the shortage answer tool. Otherwise propose one draft purchase order from an approved offer that delivers by the requested date and stays within budget; subtotal = quantity x unit price. Write all quantities and amounts as decimal strings. A host rule engine validates every proposal; if it is blocked, read the findings and propose a corrected order. If no offer is eligible, use the offer recommendation tool with null offer and supplier and unit price, then explain why. When asked only about availability or shortage, report it with the shortage answer tool; when asked which offer to use, report it with the offer recommendation tool (offer_ref null if no offer is eligible). Answers are verified by the host.\nDraft RFQ changes: read the RFQ first and send the revision you read; only quantity and requested date can change, and only while it is a draft.\nQuotations: read pricing for the customer and product; quote the list price in the listed unit and currency; subtotal = quantity x unit price. Never confirm or send.\nLeads: read the contact and the sales teams; the owner must be a member of the team; use a listed source or none.\nLate orders and overdue invoices: always state the as-of date you used, read with it, and report exactly the matching references (and totals per currency). These are read-only questions: never propose any change. Use the late-orders answer tool for late orders and the overdue-invoices answer tool for overdue invoices, so the host independently verifies the structured result before your final explanation.",
+        "messages": [
+          {
+            "parts": [
+              {
+                "content": "Restock product:widget-a for demand:d-001 by creating a draft purchase order.",
+                "part_kind": "user-prompt"
+              }
+            ],
+            "instructions": "You are e-agent, an enterprise assistant that works only through the tools provided. Use read tools to obtain facts; never invent facts or tool results. Resource references are opaque identifiers: copy their complete exact value from tool data or the user, including every prefix before a colon or slash. Never shorten them to display names. To change anything, call exactly one write tool with complete arguments; it is a proposal that a human must approve, and you will receive its result or the rule findings that blocked it. Do not claim an action happened until a tool result says it was verified. Use a structured answer tool when one is provided for the task, before final text; the host must verify the answer. If necessary user details are missing, call request_clarification with one concise question. Answer briefly in the user's language.\n\nProcurement: if the user names no demand reference, list open demands first and copy the exact demand_ref and product_ref from that result. Then read the demand, current stock and supplier offers. The quantity to order is demand minus available minus inbound stock (never negative). Copy complete resource references from read results, including their prefixes. For a request to create an order, use the purchase order proposal tool after reading. If nothing is needed, report the zero shortage with the shortage answer tool. Otherwise propose one draft purchase order from an approved offer that delivers by the requested date and stays within budget; subtotal = quantity x unit price. Write all quantities and amounts as decimal strings. A host rule engine validates every proposal; if it is blocked, read the findings and propose a corrected order. If no offer is eligible, use the offer recommendation tool with null offer and supplier and unit price, then explain why. When asked only about availability or shortage, report it with the shortage answer tool; when asked which offer to use, report it with the offer recommendation tool (offer_ref null if no offer is eligible). Answers are verified by the host.\nDraft RFQ changes: read the RFQ first and send the revision you read; only quantity and requested date can change, and only while it is a draft.\nQuotations: read pricing for the customer and product; quote the list price in the listed unit and currency; subtotal = quantity x unit price. Never confirm or send.\nLeads: read the contact and the sales teams; the owner must be a member of the team; use a listed source or none.\nLate orders and overdue invoices: always state the as-of date you used, read with it, and report exactly the matching references (and totals per currency). These are read-only questions: never propose any change. Use the late-orders answer tool for late orders and the overdue-invoices answer tool for overdue invoices, so the host independently verifies the structured result before your final explanation.",
+            "kind": "request",
+            "run_id": "run_id#1",
+            "conversation_id": "conversation_id#1",
+            "metadata": null,
+            "state": "complete"
+          }
+        ]
+      },
+      {
+        "function_tools": [
+          {
+            "name": "crm_contact_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read one contact (person or company) that a lead would be about.",
+              "properties": {
+                "contact_ref": {
+                  "title": "Contact Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "contact_ref"
+              ],
+              "title": "ContactQuery",
+              "type": "object"
+            },
+            "description": "One contact a lead would be about",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "crm_lead_create_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-07 arguments: one new lead/opportunity; a repeated command never duplicates it.",
+              "properties": {
+                "name": {
+                  "maxLength": 200,
+                  "minLength": 3,
+                  "title": "Name",
+                  "type": "string"
+                },
+                "contact_ref": {
+                  "title": "Contact Ref",
+                  "type": "string"
+                },
+                "team_ref": {
+                  "title": "Team Ref",
+                  "type": "string"
+                },
+                "owner_ref": {
+                  "title": "Owner Ref",
+                  "type": "string"
+                },
+                "source_ref": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Source Ref"
+                },
+                "expected_revenue": {
+                  "title": "Expected Revenue",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "contact_ref",
+                "team_ref",
+                "owner_ref",
+                "expected_revenue"
+              ],
+              "title": "CreateLead",
+              "type": "object"
+            },
+            "description": "Create one CRM lead; a repeated command never creates a second lead",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "crm_teams_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read sales teams with their members, and the known lead sources.",
+              "properties": {},
+              "title": "TeamsQuery",
+              "type": "object"
+            },
+            "description": "Sales teams with members, and known lead sources",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "inventory_availability_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read available and inbound stock for one product.",
+              "properties": {
+                "product_ref": {
+                  "title": "Product Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "product_ref"
+              ],
+              "title": "AvailabilityQuery",
+              "type": "object"
+            },
+            "description": "Available and inbound quantity for one product in the scoped warehouse",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_demand_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read one procurement demand (quantity, unit, requested date, budget).",
+              "properties": {
+                "demand_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Demand Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "demand_ref"
+              ],
+              "title": "DemandQuery",
+              "type": "object"
+            },
+            "description": "One procurement demand with requested date and budget",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_draft_rfq_amend_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-04 arguments: change only quantity and/or requested date of a draft RFQ.\n\n``expected_revision`` is the revision that was read; the provider rejects the\nchange if the RFQ moved on since (optimistic concurrency).",
+              "properties": {
+                "purchase_order_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Purchase Order Ref",
+                  "type": "string"
+                },
+                "expected_revision": {
+                  "title": "Expected Revision",
+                  "type": "string"
+                },
+                "quantity": {
+                  "title": "Quantity",
+                  "type": "string"
+                },
+                "requested_date": {
+                  "format": "date",
+                  "title": "Requested Date",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "purchase_order_ref",
+                "expected_revision",
+                "quantity",
+                "requested_date"
+              ],
+              "title": "AmendDraftRfq",
+              "type": "object",
+              "x-presentation": {
+                "baseline_reference": "purchase_order_ref"
+              }
+            },
+            "description": "Change quantity and/or requested date of one draft RFQ at the revision that was read; never confirms",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_draft_rfq_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read one draft request for quotation (draft purchase order) by reference.",
+              "properties": {
+                "purchase_order_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Purchase Order Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "purchase_order_ref"
+              ],
+              "title": "DraftRfqQuery",
+              "type": "object"
+            },
+            "description": "One draft request for quotation with its current lines and optimistic revision",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_offer_recommend_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-02 answer: the eligible offer to use, or none (offer_ref null).",
+              "properties": {
+                "demand_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Demand Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Product Ref",
+                  "type": "string"
+                },
+                "offer_ref": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Offer Ref"
+                },
+                "supplier_ref": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Supplier Ref"
+                },
+                "unit_price": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Unit Price"
+                },
+                "explanation": {
+                  "title": "Explanation",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "demand_ref",
+                "product_ref",
+                "offer_ref",
+                "supplier_ref",
+                "unit_price",
+                "explanation"
+              ],
+              "title": "OfferRecommendation",
+              "type": "object"
+            },
+            "description": "Recommend the eligible supplier offer for a demand (or none); the host verifies it independently",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_offers_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read supplier offers for a product, including approval status.",
+              "properties": {
+                "product_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Product Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "product_ref"
+              ],
+              "title": "OfferQuery",
+              "type": "object"
+            },
+            "description": "Supplier offers for a product, including approval status",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_open_demands_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "List open procurement demands; takes no arguments.",
+              "properties": {},
+              "title": "OpenDemandsQuery",
+              "type": "object"
+            },
+            "description": "List open procurement demands with their exact demand and product references; use it first when the user gives no demand reference",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_purchase_order_create_draft_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Arguments of procurement.purchase-order.create-draft.v1.",
+              "properties": {
+                "demand_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Demand Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Product Ref",
+                  "type": "string"
+                },
+                "supplier_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Supplier Ref",
+                  "type": "string"
+                },
+                "offer_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Offer Ref",
+                  "type": "string"
+                },
+                "quantity": {
+                  "title": "Quantity",
+                  "type": "string"
+                },
+                "unit": {
+                  "title": "Unit",
+                  "type": "string"
+                },
+                "currency": {
+                  "title": "Currency",
+                  "type": "string"
+                },
+                "unit_price": {
+                  "title": "Unit Price",
+                  "type": "string"
+                },
+                "subtotal": {
+                  "title": "Subtotal",
+                  "type": "string"
+                },
+                "requested_date": {
+                  "format": "date",
+                  "title": "Requested Date",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "demand_ref",
+                "product_ref",
+                "supplier_ref",
+                "offer_ref",
+                "quantity",
+                "unit",
+                "currency",
+                "unit_price",
+                "subtotal",
+                "requested_date"
+              ],
+              "title": "DraftPurchaseOrder",
+              "type": "object"
+            },
+            "description": "Create exactly one draft purchase order; never confirms",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_shortage_answer_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-01 answer: availability for a demand and the resulting shortage.",
+              "properties": {
+                "demand_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Demand Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Product Ref",
+                  "type": "string"
+                },
+                "demand_quantity": {
+                  "title": "Demand Quantity",
+                  "type": "string"
+                },
+                "available": {
+                  "title": "Available",
+                  "type": "string"
+                },
+                "inbound": {
+                  "title": "Inbound",
+                  "type": "string"
+                },
+                "shortage": {
+                  "title": "Shortage",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "demand_ref",
+                "product_ref",
+                "demand_quantity",
+                "available",
+                "inbound",
+                "shortage"
+              ],
+              "title": "ShortageAnswer",
+              "type": "object"
+            },
+            "description": "Report demand, available and inbound quantity and the resulting shortage; the host verifies it against fresh reads",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "receivables_open_invoices_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read posted customer invoices with an open residual amount.",
+              "properties": {
+                "as_of": {
+                  "format": "date",
+                  "title": "As Of",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "as_of"
+              ],
+              "title": "OpenInvoicesQuery",
+              "type": "object"
+            },
+            "description": "Posted customer invoices with an open residual, as of a date (read-only)",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "receivables_overdue_invoices_answer_v1",
+            "parameters_json_schema": {
+              "$defs": {
+                "CurrencyTotal": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "currency": {
+                      "title": "Currency",
+                      "type": "string"
+                    },
+                    "total": {
+                      "title": "Total",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "currency",
+                    "total"
+                  ],
+                  "title": "CurrencyTotal",
+                  "type": "object"
+                }
+              },
+              "additionalProperties": false,
+              "description": "ERP-08 answer: invoices due before ``as_of`` with residual > 0, totals per currency.",
+              "properties": {
+                "as_of": {
+                  "format": "date",
+                  "title": "As Of",
+                  "type": "string"
+                },
+                "overdue_invoice_refs": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Overdue Invoice Refs",
+                  "type": "array"
+                },
+                "totals": {
+                  "items": {
+                    "$ref": "#/$defs/CurrencyTotal"
+                  },
+                  "title": "Totals",
+                  "type": "array"
+                },
+                "summary": {
+                  "title": "Summary",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "as_of",
+                "overdue_invoice_refs",
+                "totals",
+                "summary"
+              ],
+              "title": "OverdueInvoicesAnswer",
+              "type": "object"
+            },
+            "description": "Report overdue invoices and totals per currency as of a date; the host recomputes it",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "sales_late_orders_answer_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-06 answer: confirmed orders promised before ``as_of`` and not fully delivered.",
+              "properties": {
+                "as_of": {
+                  "format": "date",
+                  "title": "As Of",
+                  "type": "string"
+                },
+                "late_order_refs": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Late Order Refs",
+                  "type": "array"
+                },
+                "summary": {
+                  "title": "Summary",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "as_of",
+                "late_order_refs",
+                "summary"
+              ],
+              "title": "LateOrdersAnswer",
+              "type": "object"
+            },
+            "description": "Report the sales orders that are late as of a date; the host recomputes it",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "sales_open_orders_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read confirmed sales orders with their promised date and delivery status.",
+              "properties": {
+                "as_of": {
+                  "format": "date",
+                  "title": "As Of",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "as_of"
+              ],
+              "title": "OpenOrdersQuery",
+              "type": "object"
+            },
+            "description": "Confirmed sales orders with promised date and delivery status, as of a date",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "sales_pricing_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read whether a customer may be quoted and the list price of a product.",
+              "properties": {
+                "customer_ref": {
+                  "title": "Customer Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "title": "Product Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "customer_ref",
+                "product_ref"
+              ],
+              "title": "PricingQuery",
+              "type": "object"
+            },
+            "description": "Whether a customer can be quoted and the product's list price, unit and currency",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "sales_quotation_create_draft_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-05 arguments: one draft quotation with one line; never confirmed or sent.",
+              "properties": {
+                "customer_ref": {
+                  "title": "Customer Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "title": "Product Ref",
+                  "type": "string"
+                },
+                "quantity": {
+                  "title": "Quantity",
+                  "type": "string"
+                },
+                "unit": {
+                  "title": "Unit",
+                  "type": "string"
+                },
+                "unit_price": {
+                  "title": "Unit Price",
+                  "type": "string"
+                },
+                "currency": {
+                  "title": "Currency",
+                  "type": "string"
+                },
+                "subtotal": {
+                  "title": "Subtotal",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "customer_ref",
+                "product_ref",
+                "quantity",
+                "unit",
+                "unit_price",
+                "currency",
+                "subtotal"
+              ],
+              "title": "DraftQuotation",
+              "type": "object"
+            },
+            "description": "Create one draft customer quotation; never confirms, emails or delivers",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "request_clarification",
+            "parameters_json_schema": {
+              "type": "object",
+              "properties": {
+                "question": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                }
+              },
+              "required": [
+                "question"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Ask the user for required missing task details. This grants no approval or authority.",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          }
+        ],
+        "output_tools": [],
+        "allow_text_output": true,
+        "instructions": "You are e-agent, an enterprise assistant that works only through the tools provided. Use read tools to obtain facts; never invent facts or tool results. Resource references are opaque identifiers: copy their complete exact value from tool data or the user, including every prefix before a colon or slash. Never shorten them to display names. To change anything, call exactly one write tool with complete arguments; it is a proposal that a human must approve, and you will receive its result or the rule findings that blocked it. Do not claim an action happened until a tool result says it was verified. Use a structured answer tool when one is provided for the task, before final text; the host must verify the answer. If necessary user details are missing, call request_clarification with one concise question. Answer briefly in the user's language.\n\nProcurement: if the user names no demand reference, list open demands first and copy the exact demand_ref and product_ref from that result. Then read the demand, current stock and supplier offers. The quantity to order is demand minus available minus inbound stock (never negative). Copy complete resource references from read results, including their prefixes. For a request to create an order, use the purchase order proposal tool after reading. If nothing is needed, report the zero shortage with the shortage answer tool. Otherwise propose one draft purchase order from an approved offer that delivers by the requested date and stays within budget; subtotal = quantity x unit price. Write all quantities and amounts as decimal strings. A host rule engine validates every proposal; if it is blocked, read the findings and propose a corrected order. If no offer is eligible, use the offer recommendation tool with null offer and supplier and unit price, then explain why. When asked only about availability or shortage, report it with the shortage answer tool; when asked which offer to use, report it with the offer recommendation tool (offer_ref null if no offer is eligible). Answers are verified by the host.\nDraft RFQ changes: read the RFQ first and send the revision you read; only quantity and requested date can change, and only while it is a draft.\nQuotations: read pricing for the customer and product; quote the list price in the listed unit and currency; subtotal = quantity x unit price. Never confirm or send.\nLeads: read the contact and the sales teams; the owner must be a member of the team; use a listed source or none.\nLate orders and overdue invoices: always state the as-of date you used, read with it, and report exactly the matching references (and totals per currency). These are read-only questions: never propose any change. Use the late-orders answer tool for late orders and the overdue-invoices answer tool for overdue invoices, so the host independently verifies the structured result before your final explanation.",
+        "messages": [
+          {
+            "parts": [
+              {
+                "content": "Restock product:widget-a for demand:d-001 by creating a draft purchase order.",
+                "part_kind": "user-prompt"
+              }
+            ],
+            "instructions": "You are e-agent, an enterprise assistant that works only through the tools provided. Use read tools to obtain facts; never invent facts or tool results. Resource references are opaque identifiers: copy their complete exact value from tool data or the user, including every prefix before a colon or slash. Never shorten them to display names. To change anything, call exactly one write tool with complete arguments; it is a proposal that a human must approve, and you will receive its result or the rule findings that blocked it. Do not claim an action happened until a tool result says it was verified. Use a structured answer tool when one is provided for the task, before final text; the host must verify the answer. If necessary user details are missing, call request_clarification with one concise question. Answer briefly in the user's language.\n\nProcurement: if the user names no demand reference, list open demands first and copy the exact demand_ref and product_ref from that result. Then read the demand, current stock and supplier offers. The quantity to order is demand minus available minus inbound stock (never negative). Copy complete resource references from read results, including their prefixes. For a request to create an order, use the purchase order proposal tool after reading. If nothing is needed, report the zero shortage with the shortage answer tool. Otherwise propose one draft purchase order from an approved offer that delivers by the requested date and stays within budget; subtotal = quantity x unit price. Write all quantities and amounts as decimal strings. A host rule engine validates every proposal; if it is blocked, read the findings and propose a corrected order. If no offer is eligible, use the offer recommendation tool with null offer and supplier and unit price, then explain why. When asked only about availability or shortage, report it with the shortage answer tool; when asked which offer to use, report it with the offer recommendation tool (offer_ref null if no offer is eligible). Answers are verified by the host.\nDraft RFQ changes: read the RFQ first and send the revision you read; only quantity and requested date can change, and only while it is a draft.\nQuotations: read pricing for the customer and product; quote the list price in the listed unit and currency; subtotal = quantity x unit price. Never confirm or send.\nLeads: read the contact and the sales teams; the owner must be a member of the team; use a listed source or none.\nLate orders and overdue invoices: always state the as-of date you used, read with it, and report exactly the matching references (and totals per currency). These are read-only questions: never propose any change. Use the late-orders answer tool for late orders and the overdue-invoices answer tool for overdue invoices, so the host independently verifies the structured result before your final explanation.",
+            "kind": "request",
+            "run_id": "run_id#1",
+            "conversation_id": "conversation_id#1",
+            "metadata": null,
+            "state": "complete"
+          },
+          {
+            "parts": [
+              {
+                "tool_name": "procurement_demand_read_v1",
+                "args": "{\"demand_ref\":\"demand:d-001\"}",
+                "tool_call_id": "call_yea3z9h5",
+                "tool_kind": null,
+                "id": null,
+                "provider_name": null,
+                "provider_details": null,
+                "part_kind": "tool-call"
+              },
+              {
+                "tool_name": "inventory_availability_read_v1",
+                "args": "{\"product_ref\":\"product:widget-a\"}",
+                "tool_call_id": "call_8f8y7xli",
+                "tool_kind": null,
+                "id": null,
+                "provider_name": null,
+                "provider_details": null,
+                "part_kind": "tool-call"
+              },
+              {
+                "tool_name": "procurement_offers_read_v1",
+                "args": "{\"product_ref\":\"product:widget-a\"}",
+                "tool_call_id": "call_4zzb1w2u",
+                "tool_kind": null,
+                "id": null,
+                "provider_name": null,
+                "provider_details": null,
+                "part_kind": "tool-call"
+              }
+            ],
+            "usage": {
+              "input_tokens": 63,
+              "cache_write_tokens": 0,
+              "cache_read_tokens": 0,
+              "output_tokens": 18,
+              "input_audio_tokens": 0,
+              "cache_audio_read_tokens": 0,
+              "output_audio_tokens": 0,
+              "audio_seconds": 0.0,
+              "details": {},
+              "cost": null
+            },
+            "model_name": "function:respond:",
+            "kind": "response",
+            "provider_name": null,
+            "provider_url": null,
+            "provider_details": null,
+            "provider_response_id": null,
+            "finish_reason": null,
+            "run_id": "run_id#1",
+            "conversation_id": "conversation_id#1",
+            "metadata": null,
+            "workspace_ref": null,
+            "state": "complete"
+          },
+          {
+            "parts": [
+              {
+                "tool_name": "procurement_demand_read_v1",
+                "content": {
+                  "data": {
+                    "demand_ref": "demand:d-001",
+                    "product_ref": "product:widget-a",
+                    "quantity": "12",
+                    "unit": "Units",
+                    "requested_date": "2026-10-20",
+                    "budget": "1000",
+                    "currency": "VND"
+                  },
+                  "evidence_id": "ev#1"
+                },
+                "tool_call_id": "call_yea3z9h5",
+                "tool_kind": null,
+                "metadata": null,
+                "outcome": "success",
+                "part_kind": "tool-return"
+              },
+              {
+                "tool_name": "inventory_availability_read_v1",
+                "content": {
+                  "data": {
+                    "product_ref": "product:widget-a",
+                    "available": "5",
+                    "inbound": "0",
+                    "unit": "Units"
+                  },
+                  "evidence_id": "ev#2"
+                },
+                "tool_call_id": "call_8f8y7xli",
+                "tool_kind": null,
+                "metadata": null,
+                "outcome": "success",
+                "part_kind": "tool-return"
+              },
+              {
+                "tool_name": "procurement_offers_read_v1",
+                "content": {
+                  "data": {
+                    "product_ref": "product:widget-a",
+                    "offers": [
+                      {
+                        "offer_ref": "offer:a",
+                        "supplier_ref": "supplier:approved-co",
+                        "product_ref": "product:widget-a",
+                        "unit_price": "100",
+                        "currency": "VND",
+                        "unit": "Units",
+                        "approved": true,
+                        "delivery_date": "2026-10-15"
+                      },
+                      {
+                        "offer_ref": "offer:b",
+                        "supplier_ref": "supplier:unvetted-co",
+                        "product_ref": "product:widget-a",
+                        "unit_price": "80",
+                        "currency": "VND",
+                        "unit": "Units",
+                        "approved": false,
+                        "delivery_date": "2026-10-14"
+                      }
+                    ]
+                  },
+                  "evidence_id": "ev#3"
+                },
+                "tool_call_id": "call_4zzb1w2u",
+                "tool_kind": null,
+                "metadata": null,
+                "outcome": "success",
+                "part_kind": "tool-return"
+              }
+            ],
+            "instructions": "You are e-agent, an enterprise assistant that works only through the tools provided. Use read tools to obtain facts; never invent facts or tool results. Resource references are opaque identifiers: copy their complete exact value from tool data or the user, including every prefix before a colon or slash. Never shorten them to display names. To change anything, call exactly one write tool with complete arguments; it is a proposal that a human must approve, and you will receive its result or the rule findings that blocked it. Do not claim an action happened until a tool result says it was verified. Use a structured answer tool when one is provided for the task, before final text; the host must verify the answer. If necessary user details are missing, call request_clarification with one concise question. Answer briefly in the user's language.\n\nProcurement: if the user names no demand reference, list open demands first and copy the exact demand_ref and product_ref from that result. Then read the demand, current stock and supplier offers. The quantity to order is demand minus available minus inbound stock (never negative). Copy complete resource references from read results, including their prefixes. For a request to create an order, use the purchase order proposal tool after reading. If nothing is needed, report the zero shortage with the shortage answer tool. Otherwise propose one draft purchase order from an approved offer that delivers by the requested date and stays within budget; subtotal = quantity x unit price. Write all quantities and amounts as decimal strings. A host rule engine validates every proposal; if it is blocked, read the findings and propose a corrected order. If no offer is eligible, use the offer recommendation tool with null offer and supplier and unit price, then explain why. When asked only about availability or shortage, report it with the shortage answer tool; when asked which offer to use, report it with the offer recommendation tool (offer_ref null if no offer is eligible). Answers are verified by the host.\nDraft RFQ changes: read the RFQ first and send the revision you read; only quantity and requested date can change, and only while it is a draft.\nQuotations: read pricing for the customer and product; quote the list price in the listed unit and currency; subtotal = quantity x unit price. Never confirm or send.\nLeads: read the contact and the sales teams; the owner must be a member of the team; use a listed source or none.\nLate orders and overdue invoices: always state the as-of date you used, read with it, and report exactly the matching references (and totals per currency). These are read-only questions: never propose any change. Use the late-orders answer tool for late orders and the overdue-invoices answer tool for overdue invoices, so the host independently verifies the structured result before your final explanation.",
+            "kind": "request",
+            "run_id": "run_id#2",
+            "conversation_id": "conversation_id#1",
+            "metadata": null,
+            "state": "complete"
+          }
+        ]
+      },
+      {
+        "function_tools": [
+          {
+            "name": "crm_contact_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read one contact (person or company) that a lead would be about.",
+              "properties": {
+                "contact_ref": {
+                  "title": "Contact Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "contact_ref"
+              ],
+              "title": "ContactQuery",
+              "type": "object"
+            },
+            "description": "One contact a lead would be about",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "crm_lead_create_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-07 arguments: one new lead/opportunity; a repeated command never duplicates it.",
+              "properties": {
+                "name": {
+                  "maxLength": 200,
+                  "minLength": 3,
+                  "title": "Name",
+                  "type": "string"
+                },
+                "contact_ref": {
+                  "title": "Contact Ref",
+                  "type": "string"
+                },
+                "team_ref": {
+                  "title": "Team Ref",
+                  "type": "string"
+                },
+                "owner_ref": {
+                  "title": "Owner Ref",
+                  "type": "string"
+                },
+                "source_ref": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Source Ref"
+                },
+                "expected_revenue": {
+                  "title": "Expected Revenue",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "contact_ref",
+                "team_ref",
+                "owner_ref",
+                "expected_revenue"
+              ],
+              "title": "CreateLead",
+              "type": "object"
+            },
+            "description": "Create one CRM lead; a repeated command never creates a second lead",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "crm_teams_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read sales teams with their members, and the known lead sources.",
+              "properties": {},
+              "title": "TeamsQuery",
+              "type": "object"
+            },
+            "description": "Sales teams with members, and known lead sources",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "inventory_availability_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read available and inbound stock for one product.",
+              "properties": {
+                "product_ref": {
+                  "title": "Product Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "product_ref"
+              ],
+              "title": "AvailabilityQuery",
+              "type": "object"
+            },
+            "description": "Available and inbound quantity for one product in the scoped warehouse",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_demand_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read one procurement demand (quantity, unit, requested date, budget).",
+              "properties": {
+                "demand_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Demand Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "demand_ref"
+              ],
+              "title": "DemandQuery",
+              "type": "object"
+            },
+            "description": "One procurement demand with requested date and budget",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_draft_rfq_amend_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-04 arguments: change only quantity and/or requested date of a draft RFQ.\n\n``expected_revision`` is the revision that was read; the provider rejects the\nchange if the RFQ moved on since (optimistic concurrency).",
+              "properties": {
+                "purchase_order_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Purchase Order Ref",
+                  "type": "string"
+                },
+                "expected_revision": {
+                  "title": "Expected Revision",
+                  "type": "string"
+                },
+                "quantity": {
+                  "title": "Quantity",
+                  "type": "string"
+                },
+                "requested_date": {
+                  "format": "date",
+                  "title": "Requested Date",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "purchase_order_ref",
+                "expected_revision",
+                "quantity",
+                "requested_date"
+              ],
+              "title": "AmendDraftRfq",
+              "type": "object",
+              "x-presentation": {
+                "baseline_reference": "purchase_order_ref"
+              }
+            },
+            "description": "Change quantity and/or requested date of one draft RFQ at the revision that was read; never confirms",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_draft_rfq_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read one draft request for quotation (draft purchase order) by reference.",
+              "properties": {
+                "purchase_order_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Purchase Order Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "purchase_order_ref"
+              ],
+              "title": "DraftRfqQuery",
+              "type": "object"
+            },
+            "description": "One draft request for quotation with its current lines and optimistic revision",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_offer_recommend_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-02 answer: the eligible offer to use, or none (offer_ref null).",
+              "properties": {
+                "demand_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Demand Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Product Ref",
+                  "type": "string"
+                },
+                "offer_ref": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Offer Ref"
+                },
+                "supplier_ref": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Supplier Ref"
+                },
+                "unit_price": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Unit Price"
+                },
+                "explanation": {
+                  "title": "Explanation",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "demand_ref",
+                "product_ref",
+                "offer_ref",
+                "supplier_ref",
+                "unit_price",
+                "explanation"
+              ],
+              "title": "OfferRecommendation",
+              "type": "object"
+            },
+            "description": "Recommend the eligible supplier offer for a demand (or none); the host verifies it independently",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_offers_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read supplier offers for a product, including approval status.",
+              "properties": {
+                "product_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Product Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "product_ref"
+              ],
+              "title": "OfferQuery",
+              "type": "object"
+            },
+            "description": "Supplier offers for a product, including approval status",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_open_demands_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "List open procurement demands; takes no arguments.",
+              "properties": {},
+              "title": "OpenDemandsQuery",
+              "type": "object"
+            },
+            "description": "List open procurement demands with their exact demand and product references; use it first when the user gives no demand reference",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_purchase_order_create_draft_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Arguments of procurement.purchase-order.create-draft.v1.",
+              "properties": {
+                "demand_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Demand Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Product Ref",
+                  "type": "string"
+                },
+                "supplier_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Supplier Ref",
+                  "type": "string"
+                },
+                "offer_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Offer Ref",
+                  "type": "string"
+                },
+                "quantity": {
+                  "title": "Quantity",
+                  "type": "string"
+                },
+                "unit": {
+                  "title": "Unit",
+                  "type": "string"
+                },
+                "currency": {
+                  "title": "Currency",
+                  "type": "string"
+                },
+                "unit_price": {
+                  "title": "Unit Price",
+                  "type": "string"
+                },
+                "subtotal": {
+                  "title": "Subtotal",
+                  "type": "string"
+                },
+                "requested_date": {
+                  "format": "date",
+                  "title": "Requested Date",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "demand_ref",
+                "product_ref",
+                "supplier_ref",
+                "offer_ref",
+                "quantity",
+                "unit",
+                "currency",
+                "unit_price",
+                "subtotal",
+                "requested_date"
+              ],
+              "title": "DraftPurchaseOrder",
+              "type": "object"
+            },
+            "description": "Create exactly one draft purchase order; never confirms",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "procurement_shortage_answer_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-01 answer: availability for a demand and the resulting shortage.",
+              "properties": {
+                "demand_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Demand Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "description": "Opaque resource identifier; copy the complete exact reference, including its prefix, from authorized read data or user input.",
+                  "title": "Product Ref",
+                  "type": "string"
+                },
+                "demand_quantity": {
+                  "title": "Demand Quantity",
+                  "type": "string"
+                },
+                "available": {
+                  "title": "Available",
+                  "type": "string"
+                },
+                "inbound": {
+                  "title": "Inbound",
+                  "type": "string"
+                },
+                "shortage": {
+                  "title": "Shortage",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "demand_ref",
+                "product_ref",
+                "demand_quantity",
+                "available",
+                "inbound",
+                "shortage"
+              ],
+              "title": "ShortageAnswer",
+              "type": "object"
+            },
+            "description": "Report demand, available and inbound quantity and the resulting shortage; the host verifies it against fresh reads",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "receivables_open_invoices_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read posted customer invoices with an open residual amount.",
+              "properties": {
+                "as_of": {
+                  "format": "date",
+                  "title": "As Of",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "as_of"
+              ],
+              "title": "OpenInvoicesQuery",
+              "type": "object"
+            },
+            "description": "Posted customer invoices with an open residual, as of a date (read-only)",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "receivables_overdue_invoices_answer_v1",
+            "parameters_json_schema": {
+              "$defs": {
+                "CurrencyTotal": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "currency": {
+                      "title": "Currency",
+                      "type": "string"
+                    },
+                    "total": {
+                      "title": "Total",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "currency",
+                    "total"
+                  ],
+                  "title": "CurrencyTotal",
+                  "type": "object"
+                }
+              },
+              "additionalProperties": false,
+              "description": "ERP-08 answer: invoices due before ``as_of`` with residual > 0, totals per currency.",
+              "properties": {
+                "as_of": {
+                  "format": "date",
+                  "title": "As Of",
+                  "type": "string"
+                },
+                "overdue_invoice_refs": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Overdue Invoice Refs",
+                  "type": "array"
+                },
+                "totals": {
+                  "items": {
+                    "$ref": "#/$defs/CurrencyTotal"
+                  },
+                  "title": "Totals",
+                  "type": "array"
+                },
+                "summary": {
+                  "title": "Summary",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "as_of",
+                "overdue_invoice_refs",
+                "totals",
+                "summary"
+              ],
+              "title": "OverdueInvoicesAnswer",
+              "type": "object"
+            },
+            "description": "Report overdue invoices and totals per currency as of a date; the host recomputes it",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "sales_late_orders_answer_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-06 answer: confirmed orders promised before ``as_of`` and not fully delivered.",
+              "properties": {
+                "as_of": {
+                  "format": "date",
+                  "title": "As Of",
+                  "type": "string"
+                },
+                "late_order_refs": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Late Order Refs",
+                  "type": "array"
+                },
+                "summary": {
+                  "title": "Summary",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "as_of",
+                "late_order_refs",
+                "summary"
+              ],
+              "title": "LateOrdersAnswer",
+              "type": "object"
+            },
+            "description": "Report the sales orders that are late as of a date; the host recomputes it",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "sales_open_orders_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read confirmed sales orders with their promised date and delivery status.",
+              "properties": {
+                "as_of": {
+                  "format": "date",
+                  "title": "As Of",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "as_of"
+              ],
+              "title": "OpenOrdersQuery",
+              "type": "object"
+            },
+            "description": "Confirmed sales orders with promised date and delivery status, as of a date",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "sales_pricing_read_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "Read whether a customer may be quoted and the list price of a product.",
+              "properties": {
+                "customer_ref": {
+                  "title": "Customer Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "title": "Product Ref",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "customer_ref",
+                "product_ref"
+              ],
+              "title": "PricingQuery",
+              "type": "object"
+            },
+            "description": "Whether a customer can be quoted and the product's list price, unit and currency",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "sales_quotation_create_draft_v1",
+            "parameters_json_schema": {
+              "additionalProperties": false,
+              "description": "ERP-05 arguments: one draft quotation with one line; never confirmed or sent.",
+              "properties": {
+                "customer_ref": {
+                  "title": "Customer Ref",
+                  "type": "string"
+                },
+                "product_ref": {
+                  "title": "Product Ref",
+                  "type": "string"
+                },
+                "quantity": {
+                  "title": "Quantity",
+                  "type": "string"
+                },
+                "unit": {
+                  "title": "Unit",
+                  "type": "string"
+                },
+                "unit_price": {
+                  "title": "Unit Price",
+                  "type": "string"
+                },
+                "currency": {
+                  "title": "Currency",
+                  "type": "string"
+                },
+                "subtotal": {
+                  "title": "Subtotal",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "customer_ref",
+                "product_ref",
+                "quantity",
+                "unit",
+                "unit_price",
+                "currency",
+                "subtotal"
+              ],
+              "title": "DraftQuotation",
+              "type": "object"
+            },
+            "description": "Create one draft customer quotation; never confirms, emails or delivers",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          },
+          {
+            "name": "request_clarification",
+            "parameters_json_schema": {
+              "type": "object",
+              "properties": {
+                "question": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                }
+              },
+              "required": [
+                "question"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Ask the user for required missing task details. This grants no approval or authority.",
+            "outer_typed_dict_key": null,
+            "strict": null,
+            "sequential": false,
+            "kind": "external",
+            "metadata": null,
+            "timeout": null,
+            "defer_loading": false,
+            "unless_native": null,
+            "with_native": null,
+            "tool_kind": null,
+            "return_schema": null,
+            "include_return_schema": null,
+            "toolset_id": null,
+            "capability_id": null
+          }
+        ],
+        "output_tools": [],
+        "allow_text_output": true,
+        "instructions": "You are e-agent, an enterprise assistant that works only through the tools provided. Use read tools to obtain facts; never invent facts or tool results. Resource references are opaque identifiers: copy their complete exact value from tool data or the user, including every prefix before a colon or slash. Never shorten them to display names. To change anything, call exactly one write tool with complete arguments; it is a proposal that a human must approve, and you will receive its result or the rule findings that blocked it. Do not claim an action happened until a tool result says it was verified. Use a structured answer tool when one is provided for the task, before final text; the host must verify the answer. If necessary user details are missing, call request_clarification with one concise question. Answer briefly in the user's language.\n\nProcurement: if the user names no demand reference, list open demands first and copy the exact demand_ref and product_ref from that result. Then read the demand, current stock and supplier offers. The quantity to order is demand minus available minus inbound stock (never negative). Copy complete resource references from read results, including their prefixes. For a request to create an order, use the purchase order proposal tool after reading. If nothing is needed, report the zero shortage with the shortage answer tool. Otherwise propose one draft purchase order from an approved offer that delivers by the requested date and stays within budget; subtotal = quantity x unit price. Write all quantities and amounts as decimal strings. A host rule engine validates every proposal; if it is blocked, read the findings and propose a corrected order. If no offer is eligible, use the offer recommendation tool with null offer and supplier and unit price, then explain why. When asked only about availability or shortage, report it with the shortage answer tool; when asked which offer to use, report it with the offer recommendation tool (offer_ref null if no offer is eligible). Answers are verified by the host.\nDraft RFQ changes: read the RFQ first and send the revision you read; only quantity and requested date can change, and only while it is a draft.\nQuotations: read pricing for the customer and product; quote the list price in the listed unit and currency; subtotal = quantity x unit price. Never confirm or send.\nLeads: read the contact and the sales teams; the owner must be a member of the team; use a listed source or none.\nLate orders and overdue invoices: always state the as-of date you used, read with it, and report exactly the matching references (and totals per currency). These are read-only questions: never propose any change. Use the late-orders answer tool for late orders and the overdue-invoices answer tool for overdue invoices, so the host independently verifies the structured result before your final explanation.",
+        "messages": [
+          {
+            "parts": [
+              {
+                "content": "Restock product:widget-a for demand:d-001 by creating a draft purchase order.",
+                "part_kind": "user-prompt"
+              }
+            ],
+            "instructions": "You are e-agent, an enterprise assistant that works only through the tools provided. Use read tools to obtain facts; never invent facts or tool results. Resource references are opaque identifiers: copy their complete exact value from tool data or the user, including every prefix before a colon or slash. Never shorten them to display names. To change anything, call exactly one write tool with complete arguments; it is a proposal that a human must approve, and you will receive its result or the rule findings that blocked it. Do not claim an action happened until a tool result says it was verified. Use a structured answer tool when one is provided for the task, before final text; the host must verify the answer. If necessary user details are missing, call request_clarification with one concise question. Answer briefly in the user's language.\n\nProcurement: if the user names no demand reference, list open demands first and copy the exact demand_ref and product_ref from that result. Then read the demand, current stock and supplier offers. The quantity to order is demand minus available minus inbound stock (never negative). Copy complete resource references from read results, including their prefixes. For a request to create an order, use the purchase order proposal tool after reading. If nothing is needed, report the zero shortage with the shortage answer tool. Otherwise propose one draft purchase order from an approved offer that delivers by the requested date and stays within budget; subtotal = quantity x unit price. Write all quantities and amounts as decimal strings. A host rule engine validates every proposal; if it is blocked, read the findings and propose a corrected order. If no offer is eligible, use the offer recommendation tool with null offer and supplier and unit price, then explain why. When asked only about availability or shortage, report it with the shortage answer tool; when asked which offer to use, report it with the offer recommendation tool (offer_ref null if no offer is eligible). Answers are verified by the host.\nDraft RFQ changes: read the RFQ first and send the revision you read; only quantity and requested date can change, and only while it is a draft.\nQuotations: read pricing for the customer and product; quote the list price in the listed unit and currency; subtotal = quantity x unit price. Never confirm or send.\nLeads: read the contact and the sales teams; the owner must be a member of the team; use a listed source or none.\nLate orders and overdue invoices: always state the as-of date you used, read with it, and report exactly the matching references (and totals per currency). These are read-only questions: never propose any change. Use the late-orders answer tool for late orders and the overdue-invoices answer tool for overdue invoices, so the host independently verifies the structured result before your final explanation.",
+            "kind": "request",
+            "run_id": "run_id#1",
+            "conversation_id": "conversation_id#1",
+            "metadata": null,
+            "state": "complete"
+          },
+          {
+            "parts": [
+              {
+                "tool_name": "procurement_demand_read_v1",
+                "args": "{\"demand_ref\":\"demand:d-001\"}",
+                "tool_call_id": "call_yea3z9h5",
+                "tool_kind": null,
+                "id": null,
+                "provider_name": null,
+                "provider_details": null,
+                "part_kind": "tool-call"
+              },
+              {
+                "tool_name": "inventory_availability_read_v1",
+                "args": "{\"product_ref\":\"product:widget-a\"}",
+                "tool_call_id": "call_8f8y7xli",
+                "tool_kind": null,
+                "id": null,
+                "provider_name": null,
+                "provider_details": null,
+                "part_kind": "tool-call"
+              },
+              {
+                "tool_name": "procurement_offers_read_v1",
+                "args": "{\"product_ref\":\"product:widget-a\"}",
+                "tool_call_id": "call_4zzb1w2u",
+                "tool_kind": null,
+                "id": null,
+                "provider_name": null,
+                "provider_details": null,
+                "part_kind": "tool-call"
+              }
+            ],
+            "usage": {
+              "input_tokens": 63,
+              "cache_write_tokens": 0,
+              "cache_read_tokens": 0,
+              "output_tokens": 18,
+              "input_audio_tokens": 0,
+              "cache_audio_read_tokens": 0,
+              "output_audio_tokens": 0,
+              "audio_seconds": 0.0,
+              "details": {},
+              "cost": null
+            },
+            "model_name": "function:respond:",
+            "kind": "response",
+            "provider_name": null,
+            "provider_url": null,
+            "provider_details": null,
+            "provider_response_id": null,
+            "finish_reason": null,
+            "run_id": "run_id#1",
+            "conversation_id": "conversation_id#1",
+            "metadata": null,
+            "workspace_ref": null,
+            "state": "complete"
+          },
+          {
+            "parts": [
+              {
+                "tool_name": "procurement_demand_read_v1",
+                "content": {
+                  "data": {
+                    "demand_ref": "demand:d-001",
+                    "product_ref": "product:widget-a",
+                    "quantity": "12",
+                    "unit": "Units",
+                    "requested_date": "2026-10-20",
+                    "budget": "1000",
+                    "currency": "VND"
+                  },
+                  "evidence_id": "ev#1"
+                },
+                "tool_call_id": "call_yea3z9h5",
+                "tool_kind": null,
+                "metadata": null,
+                "outcome": "success",
+                "part_kind": "tool-return"
+              },
+              {
+                "tool_name": "inventory_availability_read_v1",
+                "content": {
+                  "data": {
+                    "product_ref": "product:widget-a",
+                    "available": "5",
+                    "inbound": "0",
+                    "unit": "Units"
+                  },
+                  "evidence_id": "ev#2"
+                },
+                "tool_call_id": "call_8f8y7xli",
+                "tool_kind": null,
+                "metadata": null,
+                "outcome": "success",
+                "part_kind": "tool-return"
+              },
+              {
+                "tool_name": "procurement_offers_read_v1",
+                "content": {
+                  "data": {
+                    "product_ref": "product:widget-a",
+                    "offers": [
+                      {
+                        "offer_ref": "offer:a",
+                        "supplier_ref": "supplier:approved-co",
+                        "product_ref": "product:widget-a",
+                        "unit_price": "100",
+                        "currency": "VND",
+                        "unit": "Units",
+                        "approved": true,
+                        "delivery_date": "2026-10-15"
+                      },
+                      {
+                        "offer_ref": "offer:b",
+                        "supplier_ref": "supplier:unvetted-co",
+                        "product_ref": "product:widget-a",
+                        "unit_price": "80",
+                        "currency": "VND",
+                        "unit": "Units",
+                        "approved": false,
+                        "delivery_date": "2026-10-14"
+                      }
+                    ]
+                  },
+                  "evidence_id": "ev#3"
+                },
+                "tool_call_id": "call_4zzb1w2u",
+                "tool_kind": null,
+                "metadata": null,
+                "outcome": "success",
+                "part_kind": "tool-return"
+              }
+            ],
+            "instructions": "You are e-agent, an enterprise assistant that works only through the tools provided. Use read tools to obtain facts; never invent facts or tool results. Resource references are opaque identifiers: copy their complete exact value from tool data or the user, including every prefix before a colon or slash. Never shorten them to display names. To change anything, call exactly one write tool with complete arguments; it is a proposal that a human must approve, and you will receive its result or the rule findings that blocked it. Do not claim an action happened until a tool result says it was verified. Use a structured answer tool when one is provided for the task, before final text; the host must verify the answer. If necessary user details are missing, call request_clarification with one concise question. Answer briefly in the user's language.\n\nProcurement: if the user names no demand reference, list open demands first and copy the exact demand_ref and product_ref from that result. Then read the demand, current stock and supplier offers. The quantity to order is demand minus available minus inbound stock (never negative). Copy complete resource references from read results, including their prefixes. For a request to create an order, use the purchase order proposal tool after reading. If nothing is needed, report the zero shortage with the shortage answer tool. Otherwise propose one draft purchase order from an approved offer that delivers by the requested date and stays within budget; subtotal = quantity x unit price. Write all quantities and amounts as decimal strings. A host rule engine validates every proposal; if it is blocked, read the findings and propose a corrected order. If no offer is eligible, use the offer recommendation tool with null offer and supplier and unit price, then explain why. When asked only about availability or shortage, report it with the shortage answer tool; when asked which offer to use, report it with the offer recommendation tool (offer_ref null if no offer is eligible). Answers are verified by the host.\nDraft RFQ changes: read the RFQ first and send the revision you read; only quantity and requested date can change, and only while it is a draft.\nQuotations: read pricing for the customer and product; quote the list price in the listed unit and currency; subtotal = quantity x unit price. Never confirm or send.\nLeads: read the contact and the sales teams; the owner must be a member of the team; use a listed source or none.\nLate orders and overdue invoices: always state the as-of date you used, read with it, and report exactly the matching references (and totals per currency). These are read-only questions: never propose any change. Use the late-orders answer tool for late orders and the overdue-invoices answer tool for overdue invoices, so the host independently verifies the structured result before your final explanation.",
+            "kind": "request",
+            "run_id": "run_id#2",
+            "conversation_id": "conversation_id#1",
+            "metadata": null,
+            "state": "complete"
+          },
+          {
+            "parts": [
+              {
+                "tool_name": "procurement_purchase_order_create_draft_v1",
+                "args": "{\"demand_ref\":\"demand:d-001\",\"product_ref\":\"product:widget-a\",\"supplier_ref\":\"supplier:approved-co\",\"offer_ref\":\"offer:a\",\"quantity\":\"7\",\"unit\":\"Units\",\"currency\":\"VND\",\"unit_price\":\"100\",\"subtotal\":\"700\",\"requested_date\":\"2026-10-20\"}",
+                "tool_call_id": "call_hx9b4pvh",
+                "tool_kind": null,
+                "id": null,
+                "provider_name": null,
+                "provider_details": null,
+                "part_kind": "tool-call"
+              }
+            ],
+            "usage": {
+              "input_tokens": 154,
+              "cache_write_tokens": 0,
+              "cache_read_tokens": 0,
+              "output_tokens": 45,
+              "input_audio_tokens": 0,
+              "cache_audio_read_tokens": 0,
+              "output_audio_tokens": 0,
+              "audio_seconds": 0.0,
+              "details": {},
+              "cost": null
+            },
+            "model_name": "function:respond:",
+            "kind": "response",
+            "provider_name": null,
+            "provider_url": null,
+            "provider_details": null,
+            "provider_response_id": null,
+            "finish_reason": null,
+            "run_id": "run_id#2",
+            "conversation_id": "conversation_id#1",
+            "metadata": null,
+            "workspace_ref": null,
+            "state": "complete"
+          },
+          {
+            "parts": [
+              {
+                "tool_name": "procurement_purchase_order_create_draft_v1",
+                "content": {
+                  "status": "VERIFIED",
+                  "external_refs": [
+                    "PO/FIXTURE/0001"
+                  ]
+                },
+                "tool_call_id": "call_hx9b4pvh",
+                "tool_kind": null,
+                "metadata": null,
+                "outcome": "success",
+                "part_kind": "tool-return"
+              }
+            ],
+            "instructions": "You are e-agent, an enterprise assistant that works only through the tools provided. Use read tools to obtain facts; never invent facts or tool results. Resource references are opaque identifiers: copy their complete exact value from tool data or the user, including every prefix before a colon or slash. Never shorten them to display names. To change anything, call exactly one write tool with complete arguments; it is a proposal that a human must approve, and you will receive its result or the rule findings that blocked it. Do not claim an action happened until a tool result says it was verified. Use a structured answer tool when one is provided for the task, before final text; the host must verify the answer. If necessary user details are missing, call request_clarification with one concise question. Answer briefly in the user's language.\n\nProcurement: if the user names no demand reference, list open demands first and copy the exact demand_ref and product_ref from that result. Then read the demand, current stock and supplier offers. The quantity to order is demand minus available minus inbound stock (never negative). Copy complete resource references from read results, including their prefixes. For a request to create an order, use the purchase order proposal tool after reading. If nothing is needed, report the zero shortage with the shortage answer tool. Otherwise propose one draft purchase order from an approved offer that delivers by the requested date and stays within budget; subtotal = quantity x unit price. Write all quantities and amounts as decimal strings. A host rule engine validates every proposal; if it is blocked, read the findings and propose a corrected order. If no offer is eligible, use the offer recommendation tool with null offer and supplier and unit price, then explain why. When asked only about availability or shortage, report it with the shortage answer tool; when asked which offer to use, report it with the offer recommendation tool (offer_ref null if no offer is eligible). Answers are verified by the host.\nDraft RFQ changes: read the RFQ first and send the revision you read; only quantity and requested date can change, and only while it is a draft.\nQuotations: read pricing for the customer and product; quote the list price in the listed unit and currency; subtotal = quantity x unit price. Never confirm or send.\nLeads: read the contact and the sales teams; the owner must be a member of the team; use a listed source or none.\nLate orders and overdue invoices: always state the as-of date you used, read with it, and report exactly the matching references (and totals per currency). These are read-only questions: never propose any change. Use the late-orders answer tool for late orders and the overdue-invoices answer tool for overdue invoices, so the host independently verifies the structured result before your final explanation.",
+            "kind": "request",
+            "run_id": "run_id#3",
+            "conversation_id": "conversation_id#1",
+            "metadata": null,
+            "state": "complete"
+          }
+        ]
+      }
+    ]
+  }
+}

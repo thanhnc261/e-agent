@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
 from e_agent.contracts.action import ActionRecord, ActionState
@@ -14,14 +15,17 @@ from e_agent.contracts.run import (
     RunState,
 )
 from e_agent.contracts.step import StepKind, StepRecord, StepStatus
+from e_agent.sdk.errors import ContextNotRendered, DriverStateMismatch
 from e_agent.sdk.ports import (
     DriverInput,
     FinalAnswer,
 )
-from e_agent.sdk.store import EventSpec
+from e_agent.sdk.store import EventBatch, EventSpec
 
+from .context_on import ContextOnMixin, ContextUnavailable
 from .continuation import NextStep, _Continuation, _GatewayReader
-from .ir_on import IrOnMixin
+from .features import RouteRefused, context_failed_event
+from .reconstruct import ACTION_STATE_KEY
 
 OUTCOME_STEP = {
     OutcomeStatus.VERIFIED: StepStatus.SUCCEEDED,
@@ -31,13 +35,15 @@ OUTCOME_STEP = {
 """How an outcome ends a linked action's verify step (execution IR ``on``)."""
 
 
-def outcome_payload(report: OutcomeReport) -> dict[str, Any]:
+def outcome_payload(report: OutcomeReport, action_state: ActionState | None) -> dict[str, Any]:
     """The ``outcome.reported`` payload: the report without its read-back values, which only
-    the stored outcome and a plan's lineage see, so they never reach an export (PR-26)."""
-    return report.model_dump(mode="json", exclude={"verified_values"})
+    the stored outcome and a plan's lineage see, so they never reach an export (PR-26), and
+    the state the write leaves the action in, null when unchanged (ADR 0031 §3)."""
+    payload = report.model_dump(mode="json", exclude={"verified_values"})
+    return {**payload, ACTION_STATE_KEY: action_state}
 
 
-class VerificationMixin(IrOnMixin):
+class VerificationMixin(ContextOnMixin):
     async def _verify(
         self,
         cont: _Continuation,
@@ -85,7 +91,8 @@ class VerificationMixin(IrOnMixin):
                 [
                     (
                         RunEventType.OUTCOME_REPORTED,
-                        {"status": "UNKNOWN", "error": type(exc).__name__},
+                        # the action is unchanged (ADR 0031 §3)
+                        {"status": "UNKNOWN", "error": type(exc).__name__, ACTION_STATE_KEY: None},
                         action.action_id,
                     ),
                     *await self._step_pair(action, StepKind.VERIFY, StepStatus.UNKNOWN),
@@ -107,7 +114,9 @@ class VerificationMixin(IrOnMixin):
         steps: list[EventSpec | StepRecord] = [
             *await self._step_pair(action, StepKind.VERIFY, OUTCOME_STEP[report.status])
         ]
-        outcome = (RunEventType.OUTCOME_REPORTED, outcome_payload(report), action.action_id)
+        unchanged = report.status is OutcomeStatus.UNKNOWN  # recorded without the action
+        payload = outcome_payload(report, None if unchanged else target)
+        outcome = (RunEventType.OUTCOME_REPORTED, payload, action.action_id)
         plan = cont.plan if self._plan_step(cont, action) else None
         if plan is not None and report.status is OutcomeStatus.VERIFIED:
             assert action.step_index is not None
@@ -168,38 +177,64 @@ class VerificationMixin(IrOnMixin):
         fallback: str,
         *,
         acknowledge: bool = True,
+        extra: EventBatch = (),
     ) -> RunRecord:
-        """Finish a verified write or repeated answer without executing acknowledgement tools."""
+        """Finish a verified write or repeated answer without executing acknowledgement tools.
+        ``extra`` joins the first write: a repeated answer's shadow grounding events (ADR 0033
+        §5, 3e.1 R1-2)."""
         ctx = cont.ctx
         run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
         gap = await self._acceptance_gap(run, cont)
         if gap is not None:  # `on`: no acknowledgement for an unmet task
-            return await self._fail_unmet(run, gap)
+            return await self._fail_unmet(run, gap, extra)
         final: Any = FinalAnswer(text=fallback)
+        ack_input = DriverInput(
+            task=run.task,
+            observations=tuple(cont.observations.values()),
+            action_result={"status": "VERIFIED", "external_refs": list(external_refs)},
+        )
+        # before any read of driver state; a refusal skips the turn below (D8, D3-60)
+        restored = not acknowledge or self._restore_for_turn(cont)
+        # pinned shadow only, above the final-response guard (ADR 0032 §7, review D3-30)
+        shadow = (
+            await self._context_shadow(run, cont, ack_input, acknowledgement=True)
+            if acknowledge and restored
+            else None
+        )
+        answered = False
+        turn_input = ack_input
         try:
+            if not restored:
+                raise DriverStateMismatch
             if acknowledge and (
                 getattr(self._driver, "tokens_used", lambda _: 0)(ctx.run_id)
                 < ctx.budgets.max_model_tokens
             ):
+                run, turn_input = await self._context_input(
+                    run, cont, ack_input, acknowledgement=True
+                )  # pinned on: the pack, or skipped below (ADR 0032 §7)
                 final = await self._timed(
                     cont,
-                    lambda: self._driver.advance(
-                        ctx,
-                        self._with_tools(
-                            run,
-                            cont,
-                            DriverInput(
-                                task=run.task,
-                                observations=tuple(cont.observations.values()),
-                                action_result={
-                                    "status": "VERIFIED",
-                                    "external_refs": list(external_refs),
-                                },
-                            ),
-                        ),
-                    ),
+                    partial(self._driver.advance, ctx, self._with_tools(run, cont, turn_input)),
                     ctx.budgets.model_timeout_seconds,
+                    driver_turn=True,
                 )
+                answered = True
+        except (RouteRefused, ContextUnavailable, ContextNotRendered, DriverStateMismatch) as exc:
+            # skipped, recorded; the run keeps its outcome (ADR 0032 §7, §8, §9)
+            code = (
+                ReasonCode.ROUTE_BOUNDARY_UNMET
+                if isinstance(exc, RouteRefused)
+                else ReasonCode.DRIVER_STATE_MISMATCH
+                if isinstance(exc, DriverStateMismatch)
+                else ReasonCode.CONTEXT_UNAVAILABLE
+            )
+            run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
+            run = await self._store.update_run(
+                run.model_copy(update={"revision": run.revision + 1}),
+                run.revision,
+                [context_failed_event(code)],
+            )
         except Exception as exc:
             run = await self._store.get_run(ctx.tenant_id, ctx.run_id)
             run = await self._store.update_run(
@@ -213,13 +248,17 @@ class VerificationMixin(IrOnMixin):
                     )
                 ],
             )
+        if shadow is not None and answered:
+            run = await self._record_context_shadow(run, shadow)
+        if answered:  # `on` only: the call carried a pack
+            run = await self._record_context_assembled(run, cont, turn_input, acknowledgement=True)
         if not isinstance(final, FinalAnswer):
             final = FinalAnswer(text=fallback)
         if isinstance(final, FinalAnswer):
             run = await self._store.update_run(
                 run.model_copy(update={"revision": run.revision + 1}),
                 run.revision,
-                [(RunEventType.MESSAGE_FINAL, {"text": final.text}, None)],
+                [(RunEventType.MESSAGE_FINAL, {"text": final.text}, None), *extra],
             )
         return await self._set_run_state(
             run, RunState.SUCCEEDED, "outcome verified", code=ReasonCode.VERIFIED

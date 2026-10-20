@@ -1,6 +1,6 @@
 # ADR 0009: rule inventory declares an enforcement engine per rule
 
-Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06).
+Date: 2026-10-06. Status: Accepted (project owner, decisions D1–D5, 2026-10-06). Amended 2026-10-20 (Phase 3 review, owner accepted; Task 3.D1): the admitted inventory reaches the kernel through `PluginContribution.rule_inventory` (Decision 6).
 
 ## Context
 
@@ -29,6 +29,7 @@ SHACL 1.2 Core and SPARQL are still W3C Working Drafts in 2026. SHACL 1.1 (2017)
 | PR-006 tenant/company scope | `policy` |
 
 5. A CI check confirms that every inventory entry resolves to an existing asset, every asset is referenced by exactly one entry, and every rule has its three fixture classes.
+6. **The admitted inventory** (amended 2026-10-20, Phase 3 Task 3e.3). A plugin contributes its inventory as `PluginContribution.rule_inventory` (`sdk/ports.py`, `sdk_api` 1.2): rule id to rule version, read from its packaged inventory resources. The registry admits the union of the admitted plugins' inventories and refuses a rule id that two plugins declare (PR-09) or that starts with the kernel prefix `KERNEL-` (`kernel/registry.py`). The kernel checks a rationale's rule ids against it (ADR 0033 §4). It carries no rule text and is never sent to a model, so validator messages are not rendered from it (ADR 0032 §5).
 
 ## Alternatives considered
 

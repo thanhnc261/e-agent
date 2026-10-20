@@ -1,0 +1,72 @@
+{
+  "id": "3d.5",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3d-5"
+  ],
+  "context_digest": "856429048caeb2c7226d3e4ba5cab9c778b886e562c6132233cf5604b5210020",
+  "allowed_paths": [
+    "src/e_agent/kernel/run_loop.py",
+    "src/e_agent/kernel/verification.py",
+    "src/e_agent/kernel/continuation.py",
+    "src/e_agent/kernel/features.py",
+    "src/e_agent/kernel/context.py",
+    "src/e_agent/kernel/context_*.py",
+    "src/e_agent/kernel/coordinator.py",
+    "src/e_agent/kernel/transitions.py",
+    "src/e_agent/server/bootstrap.py",
+    "src/e_agent/adapters/pydantic_ai/driver.py",
+    "src/e_agent/sdk/errors.py",
+    "src/e_agent/contracts/events.py",
+    "src/e_agent/contracts/run.py",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "tests/unit/kernel/**",
+    "tests/unit/server/**",
+    "tests/unit/adapters/pydantic_ai/**",
+    "tests/unit/sdk/**",
+    "tests/unit/plugins/erp/**",
+    "tests/conformance/**",
+    "pyproject.toml",
+    "docs/plans/2026-10-19-phase3-cognition-context.md",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/handoffs/**",
+    "src/e_agent/kernel/recovery.py",
+    "src/e_agent/kernel/evidence.py",
+    "docs/adr/0032-context-assembler.md",
+    "src/e_agent/kernel/context_walk.py"
+  ],
+  "acceptance": [
+    "fallback only before a reservation on a local or declared route; terminal code otherwise",
+    "off-to-on flip and restore mismatch tests pass; 12- and 20-turn budget tests pass",
+    "full, pg and make e2e pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "f0578c2ca521236936703e66382f8bb3ab7f5684",
+  "created_at": "2026-10-19T13:56:26+00:00",
+  "features_digest": "c4947cccb43bc1d814f18b845f698aa8b2c6632fc4b2c5459e734bc2879de1e1",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/kernel/recovery.py",
+      "reason": "Codex review D3-50/D3-52/D3-53: recovery and cancel stop on a restore mismatch; the evidence bundle carries the drop log; ADR 0032 lists context.assembled",
+      "at": "2026-10-19T14:35:58+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/evidence.py",
+      "reason": "Codex review D3-50/D3-52/D3-53: recovery and cancel stop on a restore mismatch; the evidence bundle carries the drop log; ADR 0032 lists context.assembled",
+      "at": "2026-10-19T14:35:58+00:00"
+    },
+    {
+      "glob": "docs/adr/0032-context-assembler.md",
+      "reason": "Codex review D3-50/D3-52/D3-53: recovery and cancel stop on a restore mismatch; the evidence bundle carries the drop log; ADR 0032 lists context.assembled",
+      "at": "2026-10-19T14:35:58+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/context_walk.py",
+      "reason": "3d.5 fix 6: context.py is at 499 lines; the walker helper moves out before the secret-floor fix",
+      "at": "2026-10-19T15:44:39+00:00"
+    }
+  ]
+}

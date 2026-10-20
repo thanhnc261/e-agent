@@ -1,0 +1,38 @@
+{
+  "task": "3e.2",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R2-1",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "The reference-vanilla host header still shows a grounded run as 'Completed · verified' (PR-19).",
+      "evidence": "ui/apps/reference-vanilla/src/main.ts:67."
+    },
+    {
+      "id": "R2-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The RunStatus badge keeps the verified tone for a grounded run.",
+      "evidence": "ui/packages/components/src/features/composer/RunStatus.tsx:24; runStateTone.ts:11."
+    },
+    {
+      "id": "R2-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The R1-5 wrap model_serializer collapses AcceptanceSpec's serialization JSON schema to an open object; unused today.",
+      "evidence": "src/e_agent/contracts/task.py _omit_false_grounded."
+    },
+    {
+      "id": "R2-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The CLI surfaces the scripted refusal of open-pos as an uncaught ValueError (exit 1), not STARTUP_REJECTED; designed behaviour, no store opened.",
+      "evidence": "src/e_agent/server/cli.py:341; tests/unit/plugins/erp/domain/test_task_definitions.py:304."
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}

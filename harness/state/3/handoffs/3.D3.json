@@ -1,0 +1,19 @@
+{
+  "task": "3.D3",
+  "changed": "The owner accepted the ADR 0033 §3 fourth admission condition on 2026-10-20. ADR 0033, the README Status, the roadmap row and the handoff now say it is accepted, and the roadmap row says the live check was partial. The handoff Rulings record that the live draft PO does not block the merge: committed profiles pin the toggles off, and the off write path is unchanged; the pack-rendered acknowledgement fails safe. The gap gates setting context_assembler on in a live profile. Docs commit is the parent of 1a6dedb.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3.D3/2026-10-20T12-19-43.975717+00-00-full.json"
+  ],
+  "open_items": [
+    "live.env still lacks E_AGENT_SECRETS_PATH=$HOME/.config/e-agent/secrets.json; the auto-mode classifier blocked the agent's append ('Unauthorized Persistence'), so the owner must add it.",
+    "odoo-keys.json holds the expired keys; the agent cannot read or update it.",
+    "Re-prove the write path with context_assembler on live once a qualified model run exists (ADR 0010)."
+  ],
+  "rulings": [
+    {
+      "ruling": "The live draft PO gap does not block the merge; it blocks context_assembler on in a live profile.",
+      "cost_if_wrong": "a live-only defect in the pack-rendered acknowledgement, found at the first qualified live write with on"
+    }
+  ],
+  "outside_repo": []
+}

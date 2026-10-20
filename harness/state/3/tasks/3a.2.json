@@ -1,0 +1,32 @@
+{
+  "id": "3a.2",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-14-phase2-execution-ir.md",
+  "feature_ids": [
+    "F-3a-2"
+  ],
+  "context_digest": "b01eb018a7c9dd87715cfc4e6770908bd46cc8f1e1a7032185e6b13404453527",
+  "allowed_paths": [
+    "docs/adr/0030-data-governance.md",
+    "docs/adr/0031-*.md",
+    "docs/adr/0032-*.md",
+    "docs/adr/0033-*.md",
+    "docs/adr/README.md",
+    "docs/design/target-architecture.md",
+    "docs/plans/2026-10-19-phase3-cognition-context.md",
+    "docs/roadmap.md",
+    "harness/context.toml",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/handoffs/**",
+    "docs/plans/2026-10-14-phase2-execution-ir.md"
+  ],
+  "acceptance": [
+    "owner's answers recorded in the decisions table and ADR status lines",
+    "active_plan switched; validate-context prints ok"
+  ],
+  "gate_set": "full",
+  "base_commit": "3e5e225e30bf31844dc24b79dd4fb5a00b73f507",
+  "created_at": "2026-10-19T06:35:44+00:00",
+  "features_digest": "4904180dd69511ad61f4684130be483216f16050402ef9512f67917ed8fdc5f7"
+}

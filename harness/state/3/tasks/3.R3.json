@@ -1,0 +1,24 @@
+{
+  "id": "3.R3",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3-R3"
+  ],
+  "context_digest": "e51074b8d07771ecc84d4feaf2a6cb03c771a81d4efad4f68714d95056317f08",
+  "allowed_paths": [
+    "scripts/check_wheels.py",
+    "docs/handoffs/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-19-phase3-cognition-context.md"
+  ],
+  "acceptance": [
+    "uv run python scripts/check_wheels.py passes locally",
+    "uv run e-agent-harness gate full passes on a clean tree"
+  ],
+  "gate_set": "full",
+  "base_commit": "f6decb27ced27e445266bc9e3e19493f44e031f6",
+  "created_at": "2026-10-20T12:26:44+00:00",
+  "features_digest": "c015988363e1126e0062e522d04747dced43253e4ed312f44529f462604f2e95"
+}

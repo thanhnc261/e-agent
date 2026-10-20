@@ -47,6 +47,7 @@ from e_agent.kernel.ir import (
     step_operation_id,
     validate_plan,
 )
+from pydantic import ValidationError
 from pydantic_core import SchemaSerializer
 
 WRITE_A = "notes.note.create.v1"
@@ -507,6 +508,32 @@ def test_validate_revalidates_a_built_plan_without_raising() -> None:
         plan_id="p", task_id="notes.capture", task_version="1", steps=()
     )
     assert _codes(validate_plan(unchecked, _task(), _ctx())) == ["KERNEL-PLAN-STRUCTURE"]
+
+
+def test_plan_structure_message_carries_no_input_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Kernel finding text reaches every route unmasked (ADR 0032 §5), so it never holds an
+    input value: pydantic's locations and types only, a fixed text otherwise (review D3-14)."""
+    sentinel = "SENTINEL-ann@example.com"
+    plan = _plan(_step("a"), _step("b", WRITE_B, "a", note=LineageRef(step_id="a", path="/id")))
+    plan.steps[1].proposal.arguments["forged"] = {"$lineage": {"step": "a", "path": f"/{sentinel}"}}
+    [finding] = validate_plan(plan, _task(), _ctx(max_writes=2))
+    assert (finding.rule_id, finding.message) == (
+        "KERNEL-PLAN-STRUCTURE",
+        "plan structure is invalid",
+    )
+    wire = {"plan_id": "p", "task_id": "notes.capture", "task_version": "1", "steps": [sentinel]}
+    with pytest.raises(ValidationError) as caught:
+        ActionPlan.model_validate(wire)
+    assert sentinel in str(caught.value)  # pydantic's own text would leak it
+
+    def refuse(data: Any) -> ActionPlan:
+        raise caught.value
+
+    monkeypatch.setattr(ir, "plan_from_wire", refuse)
+    [finding] = validate_plan(_plan(_step("a")), _task(), _ctx())
+    assert finding.rule_id == "KERNEL-PLAN-STRUCTURE"
+    assert sentinel not in finding.message
+    assert finding.message.startswith("plan structure is invalid: steps/0: ")
 
 
 def test_validate_reports_arguments_outside_the_digest_profile() -> None:

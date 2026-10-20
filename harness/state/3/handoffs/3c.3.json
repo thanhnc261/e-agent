@@ -1,0 +1,33 @@
+{
+  "task": "3c.3",
+  "changed": "Deterministic explanation projection (Q5, G11, ADR 0033): contracts/explain.py (Explanation, RunHeader, RuleRef, Completeness, ValueLabel) and the pure kernel/explain.py explain(ledger, reconstructed): goal, source facts (evidence ids, revisions), validation (rules evaluated and open findings as rule id, version, status), proposal digest, approval (actor, policy version), receipt, verified outcome; partial for pre-key runs. Evidence bundle key `explanation` (additive), `e-agent explain <run_id>` in cli.py and README. Review fixes: driver id read from run.created via Reconstructed.driver (C3-26); ProgressLedger.rules_evaluated across every validation of the run (C3-27); explained findings carry no validator message (C3-29). pyproject.toml adds kernel.explain to the facade contract. Commits d1e767f, de94270, d4b67f8; plan rulings in 457e282; reviews harness/state/3/reviews/3c.3.json, 3c.3-r1.json.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3c.3/2026-10-19T11-30-58.328566+00-00-full.json",
+    "harness/state/evidence/gates/3c.3/2026-10-19T11-32-16.737329+00-00-pg.json"
+  ],
+  "open_items": [
+    "Owner: rule_bundle_version is in no event payload (only inside the approval digest), so the explanation does not name it; recording it needs an ADR 0031 \u00a73 key (C3-27). Asked: Add or Skip.",
+    "ADR 0033's CQ06 row lists expected/observed, which its own section excludes (PR-26); the plan records the ruling, the ADR row wording needs an owner amendment (C3-28).",
+    "make e2e not run for the new bundle key; the UI evidence selector reads named keys only."
+  ],
+  "rulings": [
+    {
+      "ruling": "CQ06 leaves findings' expected/observed out of the explanation (PR-26); the bundle's events keep them.",
+      "cost_if_wrong": "An auditor reads values from the events rather than the explanation."
+    },
+    {
+      "ruling": "rules_evaluated spans every validation of the run (first-seen order, latest status), because a two-step plan's latest validation has no findings.",
+      "cost_if_wrong": "A repaired run lists the superseded proposal's rules too, with their latest status."
+    },
+    {
+      "ruling": "Explained findings drop the validator message: a plugin validator could put a value in free text.",
+      "cost_if_wrong": "The explanation is terser; the message stays in the events and the ledger."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "Postgres test database e_agent_test used by the pg gate.",
+      "undo": "none needed; test data only"
+    }
+  ]
+}

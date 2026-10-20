@@ -39,6 +39,25 @@ class RunEventType(StrEnum):
     IR_SHADOW_FAILED = "ir.shadow_failed"
     IR_LINEAGE_RESOLVED = "ir.lineage_resolved"
     IR_STEP_VERIFIED = "ir.step_verified"
+    # Context assembly (ADR 0032 §11): an acknowledgement turn skipped, with its code.
+    CONTEXT_FAILED = "context.failed"
+    # `context_assembler: shadow` (ADR 0032 §7, Task 3d.3): the pack built for a driver turn
+    # compared with the same inputs unbounded, or the stage at which building it failed.
+    CONTEXT_COMPARED = "context.compared"
+    CONTEXT_SHADOW_FAILED = "context.shadow_failed"
+    # `context_assembler: on` (Task 3d.5): the pack a driver turn was given, by digest and
+    # counts, for ADR 0032 §13's record; it marks the turn as `context.compared` does.
+    CONTEXT_ASSEMBLED = "context.assembled"
+    # `kernel_repeat: shadow` (ADR 0031 §5, Task 3d.6): whether the repeat rule would have
+    # short-circuited a write proposal and whether validation then gave the same findings,
+    # or the stage at which the comparison failed.
+    REPEAT_COMPARED = "repeat.compared"
+    REPEAT_SHADOW_FAILED = "repeat.shadow_failed"
+    # `grounded_answers: shadow` (ADR 0033 §5, Task 3e.1): a typed answer's citations checked
+    # against this run's evidence (counts and verdicts, never a value), or the stage at which
+    # the check failed.
+    GROUNDING_COMPARED = "grounding.compared"
+    GROUNDING_SHADOW_FAILED = "grounding.shadow_failed"
 
 
 class RunEvent(Record):

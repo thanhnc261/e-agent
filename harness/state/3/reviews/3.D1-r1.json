@@ -1,0 +1,35 @@
+{
+  "task": "3.D1",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "D1-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "ADR 0030 'A property named items can therefore never be classed below personal' (and the index/status wording 'always at least personal') holds for the context assembler walk (kernel/context_walk.py) but not for PluginRegistry.data_class -> dc.class_for, which returns the declared class with no floor. Only tests call data_class, so no model-facing path is affected; scope the sentence to the model context.",
+      "evidence": "docs/adr/0030-data-governance.md:28; src/e_agent/kernel/registry.py:360-364"
+    },
+    {
+      "id": "D1-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "PR-34 says 'no injected text reaches the dynamic suffix'; test_injected_fixture_run_proposes_the_same_action asserts this only for injected strings longer than 12 characters.",
+      "evidence": "docs/design/principles.md:85; tests/unit/kernel/test_context_on.py:673"
+    },
+    {
+      "id": "D1-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The new ADR 0031 pending note says the explanation cannot name the rule bundle a validation ran, while ADR 0033's unchanged CQ07 row still lists 'rule bundle and policy versions' as answered (kernel/explain.py has no rule_bundle field). Consistent with rule_bundle_version being pending; a cross-reference in the CQ07 row would avoid the contradiction. Not decided here, correctly.",
+      "evidence": "docs/adr/0031-progress-ledger-and-reconstruction.md:84; docs/adr/0033-explanation-and-grounded-answers.md:94"
+    },
+    {
+      "id": "D1-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "close-check not yet green (close-ritual bookkeeping, not a diff defect): untracked gate evidence, no progress-log entry for 3.D1, F-3-D1 passes=false, harness/state/3/handoffs/3.D1.json missing. The full gate itself passed at a4d698a with clean_tree=true.",
+      "evidence": "harness/state/evidence/gates/3.D1/2026-10-20T01-26-09.151011+00-00-full.json; uv run e-agent-harness close-check"
+    }
+  ],
+  "reviewer": {"provider": "claude-opus", "fresh_context": true}
+}

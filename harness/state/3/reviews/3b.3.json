@@ -1,0 +1,66 @@
+{
+  "task": "3b.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "B3-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "No pg gate evidence at review time; since recorded (harness/state/evidence/gates/3b.3/2026-10-19T07-56-28.543871+00-00-pg.json).",
+      "evidence": "harness/state/evidence/gates/3b.3/"
+    },
+    {
+      "id": "B3-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Readiness shows 0 both for fully classed and for a missing schema side.",
+      "evidence": "src/e_agent/kernel/registry.py:387-392"
+    },
+    {
+      "id": "B3-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "No personal field is classed too low; all 13 read outputs match the bridge and simulator.",
+      "evidence": "src/e_agent/plugins/erp/domain/e_agent_plugin.json"
+    },
+    {
+      "id": "B3-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "SDK_API_VERSION docstring lists DriverInput.context and grounding, which do not exist yet.",
+      "evidence": "src/e_agent/sdk/__init__.py:3-7"
+    },
+    {
+      "id": "B3-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "PR-26 row tag stays [P] although it now lists machine checks; [Pa] is consistent.",
+      "evidence": "docs/design/principles.md:15, :67"
+    },
+    {
+      "id": "B3-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The domain-erp artifact digest changed; the local live profile pin may need a refresh before the live check.",
+      "evidence": "profiles/live-odoo19-learning.local.json pins (values not read)"
+    },
+    {
+      "id": "B3-7",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Pointers resolve against schemas registered so far, so plugin order matters; registry.py at 499 of 500 lines.",
+      "evidence": "src/e_agent/kernel/registry.py:330-336"
+    },
+    {
+      "id": "B3-8",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Memory-store discovery counts only dict attributes; a non-dict collection would be missed.",
+      "evidence": "tests/conformance/test_record_classes.py:46-47"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

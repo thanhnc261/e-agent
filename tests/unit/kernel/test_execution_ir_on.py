@@ -816,6 +816,7 @@ def test_acceptance_messages_name_each_alternative() -> None:
         (AcceptanceSpec(required_answer=ANSWER), "answer"),
         (AcceptanceSpec(required_effects=effects, required_answer=ANSWER), "either"),
         (None, "unavailable"),
+        (AcceptanceSpec(grounded_answer=True), "grounded"),  # ADR 0033 §3 (Task 3e.2)
     ]
     for spec, key in cases:
         assert ir_on_module.acceptance_gap(spec) == ir_on_module.ACCEPTANCE_MESSAGES[key]

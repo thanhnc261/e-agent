@@ -16,6 +16,7 @@ from e_agent.contracts.step import StepRecord, StepStatus
 
 from .continuation import LOG, NextStep, _Continuation
 from .errors import ErrorCode, KernelError
+from .features import TERMINAL_MESSAGES, UNRESOLVED_RESERVATION
 from .ir_on import IrOnMixin
 
 
@@ -79,14 +80,20 @@ class RecoveryMixin(IrOnMixin):
             cont: _Continuation | None = await self._load_cont(actor.tenant_id, run_id)
         except KernelError:
             cont = None
+        blocked: list[str] = []  # event-less: the state change records them (ADR 0031 §3)
         if cont and cont.pending_action_id:
             pending = await self._store.get_action(actor.tenant_id, cont.pending_action_id)
             if ActionState.BLOCKED in ALLOWED_ACTION_TRANSITIONS[pending.state]:
                 steps = await self._close_open(pending, StepStatus.BLOCKED)  # the approval wait
                 await self._transition(pending, ActionState.BLOCKED, steps=steps)
+                blocked.append(pending.action_id)
             cont.pending_action_id = None
         cancelled = await self._set_run_state(
-            run, RunState.CANCELLED, "cancelled before dispatch", code=ReasonCode.CANCELLED
+            run,
+            RunState.CANCELLED,
+            "cancelled before dispatch",
+            code=ReasonCode.CANCELLED,
+            blocked_action_ids=blocked,
         )
         active = self._active_calls.get(run_id)
         if active is not None:
@@ -226,6 +233,8 @@ class RecoveryMixin(IrOnMixin):
                 RunState.FAILED,
                 "interrupted before dispatch; approve a new run",
                 code=ReasonCode.INTERRUPTED,
+                # event-less, every one of them: the state change records them (ADR 0031 §3)
+                blocked_action_ids=[a.action_id for a in undispatched],
             )
         elif committed and cont is not None:
             receipts = await self._store.list_receipts(run.tenant_id, committed[0].action_id)
@@ -276,3 +285,38 @@ class RecoveryMixin(IrOnMixin):
                 run, RunState.FAILED, reason, code=ReasonCode.INTERRUPTED, before=closed
             )
         return None
+
+    async def _driver_state_mismatch(self, run: RunRecord) -> RunRecord:
+        """A driver turn's refused driver state (ADR 0032 §8, D8, reviews D3-50, D3-60). Only
+        `_drive` calls it; nothing was restored. A write reservation never reaches a driver
+        turn (the crash rules and reconciliation handle it), so the run fails, and every
+        action that can still be blocked is blocked in the same kernel call, recorded on the
+        state change (``blocked_action_ids``, ADR 0031 §3). That is every PROPOSED,
+        AWAITING_APPROVAL or APPROVED action of the run, broader than cancel's pending one
+        and intended: the run's driver history is untrusted, so nothing it proposed may go on
+        (review D3-62). An unresolved reservation, were one here, goes to reconciliation as
+        `_end_closed` sends it."""
+        message = TERMINAL_MESSAGES[ReasonCode.DRIVER_STATE_MISMATCH]
+        run = await self._store.get_run(run.tenant_id, run.run_id)
+        actions = await self._store.list_actions(run.tenant_id, run.run_id)
+        if any(a.state in UNRESOLVED_RESERVATION for a in actions):
+            return await self._set_run_state(
+                run, RunState.NEEDS_RECONCILIATION, message, code=ReasonCode.DRIVER_STATE_MISMATCH
+            )
+        blocked: list[str] = []
+        for action in actions:
+            if ActionState.BLOCKED in ALLOWED_ACTION_TRANSITIONS[action.state]:
+                steps = await self._close_open(action, StepStatus.BLOCKED)
+                await self._transition(action, ActionState.BLOCKED, steps=steps)
+                blocked.append(action.action_id)
+        cont = self._runs.get(run.run_id)
+        if cont is not None and cont.pending_action_id in blocked:
+            cont.pending_action_id = None
+        run = await self._store.get_run(run.tenant_id, run.run_id)
+        return await self._set_run_state(
+            run,
+            RunState.FAILED,
+            message,
+            code=ReasonCode.DRIVER_STATE_MISMATCH,
+            blocked_action_ids=blocked,
+        )

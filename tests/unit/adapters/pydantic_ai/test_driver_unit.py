@@ -350,3 +350,53 @@ async def test_read_error_reaches_the_model_as_the_tool_result() -> None:
     assert isinstance(step, FinalAnswer)
     assert received and error in received[0]
     assert "read was not executed" not in received[0]
+
+
+async def test_spent_budget_makes_no_further_model_request() -> None:
+    """Driver conformance (Task 3f.1): once the run's tokens reach ``max_model_tokens``, a
+    turn raises before calling the model, not after one more request."""
+    from e_agent.contracts.context import Budgets
+    from e_agent.sdk.errors import DriverBudgetExceeded
+    from pydantic_ai.usage import RequestUsage
+
+    calls: list[int] = []
+
+    def model(messages, info):
+        calls.append(1)
+        return ModelResponse(
+            parts=[ToolCallPart(READ.name, {}, f"r{len(calls)}")],
+            usage=RequestUsage(input_tokens=10, output_tokens=10),
+        )
+
+    ctx = CTX.model_copy(update={"run_id": "run_spent", "budgets": Budgets(max_model_tokens=20)})
+    driver = PydanticAiDriver(FunctionModel(model), [READ])
+    assert isinstance(await driver.advance(ctx, DriverInput(task="answer")), RequestReads)
+    assert driver.tokens_used(ctx.run_id) == 20 and len(calls) == 1
+    for _ in range(2):
+        with pytest.raises(DriverBudgetExceeded, match="model usage"):
+            await driver.advance(ctx, DriverInput(task="answer", user_input="more"))
+    assert len(calls) == 1 and driver.tokens_used(ctx.run_id) == 20
+
+
+async def test_reply_without_public_text_after_a_finding_is_a_clarification() -> None:
+    """Driver conformance (Task 3f.1): a repair finding never meets silence. A reply of
+    reasoning tags only is an empty answer without findings, as today, and a clarification
+    with them."""
+    from e_agent.contracts.validation import Finding, ValidationStatus
+    from e_agent.sdk.ports import AskClarification
+
+    def model(messages, info):
+        return ModelResponse(parts=[TextPart("<think>hidden</think>")])
+
+    finding = Finding(rule_id="R-1", rule_version="1", status=ValidationStatus.FAIL, message="no")
+    driver = PydanticAiDriver(FunctionModel(model), [READ, WRITE])
+    plain = await driver.advance(
+        CTX.model_copy(update={"run_id": "run_quiet"}), DriverInput(task="t")
+    )
+    assert plain == FinalAnswer(text="")
+    repair = await driver.advance(
+        CTX.model_copy(update={"run_id": "run_quiet_repair"}),
+        DriverInput(task="t", findings=(finding,)),
+    )
+    assert isinstance(repair, AskClarification) and repair.question.strip()
+    assert "hidden" not in json.dumps(driver.snapshot("run_quiet_repair"))

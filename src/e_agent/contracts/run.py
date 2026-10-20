@@ -52,6 +52,25 @@ class ReasonCode(StrEnum):
     IR_TASK_UNRESOLVED = "ir_task_unresolved"
     IR_COMPILE_FAILED = "ir_compile_failed"
     IR_VALIDATION_FAILED = "ir_validation_failed"
+    # Phase 3 (ADR 0032 §11). Fallback codes, carried only by `feature.fallback`: they never
+    # end a run (ADR 0027).
+    CONTEXT_ASSEMBLY_FAILED = "context_assembly_failed"
+    REPEAT_CHECK_FAILED = "repeat_check_failed"
+    GROUNDING_CHECK_FAILED = "grounding_check_failed"
+    # Phase 3 terminal codes: each ends a run through an existing pair of the table, or is
+    # carried by `context.failed` for a skipped acknowledgement turn (ADR 0032 §10, §11).
+    CONTEXT_UNAVAILABLE = "context_unavailable"
+    REPEAT_UNAVAILABLE = "repeat_unavailable"
+    GROUNDING_UNAVAILABLE = "grounding_unavailable"
+    DRIVER_STATE_MISMATCH = "driver_state_mismatch"
+    """The driver snapshot's rendering marker disagrees with the run's pinned modes."""
+    ROUTE_BOUNDARY_UNMET = "route_boundary_unmet"
+    """The model route is not ``local`` and has no ``data_processing`` declaration, and the
+    run is not pinned ``context_assembler: on``, so no model call is made (T23)."""
+    # Phase 3 success code (ADR 0033 §3, Task 3e.2): it ends a run SUCCEEDED.
+    GROUNDED = "grounded"
+    """A ``grounded.answer.v1`` run: every citation resolved against this run's evidence (ADR
+    0033 §3). Never ``verified``, which needs a typed verifier's fresh read-back (PR-19)."""
 
 
 TERMINAL_RUN_STATES = frozenset({RunState.SUCCEEDED, RunState.FAILED, RunState.CANCELLED})

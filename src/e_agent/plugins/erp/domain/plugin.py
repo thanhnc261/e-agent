@@ -21,32 +21,40 @@ from e_agent.sdk.ports import (
     TaskPreset,
 )
 
-from .crm.api import ContactQuery, CreateLead, LeadQuery, TeamsQuery
+from .crm.api import Contact, ContactQuery, CreateLead, LeadQuery, Leads, Teams, TeamsQuery
 from .crm.lead import LeadDatasetBuilder, LeadVerifier
-from .inventory.api import AvailabilityQuery
+from .inventory.api import Availability, AvailabilityQuery
 from .procurement.amend import AmendDatasetBuilder, AmendDraftRfqVerifier
 from .procurement.answers import OfferRecommendationVerifier, ShortageAnswerVerifier
 from .procurement.api import (
     AmendDraftRfq,
+    Demand,
     DemandQuery,
     DraftPurchaseOrder,
+    DraftRfq,
     DraftRfqQuery,
     OfferQuery,
     OfferRecommendation,
+    Offers,
+    OpenDemands,
     OpenDemandsQuery,
     PurchaseOrderQuery,
+    PurchaseOrders,
     ShortageAnswer,
 )
 from .procurement.validation import ProcurementDatasetBuilder
 from .procurement.verifier import DraftPurchaseOrderVerifier
-from .receivables.api import OpenInvoicesQuery, OverdueInvoicesAnswer
+from .receivables.api import OpenInvoices, OpenInvoicesQuery, OverdueInvoicesAnswer
 from .receivables.overdue import OverdueInvoicesVerifier
 from .sales.api import (
     DraftQuotation,
     LateOrdersAnswer,
+    OpenOrders,
     OpenOrdersQuery,
+    Pricing,
     PricingQuery,
     QuotationQuery,
+    Quotations,
 )
 from .sales.late_orders import LateOrdersVerifier
 from .sales.quotation import DraftQuotationVerifier, QuotationDatasetBuilder
@@ -74,6 +82,24 @@ INPUT_SCHEMAS = {
     "receivables.OpenInvoicesQuery.v1": OpenInvoicesQuery.model_json_schema(),
     "receivables.OverdueInvoicesAnswer.v1": OverdueInvoicesAnswer.model_json_schema(),
 }
+OUTPUT_SCHEMAS = {
+    "inventory.Availability.v1": Availability.model_json_schema(),
+    "procurement.Demand.v1": Demand.model_json_schema(),
+    "procurement.OpenDemands.v1": OpenDemands.model_json_schema(),
+    "procurement.Offers.v1": Offers.model_json_schema(),
+    "procurement.PurchaseOrders.v1": PurchaseOrders.model_json_schema(),
+    "procurement.DraftRfq.v1": DraftRfq.model_json_schema(),
+    "sales.Pricing.v1": Pricing.model_json_schema(),
+    "sales.Quotations.v1": Quotations.model_json_schema(),
+    "sales.OpenOrders.v1": OpenOrders.model_json_schema(),
+    "crm.Contact.v1": Contact.model_json_schema(),
+    "crm.Teams.v1": Teams.model_json_schema(),
+    "crm.Leads.v1": Leads.model_json_schema(),
+    "receivables.OpenInvoices.v1": OpenInvoices.model_json_schema(),
+}
+"""What each read returns (sdk_api 1.2). Never sent to a model: the manifest's
+``data_classes`` pointers resolve against them (ADR 0030). Write and answer outputs are
+host records (receipts, verified answers), so they have no schema here."""
 
 GUIDANCE = (
     "Procurement: if the user names no demand reference, list open demands first "
@@ -141,6 +167,26 @@ def load_task_definitions(manifest: PluginManifest | None = None) -> tuple[TaskD
     )
 
 
+def load_rule_inventory() -> dict[str, str]:
+    """The pack's authoritative rule inventory (ADR 0009, PR-33), rule id to rule version:
+    every rule of each bounded context's ``rules/*inventory.json``, the one source the
+    shapes, the engines and the kernel's rationale check share. A rule id that two files
+    declare is refused."""
+    inventory: dict[str, str] = {}
+    for context in sorted(files(__package__).iterdir(), key=lambda p: p.name):
+        rules = context.joinpath("rules")
+        if not rules.is_dir():
+            continue
+        for path in sorted(rules.iterdir(), key=lambda p: p.name):
+            if not path.name.endswith("inventory.json"):
+                continue
+            for rule in json.loads(path.read_text("utf-8"))["rules"]:
+                if rule["id"] in inventory:
+                    raise ValueError(f"rule {rule['id']!r} is declared twice")
+                inventory[rule["id"]] = str(rule["version"])
+    return inventory
+
+
 TASK_DEFINITIONS = load_task_definitions()
 # One catalogue (Task 2c.2): each preset is its definition's kind, prompt and title (D8).
 TASK_PRESETS = tuple(
@@ -193,8 +239,10 @@ def create_plugin(services: PluginServices) -> PluginContribution:
             LeadDatasetBuilder(),
         ),
         input_schemas=INPUT_SCHEMAS,
+        output_schemas=OUTPUT_SCHEMAS,
         agent_guidance=GUIDANCE,
         task_presets=TASK_PRESETS,
         task_definitions=load_task_definitions(manifest),
         driver_factories=dict(DRIVER_FACTORIES),
+        rule_inventory=load_rule_inventory(),
     )

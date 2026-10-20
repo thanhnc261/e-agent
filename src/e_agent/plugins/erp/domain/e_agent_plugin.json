@@ -10,28 +10,66 @@
       "effect": "read",
       "input_schema_id": "inventory.AvailabilityQuery.v1",
       "output_schema_id": "inventory.Availability.v1",
-      "description": "Available and inbound quantity for one product in the scoped warehouse"
+      "description": "Available and inbound quantity for one product in the scoped warehouse",
+      "data_classes": {
+        "/input/product_ref": "internal",
+        "/output/product_ref": "internal",
+        "/output/available": "internal",
+        "/output/inbound": "internal",
+        "/output/unit": "internal"
+      }
     },
     {
       "contract_id": "procurement.demand.read.v1",
       "effect": "read",
       "input_schema_id": "procurement.DemandQuery.v1",
       "output_schema_id": "procurement.Demand.v1",
-      "description": "One procurement demand with requested date and budget"
+      "description": "One procurement demand with requested date and budget",
+      "data_classes": {
+        "/input/demand_ref": "internal",
+        "/output/demand_ref": "internal",
+        "/output/product_ref": "internal",
+        "/output/quantity": "internal",
+        "/output/unit": "internal",
+        "/output/requested_date": "internal",
+        "/output/budget": "internal",
+        "/output/currency": "internal"
+      }
     },
     {
       "contract_id": "procurement.open-demands.read.v1",
       "effect": "read",
       "input_schema_id": "procurement.OpenDemandsQuery.v1",
       "output_schema_id": "procurement.OpenDemands.v1",
-      "description": "List open procurement demands with their exact demand and product references; use it first when the user gives no demand reference"
+      "description": "List open procurement demands with their exact demand and product references; use it first when the user gives no demand reference",
+      "data_classes": {
+        "/output/demands/items/demand_ref": "internal",
+        "/output/demands/items/product_ref": "internal",
+        "/output/demands/items/product_name": "internal",
+        "/output/demands/items/quantity": "internal",
+        "/output/demands/items/unit": "internal",
+        "/output/demands/items/requested_date": "internal",
+        "/output/complete": "internal"
+      }
     },
     {
       "contract_id": "procurement.offers.read.v1",
       "effect": "read",
       "input_schema_id": "procurement.OfferQuery.v1",
       "output_schema_id": "procurement.Offers.v1",
-      "description": "Supplier offers for a product, including approval status"
+      "description": "Supplier offers for a product, including approval status",
+      "data_classes": {
+        "/input/product_ref": "internal",
+        "/output/product_ref": "internal",
+        "/output/offers/items/offer_ref": "internal",
+        "/output/offers/items/supplier_ref": "internal",
+        "/output/offers/items/product_ref": "internal",
+        "/output/offers/items/unit_price": "internal",
+        "/output/offers/items/currency": "internal",
+        "/output/offers/items/unit": "internal",
+        "/output/offers/items/approved": "internal",
+        "/output/offers/items/delivery_date": "internal"
+      }
     },
     {
       "contract_id": "procurement.purchase-order.create-draft.v1",
@@ -40,7 +78,19 @@
       "output_schema_id": "procurement.DraftPurchaseOrderRef.v1",
       "description": "Create exactly one draft purchase order; never confirms",
       "risk": "write_low",
-      "reversibility": "irreversible"
+      "reversibility": "irreversible",
+      "data_classes": {
+        "/input/demand_ref": "internal",
+        "/input/product_ref": "internal",
+        "/input/supplier_ref": "internal",
+        "/input/offer_ref": "internal",
+        "/input/quantity": "internal",
+        "/input/unit": "internal",
+        "/input/currency": "internal",
+        "/input/unit_price": "internal",
+        "/input/subtotal": "internal",
+        "/input/requested_date": "internal"
+      }
     },
     {
       "contract_id": "procurement.purchase-order.read.v1",
@@ -48,28 +98,74 @@
       "input_schema_id": "procurement.PurchaseOrderQuery.v1",
       "output_schema_id": "procurement.PurchaseOrders.v1",
       "description": "Read purchase orders by host operation key (verification read-back)",
-      "agent_visible": false
+      "agent_visible": false,
+      "data_classes": {
+        "/input/operation_key": "internal",
+        "/output/orders/items/external_ref": "internal",
+        "/output/orders/items/operation_key": "internal",
+        "/output/orders/items/state": "internal",
+        "/output/orders/items/purchase_order_ref": "internal",
+        "/output/orders/items/requested_date": "internal",
+        "/output/orders/items/line_count": "internal",
+        "/output/orders/items/product_ref": "internal",
+        "/output/orders/items/supplier_ref": "internal",
+        "/output/orders/items/quantity": "internal",
+        "/output/orders/items/unit": "internal",
+        "/output/orders/items/currency": "internal",
+        "/output/orders/items/unit_price": "internal",
+        "/output/orders/items/subtotal": "internal"
+      }
     },
     {
       "contract_id": "procurement.shortage.answer.v1",
       "effect": "answer",
       "input_schema_id": "procurement.ShortageAnswer.v1",
       "output_schema_id": "procurement.VerifiedAnswer.v1",
-      "description": "Report demand, available and inbound quantity and the resulting shortage; the host verifies it against fresh reads"
+      "description": "Report demand, available and inbound quantity and the resulting shortage; the host verifies it against fresh reads",
+      "data_classes": {
+        "/input/demand_ref": "internal",
+        "/input/product_ref": "internal",
+        "/input/demand_quantity": "internal",
+        "/input/available": "internal",
+        "/input/inbound": "internal",
+        "/input/shortage": "internal"
+      }
     },
     {
       "contract_id": "procurement.offer.recommend.v1",
       "effect": "answer",
       "input_schema_id": "procurement.OfferRecommendation.v1",
       "output_schema_id": "procurement.VerifiedAnswer.v1",
-      "description": "Recommend the eligible supplier offer for a demand (or none); the host verifies it independently"
+      "description": "Recommend the eligible supplier offer for a demand (or none); the host verifies it independently",
+      "data_classes": {
+        "/input/demand_ref": "internal",
+        "/input/product_ref": "internal",
+        "/input/offer_ref": "internal",
+        "/input/supplier_ref": "internal",
+        "/input/unit_price": "internal",
+        "/input/explanation": "personal"
+      }
     },
     {
       "contract_id": "procurement.draft-rfq.read.v1",
       "effect": "read",
       "input_schema_id": "procurement.DraftRfqQuery.v1",
       "output_schema_id": "procurement.DraftRfq.v1",
-      "description": "One draft request for quotation with its current lines and optimistic revision"
+      "description": "One draft request for quotation with its current lines and optimistic revision",
+      "data_classes": {
+        "/input/purchase_order_ref": "internal",
+        "/output/purchase_order_ref": "internal",
+        "/output/external_ref": "internal",
+        "/output/state": "internal",
+        "/output/revision": "internal",
+        "/output/supplier_ref": "internal",
+        "/output/product_ref": "internal",
+        "/output/quantity": "internal",
+        "/output/unit": "internal",
+        "/output/unit_price": "internal",
+        "/output/currency": "internal",
+        "/output/requested_date": "internal"
+      }
     },
     {
       "contract_id": "procurement.draft-rfq.amend.v1",
@@ -78,14 +174,32 @@
       "output_schema_id": "procurement.DraftPurchaseOrderRef.v1",
       "description": "Change quantity and/or requested date of one draft RFQ at the revision that was read; never confirms",
       "risk": "write_high",
-      "reversibility": "irreversible"
+      "reversibility": "irreversible",
+      "data_classes": {
+        "/input/purchase_order_ref": "internal",
+        "/input/expected_revision": "internal",
+        "/input/quantity": "internal",
+        "/input/requested_date": "internal"
+      }
     },
     {
       "contract_id": "sales.pricing.read.v1",
       "effect": "read",
       "input_schema_id": "sales.PricingQuery.v1",
       "output_schema_id": "sales.Pricing.v1",
-      "description": "Whether a customer can be quoted and the product's list price, unit and currency"
+      "description": "Whether a customer can be quoted and the product's list price, unit and currency",
+      "data_classes": {
+        "/input/customer_ref": "internal",
+        "/input/product_ref": "internal",
+        "/output/customer_ref": "internal",
+        "/output/customer_name": "personal",
+        "/output/customer_active": "internal",
+        "/output/product_ref": "internal",
+        "/output/product_saleable": "internal",
+        "/output/list_price": "internal",
+        "/output/currency": "internal",
+        "/output/unit": "internal"
+      }
     },
     {
       "contract_id": "sales.quotation.create-draft.v1",
@@ -94,7 +208,16 @@
       "output_schema_id": "sales.QuotationRef.v1",
       "description": "Create one draft customer quotation; never confirms, emails or delivers",
       "risk": "write_low",
-      "reversibility": "irreversible"
+      "reversibility": "irreversible",
+      "data_classes": {
+        "/input/customer_ref": "internal",
+        "/input/product_ref": "internal",
+        "/input/quantity": "internal",
+        "/input/unit": "internal",
+        "/input/unit_price": "internal",
+        "/input/currency": "internal",
+        "/input/subtotal": "internal"
+      }
     },
     {
       "contract_id": "sales.quotation.read.v1",
@@ -102,35 +225,77 @@
       "input_schema_id": "sales.QuotationQuery.v1",
       "output_schema_id": "sales.Quotations.v1",
       "description": "Read quotations by host operation key (verification read-back)",
-      "agent_visible": false
+      "agent_visible": false,
+      "data_classes": {
+        "/input/operation_key": "internal",
+        "/output/quotations/items/line_count": "internal",
+        "/output/quotations/items/external_ref": "internal",
+        "/output/quotations/items/operation_key": "internal",
+        "/output/quotations/items/state": "internal",
+        "/output/quotations/items/customer_ref": "internal",
+        "/output/quotations/items/product_ref": "internal",
+        "/output/quotations/items/quantity": "internal",
+        "/output/quotations/items/unit": "internal",
+        "/output/quotations/items/unit_price": "internal",
+        "/output/quotations/items/currency": "internal",
+        "/output/quotations/items/subtotal": "internal",
+        "/output/quotations/items/sent": "internal"
+      }
     },
     {
       "contract_id": "sales.open-orders.read.v1",
       "effect": "read",
       "input_schema_id": "sales.OpenOrdersQuery.v1",
       "output_schema_id": "sales.OpenOrders.v1",
-      "description": "Confirmed sales orders with promised date and delivery status, as of a date"
+      "description": "Confirmed sales orders with promised date and delivery status, as of a date",
+      "data_classes": {
+        "/input/as_of": "internal",
+        "/output/as_of": "internal",
+        "/output/orders/items/order_ref": "internal",
+        "/output/orders/items/external_ref": "internal",
+        "/output/orders/items/customer_ref": "internal",
+        "/output/orders/items/promised_date": "internal",
+        "/output/orders/items/delivery_status": "internal"
+      }
     },
     {
       "contract_id": "sales.late-orders.answer.v1",
       "effect": "answer",
       "input_schema_id": "sales.LateOrdersAnswer.v1",
       "output_schema_id": "procurement.VerifiedAnswer.v1",
-      "description": "Report the sales orders that are late as of a date; the host recomputes it"
+      "description": "Report the sales orders that are late as of a date; the host recomputes it",
+      "data_classes": {
+        "/input/as_of": "internal",
+        "/input/late_order_refs": "internal",
+        "/input/summary": "personal"
+      }
     },
     {
       "contract_id": "crm.contact.read.v1",
       "effect": "read",
       "input_schema_id": "crm.ContactQuery.v1",
       "output_schema_id": "crm.Contact.v1",
-      "description": "One contact a lead would be about"
+      "description": "One contact a lead would be about",
+      "data_classes": {
+        "/input/contact_ref": "internal",
+        "/output/contact_ref": "internal",
+        "/output/name": "personal",
+        "/output/active": "internal"
+      }
     },
     {
       "contract_id": "crm.teams.read.v1",
       "effect": "read",
       "input_schema_id": "crm.TeamsQuery.v1",
       "output_schema_id": "crm.Teams.v1",
-      "description": "Sales teams with members, and known lead sources"
+      "description": "Sales teams with members, and known lead sources",
+      "data_classes": {
+        "/output/teams/items/team_ref": "internal",
+        "/output/teams/items/name": "internal",
+        "/output/teams/items/member_refs": "internal",
+        "/output/sources/items/source_ref": "internal",
+        "/output/sources/items/name": "internal"
+      }
     },
     {
       "contract_id": "crm.lead.create.v1",
@@ -139,7 +304,15 @@
       "output_schema_id": "crm.LeadRef.v1",
       "description": "Create one CRM lead; a repeated command never creates a second lead",
       "risk": "write_high",
-      "reversibility": "irreversible"
+      "reversibility": "irreversible",
+      "data_classes": {
+        "/input/name": "personal",
+        "/input/contact_ref": "internal",
+        "/input/team_ref": "internal",
+        "/input/owner_ref": "internal",
+        "/input/source_ref": "internal",
+        "/input/expected_revenue": "internal"
+      }
     },
     {
       "contract_id": "crm.lead.read.v1",
@@ -147,21 +320,50 @@
       "input_schema_id": "crm.LeadQuery.v1",
       "output_schema_id": "crm.Leads.v1",
       "description": "Read leads by host operation key (verification read-back)",
-      "agent_visible": false
+      "agent_visible": false,
+      "data_classes": {
+        "/input/operation_key": "internal",
+        "/output/leads/items/external_ref": "internal",
+        "/output/leads/items/operation_key": "internal",
+        "/output/leads/items/name": "personal",
+        "/output/leads/items/contact_ref": "internal",
+        "/output/leads/items/team_ref": "internal",
+        "/output/leads/items/owner_ref": "internal",
+        "/output/leads/items/source_ref": "internal",
+        "/output/leads/items/expected_revenue": "internal"
+      }
     },
     {
       "contract_id": "receivables.open-invoices.read.v1",
       "effect": "read",
       "input_schema_id": "receivables.OpenInvoicesQuery.v1",
       "output_schema_id": "receivables.OpenInvoices.v1",
-      "description": "Posted customer invoices with an open residual, as of a date (read-only)"
+      "description": "Posted customer invoices with an open residual, as of a date (read-only)",
+      "data_classes": {
+        "/input/as_of": "internal",
+        "/output/as_of": "internal",
+        "/output/company": "internal",
+        "/output/invoices/items/invoice_ref": "internal",
+        "/output/invoices/items/external_ref": "internal",
+        "/output/invoices/items/customer_ref": "internal",
+        "/output/invoices/items/due_date": "internal",
+        "/output/invoices/items/residual": "internal",
+        "/output/invoices/items/currency": "internal"
+      }
     },
     {
       "contract_id": "receivables.overdue-invoices.answer.v1",
       "effect": "answer",
       "input_schema_id": "receivables.OverdueInvoicesAnswer.v1",
       "output_schema_id": "procurement.VerifiedAnswer.v1",
-      "description": "Report overdue invoices and totals per currency as of a date; the host recomputes it"
+      "description": "Report overdue invoices and totals per currency as of a date; the host recomputes it",
+      "data_classes": {
+        "/input/as_of": "internal",
+        "/input/overdue_invoice_refs": "internal",
+        "/input/totals/items/currency": "internal",
+        "/input/totals/items/total": "internal",
+        "/input/summary": "personal"
+      }
     }
   ],
   "provides_bindings": [],
@@ -202,6 +404,10 @@
     {
       "task_id": "assistant",
       "version": "1"
+    },
+    {
+      "task_id": "open-pos",
+      "version": "2"
     }
   ],
   "settings_schema": {

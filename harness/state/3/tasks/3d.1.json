@@ -1,0 +1,30 @@
+{
+  "id": "3d.1",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3d-1"
+  ],
+  "context_digest": "09ee523dfff934513e62f4dd91da33134455e36d648aba26aa3f3c82be1c1a17",
+  "allowed_paths": [
+    "src/e_agent/contracts/context_pack.py",
+    "src/e_agent/contracts/__init__.py",
+    "src/e_agent/sdk/ports.py",
+    "src/e_agent/contracts/golden/**",
+    "tests/unit/contracts/**",
+    "tests/unit/sdk/**",
+    "tests/conformance/**",
+    "docs/plans/2026-10-19-phase3-cognition-context.md",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "test_context_pack.py and test_ports.py pass",
+    "full and pg pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "8c639eda67ebe7c97486d433bfa0e8dcf4d9570e",
+  "created_at": "2026-10-19T11:34:11+00:00",
+  "features_digest": "7ad933ed0dd55255d3773cdfa9db22a29ad07e5aceba088e56c3d14dd8b7968d"
+}

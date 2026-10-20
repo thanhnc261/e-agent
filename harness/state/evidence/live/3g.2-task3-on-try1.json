@@ -1,0 +1,186 @@
+{
+  "label": "task3 draft PO context_assembler=on, --approve is the AGENT's approval under self_approval_allowed, not the owner's (live)",
+  "environment": "live",
+  "classification": "live:succeeded",
+  "run_id": "run_98dd7c70779e4ba4b1fec2aadc503304",
+  "task": "Draft a purchase order for any shortage from the approved supplier",
+  "state": "SUCCEEDED",
+  "reason_code": "answered",
+  "reason": "answered",
+  "task_id": null,
+  "features": {
+    "execution_ir": "off",
+    "context_assembler": "on",
+    "kernel_repeat": "off",
+    "grounded_answers": "off"
+  },
+  "modes": {
+    "context_assembler": "on",
+    "kernel_repeat": "off",
+    "grounded_answers": "off"
+  },
+  "route": {
+    "data_boundary": "local",
+    "data_boundary_basis": "verified",
+    "data_processing_declared": false
+  },
+  "event_type_counts": {
+    "run.created": 1,
+    "run.state_changed": 2,
+    "context.assembled": 8,
+    "read.recorded": 6,
+    "validation.completed": 2,
+    "proposal.created": 1,
+    "outcome.reported": 1,
+    "message.final": 1,
+    "run.terminal": 1
+  },
+  "actions": [
+    {
+      "action_id": "act_4840d7d2b02a4bebb7024c899d5ff5cc",
+      "contract_id": "procurement.shortage.answer.v1",
+      "state": "VERIFIED",
+      "digest": "jcs-sha256-v1:7ccc15bcee4dc81f6ab1010f324d3888356fada2cdbf143ead954e6bde26d460"
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "VERIFIED",
+      "action_id": "act_4840d7d2b02a4bebb7024c899d5ff5cc"
+    }
+  ],
+  "approvals": [],
+  "receipts": [],
+  "rules_evaluated": [
+    "KERNEL-VERIFICATION@1"
+  ],
+  "context": [
+    {
+      "turn": 1,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:2d00c32237977fc1ea3b116b09c83b4ae08c2992d9a1e50cc4cfedf2fdd4a288",
+      "drop_log": []
+    },
+    {
+      "turn": 2,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:271b71115dc70766d412f046eaf5a9ca5ca56003425393d1848d74d9fc343b39",
+      "drop_log": []
+    },
+    {
+      "turn": 3,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:7559220af4d83ce3b6ff635c6da0b70def40814533e7698967ec739e05bdd496",
+      "drop_log": []
+    },
+    {
+      "turn": 4,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:a924495ba4f90082e4b7fb84047535cf20bcba8aa7af45f1f37e270cc41867b8",
+      "drop_log": []
+    },
+    {
+      "turn": 5,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:9e7de3f564ba72f3f68fb3ca74b4c3e4c275d6709ff465afb3b5c1c6ac552296",
+      "drop_log": [
+        {
+          "ref": "ev_cd7e011aa11843ad9f8df8c008a2b98a",
+          "kind": "observation",
+          "reason": "cleared"
+        }
+      ]
+    },
+    {
+      "turn": 6,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:588891c09bc7611fade6e1bdd8206e147008eddb5c5d39d2c868967fd973ec9a",
+      "drop_log": [
+        {
+          "ref": "ev_cd7e011aa11843ad9f8df8c008a2b98a",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_05bd6bf29eb34f9790e039264a1f3a45",
+          "kind": "observation",
+          "reason": "cleared"
+        }
+      ]
+    },
+    {
+      "turn": 7,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:ffbb1165bb6d21b57f3dd7a0b1300d9f2c8f2003f0233cfccead4cff934ffd3c",
+      "drop_log": [
+        {
+          "ref": "ev_cd7e011aa11843ad9f8df8c008a2b98a",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_05bd6bf29eb34f9790e039264a1f3a45",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_fbc0fb2302424506a267e144bca23d20",
+          "kind": "observation",
+          "reason": "cleared"
+        }
+      ]
+    },
+    {
+      "turn": 8,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:25618f6541c5dfb70e6bfa74a1a7caa04f1c864f806a5ef780db7d7dfa28665e",
+      "drop_log": [
+        {
+          "ref": "ev_cd7e011aa11843ad9f8df8c008a2b98a",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_05bd6bf29eb34f9790e039264a1f3a45",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_fbc0fb2302424506a267e144bca23d20",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_a3e92af2a22840eaabb0bdda14a7e698",
+          "kind": "observation",
+          "reason": "cleared"
+        }
+      ]
+    }
+  ],
+  "grounded_answer": null,
+  "explanation_completeness": "known",
+  "counts_of_interest": {
+    "context.compared": 0,
+    "feature.fallback": 0,
+    "grounding.compared": 0,
+    "read.recorded": 6,
+    "answer.proposed": 0,
+    "verification.completed": 0
+  },
+  "terminal_payloads": [
+    {
+      "state": "SUCCEEDED",
+      "reason": "answered",
+      "reason_code": "answered"
+    }
+  ]
+}

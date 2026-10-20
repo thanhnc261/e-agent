@@ -117,6 +117,34 @@ NOTE_INPUT = {
     "required": ["text"],
 }
 """The create input schema the two-step plan needs: lineage types a placeholder by it."""
+NOTE_OUTPUT = {
+    "type": "object",
+    "properties": {
+        "topic": {"type": "string"},
+        "count": {"type": "string"},
+        "notes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"key": {"type": "string"}, "text": {"type": "string"}},
+            },
+        },
+    },
+}
+"""What `NotesBackend.read` returns: a summary, or the notes of one operation key."""
+CLASSED_READ = READ.model_validate(
+    {
+        **READ.model_dump(),
+        "data_classes": {
+            "/output/topic": "internal",
+            "/output/count": "internal",
+            "/output/notes/items/key": "internal",
+            # the note text is deliberately unmarked: it counts as personal (ADR 0030)
+        },
+    }
+)
+"""The notes read with its data classes beside `NOTE_OUTPUT` (ADR 0030, Task 3b.3). The
+shared `READ` stays unclassed, so packs registered without `NOTE_OUTPUT` still admit."""
 PLAN_BUDGETS = Budgets(max_admitted_writes=2)
 FIRST, FOLLOW_UP = "first", "follow-up"
 
@@ -294,6 +322,11 @@ class NotesBackend:
             started_at=now,
             finished_at=now,
         )
+
+
+NOTES_RULES = {"NOTE-001": "1", "NOTE-002": "1"}
+"""The notes fixture's neutral rule inventory (ADR 0009): `NotesValidator` evaluates
+``NOTE-001`` only, so ``NOTE-002`` is an admitted rule no validator of a note evaluates."""
 
 
 class NotesValidator:
@@ -488,15 +521,21 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
         with_pin: bool = False,
         with_answer: bool = False,
         answer_verifier: bool = True,
+        route: dict[str, Any] | None = None,
+        read_only: bool = False,
     ) -> Kernel:
+        """``read_only`` offers the read alone (no write, no write binding), for a run that
+        cannot write (ADR 0033 §3); pair it with a definition that names no write."""
         backend, validator, verifier = NotesBackend(), NotesValidator(), NotesVerifier()
         driver = driver or NotesDriver(texts=list(texts or ["standup notes"]))
         capabilities = (READ, CREATE, PIN) if with_pin else (READ, CREATE)
+        capabilities = (READ,) if read_only else capabilities
         verifiers: tuple[Any, ...] = (verifier,)
         if with_answer:  # the answer needs no binding; its verifier is optional (2c.8c)
             capabilities = (*capabilities, SUMMARY)
             verifiers = (verifier, NotesAnswerVerifier()) if answer_verifier else verifiers
         bindings = (*BINDINGS, PIN_BINDING) if with_pin else BINDINGS
+        bindings = BINDINGS[:1] if read_only else bindings
         registry = PluginRegistry(binding_connections or {b.binding_id: (CONN,) for b in bindings})
         registry.register(
             plugin_id="notes-fixture",
@@ -513,6 +552,7 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
                 verifiers=verifiers,
                 task_definitions=(task,),
                 input_schemas=input_schemas or {},
+                rule_inventory=NOTES_RULES,
             ),
         )
         registry.admit_task_definitions()
@@ -541,6 +581,7 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
             allow_self_approval=allow_self_approval,
             features=features,
             **({} if approval_ttl is None else {"approval_ttl": approval_ttl}),
+            **({} if route is None else {"route": route}),
         )
         return Kernel(
             coordinator,

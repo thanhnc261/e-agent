@@ -1,0 +1,31 @@
+{
+  "task": "3.R1",
+  "changed": "Phase review P-1 (Medium) and P-2 (Low): refs the model writes into a rationale or a citation are now stored and shown as written only when they name something real. Everything else is stored as a jcs-sha256-v1 digest. Details: (1) goal_ref is kept as written only when it is 'run' or the run's task_id@task_version; any other value becomes goal_ref_digest, and there is no #item suffix because AcceptanceSpec has no item ids. (2) Unresolved cited_evidence and rules_considered go to unresolved_evidence_digests and unresolved_rule_digests, which are left out when empty. A KERNEL-* rule id is kept as written only if it is in at_rest.KERNEL_FINDING_IDS, the 27 ids the kernel emits; a drift test checks that set against the source. (3) A citation keeps evidence_id and pointer as written only on a 'named' flag; an unresolved one stores evidence_id_digest and pointer_digest. Citation.pointer is capped at 1024 characters and evidence_id at 128, and the pydantic_ai CITATIONS_SCHEMA mirrors the caps. (4) Persisted findings (validation.completed and the stored continuation) are digest-only, while the model still gets the raw findings through DriverInput, so repair behaviour is unchanged. (5) RationaleRef in contracts/explain.py gains the digest fields (exactly one of goal_ref and goal_ref_digest is set), and explain renders digests labelled as digests. (6) The new kernel module kernel/at_rest.py is registered in the pyproject facade source_modules as a sorted add. Contract acceptance is unchanged apart from the length caps: there is no new refusal and no new repair finding. Commits 24d6878, ad927be and f243991 (R2-2 docstring). Reviews: harness/state/3/reviews/3.R1-r1.json (rework), 3.R1-r2.json (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3.R1/2026-10-19T23-09-31.685102+00-00-full.json",
+    "harness/state/evidence/gates/3.R1/2026-10-19T23-10-57.459998+00-00-pg.json"
+  ],
+  "open_items": [
+    "The pydantic_ai driver's stored message history (driver state at rest) still holds each raw finding's observed value and the model's own tool-call arguments as written. The owner decides whether driver state is minimised (ADR 0032/0030).",
+    "R1-3: ADR 0033 §4 (lines 49 and 59) and target-architecture.md:451 still describe the goal_ref acceptance-item suffix and the old at-rest form verbatim. They are on the owner amendment list.",
+    "R2-1: the KERNEL_FINDING_IDS drift test sees only whole string literals. It misses ids built with f-strings or concatenation, of which there are none today; it assumes the dev-install layout; and it scans plugin and adapter modules too. A missed id fails safe, because it is stored as a digest.",
+    "cont.rationale and cont.step_rationales keep the full texts in the stored continuation for the approval card (ruling 8, by design).",
+    "Events recorded before 24d6878 keep their refs as written, and no migration exists. Only pre-merge branch data is affected.",
+    "kernel/grounding.py is at exactly 500 lines."
+  ],
+  "rulings": [
+    {
+      "ruling": "Fix the at-rest and projection boundary, not the contract's acceptance: unresolved refs remain repairs, never refusals, and RefId stays as it is.",
+      "cost_if_wrong": "a later contract tightening and an ADR 0033 line"
+    },
+    {
+      "ruling": "The goal_ref closed set is 'run' and task_id@task_version only, with no #item suffix.",
+      "cost_if_wrong": "a goal that names an acceptance item is shown only as a digest"
+    },
+    {
+      "ruling": "A citation is stored as written only on a 'named' flag, not on its status (MISMATCHED can be returned before the evidence is looked up).",
+      "cost_if_wrong": "a resolved pointer stored as a digest"
+    }
+  ],
+  "outside_repo": []
+}

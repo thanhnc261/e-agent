@@ -29,6 +29,7 @@ from .continuation import LOG, _Continuation
 from .errors import ErrorCode, KernelError
 from .ir_on import IrOnMixin
 from .policy import APPROVER_ROLE
+from .reconstruct import approval_keys
 
 
 class ApprovalFlowMixin(IrOnMixin):
@@ -215,7 +216,12 @@ class ApprovalFlowMixin(IrOnMixin):
             [
                 (
                     RunEventType.APPROVAL_DECIDED,
-                    {"decision": decision, "actor_id": actor.principal_id, "digest": action_digest},
+                    {
+                        "decision": decision,
+                        "actor_id": actor.principal_id,
+                        "digest": action_digest,
+                        **approval_keys(record),  # ADR 0031 §3
+                    },
                     action_id,
                 ),
                 *await self._step_finish(action, StepKind.APPROVAL_WAIT, waited),
@@ -234,3 +240,16 @@ class ApprovalFlowMixin(IrOnMixin):
         # The approval call: the one caller, with a resume claim, whose dispatch may start a
         # plan's next step (`_dispatch` passes ``NextStep.START``, Codex C-1).
         return await self._dispatch(cont, approved_action, record)
+
+    async def _plan_approval(self, cont: _Continuation) -> ApprovalRecord:
+        """The plan's one approval, recorded on its first step's durable action."""
+        state = cont.plan
+        assert state is not None
+        ctx = cont.ctx
+        for first in await self._store.list_actions(ctx.tenant_id, ctx.run_id):
+            if first.plan_id != state.plan_id or first.step_index != 0:
+                continue
+            for approval in await self._store.list_approvals(ctx.tenant_id, first.action_id):
+                if approval.approval_id == state.approval_id:
+                    return approval
+        raise KernelError(ErrorCode.CONFLICT, "the plan's approval is unavailable")

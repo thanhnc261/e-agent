@@ -1,0 +1,38 @@
+{
+  "task": "3d.5",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "D3-50",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "D8 conflicts do not stop recovery and cancellation: recovery persists an APPROVED action as BLOCKED, then attempts FAILED->FAILED, so blocked_action_ids is never recorded and reconstruction disagrees with the row; cancel continues with a stale revision.",
+      "evidence": "src/e_agent/kernel/features.py:258; src/e_agent/kernel/recovery.py:204,226,230,80; src/e_agent/kernel/transitions.py:67"
+    },
+    {
+      "id": "D3-51",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "Fallback turns write no turn marker, so after consecutive fallbacks a successful assembly clears reads returned on the last fallback turn before the model consumed them.",
+      "evidence": "src/e_agent/kernel/context_on.py:127; src/e_agent/kernel/context_shadow.py:87,92; src/e_agent/kernel/context.py:418,473"
+    },
+    {
+      "id": "D3-52",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "context.assembled keeps drop counts only, so the drop log ADR 0032 \u00a713 requires in the evidence bundle cannot be recovered.",
+      "evidence": "src/e_agent/kernel/context_on.py:56,63; src/e_agent/kernel/evidence.py:235; docs/adr/0032-context-assembler.md:151"
+    },
+    {
+      "id": "D3-53",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "context.assembled is a sound minimal turn marker but is absent from ADR 0032 \u00a711; document payload and timing.",
+      "evidence": "src/e_agent/contracts/events.py:50; docs/adr/0032-context-assembler.md:133"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}

@@ -8,11 +8,13 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
 from e_agent.contracts.action import ActionRecord
 from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor
 from e_agent.contracts.context import TaskContext
+from e_agent.contracts.context_pack import ContextPack
 from e_agent.contracts.evidence import EvidenceRef
 from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.plan import ActionPlan, ActionProposal
@@ -41,6 +43,20 @@ class Observation:
     evidence: EvidenceRef
 
 
+class GroundingOffer(StrEnum):
+    """What the driver offers the model for grounding on one call (ADR 0033 §5, sdk_api 1.2).
+
+    The kernel derives it per call from the run's pinned ``grounded_answers`` mode and the
+    generic answer's admission; a driver never reads the profile (plan D8). ``off`` offers
+    nothing new, so tool schemas and instructions are today's."""
+
+    OFF = "off"
+    CITE = "cite"
+    """Answer tools offer ``citations``; write and plan tools offer ``rationale``."""
+    CITE_AND_ANSWER = "cite_and_answer"
+    """``cite``, plus the generic grounded answer ``grounded.answer.v1``."""
+
+
 @dataclass(frozen=True)
 class DriverInput:
     task: str
@@ -55,6 +71,12 @@ class DriverInput:
     # the driver offers only these tools on this turn. None offers every tool, as today. The
     # kernel refuses anything outside the set; this field only shapes what the model sees.
     allowed_capabilities: tuple[str, ...] | None = None
+    # The kernel-assembled context for this turn (ADR 0032, sdk_api 1.2). None keeps the
+    # driver's own history, as in sdk_api 1.1.
+    context: ContextPack | None = None
+    # What this call offers for grounding (ADR 0033 §5, sdk_api 1.2), set by the kernel from
+    # the run's pinned mode. OFF keeps every tool schema and instruction as in sdk_api 1.1.
+    grounding: GroundingOffer = GroundingOffer.OFF
 
 
 @dataclass(frozen=True)
@@ -285,6 +307,15 @@ class PluginContribution:
     diagnostics: Callable[[], Mapping[str, Any]] | None = None
     """Counters a provider reports for fixture runs and tests, such as how many writes
     reached it. Never business data, and never read by the kernel's run logic."""
+    output_schemas: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+    """JSON Schemas keyed by CapabilityDescriptor.output_schema_id (sdk_api 1.2). Never sent
+    to a model; the registry resolves ``data_classes`` pointers against them. After the 1.1
+    fields, so a 1.1 positional construction keeps its meaning."""
+    rule_inventory: Mapping[str, str] = field(default_factory=dict)
+    """The plugin's authoritative rule inventory (ADR 0009) as rule id to rule version
+    (sdk_api 1.2), read from its packaged inventory resources. The registry admits the union
+    and refuses a rule id two plugins declare (PR-09); the kernel checks a rationale's rule
+    ids against it (ADR 0033 §4). Never sent to a model. Last, like ``output_schemas``."""
 
 
 class PluginFactory(Protocol):

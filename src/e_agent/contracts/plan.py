@@ -23,10 +23,11 @@ from collections.abc import Iterator, Mapping, Sequence, Set
 from graphlib import CycleError, TopologicalSorter
 from typing import Any, Self
 
-from pydantic import model_serializer, model_validator
+from pydantic import SerializerFunctionWrapHandler, model_serializer, model_validator
 
 from .common import Record
 from .digest import canonicalize
+from .grounding import Citation, ProposalRationale
 
 LINEAGE_KEY = "$lineage"
 """The digest encoding of a placeholder (target §6.4.4); refused as a literal argument key."""
@@ -43,6 +44,26 @@ class ActionProposal(Record):
     arguments: dict[str, Any]
     expected_effects: tuple[str, ...] = ()
     evidence_ids: tuple[str, ...] = ()
+    citations: tuple[Citation, ...] = ()
+    """The kernel envelope of a typed answer's citations (ADR 0033 §1): beside the
+    arguments, never inside them, and outside the approval digest, whose input enumerates
+    its fields (`digest_input`). The kernel checks them per the run's pinned
+    ``grounded_answers`` mode and drops them otherwise."""
+    rationale: ProposalRationale | None = None
+    """A write proposal's checked rationale (ADR 0033 §4), in the same envelope: outside the
+    arguments and the approval digest, never an approval input; dropped unless the run is
+    pinned ``grounded_answers`` ``shadow`` or ``on``."""
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_citations(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        """Leave ``citations`` out when empty and ``rationale`` when None, so a proposal
+        without them, and every stored plan, serializes exactly as before ADR 0033."""
+        data: dict[str, Any] = handler(self)
+        if not self.citations:
+            data.pop("citations", None)
+        if self.rationale is None:
+            data.pop("rationale", None)
+        return data
 
 
 class LineageRef(Record):
@@ -129,11 +150,21 @@ class ActionPlan(Record):
     task_version: str
     steps: tuple[PlannedStep, ...]
     """Step index = position; dispatch runs in this order."""
+    rationale: ProposalRationale | None = None
+    """The plan's checked rationale (ADR 0033 §4); outside the plan digest, never stored."""
 
     @model_validator(mode="after")
     def _check_structure(self) -> Self:
         self._check_rules()
         return self
+
+    @model_serializer(mode="wrap")
+    def _omit_no_rationale(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        """Leave ``rationale`` out when None, so a plan serializes as before ADR 0033."""
+        data: dict[str, Any] = handler(self)
+        if self.rationale is None:
+            data.pop("rationale", None)
+        return data
 
     def _check_rules(self) -> None:
         """The plan's structural rules; `plan_to_wire` re-applies them to a built plan."""
@@ -227,8 +258,11 @@ def plan_to_wire(plan: ActionPlan) -> dict[str, Any]:
     check_plan_rules(plan)
     arguments = [encode_arguments(step.proposal.arguments) for step in plan.steps]
     data = plan.model_dump(mode="json")
+    data.pop("rationale", None)  # model-authored text is never stored (PR-26, owner G2)
     for step, encoded in zip(data["steps"], arguments, strict=True):
         step["proposal"]["arguments"] = encoded
+        step["proposal"].pop("citations", None)  # model-authored values are never stored (PR-26)
+        step["proposal"].pop("rationale", None)
     return data
 
 

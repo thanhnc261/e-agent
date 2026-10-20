@@ -1,0 +1,94 @@
+{
+  "task": "3a.1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "A-1",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "grounded.answer.v1 can bypass a typed verifier and end SUCCEEDED; it conflicts with the ADR 0028 acceptance gate on task-bound runs, and the release report cannot tell GROUNDED from VERIFIED.",
+      "evidence": "docs/adr/0033-explanation-and-grounded-answers.md:31-37; src/e_agent/kernel/ir_on.py:395-422; scripts/release_report.py:46"
+    },
+    {
+      "id": "A-2",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "T23: finding expected/observed text and read errors reach the model fenced but unmasked, so the on exemption for hosted routes leaks personal data through findings.",
+      "evidence": "docs/adr/0032-context-assembler.md:50,54-64,99-103; src/e_agent/contracts/validation.py:22-23"
+    },
+    {
+      "id": "A-3",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "The fence escaping rule maps <, > and & to themselves; the escape sequences are lost, so the only T1 fence defence is unspecified.",
+      "evidence": "docs/adr/0032-context-assembler.md:50"
+    },
+    {
+      "id": "A-4",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Rationale summary and alternatives stored as model text in proposal.created deviate from the plan's ids-only payload constraint without a flagged exception.",
+      "evidence": "docs/adr/0033-explanation-and-grounded-answers.md:55; plan Global Constraints"
+    },
+    {
+      "id": "A-5",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Acceptance step 3 (full gate) had no evidence when reviewed; close ritual not yet run.",
+      "evidence": "harness/state/3/tasks/3a.1.json acceptance[2]"
+    },
+    {
+      "id": "A-6",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "ADR 0031 lists observed_at as an approval-digest input; it is not one.",
+      "evidence": "docs/adr/0031-progress-ledger-and-reconstruction.md:101; src/e_agent/kernel/approval.py:38-61"
+    },
+    {
+      "id": "A-7",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "Reason-code count: ADR 0032 says eight, ADR 0033 adds a ninth (GROUNDED).",
+      "evidence": "docs/adr/0032-context-assembler.md:112; docs/adr/0033-explanation-and-grounded-answers.md:35"
+    },
+    {
+      "id": "A-8",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "ADR 0030 gives no readiness basis for an undeclared route defaulting to hosted:unknown.",
+      "evidence": "docs/adr/0030-data-governance.md:34-35"
+    },
+    {
+      "id": "A-9",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Rationale check before validation is a semantic change to target 5.6; point the owner at ADR 0033's alternative at G2.",
+      "evidence": "docs/adr/0033-explanation-and-grounded-answers.md:51,91"
+    },
+    {
+      "id": "A-10",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "Re-review: a domain finding's message was kept unmasked on the unchecked assumption that it is rule text; SHACL resultMessage and extra_findings can carry values. It is now rendered from the inventory by rule_id on unprotected routes, or masked.",
+      "evidence": "docs/adr/0032-context-assembler.md:73; src/e_agent/adapters/shacl/engine.py; src/e_agent/sdk/validation.py:58"
+    },
+    {
+      "id": "A-11",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "Re-review: KERNEL-* expected/observed now stated to carry only ids, pointers, digests, counts and codes.",
+      "evidence": "docs/adr/0032-context-assembler.md:67"
+    },
+    {
+      "id": "A-12",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Re-review: ADR 0033 and its index row now name ADR 0028 as refined (AcceptanceSpec.grounded_answer).",
+      "evidence": "docs/adr/0033-explanation-and-grounded-answers.md:3; docs/adr/README.md:38"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

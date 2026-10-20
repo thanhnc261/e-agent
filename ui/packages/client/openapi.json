@@ -648,7 +648,16 @@
           "plan_lineage_rejected",
           "ir_task_unresolved",
           "ir_compile_failed",
-          "ir_validation_failed"
+          "ir_validation_failed",
+          "context_assembly_failed",
+          "repeat_check_failed",
+          "grounding_check_failed",
+          "context_unavailable",
+          "repeat_unavailable",
+          "grounding_unavailable",
+          "driver_state_mismatch",
+          "route_boundary_unmet",
+          "grounded"
         ],
         "title": "ReasonCode",
         "type": "string"
@@ -812,7 +821,15 @@
           "ir.plan_compiled",
           "ir.shadow_failed",
           "ir.lineage_resolved",
-          "ir.step_verified"
+          "ir.step_verified",
+          "context.failed",
+          "context.compared",
+          "context.shadow_failed",
+          "context.assembled",
+          "repeat.compared",
+          "repeat.shadow_failed",
+          "grounding.compared",
+          "grounding.shadow_failed"
         ],
         "title": "RunEventType",
         "type": "string"

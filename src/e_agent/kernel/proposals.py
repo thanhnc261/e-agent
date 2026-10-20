@@ -1,8 +1,12 @@
-"""Proposal and answer handling and validation (Phase 1 split of coordinator.py)."""
+"""Proposal handling and validation (Phase 1 split of coordinator.py). Typed answers are
+handled in `grounding.py`, with their citation check (ADR 0033, Task 3e.1), the generic
+grounded answer in `grounded_answer.py` (Task 3e.2), and a write proposal's rationale is
+checked by `rationale.py` before validation and before its action exists (Task 3e.3)."""
 
 from __future__ import annotations
 
 import copy
+from collections.abc import Sequence
 from functools import partial
 from typing import Any
 
@@ -13,7 +17,7 @@ from e_agent.contracts.context import TaskContext
 from e_agent.contracts.digest import CanonicalizationError
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import ApprovedFact, Completeness
-from e_agent.contracts.outcome import OutcomeReport, OutcomeStatus
+from e_agent.contracts.grounding import ProposalRationale
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.run import (
     ReasonCode,
@@ -33,32 +37,71 @@ from .approval import (
     digest_input,
     fact_digest,
 )
-from .continuation import _Continuation, _GatewayReader
+from .context import KERNEL_RULE_PREFIX
+from .continuation import _Continuation
 from .errors import KernelError
 from .ir import StepDigestContext
-from .ir_on import IrOnMixin, _fixed
-from .verification import outcome_payload
+from .ir_on import _fixed
+from .rationale import (
+    RationaleMixin,
+    RationaleProbe,
+    proposal_entries,
+    strip_grounding,
+)
+from .reconstruct import proposal_keys
+from .repeat import (
+    ERROR_BUNDLE,
+    EVIDENCE_BUNDLE,
+    INVALID_DIGEST,
+    NO_VALIDATOR_BUNDLE,
+    RepeatProbe,
+)
 
-EVIDENCE_BUNDLE, NO_VALIDATOR_BUNDLE, ERROR_BUNDLE = "kernel-evidence-v1", "none", "error"
-SENTINEL_BUNDLES = frozenset({EVIDENCE_BUNDLE, NO_VALIDATOR_BUNDLE, ERROR_BUNDLE})
-"""The rule bundle versions `_validate` reports when no domain rule ran: incomplete
-evidence, no validator, a validator that raised. None is a real bundle to bind."""
 PROPOSAL_KIND = "The proposed capability is not a write or an answer this run can use."
 """The fixed message of the ``KERNEL-PROPOSAL-KIND`` repair finding (2c.8c round 2)."""
+KERNEL_RULE_ID_CLAIMED = "validator returned a kernel rule id"
+"""The fixed message when a validator's result claims a ``KERNEL-*`` rule id (review D3-10):
+only the kernel authors those findings, whose text ADR 0032 §5 sends unmasked."""
 
 
-class ProposalsMixin(IrOnMixin):
+def _validator_error(validator_id: str, message: str) -> ValidationResult:
+    """A validator that failed or broke the kernel-id rule: the write is blocked (fail closed)."""
+    finding = Finding(
+        rule_id="KERNEL-VALIDATOR-ERROR",
+        rule_version="1",
+        status=ValidationStatus.ERROR,
+        message=message,
+    )
+    return ValidationResult(
+        status=ValidationStatus.ERROR,
+        findings=(finding,),
+        rule_bundle_version=ERROR_BUNDLE,
+        validator_id=validator_id,
+    )
+
+
+class ProposalsMixin(RationaleMixin):
     # ------------------------------------------------------------- proposals
     async def _handle_proposal(
-        self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
+        self,
+        run: RunRecord,
+        cont: _Continuation,
+        proposal: ActionProposal,
+        *,
+        rationales: Sequence[tuple[str | None, ProposalRationale]] | None = None,
     ) -> RunRecord | DriverInput:
+        """``rationales`` replaces the proposal's own for a 1-step plan (`plan_entries`)."""
         ctx = cont.ctx
+        if self._grounded_branch(cont, proposal):  # before the task set (ADR 0033 §3)
+            return await self._handle_grounded_answer(run, cont, proposal)
         refused = await self._outside_task_set(run, cont, proposal)  # `on` only (D6)
         if refused is not None:
             return refused
         descriptor = self._registry.capabilities.get(proposal.contract_id)
         if descriptor is not None and descriptor.effect is EffectKind.ANSWER:
-            return await self._handle_answer(run, cont, proposal)
+            return await self._handle_answer(run, cont, proposal)  # `kernel/grounding.py`
+        entries = proposal_entries(proposal) if rationales is None else tuple(rationales)
+        proposal = strip_grounding(proposal)  # citations: answers only; rationale (3e.3)
         if descriptor is None or descriptor.effect is not EffectKind.WRITE:  # 2c.8c round 2
             kind = _fixed("KERNEL-PROPOSAL-KIND", PROPOSAL_KIND)
             return await self._repair_finding(run, cont, (kind,))
@@ -70,8 +113,6 @@ class ProposalsMixin(IrOnMixin):
         except KernelError:
             return await self._connection_refused(run, cont)
         decision = self._policy.evaluate(ctx, descriptor, proposal.connection_id)
-        validation = await self._validate(ctx, cont, proposal, binding)
-
         credential_version = (
             await self._credentials.version(ctx, proposal.connection_id)
             if self._credentials
@@ -83,7 +124,8 @@ class ProposalsMixin(IrOnMixin):
             for o in cont.observations.values()
             if o.evidence.revision is None
         }
-        canonical = digest_input(
+        canonical_for = partial(  # the digest input, less the bundle validation reports
+            digest_input,
             tenant_id=ctx.tenant_id,
             requester_id=ctx.principal.principal_id,
             logical_operation_id=run.logical_operation_id,
@@ -95,11 +137,20 @@ class ProposalsMixin(IrOnMixin):
             arguments=dict(proposal.arguments),
             expected_effects=proposal.expected_effects,
             evidence=evidence,
-            rule_bundle_version=validation.rule_bundle_version,
             policy_version=decision.policy_version,
             credential_version=credential_version,
             fact_digests=fact_digests,
         )
+        probe = await self._repeat_probe(run, cont, canonical_for, permitted=decision.permitted)
+        if not isinstance(probe, RepeatProbe):  # `on`: KERNEL-REPEAT, or closed (ADR 0031 §5)
+            return probe
+        run = probe.run or run  # a fallback moved the revision (final check FA-2)
+        reasons = await self._rationale_probe(run, cont, entries)  # before validation (§4)
+        if not isinstance(reasons, RationaleProbe):  # `on`: KERNEL-RATIONALE, or closed
+            return reasons
+        run = reasons.run or run  # a fallback moved the revision
+        validation = await self._validate(ctx, cont, proposal, binding)
+        canonical = canonical_for(rule_bundle_version=validation.rule_bundle_version)
         try:
             action_digest = compute_digest(canonical)
         except CanonicalizationError as exc:
@@ -116,7 +167,7 @@ class ProposalsMixin(IrOnMixin):
                 rule_bundle_version=validation.rule_bundle_version,
                 validator_id="kernel",
             )
-            action_digest = "invalid"
+            action_digest = INVALID_DIGEST
 
         previous = cont.last_action_id
         action = ActionRecord(
@@ -150,11 +201,16 @@ class ProposalsMixin(IrOnMixin):
                         "contract_id": action.contract_id,
                         "arguments": action.arguments,
                         "supersedes": previous,
+                        **proposal_keys(action),  # ADR 0031 §3
+                        **reasons.stored(),  # ADR 0033 §4: shadow and on only
                     },
                     action.action_id,
-                )
+                ),
+                *self._repeat_events(probe, validation, action.action_id),
+                *reasons.events(action.action_id),
             ],
         )
+        reasons.keep(cont)
         cont.last_action_id = action.action_id
         findings_payload = [f.model_dump(mode="json") for f in validation.findings]
         blocked = validation.blocks_write or not decision.permitted
@@ -184,6 +240,7 @@ class ProposalsMixin(IrOnMixin):
                 )
             cont.repairs += 1
             cont.findings = validation.findings
+            self._remember_blocked(cont, action, validation)
             return DriverInput(
                 task=run.task,
                 observations=tuple(cont.observations.values()),
@@ -218,6 +275,19 @@ class ProposalsMixin(IrOnMixin):
                 action, wait = await self._on_plan(run, cont, proposal, action, step_ctx)
                 shadow = list(wait)
         return await self._await_approval(run, cont, action, canonical, validation, shadow)
+
+    @staticmethod  # also the plan path's (`plan_flow.py`)
+    def _proposal_event(
+        action: ActionRecord, stored: dict[str, Any] | None = None
+    ) -> tuple[RunEventType, dict[str, Any], str]:
+        payload = {
+            "contract_id": action.contract_id,
+            "arguments": action.arguments,
+            "supersedes": action.supersedes_action_id,
+            **proposal_keys(action),  # ADR 0031 §3
+            **(stored or {}),  # the at-rest rationale (ADR 0033 §4)
+        }
+        return (RunEventType.PROPOSAL_CREATED, payload, action.action_id)
 
     async def _await_approval(
         self,
@@ -264,6 +334,8 @@ class ProposalsMixin(IrOnMixin):
                         "expires_at": (
                             cont.approval_requested_at + self._ttl_for(run, cont)
                         ).isoformat(),
+                        "plan_id": action.plan_id,  # the stored link (ADR 0031 §3)
+                        "step_index": action.step_index,
                     },
                     action.action_id,
                 ),
@@ -280,129 +352,6 @@ class ProposalsMixin(IrOnMixin):
             ],
         )
         return waiting
-
-    async def _handle_answer(
-        self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
-    ) -> RunRecord | DriverInput:
-        """Structured answers: no approval or dispatch; the domain verifier recomputes
-        the answer from fresh, independent reads."""
-        ctx = cont.ctx
-        try:  # as a write proposal: a repair finding, never an exception (2c.8c)
-            connection = self._connections.usable(ctx, proposal.connection_id)
-        except KernelError:
-            return await self._connection_refused(run, cont)
-        verifier = self._registry.verifier_for(proposal.contract_id)
-        if verifier is None:  # it can never be verified: fail, never claim it (review P-1)
-            return await self._no_verifier(run)
-        try:
-            action_digest = compute_digest(
-                {"contract_id": proposal.contract_id, "arguments": dict(proposal.arguments)}
-            )
-        except CanonicalizationError:
-            action_digest = "invalid"
-        if cont.last_action_id is not None:
-            previous = await self._store.get_action(ctx.tenant_id, cont.last_action_id)
-            if (
-                previous.state is ActionState.VERIFIED
-                and previous.contract_id == proposal.contract_id
-                and previous.connection_id == connection.connection_id
-                and previous.digest == action_digest
-                and previous.arguments == dict(proposal.arguments)
-            ):
-                return await self._finish_verified(
-                    cont, (), "The structured answer was independently verified.", acknowledge=False
-                )
-        action = ActionRecord(
-            action_id=new_id("act"),
-            tenant_id=ctx.tenant_id,
-            run_id=run.run_id,
-            logical_operation_id=run.logical_operation_id,
-            contract_id=proposal.contract_id,
-            binding_id="answer",
-            connection_id=connection.connection_id,
-            connection_version=connection.version,
-            credential_subject=connection.credential_subject(),
-            arguments=dict(proposal.arguments),
-            digest=action_digest,
-            state=ActionState.PROPOSED,
-            revision=1,
-            supersedes_action_id=cont.last_action_id,
-        )
-        await self._store.put_action(
-            action,
-            None,
-            [
-                (
-                    RunEventType.PROPOSAL_CREATED,
-                    {
-                        "contract_id": action.contract_id,
-                        "arguments": action.arguments,
-                        "kind": "answer",
-                        "supersedes": cont.last_action_id,
-                    },
-                    action.action_id,
-                )
-            ],
-        )
-        cont.last_action_id = action.action_id
-        action = await self._transition(action, ActionState.VALIDATED)
-        reader = _GatewayReader(self, cont, connection.connection_id)
-        try:
-            report = await verifier.verify(ctx, action, None, reader)
-        except Exception as exc:  # verification unavailable: never claim the answer
-            report = OutcomeReport(
-                run_id=ctx.run_id,
-                action_id=action.action_id,
-                status=OutcomeStatus.UNKNOWN,
-                checks=(),
-                verifier_id=verifier.verifier_id,
-                verifier_version=type(exc).__name__,
-                reported_at=self._clock(),
-            )
-        report = self._kept(report)
-        verified = report.status is OutcomeStatus.VERIFIED
-        target = ActionState.VERIFIED if verified else ActionState.VERIFICATION_FAILED
-        await self._store.record_outcome(
-            ctx.tenant_id,
-            report,
-            action.model_copy(update={"state": target, "revision": action.revision + 1}),
-            action.revision,
-            [(RunEventType.OUTCOME_REPORTED, outcome_payload(report), action.action_id)],
-        )
-        if verified:
-            return DriverInput(
-                task=run.task,
-                observations=tuple(cont.observations.values()),
-                action_result={"status": "VERIFIED"},
-            )
-        run = await self._store.get_run(run.tenant_id, run.run_id)
-        if cont.repairs >= ctx.budgets.max_validation_repairs:
-            return await self._set_run_state(
-                run, RunState.FAILED, "answer not verified", code=ReasonCode.VERIFICATION_FAILED
-            )
-        cont.repairs += 1
-        findings = tuple(
-            Finding(
-                rule_id=f"VERIFY-{c.name}",
-                rule_version="1",
-                status=ValidationStatus.FAIL,
-                message=f"answer check {c.name} failed",
-                expected=c.expected,
-                observed=c.observed,
-            )
-            for c in report.checks
-            if not c.passed
-        ) or (
-            Finding(
-                rule_id="VERIFY",
-                rule_version="1",
-                status=ValidationStatus.UNKNOWN,
-                message="answer could not be verified",
-            ),
-        )
-        return DriverInput(
-            task=run.task, observations=tuple(cont.observations.values()), findings=findings
-        )
 
     async def _validate(
         self,
@@ -446,31 +395,19 @@ class ProposalsMixin(IrOnMixin):
         results: list[ValidationResult] = []
         for validator in validators:
             try:
-                results.append(
-                    await self._timed(
-                        cont,
-                        # Each validator gets its own copy, never kernel-owned state: what it
-                        # changes cannot reach an approved action (PR-08, PR-16, Codex C-3).
-                        partial(validator.validate, ctx, copy.deepcopy(item)),
-                        ctx.budgets.provider_timeout_seconds,
-                    )
+                result = await self._timed(
+                    cont,
+                    # Each validator gets its own copy, never kernel-owned state: what it
+                    # changes cannot reach an approved action (PR-08, PR-16, Codex C-3).
+                    partial(validator.validate, ctx, copy.deepcopy(item)),
+                    ctx.budgets.provider_timeout_seconds,
                 )
             except Exception as exc:  # engine failure blocks the write (MVP §11)
-                results.append(
-                    ValidationResult(
-                        status=ValidationStatus.ERROR,
-                        findings=(
-                            Finding(
-                                rule_id="KERNEL-VALIDATOR-ERROR",
-                                rule_version="1",
-                                status=ValidationStatus.ERROR,
-                                message=type(exc).__name__,
-                            ),
-                        ),
-                        rule_bundle_version=ERROR_BUNDLE,
-                        validator_id=validator.validator_id,
-                    )
-                )
+                result = _validator_error(validator.validator_id, type(exc).__name__)
+            else:
+                if any(f.rule_id.startswith(KERNEL_RULE_PREFIX) for f in result.findings):
+                    result = _validator_error(validator.validator_id, KERNEL_RULE_ID_CLAIMED)
+            results.append(result)
         order = [ValidationStatus.ERROR, ValidationStatus.FAIL, ValidationStatus.UNKNOWN]
         status = next(
             (s for s in order if any(r.status is s for r in results)), ValidationStatus.PASS

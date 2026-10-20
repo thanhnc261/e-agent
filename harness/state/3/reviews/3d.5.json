@@ -1,0 +1,31 @@
+{
+  "task": "3d.5",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "D3-60",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "A NEEDS_RECONCILIATION run with a driver-state mismatch can never be reconciled: reconcile loads through _load_cont, whose restore check raises on every fresh load (PR-18).",
+      "evidence": "src/e_agent/kernel/recovery.py:34,296-336; src/e_agent/kernel/continuation.py:345-350; tests/unit/kernel/test_context_on.py:561-587"
+    },
+    {
+      "id": "D3-61",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "On a mismatch, startup recovery re-raises before its crash rules: DISPATCHING is never moved to UNKNOWN and COMMITTED never verified, and reconcile handles only UNKNOWN.",
+      "evidence": "src/e_agent/kernel/recovery.py:208-246,35-41,313-319"
+    },
+    {
+      "id": "D3-62",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The D8 handler blocks every PROPOSED/AWAITING_APPROVAL/APPROVED action, broader than cancel and recovery; state it as intended.",
+      "evidence": "src/e_agent/kernel/recovery.py:320-334,86-92"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

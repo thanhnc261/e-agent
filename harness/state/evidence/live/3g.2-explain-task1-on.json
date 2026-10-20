@@ -1,0 +1,120 @@
+{
+  "completeness": "known",
+  "run": {
+    "run_id": "run_2bfa382de5af4be4a0a9877dd84d77f2",
+    "goal": "Which products are short for open demand?",
+    "task_ref": null,
+    "task_ref_state": "none",
+    "requester_id": "local-operator",
+    "driver_id": "pydantic-ai",
+    "state": "SUCCEEDED",
+    "reason_code": "verified",
+    "unknown_fields": []
+  },
+  "sources": [
+    {
+      "evidence_id": "ev_fbf7f8cdfe934827977afe280356cf5e",
+      "contract_id": "procurement.open-demands.read.v1",
+      "revision": null,
+      "label": "provider_read"
+    },
+    {
+      "evidence_id": "ev_4bb1c455898c47559e9380eb268625f0",
+      "contract_id": "procurement.demand.read.v1",
+      "revision": "2026-10-19 04:37:16",
+      "label": "provider_read"
+    },
+    {
+      "evidence_id": "ev_9966792ba11840ddaedf47c2fc12f2db",
+      "contract_id": "inventory.availability.read.v1",
+      "revision": "2026-10-19 04:37:16",
+      "label": "provider_read"
+    },
+    {
+      "evidence_id": "ev_6e76880671534bd98f46dfd528c33717",
+      "contract_id": "procurement.demand.read.v1",
+      "revision": "2026-10-19 04:37:16",
+      "label": "provider_read"
+    },
+    {
+      "evidence_id": "ev_66930d4d322b4365940036eaeb1d52dd",
+      "contract_id": "inventory.availability.read.v1",
+      "revision": "2026-10-19 04:37:16",
+      "label": "provider_read"
+    },
+    {
+      "evidence_id": "ev_1319f2c4defc4b6388e35aab56cb86ba",
+      "contract_id": "procurement.demand.read.v1",
+      "revision": "2026-10-19 04:37:16",
+      "label": "provider_read"
+    },
+    {
+      "evidence_id": "ev_ddfc4926e432438fa86c059993a45a2d",
+      "contract_id": "inventory.availability.read.v1",
+      "revision": "2026-10-19 04:37:16",
+      "label": "provider_read"
+    }
+  ],
+  "validation": {
+    "stages": [],
+    "open_findings": [],
+    "rules_evaluated": [],
+    "input_requests": []
+  },
+  "proposals": [
+    {
+      "action_id": "act_f628b3445da74f81a06ea352f619996a",
+      "contract_id": "procurement.shortage.answer.v1",
+      "binding_id": "answer",
+      "connection_id": "conn-odoo",
+      "connection_version": 1,
+      "credential_version": "none",
+      "logical_operation_id": "op_7998ac05dd0c4a6f8c64d774183de5b9",
+      "plan_id": null,
+      "step_index": null,
+      "supersedes_action_id": null,
+      "digest": "jcs-sha256-v1:89fe413c4989d640dea3449ea3cb9f09dcf6c4984e40f90a1bbc4ad43fb4401c",
+      "evidence_ids": [],
+      "state": "VERIFICATION_FAILED",
+      "label": "model_proposal",
+      "partial_fields": [],
+      "unknown_fields": []
+    },
+    {
+      "action_id": "act_2343fb39a7cf4bdb8d47fc1d6f748279",
+      "contract_id": "procurement.shortage.answer.v1",
+      "binding_id": "answer",
+      "connection_id": "conn-odoo",
+      "connection_version": 1,
+      "credential_version": "none",
+      "logical_operation_id": "op_7998ac05dd0c4a6f8c64d774183de5b9",
+      "plan_id": null,
+      "step_index": null,
+      "supersedes_action_id": "act_f628b3445da74f81a06ea352f619996a",
+      "digest": "jcs-sha256-v1:a4aa8e239239eaaa634e490d767579af5ae2aa803b17126a6d238e58542a7bf1",
+      "evidence_ids": [],
+      "state": "VERIFIED",
+      "label": "model_proposal",
+      "partial_fields": [],
+      "unknown_fields": []
+    }
+  ],
+  "approvals": [],
+  "receipts": [],
+  "outcomes": [
+    {
+      "action_id": "act_f628b3445da74f81a06ea352f619996a",
+      "status": "failed",
+      "event_id": "evt_46e9d3783f1d4724acfd6844414ad631",
+      "step_id": null,
+      "label": "not_verified"
+    },
+    {
+      "action_id": "act_2343fb39a7cf4bdb8d47fc1d6f748279",
+      "status": "succeeded",
+      "event_id": "evt_d56537c10c6c4a47b3fe8a0f8869ded7",
+      "step_id": null,
+      "label": "verified_outcome"
+    }
+  ]
+}

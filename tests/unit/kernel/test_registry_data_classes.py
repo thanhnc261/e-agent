@@ -1,0 +1,173 @@
+"""The registry resolves data classes and counts unmarked properties (ADR 0030, Task 3b.3).
+
+Uses the notes pack's classed read (``CLASSED_READ``, ``NOTE_OUTPUT``), never ERP.
+"""
+
+from typing import Any
+
+import pytest
+from e_agent.contracts.capability import CapabilityDescriptor
+from e_agent.contracts.data_classes import DataClass
+from e_agent.kernel.errors import ErrorCode, KernelError
+from e_agent.kernel.registry import PluginRegistry
+from e_agent.sdk.ports import PluginContribution
+
+from .conftest import BINDINGS, CLASSED_READ, CREATE, NOTE_INPUT, NOTE_OUTPUT
+from .conftest import READ as READ_UNCLASSED
+
+
+def _register(
+    read: CapabilityDescriptor = CLASSED_READ,
+    *,
+    output_schemas: dict[str, Any] | None = None,
+    input_schemas: dict[str, Any] | None = None,
+) -> PluginRegistry:
+    reg = PluginRegistry({"notes-mem.read": ("c1",)})
+    reg.register(
+        plugin_id="notes-fixture",
+        plugin_version="1",
+        declared_capabilities=(read, CREATE),
+        binding_templates=BINDINGS,
+        contribution=PluginContribution(
+            capabilities=(read, CREATE),
+            input_schemas=input_schemas if input_schemas is not None else {"c": NOTE_INPUT},
+            output_schemas=(output_schemas if output_schemas is not None else {"n": NOTE_OUTPUT}),
+        ),
+    )
+    return reg
+
+
+def test_unmarked_property_counts_as_personal() -> None:
+    reg = _register()
+    rid = CLASSED_READ.contract_id
+    assert reg.data_class(rid, "/output/topic") is DataClass.INTERNAL
+    # an instance path names array indices as numbers or `items`; both resolve alike
+    assert reg.data_class(rid, "/output/notes/3/key") is DataClass.INTERNAL
+    assert reg.data_class(rid, "/output/notes/items/key") is DataClass.INTERNAL
+    # the note text is left unmarked in the notes pack: it counts as personal
+    assert reg.data_class(rid, "/output/notes/0/text") is DataClass.PERSONAL
+    assert reg.data_class(CREATE.contract_id, "/input/text") is DataClass.PERSONAL
+    with pytest.raises(KernelError) as err:
+        reg.data_class("notes.note.purge.v1", "/input/text")
+    assert err.value.code is ErrorCode.INVALID_REQUEST
+
+
+def test_post_admission_mutation_does_not_reach_lookup() -> None:
+    """Review C3-14: lookup reads a frozen copy taken at admission, so a plugin that
+    edits its own mapping afterwards cannot lower a class or store an unchecked key."""
+    classes = dict(CLASSED_READ.data_classes)
+    read = CLASSED_READ.model_copy(update={"data_classes": classes})
+    reg = _register(read)
+    rid = read.contract_id
+    assert reg.data_class(rid, "/output/topic") is DataClass.INTERNAL
+    classes["/output/topic"] = DataClass.PUBLIC
+    classes["/output/notes/0/key"] = DataClass.PUBLIC  # a numeric-index key admission refuses
+    del classes["/output/notes/items/key"]
+    assert reg.data_class(rid, "/output/topic") is DataClass.INTERNAL
+    assert reg.data_class(rid, "/output/notes/0/key") is DataClass.INTERNAL
+    # the declarations the context assembler reads are the same frozen copy (Task 3d.2)
+    admitted = reg.data_classes(rid)
+    assert admitted["/output/topic"] is DataClass.INTERNAL
+    assert "/output/notes/0/key" not in admitted
+    with pytest.raises(TypeError):
+        admitted["/output/topic"] = DataClass.PUBLIC  # type: ignore[index]
+    with pytest.raises(KernelError):
+        reg.data_classes("notes.note.purge.v1")
+
+
+def test_registry_counts_unmarked_properties_per_capability() -> None:
+    counts = _register().unmarked_properties()
+    print(f"capabilities counted: {len(counts)}")
+    # the read registers no input schema and the create no output schema: None, not 0
+    assert counts == {
+        CLASSED_READ.contract_id: {"input": None, "output": 1},
+        CREATE.contract_id: {"input": 2, "output": None},
+    }
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/output/missing",
+        "/output/notes/items/missing",
+        "/output/topic/inner",
+        "/output/notes/items",  # an array element is not a property
+        "/output/properties/topic",  # a schema pointer, not an instance path
+        "/input/text",  # the read registers no input schema
+    ],
+)
+def test_data_class_pointer_must_exist_in_schema(path: str) -> None:
+    bad = CLASSED_READ.model_validate(
+        {**CLASSED_READ.model_dump(), "data_classes": {path: "internal"}}
+    )
+    with pytest.raises(KernelError) as err:
+        _register(bad)
+    assert err.value.code is ErrorCode.STARTUP_REJECTED
+    assert "resolves to no property" in str(err.value)
+
+
+def test_a_path_into_an_unregistered_output_schema_fails_admission() -> None:
+    with pytest.raises(KernelError, match="resolves to no property"):
+        _register(output_schemas={})
+
+
+def test_notes_migration_keeps_every_class() -> None:
+    """The schema-pointer keys of rounds 0-2 and the instance paths give the same class."""
+    old = {
+        "/output/properties/topic": DataClass.INTERNAL,
+        "/output/properties/count": DataClass.INTERNAL,
+        "/output/properties/notes/items/properties/key": DataClass.INTERNAL,
+        "/output/properties/notes/items/properties/text": DataClass.PERSONAL,
+    }
+    reg = _register()
+    for pointer, data_class in old.items():
+        path = pointer.replace("/properties/", "/")
+        assert reg.data_class(CLASSED_READ.contract_id, path) is data_class, path
+    print(f"notes values compared: {len(old)}")
+
+
+def test_output_schemas_conflict_fails_closed() -> None:
+    reg = _register()
+    with pytest.raises(KernelError, match="conflicting schema definitions for n"):
+        reg.register(
+            plugin_id="other",
+            plugin_version="1",
+            declared_capabilities=(),
+            binding_templates=(),
+            contribution=PluginContribution(output_schemas={"n": {"type": "object"}}),
+        )
+
+
+def test_classes_leave_the_surface_digest_unchanged() -> None:
+    """Classes sit beside the schema: the digest a run is pinned to does not move."""
+    from .conftest import READ
+
+    classed = _register().surface_digest()
+    plain = _register(READ, output_schemas={}).surface_digest()
+    assert classed == plain
+
+
+def test_notes_schemas_are_inside_the_supported_subset() -> None:
+    from e_agent.contracts.data_classes import unsupported_construct
+
+    checked = [NOTE_INPUT, NOTE_OUTPUT]
+    assert [unsupported_construct(schema) for schema in checked] == [None, None]
+    print(f"notes schemas checked: {len(checked)}")
+    assert _register().unsupported_schemas() == {}
+
+
+def test_a_declaration_on_an_unsupported_output_fails_admission() -> None:
+    odd = {**NOTE_OUTPUT, "patternProperties": {"^n": {"type": "string"}}}
+    with pytest.raises(KernelError) as err:
+        _register(output_schemas={"n": odd})
+    assert err.value.code is ErrorCode.STARTUP_REJECTED
+    message = str(err.value)
+    assert CLASSED_READ.contract_id in message and "'patternProperties'" in message
+    assert "outside the supported subset" in message
+    # without declarations it admits, flagged, and every value there is personal
+    reg = _register(READ_UNCLASSED, output_schemas={"n": odd})
+    assert reg.unsupported_schemas() == {
+        CLASSED_READ.contract_id: {"output": "the keyword 'patternProperties'"}
+    }
+    assert reg.unmarked_properties()[CLASSED_READ.contract_id] == {"input": None, "output": None}
+    assert reg.data_class(CLASSED_READ.contract_id, "/output/topic") is DataClass.PERSONAL

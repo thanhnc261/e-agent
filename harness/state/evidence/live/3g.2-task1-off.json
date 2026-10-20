@@ -1,0 +1,99 @@
+{
+  "label": "task1 context_assembler=off (live)",
+  "environment": "live",
+  "classification": "live:failed",
+  "run_id": "run_b03c91dee816470ca709123dd7e18b42",
+  "task": "Which products are short for open demand?",
+  "state": "FAILED",
+  "reason_code": "verification_failed",
+  "reason": "answer not verified",
+  "task_id": null,
+  "features": {
+    "execution_ir": "off",
+    "context_assembler": "off",
+    "kernel_repeat": "off",
+    "grounded_answers": "off"
+  },
+  "modes": null,
+  "route": {
+    "data_boundary": "local",
+    "data_boundary_basis": "verified",
+    "data_processing_declared": false
+  },
+  "event_type_counts": {
+    "run.created": 1,
+    "run.state_changed": 2,
+    "read.recorded": 15,
+    "proposal.created": 4,
+    "outcome.reported": 4,
+    "validation.completed": 1,
+    "run.terminal": 1
+  },
+  "actions": [
+    {
+      "action_id": "act_21bc418cc2324638ba05e8c4f88ba068",
+      "contract_id": "procurement.offer.recommend.v1",
+      "state": "VERIFICATION_FAILED",
+      "digest": "jcs-sha256-v1:76ae7c0921dd59a11cff0819972d05a53aafad922e33219db8c3c040f3591c51"
+    },
+    {
+      "action_id": "act_3ebce5c8a1004f8d9954cbc27f75acb5",
+      "contract_id": "procurement.offer.recommend.v1",
+      "state": "VERIFICATION_FAILED",
+      "digest": "jcs-sha256-v1:4bf9e1b7e56f05a8ec6cbd61740cadd44be88273aeebbd2e87e864b1d28d59ac"
+    },
+    {
+      "action_id": "act_4209dda49da64bc1971dc8e59c758180",
+      "contract_id": "procurement.offer.recommend.v1",
+      "state": "VERIFICATION_FAILED",
+      "digest": "jcs-sha256-v1:4bf9e1b7e56f05a8ec6cbd61740cadd44be88273aeebbd2e87e864b1d28d59ac"
+    },
+    {
+      "action_id": "act_574f4439eaa3406690d2a1fb1a1f16bb",
+      "contract_id": "procurement.shortage.answer.v1",
+      "state": "VERIFICATION_FAILED",
+      "digest": "jcs-sha256-v1:89fe413c4989d640dea3449ea3cb9f09dcf6c4984e40f90a1bbc4ad43fb4401c"
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "FAILED",
+      "action_id": "act_574f4439eaa3406690d2a1fb1a1f16bb"
+    },
+    {
+      "status": "FAILED",
+      "action_id": "act_4209dda49da64bc1971dc8e59c758180"
+    },
+    {
+      "status": "FAILED",
+      "action_id": "act_3ebce5c8a1004f8d9954cbc27f75acb5"
+    },
+    {
+      "status": "FAILED",
+      "action_id": "act_21bc418cc2324638ba05e8c4f88ba068"
+    }
+  ],
+  "approvals": [],
+  "receipts": [],
+  "rules_evaluated": [
+    "KERNEL-VERIFICATION@1"
+  ],
+  "context": null,
+  "grounded_answer": null,
+  "explanation_completeness": "known",
+  "counts_of_interest": {
+    "context.compared": 0,
+    "feature.fallback": 0,
+    "grounding.compared": 0,
+    "read.recorded": 15,
+    "answer.proposed": 0,
+    "verification.completed": 0
+  },
+  "terminal_payloads": [
+    {
+      "state": "FAILED",
+      "reason": "answer not verified",
+      "reason_code": "verification_failed"
+    }
+  ]
+}

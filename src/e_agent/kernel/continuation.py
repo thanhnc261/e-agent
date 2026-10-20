@@ -22,8 +22,11 @@ from e_agent.contracts.approval import ApprovalRecord
 from e_agent.contracts.capability import CapabilityBinding
 from e_agent.contracts.common import new_id
 from e_agent.contracts.context import Budgets, TaskContext
+from e_agent.contracts.context_pack import ContextRoute
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import Completeness
+from e_agent.contracts.features import FeatureMode, RunModes
+from e_agent.contracts.grounding import ProposalRationale
 from e_agent.contracts.plan import ActionPlan, ActionProposal
 from e_agent.contracts.receipt import ExecutionReceipt
 from e_agent.contracts.run import (
@@ -35,7 +38,7 @@ from e_agent.contracts.step import StepRecord
 from e_agent.contracts.task import TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationResult
 from e_agent.sdk.auth import CredentialVersionProvider
-from e_agent.sdk.errors import KnownNoEffectError
+from e_agent.sdk.errors import DriverStateMismatch, KnownNoEffectError
 from e_agent.sdk.ports import (
     AgentDriver,
     DriverInput,
@@ -45,7 +48,13 @@ from e_agent.sdk.ports import (
 )
 from e_agent.sdk.store import EventBatch, RunStore
 from e_agent.sdk.tasks import supervised_task
-from pydantic import BaseModel, Field, SerializerFunctionWrapHandler, model_serializer
+from pydantic import (
+    BaseModel,
+    Field,
+    PrivateAttr,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 
 from .connections import ConnectionCatalog
 from .errors import ErrorCode, KernelError
@@ -55,6 +64,9 @@ LOG = logging.getLogger("e_agent.kernel.coordinator")
 
 
 CONTINUATION_SCHEMA = "kernel-continuation-v1"
+
+KNOWN_RENDERINGS = frozenset({"pack"})
+"""The driver snapshot ``rendering`` markers the kernel knows (ADR 0032 §6, §8)."""
 
 
 class NextStep(StrEnum):
@@ -89,6 +101,17 @@ class _PlanState(BaseModel):
     only when that step's outcome is VERIFIED: the one source lineage copies from."""
 
 
+class BlockedRevision(BaseModel):
+    """A write proposal `_handle_proposal` blocked on validation, kept for ``KERNEL-REPEAT``
+    (ADR 0031 §5) in a run pinned ``kernel_repeat`` ``shadow`` or ``on``: the action, its
+    approval digest, the rule bundle version that digest bound, and the findings."""
+
+    action_id: str
+    digest: str
+    rule_bundle_version: str
+    findings: tuple[Finding, ...] = ()
+
+
 class _Continuation(BaseModel):
     """Kernel-side run continuation, persisted through the RunStore at every state
     change so a restarted process can resume (ADR 0003/0004). Contains only
@@ -115,16 +138,58 @@ class _Continuation(BaseModel):
     acceptance for the whole run, whatever the registry later holds (ADR 0028, Codex C-1)."""
     plan: _PlanState | None = None
     """The multi-step plan in flight (execution IR ``on``, Task 2c.7); None otherwise."""
+    modes: RunModes | None = None
+    """The Phase 3 modes pinned when the run was prepared (ADR 0032 §8); None, and left out
+    of the stored continuation, when every mode is ``off``."""
+    context_boundary: ContextRoute | None = None
+    """For a run pinned ``context_assembler: on``, the loosest route boundary any model call
+    of it has used (set by the first call, review D3-41): its driver history may hold values
+    only that route may see, so a call on a stricter one is refused. None, and left out of
+    the stored continuation, for every other run."""
+    blocked: tuple[BlockedRevision, ...] = ()
+    """The run's validation-blocked write proposals, kept only when ``kernel_repeat`` is not
+    pinned ``off`` (ADR 0031 §5), and left out of the stored continuation when empty."""
+    rationale: ProposalRationale | None = None
+    """The checked rationale of the run's latest write proposal or plan, kept for the
+    approval card in a run pinned ``grounded_answers`` ``shadow`` or ``on`` (ADR 0033 §4):
+    the one place its text lives, never an event (owner G2). Left out when None."""
+    step_rationales: dict[str, ProposalRationale] = Field(default_factory=dict)
+    """That plan's step rationales by step id, as ``rationale``; left out when empty."""
+    _stored_driver_state: dict[str, Any] | None = PrivateAttr(default=None)
+    """The stored driver state this entry was loaded with, whatever the current driver
+    supports, kept until the driver's ``advance`` is about to run (`_timed` with
+    ``driver_turn``, reviews D3-60, D3-70, D3-80): never serialized, and written back
+    verbatim by `_snapshot` meanwhile, so a kernel-only save, and a turn stopped by a
+    pre-turn check (a budget, the route, the unbound check, assembly), leave it as it was."""
+    _restored: bool = PrivateAttr(default=False)
+    """Whether `_restore_for_turn` restored this load's driver state: at most once per load."""
 
     @model_serializer(mode="wrap")
     def _omit_unbound_task(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        """Leave ``task`` and ``plan`` out when unset, so an ``off`` or ``shadow``
-        continuation is stored exactly as before Task 2c.6."""
+        """Leave ``task``, ``plan``, ``modes``, ``context_boundary`` and ``rationale`` out when
+        unset, and ``blocked`` and ``step_rationales`` when empty, so an ``off`` continuation
+        is stored exactly as before Task 2c.6, 3b.2, 3d.6 and 3e.3. A run pinned
+        ``kernel_repeat`` ``shadow`` or ``on`` keeps a non-empty ``blocked`` once a proposal is
+        blocked."""
         data: dict[str, Any] = handler(self)
-        for name in ("task", "plan"):
+        for name in ("task", "plan", "modes", "context_boundary", "rationale"):
             if getattr(self, name) is None:
                 data.pop(name, None)
+        for name in ("blocked", "step_rationales"):
+            if not getattr(self, name):
+                data.pop(name, None)
         return data
+
+
+def rendering_mismatch(cont: _Continuation, driver_state: Mapping[str, Any]) -> bool:
+    """The restore check (ADR 0032 §8): a ``rendering`` marker on a run not pinned
+    ``context_assembler: on``, or a marker the kernel does not know. A pinned-``on`` run
+    without the marker is valid (no pack turn yet, or every turn so far fell back)."""
+    marker = driver_state.get("rendering")
+    if marker is None:
+        return False
+    pinned_on = cont.modes is not None and cont.modes.context_assembler is FeatureMode.ON
+    return marker not in KNOWN_RENDERINGS or not pinned_on
 
 
 class _GatewayReader:
@@ -170,13 +235,23 @@ class ContinuationMixin:
             raise NotImplementedError
 
         async def _handle_proposal(
-            self, run: RunRecord, cont: _Continuation, proposal: ActionProposal
+            self,
+            run: RunRecord,
+            cont: _Continuation,
+            proposal: ActionProposal,
+            *,
+            rationales: Sequence[tuple[str | None, ProposalRationale]] | None = None,
         ) -> RunRecord | DriverInput:
             raise NotImplementedError
 
         async def _handle_plan(
             self, run: RunRecord, cont: _Continuation, plan: ActionPlan
         ) -> RunRecord | DriverInput:
+            raise NotImplementedError
+
+        def _with_grounding(
+            self, run: RunRecord, cont: _Continuation, step_input: DriverInput
+        ) -> DriverInput:
             raise NotImplementedError
 
         async def _after_step_verified(
@@ -187,6 +262,9 @@ class ContinuationMixin:
         async def _queue_resume(self, run: RunRecord, action: ActionRecord) -> RunRecord:
             raise NotImplementedError
 
+        async def _plan_approval(self, cont: _Continuation) -> ApprovalRecord:
+            raise NotImplementedError
+
         async def _resume_plan(
             self,
             cont: _Continuation,
@@ -195,6 +273,9 @@ class ContinuationMixin:
             *,
             next_step: NextStep,
         ) -> RunRecord | None:
+            raise NotImplementedError
+
+        async def _driver_state_mismatch(self, run: RunRecord) -> RunRecord:
             raise NotImplementedError
 
         async def _record_rejected_read(
@@ -211,13 +292,16 @@ class ContinuationMixin:
             code: ReasonCode | None = None,
             before: EventBatch = (),
             snapshot: bool = True,
+            blocked_action_ids: Sequence[str] = (),
         ) -> RunRecord:
             raise NotImplementedError
 
         def _check_run_transition(self, run: RunRecord, to: RunState) -> None:
             raise NotImplementedError
 
-        async def _exhausted(self, run: RunRecord, what: str) -> RunRecord:
+        async def _exhausted(
+            self, run: RunRecord, what: str, *, blocked_action_ids: Sequence[str] = ()
+        ) -> RunRecord:
             raise NotImplementedError
 
         async def _transition(
@@ -237,6 +321,7 @@ class ContinuationMixin:
             fallback: str,
             *,
             acknowledge: bool = True,
+            extra: EventBatch = (),
         ) -> RunRecord:
             raise NotImplementedError
 
@@ -296,22 +381,46 @@ class ContinuationMixin:
         return (await self._read_cont(tenant_id, run_id))[0]
 
     async def _load_cont(self, tenant_id: str, run_id: str) -> _Continuation:
+        """The kernel continuation, cached; driver state is not restored here (ADR 0032 §8,
+        review D3-60). Kernel-only operations (reconcile, the crash rules, cancel, approval
+        reads and decisions) never touch the driver; a driver turn restores through
+        `_restore_for_turn` first."""
         cont = self._runs.get(run_id)
         if cont is not None:
             return cont
         cont, driver_state = await self._read_cont(tenant_id, run_id)
-        restore = getattr(self._driver, "restore", None)
-        if driver_state is not None and restore is not None:
-            restore(run_id, driver_state)
+        cont._stored_driver_state = driver_state  # whatever the driver supports (D3-70)
         self._runs[run_id] = cont
         return cont
+
+    def _restore_for_turn(self, cont: _Continuation) -> bool:
+        """Restore the driver state a load left pending, at most once per load, before the
+        run's next driver turn (`_drive`, the acknowledgement turn) reads any driver state. A
+        driver without ``restore`` starts fresh at its call. The stored state stays on the
+        entry either way until ``advance`` is about to run (review D3-80). False on the typed
+        refusal (D8): the kernel's ``rendering`` marker check, or the driver's own; nothing is
+        restored, and the stored driver state stays as it was."""
+        driver_state = cont._stored_driver_state
+        restore = getattr(self._driver, "restore", None)
+        if driver_state is None or restore is None or cont._restored:
+            return True
+        try:
+            if rendering_mismatch(cont, driver_state):
+                raise DriverStateMismatch
+            restore(cont.ctx.run_id, driver_state)
+        except DriverStateMismatch:
+            return False
+        cont._restored = True
+        return True
 
     def _snapshot(self, run_id: str) -> tuple[dict[str, Any], dict[str, Any] | None] | None:
         cont = self._runs.get(run_id)
         if cont is None:
             return None
         snapshot = getattr(self._driver, "snapshot", None)
-        driver_state = snapshot(run_id) if snapshot is not None else None
+        driver_state = cont._stored_driver_state  # before the driver call: verbatim
+        if driver_state is None and snapshot is not None:
+            driver_state = snapshot(run_id)
         return ({"schema": CONTINUATION_SCHEMA, "data": cont.model_dump(mode="json")}, driver_state)
 
     async def _persist(self, run_id: str) -> None:
@@ -327,13 +436,19 @@ class ContinuationMixin:
         limit: int,
         *,
         cancellable: bool = True,
+        driver_turn: bool = False,
     ) -> T:
+        """Run ``call`` within the run's active-time budget and ``limit``. ``driver_turn``:
+        the call is the driver's ``advance``, so the stored driver state is released as it
+        starts, never before (review D3-80); the driver's own snapshot replaces it."""
         remaining = cont.ctx.budgets.max_active_seconds - cont.active_seconds
         if remaining <= 0:
             raise TimeoutError("active execution budget exhausted")
         started = time.perf_counter()
 
         async def invoke() -> T:
+            if driver_turn:
+                cont._stored_driver_state = None
             return await call()
 
         # An awaited child, not a background task: the caller handles its failure, so no log.

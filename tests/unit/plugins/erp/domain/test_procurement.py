@@ -9,7 +9,7 @@ from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.context import Principal, TaskContext
 from e_agent.contracts.outcome import OutcomeStatus
 from e_agent.contracts.receipt import ExecutionReceipt, ReceiptStatus
-from e_agent.plugins.erp.domain.plugin import create_plugin, load_manifest
+from e_agent.plugins.erp.domain.plugin import create_plugin, load_manifest, load_rule_inventory
 from e_agent.plugins.erp.domain.procurement import (
     CREATE_DRAFT_PO,
     DEMAND_READ,
@@ -18,6 +18,7 @@ from e_agent.plugins.erp.domain.procurement import (
 )
 from e_agent.plugins.erp.domain.procurement.normalizer import collect_facts
 from e_agent.plugins.erp.domain.procurement.verifier import DraftPurchaseOrderVerifier
+from e_agent.plugins.erp.domain.testing.fixture_validator import FixtureRuleValidator
 from e_agent.plugins.erp.simulator.fake_erp import FakeErp
 from e_agent.plugins.erp.simulator.scenarios import SCENARIOS
 from e_agent.sdk.errors import KnownNoEffectError
@@ -163,6 +164,42 @@ def test_rule_inventory_lists_every_rule_with_an_engine() -> None:
     allowed = {"shacl-core", "shacl-sparql", "normalizer-derived", "policy", "verifier"}
     for rule in rules:
         assert rule["engine"] and set(rule["engine"]) <= allowed
+
+
+INVENTORY_FILES = (
+    "crm/rules/inventory.json",
+    "procurement/rules/amend-inventory.json",
+    "procurement/rules/inventory.json",
+    "receivables/rules/inventory.json",
+    "sales/rules/inventory.json",
+)
+
+
+def test_plugin_contributes_its_whole_rule_inventory() -> None:
+    """ADR 0009, ADR 0033 §4: the pack contributes every rule of every packaged inventory,
+    id to version, read from the one source the shapes use; the kernel checks a rationale
+    against it. The fixture checker declares its rules the same way, a subset of them."""
+    root = files("e_agent.plugins.erp.domain")
+    expected: dict[str, str] = {}
+    for path in INVENTORY_FILES:
+        for rule in json.loads(root.joinpath(path).read_text("utf-8"))["rules"]:
+            assert rule["id"] not in expected, rule["id"]  # unique across the pack (PR-09)
+            expected[rule["id"]] = str(rule["version"])
+    found = sorted(
+        f"{c.name}/rules/{p.name}"
+        for c in root.iterdir()
+        if c.joinpath("rules").is_dir()
+        for p in c.joinpath("rules").iterdir()
+        if p.name.endswith("inventory.json")
+    )
+    assert tuple(found) == INVENTORY_FILES
+    inventory = create_plugin(PluginServices(settings={})).rule_inventory
+    assert inventory == load_rule_inventory() == expected
+    assert len(inventory) == 20 and {"PR-002", "AM-001", "SQ-004", "CL-001", "AR-OVERDUE"} <= set(
+        inventory
+    )
+    assert dict(FixtureRuleValidator.rule_inventory).items() <= inventory.items()
+    assert set(FixtureRuleValidator.rule_inventory) == {f"PR-00{i}" for i in range(1, 6)}
 
 
 class _Reader:

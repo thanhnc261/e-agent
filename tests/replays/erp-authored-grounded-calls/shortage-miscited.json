@@ -1,0 +1,66 @@
+{
+  "provenance": "authored",
+  "kind": "authored-model-parts-fixture-replay",
+  "environment": "synthetic fixture ERP; replay is not live evidence",
+  "note": "Hand-authored in Task 3e.4 (2026-10-20); no model produced these parts. The first typed answer cites available stock 6 where the read returned 5 (a mismatched citation; the answer arguments are right). In on that is KERNEL-CITATION and the second answer cites 5; in shadow the verifier decides the first answer as today.",
+  "task": "shortage-miscited",
+  "prompt": "Calculate the shortage of product:widget-a for demand:d-001.",
+  "features": {
+    "grounded_answers": "on"
+  },
+  "pydantic_ai_version": "2.54.0",
+  "expected_contract": "procurement.shortage.answer.v1",
+  "expected_fixture_writes": 0,
+  "expected_reason_code": "answered",
+  "shadow_compared": true,
+  "responses": [
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "procurement_demand_read_v1",
+          "args": "{\"demand_ref\":\"demand:d-001\"}",
+          "tool_call_id": "authored-read-1",
+          "part_kind": "tool-call"
+        },
+        {
+          "tool_name": "inventory_availability_read_v1",
+          "args": "{\"product_ref\":\"product:widget-a\"}",
+          "tool_call_id": "authored-read-2",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "procurement_shortage_answer_v1",
+          "args": "{\"demand_ref\":\"demand:d-001\",\"product_ref\":\"product:widget-a\",\"demand_quantity\":\"12\",\"available\":\"5\",\"inbound\":\"0\",\"shortage\":\"7\",\"citations\":[{\"evidence_id\":\"<<evidence:authored-read-1>>\",\"pointer\":\"/quantity\",\"value\":\"12\"},{\"evidence_id\":\"<<evidence:authored-read-2>>\",\"pointer\":\"/available\",\"value\":\"6\"},{\"evidence_id\":\"<<evidence:authored-read-2>>\",\"pointer\":\"/inbound\",\"value\":\"0\"}]}",
+          "tool_call_id": "authored-answer-1",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "procurement_shortage_answer_v1",
+          "args": "{\"demand_ref\":\"demand:d-001\",\"product_ref\":\"product:widget-a\",\"demand_quantity\":\"12\",\"available\":\"5\",\"inbound\":\"0\",\"shortage\":\"7\",\"citations\":[{\"evidence_id\":\"<<evidence:authored-read-1>>\",\"pointer\":\"/quantity\",\"value\":\"12\"},{\"evidence_id\":\"<<evidence:authored-read-2>>\",\"pointer\":\"/available\",\"value\":\"5\"},{\"evidence_id\":\"<<evidence:authored-read-2>>\",\"pointer\":\"/inbound\",\"value\":\"0\"}]}",
+          "tool_call_id": "authored-answer-2",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "content": "The shortage for product:widget-a for demand:d-001 is 7 Units.",
+          "part_kind": "text"
+        }
+      ]
+    }
+  ]
+}

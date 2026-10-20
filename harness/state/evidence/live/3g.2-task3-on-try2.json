@@ -1,0 +1,213 @@
+{
+  "label": "task3 try2 draft PO context_assembler=on, --approve is the AGENT's approval under self_approval_allowed, not the owner's (live)",
+  "environment": "live",
+  "classification": "live:failed",
+  "run_id": "run_2cbd7b03590b43108e0ee976d5167add",
+  "task": "Draft a purchase order for any shortage from the approved supplier",
+  "state": "FAILED",
+  "reason_code": "verification_failed",
+  "reason": "no independently verified outcome",
+  "task_id": null,
+  "features": {
+    "execution_ir": "off",
+    "context_assembler": "on",
+    "kernel_repeat": "off",
+    "grounded_answers": "off"
+  },
+  "modes": {
+    "context_assembler": "on",
+    "kernel_repeat": "off",
+    "grounded_answers": "off"
+  },
+  "route": {
+    "data_boundary": "local",
+    "data_boundary_basis": "verified",
+    "data_processing_declared": false
+  },
+  "event_type_counts": {
+    "run.created": 1,
+    "run.state_changed": 2,
+    "context.assembled": 9,
+    "read.recorded": 6,
+    "proposal.created": 1,
+    "outcome.reported": 1,
+    "validation.completed": 3,
+    "run.terminal": 1
+  },
+  "actions": [
+    {
+      "action_id": "act_ea7f8e73951b489c95331509f6ff50f8",
+      "contract_id": "procurement.shortage.answer.v1",
+      "state": "VERIFICATION_FAILED",
+      "digest": "jcs-sha256-v1:bbb3c3419887be393d8435b602759cc35894722089909cefcfb19f3a1c13c2d9"
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "FAILED",
+      "action_id": "act_ea7f8e73951b489c95331509f6ff50f8"
+    }
+  ],
+  "approvals": [],
+  "receipts": [],
+  "rules_evaluated": [
+    "KERNEL-VERIFICATION@1"
+  ],
+  "context": [
+    {
+      "turn": 1,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:004b0435351523b2bbe335591bf5033d0e204c3d4d5193fb7c078773170685c2",
+      "drop_log": []
+    },
+    {
+      "turn": 2,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:786b7c3add96ed8739a28ebda31cefacbb583c86c70d5328a44ce25cd1ee2786",
+      "drop_log": []
+    },
+    {
+      "turn": 3,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:2bb2eea06d2685068cf7aa1d3d2bef027c25125c82919b74794f8d0fb7cdbb3c",
+      "drop_log": []
+    },
+    {
+      "turn": 4,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:a458b8e128f185051a7decbe6502b875be47f393b37902b45ab904eb0a3aef97",
+      "drop_log": []
+    },
+    {
+      "turn": 5,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:c154f7a168cabfe3023ffba32d04a0318e41ff74782db7d64a631d0b56bcb282",
+      "drop_log": [
+        {
+          "ref": "ev_126cbbd7d8c34e0295141f03496429d8",
+          "kind": "observation",
+          "reason": "cleared"
+        }
+      ]
+    },
+    {
+      "turn": 6,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:c4f321229e9d3f8b1c3b8d047082f810a0fff1cc348631db5115405ef566aab8",
+      "drop_log": [
+        {
+          "ref": "ev_126cbbd7d8c34e0295141f03496429d8",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_c32dabd140a341138479efeff4bd94fd",
+          "kind": "observation",
+          "reason": "cleared"
+        }
+      ]
+    },
+    {
+      "turn": 7,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:28f50f8624e8e10c7de545e68ce647ac2c5ec3624f41184bb748da4e276d39f9",
+      "drop_log": [
+        {
+          "ref": "ev_126cbbd7d8c34e0295141f03496429d8",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_c32dabd140a341138479efeff4bd94fd",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_560ed48edcdc421e941b83cf1e53d4ce",
+          "kind": "observation",
+          "reason": "cleared"
+        }
+      ]
+    },
+    {
+      "turn": 8,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:d9e9007bc3089ae4effce0331db622932f3cb0f45003907f26b815e7aa695c5d",
+      "drop_log": [
+        {
+          "ref": "ev_126cbbd7d8c34e0295141f03496429d8",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_c32dabd140a341138479efeff4bd94fd",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_560ed48edcdc421e941b83cf1e53d4ce",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_c864346c2882463cb34ec043a1680f38",
+          "kind": "observation",
+          "reason": "cleared"
+        }
+      ]
+    },
+    {
+      "turn": 9,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:8562b60e9476d84278816d10f0921e237439a45d84d15b3f2acc724d24defe4e",
+      "drop_log": [
+        {
+          "ref": "ev_126cbbd7d8c34e0295141f03496429d8",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_c32dabd140a341138479efeff4bd94fd",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_560ed48edcdc421e941b83cf1e53d4ce",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_c864346c2882463cb34ec043a1680f38",
+          "kind": "observation",
+          "reason": "cleared"
+        }
+      ]
+    }
+  ],
+  "grounded_answer": null,
+  "explanation_completeness": "known",
+  "counts_of_interest": {
+    "context.compared": 0,
+    "feature.fallback": 0,
+    "grounding.compared": 0,
+    "read.recorded": 6,
+    "answer.proposed": 0,
+    "verification.completed": 0
+  },
+  "terminal_payloads": [
+    {
+      "state": "FAILED",
+      "reason": "no independently verified outcome",
+      "reason_code": "verification_failed"
+    }
+  ]
+}

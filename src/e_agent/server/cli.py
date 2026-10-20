@@ -12,10 +12,10 @@ from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.run import RunState
 from e_agent.kernel.approval import ApprovalPresentation
 from e_agent.kernel.errors import KernelError
-from e_agent.kernel.evidence import build_evidence
+from e_agent.kernel.evidence import build_evidence, run_explanation
 from e_agent.sdk.discovery import discover
 from e_agent.sdk.ports import TaskPreset
-from e_agent.sdk.store import actor_scope
+from e_agent.sdk.store import NotFound, actor_scope
 
 from .bootstrap import build_runtime, open_store, settings_for_takers
 from .profile import DriverConfig, Profile, load_profile
@@ -122,6 +122,7 @@ async def _demo(args: argparse.Namespace) -> int:
             versions=rt.versions,
             features=profile.features,
             defaulted_declarations=rt.registry.report.defaulted_declarations,  # ADR 0029
+            route=rt.route_facts(),  # ADR 0030
         )
         _write_private(args.evidence_out, json.dumps(bundle, ensure_ascii=False, indent=2))
     await _close(rt.store)
@@ -207,6 +208,7 @@ async def _evidence(args: argparse.Namespace) -> int:
             versions=rt.versions,
             features=profile.features,
             defaulted_declarations=rt.registry.report.defaulted_declarations,  # ADR 0029
+            route=rt.route_facts(),  # ADR 0030
         )
     finally:
         await _close(rt.store)
@@ -215,6 +217,21 @@ async def _evidence(args: argparse.Namespace) -> int:
         _write_private(args.out, text)
     else:
         _print(text)
+    return 0
+
+
+async def _explain(args: argparse.Namespace) -> int:
+    """The run's explanation (ADR 0033 §6): read from the store as the operator, no model call."""
+    profile = load_profile(args.profile)
+    rt = await build_runtime(profile)
+    try:
+        explanation = await run_explanation(rt.store, rt.operator.tenant_id, args.run_id)
+    except NotFound:
+        sys.stderr.write(f"error NOT_FOUND: run {args.run_id} not found\n")
+        return 2
+    finally:
+        await _close(rt.store)
+    _print(json.dumps(explanation.model_dump(mode="json"), ensure_ascii=False, indent=2))
     return 0
 
 
@@ -283,6 +300,10 @@ def build_parser() -> argparse.ArgumentParser:
     ev = sub.add_parser("evidence", help="export the evidence bundle of a run (durable store)")
     ev.add_argument("run_id")
     ev.add_argument("--out", help="file to write (default: stdout)")
+    explain = sub.add_parser(
+        "explain", help="explain a run from its recorded events (durable store, no model call)"
+    )
+    explain.add_argument("run_id")
     sub.add_parser("plugins", help="list discovered plugins (metadata only)")
     sub.add_parser("migrate", help="apply ledger migrations for a postgres-store profile")
     secret = sub.add_parser("secret", help="manage local secrets (value read from stdin)")
@@ -312,6 +333,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "evidence":
             return asyncio.run(_evidence(args))
+        if args.command == "explain":
+            return asyncio.run(_explain(args))
         if args.command == "secret":
             return asyncio.run(_secret(args))
         return _plugins(args)

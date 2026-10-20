@@ -1,0 +1,60 @@
+{
+  "label": "task5 open-pos binding, execution_ir=on, grounded_answers=on, 'List the open demands and their shortage' (live)",
+  "environment": "live",
+  "classification": "live:failed",
+  "run_id": "run_d5f269c68c1c442d8d892ebcee170c9b",
+  "task": "List the open demands and their shortage",
+  "state": "FAILED",
+  "reason_code": "verification_failed",
+  "reason": "no independently verified outcome",
+  "task_id": "open-pos",
+  "features": {
+    "execution_ir": "on",
+    "context_assembler": "off",
+    "kernel_repeat": "off",
+    "grounded_answers": "on"
+  },
+  "modes": {
+    "context_assembler": "off",
+    "kernel_repeat": "off",
+    "grounded_answers": "on"
+  },
+  "route": {
+    "data_boundary": "local",
+    "data_boundary_basis": "verified",
+    "data_processing_declared": false
+  },
+  "event_type_counts": {
+    "run.created": 1,
+    "run.state_changed": 2,
+    "read.recorded": 6,
+    "validation.completed": 4,
+    "run.terminal": 1
+  },
+  "actions": [],
+  "outcomes": [],
+  "approvals": [],
+  "receipts": [],
+  "rules_evaluated": [
+    "KERNEL-CITATION@1",
+    "KERNEL-VERIFICATION@1"
+  ],
+  "context": null,
+  "grounded_answer": null,
+  "explanation_completeness": "known",
+  "counts_of_interest": {
+    "context.compared": 0,
+    "feature.fallback": 0,
+    "grounding.compared": 0,
+    "read.recorded": 6,
+    "answer.proposed": 0,
+    "verification.completed": 0
+  },
+  "terminal_payloads": [
+    {
+      "state": "FAILED",
+      "reason": "no independently verified outcome",
+      "reason_code": "verification_failed"
+    }
+  ]
+}

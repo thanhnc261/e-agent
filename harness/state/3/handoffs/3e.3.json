@@ -1,0 +1,30 @@
+{
+  "task": "3e.3",
+  "changed": "ProposalRationale (ADR 0033 §4) on ActionProposal and ActionPlan (omitted when None, outside the approval digest; stripped from what validators, policy and the approval digest see on both the proposal and plan paths, which also closes 3e.1's plan-step citation carry). New kernel/rationale.py: under grounded_answers, checked before _validate against this run's continuation evidence (ClassView when context_assembler is on) and the admitted rule inventory plus KERNEL-*; on -> KERNEL-RATIONALE repair within budget; shadow -> grounding.compared (one unified payload shape for answers, proposals and plans) on every path after the probe, including rejected plans and the verified-answer shortcut (closes 3e.1 R1-2); check failure -> feature.fallback GROUNDING_CHECK_FAILED before a reservation, GROUNDING_UNAVAILABLE after. Rule inventory seam: PluginContribution.rule_inventory (additive, unreleased sdk_api 1.2); the ERP pack reads its 20 rules from its packaged inventory files; the registry refuses a rule id declared by two plugins (PR-09). At rest: ids, codes and text digests only; texts only in the continuation (owner G2, PR-26). explain shows the stored rationale after the facts (Reconstructed.rationales side map) and a GROUNDED run's outcome as grounded_answer, never verified (3e.2 R1-6). _repair_finding gained an extra same-batch event list; _plan_approval moved unchanged to approval_flow.py. Commits 6414dca, 7bd8b77, 5cf3563; reviews harness/state/3/reviews/3e.3-codex.json (rework), 3e.3-codex-r2.json (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3e.3/2026-10-19T19-32-28.407633+00-00-full.json",
+    "harness/state/evidence/gates/3e.3/2026-10-19T19-33-54.135892+00-00-pg.json"
+  ],
+  "open_items": [
+    "Approval card reading the rationale text from the continuation (D10) needs presentation, server and UI work; carry to 3e.4 or later.",
+    "3e.4: the driver offers rationale; check that driver goal_ref values fit the record's id pattern; the shadow consumer reads the unified grounding.compared shape.",
+    "ADR 0033 §4 / ADR 0009 owner amendment: how the inventory reaches the kernel (PluginContribution.rule_inventory), and that the record refuses non-id-shaped goal_ref, evidence and rule ids.",
+    "FixtureRuleValidator declares PR-001..PR-005 as a class attribute (tested as a subset of the pack inventory); it is not in any plugin contribution.",
+    "Boundary incident: during the first fix round an implementer grep printed two artifact_sha256 digest lines (no secrets) from profiles/live-odoo19-learning.local.json; the file was not opened. Later dispatches exclude *.local.json from every grep."
+  ],
+  "rulings": [
+    {
+      "ruling": "The interim (post-validation check, known rules = this validation's findings) was rejected; built the rule inventory seam so the check runs before _validate as ADR 0033 §4 says.",
+      "cost_if_wrong": "the seam's shape changes in an ADR amendment"
+    },
+    {
+      "ruling": "The inventory reaches the kernel through a plugin contribution field, not the manifest, to keep one inventory (PR-33).",
+      "cost_if_wrong": "a manifest field later"
+    },
+    {
+      "ruling": "Shadow events on rejection paths are written in the same batch as the rejection (ir_on.py and verification.py were added to the scope).",
+      "cost_if_wrong": "none on off; shadow only"
+    }
+  ],
+  "outside_repo": []
+}

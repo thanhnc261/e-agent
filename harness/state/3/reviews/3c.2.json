@@ -1,0 +1,52 @@
+{
+  "task": "3c.2",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "C3-20",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "ADR 0031 Consequences said the unavailable-verifier outcome.reported stays as it is, while the \u00a73 table adds action_state null; ADR wording fixed.",
+      "evidence": "docs/adr/0031-progress-ledger-and-reconstruction.md:120; src/e_agent/kernel/verification.py:94"
+    },
+    {
+      "id": "C3-21",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The D7 projection compares what the frozen Phase 2 golden format records (types, key sets, states, digest), not every payload value byte for byte.",
+      "evidence": "tests/unit/kernel/test_off_projection.py:97-106"
+    },
+    {
+      "id": "C3-22",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "No reconstruction scenario for the DuplicateOperation block branch or for startup recovery blocking several actions.",
+      "evidence": "src/e_agent/kernel/dispatch.py:186; src/e_agent/kernel/recovery.py:236; tests/conformance/test_reconstruction.py:189-223"
+    },
+    {
+      "id": "C3-23",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Neither golden run asks for input, so the accept_input remap in phase2_projection is not exercised; the ERP mutation test has 1 case to the kernel's 5.",
+      "evidence": "tests/unit/kernel/record_off_baseline.py:204-224"
+    },
+    {
+      "id": "C3-24",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "plan_flow.py 496, ir_on.py 490, proposals.py 488 lines: little headroom under the ceiling for 3c.3/3d.6.",
+      "evidence": "src/e_agent/kernel/plan_flow.py"
+    },
+    {
+      "id": "C3-25",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Confirmed: exactly the \u00a73 keys, additive, no control-flow change, \u00a72 table followed, the only strict reader uses without_reconstruction_keys, Phase 2 goldens byte-identical.",
+      "evidence": "tests/conformance/test_reconstruction.py; harness/state/evidence/gates/3c.2/2026-10-19T10-52-42.293752+00-00-pg.json"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

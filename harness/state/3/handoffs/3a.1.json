@@ -1,0 +1,27 @@
+{
+  "task": "3a.1",
+  "changed": "ADRs 0031 (progress ledger, KERNEL-REPEAT, reconstruction with additive event keys and the frozen-golden refinement of ADR 0027), 0032 (ContextAssembler: layers, budgets, drop log, clearing, fencing with JSON unicode escapes, class-per-route masking of observations and finding/read-error text, rendering, per-run pinning, route check, nine reason codes) and 0033 (citations, ProposalRationale, grounded.answer.v1 with admission rules and AcceptanceSpec.grounded_answer refining ADR 0028, explanation projection) written as Proposed. ADR 0030 amended (loopback rule, verified/declared/default basis, data_classes beside the schema). ADR index, target sections and section 17 rows, principles check pointers and threat-model test pointers updated. Docs only; nothing implemented. Review record: harness/state/3/reviews/3a.1.json (A-1 to A-12, all fixed).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3a.1/2026-10-19T06-14-03.678464+00-00-full.json"
+  ],
+  "open_items": [
+    "G2 (Task 3a.2): the owner accepts or amends ADRs 0030 (Phase 3 parts), 0031, 0032 and 0033 and answers the open questions in .superpowers/sdd/2026-10-19-phase3-cognition-context/task-3a.1-report.md.",
+    "The G2 commit amends the plan: D5/3e.2 admission and tests, GroundingOffer in 3e.4, RenderedObservation.masked in 3d.1, context.failed and contracts/events.py in 3b.2, the default basis in 3b.1, the new 3d.2 masking tests, nine reason codes and KERNEL-GROUNDED-ANSWER, the rationale-text exception to the ids-only payload constraint, and the live-check generic-answer item (needs a read-only ERP task definition with grounded_answer true).",
+    "Restore errors other than the rendering mismatch keep today's uncaught ValueError: a named follow-up."
+  ],
+  "rulings": [
+    {
+      "ruling": "ADR 0033 offers grounded.answer.v1 only to runs pinned on, never beside a typed answer contract, and on bound runs only when the definition admits it (review A-1).",
+      "cost_if_wrong": "A narrower generic answer than D5 stated; widening later is additive."
+    },
+    {
+      "ruling": "On routes that are neither local nor declared, finding expected/observed, read-error text and non-KERNEL finding messages are masked or rendered from the rule inventory (review A-2, A-10).",
+      "cost_if_wrong": "Less repair detail for the model on hosted routes; no committed profile uses one."
+    },
+    {
+      "ruling": "The 2d.2 contract was replaced with --replace: its post-evidence changes were Phase 3 planning edits after the merge.",
+      "cost_if_wrong": "None; 2d.2 was merged with live evidence in PR #6."
+    }
+  ],
+  "outside_repo": []
+}

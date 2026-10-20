@@ -1,6 +1,8 @@
 """Off mode is exactly today's behaviour: the notes-domain golden recorded before Phase 2.
 
-ADR 0027. The ERP draft-po golden is asserted by the simulator plugin's tests
+ADR 0027. Since Task 3c.2 the current stream is compared through its projection onto the
+Phase 2 keys (ADR 0031 §4, plan D7); the v3 golden is asserted in ``test_off_projection.py``.
+The ERP draft-po golden is asserted by the simulator plugin's tests
 (``tests/unit/plugins/erp/simulator/test_off_baseline_erp.py``).
 """
 
@@ -10,7 +12,7 @@ import json
 
 import pytest
 
-from .record_off_baseline import GOLDEN, RUNS, assert_matches, record_baseline
+from .record_off_baseline import GOLDEN, RUNS, assert_matches, phase2_projection, record_baseline
 
 
 def _golden() -> dict:  # type: ignore[type-arg]
@@ -20,7 +22,7 @@ def _golden() -> dict:  # type: ignore[type-arg]
 async def test_off_mode_event_stream_matches_baseline() -> None:
     golden = _golden()
     assert tuple(golden) == RUNS
-    assert assert_matches(golden, await record_baseline()) == len(RUNS)
+    assert assert_matches(golden, phase2_projection(await record_baseline())) == len(RUNS)
 
 
 def test_off_baseline_fails_on_empty_golden() -> None:

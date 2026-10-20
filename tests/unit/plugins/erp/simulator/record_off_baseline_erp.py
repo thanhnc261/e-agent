@@ -17,8 +17,14 @@ for the run, so the digest input (``logical_operation_id``, evidence ids) is
 stable. The fixture profile's in-memory store keeps the counter stable too.
 Generated ids are then normalised to ``<prefix>#<ordinal of first appearance>``.
 
+Task 3c.2 (ADR 0031 §4, plan D7) adds payload keys reconstruction needs. The Phase 2
+golden stays frozen and is compared through the projection of the current stream onto its
+keys (`phase2_projection`); the current stream is recorded beside it as
+``off_mode_events_erp_v3.json``.
+
 Re-record only for a change the plan names:
-``uv run python tests/unit/plugins/erp/simulator/record_off_baseline_erp.py``.
+``uv run python tests/unit/plugins/erp/simulator/record_off_baseline_erp.py``. It writes the
+v3 golden only; the Phase 2 golden is never re-recorded.
 """
 
 from __future__ import annotations
@@ -37,12 +43,15 @@ from unittest import mock
 from e_agent.contracts import common
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.events import RunEventType
+from e_agent.kernel.reconstruct import without_reconstruction_keys
 from e_agent.plugins.erp.simulator import fixture_profile_path
 from e_agent.server.bootstrap import build_runtime
 from e_agent.server.cli import demo_prompt
 from e_agent.server.profile import load_profile
 
 GOLDEN = Path(__file__).parent / "golden" / "off_mode_events_erp.json"
+"""The Phase 2 golden: frozen (ADR 0031 §4)."""
+GOLDEN_V3 = Path(__file__).parent / "golden" / "off_mode_events_erp_v3.json"
 RUNS = ("erp-draft-po",)
 _ID = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*?)_([0-9a-f]{32})\b")
 
@@ -131,11 +140,39 @@ def assert_matches(golden: dict[str, Any], actual: dict[str, Any]) -> int:
     return len(cases)
 
 
+def phase2_keys(event_type: str, keys: list[str]) -> list[str]:
+    """An event's payload keys without the ones ADR 0031 §3 adds."""
+    return list(without_reconstruction_keys(event_type, dict.fromkeys(keys)))
+
+
+def phase2_projection(baseline: dict[str, Any]) -> dict[str, Any]:
+    """``baseline`` (current runs) projected onto the Phase 2 golden's keys (plan D7): each
+    event's §3 keys dropped, and an ``accept_input`` transition shown as Phase 2 recorded it
+    (its event had no ``to``). Nothing else changes."""
+    projected = {}
+    for name, run in baseline.items():
+        transitions, index = list(run["run_transitions"]), 0
+        for event_type, keys in zip(run["event_types"], run["payload_keys"], strict=True):
+            if event_type == RunEventType.RUN_STATE_CHANGED:
+                if "state" in keys:
+                    transitions[index] = "None"
+                index += 1
+        projected[name] = {
+            **run,
+            "payload_keys": [
+                phase2_keys(t, k)
+                for t, k in zip(run["event_types"], run["payload_keys"], strict=True)
+            ],
+            "run_transitions": transitions,
+        }
+    return projected
+
+
 def main() -> None:
     baseline = asyncio.run(record_baseline())
-    GOLDEN.parent.mkdir(exist_ok=True)
-    GOLDEN.write_text(json.dumps(baseline, indent=2, ensure_ascii=False) + "\n", "utf-8")
-    print(f"wrote {GOLDEN} ({len(baseline)} runs)")
+    GOLDEN_V3.parent.mkdir(exist_ok=True)
+    GOLDEN_V3.write_text(json.dumps(baseline, indent=2, ensure_ascii=False) + "\n", "utf-8")
+    print(f"wrote {GOLDEN_V3} ({len(baseline)} runs)")
 
 
 if __name__ == "__main__":

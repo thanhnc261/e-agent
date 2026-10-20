@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { EVIDENCE_SCHEMA, selectEvidence } from "../src/selectors/evidence.ts";
+import { translate } from "../src/i18n.ts";
 import { hasResult, selectOutcome } from "../src/selectors/outcome.ts";
 import {
   emptyRunView,
@@ -122,6 +123,24 @@ describe("outcome projection", () => {
     expect(selectOutcome(viewWith("RUNNING")).status).toBe("none");
     expect(hasResult("RUNNING")).toBe(false);
     expect(hasResult("NEEDS_RECONCILIATION")).toBe(true);
+  });
+
+  it("never reports a grounded run as verified (PR-19, ADR 0033)", () => {
+    const view = viewWith("SUCCEEDED");
+    const grounded = { ...view, run: { ...view.run!, reason_code: "grounded" as const } };
+    const outcome = selectOutcome(grounded);
+    expect(outcome.status).toBe("grounded");
+    expect(outcome.status).not.toBe("verified");
+    expect(outcome.reasonCode).toBe("grounded");
+    expect(outcome.labelKey).toBe("status.SUCCEEDED.grounded");
+    expect(translate("en", outcome.labelKey)).toBe("Completed · grounded, not verified");
+    expect(translate("vi", outcome.labelKey)).not.toBe(translate("vi", "status.SUCCEEDED"));
+    const verified = { ...view, run: { ...view.run!, reason_code: "verified" as const } };
+    expect(selectOutcome(verified).status).toBe("verified");
+    expect(selectOutcome(verified).labelKey).toBe("status.SUCCEEDED");
+    const failed = viewWith("FAILED");
+    const failedGrounded = { ...failed, run: { ...failed.run!, reason_code: "grounded" as const } };
+    expect(selectOutcome(failedGrounded).status).toBe("failed");
   });
 
   it("keeps an unresolved effect unresolved and never verified", () => {

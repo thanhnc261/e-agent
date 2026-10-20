@@ -614,3 +614,178 @@
 - changed: harness/state/2/features.json, harness/state/2/handoffs/2d.2.json, harness/state/evidence/gates/2d.2/2026-10-19T00-22-45.359971+00-00-live.json
 - next: merge PR #6 on the owner's ok once CI is green
 - open: none
+
+## 2026-10-19T05:00:22.055911+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 2d.2
+- changed: no working-tree changes
+- next: draft-po with off, shadow and on and a read-only task with on behave as the plan's Live check says
+- open: none
+
+## 2026-10-19T06:15:29.950710+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3a.1
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3a.1.json, harness/state/evidence/gates/3a.1/2026-10-19T06-14-03.678464+00-00-full.json
+- next: G2: owner accepts ADRs 0030 (Phase 3 parts), 0031-0033 and answers the open questions (Task 3a.2)
+- open: none
+
+## 2026-10-19T06:39:30.722431+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3a.2
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3a.2.json, harness/state/evidence/gates/3a.2/2026-10-19T06-38-02.537797+00-00-full.json
+- next: Task 3b.1: route data boundary and the startup rule
+- open: none
+
+## 2026-10-19T06:42:26.907824+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3a.2
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3a.2.json, harness/state/evidence/gates/3a.2/2026-10-19T06-40-56.681089+00-00-full.json
+- next: Task 3b.1: route data boundary and the startup rule
+- open: none
+
+## 2026-10-19T06:55:44.407792+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3b.1
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3b.1.json, harness/state/evidence/gates/3b.1/2026-10-19T06-54-11.575839+00-00-full.json
+- next: Task 3b.2: Phase 3 toggles, per-run pinning, ERP off golden
+- open: none
+
+## 2026-10-19T07:32:06.563304+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3b.2
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3b.2.json, harness/state/3/reviews/3b.2-codex.json, harness/state/3/reviews/3b.2.json, harness/state/evidence/gates/3b.2/2026-10-19T07-24-17.308812+00-00-full.json, harness/state/evidence/gates/3b.2/2026-10-19T07-25-31.463028+00-00-pg.json
+- next: Task 3b.3: data classes on capability declarations and stored records
+- open: none
+
+## 2026-10-19T09:06:38.705060+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3b.3
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3b.3.json, harness/state/evidence/gates/3b.3/2026-10-19T09-04-04.754935+00-00-full.json, harness/state/evidence/gates/3b.3/2026-10-19T09-05-19.128354+00-00-pg.json
+- next: Task 3c.1: progress ledger projection
+- open: none
+
+## 2026-10-19T09:58:00.547034+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3c.1
+- changed: harness/state/evidence/gates/3c.1/2026-10-19T09-53-46.705196+00-00-full.json, harness/state/evidence/gates/3c.1/2026-10-19T09-55-02.448910+00-00-pg.json
+- next: test_progress.py passes on both stores, including plain-text repair turns and no model text
+- open: none
+
+## 2026-10-19T10:13:39.734387+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3c.1
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3c.1.json, harness/state/evidence/gates/3c.1/2026-10-19T10-10-27.334721+00-00-full.json, harness/state/evidence/gates/3c.1/2026-10-19T10-11-40.007001+00-00-pg.json
+- next: Task 3c.2: reconstruction from run_events (frozen Phase 2 goldens and v3 goldens)
+- open: none
+
+## 2026-10-19T11:03:57.579527+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3c.2
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3c.2.json, harness/state/evidence/gates/3c.2/2026-10-19T11-01-21.261572+00-00-full.json, harness/state/evidence/gates/3c.2/2026-10-19T11-02-36.256377+00-00-pg.json
+- next: Task 3c.3
+- open: none
+
+## 2026-10-19T11:33:52.710090+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3c.3
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3c.3.json, harness/state/3/reviews/3c.3-r1.json, harness/state/evidence/gates/3c.3/2026-10-19T11-30-58.328566+00-00-full.json, harness/state/evidence/gates/3c.3/2026-10-19T11-32-16.737329+00-00-pg.json
+- next: Task 3d.1
+- open: none
+
+## 2026-10-19T11:47:29.030124+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3d.1
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3d.1.json, harness/state/3/reviews/3d.1-r1.json, harness/state/evidence/gates/3d.1/2026-10-19T11-44-51.560745+00-00-full.json, harness/state/evidence/gates/3d.1/2026-10-19T11-46-08.930054+00-00-pg.json
+- next: Task 3d.2
+- open: none
+
+## 2026-10-19T12:40:48.071949+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3d.2
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3d.2.json, harness/state/evidence/gates/3d.2/2026-10-19T12-38-04.517673+00-00-full.json, harness/state/evidence/gates/3d.2/2026-10-19T12-39-25.461177+00-00-pg.json
+- next: Task 3d.3
+- open: none
+
+## 2026-10-19T13:23:55.768930+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3d.3
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3d.3.json, harness/state/3/reviews/3d.3-r1.json, harness/state/evidence/gates/3d.3/2026-10-19T13-21-08.686134+00-00-full.json, harness/state/evidence/gates/3d.3/2026-10-19T13-22-27.967105+00-00-pg.json
+- next: Task 3d.4
+- open: none
+
+## 2026-10-19T13:56:13.724811+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3d.4
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3d.4.json, harness/state/evidence/gates/3d.4/2026-10-19T13-53-18.939382+00-00-full.json, harness/state/evidence/gates/3d.4/2026-10-19T13-54-37.104543+00-00-pg.json
+- next: Task 3d.5
+- open: none
+
+## 2026-10-19T14:45:48.710508+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3d.5
+- changed: harness/state/3/reviews/3d.5-codex.json, harness/state/3/tasks/3d.5.json, harness/state/evidence/gates/3d.5/2026-10-19T14-29-45.988516+00-00-full.json, harness/state/evidence/gates/3d.5/2026-10-19T14-31-08.978769+00-00-pg.json
+- next: fallback only before a reservation on a local or declared route; terminal code otherwise
+- open: none
+
+## 2026-10-19T16:06:34.302073+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3d.5
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3d.5.json, harness/state/3/reviews/3d.5-r2.json, harness/state/evidence/gates/3d.5/2026-10-19T16-01-25.715092+00-00-full.json, harness/state/evidence/gates/3d.5/2026-10-19T16-02-47.593053+00-00-pg.json
+- next: Task 3d.6
+- open: none
+
+## 2026-10-19T16:15:01.699842+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3d.6
+- changed: no working-tree changes
+- next: repeat tests pass on both stores, including a changed revision and the post-reservation path
+- open: none
+
+## 2026-10-19T16:42:29.711330+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3d.6
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3d.6.json, harness/state/evidence/gates/3d.6/2026-10-19T16-39-15.108026+00-00-full.json, harness/state/evidence/gates/3d.6/2026-10-19T16-40-33.650576+00-00-pg.json
+- next: Task 3e.1
+- open: none
+
+## 2026-10-19T17:37:09.526526+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3e.1
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3e.1.json, harness/state/evidence/gates/3e.1/2026-10-19T17-32-33.749841+00-00-full.json, harness/state/evidence/gates/3e.1/2026-10-19T17-33-55.130111+00-00-pg.json
+- next: Task 3e.2
+- open: none
+
+## 2026-10-19T18:31:41.373639+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3e.2
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3e.2.json, harness/state/evidence/gates/3e.2/2026-10-19T18-28-16.825817+00-00-full.json, harness/state/evidence/gates/3e.2/2026-10-19T18-29-35.686952+00-00-pg.json
+- next: Task 3e.3
+- open: none
+
+## 2026-10-19T19:24:37.174841+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3e.3
+- changed: src/e_agent/kernel/continuation.py, src/e_agent/kernel/ir_on.py, src/e_agent/kernel/verification.py, tests/unit/kernel/test_rationale.py
+- next: rationale tests pass on both stores; approval digest unchanged by rationale
+- open: none
+
+## 2026-10-19T19:35:53.983092+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3e.3
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3e.3.json, harness/state/3/reviews/3e.3-codex-r2.json, harness/state/evidence/gates/3e.3/2026-10-19T19-32-28.407633+00-00-full.json, harness/state/evidence/gates/3e.3/2026-10-19T19-33-54.135892+00-00-pg.json
+- next: Task 3e.4
+- open: none
+
+## 2026-10-19T20:31:03.600270+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3e.4
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3e.4.json, harness/state/evidence/gates/3e.4/2026-10-19T20-26-30.824243+00-00-full.json, harness/state/evidence/gates/3e.4/2026-10-19T20-27-52.262623+00-00-pg.json
+- next: Task 3f.1
+- open: none
+
+## 2026-10-19T21:21:01.197939+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3f.1
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3f.1.json, harness/state/evidence/gates/3f.1/2026-10-19T21-17-39.359886+00-00-full.json, harness/state/evidence/gates/3f.1/2026-10-19T21-19-03.122102+00-00-pg.json
+- next: Task 3f.2
+- open: none
+
+## 2026-10-19T22:14:16.016382+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3f.2
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3f.2.json, harness/state/3/reviews/3f.2-r3.json, harness/state/evidence/gates/3f.2/2026-10-19T22-08-00.049288+00-00-full.json, harness/state/evidence/gates/3f.2/2026-10-19T22-09-32.265668+00-00-pg.json
+- next: Task 3g.1
+- open: none
+
+## 2026-10-19T22:23:54.165036+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3g.1
+- changed: harness/state/3/reviews/3g.1-phase.json
+- next: levels 1-3 recorded on a clean tree
+- open: none
+
+## 2026-10-19T23:12:46.429666+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3.R1
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3.R1.json, harness/state/evidence/gates/3.R1/2026-10-19T23-09-31.685102+00-00-full.json, harness/state/evidence/gates/3.R1/2026-10-19T23-10-57.459998+00-00-pg.json
+- next: Task 3g.1: re-create contract, levels 1-3, README/roadmap/handoff
+- open: none
+
+## 2026-10-19T23:33:14.206635+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3g.1
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3g.1.json, harness/state/evidence/gates/3g.1/2026-10-19T23-29-52.045979+00-00-full.json, harness/state/evidence/gates/3g.1/2026-10-19T23-31-16.885217+00-00-pg.json
+- next: Owner: decide ADR amendments and pending decisions; Codex final check after 2026-10-25; 3g.2 live check on instruction; then PR
+- open: none
+
+## 2026-10-20T01:38:18.242543+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3.D1
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3.D1.json, harness/state/evidence/gates/3.D1/2026-10-20T01-36-35.424236+00-00-full.json
+- next: Owner: (c) open-pos Read/Reword, (d) rule_bundle_version Add/Skip; Codex final check after 2026-10-25; 3g.2 on instruction
+- open: none
+
+## 2026-10-20T03:43:17.590529+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3.D2
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3.D2.json, harness/state/evidence/gates/3.D2/2026-10-20T03-41-33.144041+00-00-full.json
+- next: Codex final check after 2026-10-25; 3g.2 live check on owner instruction (re-pin domain-erp first); then PR
+- open: none
+
+## 2026-10-20T09:01:27.115305+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3.R2
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3.R2.json, harness/state/evidence/gates/3.R2/2026-10-20T08-58-05.537660+00-00-full.json, harness/state/evidence/gates/3.R2/2026-10-20T08-59-33.395417+00-00-pg.json
+- next: Re-create 3g.2; live check waits on owner sandbox env + domain-erp re-pin
+- open: none
+
+## 2026-10-20T11:19:50.903924+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3g.2
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3g.2.json, harness/state/evidence/gates/3g.2/2026-10-20T11-17-45.010958+00-00-full.json
+- next: Owner: accept ADR 0033 §3 amendment; then push branch and open PR for Phase 3 on instruction
+- open: none
+
+## 2026-10-20T12:21:26.624403+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3.D3
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3.D3.json, harness/state/evidence/gates/3.D3/2026-10-20T12-19-43.975717+00-00-full.json
+- next: Push phase3/cognition-context and open PR to main; owner merges; then Phase 4 plan
+- open: none
+
+## 2026-10-20T12:30:08.485599+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3.R3
+- changed: harness/state/3/features.json, harness/state/3/handoffs/3.R3.json, harness/state/evidence/gates/3.R3/2026-10-20T12-28-32.878734+00-00-full.json
+- next: CI green on PR #7; owner merges; then Phase 4 plan
+- open: none

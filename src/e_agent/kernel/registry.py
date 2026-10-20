@@ -10,12 +10,12 @@ import hashlib
 import importlib
 import re
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from e_agent.contracts import data_classes as dc
 from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor, EffectKind
 from e_agent.contracts.context import Budgets
-from e_agent.contracts.task import TaskDefinition, check_answer_condition
+from e_agent.contracts.task import GROUNDED_ANSWER, TaskDefinition, check_answer_condition
 from e_agent.sdk import SDK_API_VERSION
 from e_agent.sdk.connection import ConnectionSpec
 from e_agent.sdk.discovery import DiscoveredPlugin, DiscoveryError, artifact_digest
@@ -34,43 +34,19 @@ from e_agent.sdk.ports import (
 from e_agent.sdk.validation import ValidationDatasetBuilder
 from pydantic import ValidationError
 
+from .context import KERNEL_RULE_PREFIX
 from .errors import ErrorCode, KernelError
+from .registry_records import AdmissionReport, DefaultedDeclaration, EnabledPlugin
 
-
-@dataclass(frozen=True)
-class EnabledPlugin:
-    version: str
-    manifest_sha256: str | None = None
-    settings: Mapping[str, Any] = field(default_factory=dict)
-    artifact_sha256: str | None = None
-    allow_unverified_fixture: bool = False
-
-
-@dataclass(frozen=True)
-class DefaultedDeclaration:
-    """A write capability or connected write binding that relies on a default effect
-    field (ADR 0029). A fixture profile admits it and lists it here; a live profile
-    refuses it."""
-
-    plugin_id: str
-    subject: Literal["capability", "binding"]
-    subject_id: str
-    """The contract id of a capability, or the binding id of a binding."""
-    fields: tuple[str, ...]
-
-
-@dataclass
-class AdmissionReport:
-    admitted: list[str] = field(default_factory=list)
-    skipped: list[str] = field(default_factory=list)
-    defaulted_declarations: list[DefaultedDeclaration] = field(default_factory=list)
-    """Effect declarations admitted on their defaults (fixture profiles only)."""
+__all__ = ["AdmissionReport", "DefaultedDeclaration", "EnabledPlugin", "PluginRegistry"]
 
 
 def _reject(message: str) -> KernelError:
     return KernelError(ErrorCode.STARTUP_REJECTED, message)
 
 
+GROUNDED_WRITE = "grounded_answer needs a task that cannot write (no write, no admitted write)"
+_CANNOT_WRITE = frozenset({EffectKind.READ, EffectKind.ANSWER})
 _CAPABILITY_EFFECT_FIELDS = frozenset({"risk", "reversibility"})
 _BINDING_EFFECT_FIELDS = frozenset({"idempotency"})
 
@@ -99,6 +75,7 @@ class PluginRegistry:
         may only narrow ``budgets`` (ADR 0028, D7). Bootstrap passes both."""
         self._binding_connections = {k: tuple(v) for k, v in binding_connections.items()}
         self.environment = environment
+        self._classes: dict[str, Mapping[str, dc.DataClass]] = {}  # frozen at admission
         self.budgets = budgets if budgets is not None else Budgets()
         self.capabilities: dict[str, CapabilityDescriptor] = {}
         self.bindings: list[CapabilityBinding] = []
@@ -109,6 +86,8 @@ class PluginRegistry:
         self.drivers: list[AgentDriver] = []
         self.dataset_builders: list[ValidationDatasetBuilder] = []
         self.input_schemas: dict[str, Mapping[str, Any]] = {}
+        self.output_schemas: dict[str, Mapping[str, Any]] = {}
+        """For class pointers only (ADR 0030): never model-facing, not in the surface digest."""
         self.agent_guidance: list[str] = []
         self.task_presets: dict[str, TaskPreset] = {}
         self.task_definitions: dict[str, TaskDefinition] = {}
@@ -126,6 +105,9 @@ class PluginRegistry:
         self.plugin_executors: dict[str, tuple[ActionExecutor, ...]] = {}
         self.diagnostics: dict[str, Callable[[], Mapping[str, Any]]] = {}
         """Admitted plugins' diagnostics hooks, by plugin id (fixture runs and tests)."""
+        self.rule_inventory: dict[str, str] = {}
+        """The admitted rule inventory (ADR 0009): every admitted plugin's rule ids, to their
+        versions. A rationale's rule ids are checked against it (ADR 0033 §4)."""
 
     def surface_digest(self) -> str:
         """Digest of the tool surface a run is planned against (threat model T17):
@@ -255,6 +237,8 @@ class PluginRegistry:
         declared = set(declared_capabilities)
         if set(contribution.capabilities) != declared:
             raise _reject(f"{plugin_id}: registered capabilities differ from manifest")
+        if any(cap.contract_id == GROUNDED_ANSWER for cap in declared):  # PR-09, ADR 0033 §3
+            raise _reject(f"{plugin_id}: {GROUNDED_ANSWER} is the kernel's own answer contract")
         self._stage_task_definitions(plugin_id, tuple(declared_task_definitions), contribution)
         for cap in sorted(declared, key=lambda c: c.contract_id):
             existing = self.capabilities.get(cap.contract_id)
@@ -265,6 +249,7 @@ class PluginRegistry:
                     plugin_id, "capability", cap.contract_id, cap, _CAPABILITY_EFFECT_FIELDS
                 )
             self.capabilities[cap.contract_id] = cap
+            self._classes[cap.contract_id] = dc.frozen_classes(cap.data_classes)
         for template in binding_templates:
             if template.binding_id in self._binding_owner:
                 raise _reject(f"duplicate binding id {template.binding_id!r}")
@@ -314,6 +299,15 @@ class PluginRegistry:
             if schema_id in self.input_schemas and self.input_schemas[schema_id] != schema:
                 raise _reject(f"conflicting schema definitions for {schema_id}")
             self.input_schemas[schema_id] = schema
+        for schema_id, schema in contribution.output_schemas.items():
+            if schema_id in self.output_schemas and self.output_schemas[schema_id] != schema:
+                raise _reject(f"conflicting schema definitions for {schema_id}")
+            self.output_schemas[schema_id] = schema
+        for cap in sorted(declared, key=lambda c: c.contract_id):  # ADR 0030 class paths
+            try:
+                dc.check_declarations(self.schema_document(cap.contract_id), cap.data_classes)
+            except ValueError as exc:
+                raise _reject(f"{plugin_id}: {cap.contract_id} {exc}") from None
         if contribution.agent_guidance:
             self.agent_guidance.append(contribution.agent_guidance)
         for preset in contribution.task_presets:
@@ -324,6 +318,12 @@ class PluginRegistry:
             if kind in self.driver_factories:
                 raise _reject(f"driver kind {kind!r} contributed by two plugins")
             self.driver_factories[kind] = factory
+        for rule_id in contribution.rule_inventory:  # PR-09: one owner per rule id
+            if rule_id.startswith(KERNEL_RULE_PREFIX):
+                raise _reject(f"{plugin_id}: rule id {rule_id!r} is a kernel finding id")
+            if rule_id in self.rule_inventory:
+                raise _reject(f"{plugin_id}: rule id {rule_id!r} is declared twice")
+        self.rule_inventory.update(contribution.rule_inventory)
         self._staged_tasks.extend(contribution.task_definitions)
         for task in contribution.task_definitions:
             self._task_owner[task.task_id] = plugin_id
@@ -351,6 +351,37 @@ class PluginRegistry:
             DefaultedDeclaration(plugin_id, subject, subject_id, defaulted)
         )
 
+    # -- data classes (ADR 0030) -------------------------------------------------
+    def schema_document(self, contract_id: str) -> dict[str, Mapping[str, Any]]:
+        """The registered schemas of a capability, as ``{"input": ..., "output": ...}``."""
+        cap = self.descriptor(contract_id)
+        return dc.schema_document(
+            self.input_schemas.get(cap.input_schema_id),
+            self.output_schemas.get(cap.output_schema_id),
+        )
+
+    def data_class(self, contract_id: str, instance_path: str) -> dc.DataClass:
+        """The most restrictive class declared on the path or an ancestor, ``personal``
+        when none; string work, no schema walk."""
+        return dc.class_for(self.data_classes(contract_id), instance_path)
+
+    def data_classes(self, contract_id: str) -> Mapping[str, dc.DataClass]:
+        """The capability's declarations as admitted (a frozen copy, review C3-14): the
+        lookup the context assembler classes observation values with (Task 3d.2)."""
+        return self._classes[self.descriptor(contract_id).contract_id]
+
+    def unmarked_properties(self) -> dict[str, dict[str, int | None]]:
+        """Unmarked leaves per capability and side; None: no schema, or an unsupported one."""
+        caps = sorted(self.capabilities.items())
+        return {
+            cid: dc.unmarked_counts(self.schema_document(cid), c.data_classes) for cid, c in caps
+        }
+
+    def unsupported_schemas(self) -> dict[str, dict[str, str]]:
+        """Sides whose schema leaves the data-class subset (every value there is personal)."""
+        found = {cid: dc.unsupported_sides(self.schema_document(cid)) for cid in self.capabilities}
+        return {cid: sides for cid, sides in sorted(found.items()) if sides}
+
     # -- task definitions (ADR 0028) ----------------------------------------------
     def _stage_task_definitions(
         self,
@@ -375,6 +406,10 @@ class PluginRegistry:
                 check_answer_condition(task.acceptance)
             except ValueError as exc:
                 raise _reject(f"{plugin_id}: task {task.task_id!r}: {exc}") from None
+            own = task.budgets.model_dump(exclude_unset=True) if task.budgets else {}
+            writes = own.get("max_admitted_writes", self.budgets.max_admitted_writes)
+            if task.acceptance.grounded_answer and writes > 0:  # final check FA-1
+                raise _reject(f"{plugin_id}: task {task.task_id!r}: {GROUNDED_WRITE}")
 
     def _check_task_budgets(self, plugin_id: str, task: TaskDefinition) -> None:
         """A definition's budgets only narrow the profile's (D7). ``Budgets`` has
@@ -399,7 +434,8 @@ class PluginRegistry:
         has no provider binding: it verifies through the run's read connection, as in
         the run's tool set. The composition root calls this once every plugin is
         admitted and its connection checks pass; until then a staged definition is
-        not in ``task_definitions``, so no run can resolve it.
+        not in ``task_definitions``, so no run can resolve it. A ``grounded_answer``
+        definition names no write, checked here once every capability is known (FA-1).
         """
         bound = {b.contract_id for b in self.bindings}
         for task in self._staged_tasks:
@@ -415,6 +451,8 @@ class PluginRegistry:
                     raise _reject(
                         f"{owner}: task {task.task_id!r} names host-only capability {contract_id}"
                     )
+                if task.acceptance.grounded_answer and cap.effect not in _CANNOT_WRITE:
+                    raise _reject(f"{owner}: task {task.task_id!r}: {GROUNDED_WRITE}")
                 if cap.effect is not EffectKind.ANSWER and contract_id not in bound:
                     raise _reject(
                         f"{owner}: task {task.task_id!r} capability {contract_id} "

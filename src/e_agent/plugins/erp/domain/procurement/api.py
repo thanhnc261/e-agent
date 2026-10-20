@@ -163,3 +163,9 @@ class PurchaseOrderView(Record):
     currency: str
     unit_price: DecimalStr
     subtotal: DecimalStr
+
+
+class PurchaseOrders(Record):
+    """Purchase orders read back by host operation key (verification read-back)."""
+
+    orders: tuple[PurchaseOrderView, ...]

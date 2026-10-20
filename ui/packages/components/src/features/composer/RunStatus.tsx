@@ -15,14 +15,14 @@ export function RunStatus() {
   const controller = useController();
   const { view } = useRunState();
   if (!run) return null;
-  const status = runStatusKey(run.state, actions, selectPendingReply(view));
+  const status = runStatusKey(run.state, actions, selectPendingReply(view), run.reason_code);
   // Stopping cannot change an effect that may already have happened, so an
   // unresolved outcome offers a check (in the result) instead of Stop.
   const stoppable = !TERMINAL_STATES.has(run.state) && run.state !== "NEEDS_RECONCILIATION";
   return (
     <div className="ea-run-status" data-testid="run-status">
       <StatusBadge
-        tone={status === "status.phase.UNKNOWN" ? "unknown" : runStateTone(run.state)}
+        tone={status === "status.phase.UNKNOWN" ? "unknown" : runStateTone(run.state, run.reason_code)}
         className={`ea-state-pill ea-state-${run.state.toLowerCase()}`}
         data-testid="run-state"
         data-state={run.state}

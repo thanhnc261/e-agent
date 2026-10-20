@@ -1,0 +1,24 @@
+{
+  "task": "3d.5",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "D3-80",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "A driver without restore releases the stored snapshot before pre-turn checks that can prevent its turn (reproduced: max_driver_turns=1, restart on NotesDriver, resume input -> BUDGET_EXHAUSTED persists a null snapshot with zero driver calls).",
+      "evidence": "src/e_agent/kernel/continuation.py:362; src/e_agent/kernel/run_loop.py:47,50"
+    },
+    {
+      "id": "D3-81",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "A dict key literally named items inherits a declared array-member class: schema-valid {\"x\":{\"items\":{\"label\":\"SEEDED-PERSONAL\"}}} reaches an undeclared hosted route unmasked under /output/x/items/label public.",
+      "evidence": "src/e_agent/kernel/context.py:181,185,195; src/e_agent/contracts/data_classes.py:358"
+    }
+  ],
+  "reviewer": {
+    "provider": "codex",
+    "fresh_context": true
+  }
+}

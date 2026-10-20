@@ -1,0 +1,18 @@
+{
+  "task": "3.R3",
+  "changed": "PR #7 CI failed in the independent wheel install job, because scripts/check_wheels.py asserted 9 ERP task definitions and Task 3e.2's open-pos made 10. The assertion now expects 10. check_wheels passes locally on every wheel, the plugin pin match and the installed demos (harness/state/evidence/manual/3.R3/check-wheels.txt).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3.R3/2026-10-20T12-28-32.878734+00-00-full.json",
+    "harness/state/evidence/manual/3.R3/check-wheels.txt"
+  ],
+  "open_items": [
+    "check_wheels.py is still in no harness gate set (HP-6), so a hard-coded count can drift again unseen until CI. A follow-up could add it to the full or a release gate set, or derive the count from the manifest."
+  ],
+  "rulings": [
+    {
+      "ruling": "Fix the expected count, rather than deriving it from the manifest, to keep the check's independent assertion.",
+      "cost_if_wrong": "the next added task needs the same one-line change"
+    }
+  ],
+  "outside_repo": []
+}

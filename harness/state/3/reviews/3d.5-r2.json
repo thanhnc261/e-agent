@@ -1,0 +1,31 @@
+{
+  "task": "3d.5",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "D3-90",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "D3-80 confirmed by reading for active-time, unbound, assembly and pre-start cancel exits; tests cover turn budget, route and the skipped acknowledgement; restore at most once per load.",
+      "evidence": "src/e_agent/kernel/continuation.py:404-411; src/e_agent/kernel/run_loop.py:44-64"
+    },
+    {
+      "id": "D3-91",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Fix 6: a secret under a dict key items is absent on every route across nested shapes; raising public to personal there is unobservable with default class rules.",
+      "evidence": "src/e_agent/kernel/context_walk.py:83-128"
+    },
+    {
+      "id": "D3-92",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "safe_ref cuts refs at a dict key items on every route (conservative); the context_walk move is pure; the round-4 test change is a legitimate tightening.",
+      "evidence": "src/e_agent/kernel/context_on.py:93-94; tests/unit/kernel/test_context_on.py:891"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

@@ -279,8 +279,14 @@ def create_app(
             "store": rt.profile.store.kind,
             "self_approval_allowed": rt.profile.operator.allow_self_approval,
             "features": rt.profile.features.model_dump(mode="json"),
+            # ADR 0030: where the model route processes data, and how that is known
+            **rt.route_facts(),
             # ADR 0029 Operations: write effects admitted on defaults (fixture profiles only)
             "defaulted_declarations": defaulted_payload(rt.registry.report.defaulted_declarations),
+            # ADR 0030: properties no data class covers, which count as personal
+            "unmarked_properties": rt.registry.unmarked_properties(),
+            # schema sides outside the supported subset: count null, every value personal
+            "unsupported_schemas": rt.registry.unsupported_schemas(),
         }
 
     # -- local session (loopback only, never production auth) ---------------
@@ -496,6 +502,7 @@ def create_app(
             versions=rt.versions,
             features=rt.profile.features,
             defaulted_declarations=rt.registry.report.defaulted_declarations,
+            route=rt.route_facts(),
         )
 
     # -- member discovery (ADR 0017): read-only projections of admitted metadata ---

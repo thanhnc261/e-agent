@@ -1,0 +1,34 @@
+{
+  "task": "3d.2",
+  "changed": "Context assembler (ADR 0032 \u00a72-\u00a76): pure kernel/context.py assemble(policy, ledger, observations, read_errors, findings, classes, boundary, ...) -> ContextPack with layer budgets and drop log, bounded observations marked partial/truncated, clearing with evidence stubs, class-per-route masking (ClassIndex in contracts/data_classes.py, registry.data_classes), number rendering as canonical decimal strings, and fencing of untrusted values (shared helpers in contracts/context_pack.py). Registry records moved to kernel/registry_records.py (pure move, re-exported). principles.md PR-21/PR-34 checks. Review fixes: a validator finding that claims a KERNEL- id fails closed at proposals._validate (D3-10); KERNEL-PLAN-STRUCTURE carries no input values (D3-14); secrets removed mark masked/partial (D3-11); unnamed keys are left out and logged by parent pointer on undeclared hosted routes (D3-12, D3-18); no prefix exemption from bounding (D3-13). Commits c235951, 4331c08; plan rulings in later chore commits; reviews harness/state/3/reviews/3d.2.json, 3d.2-r1.json.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3d.2/2026-10-19T12-38-04.517673+00-00-full.json",
+    "harness/state/evidence/gates/3d.2/2026-10-19T12-39-25.461177+00-00-pg.json"
+  ],
+  "open_items": [
+    "3d.3/3d.4: pass referenced_evidence, deferred_pending and observation_turns from real sources (nothing records an observation's turn yet; keep off continuations byte-identical); pass rule_texts from the rule inventory so hosted routes see rule text; decide whether cited evidence survives clearing (D3-16).",
+    "A malformed plan now gets only pydantic locations and types or a fixed text; value-free messages in contracts/plan.py would restore specific repair text (D3-20).",
+    "Refinement: pass output-schema property names so unmarked properties render masked under their key instead of being left out (D3-18).",
+    "proposals.py 497 and context.py 493 lines: move code out before adding (3d.6 repeat rule touches proposals.py)."
+  ],
+  "rulings": [
+    {
+      "ruling": "Kernel-authored findings are trusted by the assembler only because a validator result carrying a KERNEL- id fails closed as KERNEL-VALIDATOR-ERROR at the single merge point.",
+      "cost_if_wrong": "A plugin that legitimately used a KERNEL- id is blocked; none does today."
+    },
+    {
+      "ruling": "On a hosted route without data_processing, entries no declaration names are left out and logged under the parent pointer, never naming the key.",
+      "cost_if_wrong": "The model does not see unmarked properties exist."
+    },
+    {
+      "ruling": "Assembly fails when the referenced evidence does not fit max_input_tokens rather than dropping it silently (D3-15).",
+      "cost_if_wrong": "A large referenced observation fails the turn; 3d.3 measures it."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "Postgres test database e_agent_test used by the pg gate.",
+      "undo": "none needed; test data only"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "id": "3.R2",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3-R2"
+  ],
+  "context_digest": "90d148c82d6a850e4fdae205a3657099fecbc315f32dfbe84b27a564f929c605",
+  "allowed_paths": [
+    "src/e_agent/kernel/grounded_answer.py",
+    "src/e_agent/kernel/registry.py",
+    "src/e_agent/kernel/repeat.py",
+    "src/e_agent/kernel/grounding.py",
+    "src/e_agent/kernel/proposals.py",
+    "tests/unit/kernel/**",
+    "tests/unit/plugins/erp/**",
+    "tests/unit/server/**",
+    "tests/conformance/**",
+    "docs/adr/0033-explanation-and-grounded-answers.md",
+    "docs/adr/README.md",
+    "README.md",
+    "docs/roadmap.md",
+    "docs/handoffs/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-19-phase3-cognition-context.md"
+  ],
+  "acceptance": [
+    "uv run pytest -q tests/unit/kernel tests/conformance passes with tests that a write-capable run is never offered grounded.answer.v1, a definition with grounded_answer and a write is refused, and FB-3 (a) and (b)",
+    "uv run e-agent-harness gate full and gate pg pass on a clean tree"
+  ],
+  "gate_set": "full",
+  "base_commit": "e3e1b62d5f517dc1d269714d995e6205a49e55be",
+  "created_at": "2026-10-20T08:30:37+00:00",
+  "features_digest": "a2101b5ce73a2eed5e6cbc42703cfb38fe4671a92b87d5f15493a0ece68a96f8"
+}

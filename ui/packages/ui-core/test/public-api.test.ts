@@ -40,6 +40,7 @@ describe("public ui-core exports", () => {
       "reduceApproval",
       "reduceRunView",
       "resolveLocale",
+      "resultStatusKey",
       "runStatusKey",
       "segmentText",
       "selectConversation",

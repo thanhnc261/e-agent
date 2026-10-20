@@ -1,0 +1,45 @@
+{
+  "task": "3e.1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R1-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "With grounded_answers on, the citation check is an equality oracle on values the context pack masked or removed: per-citation KERNEL-CITATION findings return to the model, widening what reaches it (PR-26, ADR 0030/0032). Gap in ADR 0033 \u00a71; needs a ruling.",
+      "evidence": "src/e_agent/kernel/grounding.py:260 compares against raw continuation data; context_walk.py:95-105 masks in place; grounding.py:271-275 returns one finding per unresolved citation; UNRESOLVED vs MISMATCHED distinguishes a dropped key."
+    },
+    {
+      "id": "R1-2",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "In shadow, a typed answer that repeats a verified answer is checked but its grounding.compared and at-rest citations are lost (the _finish_verified shortcut returns before put_action).",
+      "evidence": "src/e_agent/kernel/grounding.py:292, :301, :323-341."
+    },
+    {
+      "id": "R1-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Stale design reference after _handle_answer moved to grounding.py.",
+      "evidence": "docs/design/target-architecture.md:548, :1199."
+    },
+    {
+      "id": "R1-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Two observations sharing an evidence id: resolving if either holds the value is acceptable.",
+      "evidence": "src/e_agent/kernel/grounding.py:181-199."
+    },
+    {
+      "id": "R1-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Coverage confirmed clean (moved code unchanged, run-scoped lookup, reservation matrix, no fail-open, off byte-identity, numbers and pointers, structure, PR-31).",
+      "evidence": "See reviewer notes (a)-(i)."
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}

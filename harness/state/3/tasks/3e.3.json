@@ -1,0 +1,135 @@
+{
+  "id": "3e.3",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3e-3"
+  ],
+  "context_digest": "856429048caeb2c7226d3e4ba5cab9c778b886e562c6132233cf5604b5210020",
+  "allowed_paths": [
+    "src/e_agent/contracts/grounding.py",
+    "src/e_agent/contracts/plan.py",
+    "src/e_agent/contracts/events.py",
+    "src/e_agent/contracts/explain.py",
+    "src/e_agent/kernel/grounding.py",
+    "src/e_agent/kernel/rationale*.py",
+    "src/e_agent/kernel/grounded_answer.py",
+    "src/e_agent/kernel/explain.py",
+    "src/e_agent/kernel/proposals.py",
+    "src/e_agent/kernel/plan_flow.py",
+    "src/e_agent/kernel/continuation.py",
+    "src/e_agent/kernel/repeat.py",
+    "src/e_agent/kernel/approval_flow.py",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "tests/unit/kernel/**",
+    "tests/unit/contracts/**",
+    "tests/unit/server/**",
+    "tests/conformance/**",
+    "pyproject.toml",
+    "docs/plans/2026-10-19-phase3-cognition-context.md",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/handoffs/**",
+    "src/e_agent/sdk/ports.py",
+    "src/e_agent/sdk/manifest.py",
+    "src/e_agent/sdk/plugin.py",
+    "src/e_agent/kernel/registry.py",
+    "src/e_agent/kernel/registry_records.py",
+    "src/e_agent/kernel/discovery.py",
+    "src/e_agent/plugins/erp/domain/plugin.py",
+    "src/e_agent/plugins/erp/domain/testing/fixture_validator.py",
+    "src/e_agent/plugins/erp/domain/e_agent_plugin.json",
+    "tests/unit/sdk/**",
+    "tests/unit/plugins/erp/**",
+    "src/e_agent/kernel/reconstruct.py",
+    "src/e_agent/sdk/validation.py",
+    "src/e_agent/kernel/ir_on.py",
+    "src/e_agent/kernel/verification.py"
+  ],
+  "acceptance": [
+    "rationale tests pass on both stores; approval digest unchanged by rationale",
+    "full and pg pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "86129d2e5e78a84e7b4c5ba567118e00a3a74ced",
+  "created_at": "2026-10-19T18:32:04+00:00",
+  "features_digest": "1380417816414df24b36049f172944e463c2af43f54897b2ff6057dffb3a485a",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/sdk/ports.py",
+      "reason": "ADR 0033 §4 + ADR 0009 + plan 3e.3 Interfaces: the rationale check consumes the admitted rule inventory, which no seam exposes to the kernel",
+      "at": "2026-10-19T19:02:45+00:00"
+    },
+    {
+      "glob": "src/e_agent/sdk/manifest.py",
+      "reason": "ADR 0033 §4 + ADR 0009 + plan 3e.3 Interfaces: the rationale check consumes the admitted rule inventory, which no seam exposes to the kernel",
+      "at": "2026-10-19T19:02:45+00:00"
+    },
+    {
+      "glob": "src/e_agent/sdk/plugin.py",
+      "reason": "ADR 0033 §4 + ADR 0009 + plan 3e.3 Interfaces: the rationale check consumes the admitted rule inventory, which no seam exposes to the kernel",
+      "at": "2026-10-19T19:02:45+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/registry.py",
+      "reason": "ADR 0033 §4 + ADR 0009 + plan 3e.3 Interfaces: the rationale check consumes the admitted rule inventory, which no seam exposes to the kernel",
+      "at": "2026-10-19T19:02:45+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/registry_records.py",
+      "reason": "ADR 0033 §4 + ADR 0009 + plan 3e.3 Interfaces: the rationale check consumes the admitted rule inventory, which no seam exposes to the kernel",
+      "at": "2026-10-19T19:02:45+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/discovery.py",
+      "reason": "ADR 0033 §4 + ADR 0009 + plan 3e.3 Interfaces: the rationale check consumes the admitted rule inventory, which no seam exposes to the kernel",
+      "at": "2026-10-19T19:02:46+00:00"
+    },
+    {
+      "glob": "src/e_agent/plugins/erp/domain/plugin.py",
+      "reason": "ADR 0033 §4 + ADR 0009 + plan 3e.3 Interfaces: the rationale check consumes the admitted rule inventory, which no seam exposes to the kernel",
+      "at": "2026-10-19T19:02:46+00:00"
+    },
+    {
+      "glob": "src/e_agent/plugins/erp/domain/testing/fixture_validator.py",
+      "reason": "ADR 0033 §4 + ADR 0009 + plan 3e.3 Interfaces: the rationale check consumes the admitted rule inventory, which no seam exposes to the kernel",
+      "at": "2026-10-19T19:02:46+00:00"
+    },
+    {
+      "glob": "src/e_agent/plugins/erp/domain/e_agent_plugin.json",
+      "reason": "ADR 0033 §4 + ADR 0009 + plan 3e.3 Interfaces: the rationale check consumes the admitted rule inventory, which no seam exposes to the kernel",
+      "at": "2026-10-19T19:02:46+00:00"
+    },
+    {
+      "glob": "tests/unit/sdk/**",
+      "reason": "ADR 0033 §4 + ADR 0009 + plan 3e.3 Interfaces: the rationale check consumes the admitted rule inventory, which no seam exposes to the kernel",
+      "at": "2026-10-19T19:02:46+00:00"
+    },
+    {
+      "glob": "tests/unit/plugins/erp/**",
+      "reason": "ADR 0033 §4 + ADR 0009 + plan 3e.3 Interfaces: the rationale check consumes the admitted rule inventory, which no seam exposes to the kernel",
+      "at": "2026-10-19T19:02:46+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/reconstruct.py",
+      "reason": "plan 3e.3: explain shows the rationale second; reconstruct must carry the at-rest rationale (ids and digests)",
+      "at": "2026-10-19T19:02:46+00:00"
+    },
+    {
+      "glob": "src/e_agent/sdk/validation.py",
+      "reason": "ADR 0033 §4 + ADR 0009: validators may declare their rule inventory",
+      "at": "2026-10-19T19:03:16+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/ir_on.py",
+      "reason": "Codex 3e.3 C1-1: rejected plans write their shadow grounding events in the same batch as the repair finding (_repair_finding extra batch)",
+      "at": "2026-10-19T19:23:40+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/verification.py",
+      "reason": "3e.1 R1-2 / Codex 3e.3 C1-1: the verified-answer shortcut writes its shadow grounding events (_finish_verified)",
+      "at": "2026-10-19T19:23:40+00:00"
+    }
+  ]
+}

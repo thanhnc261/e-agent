@@ -7,9 +7,11 @@ pass the sandbox-marker check before any run starts.
 
 from __future__ import annotations
 
+import ipaddress
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlsplit
 
 from e_agent.adapters.postgres import PostgresRunStore, apply_migrations, database_name
 from e_agent.adapters.pydantic_ai import PydanticAiDriver, ToolSpec, litellm_model, ollama_model
@@ -17,6 +19,7 @@ from e_agent.adapters.secretstore_local import LocalSecretStore
 from e_agent.adapters.shacl import ShaclPlanValidator
 from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.context import Principal, TaskContext
+from e_agent.contracts.data import BoundaryBasis, DataBoundary, RouteBoundary
 from e_agent.contracts.features import FeatureMode
 from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.coordinator import RunCoordinator
@@ -30,7 +33,7 @@ from e_agent.sdk.discovery import DiscoveredPlugin, discover
 from e_agent.sdk.ports import AgentDriver, DriverRequest
 
 from .environment import optional_env, require_env
-from .profile import Profile
+from .profile import DriverConfig, Profile
 
 
 @dataclass
@@ -44,10 +47,26 @@ class Runtime:
     connections: ConnectionCatalog | None = None
     sandbox: dict[str, Any] = field(default_factory=dict)
     versions: dict[str, Any] = field(default_factory=dict)
+    route: RouteBoundary | None = None
+    """The model route's data boundary and its basis (ADR 0030)."""
+
+    def route_facts(self) -> dict[str, Any]:
+        """The route boundary facts readiness and the evidence bundle both report (ADR 0030)."""
+        return route_facts(self.profile, self.route)
 
     def diagnostics(self) -> dict[str, dict[str, Any]]:
         """The admitted plugins' diagnostics, by plugin id (fixture runs and tests)."""
         return {pid: dict(hook()) for pid, hook in sorted(self.registry.diagnostics.items())}
+
+
+def route_facts(profile: Profile, route: RouteBoundary | None) -> dict[str, Any]:
+    """The route boundary facts as plain values (ADR 0030): what readiness and the evidence
+    bundle report, and what the kernel's per-call route check reads (ADR 0032 §9)."""
+    return {
+        "data_boundary": route.boundary if route else None,
+        "data_boundary_basis": route.basis if route else None,
+        "data_processing_declared": profile.data_processing is not None,
+    }
 
 
 def runtime_versions(
@@ -161,14 +180,86 @@ MODEL_ENDPOINTS: dict[str, tuple[str, str]] = {
 """Default endpoint variable and URL per model provider (ADR 0021)."""
 
 
+_LOOPBACK_NETS = (ipaddress.ip_network("127.0.0.0/8"), ipaddress.ip_network("::1/128"))
+
+
+def _is_loopback_host(base_url: str) -> bool:
+    """Literal check, no DNS lookup: ``localhost``, ``127.0.0.0/8`` or ``::1`` (ADR 0030)."""
+    try:
+        host = urlsplit(base_url).hostname
+    except ValueError:
+        return False
+    if host is None:
+        return False
+    if host.lower() == "localhost":
+        return True
+    try:
+        addr = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return any(addr in net for net in _LOOPBACK_NETS)
+
+
+def effective_boundary(
+    cfg: DriverConfig, base_url: str | None
+) -> tuple[DataBoundary, BoundaryBasis]:
+    """The route's data boundary and how it is known (ADR 0030, Phase 3 plan D2).
+
+    The scripted driver makes no model call: ``local``, verified. An ``ollama`` route on a
+    literal loopback host is ``local`` and verified, also when the profile declares ``local``.
+    Any other declared boundary is ``declared``; an undeclared route is ``hosted:unknown`` by
+    default. A LiteLLM route is never verified: its upstream is outside e-agent.
+    """
+    if cfg.kind != "pydantic-ai":
+        return "local", "verified"
+    loopback = cfg.provider == "ollama" and base_url is not None and _is_loopback_host(base_url)
+    if cfg.data_boundary is None:
+        return ("local", "verified") if loopback else ("hosted:unknown", "default")
+    if cfg.data_boundary == "local" and loopback:
+        return "local", "verified"
+    return cfg.data_boundary, "declared"
+
+
+def route_base_url(cfg: DriverConfig) -> str:
+    env_name, default_url = MODEL_ENDPOINTS[cfg.provider]
+    return optional_env(cfg.base_url_env or env_name, default_url)
+
+
+def check_route_boundary(profile: Profile) -> RouteBoundary:
+    """Startup rule (ADR 0030): a route that is not ``local`` needs ``data_processing``,
+    unless ``features.context_assembler`` is ``on``: every run that profile prepares is
+    pinned ``on``, so what it sends the route is the masked pack (ADR 0032 §5, §9; Task
+    3d.5). A run pinned otherwise that resumes on the route makes no model call (the per-call
+    route check). ``local_only`` refuses a hosted route whatever the toggle says. Messages
+    name the setting, never its value.
+    """
+    cfg = profile.driver
+    base_url = route_base_url(cfg) if cfg.kind == "pydantic-ai" else None
+    boundary, basis = effective_boundary(cfg, base_url)
+    if boundary != "local":
+        if profile.local_only:
+            raise KernelError(
+                ErrorCode.STARTUP_REJECTED,
+                "local_only is set but the model route is not local; "
+                "use a local route or unset local_only",
+            )
+        masked = profile.features.context_assembler is FeatureMode.ON
+        if profile.data_processing is None and not masked:
+            raise KernelError(
+                ErrorCode.STARTUP_REJECTED,
+                "the model route is not local and the profile has no data_processing "
+                "declaration (data_owner, legal_basis, region)",
+            )
+    return RouteBoundary(boundary=boundary, basis=basis)
+
+
 def build_driver(profile: Profile, registry: PluginRegistry) -> AgentDriver:
     cfg = profile.driver
     if not cfg.model:
         raise KernelError(
             ErrorCode.STARTUP_REJECTED, f"pydantic-ai driver needs a {cfg.provider} model"
         )
-    env_name, default_url = MODEL_ENDPOINTS[cfg.provider]
-    base_url = optional_env(cfg.base_url_env or env_name, default_url)
+    base_url = route_base_url(cfg)
     try:
         if cfg.provider == "litellm":
             api_key = None
@@ -349,6 +440,7 @@ async def build_runtime(
 ) -> Runtime:
     check_live_write_budget(profile)
     fixture_scenario_check(profile)
+    route = check_route_boundary(profile)
     catalog = ConnectionCatalog(profile.connections)
     registry, credentials = admit_plugins(
         profile, catalog, discover(plugin_paths), _secret_store(profile), plugin_settings
@@ -407,6 +499,7 @@ async def build_runtime(
         budgets=profile.budgets,
         credentials=credentials,
         features=profile.features,
+        route=route_facts(profile, route),  # the per-call route check (ADR 0032 §9)
     )
     return Runtime(
         profile,
@@ -418,6 +511,7 @@ async def build_runtime(
         catalog,
         sandbox,
         runtime_versions(profile, registry, driver),
+        route,
     )
 
 

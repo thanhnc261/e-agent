@@ -35,3 +35,19 @@ class InvalidPluginSettings(ValueError):
         super().__init__(f"{setting}: {reason}")
         self.setting = setting
         self.reason = reason
+
+
+class DriverStateMismatch(Exception):
+    """A driver continuation does not match the run's pinned modes (ADR 0032 §8): the
+    kernel's restore check (its ``rendering`` marker against the pin), or a driver's own
+    ``restore``, refuses it, before a driver turn. The kernel restores nothing: the turn's
+    run fails closed with ``DRIVER_STATE_MISMATCH``, and an acknowledgement turn is skipped
+    with the run keeping its verified outcome. A driver schema or version change is a plain
+    ``ValueError`` and is not this refusal."""
+
+
+class ContextNotRendered(Exception):
+    """A driver cannot render the turn from the context pack it was given (ADR 0032 §6,
+    review D3-42), for example a pending read whose observation the pack does not hold. It
+    never falls back to ``Observation.data``; the kernel fails closed with
+    ``CONTEXT_UNAVAILABLE``."""

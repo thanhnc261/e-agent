@@ -1,0 +1,48 @@
+{
+  "provenance": "authored",
+  "kind": "authored-model-parts-fixture-replay",
+  "environment": "synthetic fixture ERP; replay is not live evidence",
+  "note": "Hand-authored in Task 3e.4 (2026-10-20); no model produced these parts. The open-pos task (execution IR on, bound, acceptance grounded_answer) answered with grounded.answer.v1: a summary citing the draft RFQ's reference and state and the open demand's reference. It ends GROUNDED, never verified. Shadow never offers the generic answer, so this file is not in the shadow comparison. Task 3.D2 (2026-10-20) changed only the prompt, by hand, to the open-pos v2 question; the authored parts are unchanged.",
+  "task": "open-pos-grounded",
+  "task_kind": "open-pos",
+  "prompt": "Which procurement demands are open, and which draft RFQ (such as rfq:po-100) or vendor offers cover them? Cite the ERP records you read; propose no change.",
+  "features": {
+    "execution_ir": "on",
+    "grounded_answers": "on"
+  },
+  "pydantic_ai_version": "2.54.0",
+  "expected_contract": "grounded.answer.v1",
+  "expected_fixture_writes": 0,
+  "expected_reason_code": "grounded",
+  "shadow_compared": false,
+  "responses": [
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "procurement_draft_rfq_read_v1",
+          "args": "{\"purchase_order_ref\":\"rfq:po-100\"}",
+          "tool_call_id": "authored-read-1",
+          "part_kind": "tool-call"
+        },
+        {
+          "tool_name": "procurement_open_demands_read_v1",
+          "args": "{}",
+          "tool_call_id": "authored-read-2",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "grounded_answer_v1",
+          "args": "{\"summary\":\"One draft RFQ is open: rfq:po-100, in state draft, for 10 Units of product:widget-a. One open demand, demand:d-001, asks for 12 Units.\",\"citations\":[{\"evidence_id\":\"<<evidence:authored-read-1>>\",\"pointer\":\"/purchase_order_ref\",\"value\":\"rfq:po-100\"},{\"evidence_id\":\"<<evidence:authored-read-1>>\",\"pointer\":\"/state\",\"value\":\"draft\"},{\"evidence_id\":\"<<evidence:authored-read-1>>\",\"pointer\":\"/quantity\",\"value\":\"10\"},{\"evidence_id\":\"<<evidence:authored-read-2>>\",\"pointer\":\"/demands/0/demand_ref\",\"value\":\"demand:d-001\"},{\"evidence_id\":\"<<evidence:authored-read-2>>\",\"pointer\":\"/demands/0/quantity\",\"value\":\"12\"}]}",
+          "tool_call_id": "authored-answer-1",
+          "part_kind": "tool-call"
+        }
+      ]
+    }
+  ]
+}

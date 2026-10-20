@@ -1,0 +1,50 @@
+{
+  "task": "3g.2",
+  "changed": "The Phase 3 live check ran on the odoo19-learning sandbox on 2026-10-20, on the owner's instruction. Results are in the handoff Level 4 (docs/handoffs/2026-10-20-phase3-cognition-context.md), with the README Status and the roadmap row updated. The identity check and the harness live gate passed. Readiness passed in every mode (local route, verified). Task 1 with context_assembler: shadow recorded 7 context.compared events and SUCCEEDED; on SUCCEEDED verified, with pack digests and the drop log in the bundle; off FAILED verification_failed on the model's wrong answers. open-pos v2 with grounded_answers on SUCCEEDED grounded, with 4 resolved citations. The kernel refused unresolved citations on 'list open demands' (KERNEL-CITATION), and that run FAILED. In Task 3 the model proposed no draft PO in two tries, so no live write ran. explain answered from stored events without a model call. Commit 0e0b753.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3g.2/2026-10-20T11-17-45.010958+00-00-full.json",
+    "harness/state/evidence/live/2026-10-20T11-01-57.997014+00-00-live.json",
+    "harness/state/evidence/live/3g.2-readiness.txt",
+    "harness/state/evidence/live/3g.2-task6b-open-pos-seeded-rfq.json",
+    "harness/state/evidence/live/3g.2-task1-on.json"
+  ],
+  "open_items": [
+    "The write path with context_assembler on, and the acknowledgement turn rendered from the pack, were not exercised live, because the model proposed no PO. They remain fixture evidence.",
+    "Task 1 modes disagree live: off failed on the unqualified model's wrong answers (ADR 0010).",
+    "The open-pos binding needs execution_ir on. The live profile has no driver.refs.rfq_ref, so the runs used --prompt with RFQ odoo/purchase.order/28.",
+    "live.env no longer exports E_AGENT_SECRETS_PATH (the store is ~/.config/e-agent/secrets.json), and odoo-keys.json still holds the expired keys. Both are for the owner to fix.",
+    "The owner has not yet accepted the ADR 0033 §3 fourth admission condition, which must happen before merge."
+  ],
+  "rulings": [
+    {
+      "ruling": "Two tries of the Task 3 write with the unqualified model, then stop, as in Phase 2.",
+      "cost_if_wrong": "the write path with the pack is proven live later"
+    },
+    {
+      "ruling": "E_AGENT_SECRETS_PATH was set per command, and the owner's live.env was not edited.",
+      "cost_if_wrong": "none"
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "The domain-erp pin in profiles/live-odoo19-learning.local.json was re-pinned to cb7c29b1...",
+      "undo": "re-pin from a trusted wheel build"
+    },
+    {
+      "change": "The owner renewed the Odoo API keys and added E_AGENT_ODOO_URL, DB and ADMIN_KEY to live.env",
+      "undo": "revoke the keys in Preferences, Account Security; remove the lines"
+    },
+    {
+      "change": "reset, seed and seed-tasks ran on namespace e-agent-demo with the identity flags",
+      "undo": "reset --namespace e-agent-demo with the same flags"
+    },
+    {
+      "change": "The live runs are stored in e-agent-ledger",
+      "undo": "none; run history"
+    },
+    {
+      "change": "Four temporary profiles/live-p3-*.local.json copies were made",
+      "undo": "already deleted"
+    }
+  ]
+}

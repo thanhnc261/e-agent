@@ -1,0 +1,26 @@
+{
+  "task": "3d.4",
+  "changed": "The pydantic-ai driver renders DriverInput.context (target 7.4, ADR 0032): stable prefix as instructions; dynamic suffix sent per request and never written to history or snapshot (streaming included); every observation as tool_return_text from RenderedObservation, no fallback to Observation.data; blocked-write and failed-read returns carry ids and statuses only; clearing keeps call/return pairs including parallel calls and is skipped while a write is pending; rendering: \"pack\" in the snapshot of a pack-rendered run only (D8). Unchanged when context is None (off and prompt goldens byte-identical). The ERP scripted driver reads facts from a pack. New on_model_request.json golden with its recorder. make e2e passed (150, 4 skipped) per the implementer. Commit 03516a6; review harness/state/3/reviews/3d.4.json (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3d.4/2026-10-19T13-53-18.939382+00-00-full.json",
+    "harness/state/evidence/gates/3d.4/2026-10-19T13-54-37.104543+00-00-pg.json"
+  ],
+  "open_items": [
+    "3d.5 (plan): refuse a pinned-on call on a stricter route than an earlier turn (D3-41); apply the cleared stub when an action_result is present (D3-40, driver.py joins 3d.5); type the missing-rendering refusal and map it to CONTEXT_UNAVAILABLE (D3-42); keep action_result ids-only (D3-43).",
+    "The on golden is built with the kernel's assemble; re-record it whenever kernel/context.py rendering changes (D3-44).",
+    "Narrow the scripted driver's pack-mode exception mapping (D3-45).",
+    "A pydantic-ai upgrade must rerun test_driver_context (D3-46)."
+  ],
+  "rulings": [
+    {
+      "ruling": "Before on ships, a pinned-on run fails closed on a route stricter than its first driver call's, rather than scrubbing stored history (recorded under Task 3d.5).",
+      "cost_if_wrong": "A run whose route tightens mid-run fails instead of continuing."
+    }
+  ],
+  "outside_repo": [
+    {
+      "change": "Postgres test database e_agent_test used by the pg gate.",
+      "undo": "none needed; test data only"
+    }
+  ]
+}

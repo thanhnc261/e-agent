@@ -4,13 +4,24 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from datetime import timedelta
-from typing import Self
+from typing import Any, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import (
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from .common import Record
 from .context import Budgets
 from .outcome import OutcomeReport, OutcomeStatus
+
+GROUNDED_ANSWER = "grounded.answer.v1"
+"""The core generic grounded answer (ADR 0033 §3): owned by the kernel, never a registry
+capability. Its arguments are ``{summary}``, with at least one citation in the kernel
+envelope; a run it ends is ``GROUNDED``, never verified (PR-19)."""
 
 
 class RequiredEffect(Record):
@@ -53,17 +64,36 @@ class AcceptanceSpec(Record):
     """An answer contract that must verify."""
     answer_condition: AnswerCondition | None = None
     """Narrows the answer alternative to a verified answer whose verifier computed this."""
+    grounded_answer: bool = False
+    """Admits `GROUNDED_ANSWER` for the definition's runs, and makes the run's ``GROUNDED``
+    end, and only that, meet the spec (ADR 0033 §3, refining ADR 0028). Valid only when
+    ``required_effects`` and ``required_answer`` are both empty, so a definition naming a
+    typed answer or an effect is never met by a grounded one."""
 
     @model_validator(mode="after")
     def _check_condition(self) -> Self:
         check_answer_condition(self)
         return self
 
+    @model_serializer(mode="wrap")
+    def _omit_false_grounded(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        """Leave ``grounded_answer`` out when false, so every definition without it, its
+        snapshot in a continuation and the context pack's task layer, serializes exactly as
+        before ADR 0033 (review R1-5)."""
+        data: dict[str, Any] = handler(self)
+        if not self.grounded_answer:
+            data.pop("grounded_answer", None)
+        return data
+
 
 def check_answer_condition(spec: AcceptanceSpec) -> None:
-    """The record's rule, also re-applied at registry admission to a built record."""
+    """The record's rules, also re-applied at registry admission to a built record: an
+    answer condition needs a ``required_answer``, and ``grounded_answer`` needs neither a
+    required effect nor a required answer."""
     if spec.answer_condition is not None and spec.required_answer is None:
         raise ValueError("answer_condition needs a required_answer")
+    if spec.grounded_answer and (spec.required_effects or spec.required_answer is not None):
+        raise ValueError("grounded_answer needs no required_effects and no required_answer")
 
 
 def answer_condition_met(spec: AcceptanceSpec, outcome: OutcomeReport) -> bool:
@@ -85,7 +115,11 @@ def answer_condition_met(spec: AcceptanceSpec, outcome: OutcomeReport) -> bool:
 
 
 def acceptance_met(
-    spec: AcceptanceSpec, verified: Mapping[str, int], answers: Iterable[OutcomeReport]
+    spec: AcceptanceSpec,
+    verified: Mapping[str, int],
+    answers: Iterable[OutcomeReport],
+    *,
+    grounded: bool = False,
 ) -> bool:
     """Whether a run met ``spec`` at its end (ADR 0028, target §6.4.1).
 
@@ -94,7 +128,11 @@ def acceptance_met(
     its own records, so model output cannot meet the spec (ENG-TRUST-1). Disjunctive, as the
     spec states: every required effect verified at least ``min_verified`` times, or the
     answer alternative met (`answer_condition_met`). With neither field set nothing is
-    required. Pure."""
+    required. ``grounded`` is whether the run ended ``GROUNDED``, read from the kernel's own
+    ``message.final`` (ADR 0033 §3): a spec with ``grounded_answer`` is met by that end alone,
+    and a grounded end meets no other spec. Pure."""
+    if spec.grounded_answer or grounded:
+        return spec.grounded_answer and grounded
     if not spec.required_effects and spec.required_answer is None:
         return True
     effects = bool(spec.required_effects) and all(

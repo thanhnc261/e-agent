@@ -26,6 +26,7 @@ from e_agent.sdk.store import EventBatch, EventSpec
 
 from .continuation import ContinuationMixin
 from .errors import ErrorCode, KernelError
+from .reconstruct import ACTION_STATE_KEY, BLOCKED_KEY
 
 
 class TransitionsMixin(ContinuationMixin):
@@ -56,18 +57,25 @@ class TransitionsMixin(ContinuationMixin):
         code: ReasonCode | None = None,
         before: EventBatch = (),
         snapshot: bool = True,
+        blocked_action_ids: Sequence[str] = (),
     ) -> RunRecord:
         """Move ``run`` to ``state``; ``before`` is recorded ahead of the transition events,
         in the same write, with the continuation unless ``snapshot`` is False (a recovery
-        that queues a plan's resume writes no plan state, Codex C-2)."""
+        that queues a plan's resume writes no plan state, Codex C-2). ``blocked_action_ids``
+        are the actions the same call moved to BLOCKED without an event; the state change
+        records them, and only when there are any (ADR 0031 §3)."""
         self._check_run_transition(run, state)
+        changed: dict[str, Any] = {
+            "from": run.state,
+            "to": state,
+            "reason": reason,
+            "reason_code": code,
+        }
+        if blocked_action_ids:
+            changed[BLOCKED_KEY] = list(blocked_action_ids)
         events: list[EventSpec | StepRecord] = [
             *before,
-            (
-                RunEventType.RUN_STATE_CHANGED,
-                {"from": run.state, "to": state, "reason": reason, "reason_code": code},
-                None,
-            ),
+            (RunEventType.RUN_STATE_CHANGED, changed, None),
         ]
         if state in TERMINAL_RUN_STATES:
             events.append(
@@ -100,12 +108,18 @@ class TransitionsMixin(ContinuationMixin):
         *,
         steps: Sequence[StepRecord] = (),
     ) -> ActionRecord:
-        """Move ``action`` to ``to``; ``steps`` are the stage's rows, after its event."""
+        """Move ``action`` to ``to``; ``steps`` are the stage's rows, after its event. A
+        ``validation.completed`` records ``to`` as its ``action_state`` (ADR 0031 §3); a caller
+        that moves an action to BLOCKED without an event passes its id to the run's state
+        change (`_set_run_state`)."""
         if to not in ALLOWED_ACTION_TRANSITIONS[action.state]:
             raise KernelError(ErrorCode.CONFLICT, f"illegal transition {action.state}->{to}")
         updated = action.model_copy(update={"state": to, "revision": action.revision + 1})
         events: list[EventSpec | StepRecord] = []
         if event is not None:
-            events.append((event[0], event[1], action.action_id))
+            payload = event[1]
+            if event[0] is RunEventType.VALIDATION_COMPLETED:
+                payload = {**payload, ACTION_STATE_KEY: to}
+            events.append((event[0], payload, action.action_id))
         events.extend(steps)
         return await self._store.put_action(updated, action.revision, events)

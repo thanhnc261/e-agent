@@ -1,0 +1,51 @@
+{
+  "id": "3b.1",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3b-1"
+  ],
+  "context_digest": "07a656f1594f2753ca784e4a2012619f884d2fa1fadfdd1161d049c10bd0fdba",
+  "allowed_paths": [
+    "src/e_agent/server/profile.py",
+    "src/e_agent/contracts/data.py",
+    "src/e_agent/server/bootstrap.py",
+    "src/e_agent/server/api.py",
+    "src/e_agent/server/environment.py",
+    "tests/unit/server/**",
+    "tests/conformance/**",
+    "src/e_agent/kernel/evidence.py",
+    "tests/unit/kernel/test_evidence.py",
+    "profiles/dev-ollama.json",
+    "profiles/live.example.json",
+    "src/e_agent/plugins/erp/simulator/fixture_profile.json",
+    "openapi.json",
+    "ui/packages/*/src/generated/**",
+    "docs/plans/2026-10-19-phase3-cognition-context.md",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/handoffs/**",
+    "ui/packages/client/**",
+    "src/e_agent/server/cli.py"
+  ],
+  "acceptance": [
+    "test_route_boundary.py passes, including loopback verified, hosted:unknown default and the startup refusal",
+    "committed profiles start; full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "482d2d19c520ba965658d27c3ce72a8f413d0467",
+  "created_at": "2026-10-19T06:42:41+00:00",
+  "features_digest": "324041c61986f4ee2256af841229d74b51560ddda87a77ee0094e754b8968434",
+  "scope_changes": [
+    {
+      "glob": "ui/packages/client/**",
+      "reason": "readiness keys change the exported OpenAPI schema and generated client",
+      "at": "2026-10-19T06:42:49+00:00"
+    },
+    {
+      "glob": "src/e_agent/server/cli.py",
+      "reason": "review B1-1: build_evidence callers in cli.py must pass the route boundary",
+      "at": "2026-10-19T06:52:08+00:00"
+    }
+  ]
+}

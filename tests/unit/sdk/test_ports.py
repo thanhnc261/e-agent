@@ -1,7 +1,10 @@
-"""The driver port's plan step and the SDK API version (ADR 0025, Task 2c.7).
+"""The driver port's plan step and the SDK API version (ADR 0025, Task 2c.7; ADR 0032).
 
-`ProposePlan` and `DriverInput.allowed_capabilities` share one additive minor bump of the
-SDK API, `1.0` to `1.1`; every manifest in the repository must still admit it.
+`ProposePlan` and `DriverInput.allowed_capabilities` shared one additive minor bump of the
+SDK API, `1.0` to `1.1`. Phase 3 makes one more additive bump, `1.1` to `1.2`:
+`CapabilityDescriptor.data_classes` and `PluginContribution.output_schemas` (Task 3b.3),
+then `DriverInput.context` and `DriverInput.grounding`. Every manifest in the repository
+must still admit it.
 """
 
 from pathlib import Path
@@ -15,8 +18,33 @@ from e_agent.sdk.ports import DriverStep, ProposeAction, ProposePlan
 PLUGINS = Path(__file__).resolve().parents[3] / "src" / "e_agent" / "plugins"
 
 
-def test_sdk_api_version_is_the_plan_minor_bump() -> None:
-    assert SDK_API_VERSION == "1.1"
+def test_sdk_api_is_1_2() -> None:
+    assert SDK_API_VERSION == "1.2"
+
+
+def test_sdk_1_2_additions_have_empty_defaults() -> None:
+    """A 1.1 plugin's declaration and contribution still load unchanged."""
+    from e_agent.contracts.capability import CapabilityDescriptor, EffectKind
+    from e_agent.sdk.ports import PluginContribution
+
+    cap = CapabilityDescriptor(
+        contract_id="notes.note.read.v1",
+        effect=EffectKind.READ,
+        input_schema_id="q",
+        output_schema_id="n",
+    )
+    assert cap.data_classes == {}
+    assert PluginContribution().output_schemas == {}
+
+
+def test_plugin_contribution_keeps_its_1_1_positional_order() -> None:
+    """C3-2: 1.2 appends ``output_schemas``, so a 1.1 positional call keeps its meaning."""
+    from e_agent.sdk.ports import PluginContribution
+
+    built = PluginContribution((), (), (), (), (), {"q": {}}, "guidance")
+    assert built.input_schemas == {"q": {}}
+    assert built.agent_guidance == "guidance"
+    assert built.output_schemas == {}
 
 
 def test_sdk_api_range_admits_existing_plugins() -> None:
@@ -49,3 +77,22 @@ def test_propose_plan_is_a_driver_step() -> None:
         ),
     )
     assert ProposePlan(plan=plan).plan is plan
+
+
+def test_driver_input_context_defaults_none() -> None:
+    """A driver built for sdk_api 1.1 keeps working: ``context`` is optional."""
+    from e_agent.contracts.context_pack import ContextLayer, ContextPack
+    from e_agent.sdk.ports import DriverInput
+
+    assert DriverInput(task="t").context is None
+    pack = ContextPack.build(stable_prefix={ContextLayer.INSTRUCTIONS: "i"}, dynamic_suffix={})
+    assert DriverInput(task="t", context=pack).context is pack
+
+
+def test_driver_input_grounding_defaults_off() -> None:
+    """A driver built for sdk_api 1.1 keeps working: ``grounding`` defaults to ``off``, the
+    value under which a driver offers nothing new (ADR 0033 §5)."""
+    from e_agent.sdk.ports import DriverInput, GroundingOffer
+
+    assert DriverInput(task="t").grounding is GroundingOffer.OFF
+    assert [o.value for o in GroundingOffer] == ["off", "cite", "cite_and_answer"]

@@ -1,0 +1,61 @@
+{
+  "provenance": "authored",
+  "kind": "authored-model-parts-fixture-replay",
+  "environment": "synthetic fixture ERP; replay is not live evidence",
+  "note": "Hand-authored in Task 3e.4 (2026-10-20); no model produced these parts. The captured draft-po recording's calls, with a rationale beside the write naming the three reads and the procedural rules PR-003 and PR-004 of the admitted inventory. Every ref resolves.",
+  "task": "draft-po-rationale",
+  "prompt": "Restock product:widget-a for demand:d-001 by creating a draft purchase order.",
+  "features": {
+    "grounded_answers": "on"
+  },
+  "pydantic_ai_version": "2.54.0",
+  "expected_contract": "procurement.purchase-order.create-draft.v1",
+  "expected_fixture_writes": 1,
+  "expected_reason_code": "verified",
+  "shadow_compared": true,
+  "responses": [
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "procurement_demand_read_v1",
+          "args": "{\"demand_ref\":\"demand:d-001\"}",
+          "tool_call_id": "authored-read-1",
+          "part_kind": "tool-call"
+        },
+        {
+          "tool_name": "inventory_availability_read_v1",
+          "args": "{\"product_ref\":\"product:widget-a\"}",
+          "tool_call_id": "authored-read-2",
+          "part_kind": "tool-call"
+        },
+        {
+          "tool_name": "procurement_offers_read_v1",
+          "args": "{\"product_ref\":\"product:widget-a\"}",
+          "tool_call_id": "authored-read-3",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "tool_name": "procurement_purchase_order_create_draft_v1",
+          "args": "{\"demand_ref\":\"demand:d-001\",\"product_ref\":\"product:widget-a\",\"supplier_ref\":\"supplier:approved-co\",\"offer_ref\":\"offer:a\",\"quantity\":\"7\",\"unit\":\"Units\",\"currency\":\"VND\",\"unit_price\":\"100\",\"subtotal\":\"700\",\"requested_date\":\"2026-10-20\",\"rationale\":{\"goal_ref\":\"run\",\"cited_evidence\":[\"<<evidence:authored-read-1>>\",\"<<evidence:authored-read-2>>\",\"<<evidence:authored-read-3>>\"],\"rules_considered\":[\"PR-003\",\"PR-004\"],\"summary\":\"Order the 7-unit shortage from the cheapest approved offer, offer:a, within the demand's budget.\"}}",
+          "tool_call_id": "authored-write-1",
+          "part_kind": "tool-call"
+        }
+      ]
+    },
+    {
+      "kind": "response",
+      "parts": [
+        {
+          "content": "The draft purchase order for 7 Units of product:widget-a was created and verified.",
+          "part_kind": "text"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,171 @@
+{
+  "task": "3-plan",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "P3-1",
+      "severity": "Blocker",
+      "affects": "contract",
+      "summary": "context_assembler claimed fallback before any reservation, but the acknowledgement turn calls the driver after a verified write; each toggle now has a fallback code before the first reservation and a terminal code after it.",
+      "evidence": "kernel/verification.py:184-199; ADR 0027 line 14; plan Toggles and fallback"
+    },
+    {
+      "id": "P3-2",
+      "severity": "Blocker",
+      "affects": "contract",
+      "summary": "Re-recording the Phase 2 off goldens would erase ADR 0027's proof; D7 now freezes them, adds v3 goldens and a projection test, recorded by ADR 0031 as a refinement.",
+      "evidence": "tests/unit/kernel/golden/off_mode_events.json; plan D7, Task 3c.2"
+    },
+    {
+      "id": "P3-3",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "T23 was not closed: on must render deferred tool returns and the acknowledgement turn from the masked pack, with a captured-request test and no unmasked fallback to an undeclared hosted route.",
+      "evidence": "adapters/pydantic_ai/driver.py:537-545; plan Review Focus 4, Tasks 3d.4, 3d.5"
+    },
+    {
+      "id": "P3-4",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "Optional citations on extra=forbid answer models would change the ERP tool schema in off; citations now ride a kernel envelope offered only when not off, proved by a new ERP off model-request golden.",
+      "evidence": "plugins/erp/domain/procurement/api.py:91; plan D4, Tasks 3b.2, 3e.1, 3e.4"
+    },
+    {
+      "id": "P3-5",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "x-data-class inside the schema would change off tool schemas; classes now sit beside the schema on the capability declaration (ADR 0030 amended), the ERP test has a home and sdk_api 1.2 lands with it.",
+      "evidence": "plugin.py:61 model_json_schema(); plan ADRs amendment, Task 3b.3"
+    },
+    {
+      "id": "P3-6",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "D9 shortened credential_version in exports, which breaks recomputing the approval digest; withdrawn.",
+      "evidence": "kernel/approval.py:36; plan Owner decisions preamble"
+    },
+    {
+      "id": "P3-7",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "A STATE_SCHEMA bump is unconditional and breaks off and shadow; modes are now pinned per run, the snapshot gains rendering only for on runs, and a restore mismatch has a handler and a non-colliding code DRIVER_STATE_MISMATCH.",
+      "evidence": "driver.py:76, :365; kernel/continuation.py:302-313; plan D8, Tasks 3b.2, 3d.5"
+    },
+    {
+      "id": "P3-8",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "No persistent observation source was named for citations and explanation; checks use the run's continuation, and only ids, pointers and value digests are stored.",
+      "evidence": "gateway.py:118-125; continuation.py:99; plan D4, Tasks 3c.3, 3e.1"
+    },
+    {
+      "id": "P3-9",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Toggles shared no shadow-failure event and repeat/grounding shadows had no consumer; each now has its own shadow_failed event and a named consumer test.",
+      "evidence": "contracts/events.py IR_SHADOW_FAILED; plan Toggles and fallback"
+    },
+    {
+      "id": "P3-10",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "The 3d.3 consumer depended on 3e citations and the kernel cannot read the driver history; the consumer now checks referenced observations and estimates come from the kernel's estimator.",
+      "evidence": "plan Task 3d.3; driver tokens_used is cumulative"
+    },
+    {
+      "id": "P3-11",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "Reconstruction of events without the new keys must be partial or unknown, and the expected 3c.2 failure is ModuleNotFoundError.",
+      "evidence": "plan Task 3c.2"
+    },
+    {
+      "id": "P3-12",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "T1 needed an outcome-level test and section 7.4 rule 4 a test; both added, and the old 3d.4 is split into driver rendering (3d.4) and kernel on mode (3d.5).",
+      "evidence": "plan Tasks 3d.4, 3d.5"
+    },
+    {
+      "id": "P3-13",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "The cut line now holds the core plan's Phase 4 items (3d.6, 3f.1, 3f.2); 3c.3 is kept.",
+      "evidence": "core plan Phase 4; plan D9"
+    },
+    {
+      "id": "P3-14",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Core plan exit evidence was missing: 12- and 20-turn budgets, baseline, ablation, free text unverified, generic read-only question, full conformance cases; all now have tasks.",
+      "evidence": "core plan lines 132-165; plan Self-review"
+    },
+    {
+      "id": "P3-15",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Codex review now applies per kernel task, including 3b.3, 3c.1 and 3c.3.",
+      "evidence": "eng-session close ritual step 8; plan Global Constraints Review"
+    },
+    {
+      "id": "P3-16",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "D3's index-row correction misread the class-marker row; dropped.",
+      "evidence": "ADR 0030 Gates; plan D3"
+    },
+    {
+      "id": "P3-17",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "D2 diverged from ADR 0030's undeclared=hosted:unknown; now aligned, with the loopback amendment and a declared or verified basis.",
+      "evidence": "ADR 0030 line 26; plan D2"
+    },
+    {
+      "id": "P3-18",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Consistency slips fixed: explain and assemble inputs, ADR gating line, stale code refs, Interfaces lines, F-3a-1 section 17 rows.",
+      "evidence": "plan Tasks 3a.1, 3c.3, 3d.2; harness/state/3/features.json"
+    },
+    {
+      "id": "P3-19",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Rationale now also on ActionPlan, and the plan states 3a.1's plan digest is the Phase 2 plan.",
+      "evidence": "plan D6, Task 3e.3, Global Constraints"
+    },
+    {
+      "id": "P3-R1",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "Re-review: a run pinned off could resume onto an undeclared hosted route that startup accepted because the profile is on; a per-call route check now fails it closed with ROUTE_BOUNDARY_UNMET (3b.2). The check sits in _with_tools (kernel/ir_on.py:149), which both driver call sites use, so the acknowledgement turn is covered; 3b.1 refuses unconditionally until 3d.5 adds the on exemption.",
+      "evidence": "plan D8, Task 3b.1; driver.py:543; verification.py:193; threat-model.md:51; run_loop.py:49; verification.py:186-188"
+    },
+    {
+      "id": "P3-R2",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Re-review: 3c.2 must change the golden recorders and comparers, since assert_matches compares key sets exactly; now in its Files.",
+      "evidence": "tests/unit/kernel/test_off_baseline.py:23,40-46"
+    },
+    {
+      "id": "P3-R3",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Re-review: nothing told the driver the pinned grounded_answers mode; DriverInput.grounding added in 3e.4, with an in-flight flip test.",
+      "evidence": "sdk/ports.py:45-58; plan Task 3e.4"
+    },
+    {
+      "id": "P3-R4",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "Re-review: a restore mismatch with an unresolved reservation goes to reconciliation; D8 and the 3d.5 test now say so.",
+      "evidence": "plan D8, Task 3d.5"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

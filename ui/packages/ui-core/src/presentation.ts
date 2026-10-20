@@ -43,6 +43,16 @@ export function statusKey(state: string | undefined): string {
   return `status.${state ?? "idle"}`;
 }
 
+/**
+ * A run-state label that reads the server's reason code: a SUCCEEDED run the server ended
+ * `grounded` (ADR 0033 §3: citations resolved against the run's own evidence, no
+ * independent read-back) has its own label, never the verified one (PR-19).
+ */
+export function resultStatusKey(state: string | undefined, reasonCode?: string | null): string {
+  if (state === "SUCCEEDED" && reasonCode === "grounded") return "status.SUCCEEDED.grounded";
+  return statusKey(state);
+}
+
 const IN_FLIGHT = new Set(["RUNNING", "VERIFYING"]);
 
 /**
@@ -55,6 +65,7 @@ export function runStatusKey(
   state: string | undefined,
   actions: readonly { state: string }[] = [],
   replyPending = false,
+  reasonCode?: string | null,
 ): string {
   if (state === "WAITING_INPUT" && replyPending) return "status.WAITING_INPUT.reply";
   if (state && IN_FLIGHT.has(state)) {
@@ -63,7 +74,7 @@ export function runStatusKey(
     if (states.has("DISPATCHING")) return "status.phase.DISPATCHING";
     if (state === "RUNNING" && states.has("COMMITTED")) return "status.phase.COMMITTED";
   }
-  return statusKey(state);
+  return resultStatusKey(state, reasonCode);
 }
 
 export function actionStatusKey(state: string): string {

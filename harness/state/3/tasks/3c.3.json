@@ -1,0 +1,52 @@
+{
+  "id": "3c.3",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3c-3"
+  ],
+  "context_digest": "82ae1cf56dce82c281e23bb2af6f2f76901281231bed9d8fbef62803d08bb5cc",
+  "allowed_paths": [
+    "src/e_agent/kernel/explain.py",
+    "src/e_agent/contracts/explain.py",
+    "src/e_agent/kernel/evidence.py",
+    "src/e_agent/server/cli.py",
+    "tests/unit/kernel/**",
+    "tests/unit/server/**",
+    "tests/conformance/**",
+    "pyproject.toml",
+    "README.md",
+    "docs/plans/2026-10-19-phase3-cognition-context.md",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/handoffs/**",
+    "src/e_agent/kernel/reconstruct.py",
+    "src/e_agent/kernel/progress.py",
+    "src/e_agent/contracts/progress.py"
+  ],
+  "acceptance": [
+    "competency-question cases pass with their count; no model call; no observation values",
+    "evidence bundle carries the explanation; full and pg pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "76fdc933899c4d177a1eb1319dd6cdf8543961e0",
+  "created_at": "2026-10-19T11:04:18+00:00",
+  "features_digest": "eb314e3147c540e2f36ad6028681b2a16e79b9dfb27fa97185dba428af2e0eeb",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/kernel/reconstruct.py",
+      "reason": "Review C3-26/C3-27: the explanation needs the run's driver id (reconstruction) and each validation's evaluated rule refs (ledger) to answer ADR 0033 CQ07",
+      "at": "2026-10-19T11:25:07+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/progress.py",
+      "reason": "Review C3-26/C3-27: the explanation needs the run's driver id (reconstruction) and each validation's evaluated rule refs (ledger) to answer ADR 0033 CQ07",
+      "at": "2026-10-19T11:25:07+00:00"
+    },
+    {
+      "glob": "src/e_agent/contracts/progress.py",
+      "reason": "Review C3-26/C3-27: the explanation needs the run's driver id (reconstruction) and each validation's evaluated rule refs (ledger) to answer ADR 0033 CQ07",
+      "at": "2026-10-19T11:25:07+00:00"
+    }
+  ]
+}

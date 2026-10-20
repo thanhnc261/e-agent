@@ -1,0 +1,38 @@
+{
+  "task": "3c.1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "C3-15",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "budgets_used.repairs is an event-adjacency heuristic presented as an exact count; it undercounts answer re-verification repairs and AUTH_REQUIRED endings and overcounts STALE then budget.exhausted (PR-24).",
+      "evidence": "src/e_agent/kernel/progress.py:171-190; src/e_agent/contracts/progress.py:91-92; src/e_agent/kernel/proposals.py:379-383; src/e_agent/kernel/dispatch.py:83-88; src/e_agent/kernel/run_loop.py:72-79"
+    },
+    {
+      "id": "C3-16",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "reconciliation.completed with found UNKNOWN marks the reconcile stage SUCCEEDED and drops the reconciliation wait while the run stays NEEDS_RECONCILIATION.",
+      "evidence": "src/e_agent/kernel/progress.py:298-310; src/e_agent/kernel/dispatch.py:395-420"
+    },
+    {
+      "id": "C3-17",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "open_findings.message carries no model prose; pyshacl-generated sh:resultMessage can embed a proposed argument value, which matters when 3d.2 renders the ledger into model context.",
+      "evidence": "src/e_agent/adapters/shacl/engine.py:106-114; docs/adr/0031-progress-ledger-and-reconstruction.md:33"
+    },
+    {
+      "id": "C3-18",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "ADR 0031 mentions plan items in the ledger but its field list and Stage have no plan link; 3d.2 may need it.",
+      "evidence": "docs/adr/0031-progress-ledger-and-reconstruction.md:29-37; src/e_agent/contracts/progress.py:58-67"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

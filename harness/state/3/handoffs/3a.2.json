@@ -1,0 +1,18 @@
+{
+  "task": "3a.2",
+  "changed": "Gate G2 recorded: the owner replied \"Accept\" on 2026-10-19. ADRs 0031, 0032 and 0033 are Accepted and ADR 0030's Phase 3 parts accepted (index, ADR status lines, target section tags). The owner chose digest-only rationale storage, so ADR 0033 stores rationale texts as digests and the ids-only payload rule needs no exception. The Phase 3 plan is amended for the accepted ADRs (status line, D5, D6, ADR table, codes, Observability, live check, 3b.1, 3b.2, 3c.3, 3d.1, 3d.2, 3e.2, 3e.3, 3e.4). active_plan switched to the Phase 3 plan; roadmap row 3 In progress. Review fixes G-1 to G-5 (harness/state/3/reviews/3a.2.json) applied in 659fa3b.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3a.2/2026-10-19T06-40-56.681089+00-00-full.json"
+  ],
+  "open_items": [
+    "Restore errors other than the rendering mismatch keep today's uncaught ValueError: a named follow-up (ADR 0032).",
+    "Next: Task 3b.1 (route data boundary and the startup rule)."
+  ],
+  "rulings": [
+    {
+      "ruling": "The owner's \"Accept\" took every recommended answer listed in the G2 message, including digest-only rationale storage (question 4).",
+      "cost_if_wrong": "Rationale text unavailable after the run's continuation is gone; restoring text storage is additive."
+    }
+  ],
+  "outside_repo": []
+}

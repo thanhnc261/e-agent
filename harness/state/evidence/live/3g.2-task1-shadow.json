@@ -1,0 +1,348 @@
+{
+  "label": "task1 context_assembler=shadow (live)",
+  "environment": "live",
+  "classification": "live:succeeded",
+  "run_id": "run_b7ed23827b204b1ea99e06df3c8411de",
+  "task": "Which products are short for open demand?",
+  "state": "SUCCEEDED",
+  "reason_code": "answered",
+  "reason": "answered",
+  "task_id": null,
+  "features": {
+    "execution_ir": "off",
+    "context_assembler": "shadow",
+    "kernel_repeat": "off",
+    "grounded_answers": "off"
+  },
+  "modes": {
+    "context_assembler": "shadow",
+    "kernel_repeat": "off",
+    "grounded_answers": "off"
+  },
+  "route": {
+    "data_boundary": "local",
+    "data_boundary_basis": "verified",
+    "data_processing_declared": false
+  },
+  "event_type_counts": {
+    "run.created": 1,
+    "run.state_changed": 2,
+    "context.compared": 7,
+    "read.recorded": 7,
+    "proposal.created": 2,
+    "outcome.reported": 2,
+    "validation.completed": 1,
+    "message.final": 1,
+    "run.terminal": 1
+  },
+  "actions": [
+    {
+      "action_id": "act_0088599a457249b784cbc3392c37554f",
+      "contract_id": "procurement.shortage.answer.v1",
+      "state": "VERIFIED",
+      "digest": "jcs-sha256-v1:a4aa8e239239eaaa634e490d767579af5ae2aa803b17126a6d238e58542a7bf1"
+    },
+    {
+      "action_id": "act_39f1833728344c50a660e995f7e5f933",
+      "contract_id": "procurement.shortage.answer.v1",
+      "state": "VERIFICATION_FAILED",
+      "digest": "jcs-sha256-v1:89fe413c4989d640dea3449ea3cb9f09dcf6c4984e40f90a1bbc4ad43fb4401c"
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "FAILED",
+      "action_id": "act_39f1833728344c50a660e995f7e5f933"
+    },
+    {
+      "status": "VERIFIED",
+      "action_id": "act_0088599a457249b784cbc3392c37554f"
+    }
+  ],
+  "approvals": [],
+  "receipts": [],
+  "rules_evaluated": [
+    "KERNEL-VERIFICATION@1"
+  ],
+  "context": null,
+  "grounded_answer": null,
+  "explanation_completeness": "known",
+  "counts_of_interest": {
+    "context.compared": 7,
+    "feature.fallback": 0,
+    "grounding.compared": 0,
+    "read.recorded": 7,
+    "answer.proposed": 0,
+    "verification.completed": 0
+  },
+  "terminal_payloads": [
+    {
+      "turn": 1,
+      "dropped": {
+        "item": 0,
+        "turn": 0,
+        "value": 0,
+        "observation": 0
+      },
+      "pack_digest": "jcs-sha256-v1:ec4c51e0c96da3ad70bd95e288e54c6cebf80c38bb1b4e033d3dfc41edd41360",
+      "pack_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 68,
+        "instructions": 112
+      },
+      "drop_reasons": {
+        "bound": 0,
+        "budget": 0,
+        "cleared": 0,
+        "class_route": 0
+      },
+      "observations": 0,
+      "acknowledgement": false,
+      "masked_evidence": [],
+      "omitted_evidence": [],
+      "unbounded_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 68,
+        "instructions": 112
+      },
+      "tokens_used_delta": 3565,
+      "truncated_evidence": []
+    },
+    {
+      "turn": 2,
+      "dropped": {
+        "item": 0,
+        "turn": 0,
+        "value": 0,
+        "observation": 0
+      },
+      "pack_digest": "jcs-sha256-v1:8ccd323f7f8ccb55ca81fb52d7d66ecb095a6791757b015ad67a67c83ee418fd",
+      "pack_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 131,
+        "evidence": 85,
+        "instructions": 112
+      },
+      "drop_reasons": {
+        "bound": 0,
+        "budget": 0,
+        "cleared": 0,
+        "class_route": 0
+      },
+      "observations": 1,
+      "acknowledgement": false,
+      "masked_evidence": [],
+      "omitted_evidence": [],
+      "unbounded_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 131,
+        "evidence": 85,
+        "instructions": 112
+      },
+      "tokens_used_delta": 3715,
+      "truncated_evidence": []
+    },
+    {
+      "turn": 3,
+      "dropped": {
+        "item": 0,
+        "turn": 0,
+        "value": 0,
+        "observation": 0
+      },
+      "pack_digest": "jcs-sha256-v1:fe0aee33bee440b4a88985967d315b09b00118a0a67cfdc8c47eba68c90b7269",
+      "pack_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 198,
+        "evidence": 163,
+        "instructions": 112
+      },
+      "drop_reasons": {
+        "bound": 0,
+        "budget": 0,
+        "cleared": 0,
+        "class_route": 0
+      },
+      "observations": 2,
+      "acknowledgement": false,
+      "masked_evidence": [],
+      "omitted_evidence": [],
+      "unbounded_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 198,
+        "evidence": 163,
+        "instructions": 112
+      },
+      "tokens_used_delta": 3858,
+      "truncated_evidence": []
+    },
+    {
+      "turn": 4,
+      "dropped": {
+        "item": 0,
+        "turn": 0,
+        "value": 0,
+        "observation": 0
+      },
+      "pack_digest": "jcs-sha256-v1:f8fddd50754239b47ee0073a363ef967073406acc1b76992312fbc85e7d709e4",
+      "pack_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 265,
+        "evidence": 219,
+        "instructions": 112
+      },
+      "drop_reasons": {
+        "bound": 0,
+        "budget": 0,
+        "cleared": 0,
+        "class_route": 0
+      },
+      "observations": 3,
+      "acknowledgement": false,
+      "masked_evidence": [],
+      "omitted_evidence": [],
+      "unbounded_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 265,
+        "evidence": 219,
+        "instructions": 112
+      },
+      "tokens_used_delta": 4032,
+      "truncated_evidence": []
+    },
+    {
+      "turn": 5,
+      "dropped": {
+        "item": 0,
+        "turn": 0,
+        "value": 0,
+        "observation": 1
+      },
+      "pack_digest": "jcs-sha256-v1:2c792f0aae716a1229cc1cdf01d0e41f56052c89425fc35c06a96c2ffbfa400c",
+      "pack_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 485,
+        "evidence": 173,
+        "findings": 91,
+        "instructions": 112
+      },
+      "drop_reasons": {
+        "bound": 0,
+        "budget": 0,
+        "cleared": 1,
+        "class_route": 0
+      },
+      "observations": 3,
+      "acknowledgement": false,
+      "masked_evidence": [],
+      "omitted_evidence": [
+        "ev_31b07982e75a46c4bdbc401b3017a393"
+      ],
+      "unbounded_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 485,
+        "evidence": 219,
+        "findings": 91,
+        "instructions": 112
+      },
+      "tokens_used_delta": 4193,
+      "truncated_evidence": []
+    },
+    {
+      "turn": 6,
+      "dropped": {
+        "item": 0,
+        "turn": 0,
+        "value": 0,
+        "observation": 2
+      },
+      "pack_digest": "jcs-sha256-v1:f3925577fe710a3afd3b77260d3ece39ab07f16bae842621e40837a61a4e2bd9",
+      "pack_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 563,
+        "evidence": 134,
+        "findings": 75,
+        "instructions": 112
+      },
+      "drop_reasons": {
+        "bound": 0,
+        "budget": 0,
+        "cleared": 2,
+        "class_route": 0
+      },
+      "observations": 3,
+      "acknowledgement": false,
+      "masked_evidence": [],
+      "omitted_evidence": [
+        "ev_31b07982e75a46c4bdbc401b3017a393",
+        "ev_7d8bbb3fa20e4d01964d3d8671ba6f59"
+      ],
+      "unbounded_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 563,
+        "evidence": 219,
+        "findings": 75,
+        "instructions": 112
+      },
+      "tokens_used_delta": 4357,
+      "truncated_evidence": []
+    },
+    {
+      "turn": 7,
+      "dropped": {
+        "item": 0,
+        "turn": 0,
+        "value": 0,
+        "observation": 3
+      },
+      "pack_digest": "jcs-sha256-v1:9f1d2816cd7fc744009957f3b4740e1f891716df96494b23eb54e89c966e1cf9",
+      "pack_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 766,
+        "evidence": 117,
+        "instructions": 112
+      },
+      "drop_reasons": {
+        "bound": 0,
+        "budget": 0,
+        "cleared": 3,
+        "class_route": 0
+      },
+      "observations": 3,
+      "acknowledgement": false,
+      "masked_evidence": [],
+      "omitted_evidence": [
+        "ev_31b07982e75a46c4bdbc401b3017a393",
+        "ev_7d8bbb3fa20e4d01964d3d8671ba6f59",
+        "ev_f5abf11170074bb8b0d91a4505052dad"
+      ],
+      "unbounded_tokens": {
+        "task": 23,
+        "tools": 161,
+        "ledger": 766,
+        "evidence": 219,
+        "instructions": 112
+      },
+      "tokens_used_delta": 4480,
+      "truncated_evidence": []
+    },
+    {
+      "state": "SUCCEEDED",
+      "reason": "answered",
+      "reason_code": "answered"
+    }
+  ]
+}

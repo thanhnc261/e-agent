@@ -24,3 +24,31 @@ class FeatureMode(StrEnum):
 class Features(Record):
     execution_ir: FeatureMode = FeatureMode.OFF
     """Execution IR: compiled plans and steps (ADR 0025)."""
+    context_assembler: FeatureMode = FeatureMode.OFF
+    """The kernel-built, bounded and masked context pack for each driver turn (ADR 0032)."""
+    kernel_repeat: FeatureMode = FeatureMode.OFF
+    """The kernel's repeated-call check (ADR 0031)."""
+    grounded_answers: FeatureMode = FeatureMode.OFF
+    """Answers grounded in cited evidence (ADR 0033)."""
+
+
+class RunModes(Record):
+    """The Phase 3 modes a run pins when it is prepared (ADR 0032 §8).
+
+    A run keeps these modes for its whole life, whatever the profile later says; a profile
+    flip affects new runs only. ``execution_ir`` is not pinned: it keeps reading the profile
+    per call, as Phase 2 shipped. The kernel stores the pin only when a mode is not ``off``,
+    and an absent pin means every mode is ``off``.
+    """
+
+    context_assembler: FeatureMode = FeatureMode.OFF
+    kernel_repeat: FeatureMode = FeatureMode.OFF
+    grounded_answers: FeatureMode = FeatureMode.OFF
+
+    @classmethod
+    def from_features(cls, features: Features) -> RunModes:
+        return cls(**{name: getattr(features, name) for name in cls.model_fields})
+
+    @property
+    def all_off(self) -> bool:
+        return all(getattr(self, name) is FeatureMode.OFF for name in type(self).model_fields)

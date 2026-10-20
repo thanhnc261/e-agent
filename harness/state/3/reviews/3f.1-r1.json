@@ -1,0 +1,45 @@
+{
+  "task": "3f.1",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "R1-1",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Not-applicable declarations are honour-system (free text), and cases._views swallows NoModel so model-side halves of shared cases are skipped silently; a third-party driver could pass while violating a case.",
+      "evidence": "tests/conformance/test_driver_conformance.py:38-64, :67-76; tests/conformance/driver_cases/cases.py:91-96; harness.py:13-15."
+    },
+    {
+      "id": "R1-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "repair.new_proposal_or_clarification passes a driver that re-proposes the identical blocked proposal (bounded by the kernel's repair budget and KERNEL-REPEAT).",
+      "evidence": "tests/conformance/driver_cases/cases.py:419-430."
+    },
+    {
+      "id": "R1-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The pydantic-ai silence fix changes run behaviour in every rollout including off: a reasoning-only reply after a finding now parks the run in WAITING_INPUT with a fixed question, instead of a bounded re-drive or VERIFICATION_FAILED. Owner ruling.",
+      "evidence": "src/e_agent/adapters/pydantic_ai/driver.py:620-627; kernel/run_loop.py:130-144, :188-230."
+    },
+    {
+      "id": "R1-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "OUTSIDE_TOOL_SET as a FinalAnswer on a run with no reads becomes an INPUT_REQUESTED reply (fixture-only edge).",
+      "evidence": "scripted_driver.py:73-86; scripted_tasks.py:116-130."
+    },
+    {
+      "id": "R1-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Resolved: the stateless scripted repair cannot loop (every re-drive carries findings, bounded by budgets); no golden changed; authored responses labelled; first failures reproduced on base drivers.",
+      "evidence": "Reviewer ran the suite on git archive b78786a; 249 passed at HEAD."
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}

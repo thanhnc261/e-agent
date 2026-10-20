@@ -1,0 +1,66 @@
+{
+  "task": "3d.2",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "D3-10",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "The masking and fencing exemption trusts the KERNEL- prefix; a plugin's extra_findings with a KERNEL- id reach a hosted route unmasked and unfenced.",
+      "evidence": "src/e_agent/kernel/context.py:343-356; src/e_agent/adapters/shacl/engine.py:118; src/e_agent/kernel/proposals.py:412"
+    },
+    {
+      "id": "D3-11",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "A removed secret logs a class_route drop but the observation is not marked masked or partial (PR-21).",
+      "evidence": "src/e_agent/kernel/context.py:170-174; tests/unit/kernel/test_context_assembler.py:461"
+    },
+    {
+      "id": "D3-12",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "Undeclared key names at the root and inside declared containers reach an undeclared hosted route verbatim.",
+      "evidence": "src/e_agent/kernel/context.py:154-163,176-185"
+    },
+    {
+      "id": "D3-13",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "Strings starting with [masked: are exempt from bounding, so a provider value can pose as a kernel mask marker.",
+      "evidence": "src/e_agent/kernel/context.py:230"
+    },
+    {
+      "id": "D3-14",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "KERNEL-PLAN-STRUCTURE embeds pydantic input values, against ADR 0032 \u00a75's kernel-text assumption.",
+      "evidence": "src/e_agent/kernel/ir.py:96"
+    },
+    {
+      "id": "D3-15",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Assembly also fails when referenced evidence does not fit, a condition the ADR does not state; record as a plan ruling.",
+      "evidence": "src/e_agent/kernel/context.py:474-490"
+    },
+    {
+      "id": "D3-16",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Concerns 3, 4, 6, 7 acceptable or deferred; 3d.3/3d.4 must pass referenced_evidence, deferred_pending and observation_turns.",
+      "evidence": "src/e_agent/kernel/context.py:74-81,407-412,435-442"
+    },
+    {
+      "id": "D3-17",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Confirmed sound: ClassIndex rules, number rendering, fence, purity, the registry_records move, principles edits, tests.",
+      "evidence": "src/e_agent/contracts/data_classes.py:215-244; src/e_agent/kernel/registry_records.py"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

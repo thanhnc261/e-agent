@@ -1,0 +1,44 @@
+{
+  "id": "3d.6",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3d-6"
+  ],
+  "context_digest": "856429048caeb2c7226d3e4ba5cab9c778b886e562c6132233cf5604b5210020",
+  "allowed_paths": [
+    "src/e_agent/kernel/proposals.py",
+    "src/e_agent/kernel/repeat*.py",
+    "src/e_agent/kernel/plan_flow.py",
+    "src/e_agent/kernel/features.py",
+    "src/e_agent/contracts/events.py",
+    "scripts/release_report.py",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "tests/unit/kernel/**",
+    "tests/unit/scripts/**",
+    "tests/unit/server/**",
+    "tests/conformance/**",
+    "pyproject.toml",
+    "docs/plans/2026-10-19-phase3-cognition-context.md",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/handoffs/**",
+    "src/e_agent/kernel/continuation.py"
+  ],
+  "acceptance": [
+    "repeat tests pass on both stores, including a changed revision and the post-reservation path",
+    "shadow consumer reports zero disagreements with its count; full and pg pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "5983f54e7f6ee2c949321dad7014dd8bffc802e9",
+  "created_at": "2026-10-19T16:06:51+00:00",
+  "features_digest": "201a44e6c6cdbba95f92881596aaaf694b67de9749c3e403adf6f3dafcb92f50",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/kernel/continuation.py",
+      "reason": "ADR 0031 line 106: blocked revisions' digests and rule bundle versions are kept in the continuation (omitted when empty); the plan's 3d.6 scope missed it",
+      "at": "2026-10-19T16:16:15+00:00"
+    }
+  ]
+}

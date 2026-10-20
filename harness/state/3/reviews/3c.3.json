@@ -1,0 +1,45 @@
+{
+  "task": "3c.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "C3-26",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "CQ07 driver id: run.created records the driver but reconstruct drops it; the bundle's versions.driver is the exporting runtime's driver, not the run's.",
+      "evidence": "src/e_agent/kernel/reconstruct.py:264-271; src/e_agent/kernel/coordinator.py:137; docs/adr/0033-explanation-and-grounded-answers.md:85"
+    },
+    {
+      "id": "C3-27",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "CQ07 rule versions: passed rules' versions are in validation.completed but the ledger keeps only non-PASS findings; rule_bundle_version is in no event payload.",
+      "evidence": "src/e_agent/kernel/progress.py:141-150; src/e_agent/kernel/evidence.py:214-220; src/e_agent/kernel/approval.py:60"
+    },
+    {
+      "id": "C3-28",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "CQ06: leaving out expected/observed is correct (PR-26) but the ADR 0033 CQ06 row contradicts its own section; record the ruling.",
+      "evidence": "docs/adr/0033-explanation-and-grounded-answers.md:77,84"
+    },
+    {
+      "id": "C3-29",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "OpenFinding.message (validator free text) passes into the explanation unfiltered, and the no-observation test covers no failing validation.",
+      "evidence": "src/e_agent/kernel/explain.py:107; tests/unit/kernel/test_explain.py:243-258"
+    },
+    {
+      "id": "C3-30",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Confirmed: explain is pure and deterministic, string fields trace to ids/versions/statuses/digests/task text, old runs partial, the bundle key extension is additive, the CLI keeps the tenant scope, README lists it.",
+      "evidence": "tests/unit/kernel/test_explain.py:201-240; src/e_agent/server/cli.py:223-235"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}
