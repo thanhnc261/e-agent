@@ -313,7 +313,8 @@
         "uv run python scripts/check_wheels.py passes locally",
         "uv run e-agent-harness gate full passes on a clean tree"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3.R3/2026-10-20T12-28-32.878734+00-00-full.json"
     }
   ]
 }
