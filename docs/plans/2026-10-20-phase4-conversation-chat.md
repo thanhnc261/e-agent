@@ -2,16 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. UI tasks also follow the `ag-*` skills named in each task, and stop at their owner gates.
 
-**Status:** Approved by the owner on 2026-10-20, with every recommended default in the decisions table (D17 ruled (a) earlier the same day). Not implemented. Reviewed four times by fresh-context reviewers: `harness/state/4/reviews/4-plan.json` (PL-1 to PL-14, rework), `4-plan-r2.json` (PL2-1 to PL2-8), `4-plan-r3.json` (PL3-1 to PL3-3) and `4-plan-r4.json` (accept; PL4-1 and PL4-2 folded in). Amended 2026-10-20 by Task 4a.1 (ENG-PLAN-3), where writing ADRs 0023 and 0034 showed a shape that could not hold: D15 and Task 4e.5 read citations from the bundle's `grounded_answer` key and `proposal.created` events, not the `explanation` key, and read a cited value from `actions[].approved_facts` (review R1-1, pending the owner at G-A); D17, 4c.4, 4d.2 and the live check item 4 state the data-class ancestor rule, the verifier-read gap and the demand-ref locator. Gate G-A passed on 2026-10-20 with the owner's answers "1 accept 2 accept 3 defer 4 ok 5 ok 6 ok 7 yes": ADRs 0023 and 0034 accepted; ADR 0034 §5 (the rationale on the approval card) deferred, so Task 4e.6 is deferred to a named follow-up; the D15 amendment confirmed; the ADR 0027 refinement for `conversations: shadow` confirmed; the four never-carried ref paths accepted as a known limit; and a carried ref counts only from a read that found its record (completeness `complete`).
+**Status:** Approved by the owner on 2026-10-20, with every recommended default in the decisions table (D17 ruled (a) earlier the same day). Not implemented. Reviewed four times by fresh-context reviewers: `harness/state/4/reviews/4-plan.json` (PL-1 to PL-14, rework), `4-plan-r2.json` (PL2-1 to PL2-8), `4-plan-r3.json` (PL3-1 to PL3-3) and `4-plan-r4.json` (accept; PL4-1 and PL4-2 folded in). Amended 2026-10-20 by Task 4a.1 (ENG-PLAN-3), where writing ADRs 0023 and 0034 showed a shape that could not hold: D15 and Task 4e.5 read citations from the bundle's `grounded_answer` key and `proposal.created` events, not the `explanation` key, and read a cited value from `actions[].approved_facts` (review R1-1, confirmed at G-A); D17, 4c.4, 4d.2 and the live check item 4 state the data-class ancestor rule, the verifier-read gap and the demand-ref locator. Gate G-A passed on 2026-10-20 with the owner's answers "1 accept 2 accept 3 defer 4 ok 5 ok 6 ok 7 yes": ADRs 0023 and 0034 accepted; ADR 0034 §5 (the rationale on the approval card) deferred, so Task 4e.6 is deferred to a named follow-up; the D15 amendment confirmed; the ADR 0027 refinement for `conversations: shadow` confirmed; the four never-carried ref paths accepted as a known limit; and a carried ref counts only from a read that found its record (completeness `complete`).
 
 **Goal:** a user talks to e-agent in one thread. A message answers the run that waits for input, or starts a new run in the same thread. A new run gets a small, kernel-built summary of the earlier runs through the ContextAssembler, never raw model text. The open chat defects are fixed, and citations and the explanation are visible in the UI as "grounded, not verified". Everything new sits behind `features.conversations`, which falls back to today's per-run task view.
 
 **Architecture:** the plan has six parts.
-- **4a (design entry gate, no runtime code):** ADR 0023 (the conversation model, amending ADR 0022 and refining ADR 0032) and ADR 0034 (conversation-first workspace and the citation, rationale and explanation UI, settling EA-10). The owner accepts both at gate G-A.
+- **4a (design entry gate, no runtime code):** ADR 0023 (the conversation model, amending ADR 0022 and refining ADR 0032) and ADR 0034 (conversation-first workspace and the citation, rationale and explanation UI, settling EA-10). The owner accepted both at gate G-A on 2026-10-20 and deferred ADR 0034 §5, the rationale.
 - **4b (chat defects):** the four core plan Phase 0 defects, as small UI fixes inside the approved design, with no toggle, then their UX review, the owner's review (gate G-0) and the fixes. They do not wait for G-A (D14).
 - **4c (contracts, stores, toggle):** the `features.conversations` toggle and its startup rule; the `Conversation` contract and `RunRecord.conversation_id`; the `ConversationStore` port on both stores in one task, with Postgres migration `0007`; the host-side answer value formats in the plugin manifest (D17).
 - **4d (routing and carried context):** the message router, which binds an answer to the question the user saw; carried context built at admission and rendered only in the pack's `recent_turns` layer; the `shadow` comparison; the API routes, each with an authorization dependency; a fixture thread end to end.
-- **4e (UI, through the `ag-*` stages):** brief (gate G-B), mockup (gate G-C), the thread view, the D10 citation and explanation UI (second cut line), the rationale on the approval card (first cut line), and the UI review (gate G-D). Five owner gates in all: G-0, G-A, G-B, G-C, G-D.
+- **4e (UI, through the `ag-*` stages):** brief (gate G-B), mockup (gate G-C), the thread view, the D10 citation and explanation UI (second cut line), the rationale on the approval card (first cut line; deferred at G-A, so not built in Phase 4), and the UI review (gate G-D). Five owner gates in all: G-0, G-A, G-B, G-C, G-D.
 - **4f (verification):** end-of-phase levels 1–3, the phase review, the handoff, and the live check on the owner's instruction only.
 
 **Tech Stack:** Python 3.12+, Pydantic v2 records (`e_agent.contracts`), FastAPI (`e_agent.server`), memory and Postgres stores, pytest; the TypeScript UI workspace (`ui/`, pnpm, Vitest, Playwright, React); the development harness (`uv run e-agent-harness`).
@@ -84,7 +84,7 @@ Each row has a recommended default. "Approve" accepts every default; name a row 
 - **Driver changes.** No driver or prompt change is planned. If one becomes necessary, run `uv run pytest -q tests/unit/server/test_recorded_model_replays.py tests/unit/adapters/pydantic_ai/test_prompt_golden.py` (PR-32).
 - **Hygiene.** No `os.environ`, `os.getenv` or `asyncio.create_task` under `src/e_agent` (ENG-ARCH-6, ENG-ARCH-7). Import contracts, exemptions and allow-lists are never widened (PR-06). Kernel modules stay at or under `MAX_KERNEL_MODULE_LINES = 500` (`tests/unit/kernel/test_structure.py`), so the memory conversation store, routing and carrying are new modules (`kernel/memory_conversations.py`, `kernel/conversation.py`, `kernel/carried.py`). `kernel/memory_store.py` is at 499 lines: Phase 4 adds at most one net line to it. `kernel/registry.py` is at 497 lines: Task 4c.4 adds one import and one call, to 499; the call keeps a short signature, for example `check_format_declarations(document, cap)`, so ruff does not wrap it (plan review PL4-1). Each new kernel module is added, in sorted order, to the `source_modules` of the import contract "Only the facade module imports e_agent.kernel.coordinator" (`pyproject.toml`); no contract is widened in any other way.
 - **UI rules.** Every UI task goes through its `ag-*` stage. State the server owns is rendered, never derived (EA-1). Approved, committed, verified and grounded are separate labels (EA-3, PR-19). No provider identifiers in UI packages (PR-11, EA-6). Announcements are polite (EA-16).
-- **Review.** Each task's close review runs in a fresh context (`eng-review`). Kernel, store and trust-anchor tasks (4c.3, which now holds the Postgres `FOR UPDATE` check of the first draft's 4c.4; 4c.4, the answer value format check; 4d.1, 4d.2, 4d.3, 4e.6) get a second reviewer: Codex when it has quota, else a second fresh-context Claude reviewer adjudicated by the advisor, as the owner ruled for Phase 3 on 2026-10-20.
+- **Review.** Each task's close review runs in a fresh context (`eng-review`). Kernel, store and trust-anchor tasks (4c.3, which now holds the Postgres `FOR UPDATE` check of the first draft's 4c.4; 4c.4, the answer value format check; 4d.1, 4d.2, 4d.3; 4e.6 too, if the follow-up builds it) get a second reviewer: Codex when it has quota, else a second fresh-context Claude reviewer adjudicated by the advisor, as the owner ruled for Phase 3 on 2026-10-20.
 - **Boundaries.**
   - Containers: only `e-agent-ledger` (test database `e_agent_test`) for `pg`, and `odoo19-learning` plus `e-agent-ledger` in the live check (Task 4f.2). Never `odoo-bench` (ENG-BOUND-1).
   - `archive/**` and existing `research/**` files are read-only.
@@ -115,8 +115,8 @@ These are failure modes the tests below do not fully exercise. Each item names t
 | Rendering | target §7.4; ADR 0032 §6 | 4d.2 |
 | Data classes and class-per-route rule | target §13.3; ADR 0030; ADR 0032 §5 | 4c.2, 4d.2 |
 | Feature toggles | ADR 0027; target §6.4.8 | 4c.1, 4d.3 |
-| Citations, explanation, rationale | ADR 0033 §1, §4, §6 | 4d.2, 4e.5, 4e.6 |
-| `ApprovalPresentation` | UI architecture §4.2 | 4a.1, 4e.6 |
+| Citations, explanation, rationale | ADR 0033 §1, §4, §6 | 4d.2, 4e.5, 4e.6 (deferred at G-A) |
+| `ApprovalPresentation` | UI architecture §4.2 | 4a.1, 4e.6 (deferred at G-A) |
 | Task workspace and surfaces | UI architecture §10, §11; ADRs 0015, 0016 | 4a.1, 4e.4 |
 | Member-readable projections | ADR 0017; UI architecture §11 | 4d.4 |
 | Conversation model (not yet in the design) | new target §5.7, written in 4a.1 | 4a.1 |
@@ -132,7 +132,7 @@ These are failure modes the tests below do not fully exercise. Each item names t
 | 0027 Feature toggles | Accepted; refined by 0023 (accepted at G-A) | the toggle and reservation rules | 4c.1, 4d.3 |
 | 0030 Data governance | Phase 3 parts accepted | record classes, class-per-route; retention stays Phase 7 | 4c.2, 4d.2 |
 | 0032 ContextAssembler | Accepted; refined by 0023 (accepted at G-A) | the pack and its `recent_turns` layer | 4d.2, 4d.3 |
-| 0033 Explanation and grounded answers | Accepted | run-scoped citations, the explanation projection | 4d.2, 4e.5, 4e.6 |
+| 0033 Explanation and grounded answers | Accepted | run-scoped citations, the explanation projection | 4d.2, 4e.5, 4e.6 (deferred at G-A) |
 | 0007, 0011, 0015, 0016, 0017, 0018, 0020 | Accepted | event stream, layered UI, workspace, surfaces, member projections, reason codes, connection-level write admission | throughout |
 
 A Proposed ADR blocks the merge. 4c to 4e wait for G-A; 4b does not.
@@ -167,7 +167,7 @@ UI fallback: the UI decides by the error code, never by the HTTP status alone. E
 | 4d.4, 4d.5 | `full`, `pg` and `e2e` |
 | 4e.1, 4e.2 | `full` (docs only), plus the mockup's own `verify.mjs` in 4e.2 |
 | 4e.3, 4e.4, 4e.5 | `full` and `e2e` |
-| 4e.6 | `full`, `pg` and `e2e` |
+| 4e.6 (deferred at G-A) | `full`, `pg` and `e2e`, in the follow-up |
 | 4e.7 | `full` (docs only), with the `pnpm --dir ui check` and `pnpm --dir ui conformance` output quoted in the review |
 | 4f.1 | end-of-phase levels 1–3 |
 | 4f.2 | level 4 (live) |
@@ -654,7 +654,7 @@ Every task here reads `ag-ux-foundations` first and cites AG and EA criteria by 
   - roles and the normative states: thread empty; reply pending; clarification; running; waiting approval with a refused message; verified; grounded; failed; per-run fallback; legacy runs;
   - the AG criteria and EA-1, EA-3, EA-5, EA-6, EA-9, EA-10 and EA-16;
   - 2–3 directions; how they will be judged;
-  - the D15 surfaces (citations, explanation, rationale second on the card);
+  - the D15 surfaces (citations and explanation; the rationale on the card is deferred at G-A, so the card is unchanged);
   - the "grounded, not verified" wording (handoff item 14);
   - open questions, among them: where legacy runs appear (D11), and the VI copy of 4b.3.
 - [ ] The owner approves the brief and names a direction. Record the approval verbatim in the brief's Approval section (G-B).
@@ -758,7 +758,7 @@ Every task here reads `ag-ux-foundations` first and cites AG and EA criteria by 
 
 **Files:** `docs/reviews/2026-10-<dd>-conversation-thread-ux-review.md` and `-RESOLUTION.md`.
 
-**Interfaces:** consumes the diffs of 4e.3–4e.6 and the running UI.
+**Interfaces:** consumes the diffs of 4e.3–4e.5 (4e.6 is deferred at G-A) and the running UI.
 
 - [ ] Run `ag-ux-review` in review mode. Quote the real output of `pnpm --dir ui check` and `pnpm --dir ui conformance` on the reviewed revision.
 - [ ] Fix the findings as `4.U<n>` tasks; answer each one in the resolution file. No Blocker or High stays open.
@@ -779,7 +779,7 @@ Every task here reads `ag-ux-foundations` first and cites AG and EA criteria by 
   - carried context is a hint and never evidence of the new run;
   - a `GROUNDED` end is not verified;
   - the thread corpus is authored fixture input, not model evidence (PR-29);
-  - whether 4e.6 shipped or moved to Phase 4′.
+  - that 4e.6 was deferred at G-A (ADR 0034 §5) and moved to a named follow-up, and whether 4e.5 shipped or moved to Phase 4′.
 - [ ] Commit `docs: Phase 4 handoff and roadmap status`.
 
 ### Task 4f.2: live check
@@ -814,7 +814,7 @@ Every task here reads `ag-ux-foundations` first and cites AG and EA criteria by 
     - task 4 (carried context) uses the Phase 3 ContextAssembler, not a precursor → 4d.2;
     - task 3's run-less turn is replaced by D3.
   - Core plan exit evidence ("the second run uses the first run's findings without re-asking"), met in full under D17 (a): run 2's carried layer holds run 1's verified shortage quantity and demand ref → 4c.4 (formats), 4d.2 (carry), 4d.5 (fixture) and 4f.2 item 4 (live; a partial result if the model ends run 1 without a verified answer); the sidebar shows one thread → 4e.4; conformance on both stores → 4c.3, with the server tests on both stores through the `pg` gate → 4d.4, 4d.5.
-  - Phase 3 handoff items: D10 → 4e.5, 4e.6; the live-write gap → 4f.2 item 3; FB-1 and FB-2 → 4c.3; item 14 (grounded wording review) → 4e.1, 4e.7.
+  - Phase 3 handoff items: D10 → 4e.5, and 4e.6 (deferred at G-A to a named follow-up); the live-write gap → 4f.2 item 3; FB-1 and FB-2 → 4c.3; item 14 (grounded wording review) → 4e.1, 4e.7.
   - EA-10 → 4a.1 (ADR 0034), 4e.4.
   - PR-27's missing check → 4d.4, scoped to `/v1/*` with the out-of-scope routes listed.
   - Plan review PL-1 to PL-14 (`harness/state/4/reviews/4-plan.json`) and re-review PL2-1 to PL2-8 (`harness/state/4/reviews/4-plan-r2.json`), both 2026-10-20 → this revision. Owner ruling D17 = (a) and round 3 PL3-1 to PL3-3 (`harness/state/4/reviews/4-plan-r3.json`), 2026-10-20 → this revision: PL3-1 → D17, 4c.4, 4d.2, 4d.5; PL3-2 → 4c.3, 4d.1; PL3-3 → the UI fallback paragraph, 4d.4, 4e.3.

@@ -1,0 +1,31 @@
+{
+  "task": "4a.2",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R1-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Plan passages downstream of the 4e.6 deferral still assumed 4e.6 ships: the 4a/4e summaries, the second-reviewer list, the design-refs and ADR maps, the gate table, the 4e.7 test list and interfaces, the 4f.1 handoff step and the handoff map.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md:10, :14, :87, :118-119, :135, :170, :657, :761, :782, :817"
+    },
+    {
+      "id": "R1-2",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "The plan status line still said the approved_facts cited value was 'pending the owner at G-A' in the sentence that records G-A as passed.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md:5"
+    },
+    {
+      "id": "R1-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Reviewer claimed the Co-Authored-By trailer should name Claude Sonnet 5.5; rejected by the coordinator: the session attribution instruction names Claude Opus 5.5, which the commit uses.",
+      "evidence": "git show a517e91; session attribution instructions"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-sonnet",
+    "fresh_context": true
+  }
+}
