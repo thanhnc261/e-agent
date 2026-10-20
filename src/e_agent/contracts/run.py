@@ -57,6 +57,9 @@ class ReasonCode(StrEnum):
     CONTEXT_ASSEMBLY_FAILED = "context_assembly_failed"
     REPEAT_CHECK_FAILED = "repeat_check_failed"
     GROUNDING_CHECK_FAILED = "grounding_check_failed"
+    # Phase 4 (ADR 0023 §11). Fallback code, carried only by `feature.fallback`: building a
+    # run's carried conversation context failed at admission. It never ends a run.
+    CONVERSATION_CONTEXT_FAILED = "conversation_context_failed"
     # Phase 3 terminal codes: each ends a run through an existing pair of the table, or is
     # carried by `context.failed` for a skipped acknowledgement turn (ADR 0032 §10, §11).
     CONTEXT_UNAVAILABLE = "context_unavailable"

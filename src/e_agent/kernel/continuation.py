@@ -139,8 +139,9 @@ class _Continuation(BaseModel):
     plan: _PlanState | None = None
     """The multi-step plan in flight (execution IR ``on``, Task 2c.7); None otherwise."""
     modes: RunModes | None = None
-    """The Phase 3 modes pinned when the run was prepared (ADR 0032 §8); None, and left out
-    of the stored continuation, when every mode is ``off``."""
+    """The modes pinned when the run was prepared, the Phase 3 ones and ``conversations``
+    (ADR 0032 §8, ADR 0023 §9); None, and left out of the stored continuation, when every mode
+    is ``off``."""
     context_boundary: ContextRoute | None = None
     """For a run pinned ``context_assembler: on``, the loosest route boundary any model call
     of it has used (set by the first call, review D3-41): its driver history may hold values

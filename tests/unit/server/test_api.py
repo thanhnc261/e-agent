@@ -473,6 +473,7 @@ def test_ready_reports_features(client: TestClient) -> None:
         "context_assembler": "off",
         "kernel_repeat": "off",
         "grounded_answers": "off",
+        "conversations": "off",
     }
     profile = load_profile(fixture_profile_path())
     shadow = profile.model_copy(update={"features": Features(execution_ir=FeatureMode.SHADOW)})
@@ -482,6 +483,7 @@ def test_ready_reports_features(client: TestClient) -> None:
             "context_assembler": "off",
             "kernel_repeat": "off",
             "grounded_answers": "off",
+            "conversations": "off",
         }
 
 

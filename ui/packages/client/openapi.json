@@ -652,6 +652,7 @@
           "context_assembly_failed",
           "repeat_check_failed",
           "grounding_check_failed",
+          "conversation_context_failed",
           "context_unavailable",
           "repeat_unavailable",
           "grounding_unavailable",

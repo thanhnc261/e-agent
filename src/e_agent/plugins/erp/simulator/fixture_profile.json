@@ -93,6 +93,7 @@
     "execution_ir": "off",
     "context_assembler": "off",
     "kernel_repeat": "off",
-    "grounded_answers": "off"
+    "grounded_answers": "off",
+    "conversations": "off"
   }
 }
