@@ -1,0 +1,36 @@
+{
+  "id": "4c.1",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4c-1"
+  ],
+  "context_digest": "8c0df4f83579546cd6cfb8698bc32627fb987ec004b3ea655023e8984c563c58",
+  "allowed_paths": [
+    "src/e_agent/contracts/features.py",
+    "src/e_agent/contracts/run.py",
+    "src/e_agent/kernel/features.py",
+    "src/e_agent/kernel/continuation.py",
+    "src/e_agent/server/bootstrap.py",
+    "src/e_agent/server/readiness.py",
+    "src/e_agent/kernel/evidence.py",
+    "profiles/*.json",
+    "src/e_agent/plugins/erp/simulator/**/*.json",
+    "tests/**",
+    "ui/packages/client/src/generated/**",
+    "docs/openapi/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "features, committed profile, pinning and startup tests pass",
+    "off baselines and both off model-request goldens unchanged",
+    "readiness reports five toggles"
+  ],
+  "gate_set": "full",
+  "base_commit": "12d3c12090d9845d1ba89da4a7373d6ace18113d",
+  "created_at": "2026-10-20T16:27:31+00:00",
+  "features_digest": "7078ead22fcb469a6b4c41babe64b991dddbaf4a9e148dbe47b751e445a5c452"
+}
