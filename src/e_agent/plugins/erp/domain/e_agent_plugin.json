@@ -407,7 +407,7 @@
     },
     {
       "task_id": "open-pos",
-      "version": "1"
+      "version": "2"
     }
   ],
   "settings_schema": {

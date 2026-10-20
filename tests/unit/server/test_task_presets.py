@@ -81,9 +81,9 @@ BASELINE_PROMPTS = {
         "from source:website."
     ),
     "overdue-invoices": "Report overdue customer invoices as of 2026-10-06.",
-    "open-pos": (  # Task 3e.2
-        "List the open purchase orders, such as draft RFQ rfq:po-100, citing the ERP records "
-        "you read; propose no change."
+    "open-pos": (  # Task 3e.2; version 2 wording, Task 3.D2
+        "Which procurement demands are open, and which draft RFQ (such as rfq:po-100) or "
+        "vendor offers cover them? Cite the ERP records you read; propose no change."
     ),
 }
 BASELINE_REFS = {

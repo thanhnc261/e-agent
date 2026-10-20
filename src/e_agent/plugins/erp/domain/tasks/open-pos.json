@@ -1,8 +1,8 @@
 {
   "task_id": "open-pos",
-  "version": "1",
+  "version": "2",
   "title": "Open purchasing: answer a read-only purchasing question with cited ERP records",
-  "goal_template": "List the open purchase orders, such as draft RFQ rfq:po-100, citing the ERP records you read; propose no change.",
+  "goal_template": "Which procurement demands are open, and which draft RFQ (such as rfq:po-100) or vendor offers cover them? Cite the ERP records you read; propose no change.",
   "capabilities": [
     "procurement.draft-rfq.read.v1",
     "procurement.open-demands.read.v1",

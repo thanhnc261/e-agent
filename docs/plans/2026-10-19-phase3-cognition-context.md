@@ -228,7 +228,7 @@ Run in Task 3g.2 on the owner's instruction through the `live-sandbox` skill, wi
   - `shadow` records `context.compared`;
   - `on` renders from the pack, and the evidence bundle shows the pack digest and drop log.
 - "List the open demands and their shortage" (core plan exit) with `grounded_answers: on`: the answer carries citations that resolve to this run's `read.recorded` evidence, and the verifier verifies it.
-- "List the open purchase orders" with `grounded_answers: on`, bound to the read-only ERP task definition `open-pos` (Task 3e.2, `grounded_answer: true`): `grounded.answer.v1` ends `SUCCEEDED` with reason code `GROUNDED`, with no bespoke answer contract.
+- "Which procurement demands are open, and which draft RFQ (such as rfq:po-100) or vendor offers cover them?" with `grounded_answers: on`, bound to the read-only ERP task definition `open-pos` version 2 (Task 3e.2, `grounded_answer: true`; reworded in Task 3.D2, owner ruling 2026-10-20, because no read lists purchase orders; a list read is planned for Phase 5; the profile's `rfq_ref` replaces `rfq:po-100` with the sandbox RFQ): `grounded.answer.v1` ends `SUCCEEDED` with reason code `GROUNDED`, with no bespoke answer contract.
 - Task 3 (draft PO for a seeded shortage, after reset and seed) with `context_assembler: on`: the existing write path (validation, approval, reservation, dispatch, read-back) is unchanged, and the acknowledgement turn renders from the pack.
 - The explanation projection of one live run answers the competency questions without a model call.
 
@@ -453,7 +453,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 - [ ] Commit `feat(kernel): deterministic explanation projection (Q5, ADR 0033)`.
 - Rulings from review (2026-10-19), recorded so code and design agree (PR-35):
   - CQ06: findings' `expected` and `observed` stay out of the explanation; `observed` is read data and ADR 0033 §6 holds no observation values (PR-26). The bundle's events keep them. Explained findings carry rule id, version and status, without the validator message (C3-28, C3-29).
-  - CQ07: the driver id comes from `run.created` through the reconstruction, and the evaluated rule refs (PASS included) from the ledger (C3-26, C3-27). `rule_bundle_version` is in no event payload, only inside the approval digest, so the explanation does not name it; recording it needs an ADR 0031 §3 key, which is the owner's decision (C3-27).
+  - CQ07: the driver id comes from `run.created` through the reconstruction, and the evaluated rule refs (PASS included) from the ledger (C3-26, C3-27). `rule_bundle_version` is in no event payload, only inside the approval digest, so the explanation does not name it; the owner chose not to record it (Skip, 2026-10-20, ADR 0031 §3, Task 3.D2): each finding records its `rule_version` and the profile's `artifact_sha256` pin makes the bundle traceable (C3-27).
 
 ## Part 3d: context assembly
 
@@ -658,7 +658,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 - `src/e_agent/contracts/task.py`: `AcceptanceSpec.grounded_answer: bool = False`, valid only when `required_effects` and `required_answer` are empty (refines ADR 0028).
 - `src/e_agent/kernel/ir_on.py`: the acceptance gate accepts a `GROUNDED` end only with the flag set, from the kernel's own `message.final` record.
 - `scripts/release_report.py`: counts `GROUNDED` apart from `VERIFIED`.
-- `src/e_agent/plugins/erp/domain/tasks/` and `e_agent_plugin.json`: the read-only task definition `open-pos` (read capabilities only, `grounded_answer: true`) for the live check.
+- `src/e_agent/plugins/erp/domain/tasks/` and `e_agent_plugin.json`: the read-only task definition `open-pos` (read capabilities only, `grounded_answer: true`) for the live check; version 2 (Task 3.D2) asks which procurement demands are open and which draft RFQ or vendor offers cover them, a question its bound reads answer.
 - `src/e_agent/kernel/evidence.py`: free text outside citations marked `unverified`.
 - `tests/unit/kernel/test_grounded_answer.py`.
 
@@ -671,7 +671,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
   - `test_grounded_answer_refused_on_bound_run_without_admission`;
   - `test_acceptance_spec_grounded_answer_requires_no_effects_or_answer`;
   - `test_release_report_counts_grounded_separately`;
-  - `tests/unit/plugins/erp/domain/test_open_pos_task.py::test_open_pos_is_read_only_and_admits_grounded_answer`: `open-pos` loads, offers only read capabilities, sets `grounded_answer` and admits `grounded.answer.v1` (owner G2 answer 5; the live check depends on it);
+  - `tests/unit/plugins/erp/domain/test_open_pos_task.py::test_open_pos_is_read_only_and_admits_grounded_answer`: `open-pos` version 2 (the open-demands question, Task 3.D2) loads, offers only read capabilities, sets `grounded_answer` and admits `grounded.answer.v1` (owner G2 answer 5; the live check depends on it);
   - `test_free_text_answer_is_labelled_unverified`;
   - `test_grounded_answer_not_offered_unless_pinned_on`, including after a profile flip;
   - `test_grounded_answer_with_unresolved_citation_is_repaired`;

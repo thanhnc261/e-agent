@@ -119,7 +119,7 @@ The main rulings, each with its cost if wrong. The rest are in the task handoffs
 - **A run keeps the loosest route boundary it used and refuses a stricter one** (3d.5). Cost if wrong: a run whose route tightens fails instead of continuing.
 - **Driver state is restored only before a driver turn**; kernel-only paths never restore (3d.5, ADR 0032 §8 amended, accepted by the owner on 2026-10-20). Cost if wrong: a mismatch is found at the first driver turn, not on load.
 - **With `context_assembler` on, a citation resolves only against what the pack showed the model**; masked, removed or reduced values are UNRESOLVED (3e.1). Cost if wrong: one repair for a legitimate citation on a masked value, never a leak.
-- **`open-pos` uses existing reads** and stays a preset for the live driver; the scripted driver refuses it (3e.2). Cost if wrong: the live question is reworded or a capability task is added.
+- **`open-pos` uses existing reads** and stays a preset for the live driver; the scripted driver refuses it (3e.2). Its question was reworded to one those reads answer (owner, 2026-10-20; version 2, Task 3.D2). Cost if wrong: a list-POs capability task (planned for Phase 5).
 - **The UI mislabel of a grounded run as verified was fixed as a PR-19 correctness fix**, labels and tone only, without an `ag-*` stage (3e.2). Cost if wrong: a wording change after an `ag-*` review.
 - **Unresolved refs stay repairs, not refusals**; only the at-rest form changed (3.R1). Cost if wrong: a later contract tightening.
 
@@ -140,7 +140,7 @@ The main rulings, each with its cost if wrong. The rest are in the task handoffs
 
 ## Owner decisions and ADR amendments
 
-On 2026-10-20 the owner accepted the design amendments from the Phase 3 review, and Task 3.D1 applied them, each checked against the code and with its `file:line` references moved to where the code is now. Each amended ADR carries the line "Amended 2026-10-20 (Phase 3 review, owner accepted)", and the ADR index says so. Two questions inside them stay with the owner (below).
+On 2026-10-20 the owner accepted the design amendments from the Phase 3 review, and Task 3.D1 applied them, each checked against the code and with its `file:line` references moved to where the code is now. Each amended ADR carries the line "Amended 2026-10-20 (Phase 3 review, owner accepted)", and the ADR index says so. One question inside them stays with the owner; Task 3.D2 recorded the owner's ruling on the other, and on the `open-pos` wording (below).
 
 **Applied in Task 3.D1:**
 
@@ -157,13 +157,14 @@ On 2026-10-20 the owner accepted the design amendments from the Phase 3 review, 
 
 9. **3f.1 R1-3 (P-3): keep the clarification** (owner, 2026-10-20). In every rollout, `off` included, a reasoning-only reply after a finding parks the run in WAITING_INPUT with "The model made no usable tool request."; there is no bounded model retry.
 
+10. **`open-pos`: Reword** (owner, 2026-10-20), applied in Task 3.D2. No agent-visible read lists purchase orders, so the task definition `open-pos` (version 2) now asks: "Which procurement demands are open, and which draft RFQ (such as rfq:po-100) or vendor offers cover them? Cite the ERP records you read; propose no change." Its five read capabilities, all bound in Odoo (`odoo19.procurement.open-demands`, `.demand`, `.offers`, `.rfq-read`, `odoo19.inventory.availability`), answer and cite it; the profile's `rfq_ref` replaces `rfq:po-100` with the sandbox RFQ. The task id, capabilities and `grounded_answer: true` are unchanged. A list-POs read stays planned for Phase 5.
+11. **`rule_bundle_version` in event payloads: Skip** (owner, 2026-10-20), recorded in Task 3.D2 in ADR 0031 §3 and ADR 0033's CQ07 row (3c.3 C3-27). No event payload records the rule bundle version; each finding records its rule's `rule_version`; the profile pins the plugin artifact (`artifact_sha256`), so the rule bundle is traceable; the explanation does not name the bundle.
+
 **Still pending an owner decision:**
 
-10. **Driver state at rest:** whether the pydantic-ai stored message history is minimised (ADR 0032 Consequences records it as open; ADR 0030; parked from 3.R1).
-11. **`open-pos`:** no agent-visible read lists purchase orders. Add a capability and Odoo binding (Read), or reword the live question (Reword) (3e.2).
-12. **`open-pos` goldens:** it is special-cased in the ERP catalog golden check and `BASELINE_PROMPTS` rather than added to the goldens (additive if wanted; 3e.2).
-13. **UI wording** "Completed · grounded, not verified" (en, vi) has had no `ag-*` review (3e.2).
-14. **`rule_bundle_version` in event payloads (ADR 0031 §3, 3c.3 C3-27):** Add or Skip a §3 key, so the explanation could name the rule bundle a validation ran. The ADR marks it pending; no event carries it.
+12. **Driver state at rest:** whether the pydantic-ai stored message history is minimised (ADR 0032 Consequences records it as open; ADR 0030; parked from 3.R1).
+13. **`open-pos` goldens:** it is special-cased in the ERP catalog golden check and `BASELINE_PROMPTS` rather than added to the goldens (additive if wanted; 3e.2).
+14. **UI wording** "Completed · grounded, not verified" (en, vi) has had no `ag-*` review (3e.2).
 
 ## Before the live check 3g.2
 
@@ -175,8 +176,8 @@ On 2026-10-20 the owner accepted the design amendments from the Phase 3 review, 
    | `domain-erp` | `0067b787dde0b4d88b135754a1f03d8e7fc726f87b3a9d9d4a47181ab2c6c860` (changed) |
    | `odoo19` | `5976460ec47f273d9136c526c1e51dcc1af06988bc4331778ef62cd5d76c09e0` (same as Phase 2) |
 
-   The pins change only if a later commit touches `src/e_agent/plugins/erp/**`.
-3. `open-pos` has no list-POs read: decide the capability or the wording (decision 11 above). The run needs `execution_ir: on`, `grounded_answers: on` and `--task open-pos` with the live driver.
+   The pins change only if a later commit touches `src/e_agent/plugins/erp/**`. Task 3.D2 did (`domain/tasks/open-pos.json` and `domain/e_agent_plugin.json`), so the `domain-erp` digest above is stale: rebuild the wheel at or after the 3.D2 commit, regenerate the inventory and re-pin `domain-erp` in the live profile before 3g.2. `odoo19` is untouched by 3.D2.
+3. `open-pos` asks its version 2 question (decision 10 above); the profile's `driver.refs.rfq_ref` must name a sandbox draft RFQ, or the prompt keeps the fixture ref `rfq:po-100`. The run needs `execution_ir: on`, `grounded_answers: on` and `--task open-pos` with the live driver.
 4. There is no runbook entry for a run in NEEDS_RECONCILIATION with a driver-state mismatch (3d.5). After resolution the acknowledgement turn is skipped.
 5. The live check's toggle settings (`context_assembler` `off`, `shadow`, `on`; `grounded_answers: on`) need profiles that set them; Phase 2 used temporary `*.local.json` copies, deleted after the check.
 

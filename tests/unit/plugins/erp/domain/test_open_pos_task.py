@@ -1,10 +1,11 @@
 """The read-only ERP task definition ``open-pos`` (ADR 0033 §3, Task 3e.2, owner G2 answer 5).
 
-The Phase 3 live check binds "List the open purchase orders" to it with
-``grounded_answers: on``, so ``grounded.answer.v1`` ends the run ``GROUNDED`` with no bespoke
-answer contract. It names read capabilities only and sets ``grounded_answer``; its tool set
-holds no typed answer, so a run bound to it in ``execution_ir: on`` admits the generic
-answer. Checked here on the simulator: the kernel suite imports no plugin.
+The Phase 3 live check binds its version 2 question (owner ruling 2026-10-20, Task 3.D2),
+"Which procurement demands are open, and which draft RFQ or vendor offers cover them?", to
+it with ``grounded_answers: on``, so ``grounded.answer.v1`` ends the run ``GROUNDED`` with no
+bespoke answer contract. It names read capabilities only and sets ``grounded_answer``; its
+tool set holds no typed answer, so a run bound to it in ``execution_ir: on`` admits the
+generic answer. Checked here on the simulator: the kernel suite imports no plugin.
 """
 
 from __future__ import annotations
@@ -96,7 +97,7 @@ async def test_open_pos_is_read_only_and_admits_grounded_answer() -> None:
     definitions = {d.task_id: d for d in plugin.load_task_definitions()}
     assert OPEN_POS in definitions
     declared = [(t.task_id, t.version) for t in plugin.load_manifest().provides_task_definitions]
-    assert (OPEN_POS, "1") in declared
+    assert (OPEN_POS, "2") in declared
 
     on = Features(execution_ir=FeatureMode.ON, grounded_answers=FeatureMode.ON)
     rt = await _runtime(on)

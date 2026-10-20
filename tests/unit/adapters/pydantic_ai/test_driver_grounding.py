@@ -209,7 +209,7 @@ def test_rationale_schema_matches_the_record() -> None:
     assert props["cited_evidence"]["items"]["pattern"] == ID_PATTERN
     assert props["rules_considered"]["items"]["pattern"] == ID_PATTERN
     assert props["summary"]["maxLength"] == SUMMARY_MAX
-    goals = ["run", "draft-po@1", "notes-question@1#answer", "open-pos@1"]
+    goals = ["run", "draft-po@1", "notes-question@1#answer", "open-pos@2"]
     for goal in goals:
         ProposalRationale(goal_ref=goal, summary="s")
     for bad in ["the draft po task", "", "x" * 129]:

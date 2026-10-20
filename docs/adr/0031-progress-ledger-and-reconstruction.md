@@ -1,6 +1,6 @@
 # ADR 0031: Progress ledger, repeat detection and run reconstruction
 
-Date: 2026-10-19. Status: Accepted (2026-10-19, owner, gate G2, Phase 3 Task 3a.2). Amended 2026-10-20 (Phase 3 review, owner accepted; Task 3.D1): the repeat rule's module, the kept blocked revisions, the `budgets_used` wording, the event-less `BLOCKED` writes and current file:line references; whether §3 adds `rule_bundle_version` is pending an owner decision. Refines ADRs 0007, 0018, 0025 and 0027; [target architecture](../design/target-architecture.md) §5.1 item 2, §6.2, §6.3, §17 C8. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D7, D9, Tasks 3c.1, 3c.2, 3d.6.
+Date: 2026-10-19. Status: Accepted (2026-10-19, owner, gate G2, Phase 3 Task 3a.2). Amended 2026-10-20 (Phase 3 review, owner accepted; Task 3.D1): the repeat rule's module, the kept blocked revisions, the `budgets_used` wording, the event-less `BLOCKED` writes and current file:line references. Amended 2026-10-20 (owner decision; Task 3.D2): §3 adds no `rule_bundle_version` key (Skip). Refines ADRs 0007, 0018, 0025 and 0027; [target architecture](../design/target-architecture.md) §5.1 item 2, §6.2, §6.3, §17 C8. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D7, D9, Tasks 3c.1, 3c.2, 3d.6.
 
 ## Context
 
@@ -81,7 +81,7 @@ These keys are added to existing events only. No event is added, removed or reor
 - `credential_subject` is the connection's credential subject identifier, already in the action row and the digest input; it is never a secret.
 - `approval.decided` for `expired` and `surface_changed` creates no approval record, so it needs no new key; it only moves the action to `BLOCKED`.
 - `approval.requested` already carries `digest` and `expires_at`; receipts need nothing.
-- **Pending an owner decision (Add or Skip; review 3c.3 C3-27):** `rule_bundle_version` is in no event payload, so the explanation (ADR 0033 §6) cannot name the rule bundle a validation ran. Adding it would be a further §3 key; until the owner decides, no event carries it.
+- **`rule_bundle_version` is not recorded in events (owner decision 2026-10-20: Skip; review 3c.3 C3-27; Task 3.D2).** No event payload records the rule bundle version, and §3 adds no key for it. Each validation finding records its rule's `rule_version`. The profile pins each plugin's artifact (`artifact_sha256`; outside a fixture profile the registry refuses an unpinned plugin, and it refuses one whose bytes differ: `server/bootstrap.py:338`, `kernel/registry.py:180-190`), so the rule bundle a run used is traceable to that artifact. The explanation (ADR 0033 §6) does not name the bundle.
 
 ### 4. The `off` proof, refined (D7)
 

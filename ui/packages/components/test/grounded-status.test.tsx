@@ -27,7 +27,7 @@ function controller(reasonCode: RunRecord["reason_code"]): RunController {
     run_id: "run-1",
     tenant_id: "t",
     requester_id: "u",
-    task: "List the open purchase orders",
+    task: "Which procurement demands are open, and which draft RFQ or vendor offers cover them?",
     state: "SUCCEEDED",
     revision: 3,
     logical_operation_id: "op-1",
