@@ -1,0 +1,27 @@
+{
+  "id": "3.D3",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3-D3"
+  ],
+  "context_digest": "74781bcd90a807a75ef7878d62c12290c0b3d63f7f9e93fe3b4245fce8cc1d6f",
+  "allowed_paths": [
+    "docs/adr/0033-explanation-and-grounded-answers.md",
+    "docs/adr/README.md",
+    "README.md",
+    "docs/roadmap.md",
+    "docs/handoffs/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-19-phase3-cognition-context.md"
+  ],
+  "acceptance": [
+    "no doc says the ADR 0033 §3 amendment is pending; the handoff records the live-write ruling",
+    "uv run e-agent-harness gate full passes on a clean tree"
+  ],
+  "gate_set": "full",
+  "base_commit": "99aec1a79be62bfe6caf963a13a39b5da8784d80",
+  "created_at": "2026-10-20T12:18:44+00:00",
+  "features_digest": "3be5ae67c6e68c324cc4c00212c1273be390bf6bf8e96a2eec4e0809834c2937"
+}

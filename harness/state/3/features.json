@@ -293,6 +293,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/3.R2/2026-10-20T08-58-05.537660+00-00-full.json"
+    },
+    {
+      "id": "F-3-D3",
+      "category": "docs",
+      "description": "Owner accepted the ADR 0033 §3 fourth admission condition (2026-10-20); live-write ruling recorded",
+      "steps": [
+        "no doc says the ADR 0033 §3 amendment is pending; the handoff records the live-write ruling",
+        "uv run e-agent-harness gate full passes on a clean tree"
+      ],
+      "passes": false
     }
   ]
 }
