@@ -204,3 +204,24 @@ describe("task history reply state", () => {
     c.dispose();
   });
 });
+
+describe("task history reply state after the answer", () => {
+  it("history entry clears replyPending after the answer", async () => {
+    let state: "WAITING_INPUT" | "RUNNING" = "WAITING_INPUT";
+    const { client, emit } = fakeClient(async () => snapshot(state, null, 1));
+    client.listEvents.mockImplementation(async () => [ev(1, "input.requested", { question: "Hello! What next?", kind: "reply" })]);
+    const submitInput = vi.fn(async () => ({ status: "accepted" }));
+    const c = new RunController({ client: { ...client, submitInput } as unknown as EAgentClient, storage: null });
+    await c.start("hi");
+    expect(c.getState().history[0]?.replyPending).toBe(true);
+    state = "RUNNING";
+    await c.start("hi");
+    expect(submitInput).toHaveBeenCalledTimes(1);
+    emit(ev(2, "input.received", { input: "hi" }));
+    emit(ev(3, "run.state_changed", { from: "WAITING_INPUT", to: "RUNNING" }));
+    await c.refresh();
+    expect(c.getState().history[0]).toMatchObject({ runId: "run-1", state: "RUNNING" });
+    expect(c.getState().history[0]?.replyPending).toBe(false);
+    c.dispose();
+  });
+});

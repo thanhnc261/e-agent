@@ -1,7 +1,7 @@
 .ea-slot { min-width:0; }
 .ea-slot:empty { display:none; }
 .ea-layout-full { min-height:100dvh; }
-.ea-workspace { display:grid; grid-template-columns:14rem minmax(0,1fr); min-height:calc(100dvh - 4.5rem); }
+.ea-workspace { display:grid; grid-template-columns:14rem minmax(0,1fr); min-height:calc(100dvh - 4.5rem); container-type:inline-size; container-name:ea-workspace; }
 .ea-workspace > [data-slot="navigation"] { border-right:1px solid var(--ea-color-border-subtle); background:var(--ea-color-surface-raised); }
 .ea-workarea { padding:var(--ea-space-2xl); max-width:84rem; width:100%; margin:0 auto; min-width:0; }
 .ea-conversation { max-width:44rem; margin:0 auto; display:flex; flex-direction:column; gap:var(--ea-space-lg); min-width:0; }
@@ -31,7 +31,10 @@
 .ea-overlay-panel .ea-term,.ea-layout-sidebar .ea-term { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.3fr); }
 .ea-overlay-panel .ea-term-before,.ea-layout-sidebar .ea-term-before { grid-column:1 / -1; }
 .ea-launcher { float:right; border-radius:var(--ea-radius-lg); box-shadow:0 4px 16px rgb(0 0 0 / .12); }
-@media (max-width:1180px) { .ea-workarea-active { grid-template-columns:minmax(0,1fr); max-width:50rem; } .ea-inspector { flex-direction:column; } }
+/* One column when the workspace is narrower than 73.75rem (1180 px at default text).
+   A container query in rem, so it also fires when text grows: at 200 % text the thread
+   keeps its width instead of collapsing beside the inspector (AG-A11Y-3). */
+@container ea-workspace (max-width:73.75rem) { .ea-workarea-active { grid-template-columns:minmax(0,1fr); max-width:50rem; } .ea-inspector { flex-direction:column; } }
 @media (max-width:760px) {
  .ea-workspace { grid-template-columns:minmax(0,1fr); }
  .ea-workspace > [data-slot="navigation"] { border-right:0; border-bottom:1px solid var(--ea-color-border); }

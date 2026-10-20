@@ -63,10 +63,24 @@ describe("malformed addresses", () => {
 describe("context chip copy", () => {
   it("context chip says what the agent uses", () => {
     expect(translate("en", "context.noHost")).toBe(
-      "Uses this conversation and your connected systems; this page sends no extra details.",
+      "e-agent also uses this task's messages and any systems you have connected, within your permissions.",
     );
     expect(translate("vi", "context.noHost")).toBe(
-      "Dùng cuộc trò chuyện này và các hệ thống bạn đã kết nối; trang này không gửi thêm thông tin nào.",
+      "e-agent cũng dùng các tin nhắn của tác vụ này và mọi hệ thống bạn đã kết nối, trong phạm vi quyền của bạn.",
+    );
+  });
+
+  it("F-7 the chip copy holds with or without a connection, and names the task, not a conversation", () => {
+    for (const locale of ["en", "vi"] as const) {
+      const used = translate(locale, "context.noHost");
+      expect(used).not.toMatch(/your connected systems|các hệ thống bạn đã kết nối/);
+      expect(used).not.toMatch(/conversation|cuộc trò chuyện/);
+    }
+    expect(translate("en", "context.sentNoHost")).toBe(
+      "Your message text only; this page sends no extra details.",
+    );
+    expect(translate("vi", "context.sentNoHost")).toBe(
+      "Chỉ nội dung tin nhắn của bạn; trang này không gửi thêm thông tin nào.",
     );
   });
 });

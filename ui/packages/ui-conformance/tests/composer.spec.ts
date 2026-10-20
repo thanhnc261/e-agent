@@ -63,15 +63,23 @@ test("reply label shows once after hi, hi", async ({ page }) => {
   await expect(page.getByTestId("reply-label")).toHaveText("Reply · not a verified result");
 });
 
-test("a later reply keeps a quiet not-verified hint", async ({ page }) => {
+test("F-6 a later reply shows a small visible not-verified note", async ({ page }) => {
   await twoReplies(page);
-  const later = page.getByTestId("pending-reply");
-  await expect(later).toContainText("Hello again! What next?");
-  const hintId = await later.getAttribute("aria-describedby");
-  expect(hintId).toBeTruthy();
-  const hint = page.locator(`[id="${hintId}"]`);
-  await expect(hint).toHaveText("Reply · not a verified result");
-  await expect(hint).toHaveClass(/ea-visually-hidden/);
+  const later = page.locator(".ea-message").filter({ has: page.getByTestId("pending-reply") });
+  await expect(later.getByTestId("pending-reply")).toContainText("Hello again! What next?");
+  const note = later.getByTestId("reply-note");
+  await expect(note).toBeVisible();
+  await expect(note).toContainText("not verified");
+  await expect(note).toHaveClass(/ea-muted/);
+  await expect(later.getByTestId("reply-label")).toHaveCount(0);
+});
+
+test("F-5 the Activity timeline says Your turn after a reply", async ({ page }) => {
+  await twoReplies(page);
+  await expect(page.getByTestId("pending-reply")).toContainText("Hello again! What next?");
+  const rows = page.locator("[data-testid=timeline-item][data-type='run.state_changed']");
+  await expect(rows.last()).toContainText("Your turn");
+  await expect(page.getByTestId("timeline")).not.toContainText("Your answer is needed");
 });
 
 test("sidebar says Your turn after a reply", async ({ page }) => {

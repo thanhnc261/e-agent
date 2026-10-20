@@ -1,5 +1,5 @@
 /** Recorded host events in order. Unsupported events stay visible and labelled. */
-import { formatDateTime, formatTime, readableLabel, resultStatusKey, statusKey } from "@e-agent/ui-core";
+import { formatDateTime, formatTime, readableLabel, runStatusKey } from "@e-agent/ui-core";
 import { useI18n, useRun, useTimeline } from "@e-agent/ui-react";
 import { Disclosure } from "../../primitives/Disclosure.tsx";
 
@@ -7,6 +7,7 @@ export function Timeline() {
   const { t, locale } = useI18n();
   const items = useTimeline();
   // SUCCEEDED is terminal, so its one transition ends with the run's own reason code.
+  // A wait on a reply reads "Your turn", as in the composer and the sidebar (runStatusKey).
   const { run } = useRun();
   if (!items.length) return null;
   return (
@@ -27,8 +28,8 @@ export function Timeline() {
             <span>{t(item.labelKey)}</span>
             {item.transition ? (
               <small>
-                {t(statusKey(item.transition.from))} →{" "}
-                {t(resultStatusKey(item.transition.to, run?.reason_code))}
+                {t(runStatusKey(item.transition.from, [], item.transition.fromReply === true))} →{" "}
+                {t(runStatusKey(item.transition.to, [], item.transition.toReply === true, run?.reason_code))}
               </small>
             ) : (
               item.detail && (

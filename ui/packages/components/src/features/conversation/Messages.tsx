@@ -51,20 +51,23 @@ export function Messages() {
               <BrandMark className="ea-message-avatar ea-message-avatar-agent" />
             )}
             <div>
-              <p className="ea-message-author">{t(m.role === "user" ? "messages.you" : "messages.agent")}</p>
-              {m.kind === "reply" &&
-                (m.firstReply ? (
-                  <p className="ea-muted ea-small" data-testid="reply-label">
-                    {t("conversation.reply")}
-                  </p>
-                ) : (
-                  <span className="ea-visually-hidden" id={`reply-hint-${m.id}`}>
-                    {t("conversation.reply")}
-                  </span>
-                ))}
+              <p className="ea-message-author">
+                {t(m.role === "user" ? "messages.you" : "messages.agent")}
+                {m.kind === "reply" && !m.firstReply && (
+                  // Owner G-0 (2026-10-20): every later reply stays visibly unverified.
+                  <small className="ea-muted ea-reply-note" data-testid="reply-note">
+                    <span aria-hidden="true"> · </span>
+                    {t("conversation.replyNote")}
+                  </small>
+                )}
+              </p>
+              {m.kind === "reply" && m.firstReply && (
+                <p className="ea-muted ea-small" data-testid="reply-label">
+                  {t("conversation.reply")}
+                </p>
+              )}
               <div
                 className="ea-message-body"
-                aria-describedby={m.kind === "reply" && !m.firstReply ? `reply-hint-${m.id}` : undefined}
                 data-testid={
                   m.pending ? (m.kind === "reply" ? "pending-reply" : "clarification-question") : undefined
                 }

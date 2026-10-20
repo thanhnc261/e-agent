@@ -150,8 +150,12 @@ export interface TimelineItem {
   occurredAt: string;
   supported: boolean;
   detail: string | null;
-  /** For a run state change: the server's states, so a UI can label them. */
-  transition?: { from: string; to: string };
+  /**
+   * For a run state change: the server's states, so a UI can label them. `toReply` and
+   * `fromReply` mark a WAITING_INPUT entered after a conversational reply (ADR 0022), so
+   * the row reads like the composer and the sidebar ("Your turn"), never a second name.
+   */
+  transition?: { from: string; to: string; toReply?: true; fromReply?: true };
 }
 
 function legacyTransition(p: Record<string, unknown>): { from: string; to: string } {
@@ -161,13 +165,25 @@ function legacyTransition(p: Record<string, unknown>): { from: string; to: strin
 
 /** Plain-data timeline; detail is a short, non-HTML string. */
 export function selectTimeline(view: RunView): TimelineItem[] {
+  // The kind of the last recorded request, and whether the current wait is on a reply.
+  let lastRequest: string | null = null;
+  let waitingOnReply = false;
   return view.events.map((e) => {
     const type = e.type as string;
     const supported = e.schema_version === "1" && KNOWN_EVENT_TYPES.has(type);
     const p = e.payload ?? {};
     let detail: string | null = null;
     // Rows written before ADR 0031 carry only `state`; an absent `from` stays "unknown", never "undefined".
-    const transition = supported && type === "run.state_changed" ? legacyTransition(p) : null;
+    if (supported && type === "input.requested") lastRequest = p["kind"] === "reply" ? "reply" : "other";
+    if (supported && type === "input.received") lastRequest = null;
+    let transition: TimelineItem["transition"] | null = null;
+    if (supported && type === "run.state_changed") {
+      const states = legacyTransition(p);
+      const fromReply = states.from === "WAITING_INPUT" && waitingOnReply;
+      const toReply = states.to === "WAITING_INPUT" && lastRequest === "reply";
+      waitingOnReply = toReply;
+      transition = { ...states, ...(fromReply ? { fromReply: true } : {}), ...(toReply ? { toReply: true } : {}) };
+    }
     if (transition) detail = `${transition.from} → ${transition.to}`;
     else if (supported && (type === "validation.completed" || type === "outcome.reported")) detail = String(p["status"] ?? "");
     else if (supported && type === "approval.decided") detail = String(p["decision"] ?? "");

@@ -2,6 +2,8 @@
 import { runStatusKey } from "@e-agent/ui-core";
 import { useController, useI18n, useRunState, useSurface } from "@e-agent/ui-react";
 import { ActionButton } from "../../primitives/ActionButton.tsx";
+import { statusMarker } from "../../primitives/StatusBadge.tsx";
+import { runStateTone } from "../../primitives/runStateTone.ts";
 
 export function TaskNavigation({
   onOpen,
@@ -47,7 +49,17 @@ export function TaskNavigation({
                   data-testid="history-task"
                 >
                   <span>{h.task}</span>
-                  <small>{t(runStatusKey(h.state, [], h.replyPending === true, h.reasonCode))}</small>
+                  <small>
+                    {/* The same marker as the composer's status pill (EA-15). */}
+                    <span
+                      className="ea-task-status-marker"
+                      aria-hidden="true"
+                      data-testid="history-status-marker"
+                    >
+                      {statusMarker(runStateTone(h.state, h.reasonCode))}
+                    </span>
+                    {t(runStatusKey(h.state, [], h.replyPending === true, h.reasonCode))}
+                  </small>
                 </ActionButton>
               </li>
             ))}

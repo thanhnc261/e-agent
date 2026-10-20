@@ -7,7 +7,7 @@ import { runStatusKey, selectPendingReply, TERMINAL_STATES } from "@e-agent/ui-c
 import { useController, useI18n, useRun, useRunState } from "@e-agent/ui-react";
 import { ActionButton } from "../../primitives/ActionButton.tsx";
 import { StatusBadge } from "../../primitives/StatusBadge.tsx";
-import { runStateTone } from "./runStateTone.ts";
+import { runStateTone } from "../../primitives/runStateTone.ts";
 
 export function RunStatus() {
   const { t } = useI18n();

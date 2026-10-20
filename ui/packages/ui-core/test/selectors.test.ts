@@ -261,3 +261,24 @@ describe("timeline transitions", () => {
     expect(translate("vi", "status.unknown")).not.toBe("status.unknown");
   });
 });
+
+describe("F-5 timeline reply turn", () => {
+  it("F-5 marks a WAITING_INPUT change after a reply as the user's turn, both ways", () => {
+    const items = selectTimeline(
+      viewWith("RUNNING", [
+        event(1, "input.requested", { question: "Hello! What next?", kind: "reply" }),
+        event(2, "run.state_changed", { from: "RUNNING", to: "WAITING_INPUT" }),
+        event(3, "input.received", { input: "hi" }),
+        event(4, "run.state_changed", { from: "WAITING_INPUT", to: "RUNNING" }),
+        event(5, "input.requested", { question: "Which supplier?", kind: "clarification" }),
+        event(6, "run.state_changed", { from: "RUNNING", to: "WAITING_INPUT" }),
+        event(7, "run.state_changed", { from: "WAITING_INPUT", to: "RUNNING" }),
+      ]),
+    );
+    const transitions = items.flatMap(i => (i.transition ? [i.transition] : []));
+    expect(transitions[0]).toMatchObject({ to: "WAITING_INPUT", toReply: true });
+    expect(transitions[1]).toMatchObject({ from: "WAITING_INPUT", fromReply: true });
+    expect(transitions[2]?.toReply).toBeFalsy();
+    expect(transitions[3]?.fromReply).toBeFalsy();
+  });
+});

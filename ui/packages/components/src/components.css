@@ -248,6 +248,9 @@
   text-overflow: ellipsis;
   width: 100%;
 }
+.ea-task-status-marker {
+  margin-right: var(--ea-space-xs);
+}
 .ea-task-link small,
 .ea-nav-hint {
   font-size: var(--ea-font-size-sm);
@@ -326,6 +329,9 @@
   font-weight: 650;
   font-size: var(--ea-font-size-sm);
   margin-bottom: var(--ea-space-xs);
+}
+.ea-reply-note {
+  font-weight: var(--ea-font-weight-regular);
 }
 .ea-message-body {
   margin-bottom: 0;
@@ -617,7 +623,7 @@
   .ea-term-before {
     grid-column: 1 / -1;
   }
-  .ea-composer-footer .ea-small {
+  .ea-composer-help {
     display: none;
   }
   .ea-composer-footer {
@@ -714,8 +720,11 @@ body.ea-root {
   min-height: 2rem;
   padding-block: var(--ea-space-xs);
 }
+/* The Context panel is placed from the composer footer, not the chip, so it can never
+   run past the composer's edge at narrow widths (AG-A11Y-3 reflow). */
 .ea-composer-footer {
   flex-wrap: wrap;
+  position: relative;
 }
 .ea-composer-tools {
   display: flex;
@@ -724,9 +733,6 @@ body.ea-root {
 }
 .ea-composer-help {
   margin-left: auto;
-}
-.ea-context {
-  position: relative;
 }
 .ea-context > summary {
   list-style: none;
@@ -758,7 +764,7 @@ body.ea-root {
   position: absolute;
   left: 0;
   bottom: calc(100% + 0.5rem);
-  width: min(22rem, calc(100vw - 2rem));
+  width: min(22rem, 100%);
   background: var(--ea-color-card);
   border: 1px solid var(--ea-color-border);
   border-radius: var(--ea-radius-lg);
@@ -770,6 +776,10 @@ body.ea-root {
 }
 .ea-context-panel p {
   margin: 0;
+}
+.ea-context-uses {
+  border-top: 1px solid var(--ea-color-border-subtle);
+  padding-top: var(--ea-space-sm);
 }
 .ea-context-list {
   margin: 0;
