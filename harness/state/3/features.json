@@ -304,6 +304,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/3.D3/2026-10-20T12-19-43.975717+00-00-full.json"
+    },
+    {
+      "id": "F-3-R3",
+      "category": "tooling",
+      "description": "CI independent wheel install: check_wheels.py expects the 10 ERP task definitions after open-pos (3e.2)",
+      "steps": [
+        "uv run python scripts/check_wheels.py passes locally",
+        "uv run e-agent-harness gate full passes on a clean tree"
+      ],
+      "passes": false
     }
   ]
 }
