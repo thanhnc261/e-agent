@@ -1,0 +1,24 @@
+{
+  "task": "3g.1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "FA-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Review point 3 (PR-13, ENG-TRUST-1): a task with writes can end GROUNDED. Two checks are enforced: check_answer_condition refuses grounded_answer together with required_effects or required_answer, and acceptance_met keeps a grounded end from meeting any other spec. Three gaps remain. (a) Registry admission accepts a task definition that sets acceptance.grounded_answer while its capabilities include an EffectKind.WRITE, or while its budgets.max_admitted_writes is above 0. (b) _admits_grounded_answer refuses only an offered set that holds a typed answer (EffectKind.ANSWER). An unbound run whose agent-visible set includes a write (the notes pack, 'write standup note') is offered cite_and_answer and can end SUCCEEDED/GROUNDED in place of its write. (c) _handle_grounded_answer never checks for an earlier write proposal in the run, blocked or reserved. Before Phase 3, run_loop Ruling 3 kept a run that had read something from ending SUCCEEDED without a VERIFIED action. This follows the letter of ADR 0033 section 3 (its three admission conditions), but not the brief's invariant or the ADR's 'read-only question' purpose. The discriminator to rule on: no EffectKind.WRITE in the offered set, or max_admitted_writes == 0, checked at admission of the run and of the definition. Fix: add that condition, or get an owner ruling that amends ADR 0033 section 3. Not on the live write path. Every committed profile pins grounded_answers off (test_committed_profiles_keep_phase3_toggles_off; fixture_profile.json:96, dev-ollama.json:106, live.example.json:111). Unbound ERP runs never admit, because ERP offers typed answers. open-pos v2 is read-only, with max_admitted_writes 0.",
+      "evidence": "src/e_agent/kernel/grounded_answer.py:83-98; src/e_agent/kernel/grounded_answer.py:118-146; src/e_agent/kernel/registry.py:396-406; src/e_agent/contracts/task.py (check_answer_condition, acceptance_met); src/e_agent/kernel/run_loop.py:146-197; tests/unit/kernel/test_grounded_answer.py:175-203; tests/unit/kernel/test_grounded_answer.py:534-535; docs/adr/0033-explanation-and-grounded-answers.md:39-43"
+    },
+    {
+      "id": "FA-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "After a kernel_repeat on fallback (and a typed-answer grounding fallback), the run record that record_fallback returns is thrown away, so _handle_proposal carries on with the pre-fallback revision. Only the rationale probe's fallback is threaded back (run = reasons.run or run). The writes I checked re-read the run (_await_approval, the blocked branch, _handle_answer's failure branch), so I found no failure, but the execution_ir shadow/on calls that take run were not traced. Threading the returned run, as the rationale probe does, would make this robust.",
+      "evidence": "src/e_agent/kernel/repeat.py:162-164; src/e_agent/kernel/grounding.py:368-372; src/e_agent/kernel/proposals.py:144-150; src/e_agent/kernel/proposals.py:305"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}

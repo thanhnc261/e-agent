@@ -281,6 +281,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/3.D2/2026-10-20T03-41-33.144041+00-00-full.json"
+    },
+    {
+      "id": "F-3-R2",
+      "category": "kernel",
+      "description": "Final check FA-1/FA-2/FB-3: the grounded answer is admitted only for a run that cannot write; fallback keeps the returned run; docs record the final check",
+      "steps": [
+        "uv run pytest -q tests/unit/kernel tests/conformance passes with tests that a write-capable run is never offered grounded.answer.v1, a definition with grounded_answer and a write is refused, and FB-3 (a) and (b)",
+        "uv run e-agent-harness gate full and gate pg pass on a clean tree"
+      ],
+      "passes": false
     }
   ]
 }
