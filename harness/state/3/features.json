@@ -247,7 +247,8 @@
       "steps": [
         "live results recorded in the handoff, labelled live and separate from fixture results"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3g.2/2026-10-20T11-17-45.010958+00-00-full.json"
     },
     {
       "id": "F-3-R1",
