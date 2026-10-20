@@ -101,22 +101,22 @@
     {
       "id": "F-4c-3",
       "category": "store",
-      "description": "Task 4c.3: ConversationStore on both stores with migration 0007, one active run per conversation; memory store in kernel/memory_conversations.py; FB-1, FB-2",
+      "description": "Task 4c.3: ConversationStore on both stores with migration 0007 and create_run_in_conversation (RunStore unchanged), one active run per conversation; InMemoryConversationStore subclass in kernel/memory_conversations.py; FB-1, FB-2",
       "steps": [
         "tests/conformance/test_conversation_store.py passes on memory and Postgres and prints its case count",
-        "test_concurrent_messages_start_one_run and test_empty_driver_state_round_trips pass on both stores",
-        "memory_store.py at most 500 lines; lint-imports keeps every contract; pg gate passes"
+        "test_concurrent_messages_start_one_run and test_empty_driver_state_round_trips (update_run and wait_for_approval) pass on both stores",
+        "wc -l shows memory_store.py at most 500 lines, changed only by the FB-2 fix; lint-imports keeps every contract; pg gate passes"
       ],
       "passes": false
     },
     {
       "id": "F-4d-1",
       "category": "kernel",
-      "description": "Task 4d.1: message routing bound to the question the user saw; idempotent answer retry; a message is never a decision; another requester gets NOT_FOUND",
+      "description": "Task 4d.1: message routing bound to the question the user saw; ownership, then reply_to membership (NOT_FOUND), then input_replayed(actor) refusing a non-requester; start passes host_context unchanged; a message is never a decision",
       "steps": [
         "tests/unit/kernel/test_conversation_routing.py passes on both stores",
-        "test_answer_for_an_earlier_question_conflicts and test_retried_answer_is_accepted_once pass",
-        "test_message_while_waiting_approval_never_touches_the_action passes"
+        "test_answer_for_an_earlier_question_conflicts, test_retried_answer_is_accepted_once, test_reply_to_foreign_run_is_not_found and test_input_replayed_refuses_a_non_requester pass",
+        "test_start_passes_host_context_to_the_run and test_message_while_waiting_approval_never_touches_the_action pass"
       ],
       "passes": false
     },
@@ -133,10 +133,10 @@
     {
       "id": "F-4d-3",
       "category": "kernel",
-      "description": "Task 4d.3: conversations shadow records conversation.compared, refuses nothing today's path accepts, and falls back to today's run or input path",
+      "description": "Task 4d.3: conversations shadow records conversation.compared, refuses nothing today's path accepts, and falls back server-side in the same request and idempotency record, carrying host_context as POST /v1/runs does",
       "steps": [
         "test_shadow_layer_digest_equals_on_layer_digest passes and prints its case count",
-        "shadow fallback tests (stale revision, concurrent pair, conversation error) pass; no request fails",
+        "shadow fallback tests (stale revision, concurrent pair, conversation error, test_shadow_start_carries_host_context_as_create_run, test_shadow_answer_to_own_unlinked_run_is_plain_input) pass; no request fails",
         "shadow adds no model call, read or budget use"
       ],
       "passes": false
@@ -155,10 +155,10 @@
     {
       "id": "F-4d-5",
       "category": "server",
-      "description": "Task 4d.5: fixture thread end to end; run 2's carried layer holds run 1's VERIFIED ShortageAnswer shortage quantity",
+      "description": "Task 4d.5: fixture thread end to end; under D17's default run 2's carried layer holds run 1's demand and product refs and the user's messages, no ShortageAnswer value, and run 2 never re-asks",
       "steps": [
         "tests/unit/server/test_conversation_e2e.py passes on both stores",
-        "pg gate (now with test_conversation_e2e.py) and make e2e pass"
+        "pg gate and the CI checks job's PostgreSQL step (both now with test_conversation_e2e.py) and make e2e pass"
       ],
       "passes": false
     },
@@ -248,6 +248,7 @@
       "description": "Task 4f.2: Phase 4 live check on odoo19-learning, on the owner's instruction only: Phase 0 exit, single-run PO with the pack, then the thread",
       "steps": [
         "uv run e-agent-harness live-check passes and writes evidence under harness/state/evidence/live/",
+        "gitleaks dir over harness/state/evidence/live/ reports no leaks and the key-shape grep finds no matches; nothing reads the secret store or a key value",
         "live results recorded in the handoff, labelled live; no PO proposed is a partial result"
       ],
       "passes": false

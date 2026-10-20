@@ -1,0 +1,63 @@
+{
+  "task": "4-plan",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "PL2-1",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "New in the revision: D5 carries model free text. It carries every declared path of a VERIFIED answer's arguments. But three of the four ERP answer contracts declare a model-written free-text field as personal: procurement.offer.recommend.v1 /input/explanation, sales.late-orders.answer.v1 /input/summary and receivables.overdue-invoices.answer.v1 /input/summary. These are carried into run 2, against D5's own 'never model text (... a grounded summary)' and Review Focus 2 (a self-injection path across runs). Masking only applies on hosted routes, so local routes would see the text. test_carry_holds_no_model_text targets message.final, reply, question and rationale, not answer arguments, so it would not catch this. Fix: carry only answer paths that are refs or typed values the verifier checked (or exclude every free-text string path), and add a carry test over a VERIFIED recommend or late-orders answer (PR-26, PR-34).",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md@5eafe4d:38,476; src/e_agent/plugins/erp/domain/e_agent_plugin.json (offer.recommend /input/explanation, late-orders /input/summary, overdue-invoices /input/summary: personal)"
+    },
+    {
+      "id": "PL2-2",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "PL-1 is only partly closed. The new module is right, but the stated design cannot meet the stated budget. memory_store.py has 499 lines and may grow by +1, yet it is to receive a new conversation_revision parameter on the multi-line create_run_idempotent signature, an import of check_conversation_run and the call: at least +3 lines before FB-2. The step 'wc -l at most 500' then fails. Fix: allow moving an existing block out of memory_store.py, or have memory_conversations.py subclass or wrap InMemoryRunStore and override create_run_idempotent so memory_store.py changes by zero lines (ENG-WORK-1).",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md@5eafe4d:383,388; src/e_agent/kernel/memory_store.py:120-128; tests/unit/kernel/test_structure.py:86-89"
+    },
+    {
+      "id": "PL2-3",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "New: host_context is dropped on the message route. Today's controller sends host_context with createRun when a host provides it, and POST /v1/runs digests the body including host_context. The message body is {text, reply_to}. So in shadow (and on) a start loses the host hints today's path resolves, which means shadow acts differently from today (PR-23). The 4d.1/4d.3 promise of 'the same request digest as POST /v1/runs' also breaks: a UI fallback to POST /v1/runs with the same Idempotency-Key and a host_context gets a reused-key CONFLICT, so the request fails. Fix: add host_context to the message body and the start path, or state that the digest covers {task} only and test the fallback with a host context.",
+      "evidence": "ui/packages/ui-core/src/controller.ts:195; ui/packages/client/src/index.ts:98-100; src/e_agent/server/api.py:76-78,316-325; docs/plans/2026-10-20-phase4-conversation-chat.md@5eafe4d:436,533"
+    },
+    {
+      "id": "PL2-4",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "New: the moved replay check loses the requester check. input_replayed(tenant_id, run_id, expected_revision, text) takes no actor, and post_message calls it 'before routing' for any reply_to.run_id. Today's /inputs handler refuses a non-requester (FORBIDDEN) before it replays. As planned, a caller could name another user's run in the same tenant and learn whether a guessed text was its input. Fix: before the replay check, require that reply_to.run_id is a run of this conversation (owner and tenant checked), else NOT_FOUND. Give input_replayed the actor, and add a test (PR-24, PR-27, Review Focus 5 and 9).",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md@5eafe4d:428,436; src/e_agent/server/api.py:465-479"
+    },
+    {
+      "id": "PL2-5",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "New in 4f.2: it relies on a 'live-sandbox skill secret scan' that 'compares the files against the admin key value without printing it'. The skill has no such step: it only says to record redacted evidence. The scripts have no scan either. Comparing against the key value means reading the secret store, which the plan's own boundary (never read profiles/*.local.json or ~/.config/e-agent/**) forbids. Fix: name an existing check, or add one as its own task that scans for key-shaped patterns or uses a host-side helper the agent cannot read through (ENG-EVID-3, ENG-BOUND-3).",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md@5eafe4d:726; .claude/skills/live-sandbox/SKILL.md:17"
+    },
+    {
+      "id": "PL2-6",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "FB-1 drifts back. 4c.3 sets the CI Postgres job to 'the pg gate's set' (kernel, conformance, adapters/postgres), then 4d.4 and 4d.5 add tests/unit/server/test_conversation_api.py and test_conversation_e2e.py to the pg gate in harness/context.toml without changing ci.yml. The server conversation tests then run on Postgres only through the harness gate, which is exactly FB-1. Fix: add ci.yml to 4d.4 and 4d.5's Files.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md@5eafe4d:393,537,566; .github/workflows/ci.yml:47"
+    },
+    {
+      "id": "PL2-7",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Live check item 7 (shadow) names no thread and no write bound, while 'must not touch' caps writes at two draft POs (items 3 and 4). If item 7 repeats the core thread, a third PO is possible. Items 2 and 7 also leave context_assembler's mode unstated. Fix: give item 7 a read-only thread, or count its PO, and state context_assembler per item.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md@5eafe4d:182,191,199"
+    },
+    {
+      "id": "PL2-8",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "4b.4 says the owner's G-0 words go in the review file's header 'in 4b.5', but 4b.5's Files list only the RESOLUTION file and ui files, so check-scope would refuse the edit. Add docs/reviews/2026-10-<dd>-chat-defects-ux-review.md to 4b.5's Files.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md@5eafe4d:301,303-306"
+    }
+  ],
+  "reviewer": {"provider": "claude-opus", "fresh_context": true}
+}

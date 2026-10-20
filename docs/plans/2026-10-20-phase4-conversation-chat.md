@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. UI tasks also follow the `ag-*` skills named in each task, and stop at their owner gates.
 
-**Status:** Draft, awaiting owner approval. Nothing in this plan is approved or implemented. Revised after the fresh-context plan review (findings PL-1 to PL-14 in `harness/state/4/reviews/4-plan.json`, verdict rework, rulings by the coordinator 2026-10-20). The owner reviews the decisions table (D1–D16) and names the plan approved; a general instruction to continue is not approval (eng-phase-plan stop gate).
+**Status:** Draft, awaiting owner approval. Nothing in this plan is approved or implemented. Revised after the fresh-context plan review (findings PL-1 to PL-14 in `harness/state/4/reviews/4-plan.json`, verdict rework, rulings by the coordinator 2026-10-20). Revised again after the re-review (PL2-1 to PL2-8 in `harness/state/4/reviews/4-plan-r2.json`). The owner reviews the decisions table (D1–D17) and names the plan approved; a general instruction to continue is not approval (eng-phase-plan stop gate).
 
 **Goal:** a user talks to e-agent in one thread. A message answers the run that waits for input, or starts a new run in the same thread. A new run gets a small, kernel-built summary of the earlier runs through the ContextAssembler, never raw model text. The open chat defects are fixed, and citations and the explanation are visible in the UI as "grounded, not verified". Everything new sits behind `features.conversations`, which falls back to today's per-run task view.
 
@@ -35,10 +35,10 @@ Each row has a recommended default. "Approve" accepts every default; name a row 
 | D2 | Message routing | One active run per conversation. The router looks only at the conversation's latest run:<br>– `WAITING_INPUT`: the message answers it only when its `reply_to` names that run and the run revision the user saw with the pending question, through the existing input path. A message for an earlier question (Q1 while Q2 is pending), or with no `reply_to`, gets `CONFLICT` with the fixed hint "the question changed; read it again", in every mode, as `/v1/runs/{id}/inputs` does today. A retried answer is idempotent through today's input replay check, moved into the kernel;<br>– terminal (`SUCCEEDED`, `FAILED`, `CANCELLED`) or no run: the message starts a new run in the conversation;<br>– `CREATED`, `RUNNING`, `VERIFYING`, `WAITING_APPROVAL`, `NEEDS_RECONCILIATION`: the message is refused with `CONFLICT` and a fixed hint ("wait, decide the approval, or stop the run"). No queue and no auto-cancel.<br>Alternative: allow a new run beside a `WAITING_APPROVAL` run. Not chosen: its write would be refused by ADR 0020 anyway, and two live cards in one thread is a state the mockup would then have to cover |
 | D3 | Greetings | No model call outside a run. A greeting stays an ADR 0022 reply run that waits for input, and the next message answers it. A run-less turn would bypass mode pinning, the per-call route check in `_with_tools` (T23), evidence and reconstruction. ADR 0023 amends ADR 0022 only to say that a reply run belongs to a conversation; the "reply" label shows once per thread (4b.2) |
 | D4 | What is stored | A `conversations` row holds ids, the owner, a revision and timestamps, never text (record kind `conversations`, class audit skeleton). User text stays where it is today: `runs.task` and `input.received`. The thread is a projection of the conversation's runs and their events. The title is derived at read time from the first run's task, cut to 80 characters. No archive or delete route in Phase 4; retention and deletion follow ADR 0030's Phase 7 parts |
-| D5 | Carried context content | Built by the kernel, deterministic, once at admission, from up to 5 earlier runs of the conversation, newest first. Per run: run id, task id and version, end state and reason code, and three kinds of fact:<br>– the user's own messages in that run (the task text and `input.received`), class `personal`, fenced as data;<br>– the normalised arguments of each typed answer action in state `VERIFIED`, class-walked under the answer contract's declared `data_classes`; a path the contract does not declare is dropped, not carried;<br>– the record refs it read (contract id, source ref, revision, observed time).<br>Never model text (`message.final`, reply, question or rationale text, a grounded summary) and never a raw observation. `OutcomeReport.verified_values` is not a source: the answer verifiers do not set it, and `kernel/ir_on.py` drops it when `execution_ir` is not `on`. A `GROUNDED` free-text answer carries refs only, so a live run 2 may re-read but must not re-ask. Today the four ERP answer contracts (`procurement.shortage.answer.v1`, `procurement.offer.recommend.v1`, `sales.late-orders.answer.v1`, `receivables.overdue-invoices.answer.v1`) declare `/input` classes; Task 4a.1 checks every answer contract and lists the gaps |
+| D5 | Carried context content | Refs and checked typed values; no free text, even when classed. The one text carried is the user's own words, fenced as `personal` data; no answer or model text is carried. Built by the kernel, deterministic, once at admission, from up to 5 earlier runs of the conversation, newest first. Per run: run id, task id and version, end state and reason code, and three kinds of fact:<br>– the user's own messages in that run (the task text and `input.received`), class `personal`, fenced as data;<br>– typed values from the normalised arguments of each answer action in state `VERIFIED`: a path qualifies only if its schema type is `number`, `integer` or `boolean`, or a `string` with an `enum`, a `format` (`date`, `date-time`) or an id/ref `pattern`, and only if the answer contract declares it in `data_classes` (then class-walked). A free `string` is never carried, whatever class it declares, so `/input/explanation` and `/input/summary` are excluded;<br>– the record refs it read (contract id, source ref, revision, observed time), from `read.recorded`.<br>Never model text (`message.final`, reply, question or rationale text, a grounded summary, a free-text answer field) and never a raw observation. `OutcomeReport.verified_values` is not a source: the answer verifiers do not set it, and `kernel/ir_on.py` drops it when `execution_ir` is not `on`. A `GROUNDED` answer carries refs only. Which paths qualify today, from the schemas: `procurement.shortage.answer.v1` none, and `procurement.offer.recommend.v1` none (every field is a bare `string`; `DecimalStr` emits no pattern); `sales.late-orders.answer.v1` and `receivables.overdue-invoices.answer.v1` only `/input/as_of` (`format: date`). Task 4a.1 confirms this per contract. D17 settles what that means for ERP answers |
 | D6 | Carried facts are not evidence | A carried ref is a hint, not a fact of the new run. Citation lookup stays scoped to this run (ADR 0033, Phase 3 Review Focus 5): a citation that names an earlier run's evidence is `KERNEL-CITATION`. Validation and approval use only this run's reads; the model must re-read (PR-15, PR-19) |
 | D7 | Carried context needs the pack | Carried items reach the model only as the pack's `recent_turns` layer (ADR 0032 §1, empty in Phase 3). No new `DriverInput` field, so `sdk_api` stays 1.2. Startup refuses `conversations: on` unless `context_assembler` is `on`, like the 3b.1 startup rule. Note: the Phase 3 ruling gates `context_assembler: on` in a live profile on a first live write with the pack; the Phase 4 live check is where that write is tried |
-| D8 | Toggle modes | `off`: today, per-run task view, conversation routes refuse, no run is linked. `shadow`: the UI keeps the per-run task view but sends messages through the conversation route. `answer` and `start` are what today's client does anyway, so those runs are linked. `shadow` never refuses what today's path accepts. A message the router would refuse (D2) starts an unlinked run (`conversation_id = None`), exactly as today, and records `conversation.compared` with `route: refuse`. A linked start or answer that hits `ConcurrencyConflict` or any other conversation-step error falls back to today's unlinked run or plain input and records `conversation.shadow_failed`; no request fails. The kernel builds the carried layer, records `conversation.compared` and gives the driver nothing. `on`: the thread view, the router refuses, and carried context reaches the model. What `shadow` withholds is the refusal and the carried context |
+| D8 | Toggle modes | `off`: today, per-run task view, conversation routes refuse, no run is linked. `shadow`: the UI keeps the per-run task view but sends messages through the conversation route. `answer` and `start` are what today's client does anyway, so those runs are linked. `shadow` never refuses what today's path accepts. A message the router would refuse (D2) starts an unlinked run (`conversation_id = None`), exactly as today, and records `conversation.compared` with `route: refuse`. A linked start or answer that hits `ConcurrencyConflict` or any other conversation-step error falls back, server-side, inside the same request and under the message's own idempotency record, to today's unlinked run or plain input, and records `conversation.shadow_failed`; no request fails, and the UI never re-posts. In `shadow`, an answer to the caller's own unlinked run (made by such a fallback) is a plain input, as `/inputs` would take it. The kernel builds the carried layer, records `conversation.compared` and gives the driver nothing. `on`: the thread view, the router refuses, and carried context reaches the model. What `shadow` withholds is the refusal and the carried context |
 | D9 | Mode pinning | `RunModes` gains `conversations`, pinned at admission and written only when not `off`, so an `off` continuation is byte-identical. The carried items are stored in the run's continuation (class business payload) and fixed for the run's life; a later message never changes them |
 | D10 | How the UI learns the mode | A member-readable projection `GET /v1/me/features` returning `{conversations}` (the ADR 0017 pattern, with a session dependency). The UI reads nothing from `/health/ready`, which has no session. Alternative: a `features` field on `SessionResponse`; not chosen because `/v1/local/session` is loopback-only and never production auth |
 | D11 | Sidebar source | In `on`, the sidebar lists the server's conversations (`GET /v1/conversations`, paged). Runs with `conversation_id = None` stay in today's session-local per-run history; no thread is synthesised for them |
@@ -47,6 +47,7 @@ Each row has a recommended default. "Approve" accepts every default; name a row 
 | D14 | Chat defects first | Tasks 4b.1–4b.5 land before G-A, each in its own commit, with no toggle. They are inside the approved design (core plan Phase 0). One `ag-ux-review` covers the four diffs (4b.4) and stops at its gate; the owner reviews (G-0); the fixes are 4b.5, before 4e.1 |
 | D15 | D10 UI scope | In Phase 4: citations and the explanation in the outcome and the timeline, read from the existing `/v1/runs/{id}/evidence` `explanation` key (no contract change), with "grounded, not verified" wording (PR-19). The rationale on the approval card changes `ApprovalPresentation` (UI architecture §4.2, server-owned), so it ships only if ADR 0034's rationale section is accepted at G-A (Task 4e.6); otherwise it moves to a named follow-up |
 | D16 | Phase size and cut lines | Must-have: 4a–4d, 4e.1–4e.4, 4e.7 and 4f. Two cut lines, in order: 4e.6 (rationale on the approval card) first, then 4e.5 (the citation and explanation UI, which comes from the Phase 3 handoff, not roadmap row 4). If the phase runs long, they move to a Phase 4′ with its own plan rather than being skipped |
+| D17 | How ERP answer values qualify as typed | Under D5, no `ShortageAnswer` value is carried today, so the plan review's PL-4 assertion (run 2 holds run 1's shortage quantity) cannot pass on the current schemas. Default (c): carry refs only from these answers in Phase 4. Run 2 learns the demand and product refs from `CarriedRef` (run 1's `read.recorded`), re-reads availability before it proposes, and never re-asks the user. Alternative (a): the domain pack declares a host-side value format (for example decimal or ref) beside `data_classes`, a new manifest field decided in ADR 0023, with no model-facing schema change; then quantities qualify. Excluded (b): adding `pattern` to the JSON schemas, because it changes the tool schemas and breaks the `off` model-request goldens |
 
 ## Global Constraints
 
@@ -98,9 +99,9 @@ These are failure modes the tests below do not fully exercise. Each item names t
 2. **Instructions inside carried text** (T1, PR-34). A user's earlier message, or a record ref, that reads like an instruction must reach the model fenced as data. Task 4d.2 adds `test_carried_user_text_is_fenced` and `test_injected_carried_text_does_not_change_the_proposal`. The reviewer checks that the fence cannot be closed from inside the carried text.
 3. **Carried facts used as current facts** (PR-15, PR-19, PR-24). An earlier run's values may be stale. Task 4d.2 adds `test_citation_to_carried_evidence_is_kernel_citation` and `test_validation_ignores_carried_values`. The reviewer checks that the citation lookup and the validator read only this run's evidence.
 4. **Personal data in the carried layer** (T23, PR-26). Task 4d.2 adds `test_carried_personal_value_masked_on_hosted_route`. The reviewer checks that every carried field, user text included, goes through the class walk, and that `conversation.compared` holds no value.
-5. **A foreign conversation** (PR-24, PR-27). Tasks 4c.3, 4d.1 and 4d.4 test another owner and another tenant on both stores, in the facade and through the API; every case is `NOT_FOUND`, never `FORBIDDEN`. The reviewer checks that every store query filters by tenant and owner, not only by id.
+5. **A foreign conversation** (PR-24, PR-27). Tasks 4c.3, 4d.1 and 4d.4 test another owner and another tenant on both stores, in the facade and through the API; every case is `NOT_FOUND`, never `FORBIDDEN`, including a `reply_to` that names another user's run (Task 4d.1, `test_reply_to_foreign_run_is_not_found`). The reviewer checks that every store query filters by tenant and owner, not only by id.
 6. **Two runs from one thread** (PR-17). Two concurrent messages, or one retried message, must start at most one run. Task 4c.3 tests the revision check, the one-active-run rule and a concurrent pair on both stores; Task 4d.1 tests the idempotency key and the answer retry. The reviewer checks the Postgres path under concurrency (the check runs inside the run-creating transaction).
-7. **`shadow` that acts** (ADR 0027, PR-22, PR-23). `shadow` must add no model call, read or budget use, give the driver no carried item, and refuse nothing today's path accepts. A would-be refusal, a `ConcurrencyConflict` from the conversation check, or any conversation-step error falls back to today's unlinked run or plain input, records `conversation.shadow_failed` or `route: refuse`, and fails no request. Task 4d.3 asserts each case, and 4e.3 the UI fallback. The reviewer checks every `DriverInput` and pack built for a run pinned `shadow`, and every exception path out of the shadow flow.
+7. **`shadow` that acts** (ADR 0027, PR-22, PR-23). `shadow` must add no model call, read or budget use, give the driver no carried item, and refuse nothing today's path accepts. A would-be refusal, a `ConcurrencyConflict` from the conversation check, or any conversation-step error falls back to today's unlinked run or plain input, records `conversation.shadow_failed` or `route: refuse`, and fails no request. Task 4d.3 asserts each case, server-side; Task 4e.3 asserts that the UI never re-posts after a conversation-route error. The reviewer checks every `DriverInput` and pack built for a run pinned `shadow`, and every exception path out of the shadow flow.
 8. **The UI claiming more than the server says** (EA-1, EA-3, PR-19). A carried summary or a grounded answer must never read as verified. Task 4e.5 tests the labels. The reviewer checks that every status label comes from a server field.
 9. **An answer for the wrong question** (PR-15, PR-17). A message typed for Q1 must not answer Q2, and a retried answer must not become a refusal or a second input. Task 4d.1 tests both; Task 4d.4 tests the stale `reply_to` through the API. The reviewer checks that the conversation revision is never used to bind an answer.
 
@@ -142,14 +143,14 @@ One new toggle, `features.conversations`, pinned per run at admission (D9). The 
 | Mode | Behaviour |
 |---|---|
 | `off` | Today. The UI shows the per-run task view. `GET /v1/me/features` reports `off`. The conversation routes exist in every mode, so the OpenAPI document is the same, but in `off` they refuse with `NOT_FOUND` and the fixed message "conversations are off". No run is linked, no pin is written, and no new event appears. |
-| `shadow` | The UI keeps the per-run task view, and its controller posts messages through `POST /v1/conversations/{id}/messages`, one conversation per "New task". `answer` and `start` routes are linked as in `on`, because today's client does the same. Nothing today's path accepts is refused. A message the router would refuse starts an unlinked run (`conversation_id = None`) as today, and the run records `conversation.compared` with `route: refuse`. A linked start or answer that fails in the conversation step (`ConcurrencyConflict`, a missing conversation, a store error on the conversation row) falls back to today's unlinked run or plain input, with the same idempotency key, and records `conversation.shadow_failed`; the request does not fail. A stale `reply_to` gets `CONFLICT`, as `/v1/runs/{id}/inputs` does today. At admission of a run with earlier runs in its conversation, the kernel builds the carried items and the `recent_turns` layer they would render, records `conversation.compared` (carried run ids, item counts, the layer digest, the kernel's token estimate, masked and dropped counts), and gives the driver nothing. No model call, read or budget use is added. A shadow error records `conversation.shadow_failed` with a stage and a fixed message and changes nothing else.<br>Real consumers: `test_shadow_layer_digest_equals_on_layer_digest` over the fixture thread corpus (Task 4d.3), which asserts its case count; and the evidence bundle's `conversation` key. |
+| `shadow` | The UI keeps the per-run task view, and its controller posts messages through `POST /v1/conversations/{id}/messages`, one conversation per "New task". `answer` and `start` routes are linked as in `on`, because today's client does the same. Nothing today's path accepts is refused. A message the router would refuse starts an unlinked run (`conversation_id = None`) as today, and the run records `conversation.compared` with `route: refuse`. A linked start or answer that fails in the conversation step (`ConcurrencyConflict`, a missing conversation, a store error on the conversation row) falls back, server-side, inside the same request and under the message's own idempotency record, to today's unlinked run or plain input, and records `conversation.shadow_failed`; the request does not fail. A start carries the message's `host_context` exactly as `POST /v1/runs` does. A stale `reply_to` gets `CONFLICT`, as `/v1/runs/{id}/inputs` does today. At admission of a run with earlier runs in its conversation, the kernel builds the carried items and the `recent_turns` layer they would render, records `conversation.compared` (carried run ids, item counts, the layer digest, the kernel's token estimate, masked and dropped counts), and gives the driver nothing. No model call, read or budget use is added. A shadow error records `conversation.shadow_failed` with a stage and a fixed message and changes nothing else.<br>Real consumers: `test_shadow_layer_digest_equals_on_layer_digest` over the fixture thread corpus (Task 4d.3), which asserts its case count; and the evidence bundle's `conversation` key. |
 | `on` | The UI shows the thread view. Messages route as in `shadow`. At admission the kernel builds the carried items, stores them in the continuation, records `conversation.context_carried` (conversation id, carried run ids, carried digest; no text), and every pack of the run renders them in `recent_turns`, fenced and class-walked. Startup refuses `on` unless `context_assembler` is `on` (D7). |
 
 | Toggle | Fallback code (`feature.fallback`, before the first reservation only, never ends a run) | Terminal code |
 |---|---|---|
 | `conversations` | `CONVERSATION_CONTEXT_FAILED`: building the carried items failed at admission; the run starts without them, as in `off` | none of its own: after admission the carried layer is part of the pack, so a failure ends with ADR 0032's `CONTEXT_UNAVAILABLE`, or goes to reconciliation when a reservation is unresolved |
 
-UI fallback: when `GET /v1/me/features` or a conversation route fails, the UI shows the per-run task view for the active run and keeps the composer draft. In `shadow`, the controller then sends the message through `POST /v1/runs` or `/v1/runs/{id}/inputs` with the same idempotency key, so the message is never lost and never doubled.
+UI fallback: the UI uses `POST /v1/runs` or `/v1/runs/{id}/inputs` only when `GET /v1/me/features` reports `conversations: off`, or when the conversations route returns 404 because it is not mounted (an older server); then it uses its own fresh `Idempotency-Key`. When `GET /v1/me/features` fails, the UI shows the per-run task view and keeps the composer draft. In `shadow` and `on`, a conversation-route error is shown to the user with the draft kept; the UI never re-posts it elsewhere, because the server already did today's thing (Task 4d.3).
 
 **Observability** (ENG-TOGGLE-3): `/health/ready` and the evidence bundle report `features.conversations` with the other four toggles. The evidence bundle also reports the run's pinned `conversations` mode, its `conversation_id` and its carried run ids.
 
@@ -179,7 +180,7 @@ A contract carries one gate set (HP-6). Where a task names more, the contract's 
 Run in Task 4f.2 only on the owner's instruction, through the `live-sandbox` skill, with the identity flags on every sandbox mutation, and in this order. It uses temporary `profiles/*.local.json` copies, deleted after the check; the agent never reads them. The owner's 4f.2 instruction is the Phase 3 ruling's trigger: item 3 is the first qualified live write with `context_assembler: on`.
 
 1. `/health/ready` and `GET /v1/me/features` report `conversations` in each mode.
-2. Core plan Phase 0 exit, `conversations: off`: in the per-run view, "hi" → "hi" → "which products are short?". No `undefined` anywhere in the timeline, one reply label, and the new Context chip copy.
+2. Core plan Phase 0 exit, `conversations: off`, `context_assembler: off`: in the per-run view, "hi" → "hi" → "which products are short?". No `undefined` anywhere in the timeline, one reply label, and the new Context chip copy.
 3. Single-run draft PO, `context_assembler: on`, `conversations: off`, after `reset` and `seed` of `e-agent-demo`: "draft a PO for the shortage". If the model proposes the PO, the owner approves it in the UI, never with `--approve` (that would be the agent's self-approval under the live profile). The write, its read-back and the acknowledgement turn rendered from the pack close the Phase 3 live-write gap. This isolates the pack from the conversation feature.
 4. Thread, `conversations: on` and `context_assembler: on`, after a fresh `reset` and `seed`: "hi" → "which products are short?" → "draft a PO for it" (core plan exit).
    - Expected: two runs in one conversation. Run 1 is the greeting's reply run, answered by the question. Run 2 starts after run 1 ends.
@@ -188,7 +189,7 @@ Run in Task 4f.2 only on the owner's instruction, through the `live-sandbox` ski
    - If the model proposes the PO, the owner approves it in the UI, as in item 3.
 5. While run 2 waits for approval, typing "approve it" is refused with the fixed hint, and the action is unchanged.
 6. The sidebar shows one thread.
-7. In `shadow`: the per-run view is unchanged, no message is refused, and the second run of a thread records `conversation.compared` with no carried item in its model request.
+7. `conversations: shadow`, `context_assembler: off`, read-only thread: "hi" → "which products are short?" → "which offers cover it?". The per-run view is unchanged, no message is refused, and the second run records `conversation.compared` with no carried item in its model request. This item makes no write: the prompts ask for none, and if the model proposes one anyway the owner rejects it, so it never counts toward the cap.
 
 "No PO proposed" in item 3 or item 4 is a partial result, recorded as model behaviour (ADR 0010), as in Phase 3; it does not block the merge.
 
@@ -196,7 +197,7 @@ The live check must not touch:
 - `odoo-bench`, or any container outside `odoo19-learning-*` and `e-agent-ledger`;
 - live business data;
 - a hosted model route;
-- any write beyond two draft POs (items 3 and 4) in the `e-agent-demo` namespace.
+- any write beyond two draft POs (items 3 and 4 only; items 1, 2, 5, 6 and 7 make none) in the `e-agent-demo` namespace.
 
 Results are reported separately from fixture results (ENG-EVID-2).
 
@@ -223,7 +224,7 @@ No runtime code. The ADRs are written, reconciled with this plan and the checkou
 - the routes of Task 4d.4;
 - for ADR 0034: the thread view's surfaces, the citation and explanation display rules, and `ApprovalPresentation.rationale`.
 
-- [ ] Check which answer contracts declare `data_classes` for their `/input` paths (D5): every answer contract in `src/e_agent/plugins/erp/domain/e_agent_plugin.json`, the core `grounded.answer.v1`, and the notes test pack (`tests/unit/kernel/conftest.py`). List each undeclared path in ADR 0023 as a gap, since an undeclared path is dropped from carried context.
+- [ ] For every answer contract (each one in `src/e_agent/plugins/erp/domain/e_agent_plugin.json`, the core `grounded.answer.v1`, and the notes test pack in `tests/unit/kernel/conftest.py`), list in ADR 0023 which `/input` paths qualify under D5: typed per the schema, and declared in `data_classes`. Start from what the plan already found: shortage and offer.recommend have none; late-orders and overdue-invoices have only `/input/as_of`. Name every free-text path that is excluded (`explanation`, `summary`). Record D17's answer.
 - [ ] Write ADR 0023 from D1–D9, D11 and D12, and the core plan Phase 1 option table. Read `kernel/coordinator.py`, `kernel/context.py`, `sdk/store.py` and `server/api.py` first, and cite current `file:line`. State the ADR 0022 amendment (D3) and the ADR 0032 refinement (`recent_turns` holds carried items; drop order unchanged).
 - [ ] Write ADR 0034 from D10, D13 and D15: EA-10 with its research 16 source; the citation, explanation and "grounded, not verified" rules; a separate section for `ApprovalPresentation.rationale`, so the owner can accept or defer it on its own (D16).
 - [ ] Add target §5.7 (a summary that cites ADR 0023, no restated rules) and the index rows.
@@ -236,7 +237,7 @@ No runtime code. The ADRs are written, reconciled with this plan and the checkou
 
 **Interfaces:** consumes the ADRs of 4a.1; produces their accepted status, which 4c–4e cite.
 
-- [ ] The owner accepts or amends ADRs 0023 and 0034, and confirms D1–D16. Record each answer in the decisions table and the ADR status lines, with the owner's words.
+- [ ] The owner accepts or amends ADRs 0023 and 0034, and confirms D1–D17. Record each answer in the decisions table and the ADR status lines, with the owner's words.
 - [ ] If ADR 0034's rationale section is deferred, mark Task 4e.6 deferred in this plan and in `harness/state/4/features.json`.
 - [ ] Run `uv run e-agent-harness validate-context`; expected: `ok: manifest valid for ...`.
 - [ ] Commit `docs: Phase 4 ADRs 0023 and 0034 accepted (G-A)`.
@@ -302,10 +303,11 @@ The server already emits `from` and `to` (`kernel/run_loop.py`, ADR 0031). Old r
 
 ### Task 4b.5: chat defects review resolution
 
-**Files:** the files the findings name, inside `ui/`; `docs/reviews/2026-10-<dd>-chat-defects-ux-review-RESOLUTION.md`.
+**Files:** the files the findings name, inside `ui/`; `docs/reviews/2026-10-<dd>-chat-defects-ux-review.md` (the owner's G-0 words in its header); `docs/reviews/2026-10-<dd>-chat-defects-ux-review-RESOLUTION.md`.
 
 **Interfaces:** consumes the 4b.4 review and the owner's G-0 answer; must close before 4e.1 starts, so the gap audit in 4e.1 sees the fixed surface.
 
+- [ ] Record the owner's G-0 words in the review file's header.
 - [ ] For each finding, write its failing test first (Vitest in the package's `test/` folder, or a spec in `ui-conformance`), named after the finding id.
 - [ ] Run `pnpm --dir ui exec vitest run <test file>`; expected: each new test fails on the reported defect.
 - [ ] Fix; run `pnpm --dir ui check` and `make e2e`; expected: pass, with the real counts quoted.
@@ -380,17 +382,17 @@ The server already emits `from` and `to` (`kernel/run_loop.py`, ADR 0031). Old r
 
 Both stores ship in this one task (ENG-STORE-1, PR-30). The first draft split this into 4c.3 (memory) and 4c.4 (Postgres); the plan review (PL-5) merged them.
 
-**Line budget.** `src/e_agent/kernel/memory_store.py` has 499 lines, and `tests/unit/kernel/test_structure.py` holds every kernel module to `MAX_KERNEL_MODULE_LINES = 500`. This task's net change to `memory_store.py` is at most +1 line. The memory conversation store and its revision and active-run check live in the new module `kernel/memory_conversations.py`. The FB-2 fix stays in `memory_store.py` only if it is net zero lines there; otherwise it moves to a helper in the new module.
+**Line budget.** `src/e_agent/kernel/memory_store.py` has 499 lines, and `tests/unit/kernel/test_structure.py` holds every kernel module to `MAX_KERNEL_MODULE_LINES = 500`; it stays at or under 500, checked with `wc -l`. This task leaves `memory_store.py` unchanged apart from the FB-2 fix. That fix is one token at `memory_store.py:183` in `update_run` (`if driver_state` becomes `if driver_state is not None`), zero net lines. `wait_for_approval` (line 227) already keeps `{}`, so the Phase 3 handoff's FB-2 claim about it is stale; the test covers both paths. If the fix somehow cannot fit, the task moves the work-queue block (`enqueue_work` to `has_pending_work`, lines 397–495) into a new `kernel/memory_work.py` first, and names that move in the handoff. The memory conversation store is a subclass in the new module `kernel/memory_conversations.py`.
 
 **Files:**
-- `src/e_agent/sdk/store.py`: `ConversationStore` protocol; `RunStore.create_run_idempotent` gains `conversation_revision: int | None = None`.
-- `src/e_agent/kernel/memory_conversations.py` (new): `InMemoryConversationStore`, sharing the run store's rows, with `check_conversation_run(run, conversation_revision)` that `InMemoryRunStore.create_run_idempotent` calls once.
-- `src/e_agent/kernel/memory_store.py`: the one call above, and the FB-2 fix (`update_run` and `wait_for_approval` keep an empty driver state `{}`), within the budget.
+- `src/e_agent/sdk/store.py`: the `ConversationStore` protocol. `RunStore` is unchanged.
+- `src/e_agent/kernel/memory_conversations.py` (new): `InMemoryConversationStore(InMemoryRunStore)`, which adds the conversation rows and the `ConversationStore` methods.
+- `src/e_agent/kernel/memory_store.py`: the FB-2 fix only (above).
 - `pyproject.toml`: `"e_agent.kernel.memory_conversations"` in the `source_modules` of the import contract "Only the facade module imports e_agent.kernel.coordinator", in sorted order (before `"e_agent.kernel.memory_store"`). No other contract changes (PR-06).
-- `src/e_agent/server/bootstrap.py`: wires the memory conversation store beside the memory run store.
+- `src/e_agent/server/bootstrap.py`: the memory store kind builds `InMemoryConversationStore`, which is both stores.
 - `src/e_agent/adapters/postgres/migrations/0007_conversations.sql` (new): table `conversations (tenant_id, conversation_id, owner_id, revision, created_at, updated_at)` with primary key `(tenant_id, conversation_id)`; `runs.conversation_id` nullable, with a composite foreign key `(tenant_id, conversation_id)`; index `(tenant_id, conversation_id, created_at)`. Forward-only, no data rewrite.
-- `src/e_agent/adapters/postgres/store.py`: implements `ConversationStore` and the revision check inside `create_run_idempotent`'s transaction, with the conversation row locked `FOR UPDATE`.
-- `.github/workflows/ci.yml`: the Postgres job runs `tests/unit/kernel tests/conformance tests/unit/adapters/postgres`, the `pg` gate's set (FB-1).
+- `src/e_agent/adapters/postgres/store.py`: implements `ConversationStore`; `create_run_in_conversation` runs the revision and active-run check in the same transaction as the run insert, with the conversation row locked `FOR UPDATE`.
+- `.github/workflows/ci.yml`: in job `checks`, the step "kernel suite against the PostgreSQL ledger" runs `tests/unit/kernel tests/conformance tests/unit/adapters/postgres`, the `pg` gate's set (FB-1).
 - Tests: `tests/conformance/test_conversation_store.py` (new), `tests/conformance/test_run_store.py`, `tests/unit/adapters/postgres/test_migrations.py`.
 
 **Interfaces:**
@@ -398,7 +400,8 @@ Both stores ship in this one task (ENG-STORE-1, PR-30). The first draft split th
 - `get_conversation(tenant_id, owner_id, conversation_id) -> Conversation`: `NotFound` for another owner or tenant;
 - `list_conversations(tenant_id, owner_id, *, after: str | None, limit: int) -> ConversationPage`: newest first, `limit` at most 100;
 - `list_conversation_runs(tenant_id, owner_id, conversation_id) -> tuple[RunRecord, ...]`: oldest first;
-- `create_run_idempotent(..., conversation_revision=n)`: when `run.conversation_id` is set, in the same transaction it checks the conversation's revision equals `n`, refuses when the conversation has a run in a non-terminal state, and bumps the revision and `updated_at`. Both refusals raise `ConcurrencyConflict`. An idempotent replay returns the first run and changes nothing.
+- `create_run_in_conversation(run, events, state, actor_id, key, request_digest, conversation_revision) -> tuple[str, str]`: the arguments of `RunStore.create_run_idempotent` plus the revision. It requires `run.conversation_id`; checks the conversation's revision equals `conversation_revision`; refuses when the conversation has a run in a non-terminal state; creates the run as `create_run_idempotent` does; and bumps the revision and `updated_at`. Both refusals raise `ConcurrencyConflict`. An idempotent replay (the claimed run id is not `run.run_id`) returns the first run and bumps nothing.
+- Memory locking: `InMemoryConversationStore` holds its own `_conversation_lock` across check → `await super().create_run_idempotent(...)` → bump. It never takes the parent's `_lock` itself, because `asyncio.Lock` is not reentrant. The check is sound because only this method creates linked runs and terminal states are final.
 
 - [ ] Failing tests, each parametrised over both stores, each printing its case count and failing on zero:
   - `test_create_and_get_conversation`;
@@ -411,7 +414,7 @@ Both stores ship in this one task (ENG-STORE-1, PR-30). The first draft split th
   - `test_new_run_allowed_after_terminal_run`;
   - `test_idempotent_replay_starts_one_run`;
   - `test_concurrent_messages_start_one_run`: two tasks against one conversation;
-  - `test_empty_driver_state_round_trips` (FB-2, in `test_run_store.py`);
+  - `test_empty_driver_state_round_trips` (FB-2, in `test_run_store.py`): both `update_run` and `wait_for_approval`, then restore;
   - `test_migration_0007_applies_after_0006` (in `test_migrations.py`); the existing `test_migrations_apply_once_and_are_idempotent` and `test_modified_applied_migration_is_rejected` keep passing.
 - [ ] Run `uv run pytest -q tests/conformance/test_conversation_store.py tests/conformance/test_run_store.py`; expected: fails with `ImportError` on `ConversationStore`.
 - [ ] Implement both stores. Never hold a transaction across a model or ERP call (PR-17).
@@ -425,16 +428,17 @@ Both stores ship in this one task (ENG-STORE-1, PR-30). The first draft split th
 
 **Files:**
 - `src/e_agent/kernel/conversation.py` (new): `route_message(latest: RunRecord | None, reply_to: ReplyTo | None) -> MessageRoute`, pure (D2); `ConversationFlow`, which the coordinator delegates to.
-- `src/e_agent/kernel/run_loop.py`: `input_replayed(tenant_id, run_id, expected_revision, text) -> bool`, today's replay check moved out of the `/v1/runs/{id}/inputs` handler (`server/api.py`), unchanged in meaning.
+- `src/e_agent/kernel/run_loop.py`: `input_replayed(actor, tenant_id, run_id, expected_revision, text) -> bool`, today's replay check moved out of the `/v1/runs/{id}/inputs` handler (`server/api.py`), unchanged in meaning. It refuses a non-requester with `FORBIDDEN` before it reads any event, exactly as `api.py:465-467` does today.
 - `src/e_agent/server/api.py`: the `/inputs` handler calls `input_replayed`; its behaviour is unchanged.
-- `src/e_agent/kernel/coordinator.py`: `create_conversation(principal) -> Conversation` and `post_message(principal, conversation_id, text, *, reply_to, idempotency_key, request_digest) -> tuple[MessageRoute, str]` (the route and the run id).
+- `src/e_agent/kernel/coordinator.py`: `create_conversation(principal) -> Conversation` and `post_message(principal, conversation_id, text, *, reply_to, host_context, idempotency_key, request_digest) -> tuple[MessageRoute, str]` (the route and the run id).
 - `pyproject.toml`: `"e_agent.kernel.conversation"` in the same import contract's `source_modules`, in sorted order.
 - `tests/unit/kernel/test_conversation_routing.py` (new); `tests/unit/server/test_api.py`.
 
 **Interfaces:**
 - An answer is bound to the question the user saw, never to the conversation revision. `reply_to` names the waiting run and the run revision the snapshot showed with its question. `answer` calls the existing `accept_input(run_id, text, reply_to.run_revision)`, so a message typed for question Q1 that arrives while Q2 is pending gets `CONFLICT` with the fixed hint "the question changed; read it again".
-- A retried answer is idempotent. Before routing, when `reply_to` is set, `post_message` calls `input_replayed`. If the same text was already accepted at that revision, it returns the first result (`answer`, the same run id), even after the run has moved on.
-- `start` (no `reply_to`, latest run terminal or none) calls `admit_run` with `conversation_id` and the conversation revision the flow just read. It uses the same request digest as `POST /v1/runs` for the same text, so a client fallback with the same `Idempotency-Key` returns the run already created, never a second one.
+- Checks come in this order. (1) The caller owns the conversation (tenant and owner), else `NOT_FOUND`. (2) When `reply_to` is set, `reply_to.run_id` is a run of this conversation, else `NOT_FOUND` in every mode. The one exception is `shadow` when the run's requester is the caller (an unlinked run a shadow fallback made): there it is a plain `accept_input`, as `/inputs` would take it, and records `conversation.shadow_failed {stage: "reply_to"}`. (3) Only then `input_replayed(principal, ...)`.
+- A retried answer is idempotent. After those checks, when `reply_to` is set, `post_message` calls `input_replayed`. If the same text was already accepted at that revision, it returns the first result (`answer`, the same run id), even after the run has moved on.
+- `start` (no `reply_to`, latest run terminal or none) calls the conversation variant of `admit_run`, which uses `create_run_in_conversation` with `conversation_id`, the conversation revision the flow just read, and the message's `host_context`, passed unchanged with the same `HostContext` type and validation as `CreateRun`. It uses the message's own `Idempotency-Key` and request digest. The shadow fallback (4d.3) runs inside the same request, under that same idempotency record.
 - `refuse` raises `KernelError(CONFLICT, <fixed hint>)` in `on`. In `shadow` nothing is refused (Task 4d.3).
 - Another requester's conversation is `NOT_FOUND` everywhere: posting, reading and listing (PR-24, no existence leak).
 
@@ -452,6 +456,9 @@ Both stores ship in this one task (ENG-STORE-1, PR-30). The first draft split th
   - `test_retried_message_starts_one_run` (same idempotency key);
   - `test_reused_key_with_other_text_conflicts`;
   - `test_other_requester_sees_not_found`;
+  - `test_reply_to_foreign_run_is_not_found`: `reply_to` naming another user's run, or the caller's run in another conversation, is `NOT_FOUND`, and no replay check runs;
+  - `test_input_replayed_refuses_a_non_requester`: the kernel replay check raises `FORBIDDEN` for an actor who is not the run's requester, before it reads events;
+  - `test_start_passes_host_context_to_the_run`;
   - `test_new_run_cannot_reuse_an_earlier_approval`: run 2 proposes the same action as run 1; it gets a new digest and a new pending approval.
 - [ ] Run `uv run pytest -q tests/unit/kernel/test_conversation_routing.py`; expected: `ModuleNotFoundError: e_agent.kernel.conversation`.
 - [ ] Implement. `route_message` reads no clock and no store. `run_loop.py` stays at or under 500 lines.
@@ -469,13 +476,15 @@ Both stores ship in this one task (ENG-STORE-1, PR-30). The first draft split th
 - `pyproject.toml`: `"e_agent.kernel.carried"` in the same import contract's `source_modules`, in sorted order.
 - `tests/unit/kernel/test_carried_context.py` (new); `tests/unit/kernel/test_context.py`.
 
-**Interfaces:** consumes `RunModes.conversations`, the runs' action records (answer actions in state `VERIFIED` and their normalised arguments), the `input.received` events, the `read.recorded` events and `Registry.data_class`. Produces the carried layer, which 4d.3 compares. An answer argument path the answer contract does not declare in `data_classes` is dropped, never carried as `personal`.
+**Interfaces:** consumes `RunModes.conversations`, the runs' action records (answer actions in state `VERIFIED` and their normalised arguments), the `input.received` events, the `read.recorded` events and `Registry.data_class`. Produces the carried layer, which 4d.3 compares. An answer argument path is carried only when its schema type qualifies under D5 and the answer contract declares it in `data_classes`; any other path is dropped, never carried as `personal`.
 
 - [ ] Failing tests:
   - `test_carry_is_deterministic`;
   - `test_carry_holds_no_model_text`: no `message.final`, reply, question or rationale text, and no raw observation, over a corpus that has all five;
   - `test_carry_takes_arguments_only_from_verified_answer_actions`: a `GROUNDED`, failed or unverified run carries refs and user messages only;
   - `test_undeclared_answer_path_is_dropped`;
+  - `test_carry_drops_free_text_answer_fields`: over `VERIFIED` `procurement.offer.recommend.v1` and `sales.late-orders.answer.v1` answers, the `explanation` and `summary` text is absent from the carried layer on a local route too, and `as_of` is present;
+  - `test_carry_drops_untyped_string_paths`: a bare `string` path (no `enum`, `format` or `pattern`) is not carried even when its class is `internal`;
   - `test_carry_takes_at_most_five_runs_newest_first`;
   - `test_carried_user_text_is_fenced` (Review Focus 2);
   - `test_injected_carried_text_does_not_change_the_proposal`: the scripted driver proposes the same action with clean and injected carried text;
@@ -501,11 +510,11 @@ Both stores ship in this one task (ENG-STORE-1, PR-30). The first draft split th
 - Consumes `carry` and `render_carried`; produces `conversation.compared {conversation_id, route, carried_run_ids, items, layer_digest, layer_tokens, masked, dropped}`.
 - In `shadow`, a message the router would refuse starts an unlinked run (`conversation_id = None`), as today, and records `route: refuse`.
 - In `shadow`, when a linked start or answer fails in the conversation step, the flow does today's thing instead and fails no request. "Fails in the conversation step" means `ConcurrencyConflict` from the revision or active-run check, a missing conversation, or a store error on the conversation row. "Today's thing" means:
-  - a start becomes an unlinked run, as `POST /v1/runs` would make it, with the same idempotency key and request digest;
+  - a start becomes an unlinked run, as `POST /v1/runs` would make it, with the message's `host_context`, inside the same request and under the message's own idempotency record;
   - an answer becomes a plain `accept_input`, as `/v1/runs/{id}/inputs` would do it.
 
   The resulting run records `conversation.shadow_failed {stage, code}`, with a fixed message.
-- The UI controller in `shadow` also falls back to `POST /v1/runs` or `/v1/runs/{id}/inputs`, with the same idempotency key, when the conversation route itself errors (Task 4e.3).
+- The fallback is server-side only. The UI never re-posts after a conversation-step error (Task 4e.3).
 
 - [ ] Failing tests:
   - the consumer `test_shadow_layer_digest_equals_on_layer_digest`: over the corpus, the layer `shadow` records equals the `recent_turns` layer of the `on` pack; prints the case count and fails on zero;
@@ -516,7 +525,9 @@ Both stores ship in this one task (ENG-STORE-1, PR-30). The first draft split th
   - `test_shadow_stale_revision_falls_back_to_an_unlinked_run`;
   - `test_shadow_concurrent_pair_starts_two_runs_as_today`: one linked, one unlinked with `conversation.shadow_failed`; neither request fails;
   - `test_shadow_conversation_error_falls_back_to_plain_input`;
-  - `test_shadow_fallback_reuses_the_idempotency_key`: a retry after the fallback returns the same run;
+  - `test_shadow_fallback_reuses_the_idempotency_key`: a retry of the same message after the fallback returns the same run;
+  - `test_shadow_start_carries_host_context_as_create_run`: a shadow start, linked or fallen back, records the same resolved hints in `run.created` as `POST /v1/runs` with the same `host_context`;
+  - `test_shadow_answer_to_own_unlinked_run_is_plain_input`;
   - `test_compared_event_holds_no_value_or_text`.
 - [ ] Run `uv run pytest -q tests/unit/kernel/test_conversation_shadow.py`; expected: fails on the unknown event type `conversation.compared`.
 - [ ] Implement.
@@ -530,11 +541,12 @@ Both stores ship in this one task (ENG-STORE-1, PR-30). The first draft split th
   - `POST /v1/conversations` → `{conversation_id}`;
   - `GET /v1/conversations?after=&limit=` → `ConversationList`;
   - `GET /v1/conversations/{id}` → `ConversationSnapshot`, each `ThreadRun` with its `revision`, so the UI can send `reply_to`;
-  - `POST /v1/conversations/{id}/messages` with the `Idempotency-Key` header and body `{text, reply_to: ReplyTo | null}` → `{route, run_id}`.
+  - `POST /v1/conversations/{id}/messages` with the `Idempotency-Key` header and body `{text, reply_to: ReplyTo | null, host_context: HostContext | null}` → `{route, run_id}`. `host_context` reuses `CreateRun`'s type and validation (`server/api.py:76-78`).
 - `src/e_agent/server/api.py`: `GET /v1/me/features` → `MemberFeatures`; the evidence bundle's `conversation` key (id, pinned mode, carried run ids, `conversation.compared` counts).
 - `ui/packages/client/openapi.json` and `ui/packages/client/src/schema.ts` (regenerated).
 - `docs/design/principles.md`: PR-27's check, and the routes outside its scope (below).
 - `harness/context.toml`: the `pg` gate set gains `tests/unit/server/test_conversation_api.py` (PL-5). Run `uv run e-agent-harness refresh-task` after the change.
+- `.github/workflows/ci.yml`: in job `checks`, the step "kernel suite against the PostgreSQL ledger" gains the same file, so CI's Postgres run equals the `pg` gate (PL2-6).
 - Tests: `tests/unit/server/test_conversation_api.py` (new; its store fixture reads `E_AGENT_TEST_STORE` as `tests/unit/kernel/conftest.py` does, so it runs on both stores), `tests/unit/server/test_route_authorization.py` (new), `tests/unit/server/test_api.py`.
 
 **Interfaces:** consumes `ConversationFlow`; produces the routes Task 4e.3 calls. Every new route has `Depends(session)`. In `off`, the conversation routes refuse with `NOT_FOUND` "conversations are off"; `/v1/me/features` answers in every mode.
@@ -550,6 +562,7 @@ Both stores ship in this one task (ENG-STORE-1, PR-30). The first draft split th
   - `test_foreign_conversation_is_not_found` (Review Focus 5), for another owner and another tenant, on every conversation route;
   - `test_post_message_requires_idempotency_key`;
   - `test_answer_with_stale_reply_to_conflicts`;
+  - `test_message_host_context_is_validated_like_create_run`;
   - `test_refusal_carries_the_fixed_hint`;
   - `test_list_is_paged`;
   - `test_member_features_reports_the_mode`;
@@ -563,14 +576,15 @@ Both stores ship in this one task (ENG-STORE-1, PR-30). The first draft split th
 
 ### Task 4d.5: a fixture thread end to end
 
-**Files:** `tests/unit/server/test_conversation_e2e.py` (new; both-store fixture as in 4d.4); `harness/context.toml` (the `pg` gate set gains this file; then `refresh-task`); `src/e_agent/plugins/erp/domain/testing/scripted_driver.py`, only if the scripted driver needs a branch for a carried shortage. A change there changes the `domain-erp` artifact digest; name it in the handoff.
+**Files:** `tests/unit/server/test_conversation_e2e.py` (new; both-store fixture as in 4d.4); `harness/context.toml` (the `pg` gate set gains this file; then `refresh-task`); `.github/workflows/ci.yml` (job `checks`, step "kernel suite against the PostgreSQL ledger", gains the same file); `src/e_agent/plugins/erp/domain/testing/scripted_driver.py`, only if the scripted driver needs a branch for a carried shortage. A change there changes the `domain-erp` artifact digest; name it in the handoff.
 
 **Interfaces:** consumes the routes of 4d.4 with the ERP fixture profile and `conversations` and `context_assembler` set `on` in a test profile.
 
 - [ ] Failing tests:
   - `test_two_run_thread_carries_first_run_findings`: "hi" → "which products are short?" → "draft a PO for it". Expected:
     - two runs;
-    - run 2's carried layer holds run 1's `VERIFIED` `ShortageAnswer` (`procurement.shortage.answer.v1`), and its `shortage` quantity equals run 1's;
+    - under D17's default, run 2's carried layer holds run 1's demand and product refs (from `read.recorded`) and the user's messages, and no `ShortageAnswer` value: no `shortage` string appears in it. This replaces the plan review's PL-4 quantity assertion, which the current schemas cannot meet (D17). If the owner picks D17 (a), the assertion becomes "run 2's carried layer holds run 1's `shortage` quantity";
+    - run 2 never re-asks the user which products are short;
     - run 2 reads before it proposes;
     - the approval is decided through the approvals route only;
   - `test_thread_in_shadow_matches_per_run_behaviour`: the same thread in `shadow`, plus a message sent while run 2 waits for approval, gives the same run outcomes as the per-run tasks, plus `conversation.compared`; the approval-time message starts an unlinked run and changes nothing in run 2.
@@ -625,7 +639,9 @@ Every task here reads `ag-ux-foundations` first and cites AG and EA criteria by 
   - "on lists server threads, newest first";
   - "a refused message keeps the draft and shows the server's hint";
   - "falls back to the per-run view when a conversation route fails";
-  - "in shadow, a failed conversation route resends through /v1/runs or /inputs with the same idempotency key";
+  - "goes to /v1/runs or /inputs only when /v1/me/features reports off or the conversations route is 404-not-mounted, with a fresh Idempotency-Key";
+  - "a shadow conversation-route error is shown with the draft kept; the UI does not re-post";
+  - "a start sends the host context in the message body";
   - "an answer carries reply_to with the run revision shown with its question";
   - "the thread comes from server snapshots only";
   - "the reply label shows on the first reply of a conversation" (extends 4b.2).
@@ -723,7 +739,9 @@ Every task here reads `ag-ux-foundations` first and cites AG and EA criteria by 
 **Interfaces:** consumes the Live check section above, in its order. The owner's instruction to run 4f.2 is also the trigger the Phase 3 ruling named: step 3 is the first qualified live write with `context_assembler: on`.
 
 - [ ] Only on the owner's instruction, through `live-sandbox`. Run `uv run e-agent-harness live-check`. Expected: the live gate passes, `odoo_sandbox.py info` reports the marker `odoo19-learning`, and the evidence is written under `harness/state/evidence/live/`.
-- [ ] Run the Live check items 1–7 in order. Save each run's evidence bundle, redacted, as `harness/state/evidence/live/4f.2-<item>.json`. Then run the `live-sandbox` skill's secret scan over `harness/state/evidence/live/4f.2-*`. It compares the files against the admin key value without printing it. Expected: the key is in no file (ENG-EVID-3).
+- [ ] Run the Live check items 1–7 in order. Save each run's evidence bundle, redacted, as `harness/state/evidence/live/4f.2-<item>.json`. Nothing in this task reads the secret store or a key value.
+- [ ] Run the CI secret scanner over the evidence: `gitleaks dir --redact --no-banner --no-color -c .gitleaks.toml harness/state/evidence/live/`. This is the `dir` form of the `gitleaks git` command in the "secret scan and dependency audit" job of `.github/workflows/ci.yml`. Use version 8.28.0, as CI pins it, if installed; otherwise use the local version and name it in the handoff. Expected: "no leaks found", zero findings.
+- [ ] Run the key-shape scan: `grep -rEn -i --exclude='*.local.json' '\b[0-9a-f]{40}\b|bearer [A-Za-z0-9._-]{20,}|"(api_key|password|authorization)"' harness/state/evidence/live/4f.2-*`. Expected: no matches. grep exits 1 here, and exit 1 is the pass. The `\b…{40}\b` bound keeps 64-hex digests from matching. An optional comparison against the real key value is the owner's own step, outside this plan.
 - [ ] Record the results in the handoff, labelled live and separate from fixture results. A missing PO in item 3 or item 4 is recorded as a partial result (model behaviour, ADR 0010); it does not block the merge.
 - [ ] Commit `docs: Phase 4 live check results`.
 
@@ -749,7 +767,7 @@ Every task here reads `ag-ux-foundations` first and cites AG and EA criteria by 
   - Phase 3 handoff items: D10 → 4e.5, 4e.6; the live-write gap → 4f.2 item 3; FB-1 and FB-2 → 4c.3; item 14 (grounded wording review) → 4e.1, 4e.7.
   - EA-10 → 4a.1 (ADR 0034), 4e.4.
   - PR-27's missing check → 4d.4, scoped to `/v1/*` with the out-of-scope routes listed.
-  - Plan review PL-1 to PL-14 (`harness/state/4/reviews/4-plan.json`, 2026-10-20) → this revision.
+  - Plan review PL-1 to PL-14 (`harness/state/4/reviews/4-plan.json`) and re-review PL2-1 to PL2-8 (`harness/state/4/reviews/4-plan-r2.json`), both 2026-10-20 → this revision. The PL2-1 typed-value rule and PL-4's quantity assertion conflict on the current schemas; D17 holds the choice.
 - **Placeholder scan.** The research number (20) and the mockup version are re-checked at task time because the `ag-*` skills require it. `<dd>` and `<date>` in file names are the dates the review or handoff is written. No step says "add tests" without naming them.
 - **Type consistency.**
   - `contracts/conversation.py` (4c.2) holds `Conversation`, `CarriedRef`, `CarriedAnswer`, `CarriedRun`, `ReplyTo`, `RouteKind`, `MessageRoute`, `ConversationPage`, `ConversationSummary`, `ConversationList`, `ThreadRun` and `ConversationSnapshot`. `MemberFeatures` is in `contracts/features.py` (4c.2).
@@ -757,7 +775,9 @@ Every task here reads `ag-ux-foundations` first and cites AG and EA criteria by 
   - `route_message` and `ConversationFlow` live in `kernel/conversation.py` (4d.1). `input_replayed` lives in `kernel/run_loop.py` (4d.1). `carry` and `render_carried` live in `kernel/carried.py` (4d.2, 4d.3). `InMemoryConversationStore` lives in `kernel/memory_conversations.py` (4c.3).
   - Each new kernel module is added, in sorted order, to the `source_modules` of the coordinator import contract in the task that creates it (4c.3, 4d.1, 4d.2).
   - `RunModes.conversations` (4c.1) is read by 4d.2 and 4d.3.
-  - `create_run_idempotent(..., conversation_revision=)` (4c.3) is called by `post_message` (4d.1).
+  - `ConversationStore.create_run_in_conversation(..., conversation_revision)` (4c.3) is called by `post_message` through the conversation variant of `admit_run` (4d.1); `RunStore` is unchanged.
+  - `HostContext` is shared by `CreateRun` and the message body (4d.4), and reaches the started run unchanged (4d.1, 4d.3).
+  - `input_replayed(actor, ...)` (4d.1) refuses a non-requester, and runs only after the ownership and `reply_to` membership checks.
   - `ReplyTo.run_revision` is passed to `accept_input` and `input_replayed` (4d.1). `ThreadRun.revision` carries it to the UI (4d.4, 4e.3).
   - `CONVERSATION_CONTEXT_FAILED` (4c.1) is used in 4d.2. The events `conversation.context_carried` (4d.2), `conversation.compared` and `conversation.shadow_failed` (4d.3) are in `contracts/events.py`.
 - **Review Focus coverage.**
