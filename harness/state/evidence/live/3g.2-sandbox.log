@@ -1,0 +1,13 @@
+== info
+{
+  "sandbox_marker": "odoo19-learning",
+  "database": "training19_demo",
+  "company_id": "1",
+  "bridge_version": "19.0.0.4.0",
+  "company": "My Company (San Francisco)",
+  "server_version": "19.0.1.3"
+}
+== reset e-agent-demo
+{"removed_orders": 0, "owned_inventory": {"crm.team": 1, "sale.order": 6, "stock.move": 15, "utm.source": 1, "res.partner": 6, "stock.quant": 3, "account.move": 4, "stock.picking": 8, "e_agent.demand": 5, "purchase.order": 4, "product.product": 2, "product.template": 2, "product.supplierinfo": 14}, "remaining_records": {"crm.team": 1, "sale.order": 6, "stock.move": 15, "utm.source": 1, "res.partner": 6, "stock.quant": 3, "account.move": 4, "stock.picking": 8, "e_agent.demand": 0, "purchase.order": 0, "product.product": 2, "product.template": 2, "product.supplierinfo": 0}, "retention": "cancelled audit records and archived synthetic sources retained"}
+== seed e-agent-demo
+== seed-tasks

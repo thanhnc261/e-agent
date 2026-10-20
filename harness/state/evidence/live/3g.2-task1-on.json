@@ -1,0 +1,142 @@
+{
+  "label": "task1 context_assembler=on (live)",
+  "environment": "live",
+  "classification": "live:succeeded",
+  "run_id": "run_2bfa382de5af4be4a0a9877dd84d77f2",
+  "task": "Which products are short for open demand?",
+  "state": "SUCCEEDED",
+  "reason_code": "verified",
+  "reason": "outcome verified",
+  "task_id": null,
+  "features": {
+    "execution_ir": "off",
+    "context_assembler": "on",
+    "kernel_repeat": "off",
+    "grounded_answers": "off"
+  },
+  "modes": {
+    "context_assembler": "on",
+    "kernel_repeat": "off",
+    "grounded_answers": "off"
+  },
+  "route": {
+    "data_boundary": "local",
+    "data_boundary_basis": "verified",
+    "data_processing_declared": false
+  },
+  "event_type_counts": {
+    "run.created": 1,
+    "run.state_changed": 2,
+    "context.assembled": 6,
+    "read.recorded": 7,
+    "proposal.created": 2,
+    "outcome.reported": 2,
+    "message.final": 1,
+    "run.terminal": 1
+  },
+  "actions": [
+    {
+      "action_id": "act_2343fb39a7cf4bdb8d47fc1d6f748279",
+      "contract_id": "procurement.shortage.answer.v1",
+      "state": "VERIFIED",
+      "digest": "jcs-sha256-v1:a4aa8e239239eaaa634e490d767579af5ae2aa803b17126a6d238e58542a7bf1"
+    },
+    {
+      "action_id": "act_f628b3445da74f81a06ea352f619996a",
+      "contract_id": "procurement.shortage.answer.v1",
+      "state": "VERIFICATION_FAILED",
+      "digest": "jcs-sha256-v1:89fe413c4989d640dea3449ea3cb9f09dcf6c4984e40f90a1bbc4ad43fb4401c"
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "FAILED",
+      "action_id": "act_f628b3445da74f81a06ea352f619996a"
+    },
+    {
+      "status": "VERIFIED",
+      "action_id": "act_2343fb39a7cf4bdb8d47fc1d6f748279"
+    }
+  ],
+  "approvals": [],
+  "receipts": [],
+  "rules_evaluated": [],
+  "context": [
+    {
+      "turn": 1,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:a67abba7ac94acd8ceb3bc82caa4dba689d0e097d27f2adbe96f603abae2f094",
+      "drop_log": []
+    },
+    {
+      "turn": 2,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:c75617fbb91d3500e4549f685944b12871e2f6b6ca107df10f3c969c1f9dec41",
+      "drop_log": []
+    },
+    {
+      "turn": 3,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:26fc63381f670b3771bc5e3254c4c556591b0b2cc0adf28cc11bd18e120722a2",
+      "drop_log": []
+    },
+    {
+      "turn": 4,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:6fc60de4d89ed627a566321ee699c08b5534a64e8e4ca396496feff608228cd3",
+      "drop_log": []
+    },
+    {
+      "turn": 5,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:0ea9ec61808de0c3b7be01da2dd6a263e672edfd2096b9030dbaa2527cb0bd8c",
+      "drop_log": [
+        {
+          "ref": "ev_fbf7f8cdfe934827977afe280356cf5e",
+          "kind": "observation",
+          "reason": "cleared"
+        }
+      ]
+    },
+    {
+      "turn": 6,
+      "acknowledgement": false,
+      "fallback": false,
+      "pack_digest": "jcs-sha256-v1:adf23e45dfc9bd3daa235161282041e91f9e2f6113419df896a837fa871fedd5",
+      "drop_log": [
+        {
+          "ref": "ev_fbf7f8cdfe934827977afe280356cf5e",
+          "kind": "observation",
+          "reason": "cleared"
+        },
+        {
+          "ref": "ev_4bb1c455898c47559e9380eb268625f0",
+          "kind": "observation",
+          "reason": "cleared"
+        }
+      ]
+    }
+  ],
+  "grounded_answer": null,
+  "explanation_completeness": "known",
+  "counts_of_interest": {
+    "context.compared": 0,
+    "feature.fallback": 0,
+    "grounding.compared": 0,
+    "read.recorded": 7,
+    "answer.proposed": 0,
+    "verification.completed": 0
+  },
+  "terminal_payloads": [
+    {
+      "state": "SUCCEEDED",
+      "reason": "outcome verified",
+      "reason_code": "verified"
+    }
+  ]
+}

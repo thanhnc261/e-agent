@@ -1,0 +1,9 @@
+# 2026-10-20 task 3g.2 readiness (resumed after secret store path fix)
+## /health/ready off (unmarked_properties omitted)
+{"status": "ready", "environment": "live", "plugins": ["domain-erp", "odoo19"], "store": "postgres", "self_approval_allowed": true, "features": {"execution_ir": "off", "context_assembler": "off", "kernel_repeat": "off", "grounded_answers": "off"}, "data_boundary": "local", "data_boundary_basis": "verified", "data_processing_declared": false, "defaulted_declarations": [], "unsupported_schemas": {}}
+## /health/ready shadow (unmarked_properties omitted)
+{"status": "ready", "environment": "live", "plugins": ["domain-erp", "odoo19"], "store": "postgres", "self_approval_allowed": true, "features": {"execution_ir": "off", "context_assembler": "shadow", "kernel_repeat": "off", "grounded_answers": "off"}, "data_boundary": "local", "data_boundary_basis": "verified", "data_processing_declared": false, "defaulted_declarations": [], "unsupported_schemas": {}}
+## /health/ready on (unmarked_properties omitted)
+{"status": "ready", "environment": "live", "plugins": ["domain-erp", "odoo19"], "store": "postgres", "self_approval_allowed": true, "features": {"execution_ir": "off", "context_assembler": "on", "kernel_repeat": "off", "grounded_answers": "off"}, "data_boundary": "local", "data_boundary_basis": "verified", "data_processing_declared": false, "defaulted_declarations": [], "unsupported_schemas": {}}
+## /health/ready grounded (unmarked_properties omitted)
+{"status": "ready", "environment": "live", "plugins": ["domain-erp", "odoo19"], "store": "postgres", "self_approval_allowed": true, "features": {"execution_ir": "off", "context_assembler": "off", "kernel_repeat": "off", "grounded_answers": "on"}, "data_boundary": "local", "data_boundary_basis": "verified", "data_processing_declared": false, "defaulted_declarations": [], "unsupported_schemas": {}}

@@ -97,6 +97,16 @@
       "glob": "tests/unit/kernel/test_kernel_repeat.py",
       "reason": "committed by closed fix task 3.R2 (7abb8f3..55bbb8d, close-check ok) between 3g.2's kept base 456a0a8 and its re-creation; not changed by 3g.2",
       "at": "2026-10-20T09:01:47+00:00"
+    },
+    {
+      "glob": "README.md",
+      "reason": "3g.2: README Status says the live check is pending; record its result",
+      "at": "2026-10-20T11:17:38+00:00"
+    },
+    {
+      "glob": "docs/roadmap.md",
+      "reason": "3g.2: roadmap Phase 3 status says the live check is pending; record its result",
+      "at": "2026-10-20T11:17:38+00:00"
     }
   ]
 }

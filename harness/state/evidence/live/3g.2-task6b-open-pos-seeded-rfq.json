@@ -1,0 +1,92 @@
+{
+  "label": "task6b open-pos v2, rfq odoo/purchase.order/28 from seed-tasks, execution_ir=on, grounded_answers=on (live)",
+  "environment": "live",
+  "classification": "live:succeeded",
+  "run_id": "run_fb80b5033906471d9644798a5d580156",
+  "task": "Which procurement demands are open, and which draft RFQ (such as odoo/purchase.order/28) or vendor offers cover them? Cite the ERP records you read; propose no change.",
+  "state": "SUCCEEDED",
+  "reason_code": "grounded",
+  "reason": "grounded answer",
+  "task_id": "open-pos",
+  "features": {
+    "execution_ir": "on",
+    "context_assembler": "off",
+    "kernel_repeat": "off",
+    "grounded_answers": "on"
+  },
+  "modes": {
+    "context_assembler": "off",
+    "kernel_repeat": "off",
+    "grounded_answers": "on"
+  },
+  "route": {
+    "data_boundary": "local",
+    "data_boundary_basis": "verified",
+    "data_processing_declared": false
+  },
+  "event_type_counts": {
+    "run.created": 1,
+    "run.state_changed": 2,
+    "read.recorded": 3,
+    "validation.completed": 1,
+    "message.final": 1,
+    "run.terminal": 1
+  },
+  "actions": [],
+  "outcomes": [],
+  "approvals": [],
+  "receipts": [],
+  "rules_evaluated": [
+    "KERNEL-VERIFICATION@1"
+  ],
+  "context": null,
+  "grounded_answer": {
+    "contract_id": "grounded.answer.v1",
+    "summary": {
+      "text": "Open procurement demands and related draft RFQs or vendor offers have been listed. The open demand is for E-Agent Widget A with reference odoo/e_agent.demand/6. A draft RFQ (odoo/purchase.order/28) exists for the same product, and no vendor offers are available for the specified product.",
+      "label": "unverified"
+    },
+    "citations": [
+      {
+        "pointer": "/demands/0/demand_ref",
+        "evidence_id": "ev_088df97dc7a04e75b71007e680eec374",
+        "value_digest": "jcs-sha256-v1:afe064c3cd29340343f88cd6533eafbbe8b6fa7084d68a10358b47a9ba9b2fc7",
+        "label": "grounded"
+      },
+      {
+        "pointer": "/demands/0/product_ref",
+        "evidence_id": "ev_088df97dc7a04e75b71007e680eec374",
+        "value_digest": "jcs-sha256-v1:c19ed33253e08fbbb204ca756462d6f671ea57b78b341dec7f680687b8708b1b",
+        "label": "grounded"
+      },
+      {
+        "pointer": "/purchase_order_ref",
+        "evidence_id": "ev_8c370693da9f4c2bab0de41b6a8ab19a",
+        "value_digest": "jcs-sha256-v1:0c70c4e0f47fcfa103c1a6e0ebd66b091ec9992c860e7dbe3621c542ea17c73f",
+        "label": "grounded"
+      },
+      {
+        "pointer": "/offers",
+        "evidence_id": "ev_02557cb493244600897e7cbaa8f23611",
+        "value_digest": "jcs-sha256-v1:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "label": "grounded"
+      }
+    ]
+  },
+  "explanation_completeness": "known",
+  "counts_of_interest": {
+    "context.compared": 0,
+    "feature.fallback": 0,
+    "grounding.compared": 0,
+    "read.recorded": 3,
+    "answer.proposed": 0,
+    "verification.completed": 0
+  },
+  "terminal_payloads": [
+    {
+      "state": "SUCCEEDED",
+      "reason": "grounded answer",
+      "reason_code": "grounded"
+    }
+  ]
+}

@@ -11,7 +11,7 @@
   - `features.grounded_answers`: citations and rationale checked against this run's evidence and the rule inventory, and the generic `grounded.answer.v1`, which ends `GROUNDED`, never `verified`.
 
   Without a toggle, because they change no run: the progress ledger, run reconstruction from `run_events` and the explanation projection (`e-agent explain`, the bundle's `explanation` key). The ADR 0030 startup rule and the per-call route check also have no toggle.
-- **Evidence:** all of it is fixture evidence (simulator, scripted and authored drivers, memory and test Postgres stores). The live check 3g.2 has not run. The phase had a final check by two fresh-context Claude reviewers adjudicated by the advisor (owner ruling 2026-10-20) in place of Codex; see [Final check](#final-check).
+- **Evidence:** Levels 1 to 3 are fixture evidence (simulator, scripted and authored drivers, memory and test Postgres stores). The live check 3g.2 ran on 2026-10-20 ([Level 4](#level-4-live-check-3g2-2026-10-20-labelled-live)). The read paths, the grounded open-pos answer and `explain` passed live. The live model did not propose the draft PO, so no live write ran in this phase. The phase had a final check by two fresh-context Claude reviewers adjudicated by the advisor (owner ruling 2026-10-20) in place of Codex; see [Final check](#final-check).
 
 ## What changed
 
@@ -62,6 +62,40 @@ harness/state/evidence/gates/3g.1/2026-10-19T23-26-22.129629+00-00-pg.json
 # Level 3: make e2e
 make e2e                          -> exit 0, 150 passed, 4 skipped (1.4m), commit 4c137c4; log in the session scratchpad, not committed
 ```
+
+### Level 4: live check (3g.2, 2026-10-20), labelled live
+
+These are live results against the `odoo19-learning` sandbox, using the Postgres ledger `e-agent-ledger` and the local Ollama driver (unqualified for these tasks, ADR 0010), on code equal to `f9fcff2`. They are not fixture results (ENG-EVID-2). The redacted evidence is in `harness/state/evidence/live/3g.2-*`. A scan for the admin key value found it in none of those files.
+
+- **Identity and the live gate.** `info` reported marker `odoo19-learning`, database `training19_demo`, company 1, bridge `19.0.0.4.0` and server 19.0.1.3. `env_check` passed. The harness `live` gate passed (`harness/state/evidence/live/2026-10-20T11-01-57.997014+00-00-live.json`). `migrate` reported nothing new. The owner renewed the expired Odoo API keys in the UI and stored them. The agent re-pinned `domain-erp` to `cb7c29b1…` (two identical builds); the `odoo19` pin is unchanged.
+- **Readiness** (`3g.2-readiness.txt`): `/health/ready` reported all four toggles in each mode, with `data_boundary: local`, basis `verified` and `data_processing_declared: false`.
+
+| Step | Run | Result |
+|---|---|---|
+| Task 1, `context_assembler: off` | `run_b03c91de…` (`3g.2-task1-off.json`) | FAILED `verification_failed`: the model gave four wrong answers, and the verifier rejected each one (model behaviour) |
+| Task 1, `shadow` | `run_b7ed2382…` (`3g.2-task1-shadow.json`) | SUCCEEDED `answered`, final answer VERIFIED; 7 `context.compared` events |
+| Task 1, `on` | `run_2bfa382d…` (`3g.2-task1-on.json`) | SUCCEEDED `verified`; the bundle has the pack digest for each of 6 turns and the drop log (observations `cleared` from turn 5) |
+| "List the open demands and their shortage", `grounded_answers: on` | `run_d5f269c6…` (`3g.2-task5-grounded-list.json`) | FAILED `verification_failed`: the kernel refused the model's citations twice (`KERNEL-CITATION`, naming no evidence of this run). The safeguard worked; there was no grounded answer to check (model behaviour) |
+| `open-pos` v2, `grounded_answers: on` | `run_fb80b503…` (`3g.2-task6b-open-pos-seeded-rfq.json`) | **SUCCEEDED `grounded`**; all 4 citations resolve to this run's `read.recorded` evidence, and no read was refused. The prompt named the seeded RFQ `odoo/purchase.order/28` |
+| `open-pos` v2 with the preset's fixture ref | `run_08144b5f…` (`3g.2-task6-open-pos.json`) | SUCCEEDED `grounded`; two reads were refused `E_AGENT_INVALID_REF` (`rfq:po-100` is not a sandbox ref) |
+| Task 3, draft PO, `context_assembler: on`, after `info`, then reset and seed of `e-agent-demo` with the identity flags | `run_98dd7c70…` (try 1), `run_2cbd7b03…` (try 2) | Try 1 ended SUCCEEDED `answered` and try 2 FAILED `verification_failed`. In both, the model proposed only a shortage answer, never a PO, so no approval, reservation, dispatch or write ran (model behaviour, as in Phase 2's first `on` try). Each turn's pack was built (8 and 9 turns). `--approve` would have been the agent's approval under the live profile's `self_approval_allowed`, not the owner's |
+| `explain` | on `run_2bfa382d…` and `run_08144b5f…` | Printed ids, digests and statuses with `completeness: known` from stored events, with no model call |
+
+What the live check proves, and what it does not:
+- **Proven live:**
+  - readiness and the route boundary;
+  - `shadow` recording `context.compared`;
+  - `on` rendering from the pack, with digests and the drop log in the bundle;
+  - the generic grounded answer ending `GROUNDED` with resolved citations;
+  - the kernel refusing unresolved citations;
+  - `explain` without a model call.
+- **Not proven live:**
+  - The three Task 1 modes do not agree. `off` failed on the model's wrong answers.
+  - The write path with `context_assembler: on`, and the acknowledgement turn rendered from the pack, did not run, because the model never proposed the PO. They remain fixture evidence (3d.5).
+- **Operational notes:**
+  - The `open-pos` binding needs `execution_ir: on` as well as `grounded_answers: on`.
+  - The live profile has no `driver.refs.rfq_ref`, so the run needs `--prompt` with a real RFQ ref.
+  - `~/.config/e-agent/live.env` no longer exports `E_AGENT_SECRETS_PATH`. The check set it explicitly to `~/.config/e-agent/secrets.json`.
 
 ### Fixture release report
 
@@ -179,7 +213,7 @@ On 2026-10-20 the owner accepted the design amendments from the Phase 3 review, 
 13. **`open-pos` goldens:** it is special-cased in the ERP catalog golden check and `BASELINE_PROMPTS` rather than added to the goldens (additive if wanted; 3e.2).
 14. **UI wording** "Completed · grounded, not verified" (en, vi) has had no `ag-*` review (3e.2).
 
-## Before the live check 3g.2
+## Before the live check 3g.2 (done 2026-10-20; kept for the record)
 
 1. A local profile whose model route is not a loopback Ollama now needs `driver.data_boundary` or `data_processing` to start (3b.1). The agent cannot read `profiles/*.local.json` to check.
 2. Renew `artifact_sha256` for `domain-erp` in the live profile pin (3b.3, 3e.2). Built twice at `7b24f00` from the wheels with `uv build --package e-agent-domain-erp --wheel` and `scripts/plugin_inventory.py`, with the same result:
@@ -203,3 +237,8 @@ On 2026-10-20 the owner accepted the design amendments from the Phase 3 review, 
 | Change | Undo |
 |---|---|
 | The `pg` runs and the pinning tests used only the `e_agent_test` database in `e-agent-ledger` | none needed; test data only |
+| 3g.2: the agent re-pinned `domain-erp` `artifact_sha256` to `cb7c29b1…` in `profiles/live-odoo19-learning.local.json`; the script printed only the pin | re-pin from a trusted wheel build |
+| 3g.2: the owner renewed the Odoo API keys (integration and admin) in the sandbox UI, stored the integration key in `~/.config/e-agent/secrets.json` and added `E_AGENT_ODOO_URL`, `_DB` and `_ADMIN_KEY` to `live.env`; `odoo-keys.json` still holds the expired keys | revoke the keys under Preferences → Account Security; remove the lines |
+| 3g.2: `reset`, `seed` and `seed-tasks` on the `e-agent-demo` namespace (demand 6, RFQs 28 and 29, among others), with the identity flags | `reset --namespace e-agent-demo` with the same flags |
+| 3g.2: the live runs above are stored in the live ledger `e-agent-ledger` | none; run history |
+| 3g.2: four temporary profile copies `profiles/live-p3-*.local.json` | already deleted |
