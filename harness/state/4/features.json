@@ -68,7 +68,8 @@
         "composer.spec.ts sidebar says Your turn after a reply; make e2e exits 0",
         "review written without fixes; owner G-0 answer recorded"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4b.4/2026-10-20T15-49-22.787824+00-00-full.json"
     },
     {
       "id": "F-4b-5",

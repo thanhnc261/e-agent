@@ -1,0 +1,13 @@
+{
+  "task": "4b.4",
+  "changed": "TaskHistoryEntry.replyPending (optional, so stored entries without it still load) is set from selectPendingReply in RunController.remember(); TaskNavigation renders runStatusKey(state, [], replyPending, reasonCode), so a reply run waiting for input reads 'Your turn' in the sidebar. Tests: controller.test.ts 'history entry records a pending reply' and 'a stored entry without replyPending still loads'; composer.spec.ts 'sidebar says Your turn after a reply'. make e2e: 158 passed, 4 skipped. Commit 039b6af. Then the ag-ux-review over 4b.1-4b.4 and the running UI, docs/reviews/2026-10-20-chat-defects-ux-review.md (commit 2ef6d5a): needs fixes, 8 findings (Blocker F-1 200% text collapses the conversation column, pre-existing; High F-2 the Context panel text hidden at 640px and below; Medium F-3 sideways scroll with the Context panel at 320/390px, F-4 the Context lead-in, F-5 'Your turn' vs 'Your answer is needed' in Activity; Low F-6 to F-8). Code review harness/state/4/reviews/4b.4-r1.json (accept, one Low).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4b.4/2026-10-20T15-49-22.787824+00-00-full.json"
+  ],
+  "open_items": [
+    "Gate G-0: the owner reviews the four fixes and the UX review; their words go in the review header in 4b.5.",
+    "4b.5 resolves the UX findings and the 4b.4 R1-1 clearing test."
+  ],
+  "rulings": [],
+  "outside_repo": []
+}
