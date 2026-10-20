@@ -1,0 +1,26 @@
+{
+  "id": "3.D1",
+  "phase": "3",
+  "plan_ref": "docs/plans/2026-10-19-phase3-cognition-context.md",
+  "feature_ids": [
+    "F-3-D1"
+  ],
+  "context_digest": "4e1040d72d2d1efda11a6d732aad33080aad004b6cdf3ad7f8b4c7161a107db5",
+  "allowed_paths": [
+    "docs/adr/**",
+    "docs/design/**",
+    "src/e_agent/sdk/__init__.py",
+    "docs/handoffs/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-19-phase3-cognition-context.md"
+  ],
+  "acceptance": [
+    "every amendment in the phase review notes is applied or listed as pending an owner decision (open-pos, rule_bundle_version)",
+    "uv run e-agent-harness gate full passes on a clean tree"
+  ],
+  "gate_set": "full",
+  "base_commit": "b99be0fef5ff085dac1f3c47add3afd1347dd1e5",
+  "created_at": "2026-10-20T01:04:30+00:00",
+  "features_digest": "b68848913d87605c0ba605e190ec4c7e30bd175db6c3a4581749416c76c44f92"
+}

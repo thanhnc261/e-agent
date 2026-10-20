@@ -259,6 +259,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/3.R1/2026-10-19T23-09-31.685102+00-00-full.json"
+    },
+    {
+      "id": "F-3-D1",
+      "category": "docs",
+      "description": "Owner-accepted Phase 3 design amendments (2026-10-20): ADRs 0006, 0009, 0030, 0031, 0032, 0033, target architecture and principles PR-34 match the built code",
+      "steps": [
+        "every amendment in the phase review notes is applied or listed as pending an owner decision (open-pos, rule_bundle_version)",
+        "uv run e-agent-harness gate full passes on a clean tree"
+      ],
+      "passes": false
     }
   ]
 }
