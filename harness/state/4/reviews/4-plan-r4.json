@@ -1,0 +1,21 @@
+{
+  "task": "4-plan",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "PL4-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The registry.py budget (497 to 499) assumes the new call fits on one line. The existing call at registry.py:308 is already about 95 characters at a 16-space indent, and ruff's line-length is 100. A call that adds an answer_value_formats argument will be wrapped by ruff format to about 4 lines, so the file ends near 502 and the 4c.4 'wc -l at most 500' step fails. The step catches it, and the fix is trivial: give check_format_declarations a short signature such as (document, cap). Recorded as style because the plan's own check enforces it.",
+      "evidence": "src/e_agent/kernel/registry.py:306-310 (497 lines); pyproject.toml:56 (line-length = 100); docs/plans/2026-10-20-phase4-conversation-chat.md@8fb2724 Task 4c.4 Files"
+    },
+    {
+      "id": "PL4-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "PL3-3 envelope rule, older-server case. On a server without the conversation routes, a POST to /v1/conversations/... reaches the static mount at '/' (StaticFiles only serves GET and HEAD), so it answers 405 with {detail}, not 404. The UI's 'not mounted' rule does not match it. In practice GET /v1/me/features fails first on such a server, so the UI already uses the per-run view; only the rule's wording needs '404 or 405 without the envelope'.",
+      "evidence": "src/e_agent/server/api.py:547; docs/plans/2026-10-20-phase4-conversation-chat.md@8fb2724 Toggles and fallback, 'UI fallback' paragraph"
+    }
+  ],
+  "reviewer": {"provider": "claude-opus", "fresh_context": true}
+}
