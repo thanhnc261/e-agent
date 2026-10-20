@@ -92,7 +92,8 @@
         "off baselines and both off model-request goldens unchanged",
         "readiness reports five toggles"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4c.1/2026-10-20T16-44-20.374449+00-00-full.json"
     },
     {
       "id": "F-4c-2",

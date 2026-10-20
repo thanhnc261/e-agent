@@ -834,3 +834,8 @@
 - changed: harness/state/4/features.json, harness/state/4/handoffs/4b.5.json, harness/state/4/reviews/4b.5-r1.json, harness/state/evidence/gates/4b.5/2026-10-20T16-17-28.926637+00-00-full.json, harness/state/evidence/gates/4b.5/2026-10-20T16-23-50.080345+00-00-full.json
 - next: open task 4c.1 (features.conversations toggle)
 - open: none
+
+## 2026-10-20T16:46:06.790049+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4c.1
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4c.1.json, harness/state/evidence/gates/4c.1/2026-10-20T16-40-14.352672+00-00-full.json, harness/state/evidence/gates/4c.1/2026-10-20T16-44-20.374449+00-00-full.json
+- next: open task 4c.2 (Conversation contract and RunRecord.conversation_id)
+- open: none
