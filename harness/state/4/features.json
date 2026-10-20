@@ -56,7 +56,8 @@
         "routes.test.ts context chip test passes in EN and VI",
         "pnpm --dir ui lint:neutral passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4b.3/2026-10-20T15-26-54.257545+00-00-full.json"
     },
     {
       "id": "F-4b-4",
