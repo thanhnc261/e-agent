@@ -1,0 +1,252 @@
+{
+  "phase": "4",
+  "entries": [
+    {
+      "id": "F-4a-1",
+      "category": "adr",
+      "description": "Task 4a.1: ADRs 0023 (conversation model) and 0034 (conversation-first workspace and explanation UI), ADR 0022/0032 notes, target 5.7",
+      "steps": [
+        "ADRs 0023 and 0034 written from D1-D16 with current file:line references; ADR 0022 and 0032 carry an amended-by line",
+        "ADR index rows and target 5.7 added",
+        "repo_move.py check reports no broken links; full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4a-2",
+      "category": "adr",
+      "description": "Task 4a.2: owner acceptance of the Phase 4 ADRs and decisions (gate G-A)",
+      "steps": [
+        "owner answers recorded in the decisions table and ADR status lines",
+        "validate-context prints ok; full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4b-1",
+      "category": "ui",
+      "description": "Task 4b.1: legacy run.state_changed rows render as unknown -> state, never undefined (core plan 0.1)",
+      "steps": [
+        "selectors.test.ts legacy-row tests pass",
+        "contract.spec.ts legacy state row shows no undefined",
+        "pnpm --dir ui check passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4b-2",
+      "category": "ui",
+      "description": "Task 4b.2: the reply label shows once per thread, later replies keep a quiet not-verified hint (core plan 0.2)",
+      "steps": [
+        "selectors.test.ts marks only the first reply",
+        "composer.spec.ts reply label shows once after hi, hi",
+        "pnpm --dir ui check passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4b-3",
+      "category": "ui",
+      "description": "Task 4b.3: Context chip copy says what the agent uses, EN and VI, provider-neutral (core plan 0.3)",
+      "steps": [
+        "routes.test.ts context chip test passes in EN and VI",
+        "pnpm --dir ui lint:neutral passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4b-4",
+      "category": "ui",
+      "description": "Task 4b.4: sidebar says Your turn after a reply; ag-ux-review over the 4b diffs (core plan 0.4)",
+      "steps": [
+        "controller.test.ts history entry records a pending reply",
+        "composer.spec.ts sidebar says Your turn after a reply",
+        "make e2e exits 0; review and resolution files have no open Blocker or High"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4c-1",
+      "category": "contracts",
+      "description": "Task 4c.1: features.conversations default off, pinned per run, CONVERSATION_CONTEXT_FAILED, startup refuses on without context_assembler on",
+      "steps": [
+        "features, committed profile, pinning and startup tests pass",
+        "off baselines and both off model-request goldens unchanged",
+        "readiness reports five toggles"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4c-2",
+      "category": "contracts",
+      "description": "Task 4c.2: Conversation contract, RunRecord.conversation_id and the conversations record kind",
+      "steps": [
+        "tests/unit/contracts/test_conversation.py passes",
+        "test_every_store_record_kind_declares_a_class lists conversations",
+        "off v3 event goldens unchanged; export_openapi.py --check reports no change"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4c-3",
+      "category": "store",
+      "description": "Task 4c.3: ConversationStore port and memory store under conformance, one active run per conversation; FB-2 parity",
+      "steps": [
+        "tests/conformance/test_conversation_store.py passes on the memory store and prints its case count",
+        "test_empty_driver_state_round_trips passes",
+        "full gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4c-4",
+      "category": "store",
+      "description": "Task 4c.4: Postgres migration 0007 and the Postgres ConversationStore; CI Postgres job runs the pg gate set (FB-1)",
+      "steps": [
+        "conformance suite passes with E_AGENT_TEST_STORE=postgres",
+        "test_concurrent_messages_start_one_run passes on Postgres",
+        "pg gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4d-1",
+      "category": "kernel",
+      "description": "Task 4d.1: message routing answers a waiting run, starts a new run, or refuses; a message is never a decision",
+      "steps": [
+        "tests/unit/kernel/test_conversation_routing.py passes on both stores",
+        "test_message_while_waiting_approval_never_touches_the_action passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4d-2",
+      "category": "kernel",
+      "description": "Task 4d.2: carried context built at admission and rendered fenced and class-walked in the recent_turns layer; never evidence of the new run",
+      "steps": [
+        "tests/unit/kernel/test_carried_context.py passes on both stores",
+        "Phase 3 pack digests and off goldens unchanged; replay suite passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4d-3",
+      "category": "kernel",
+      "description": "Task 4d.3: conversations shadow records conversation.compared and gives the driver no carried item",
+      "steps": [
+        "test_shadow_layer_digest_equals_on_layer_digest passes and prints its case count",
+        "shadow adds no model call, read or budget use"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4d-4",
+      "category": "server",
+      "description": "Task 4d.4: conversation routes and GET /v1/me/features with session dependencies; route authorization test (PR-27)",
+      "steps": [
+        "test_conversation_api.py and test_route_authorization.py pass; the route test prints its count",
+        "export_openapi.py --check and pnpm --dir ui gen:check pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4d-5",
+      "category": "server",
+      "description": "Task 4d.5: fixture thread end to end: hi, which products are short, draft a PO for it, in two runs",
+      "steps": [
+        "tests/unit/server/test_conversation_e2e.py passes",
+        "pg gate and make e2e pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4e-1",
+      "category": "ui",
+      "description": "Task 4e.1: chat surface gap audit and the conversation thread design brief (gate G-B)",
+      "steps": [
+        "gap audit written under docs/reviews",
+        "brief approved by the owner, approval recorded verbatim"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4e-2",
+      "category": "ui",
+      "description": "Task 4e.2: conversation thread mockup with every normative state (gate G-C)",
+      "steps": [
+        "verify.mjs output in the QA file",
+        "owner selection recorded"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4e-3",
+      "category": "ui",
+      "description": "Task 4e.3: ui-core conversation state behind features.conversations with per-run fallback",
+      "steps": [
+        "packages/ui-core/test/conversation.test.ts passes",
+        "pnpm --dir ui check passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4e-4",
+      "category": "ui",
+      "description": "Task 4e.4: thread view, server-listed sidebar and closable artifact workspace (EA-10); UI architecture 12",
+      "steps": [
+        "conversation.spec.ts passes, axe check per state",
+        "make e2e passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4e-5",
+      "category": "ui",
+      "description": "Task 4e.5: citations and explanation in the outcome and timeline, labelled grounded, not verified",
+      "steps": [
+        "citations.test.tsx and explanation.spec.ts pass",
+        "make e2e passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4e-6",
+      "category": "approval",
+      "description": "Task 4e.6: rationale second on the approval card, never in the digest (cut line; only if ADR 0034 rationale section accepted)",
+      "steps": [
+        "tests/unit/kernel/test_approval_rationale.py passes on both stores; digest vectors unchanged",
+        "approval.test.ts rationale test passes; make e2e passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4e-7",
+      "category": "ui",
+      "description": "Task 4e.7: ag-ux-review of the conversation UI and its resolution (gate G-D)",
+      "steps": [
+        "review quotes real pnpm check and conformance output",
+        "no open Blocker or High; owner review recorded"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4f-1",
+      "category": "verification",
+      "description": "Task 4f.1: end-of-phase levels 1-3, phase review and handoff",
+      "steps": [
+        "eng-verify levels 1-3 pass on a clean tree",
+        "handoff states carried context is never evidence and GROUNDED is not verified"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4f-2",
+      "category": "verification",
+      "description": "Task 4f.2: Phase 4 live check on odoo19-learning, on the owner's instruction only",
+      "steps": [
+        "live results recorded in the handoff, labelled live and separate from fixture results"
+      ],
+      "passes": false
+    }
+  ]
+}
