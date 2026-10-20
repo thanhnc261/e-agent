@@ -1,6 +1,6 @@
 # ADR 0034: Conversation-first workspace, and citations, explanation and rationale in the UI
 
-Date: 2026-10-20. Status: Proposed (Phase 4 Task 4a.1; the owner accepts or amends it at gate G-A, Task 4a.2). Section 5 has its own status and can be accepted or deferred on its own (D15, D16). Uses ADRs 0011, 0015, 0016, 0023 and 0033; settles requirement EA-10. [UI architecture](../design/ui-architecture.md) §4.2, §10, §11. Plan: [Phase 4](../plans/2026-10-20-phase4-conversation-chat.md) D10, D13, D15, D16; Tasks 4e.1–4e.6. Every `file:line` below is at `181585e`.
+Date: 2026-10-20. Status: Accepted by the owner at gate G-A, 2026-10-20 ("2 accept"), except section 5, which the owner deferred ("3 defer"). The D15 amendment in section 3 was confirmed at the same gate ("4 ok"). Uses ADRs 0011, 0015, 0016, 0023 and 0033; settles requirement EA-10. [UI architecture](../design/ui-architecture.md) §4.2, §10, §11. Plan: [Phase 4](../plans/2026-10-20-phase4-conversation-chat.md) D10, D13, D15, D16; Tasks 4e.1–4e.6. Every `file:line` below is at `181585e`.
 
 ## Context
 
@@ -58,7 +58,7 @@ Layout, density and placement are the brief's and the mockup's, decided at gates
 
 ### 5. `ApprovalPresentation.rationale` (Task 4e.6)
 
-Status of this section: Proposed, on its own. The owner accepts it or defers it at G-A independently of sections 1–4 (D15, D16). If it is deferred, Task 4e.6 moves to a named follow-up and the approval card is unchanged in Phase 4.
+Status of this section: **Deferred** by the owner at gate G-A, 2026-10-20 ("3 defer"). Task 4e.6 moves to a named follow-up, and the approval card is unchanged in Phase 4. The section is kept as the starting point for that follow-up.
 
 - `ApprovalPresentation` gains `rationale`, left out when absent: the summary text, the cited evidence ids and the rule ids of the checked rationale the continuation holds for the pending proposal (`kernel/continuation.py:152-155`). `pending_approval` reads it from the continuation, as it reads the rest (`kernel/approval_flow.py:37-68`). A run not pinned `grounded_answers` `shadow` or `on` holds no rationale, and its presentation is unchanged. A plan's step rationales (`step_rationales`) are not shown on the card in Phase 4; they stay in the explanation.
 - **Never an approval input.** `digest_input` enumerates its fields (`kernel/approval.py:20`), so the new field is outside the digest by construction, and ui-core's digest check of `canonical_proposal` (UI architecture §4.2) is unchanged. The approve command sends what it sends today.

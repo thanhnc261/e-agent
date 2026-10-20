@@ -227,7 +227,7 @@
     {
       "id": "F-4e-6",
       "category": "approval",
-      "description": "Task 4e.6: rationale second on the approval card, never in the digest (cut line; only if ADR 0034 rationale section accepted)",
+      "description": "Deferred at gate G-A (owner 2026-10-20, \"3 defer\"; ADR 0034 section 5): not built in Phase 4, moves to a named follow-up. Task 4e.6: rationale second on the approval card, never in the digest (cut line; only if ADR 0034 rationale section accepted)",
       "steps": [
         "tests/unit/kernel/test_approval_rationale.py passes on both stores; digest vectors unchanged",
         "approval.test.ts rationale test passes; make e2e passes"

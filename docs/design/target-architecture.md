@@ -472,7 +472,7 @@ A rationale whose reference does not resolve, or whose rule ID is unknown, produ
 
 ### 5.7 Conversations [P]
 
-*Proposed in [ADR 0023](../adr/0023-conversation-model.md) (Proposed, 2026-10-20), behind `features.conversations` (default `off`), with the UI in [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md) (Proposed). Nothing here is implemented at `181585e`. The ADR holds every rule; this section only places it.*
+*Decided in [ADR 0023](../adr/0023-conversation-model.md) (accepted 2026-10-20), behind `features.conversations` (default `off`), with the UI in [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md) (accepted 2026-10-20; §5 deferred). Nothing here is implemented at `181585e`. The ADR holds every rule; this section only places it.*
 
 A conversation is a thread of runs (ADR 0023 §1). Each run stays as §5.1 and §5.2 describe it: one task, one budget, one approval and one outcome, through the same transition table. The conversation row holds ids, its owner and a revision, never text, and the thread is a projection of its runs and their events (§5.1 item 2; ADR 0023 §2). A message answers the waiting run only when it names the question the user saw, starts a new run when the latest run has ended, and is otherwise refused; it is never an approval (ADR 0023 §4). A greeting stays an ADR 0022 reply run (ADR 0023 §5). A new run gets refs, checked typed values and the user's own words from up to five earlier runs, built by the kernel once at admission and rendered only in the `recent_turns` layer of §7.2 (ADR 0023 §6, §8). Carried items are hints, never evidence of the new run (§5.6; ADR 0033 §1). Typed values qualify through host-side answer value formats declared beside the data classes of §13.3 (ADR 0023 §7).
 
@@ -1327,7 +1327,7 @@ Paths are relative to `src/e_agent/`.
 | C17 | Audit integrity: actor and correlation id on every event, database-enforced append-only, access audit; hash chain and control-plane log when triggered (§5.5) — actor attribution merged into MVP §7 (ADR 0018, accepted) | HLD §9; threat model §4 |
 | C18 | Explanation contract: `ProposalRationale`, `ReasonCode`, deterministic explanation projection (§5.6) — `ReasonCode` merged into MVP §7 and §11 (ADR 0018, accepted); rationale, citations, grounded answers and the projection: [ADR 0033](../adr/0033-explanation-and-grounded-answers.md) (Accepted 2026-10-19, Phase 3) | ADR 0004; HLD §9 |
 | C19 | Data governance for run, evidence and model-context data: field and record classes, route data boundaries, minimization, class-aware export, retention and deletion (§13.3) — ADR 0030 (Proposed; amended 2026-10-19; Phase 3 parts accepted 2026-10-19) | ADRs 0004, 0008, 0021; HLD §8, §9 |
-| C20 | Conversation model: a thread of runs, message routing, carried context in `recent_turns`, host-side answer value formats (§5.7) — [ADR 0023](../adr/0023-conversation-model.md) (Proposed 2026-10-20, Phase 4); its UI in [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md) (Proposed) | ADRs 0022, 0027, 0032; UI architecture §10, §11 |
+| C20 | Conversation model: a thread of runs, message routing, carried context in `recent_turns`, host-side answer value formats (§5.7) — [ADR 0023](../adr/0023-conversation-model.md) (accepted 2026-10-20, Phase 4); its UI in [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md) (accepted 2026-10-20; §5 deferred) | ADRs 0022, 0027, 0032; UI architecture §10, §11 |
 
 ---
 

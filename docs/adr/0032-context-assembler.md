@@ -2,7 +2,7 @@
 
 Date: 2026-10-19. Status: Accepted (2026-10-19, owner, gate G2, Phase 3 Task 3a.2). Amended 2026-10-20 (Phase 3 review, owner accepted; Task 3.D1): the Task 3d.5 amendments (§8 restore check before a driver turn; §11 `context.assembled` and the `DRIVER_STATE_MISMATCH` cell), observation numbers as canonical decimal strings (§1), validator messages without rule text (§5), the `turn` encodings (§11), the full `sdk_api` 1.2 list (§12) and the open driver-state item (Consequences). Refines ADRs 0004, 0027 and 0030; [target architecture](../design/target-architecture.md) §7.1–§7.4, §13.3, §17 C9. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D1, D3, D8, Tasks 3b.2, 3d.1–3d.5.
 
-Refined by [ADR 0023](0023-conversation-model.md) (Proposed, 2026-10-20): the `recent_turns` layer holds a conversation's carried items, fenced and class-walked; the drop order of section 2 is unchanged (ADR 0023 §8).
+Refined by [ADR 0023](0023-conversation-model.md) (accepted at gate G-A, 2026-10-20): the `recent_turns` layer holds a conversation's carried items, fenced and class-walked; the drop order of section 2 is unchanged (ADR 0023 §8).
 
 ## Context
 

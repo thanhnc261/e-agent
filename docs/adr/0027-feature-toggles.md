@@ -2,7 +2,7 @@
 
 Date: 2026-10-14. Status: Accepted (owner, 2026-10-18, gate G1 of the Phase 2 plan). Refines roadmap rule 3 and ENG-TOGGLE-1..3; [target architecture](../design/target-architecture.md) §6.4.8.
 
-Refined by [ADR 0023](0023-conversation-model.md) (Proposed, 2026-10-20) for `features.conversations` only: its `shadow` links runs to conversations and writes conversation rows, and adds no driver call, provider read, budget use, refusal or carried context (ADR 0023 §9).
+Refined by [ADR 0023](0023-conversation-model.md) (accepted at gate G-A, 2026-10-20) for `features.conversations` only: its `shadow` links runs to conversations and writes conversation rows, and adds no driver call, provider read, budget use, refusal or carried context (ADR 0023 §9).
 
 ## Context
 
