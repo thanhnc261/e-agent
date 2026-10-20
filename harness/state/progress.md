@@ -799,3 +799,8 @@
 - changed: harness/state/progress.md
 - next: uv run python scripts/check_wheels.py passes locally
 - open: none
+
+## 2026-10-20T14:59:15.582837+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4a.1
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4a.1.json, harness/state/evidence/gates/4a.1/2026-10-20T14-39-21.833391+00-00-full.json, harness/state/evidence/gates/4a.1/2026-10-20T14-53-12.984558+00-00-full.json, harness/state/evidence/gates/4a.1/2026-10-20T14-57-01.208337+00-00-full.json
+- next: G-A owner questions; open task 4b.1 meanwhile
+- open: none

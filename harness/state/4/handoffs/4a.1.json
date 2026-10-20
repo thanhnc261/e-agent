@@ -1,0 +1,23 @@
+{
+  "task": "4a.1",
+  "changed": "Proposed ADR 0023 (conversation model: a thread of runs, message routing bound to the question the user saw, carried context built at admission in the pack's recent_turns layer and stored in a dedicated _Continuation.carried field never merged into observations or reads, CapabilityDescriptor.answer_value_formats with its closed format set and the per-contract format list, the conversations toggle with a \u00a79 refinement of ADR 0027 so shadow may link runs, the routes, events and reason code) and Proposed ADR 0034 (conversation-first workspace with a closable artifact panel for EA-10, citation and explanation display as 'grounded, not verified', and a stand-alone \u00a75 for ApprovalPresentation.rationale). ADR 0022, 0027 and 0032 carry Proposed amended-by/refined-by lines; ADR index rows, target-architecture \u00a75.7 and the roadmap coverage row added. Plan changes (ENG-PLAN-3): D15 and Task 4e.5 citation source (bundle grounded_answer key and proposal.created citations; a cited value only from actions[].approved_facts, which an answer's own action never has, so it is rarely shown) marked pending owner confirmation at G-A; D17/4c.4 data-class coverage on the path or an ancestor; 4d.2 carried field and test_carried_items_are_not_approved_facts; 4d.3 shadow_failed stages and the route: refuse shape. Commits 3ceeb48, bca8306, 1980b3f. Reviews: harness/state/4/reviews/4a.1-r1.json (rework), 4a.1-r2.json (accept, Lows fixed in 1980b3f).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4a.1/2026-10-20T14-57-01.208337+00-00-full.json"
+  ],
+  "open_items": [
+    "G-A owner questions: accept ADR 0023, ADR 0034, and ADR 0034 \u00a75 (rationale) separately; confirm the amended D15 (cited value rarely shown; should answer actions record approved facts, a later kernel change?); confirm the ADR 0027 refinement for conversations: shadow; accept that offer_ref, supplier_ref, late_order_refs and overdue_invoice_refs can never be carried today; whether the ref guard should also require a found record (Odoo locates a ref it did not find).",
+    "EA-10's source in ag-ux-foundations/references/e-agent.md should point to ADR 0034 once accepted; that file is outside this task.",
+    "git tag is empty, so answer_value_formats joins the unreleased sdk_api 1.2 list; a release before 4c.4 means 1.3."
+  ],
+  "rulings": [
+    {
+      "ruling": "R1-1: keep the approved D15 substance where data exists (cited value from actions[].approved_facts); state that GROUNDED runs and answer-only runs show none, pending G-A.",
+      "cost_if_wrong": "one ADR 0034 paragraph and the 4e.5 selector"
+    },
+    {
+      "ruling": "Carried items live in a dedicated continuation field, never in observations or reads (R1-2).",
+      "cost_if_wrong": "a renamed field in 4d.2"
+    }
+  ],
+  "outside_repo": []
+}

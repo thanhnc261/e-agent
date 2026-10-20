@@ -10,7 +10,8 @@
         "ADR index rows and target 5.7 added",
         "repo_move.py check reports no broken links; full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4a.1/2026-10-20T14-57-01.208337+00-00-full.json"
     },
     {
       "id": "F-4a-2",
