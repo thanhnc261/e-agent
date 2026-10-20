@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-3-R2"
   ],
-  "context_digest": "25d59ed7c8c0e8e6bb1b439806717335c529ee876dee9b9931b8ee88989e6c66",
+  "context_digest": "90d148c82d6a850e4fdae205a3657099fecbc315f32dfbe84b27a564f929c605",
   "allowed_paths": [
     "src/e_agent/kernel/grounded_answer.py",
     "src/e_agent/kernel/registry.py",

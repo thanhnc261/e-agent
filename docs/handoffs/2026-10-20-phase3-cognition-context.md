@@ -103,7 +103,7 @@ The whole-phase review ran in a fresh Claude context (`harness/state/3/reviews/3
 | P-2 | Low | `Citation.pointer` and `evidence_id` were unconstrained; an unresolved pointer was stored as written | Fixed in 3.R1: digests at rest, pointer ≤ 1024 and evidence id ≤ 128 characters |
 | P-3 | Low | 3f.1 changed driver behaviour with every toggle `off`: silence after a finding parks the run in WAITING_INPUT; a token-budget pre-check | Open: owner decision (3f.1 R1-3) |
 | P-4 | Low | No test pins `kernel_repeat: on` together with `grounded_answers: on` | Final check FB-3: no hazard; tests added in 3.R2 |
-| P-5 | Low | Kernel modules at about 500 lines, with no gate enforcing the limit | Open; `kernel/grounding.py` is at 499 after 3.R2 |
+| P-5 | Low | Kernel modules at about 500 lines | No action: `tests/unit/kernel/test_structure.py` already enforces `MAX_KERNEL_MODULE_LINES = 500` (the review missed it); `kernel/grounding.py` is at 499 after 3.R2 |
 | P-6 | Low | Kernel task rounds without the Codex review the plan requires | Handled by the final check by two fresh-context Claude reviewers adjudicated by the advisor (owner ruling 2026-10-20) in place of Codex; see [Final check](#final-check) |
 | P-7 | Low | Not reviewed: Postgres behaviour directly, `close-check`, `make e2e`, the `/health/ready` toggle report, Review Focus 2 and 3 | Open; levels 2 and 3 above cover the gate runs, not a review |
 
