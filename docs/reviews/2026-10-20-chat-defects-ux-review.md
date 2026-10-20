@@ -4,6 +4,7 @@
 - **Brief:** none. The checks come from [core plan Phase 0](../plans/2026-10-12-core-conversation-cognition.md) (tasks 0.1 to 0.4 and the exit evidence) and [Phase 4 plan](../plans/2026-10-20-phase4-conversation-chat.md) D3 and D14.
 - **Reviewer and date:** Claude (ag-ux-review, Review mode), 2026-10-20.
 - **Standard:** ag-ux-foundations at `3ab6d7c`.
+- **Owner's answer at G-0 (2026-10-20), verbatim:** "1 ok, rest yes". Question 1 confirms the VI chip text; questions 2 to 7 accept the review's proposals. Resolution: [2026-10-20-chat-defects-ux-review-RESOLUTION.md](2026-10-20-chat-defects-ux-review-RESOLUTION.md).
 
 ## Verdict
 
