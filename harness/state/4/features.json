@@ -6,7 +6,7 @@
       "category": "adr",
       "description": "Task 4a.1: ADRs 0023 (conversation model) and 0034 (conversation-first workspace and explanation UI), ADR 0022/0032 notes, target 5.7",
       "steps": [
-        "ADRs 0023 and 0034 written from D1-D16 with current file:line references; ADR 0022 and 0032 carry an amended-by line",
+        "ADRs 0023 and 0034 written from D1-D17 with current file:line references (ADR 0023 includes the answer_value_formats manifest field and the per-contract format and ref-match list); ADR 0022 and 0032 carry an amended-by line",
         "ADR index rows and target 5.7 added",
         "repo_move.py check reports no broken links; full gate passes"
       ],
@@ -101,21 +101,32 @@
     {
       "id": "F-4c-3",
       "category": "store",
-      "description": "Task 4c.3: ConversationStore on both stores with migration 0007 and create_run_in_conversation (RunStore unchanged), one active run per conversation; InMemoryConversationStore subclass in kernel/memory_conversations.py; FB-1, FB-2",
+      "description": "Task 4c.3: ConversationStore on both stores with migration 0007, lookup_idempotent and create_run_in_conversation (idempotency record looked up first; RunStore unchanged), one active run per conversation; InMemoryConversationStore subclass (lock order _conversation_lock then _lock); FB-1, FB-2",
       "steps": [
         "tests/conformance/test_conversation_store.py passes on memory and Postgres and prints its case count",
-        "test_concurrent_messages_start_one_run and test_empty_driver_state_round_trips (update_run and wait_for_approval) pass on both stores",
+        "test_concurrent_messages_start_one_run, test_idempotent_replay_starts_one_run (replay while the first run is active), test_concurrent_same_key_starts_one_run and test_empty_driver_state_round_trips pass on both stores",
         "wc -l shows memory_store.py at most 500 lines, changed only by the FB-2 fix; lint-imports keeps every contract; pg gate passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4c-4",
+      "category": "contracts",
+      "description": "Task 4c.4: host-side answer value formats (CapabilityDescriptor.answer_value_formats, closed set decimal/integer/date/date-time/enum/ref) checked at admission; ERP answer contracts declare them; never in the model-facing schema (D17 (a), ADR 0023)",
+      "steps": [
+        "tests/unit/contracts/test_value_formats.py, tests/unit/kernel/test_registry_value_formats.py and tests/unit/plugins/erp/domain/test_manifest_value_formats.py pass",
+        "the registry refuses an unknown format, a path the schema lacks, a type mismatch and a format without a data class",
+        "both off model-request goldens byte-identical; registry.py at most 500 lines; check_wheels passes"
       ],
       "passes": false
     },
     {
       "id": "F-4d-1",
       "category": "kernel",
-      "description": "Task 4d.1: message routing bound to the question the user saw; ownership, then reply_to membership (NOT_FOUND), then input_replayed(actor) refusing a non-requester; start passes host_context unchanged; a message is never a decision",
+      "description": "Task 4d.1: message routing bound to the question the user saw; idempotency record looked up first, then ownership, reply_to membership (NOT_FOUND) and input_replayed(actor); start passes host_context unchanged; a message is never a decision",
       "steps": [
         "tests/unit/kernel/test_conversation_routing.py passes on both stores",
-        "test_answer_for_an_earlier_question_conflicts, test_retried_answer_is_accepted_once, test_reply_to_foreign_run_is_not_found and test_input_replayed_refuses_a_non_requester pass",
+        "test_answer_for_an_earlier_question_conflicts, test_retried_answer_is_accepted_once, test_retried_message_starts_one_run (second while run 1 is RUNNING), test_reply_to_foreign_run_is_not_found and test_input_replayed_refuses_a_non_requester pass",
         "test_start_passes_host_context_to_the_run and test_message_while_waiting_approval_never_touches_the_action pass"
       ],
       "passes": false
@@ -123,9 +134,9 @@
     {
       "id": "F-4d-2",
       "category": "kernel",
-      "description": "Task 4d.2: carried context (user messages, VERIFIED answer arguments under declared data_classes, record refs) rendered fenced in recent_turns; never evidence of the new run",
+      "description": "Task 4d.2: carried context (user messages, VERIFIED answer values that pass their declared value format, ref values only when the run recorded them, record refs from the run's evidence) rendered fenced in recent_turns; never evidence of the new run",
       "steps": [
-        "tests/unit/kernel/test_carried_context.py passes on both stores",
+        "tests/unit/kernel/test_carried_context.py passes on both stores, including test_ref_not_among_recorded_source_refs_is_dropped and test_carry_holds_the_shortage_quantity_and_demand_ref",
         "Phase 3 pack digests and off goldens unchanged; replay suite passes"
       ],
       "passes": false
@@ -155,7 +166,7 @@
     {
       "id": "F-4d-5",
       "category": "server",
-      "description": "Task 4d.5: fixture thread end to end; under D17's default run 2's carried layer holds run 1's demand and product refs and the user's messages, no ShortageAnswer value, and run 2 never re-asks",
+      "description": "Task 4d.5: fixture thread end to end; run 2's carried layer holds run 1's VERIFIED ShortageAnswer shortage quantity and demand_ref (D17 (a)), and run 2 never re-asks",
       "steps": [
         "tests/unit/server/test_conversation_e2e.py passes on both stores",
         "pg gate and the CI checks job's PostgreSQL step (both now with test_conversation_e2e.py) and make e2e pass"
@@ -185,7 +196,7 @@
     {
       "id": "F-4e-3",
       "category": "ui",
-      "description": "Task 4e.3: ui-core conversation state behind features.conversations with per-run fallback",
+      "description": "Task 4e.3: ui-core conversation state behind features.conversations with per-run fallback decided by error code: legacy routes only when features report off or a 404 has no error envelope; an enveloped NOT_FOUND in on is shown and never starts an unlinked run",
       "steps": [
         "packages/ui-core/test/conversation.test.ts passes",
         "pnpm --dir ui check passes"
