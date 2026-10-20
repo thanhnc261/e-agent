@@ -302,7 +302,8 @@
         "no doc says the ADR 0033 §3 amendment is pending; the handoff records the live-write ruling",
         "uv run e-agent-harness gate full passes on a clean tree"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3.D3/2026-10-20T12-19-43.975717+00-00-full.json"
     }
   ]
 }
