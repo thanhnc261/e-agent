@@ -91,7 +91,7 @@ class ProposalRationale(Record):            # contracts/grounding.py
 | ID | Question | Answered from |
 |---|---|---|
 | CQ06 | Which missing data does the draft-creating action still need? | the open findings by rule id, rule version and status, and the requests for input by event id and status; a finding's message and its expected and observed values are left out because they can echo read data (PR-26) |
-| CQ07 | Which sources, and which tool, model and ontology versions, was the decision based on? | evidence ids and revisions, capability and binding ids, rule bundle and policy versions, and the driver id; the model name comes from the bundle's `versions`, not from the events |
+| CQ07 | Which sources, and which tool, model and ontology versions, was the decision based on? | evidence ids and revisions, capability and binding ids, rule and policy versions (each finding's `rule_version`; the rule bundle version is not in any event yet, pending the owner, ADR 0031 §3), and the driver id; the model name comes from the bundle's `versions`, not from the events |
 | CQ08 | If source R3 is withdrawn, which claims, summaries and decisions are affected? | the proposals, approvals and citations of this run that name the evidence; across runs this needs the knowledge layer (target §9) |
 | CQ09 | Has a draft already been created for this logical operation? | the action's logical operation id, its reservation, its receipt and its outcome |
 | CQ10 | Is the value an extraction, an inference, a hypothesis or an authoritative record? | the label of each value: provider read, verified outcome, grounded citation or model-authored text |
