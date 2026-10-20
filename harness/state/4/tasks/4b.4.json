@@ -1,0 +1,30 @@
+{
+  "id": "4b.4",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4b-4"
+  ],
+  "context_digest": "8c0df4f83579546cd6cfb8698bc32627fb987ec004b3ea655023e8984c563c58",
+  "allowed_paths": [
+    "ui/packages/ui-core/src/**",
+    "ui/packages/ui-core/test/**",
+    "ui/packages/components/src/features/task-navigation/**",
+    "ui/packages/components/test/**",
+    "ui/packages/ui-conformance/**",
+    "docs/reviews/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "controller.test.ts history entry records a pending reply",
+    "composer.spec.ts sidebar says Your turn after a reply; make e2e exits 0",
+    "review written without fixes; owner G-0 answer recorded"
+  ],
+  "gate_set": "full",
+  "base_commit": "23b984b0bbe9cd99ab5db437bbf383d9864bc34a",
+  "created_at": "2026-10-20T15:28:44+00:00",
+  "features_digest": "be3590e883c5ef5c6e946ca9b0578bb569dcaeb614e1e2e019a948800b7cd3ef"
+}
