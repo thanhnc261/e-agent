@@ -24,7 +24,8 @@
     "docs/plans/2026-10-20-phase4-conversation-chat.md",
     "docs/handoffs/**",
     "ui/packages/client/openapi.json",
-    "ui/packages/client/src/schema.ts"
+    "ui/packages/client/src/schema.ts",
+    "README.md"
   ],
   "acceptance": [
     "features, committed profile, pinning and startup tests pass",
@@ -45,6 +46,11 @@
       "glob": "ui/packages/client/src/schema.ts",
       "reason": "the new ReasonCode member CONVERSATION_CONTEXT_FAILED changes the exported OpenAPI enum and the generated UI client schema (export_openapi.py TARGET, pnpm --dir ui gen)",
       "at": "2026-10-20T16:34:49+00:00"
+    },
+    {
+      "glob": "README.md",
+      "reason": "README toggle paragraph counts modes and toggles; conversations adds one",
+      "at": "2026-10-20T16:39:59+00:00"
     }
   ]
 }
