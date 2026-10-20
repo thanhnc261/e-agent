@@ -270,6 +270,16 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/3.D1/2026-10-20T01-36-35.424236+00-00-full.json"
+    },
+    {
+      "id": "F-3-D2",
+      "category": "domain",
+      "description": "Owner rulings 2026-10-20: open-pos reworded to a question the bound read capabilities can answer (version 2); rule_bundle_version not recorded in events (ADR 0031 Skip)",
+      "steps": [
+        "uv run pytest -q tests/unit/plugins/erp tests/unit/server tests/unit/adapters/pydantic_ai ui-free tests pass, including the recorded-model replay suite",
+        "uv run e-agent-harness gate full and gate pg pass on a clean tree"
+      ],
+      "passes": false
     }
   ]
 }
