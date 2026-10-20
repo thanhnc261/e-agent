@@ -56,7 +56,8 @@ export function Messages() {
                 {m.kind === "reply" && !m.firstReply && (
                   // Owner G-0 (2026-10-20): every later reply stays visibly unverified.
                   <small className="ea-muted ea-reply-note" data-testid="reply-note">
-                    <span aria-hidden="true"> · </span>
+                    {" "}
+                    <span aria-hidden="true">· </span>
                     {t("conversation.replyNote")}
                   </small>
                 )}
