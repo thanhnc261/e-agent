@@ -11,7 +11,7 @@
   - `features.grounded_answers`: citations and rationale checked against this run's evidence and the rule inventory, and the generic `grounded.answer.v1`, which ends `GROUNDED`, never `verified`.
 
   Without a toggle, because they change no run: the progress ledger, run reconstruction from `run_events` and the explanation projection (`e-agent explain`, the bundle's `explanation` key). The ADR 0030 startup rule and the per-call route check also have no toggle.
-- **Evidence:** all of it is fixture evidence (simulator, scripted and authored drivers, memory and test Postgres stores). The live check 3g.2 has not run. A Codex final check is deferred until after 2026-10-25 (Codex quota).
+- **Evidence:** all of it is fixture evidence (simulator, scripted and authored drivers, memory and test Postgres stores). The live check 3g.2 has not run. The phase had a final check by two fresh-context Claude reviewers adjudicated by the advisor (owner ruling 2026-10-20) in place of Codex; see [Final check](#final-check).
 
 ## What changed
 
@@ -39,6 +39,7 @@
 | 3f.1 | `4944e07`, `fedd8e2`, `224b419` | Driver conformance suite (28 cases) over the pydantic-ai and scripted ERP drivers |
 | 3f.2 | `aa14ce3`, `fd5d820`, `c33feb2`, `b5e8b7a` | Context ablation design and first fixture run; repair-rate metric redefined on the kernel's repair counter; baseline regenerated |
 | 3.R1 | `24d6878`, `ad927be`, `f243991` | Phase review P-1 and P-2: model-authored refs are stored as written only when they name something real, else as digests; citation length caps |
+| 3.R2 | `5a1d960`, then the docs commit | Final check FA-1 and FA-2: the generic grounded answer is admitted only for a run that cannot write, and the registry refuses a `grounded_answer` definition that can write; the fallback run record is threaded; FB-3 tests. ADR 0033 §3 amended, pending the owner's acceptance |
 | 3g.1 | this commit | README, roadmap status, regenerated `evals/reports/fixture-release.json`, this handoff |
 
 Task-level detail, rulings and evidence: `harness/state/3/handoffs/*.json` and `harness/state/3/reviews/*.json`.
@@ -101,12 +102,24 @@ The whole-phase review ran in a fresh Claude context (`harness/state/3/reviews/3
 | P-1 | Medium | Model-authored rationale ids (`goal_ref`, unresolved evidence and rule refs) were stored as written in events, the bundle and the explanation, and could hold values | Fixed in 3.R1 (`24d6878`, `ad927be`, `f243991`; reviews `3.R1-r1.json` rework, `3.R1-r2.json` accept) |
 | P-2 | Low | `Citation.pointer` and `evidence_id` were unconstrained; an unresolved pointer was stored as written | Fixed in 3.R1: digests at rest, pointer ≤ 1024 and evidence id ≤ 128 characters |
 | P-3 | Low | 3f.1 changed driver behaviour with every toggle `off`: silence after a finding parks the run in WAITING_INPUT; a token-budget pre-check | Open: owner decision (3f.1 R1-3) |
-| P-4 | Low | No test pins `kernel_repeat: on` together with `grounded_answers: on` | Open |
-| P-5 | Low | Kernel modules at about 500 lines, with no gate enforcing the limit | Open; `kernel/grounding.py` is at exactly 500 |
-| P-6 | Low | Kernel task rounds without the Codex review the plan requires | Open; Codex final check deferred until after 2026-10-25 |
+| P-4 | Low | No test pins `kernel_repeat: on` together with `grounded_answers: on` | Final check FB-3: no hazard; tests added in 3.R2 |
+| P-5 | Low | Kernel modules at about 500 lines, with no gate enforcing the limit | Open; `kernel/grounding.py` is at 499 after 3.R2 |
+| P-6 | Low | Kernel task rounds without the Codex review the plan requires | Handled by the final check by two fresh-context Claude reviewers adjudicated by the advisor (owner ruling 2026-10-20) in place of Codex; see [Final check](#final-check) |
 | P-7 | Low | Not reviewed: Postgres behaviour directly, `close-check`, `make e2e`, the `/health/ready` toggle report, Review Focus 2 and 3 | Open; levels 2 and 3 above cover the gate runs, not a review |
 
 Codex reviewed 3b.2, 3b.3 (four rounds), 3d.5 (three rounds), 3e.3 (two rounds) and 3e.4 (round 1). The plan also asked for Codex on 3c.1, 3c.2, 3c.3, 3d.2, 3d.3, 3d.6, 3e.1 and 3e.2; those, 3d.5 rounds 5 and 6, 3e.4 round 2, 3f.1 and 3f.2 had Claude reviewers only, because Codex was out of quota. Two fix rounds were checked by the controller, not a fresh reviewer: 3e.4 `f9e2f03` and 3f.1 `224b419`.
+
+### Final check
+
+The phase's last review, across the kernel tasks, was the final check by two fresh-context Claude reviewers adjudicated by the advisor (owner ruling 2026-10-20) in place of Codex. Reviewer A (`harness/state/3/reviews/3g.1-final-A.json`) gave rework with two findings; reviewer B (`harness/state/3/reviews/3g.1-final-B.json`) gave accept with three.
+
+| Id | Severity | Finding | Verdict |
+|---|---|---|---|
+| FA-1 | Medium | A run able to write could end `GROUNDED`: admission did not require that the run cannot write | A design tightening, fixed in 3.R2. The ADR 0033 §3 amendment awaits the owner's acceptance |
+| FA-2 | Low | After a `kernel_repeat` or typed-answer grounding fallback, the run record `record_fallback` returned was discarded | Fixed in 3.R2 |
+| FB-1 | Low | The CI Postgres job runs only `tests/unit/kernel`, so the conformance suites run on Postgres only through the harness `pg` gate | An open item |
+| FB-2 | Low | The memory store's `update_run` and `wait_for_approval` turn an empty driver state `{}` into None, while Postgres keeps `{}` | An open item. The divergence predates Phase 3. The test that would expose it: both stores, empty driver state `{}`, restore |
+| FB-3 | Low | `kernel_repeat: on` with `grounded_answers: on`: no hazard found by reading, two tests missing | No hazard; tests added in 3.R2 |
 
 ## Rulings
 

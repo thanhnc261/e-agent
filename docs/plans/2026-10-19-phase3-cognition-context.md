@@ -775,7 +775,7 @@ Until Task 3d.5 lands masking, the rule refuses a route that is not `local` and 
 **Interfaces:** consumes every task's evidence.
 
 - [ ] Run `eng-verify` levels 1–3 on a clean tree; record each result.
-- [ ] Phase review with `eng-review` in a fresh context, and a Codex final check across the kernel tasks; fix findings as `3.R<n>` tasks.
+- [ ] Phase review with `eng-review` in a fresh context, and a Codex final check across the kernel tasks; fix findings as `3.R<n>` tasks. Owner ruling 2026-10-20: the Codex final check became the final check by two fresh-context Claude reviewers adjudicated by the advisor (owner ruling 2026-10-20) in place of Codex (`harness/state/3/reviews/3g.1-final-A.json`, `3g.1-final-B.json`); its findings are fixed in 3.R2.
 - [ ] Regenerate `evals/reports/fixture-release.json`, which stays labelled fixture evidence, and compare repair rate and token cost against `phase3-baseline.json`.
 - [ ] Write the handoff with `eng-handoff`. State plainly that:
   - recordings are authored, not captured, unless a qualified model run exists (ADR 0010);
