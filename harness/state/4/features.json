@@ -45,7 +45,8 @@
         "composer.spec.ts reply label shows once after hi, hi",
         "pnpm --dir ui check passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4b.2/2026-10-20T15-23-53.695341+00-00-full.json"
     },
     {
       "id": "F-4b-3",

@@ -1,0 +1,13 @@
+{
+  "task": "4b.2",
+  "changed": "selectConversation marks ConversationItem.firstReply on the first reply of a thread (one run in the per-run view; Task 4e.3 widens it to a conversation). Messages.tsx shows the visible reply label only on that reply; later replies carry the same conversation.reply text in an ea-visually-hidden span referenced by aria-describedby, so the not-verified fact (ADR 0022) stays available without a visible badge. Tests: selectors.test.ts 'marks only the first reply of a thread'; composer.spec.ts 'reply label shows once after hi, hi' and 'a later reply keeps a quiet not-verified hint'. Commit fb80f63. Review harness/state/4/reviews/4b.2-r1.json (accept, two Low notes).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4b.2/2026-10-20T15-23-53.695341+00-00-full.json"
+  ],
+  "open_items": [
+    "The two Playwright tests were not observed failing before the fix; the selector test was.",
+    "Sighted users see the reply label once per thread by design; the 4b.4 ag-ux-review and G-0 judge it."
+  ],
+  "rulings": [],
+  "outside_repo": []
+}
