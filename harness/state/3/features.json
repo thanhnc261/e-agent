@@ -279,7 +279,8 @@
         "uv run pytest -q tests/unit/plugins/erp tests/unit/server tests/unit/adapters/pydantic_ai ui-free tests pass, including the recorded-model replay suite",
         "uv run e-agent-harness gate full and gate pg pass on a clean tree"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3.D2/2026-10-20T03-41-33.144041+00-00-full.json"
     }
   ]
 }
