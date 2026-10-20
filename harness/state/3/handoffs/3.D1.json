@@ -1,0 +1,20 @@
+{
+  "task": "3.D1",
+  "changed": "The owner accepted the Phase 3 design amendments on 2026-10-20, and they are applied. ADRs 0006, 0009, 0030, 0031, 0032 and 0033, the ADR index, target-architecture.md (tags and stale refs), principles PR-34 and the sdk/__init__.py SDK_API_VERSION docstring now match the built code, including the 3.R1 at-rest rule in ADR 0033. P-3 is ruled 'keep the clarification' in the Phase 3 handoff. Review fixes D1-1 to D1-3 narrow three sentences to what the code proves: the items floor holds in the model context only, the injection test checks strings longer than 12 characters, and CQ07 points at the pending rule_bundle_version. Commits a4d698a and 8599d5e. Review: harness/state/3/reviews/3.D1-r1.json (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3.D1/2026-10-20T01-36-35.424236+00-00-full.json",
+    "harness/state/evidence/gates/3.D1/2026-10-20T01-26-09.151011+00-00-full.json"
+  ],
+  "open_items": [
+    "Pending owner decisions: rule_bundle_version in event payloads, Add or Skip (ADR 0031 §3); the open-pos list-POs read, Read or Reword; driver state at rest (ADR 0032 Consequences).",
+    "The context.failed turn encoding ('acknowledgement' string) and the shadow events' turn:int plus acknowledgement:bool are documented side by side; the code is not unified.",
+    "The ADR Context sections keep refs to 51c6c15, with the current location added beside them."
+  ],
+  "rulings": [
+    {
+      "ruling": "Where the brief and the code differed (persisted KERNEL-CITATION findings keep resolved refs; context.failed encoding), the ADRs describe the code.",
+      "cost_if_wrong": "one more ADR wording pass"
+    }
+  ],
+  "outside_repo": []
+}
