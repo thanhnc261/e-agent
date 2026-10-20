@@ -39,7 +39,7 @@
 | 3f.1 | `4944e07`, `fedd8e2`, `224b419` | Driver conformance suite (28 cases) over the pydantic-ai and scripted ERP drivers |
 | 3f.2 | `aa14ce3`, `fd5d820`, `c33feb2`, `b5e8b7a` | Context ablation design and first fixture run; repair-rate metric redefined on the kernel's repair counter; baseline regenerated |
 | 3.R1 | `24d6878`, `ad927be`, `f243991` | Phase review P-1 and P-2: model-authored refs are stored as written only when they name something real, else as digests; citation length caps |
-| 3.R2 | `5a1d960`, `e9b8fe0`, `c7561f2` | Final check FA-1 and FA-2: the generic grounded answer is admitted only for a run that cannot write, and the registry refuses a `grounded_answer` definition that can write; the fallback run record is threaded; FB-3 tests. ADR 0033 §3 amended, pending the owner's acceptance |
+| 3.R2 | `5a1d960`, `e9b8fe0`, `c7561f2` | Final check FA-1 and FA-2: the generic grounded answer is admitted only for a run that cannot write, and the registry refuses a `grounded_answer` definition that can write; the fallback run record is threaded; FB-3 tests. ADR 0033 §3 amended, accepted by the owner 2026-10-20 |
 | 3g.1 | this commit | README, roadmap status, regenerated `evals/reports/fixture-release.json`, this handoff |
 
 Task-level detail, rulings and evidence: `harness/state/3/handoffs/*.json` and `harness/state/3/reviews/*.json`.
@@ -149,13 +149,15 @@ The phase's last review, across the kernel tasks, was the final check by two fre
 
 | Id | Severity | Finding | Verdict |
 |---|---|---|---|
-| FA-1 | Medium | A run able to write could end `GROUNDED`: admission did not require that the run cannot write | A design tightening, fixed in 3.R2. The ADR 0033 §3 amendment awaits the owner's acceptance |
+| FA-1 | Medium | A run able to write could end `GROUNDED`: admission did not require that the run cannot write | A design tightening, fixed in 3.R2. The ADR 0033 §3 amendment was accepted by the owner 2026-10-20 |
 | FA-2 | Low | After a `kernel_repeat` or typed-answer grounding fallback, the run record `record_fallback` returned was discarded | Fixed in 3.R2 |
 | FB-1 | Low | The CI Postgres job runs only `tests/unit/kernel`, so the conformance suites run on Postgres only through the harness `pg` gate | An open item |
 | FB-2 | Low | The memory store's `update_run` and `wait_for_approval` turn an empty driver state `{}` into None, while Postgres keeps `{}` | An open item. The divergence predates Phase 3. The test that would expose it: both stores, empty driver state `{}`, restore |
 | FB-3 | Low | `kernel_repeat: on` with `grounded_answers: on`: no hazard found by reading, two tests missing | No hazard; tests added in 3.R2 |
 
 ## Rulings
+
+- **The live draft PO does not block the merge** (advisor adjudication, owner 2026-10-20). The live model proposed no PO in two tries, using the same prompt that succeeded in Phase 2, so this is model behaviour (ADR 0010). Every committed profile pins the three Phase 3 toggles `off`. The final check (Final-A) found the `off` write path unchanged in meaning. The one path that only a live write with `context_assembler: on` would exercise, the acknowledgement turn rendered from the pack, fails safe: it records `context.failed` and the run stays VERIFIED. So the gap gates setting `context_assembler: on` in a live profile, not the merge. Cost if wrong: a live-only defect in the pack-rendered acknowledgement, found when a qualified model first writes with `on`.
 
 The main rulings, each with its cost if wrong. The rest are in the task handoffs.
 
