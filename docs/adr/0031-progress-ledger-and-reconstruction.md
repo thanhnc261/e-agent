@@ -81,7 +81,7 @@ These keys are added to existing events only. No event is added, removed or reor
 - `credential_subject` is the connection's credential subject identifier, already in the action row and the digest input; it is never a secret.
 - `approval.decided` for `expired` and `surface_changed` creates no approval record, so it needs no new key; it only moves the action to `BLOCKED`.
 - `approval.requested` already carries `digest` and `expires_at`; receipts need nothing.
-- **`rule_bundle_version` is not recorded in events (owner decision 2026-10-20: Skip; review 3c.3 C3-27; Task 3.D2).** No event payload records the rule bundle version, and §3 adds no key for it. Each validation finding records its rule's `rule_version`. The profile pins each plugin's artifact (`artifact_sha256`; outside a fixture profile the registry refuses an unpinned plugin, and it refuses one whose bytes differ: `server/bootstrap.py:338`, `kernel/registry.py:180-190`), so the rule bundle a run used is traceable to that artifact. The explanation (ADR 0033 §6) does not name the bundle.
+- **`rule_bundle_version` is not recorded in events (owner decision 2026-10-20: Skip; review 3c.3 C3-27; Task 3.D2).** No event payload records the rule bundle version, and §3 adds no key for it. Each validation finding records its rule's `rule_version`. The profile pins each plugin's artifact (`artifact_sha256`; outside a fixture profile the registry refuses an unpinned plugin, and it refuses one whose bytes differ: `server/bootstrap.py:337`, `kernel/registry.py:180-190`), so the rule bundle a run used is traceable to that artifact. The explanation (ADR 0033 §6) does not name the bundle.
 
 ### 4. The `off` proof, refined (D7)
 
