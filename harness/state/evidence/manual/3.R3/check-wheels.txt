@@ -1,0 +1,15 @@
+ok  e-agent-contracts: installs and imports from its own dependency closure
+ok  e-agent-plugin-sdk: installs and imports from its own dependency closure
+ok  e-agent-kernel: installs and imports from its own dependency closure
+ok  e-agent-domain-erp: installs and imports from its own dependency closure
+ok  e-agent-adapter-shacl: installs and imports from its own dependency closure
+ok  e-agent-adapter-postgres: installs and imports from its own dependency closure
+ok  e-agent-adapter-agent-pydantic: installs and imports from its own dependency closure
+ok  e-agent-adapter-secretstore-local: installs and imports from its own dependency closure
+ok  e-agent-adapter-odoo: installs and imports from its own dependency closure
+ok  e-agent-adapter-erp-simulator: installs and imports from its own dependency closure
+ok  e-agent-server: installs and imports from its own dependency closure
+ok  e-agent-erp: installs and imports from its own dependency closure
+ok  installed plugin bytes match trusted wheel inventories before activation
+ok  installed e-agent demo completes outside the repository
+ok  installed ERP-04..08 demos complete outside the repository
