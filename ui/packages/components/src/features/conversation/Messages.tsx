@@ -52,13 +52,19 @@ export function Messages() {
             )}
             <div>
               <p className="ea-message-author">{t(m.role === "user" ? "messages.you" : "messages.agent")}</p>
-              {m.kind === "reply" && (
-                <p className="ea-muted ea-small" data-testid="reply-label">
-                  {t("conversation.reply")}
-                </p>
-              )}
+              {m.kind === "reply" &&
+                (m.firstReply ? (
+                  <p className="ea-muted ea-small" data-testid="reply-label">
+                    {t("conversation.reply")}
+                  </p>
+                ) : (
+                  <span className="ea-visually-hidden" id={`reply-hint-${m.id}`}>
+                    {t("conversation.reply")}
+                  </span>
+                ))}
               <div
                 className="ea-message-body"
+                aria-describedby={m.kind === "reply" && !m.firstReply ? `reply-hint-${m.id}` : undefined}
                 data-testid={
                   m.pending ? (m.kind === "reply" ? "pending-reply" : "clarification-question") : undefined
                 }

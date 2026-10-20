@@ -196,14 +196,21 @@ export interface ConversationItem {
   pending: boolean;
   /** "reply" is a conversational turn the kernel did not verify (ADR 0022); old rows have no kind. */
   kind: "reply" | "message";
+  /** True on the first reply of the thread (one run for now); later replies show the label only as a description. */
+  firstReply: boolean;
 }
 
 export function selectConversation(view: RunView): ConversationItem[] {
+  let seenReply = false;
   return view.events.flatMap(e => {
     if (e.schema_version !== "1") return [];
     const p = e.payload ?? {};
     const text = e.type === "input.requested" ? p["question"] : e.type === "input.received" ? p["input"] : e.type === "message.final" ? p["text"] : null;
-    return typeof text === "string" ? [{ id: e.event_id, role: e.type === "input.received" ? "user" as const : "agent" as const, text, pending: e.type === "input.requested" && text === view.question, kind: e.type === "input.requested" && p["kind"] === "reply" ? "reply" as const : "message" as const }] : [];
+    if (typeof text !== "string") return [];
+    const kind = e.type === "input.requested" && p["kind"] === "reply" ? "reply" as const : "message" as const;
+    const firstReply = kind === "reply" && !seenReply;
+    if (kind === "reply") seenReply = true;
+    return [{ id: e.event_id, role: e.type === "input.received" ? "user" as const : "agent" as const, text, pending: e.type === "input.requested" && text === view.question, kind, firstReply }];
   });
 }
 

@@ -183,6 +183,16 @@ describe("conversation item kind (ADR 0022)", () => {
     expect(kindOf({ question: "x", kind: "something-new" })).toBe("message");
   });
 
+  it("marks only the first reply of a thread", () => {
+    const view = viewWith("WAITING_INPUT", [
+      event(1, "input.requested", { question: "Hello!", kind: "reply" }),
+      event(2, "input.received", { input: "hi" }),
+      event(3, "input.requested", { question: "Hi again!", kind: "reply" }),
+      event(4, "input.requested", { question: "Which one?", kind: "clarification" }),
+    ]);
+    expect(selectConversation(view).map(m => m.firstReply)).toEqual([true, false, false, false]);
+  });
+
   it("marks only the pending question and flags a pending reply for the status label", () => {
     const view = viewWith("WAITING_INPUT", [
       event(1, "input.requested", { question: "Hello!", kind: "reply" }),
