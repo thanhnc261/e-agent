@@ -1,0 +1,27 @@
+{
+  "task": "3.R2",
+  "changed": "Final check fixes; the owner ruled on 2026-10-20 that fresh-context Claude reviewers, adjudicated by the advisor, replace the Codex check. FA-1: the generic grounded answer is admitted only for a run that cannot write. On a bound run, every offered capability must be READ and max_admitted_writes must be 0. On an unbound run, every agent-visible capability must be READ. The registry refuses a grounded_answer definition that has a write capability (admit_task_definitions) or allows a write budget (beside check_answer_condition). open-pos v2 is still admitted. FA-2: after a kernel_repeat or typed-answer citation fallback, the run record returned by record_fallback is used. FB-3: two tests with kernel_repeat and grounded_answers both on show that the repeat digest excludes rationale and citations, and that a KERNEL-RATIONALE refusal is never a repeat. ADR 0033 §3 gains the fourth admission condition, pending the owner's acceptance before merge, and now names open-pos as the flag's user. The README, roadmap, handoff and plan now record the final check in place of a deferred Codex check; the handoff has a Final check subsection. Commits 5a1d960, e9b8fe0, c7561f2 and 55bbb8d. Reviews: harness/state/3/reviews/3g.1-final-A.json (rework), 3g.1-final-B.json (accept) and 3.R2-r1.json (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/3.R2/2026-10-20T08-58-05.537660+00-00-full.json",
+    "harness/state/evidence/gates/3.R2/2026-10-20T08-59-33.395417+00-00-pg.json"
+  ],
+  "open_items": [
+    "The owner has not yet accepted the ADR 0033 §3 fourth admission condition; it needs acceptance before merge.",
+    "R2-2: the typed-answer half of FA-2 (grounding.py:393) has no dedicated test, because nothing later reads the revision.",
+    "R2-5: an unbound run checks only agent-visible capabilities, and _handle_proposal has no agent-visible check. Every host-only capability is a read today, so the gap is not live.",
+    "FB-1: CI's Postgres job runs only tests/unit/kernel; the conformance suites run on Postgres only through the harness pg gate.",
+    "FB-2: the memory store's update_run and wait_for_approval turn an empty driver state {} into None, while Postgres keeps {}. This predates Phase 3, and no current driver produces {}.",
+    "Live check 3g.2 is blocked. The owner must export E_AGENT_ODOO_URL, DB and ADMIN_KEY (and renew the keys if they expired) and re-pin domain-erp cb7c29b1ff4178e2ad30b764b6eb7ffa5f9aaff32c4fbd99e736d6a7ca781b0d."
+  ],
+  "rulings": [
+    {
+      "ruling": "FA-1 is a design tightening against ADR 0033 §3, which allowed the behaviour; it is not a defect. It is implemented because the change only narrows, and the ADR line is flagged for the owner.",
+      "cost_if_wrong": "revert one admission condition and the registry refusals"
+    },
+    {
+      "ruling": "The final check uses two scoped fresh-context opus reviewers, adjudicated by the advisor, in place of Codex (owner 2026-10-20).",
+      "cost_if_wrong": "a kernel defect Codex would have caught"
+    }
+  ],
+  "outside_repo": []
+}

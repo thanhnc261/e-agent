@@ -290,7 +290,8 @@
         "uv run pytest -q tests/unit/kernel tests/conformance passes with tests that a write-capable run is never offered grounded.answer.v1, a definition with grounded_answer and a write is refused, and FB-3 (a) and (b)",
         "uv run e-agent-harness gate full and gate pg pass on a clean tree"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/3.R2/2026-10-20T08-58-05.537660+00-00-full.json"
     }
   ]
 }
