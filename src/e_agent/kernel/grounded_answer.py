@@ -13,13 +13,16 @@ or ``KERNEL-PLAN-CAPABILITY`` on a bound ``execution_ir: on`` run): ``shadow`` a
 nothing (ADR 0027).
 
 **Admission** (`_admits_grounded_answer`), fixed for the run because its pinned mode, tool
-set and task definition are: the run is pinned ``on``; it is unbound, or bound to an admitted
-definition snapshot whose acceptance spec sets ``grounded_answer`` (a bound run without its
-snapshot admits nothing); and its offered tool set (the snapshot's capabilities, else every
-agent-visible capability) holds no typed answer (``EffectKind.ANSWER``), so where a typed
-answer exists its verifier decides (PR-19). A call the run does not admit is the fixed repair
-finding ``KERNEL-GROUNDED-ANSWER`` (`_repair_finding`: recorded in ``validation.completed``
-with no action id, within ``max_validation_repairs``).
+set, task definition and budgets are: the run is pinned ``on``; it is unbound, or bound to an
+admitted definition snapshot whose acceptance spec sets ``grounded_answer`` (a bound run
+without its snapshot admits nothing); its offered tool set (the snapshot's capabilities, else
+every agent-visible capability) holds no typed answer (``EffectKind.ANSWER``), so where a
+typed answer exists its verifier decides (PR-19); and the run cannot write (final check
+FA-1): every offered capability is a read, and a bound run's merged budgets admit no write
+(``max_admitted_writes`` 0). The registry refuses a ``grounded_answer`` definition that names
+a write or whose budgets admit one (`GROUNDED_WRITE`). A call the run does not admit is the
+fixed repair finding ``KERNEL-GROUNDED-ANSWER`` (`_repair_finding`: recorded in
+``validation.completed`` with no action id, within ``max_validation_repairs``).
 
 **The offer** (`_grounding_offer`, Task 3e.4). Every run-loop driver call carries
 ``DriverInput.grounding``, derived from the same pin and predicate, never the profile (D8):
@@ -81,8 +84,10 @@ class GroundedAnswerMixin(GroundingMixin):
         )
 
     def _admits_grounded_answer(self, run: RunRecord, cont: _Continuation) -> bool:
-        """ADR 0033 §3's three conditions, from the run's pin and its admitted snapshot,
-        never the profile."""
+        """ADR 0033 §3's four conditions, from the run's pin, its admitted snapshot and its
+        merged budgets, never the profile. Every offered capability is a read: a typed
+        answer or any other effect (a write) refuses, and so does an offered id the
+        registry does not hold (fail closed)."""
         if self._run_modes(cont).grounded_answers is not FeatureMode.ON:
             return False
         capabilities = self._registry.capabilities
@@ -90,11 +95,13 @@ class GroundedAnswerMixin(GroundingMixin):
             task = self._on_task(run, cont)
             if task is None or not task.acceptance.grounded_answer:
                 return False
+            if cont.ctx.budgets.max_admitted_writes > 0:  # the run admits no write
+                return False
             offered = task.capabilities
         else:
             offered = tuple(cid for cid, cap in capabilities.items() if cap.agent_visible)
-        return not any(
-            cid in capabilities and capabilities[cid].effect is EffectKind.ANSWER for cid in offered
+        return all(
+            cid in capabilities and capabilities[cid].effect is EffectKind.READ for cid in offered
         )
 
     def _grounding_offer(self, run: RunRecord, cont: _Continuation) -> GroundingOffer:

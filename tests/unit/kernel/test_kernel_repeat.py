@@ -27,6 +27,7 @@ from e_agent.contracts.context import Budgets, TaskContext
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.evidence import Completeness, EvidenceRef
 from e_agent.contracts.features import FeatureMode, Features
+from e_agent.contracts.grounding import Citation, ProposalRationale
 from e_agent.contracts.plan import ActionProposal
 from e_agent.contracts.run import ReasonCode, RunState
 from e_agent.contracts.validation import Finding, ValidationStatus
@@ -511,6 +512,29 @@ async def test_repeat_check_failure_falls_back_before_reservation(
     assert [_rules(e)[0] for e in validations] == ["NOTE-001", "NOTE-001", "NOTE-001"]
 
 
+async def test_repeat_fallback_hands_on_the_moved_run(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Final check FA-2: after the fallback the proposal path carries on with the run record
+    ``record_fallback`` returned, so the next check sees the store's current revision."""
+    _broken_check(monkeypatch)
+    k = make_kernel(["standup notes"], features=ON)
+    real = k.coordinator._rationale_probe
+    seen: list[tuple[int, int]] = []
+
+    async def probe(run: Any, cont: Any, entries: Any) -> Any:
+        current = await k.store.get_run(TENANT, run.run_id)
+        seen.append((run.revision, current.revision))
+        return await real(run, cont, entries)
+
+    monkeypatch.setattr(k.coordinator, "_rationale_probe", probe)
+
+    run = await _start(k)
+
+    assert run.state is RunState.WAITING_APPROVAL, run.reason
+    assert len(seen) == 1 and seen[0][0] == seen[0][1], seen
+
+
 @pytest.mark.parametrize("reservation", ["unresolved", "resolved"])
 async def test_repeat_check_failure_after_reservation_fails_closed(
     make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch, reservation: str
@@ -558,3 +582,101 @@ async def test_repeat_check_failure_after_reservation_fails_closed(
     assert len(await k.store.list_actions(TENANT, run.run_id)) == 1
     assert SENTINEL not in str([e.payload for e in events])
     assert k.backend.create_calls == 1
+
+
+# -- with `grounded_answers: on` (final check FB-3) ---------------------------------------
+BOTH_ON = Features(kernel_repeat=FeatureMode.ON, grounded_answers=FeatureMode.ON)
+Step = tuple[str, str | None, str, str]
+"""A scripted proposal: its text, the rationale's evidence id (None: the run's own), the
+rationale's summary and the cited pointer."""
+
+
+@dataclass
+class ResendDriver:
+    """Reads the notes summary, then proposes each scripted note in turn with its rationale
+    and citations, which the approval digest and so the repeat check exclude."""
+
+    script: list[Step]
+    driver_id: str = "notes-resend-driver"
+
+    async def advance(self, ctx: TaskContext, step_input: DriverInput) -> DriverStep:
+        if step_input.action_result is not None or not self.script:
+            return FinalAnswer(text="done")
+        if not step_input.observations:
+            request = ReadRequest(
+                request_id="r1", contract_id=READ.contract_id, connection_id=CONN, arguments={}
+            )
+            return RequestReads(reads=(request,))
+        text, evidence, summary, pointer = self.script.pop(0)
+        eid = step_input.observations[0].evidence.evidence_id
+        rationale = ProposalRationale(
+            goal_ref="run",
+            cited_evidence=(evidence or eid,),
+            rules_considered=("NOTE-001",),
+            summary=summary,
+        )
+        proposal = ActionProposal(
+            contract_id=CREATE.contract_id,
+            connection_id=CONN,
+            arguments={"text": text},
+            rationale=rationale,
+            citations=(Citation(evidence_id=eid, pointer=pointer, value="0"),),
+        )
+        return ProposeAction(proposal=proposal)
+
+
+async def _validations(k: Kernel, run_id: str) -> list[RunEvent]:
+    return _of(await _events(k, run_id), RunEventType.VALIDATION_COMPLETED)
+
+
+@pytest.mark.parametrize("changed", ["rationale", "citations"])
+async def test_resend_with_only_grounding_changed_is_a_repeat(
+    make_kernel: MakeKernel, changed: str
+) -> None:
+    """FB-3 (a): with ``kernel_repeat`` and ``grounded_answers`` both ``on``, a
+    validation-blocked write resent with only its rationale or its citations changed is
+    ``KERNEL-REPEAT``, and the validator is not called again."""
+    resent = (
+        ("", None, "second try", "/count")
+        if changed == "rationale"
+        else ("", None, "first", "/topic")
+    )
+    script = [("", None, "first", "/count"), resent, ("standup notes", None, "fixed", "/count")]
+    k = make_kernel(features=BOTH_ON, driver=ResendDriver(script))
+    calls = _counting(k)
+
+    run = await _start(k)
+
+    assert run.state is RunState.WAITING_APPROVAL, run.reason
+    assert calls == ["", "standup notes"]  # the resend never reached the validator
+    validations = await _validations(k, run.run_id)
+    assert [_rules(e)[0] for e in validations] == ["NOTE-001", repeat.KERNEL_REPEAT, "NOTE-001"]
+    assert validations[1].action_id is None
+    actions = await _actions(k, run.run_id)
+    assert [a.state for a in actions] == [ActionState.BLOCKED, ActionState.AWAITING_APPROVAL]
+    print(f"{changed}: validator calls {len(calls)}")
+
+
+async def test_resend_after_kernel_rationale_is_validated(make_kernel: MakeKernel) -> None:
+    """FB-3 (b): a proposal refused with ``KERNEL-RATIONALE`` (before validation, so no
+    blocked revision is kept) and resent with the same arguments and a fixed rationale is
+    validated, never short-circuited as a repeat."""
+    script = [
+        ("", "ev_unknown", "first", "/count"),  # KERNEL-RATIONALE: no observation of this run
+        ("", None, "fixed", "/count"),  # same arguments: validated, blocked by NOTE-001
+        ("standup notes", None, "fixed", "/count"),
+    ]
+    k = make_kernel(features=BOTH_ON, driver=ResendDriver(script))
+    calls = _counting(k)
+
+    run = await _start(k)
+
+    assert run.state is RunState.WAITING_APPROVAL, run.reason
+    assert calls == ["", "standup notes"]  # the fixed resend was validated
+    validations = await _validations(k, run.run_id)
+    assert [_rules(e)[0] for e in validations] == ["KERNEL-RATIONALE", "NOTE-001", "NOTE-001"]
+    assert validations[0].action_id is None
+    rules = {rule for e in validations for rule in _rules(e)}
+    assert repeat.KERNEL_REPEAT not in rules
+    actions = await _actions(k, run.run_id)
+    assert [a.state for a in actions] == [ActionState.BLOCKED, ActionState.AWAITING_APPROVAL]

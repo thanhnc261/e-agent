@@ -44,7 +44,7 @@ from e_agent.sdk.ports import Observation
 from pydantic import ValidationError
 
 from .conftest import FIRST, FOLLOW_UP, NOTES_TASK, PLAN_BUDGETS, READ, TENANT, Kernel
-from .test_grounded_answer import GroundedDriver
+from .test_grounded_answer import NOTES_QUESTION, GroundedDriver
 from .test_grounding import CitingDriver, _evidence
 from .test_rationale import SCHEMAS as PLAN_SCHEMAS
 from .test_rationale import PlanRationaleDriver, RationaleDriver, _plan
@@ -409,8 +409,8 @@ async def test_grounded_answer_unresolved_citation_is_a_digest(make_kernel: Make
         pointer = PATH if attempt == 1 else "/count"
         return (Citation(evidence_id=obs.evidence.evidence_id, pointer=pointer, value="0"),)
 
-    driver = GroundedDriver(cite)
-    k = make_kernel(features=ON, driver=driver)
+    driver = GroundedDriver(cite)  # a run that cannot write admits it (final check FA-1)
+    k = make_kernel(features=ON, driver=driver, read_only=True, task=NOTES_QUESTION)
     run = await k.coordinator.start_run(k.requester, "how many standup notes are there?", k.scope)
 
     assert run.state is RunState.SUCCEEDED, run.reason

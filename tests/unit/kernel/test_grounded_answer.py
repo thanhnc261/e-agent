@@ -4,9 +4,11 @@ A core answer owned by the kernel, not a registry capability: arguments ``{summa
 least one citation in the kernel envelope. The kernel recognizes it before the task-set check
 and the capability lookup, and only in a run pinned ``grounded_answers: on``; in ``off`` and
 ``shadow`` the call takes today's path. It is admitted when the run's offered tool set holds
-no typed answer contract and the run is unbound or its definition's acceptance spec sets
-``grounded_answer``; a call that is not admitted is the repair finding
-``KERNEL-GROUNDED-ANSWER``. When every citation resolves against this run's evidence the run
+no typed answer contract, the run is unbound or its definition's acceptance spec sets
+``grounded_answer``, and the run cannot write: no offered write, and a bound run's budgets
+admit no write (final check FA-1); a call that is not admitted is the repair finding
+``KERNEL-GROUNDED-ANSWER``, and the registry refuses a ``grounded_answer`` definition that
+names a write or allows one. When every citation resolves against this run's evidence the run
 ends ``SUCCEEDED`` with ``GROUNDED``, which is never ``verified`` (PR-19): no action record,
 no outcome report, and ``message.final`` carries the summary with ``contract_id`` and the
 at-rest citations. The check failing fails the run closed with ``GROUNDING_UNAVAILABLE``:
@@ -18,6 +20,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -45,7 +48,7 @@ from e_agent.kernel import grounded_answer
 from e_agent.kernel.errors import KernelError
 from e_agent.kernel.evidence import build_evidence
 from e_agent.kernel.features import TERMINAL_MESSAGES
-from e_agent.kernel.registry import PluginRegistry
+from e_agent.kernel.registry import GROUNDED_WRITE, PluginRegistry
 from e_agent.sdk.manifest import BindingTemplate, TaskDeclaration
 from e_agent.sdk.ports import (
     DriverInput,
@@ -59,7 +62,7 @@ from e_agent.sdk.ports import (
 )
 from pydantic import ValidationError
 
-from .conftest import CONN, CREATE, NOTES_TASK, READ, SUMMARY, TENANT, Kernel
+from .conftest import BINDINGS, CONN, CREATE, NOTES_TASK, READ, SUMMARY, TENANT, Kernel
 from .test_grounding import CLASSED_DATA, CLASSES, PINNED_ON, CitingDriver
 from .test_mode_pinning import HOSTED_UNDECLARED
 
@@ -76,8 +79,10 @@ NOTES_QUESTION = TaskDefinition(
     goal_template="answer a question about the notes",
     capabilities=(READ.contract_id,),
     acceptance=AcceptanceSpec(grounded_answer=True),
+    budgets=Budgets(max_admitted_writes=0),
 )
-"""A read-only notes definition that admits a grounded answer (ADR 0033 §3)."""
+"""A read-only notes definition that admits a grounded answer (ADR 0033 §3): no write
+capability and no admitted write (final check FA-1)."""
 
 Cite = Callable[[Observation, int], tuple[Citation, ...]]
 
@@ -131,7 +136,11 @@ class GroundedDriver:
 def _kernel(
     make_kernel: MakeKernel, cite: Cite, features: Features | None = ON, **kw: Any
 ) -> Kernel:
+    """A notes kernel that offers the read alone with `NOTES_QUESTION`, so the run cannot
+    write (final check FA-1), unless ``task`` names the write or ``read_only`` is given."""
     driver = kw.pop("driver", None) or GroundedDriver(cite)
+    task = kw.setdefault("task", NOTES_QUESTION)
+    kw.setdefault("read_only", CREATE.contract_id not in task.capabilities)
     return make_kernel(features=features, driver=driver, **kw)
 
 
@@ -385,6 +394,89 @@ async def test_grounded_answer_not_offered_unless_pinned_on(
     assert await _admits(k, pinned_on.run_id)
 
 
+# -- a run that can write (final check FA-1, ADR 0033 §3) ---------------------------------
+async def test_write_capable_unbound_run_is_never_offered_grounded_answer(
+    make_kernel: MakeKernel,
+) -> None:
+    """An unbound notes run whose offered set holds the write (``write standup note``) is
+    offered only ``cite``, and a call to the generic answer anyway is the fixed repair
+    finding ``KERNEL-GROUNDED-ANSWER`` with no action, until the repair budget: the run never
+    ends ``GROUNDED`` in place of its write."""
+    k = _kernel(make_kernel, _own(("/count", "0")), read_only=False)
+
+    run = await _start(k)
+
+    assert (run.state, run.reason_code) == (RunState.FAILED, ReasonCode.VALIDATION_FAILED)
+    events = await _events(k, run.run_id)
+    budget = Budgets().max_validation_repairs
+    assert _rules(events) == [grounded_answer.KERNEL_GROUNDED_ANSWER] * (budget + 1)
+    assert not _of(events, RunEventType.MESSAGE_FINAL)
+    assert await k.store.list_actions(TENANT, run.run_id) == []
+    assert {step.grounding for step in k.driver.seen} == {GroundingOffer.CITE}
+    assert not await _admits(k, run.run_id)
+
+
+async def test_bound_run_that_can_write_does_not_admit_grounded_answer(
+    make_kernel: MakeKernel,
+) -> None:
+    """Admission of the run reads its own snapshot and budgets: a bound run whose snapshot
+    names a write, or whose merged budgets admit one, does not admit the generic answer (the
+    registry refuses such a definition, so the snapshot is changed white box)."""
+    k = _kernel(make_kernel, _own(("/count", "0")), BOUND_ON)
+    run = await _start(k, NOTES_QUESTION.task_id)
+    cont = await k.coordinator._load_cont(TENANT, run.run_id)
+    assert cont.task is not None and k.coordinator._admits_grounded_answer(run, cont)
+    snapshot, ctx = cont.task, cont.ctx
+    writes = (*snapshot.capabilities, CREATE.contract_id)
+    cont.task = snapshot.model_copy(update={"capabilities": writes})
+    assert not k.coordinator._admits_grounded_answer(run, cont)
+    cont.task = snapshot
+    cont.ctx = ctx.model_copy(update={"budgets": Budgets(max_admitted_writes=1)})
+    assert not k.coordinator._admits_grounded_answer(run, cont)
+    cont.ctx = ctx
+    assert k.coordinator._admits_grounded_answer(run, cont)
+
+
+def _admitted(task: TaskDefinition, budgets: Budgets | None = None) -> PluginRegistry:
+    """A notes registry (read and write) with ``task`` staged and admitted."""
+    registry = PluginRegistry({b.binding_id: (CONN,) for b in BINDINGS}, budgets=budgets)
+    registry.register(
+        plugin_id="notes-fixture",
+        plugin_version="0.1.0",
+        declared_capabilities=(READ, CREATE),
+        binding_templates=BINDINGS,
+        declared_task_definitions=(TaskDeclaration(task_id=task.task_id, version=task.version),),
+        contribution=PluginContribution(capabilities=(READ, CREATE), task_definitions=(task,)),
+    )
+    registry.admit_task_definitions()
+    return registry
+
+
+def test_registry_refuses_grounded_answer_definition_that_can_write() -> None:
+    """Admission refuses a definition that sets ``grounded_answer`` and names a write
+    capability, or whose budgets (its own, else the profile's) admit a write; the read-only
+    definition is admitted, as is one that sets no budgets under a profile that admits no
+    write."""
+    with_write = NOTES_QUESTION.model_copy(
+        update={"capabilities": (READ.contract_id, CREATE.contract_id)}
+    )
+    refused = [
+        with_write,  # its budgets admit no write: the capability alone is refused
+        NOTES_QUESTION.model_copy(update={"budgets": None}),  # the profile's admits one
+        NOTES_QUESTION.model_copy(update={"budgets": Budgets(max_admitted_writes=1)}),
+    ]
+    for task in refused:
+        with pytest.raises(KernelError, match=re.escape(GROUNDED_WRITE)):
+            _admitted(task)
+    admitted = [
+        (NOTES_QUESTION, None),
+        (NOTES_QUESTION.model_copy(update={"budgets": None}), Budgets(max_admitted_writes=0)),
+    ]
+    for task, budgets in admitted:
+        assert task.task_id in _admitted(task, budgets).task_definitions
+    print(f"refused: {len(refused)}, admitted: {len(admitted)}")
+
+
 # -- the driver's offer (Task 3e.4, ADR 0033 §5) -------------------------------------------
 @pytest.mark.parametrize(
     ("features", "task", "offer"),
@@ -530,7 +622,9 @@ async def test_grounding_failure_after_reservation_fails_closed_for_generic_answ
 ) -> None:
     """Review Focus 7: after a reservation the run fails ``GROUNDING_UNAVAILABLE``, in
     reconciliation while the reservation is unresolved. Entered directly (white box), as
-    3e.1's post-reservation test does."""
+    3e.1's post-reservation test does. Admission cannot reach it: a run that reserved a write
+    offers one, so it never admits the generic answer (final check FA-1). Admission is
+    forced here to keep the fail-closed path under test should that ever change."""
     k = make_kernel(features=ON, budgets=Budgets(max_admitted_writes=2))
     run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
     k.backend.fail_mode = "timeout"  # the write may have committed: UNKNOWN
@@ -549,6 +643,8 @@ async def test_grounding_failure_after_reservation_fails_closed_for_generic_answ
         await k.coordinator._transition(action, ActionState.FAILED)
     _broken_check(monkeypatch)
     cont = await k.coordinator._load_cont(TENANT, run.run_id)
+    assert not k.coordinator._admits_grounded_answer(run, cont)  # the write is offered
+    monkeypatch.setattr(k.coordinator, "_admits_grounded_answer", lambda run, cont: True)
     (obs,) = cont.observations.values()
     proposal = ActionProposal(
         contract_id=GROUNDED_ANSWER,

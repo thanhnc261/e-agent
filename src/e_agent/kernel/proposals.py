@@ -144,6 +144,7 @@ class ProposalsMixin(RationaleMixin):
         probe = await self._repeat_probe(run, cont, canonical_for, permitted=decision.permitted)
         if not isinstance(probe, RepeatProbe):  # `on`: KERNEL-REPEAT, or closed (ADR 0031 §5)
             return probe
+        run = probe.run or run  # a fallback moved the revision (final check FA-2)
         reasons = await self._rationale_probe(run, cont, entries)  # before validation (§4)
         if not isinstance(reasons, RationaleProbe):  # `on`: KERNEL-RATIONALE, or closed
             return reasons

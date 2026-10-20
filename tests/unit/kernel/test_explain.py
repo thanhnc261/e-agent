@@ -39,7 +39,7 @@ from .conftest import (
     NotesDriver,
     NotesPlanDriver,
 )
-from .test_grounded_answer import GroundedDriver, _own
+from .test_grounded_answer import NOTES_QUESTION, GroundedDriver, _own
 from .test_progress import WrongAnswerDriver
 
 MakeKernel = Callable[..., Kernel]
@@ -443,7 +443,8 @@ async def test_explanation_of_a_grounded_run_names_a_grounded_outcome(
     outcome, labelled ``grounded_answer``, never ``verified_outcome`` (PR-19); a verified
     run names no grounded outcome."""
     driver = GroundedDriver(_own(("/count", "0")))
-    k = make_kernel(features=Features(grounded_answers=FeatureMode.ON), driver=driver)
+    on = Features(grounded_answers=FeatureMode.ON)  # a run that cannot write (FA-1)
+    k = make_kernel(features=on, driver=driver, read_only=True, task=NOTES_QUESTION)
     run = await k.coordinator.start_run(k.requester, "how many notes?", k.scope)
     assert (run.state, run.reason_code) == (RunState.SUCCEEDED, ReasonCode.GROUNDED)
 

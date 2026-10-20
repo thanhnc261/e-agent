@@ -112,11 +112,13 @@ def same_findings(earlier: BlockedRevision, validation: ValidationResult) -> boo
 @dataclass(frozen=True)
 class RepeatProbe:
     """What the check found before validation: the mode it acts in (``off`` when nothing is
-    recorded), the matched revision, and whether a shadow check failed."""
+    recorded), the matched revision, whether a shadow check failed, and the run when a
+    fallback moved its revision (final check FA-2)."""
 
     mode: FeatureMode
     match: BlockedRevision | None = None
     failed: bool = False
+    run: RunRecord | None = None
 
 
 def _shadow_failed(stage: str, action_id: str) -> EventSpec:
@@ -125,6 +127,17 @@ def _shadow_failed(stage: str, action_id: str) -> EventSpec:
 
 
 class RepeatMixin(IrOnMixin):
+    async def _has_reserved(self, run: RunRecord) -> bool:
+        """Whether the run has reserved a write: after one a check that cannot run fails
+        closed, never falls back (ADR 0027)."""
+        events = await self._store.list_events(run.tenant_id, run.run_id)
+        return any(e.type is RunEventType.ACTION_RESERVED for e in events)
+
+    async def _fell_back(self, run: RunRecord, feature: str, reason: ReasonCode) -> RunRecord:
+        """``feature.fallback`` on the run's current record; returns the moved record."""
+        current = await self._store.get_run(run.tenant_id, run.run_id)
+        return await self.record_fallback(current, feature, reason)
+
     async def _repeats_verified_answer(
         self, cont: _Continuation, proposal: ActionProposal, connection_id: str, digest: str
     ) -> bool:
@@ -156,12 +169,10 @@ class RepeatMixin(IrOnMixin):
         except Exception:  # no exception text reaches an event (PR-25, PR-28)
             if mode is FeatureMode.SHADOW:
                 return RepeatProbe(mode, failed=True)
-            events = await self._store.list_events(run.tenant_id, run.run_id)
-            if any(e.type is RunEventType.ACTION_RESERVED for e in events):
+            if await self._has_reserved(run):
                 return await self._end_closed(run, ReasonCode.REPEAT_UNAVAILABLE)
-            current = await self._store.get_run(run.tenant_id, run.run_id)
-            await self.record_fallback(current, "kernel_repeat", ReasonCode.REPEAT_CHECK_FAILED)
-            return RepeatProbe(FeatureMode.OFF)  # validated as today
+            fell = await self._fell_back(run, "kernel_repeat", ReasonCode.REPEAT_CHECK_FAILED)
+            return RepeatProbe(FeatureMode.OFF, run=fell)  # validated as today
         if mode is FeatureMode.ON and match is not None:
             repeated = Finding(
                 rule_id=KERNEL_REPEAT,

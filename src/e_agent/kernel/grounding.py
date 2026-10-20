@@ -316,11 +316,13 @@ def check_citations(
 @dataclass(frozen=True)
 class GroundingProbe:
     """What the check found before the answer's action: the mode it acts in (``off`` when
-    nothing is recorded or stored), its result, and whether a shadow check failed."""
+    nothing is recorded or stored), its result, whether a shadow check failed, and the run
+    when a fallback moved its revision (final check FA-2)."""
 
     mode: FeatureMode
     result: GroundingResult | None = None
     failed: bool = False
+    run: RunRecord | None = None
 
     def stored(self) -> dict[str, Any]:
         """The ``proposal.created`` key: the at-rest citations, when any were checked."""
@@ -362,14 +364,10 @@ class GroundingMixin(RepeatMixin):
         except Exception:  # no exception text reaches an event (PR-25, PR-28)
             if mode is FeatureMode.SHADOW:
                 return GroundingProbe(mode, failed=True)
-            events = await self._store.list_events(run.tenant_id, run.run_id)
-            if any(e.type is RunEventType.ACTION_RESERVED for e in events):
+            if await self._has_reserved(run):
                 return await self._end_closed(run, ReasonCode.GROUNDING_UNAVAILABLE)
-            current = await self._store.get_run(run.tenant_id, run.run_id)
-            await self.record_fallback(
-                current, "grounded_answers", ReasonCode.GROUNDING_CHECK_FAILED
-            )
-            return GroundingProbe(FeatureMode.OFF)  # verified as today, citations dropped
+            fell = await self._fell_back(run, "grounded_answers", ReasonCode.GROUNDING_CHECK_FAILED)
+            return GroundingProbe(FeatureMode.OFF, run=fell)  # verified as today, citations dropped
         if mode is FeatureMode.ON and not result.grounded:
             current = await self._store.get_run(run.tenant_id, run.run_id)
             return await repair_at_rest(self._repair_finding, current, cont, result)
@@ -392,6 +390,7 @@ class GroundingMixin(RepeatMixin):
         probe = await self._grounding_probe(run, cont, proposal.citations)
         if not isinstance(probe, GroundingProbe):  # `on`: KERNEL-CITATION, or closed
             return probe
+        run = probe.run or run  # a fallback moved the revision
         try:
             action_digest = compute_digest(
                 {"contract_id": proposal.contract_id, "arguments": dict(proposal.arguments)}

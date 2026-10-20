@@ -45,6 +45,8 @@ def _reject(message: str) -> KernelError:
     return KernelError(ErrorCode.STARTUP_REJECTED, message)
 
 
+GROUNDED_WRITE = "grounded_answer needs a task that cannot write (no write, no admitted write)"
+_CANNOT_WRITE = frozenset({EffectKind.READ, EffectKind.ANSWER})
 _CAPABILITY_EFFECT_FIELDS = frozenset({"risk", "reversibility"})
 _BINDING_EFFECT_FIELDS = frozenset({"idempotency"})
 
@@ -404,6 +406,10 @@ class PluginRegistry:
                 check_answer_condition(task.acceptance)
             except ValueError as exc:
                 raise _reject(f"{plugin_id}: task {task.task_id!r}: {exc}") from None
+            own = task.budgets.model_dump(exclude_unset=True) if task.budgets else {}
+            writes = own.get("max_admitted_writes", self.budgets.max_admitted_writes)
+            if task.acceptance.grounded_answer and writes > 0:  # final check FA-1
+                raise _reject(f"{plugin_id}: task {task.task_id!r}: {GROUNDED_WRITE}")
 
     def _check_task_budgets(self, plugin_id: str, task: TaskDefinition) -> None:
         """A definition's budgets only narrow the profile's (D7). ``Budgets`` has
@@ -428,7 +434,8 @@ class PluginRegistry:
         has no provider binding: it verifies through the run's read connection, as in
         the run's tool set. The composition root calls this once every plugin is
         admitted and its connection checks pass; until then a staged definition is
-        not in ``task_definitions``, so no run can resolve it.
+        not in ``task_definitions``, so no run can resolve it. A ``grounded_answer``
+        definition names no write, checked here once every capability is known (FA-1).
         """
         bound = {b.contract_id for b in self.bindings}
         for task in self._staged_tasks:
@@ -444,6 +451,8 @@ class PluginRegistry:
                     raise _reject(
                         f"{owner}: task {task.task_id!r} names host-only capability {contract_id}"
                     )
+                if task.acceptance.grounded_answer and cap.effect not in _CANNOT_WRITE:
+                    raise _reject(f"{owner}: task {task.task_id!r}: {GROUNDED_WRITE}")
                 if cap.effect is not EffectKind.ANSWER and contract_id not in bound:
                     raise _reject(
                         f"{owner}: task {task.task_id!r} capability {contract_id} "
