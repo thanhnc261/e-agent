@@ -57,11 +57,22 @@
     {
       "id": "F-4b-4",
       "category": "ui",
-      "description": "Task 4b.4: sidebar says Your turn after a reply; ag-ux-review over the 4b diffs (core plan 0.4)",
+      "description": "Task 4b.4: sidebar says Your turn after a reply; ag-ux-review over the 4b diffs, stopping for the owner (gate G-0)",
       "steps": [
         "controller.test.ts history entry records a pending reply",
-        "composer.spec.ts sidebar says Your turn after a reply",
-        "make e2e exits 0; review and resolution files have no open Blocker or High"
+        "composer.spec.ts sidebar says Your turn after a reply; make e2e exits 0",
+        "review written without fixes; owner G-0 answer recorded"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4b-5",
+      "category": "ui",
+      "description": "Task 4b.5: chat defects review resolution, before 4e.1",
+      "steps": [
+        "each finding has a failing-then-passing test named after it",
+        "pnpm --dir ui check and make e2e pass",
+        "resolution file answers every finding; no open Blocker or High"
       ],
       "passes": false
     },
@@ -90,31 +101,21 @@
     {
       "id": "F-4c-3",
       "category": "store",
-      "description": "Task 4c.3: ConversationStore port and memory store under conformance, one active run per conversation; FB-2 parity",
+      "description": "Task 4c.3: ConversationStore on both stores with migration 0007, one active run per conversation; memory store in kernel/memory_conversations.py; FB-1, FB-2",
       "steps": [
-        "tests/conformance/test_conversation_store.py passes on the memory store and prints its case count",
-        "test_empty_driver_state_round_trips passes",
-        "full gate passes"
-      ],
-      "passes": false
-    },
-    {
-      "id": "F-4c-4",
-      "category": "store",
-      "description": "Task 4c.4: Postgres migration 0007 and the Postgres ConversationStore; CI Postgres job runs the pg gate set (FB-1)",
-      "steps": [
-        "conformance suite passes with E_AGENT_TEST_STORE=postgres",
-        "test_concurrent_messages_start_one_run passes on Postgres",
-        "pg gate passes"
+        "tests/conformance/test_conversation_store.py passes on memory and Postgres and prints its case count",
+        "test_concurrent_messages_start_one_run and test_empty_driver_state_round_trips pass on both stores",
+        "memory_store.py at most 500 lines; lint-imports keeps every contract; pg gate passes"
       ],
       "passes": false
     },
     {
       "id": "F-4d-1",
       "category": "kernel",
-      "description": "Task 4d.1: message routing answers a waiting run, starts a new run, or refuses; a message is never a decision",
+      "description": "Task 4d.1: message routing bound to the question the user saw; idempotent answer retry; a message is never a decision; another requester gets NOT_FOUND",
       "steps": [
         "tests/unit/kernel/test_conversation_routing.py passes on both stores",
+        "test_answer_for_an_earlier_question_conflicts and test_retried_answer_is_accepted_once pass",
         "test_message_while_waiting_approval_never_touches_the_action passes"
       ],
       "passes": false
@@ -122,7 +123,7 @@
     {
       "id": "F-4d-2",
       "category": "kernel",
-      "description": "Task 4d.2: carried context built at admission and rendered fenced and class-walked in the recent_turns layer; never evidence of the new run",
+      "description": "Task 4d.2: carried context (user messages, VERIFIED answer arguments under declared data_classes, record refs) rendered fenced in recent_turns; never evidence of the new run",
       "steps": [
         "tests/unit/kernel/test_carried_context.py passes on both stores",
         "Phase 3 pack digests and off goldens unchanged; replay suite passes"
@@ -132,9 +133,10 @@
     {
       "id": "F-4d-3",
       "category": "kernel",
-      "description": "Task 4d.3: conversations shadow records conversation.compared and gives the driver no carried item",
+      "description": "Task 4d.3: conversations shadow records conversation.compared, refuses nothing today's path accepts, and falls back to today's run or input path",
       "steps": [
         "test_shadow_layer_digest_equals_on_layer_digest passes and prints its case count",
+        "shadow fallback tests (stale revision, concurrent pair, conversation error) pass; no request fails",
         "shadow adds no model call, read or budget use"
       ],
       "passes": false
@@ -142,20 +144,21 @@
     {
       "id": "F-4d-4",
       "category": "server",
-      "description": "Task 4d.4: conversation routes and GET /v1/me/features with session dependencies; route authorization test (PR-27)",
+      "description": "Task 4d.4: conversation routes and GET /v1/me/features with session dependencies; /v1 route authorization test (PR-27); server tests in the pg gate",
       "steps": [
-        "test_conversation_api.py and test_route_authorization.py pass; the route test prints its count",
-        "export_openapi.py --check and pnpm --dir ui gen:check pass"
+        "test_conversation_api.py passes on both stores; test_route_authorization.py prints its count",
+        "export_openapi.py --check and pnpm --dir ui gen:check pass",
+        "pg gate runs test_conversation_api.py"
       ],
       "passes": false
     },
     {
       "id": "F-4d-5",
       "category": "server",
-      "description": "Task 4d.5: fixture thread end to end: hi, which products are short, draft a PO for it, in two runs",
+      "description": "Task 4d.5: fixture thread end to end; run 2's carried layer holds run 1's VERIFIED ShortageAnswer shortage quantity",
       "steps": [
-        "tests/unit/server/test_conversation_e2e.py passes",
-        "pg gate and make e2e pass"
+        "tests/unit/server/test_conversation_e2e.py passes on both stores",
+        "pg gate (now with test_conversation_e2e.py) and make e2e pass"
       ],
       "passes": false
     },
@@ -202,7 +205,7 @@
     {
       "id": "F-4e-5",
       "category": "ui",
-      "description": "Task 4e.5: citations and explanation in the outcome and timeline, labelled grounded, not verified",
+      "description": "Task 4e.5: citations and explanation in the outcome and timeline, labelled grounded, not verified (second cut line)",
       "steps": [
         "citations.test.tsx and explanation.spec.ts pass",
         "make e2e passes"
@@ -242,9 +245,10 @@
     {
       "id": "F-4f-2",
       "category": "verification",
-      "description": "Task 4f.2: Phase 4 live check on odoo19-learning, on the owner's instruction only",
+      "description": "Task 4f.2: Phase 4 live check on odoo19-learning, on the owner's instruction only: Phase 0 exit, single-run PO with the pack, then the thread",
       "steps": [
-        "live results recorded in the handoff, labelled live and separate from fixture results"
+        "uv run e-agent-harness live-check passes and writes evidence under harness/state/evidence/live/",
+        "live results recorded in the handoff, labelled live; no PO proposed is a partial result"
       ],
       "passes": false
     }
