@@ -8,9 +8,9 @@ Date: 2026-10-20. Status: Proposed (Phase 4 Task 4a.1; the owner accepts or amen
 - ADR 0023 makes a thread of runs. Today the UI shows one run per task, with session-local history (UI architecture §10) in the four surfaces of ADR 0016: Compact, Workbench, Docked and (standalone only) Workspace.
 - ADR 0033 built citations, the generic grounded answer, `ProposalRationale` and the explanation projection, and left their UI to later work (Phase 3 D10). The Phase 3 handoff lists the "grounded, not verified" wording as never reviewed against the `ag-*` standard (pending item 14).
 - What the server exposes today, without a contract change:
-  - `GET /v1/runs/{id}/evidence` (`server/api.py:494-506`) builds the bundle in `kernel/evidence.py:220-293`. It holds the run, actions, approvals, receipts, outcomes and events (`:257-271`), but **no observation data**.
+  - `GET /v1/runs/{id}/evidence` (`server/api.py:494-506`) builds the bundle in `kernel/evidence.py:220-293`. It holds the run, actions, approvals, receipts, outcomes and events (`:257-271`). Observation data is in it only inside `actions[].approved_facts`: each `ApprovedFact` holds an observation's contract, data and `EvidenceRef` (`contracts/evidence.py:29-37`). Write proposals record them from the continuation's observations (`kernel/proposals.py:184-187`, `kernel/plan_flow.py:321`). An answer action records none (`kernel/grounding.py:406-421`, default `()`, `contracts/action.py:66`). The UI already fetches the whole bundle (`ui/packages/client/src/index.ts:152-153`, `ui/packages/ui-core/src/controller.ts:421`), and `selectEvidence` reads `actions[].approved_facts` (`ui/packages/ui-core/src/selectors/evidence.ts:96-97`).
   - Its `explanation` key (`kernel/evidence.py:290-292`) is the ADR 0033 §6 projection: sources (evidence id, contract, revision), validation by rule id, proposals with their rationale refs (ids and text digests, `contracts/explain.py:116-157`), approvals, receipts and outcomes, each with a `ValueLabel` (`contracts/explain.py:36-54`). It holds **no citations**.
-  - Citations are stored only in their at-rest form: evidence id and pointer when the citation named a real value, otherwise only their digests, and always only the `value_digest`, never the value (`citation_at_rest`, `kernel/at_rest.py:114-121`; ADR 0033 §1). They appear in two places. The bundle's `grounded_answer` key, for a run that ended `GROUNDED`, holds the summary labelled `unverified` and each citation labelled `grounded` (`kernel/evidence.py:203-216`). A typed answer's `proposal.created` event holds `citations` in a run pinned `grounded_answers` `shadow` or `on` (`kernel/grounding.py:327-331`).
+  - Citations are stored only on answers; `strip_grounding` drops them from write proposals (`kernel/rationale.py:187-189`). They are stored in their at-rest form: evidence id and pointer when the citation named a real value, otherwise only their digests, and always only the `value_digest`, never the value (`citation_at_rest`, `kernel/at_rest.py:114-121`; ADR 0033 §1). They appear in two places. The bundle's `grounded_answer` key, for a run that ended `GROUNDED`, holds the summary labelled `unverified` and each citation labelled `grounded` (`kernel/evidence.py:203-216`). A typed answer's `proposal.created` event holds `citations` in a run pinned `grounded_answers` `shadow` or `on` (`kernel/grounding.py:327-331`).
   - In `shadow` a typed answer's citations are stored whether or not they resolved, with no verdict per citation; only `grounding.compared` counts them. In `on` a citation that does not resolve is a `KERNEL-CITATION` repair before the answer's action exists (ADR 0033 §2), so a stored citation of an answer that reached its verifier resolved.
   - `ApprovalPresentation` (`kernel/approval.py:125-149`) has no rationale field. The checked rationale of the latest write proposal or plan lives only in the continuation (`rationale`, `step_rationales`, `kernel/continuation.py:152-157`), and `pending_approval` builds the presentation from the continuation at read time (`kernel/approval_flow.py:37-68`), never from an event.
 
@@ -37,7 +37,11 @@ Layout, density and placement are the brief's and the mockup's, decided at gates
 
 ### 3. Citations (Task 4e.5)
 
-- A citation is shown as its **record and field**: the evidence id, resolved to that run's source in the `explanation` (`sources`: contract and revision), and the pointer. **No value is shown beside it**: the server stores only its digest, and the bundle holds no observation data.
+- A citation is shown as its **record and field**: the evidence id, resolved to that run's source in the `explanation` (`sources`: contract and revision), and the pointer.
+- **The value beside it** is read from the run's `actions[].approved_facts`, from the fact whose `evidence.evidence_id` equals the citation's evidence id, at the citation's pointer. It is never read from model text or the citation itself (which stores only a digest). When no approved fact of the run holds that evidence, or the pointer names nothing in it, no value is shown and the citation keeps its record and field.
+- Two limits follow from the code today, and are stated in the UI as "value not recorded", never as an empty value (EA-8):
+  - an answer's own action records no approved facts, so a typed answer's cited value is shown only when another action of the same run (a write proposal) recorded that evidence; in a run whose only action is the answer, no value is shown;
+  - a `GROUNDED` run has no action, so its citations show the record and field and no value.
 - Citations are shown from two server sources only:
   - the bundle's `grounded_answer.citations`, each already labelled `grounded` by the server;
   - the `citations` of a typed answer's `proposal.created` event, only in a run whose bundle reports `modes.grounded_answers: on`. In `shadow` they are not shown: they were recorded for comparison and may not have resolved.
@@ -65,7 +69,7 @@ Status of this section: Proposed, on its own. The owner accepts it or defers it 
 ## Alternatives considered
 
 - **Leave EA-10 as an owner decision without an ADR:** rejected. The thread view changes the layout of every surface; a binding requirement that only a skill file states can drift.
-- **Show the cited value beside a citation:** rejected for Phase 4. The server keeps only its digest (ADR 0033 §1, PR-26). Showing the value needs a server projection that reads the observation at the pointer for an authorized viewer, which is a contract change outside D15.
+- **A server projection of the cited value:** deferred. It would read the continuation's observation at the citation's pointer for an authorized viewer, and so cover answer-only and grounded runs, but it is a contract change outside D15. Phase 4 shows the value only where `actions[].approved_facts` already holds it.
 - **Show `shadow` citations:** rejected. They carry no verdict, so the UI would have to guess which resolved (EA-1).
 - **A per-citation label in the `explanation` key:** deferred. It would let the UI show typed-answer citations without reading events and modes, but it changes the explanation contract; D15 keeps Phase 4 without a contract change.
 - **Rationale first on the approval card, or as a digest input:** rejected (target §5.6, ADR 0033 §4, threat T9). It is model-authored and would let model text shape what the approver binds.
@@ -76,13 +80,13 @@ Status of this section: Proposed, on its own. The owner accepts it or defers it 
 - UI: the thread view, the closable workspace, the citation and explanation display, and EN and VI copy (Tasks 4e.3–4e.5); UI architecture gains §12 "Conversation threads" (Task 4e.4).
 - Server, only with section 5: `ApprovalPresentation.rationale`, `kernel/approval.py` and `kernel/approval_flow.py`, regenerated OpenAPI and client types (Task 4e.6).
 - `ag-ux-foundations`: EA-10's binding source moves to this ADR when it is accepted (Task 4a.2 or the first `ag-*` task after it).
-- Known limit: typed-answer citations are visible only in runs pinned `grounded_answers: on`, and no cited value is visible anywhere in Phase 4.
+- Known limit: typed-answer citations are visible only in runs pinned `grounded_answers: on`. A cited value is visible only where another action of the run recorded the evidence as an approved fact; answer-only and grounded runs show none (section 3).
 
 ## Verification
 
 - 4e.3: "reads the mode from /v1/me/features", "off and shadow keep the per-run view", "the thread comes from server snapshots only", "an answer carries reply_to with the run revision shown with its question".
 - 4e.4: "two runs show in one thread", "the workspace closes and reopens, and the conversation stays" (EA-10), "a message during approval shows the hint, and the card is unchanged", "a new run is announced politely" (EA-16), an axe check per state.
-- 4e.5: "a citation shows its record and field from the server", "a grounded run says grounded, not verified" (EN and VI), "free text outside citations is labelled unverified", "the explanation lists facts before any rationale", "an unresolved citation is never shown as a fact".
+- 4e.5: "a citation shows its record and field from the server", "a cited value comes from the run's approved facts, and an answer-only run shows value not recorded", "a grounded run says grounded, not verified" (EN and VI), "free text outside citations is labelled unverified", "the explanation lists facts before any rationale", "an unresolved citation is never shown as a fact".
 - 4e.6 (section 5 only): `test_rationale_never_changes_the_approval_digest`, `test_presentation_without_rationale_is_unchanged`, `test_rationale_is_not_in_any_event_payload`, "rationale renders after the facts, labelled as the agent's reason".
 - Gate G-D: the `ag-ux-review` of the built UI (Task 4e.7).
 - Revisit when a cited value must be shown, or when a surface outside ADR 0016's four needs the thread.
