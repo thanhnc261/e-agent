@@ -1,13 +1,13 @@
 # ADR 0031: Progress ledger, repeat detection and run reconstruction
 
-Date: 2026-10-19. Status: Accepted (2026-10-19, owner, gate G2, Phase 3 Task 3a.2). Refines ADRs 0007, 0018, 0025 and 0027; [target architecture](../design/target-architecture.md) §5.1 item 2, §6.2, §6.3, §17 C8. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D7, D9, Tasks 3c.1, 3c.2, 3d.6.
+Date: 2026-10-19. Status: Accepted (2026-10-19, owner, gate G2, Phase 3 Task 3a.2). Amended 2026-10-20 (Phase 3 review, owner accepted; Task 3.D1): the repeat rule's module, the kept blocked revisions, the `budgets_used` wording, the event-less `BLOCKED` writes and current file:line references; whether §3 adds `rule_bundle_version` is pending an owner decision. Refines ADRs 0007, 0018, 0025 and 0027; [target architecture](../design/target-architecture.md) §5.1 item 2, §6.2, §6.3, §17 C8. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D7, D9, Tasks 3c.1, 3c.2, 3d.6.
 
 ## Context
 
-Target §5.1 item 2 says the event log is the audit truth, but the current-state rows are not reconstructable from it today (fitness row U3). Reading the event writers in `src/e_agent/kernel/` at `51c6c15` shows why:
+Target §5.1 item 2 says the event log is the audit truth, but the current-state rows are not reconstructable from it today (fitness row U3). Reading the event writers in `src/e_agent/kernel/` at `51c6c15` shows why (the references in this section are as at that commit; §3 and §5 give the current ones):
 
 - `run.created` (`kernel/coordinator.py`, `_prepare_run`) carries `task`, `driver` and `host_context`, but not the run's `requester_id`, `logical_operation_id`, `created_at` or its task definition link. The event `actor` comes from a context variable whose default is `system:kernel` (`sdk/store.py:24`), so it is not the requester.
-- `proposal.created` (`kernel/proposals.py:143` and `:331`, `kernel/plan_flow.py` `_proposal_event`) carries `contract_id`, `arguments`, `supersedes` and, for answers, `kind`. The action's binding, connection, credential subject and version, digest, logical operation id and plan link are only in the `actions` row.
+- `proposal.created` (`kernel/proposals.py:143` and `:331` at `51c6c15`; now `kernel/proposals.py:198` and `_proposal_event` at `:279-289`, `kernel/grounding.py:428` for answers) carries `contract_id`, `arguments`, `supersedes` and, for answers, `kind`. The action's binding, connection, credential subject and version, digest, logical operation id and plan link are only in the `actions` row.
 - An action's state is implied by the event type for most writes, but not for all:
   - `validation.completed` is written with an action id both when the action moves (to `VALIDATED` or `BLOCKED`) and when it does not (`kernel/dispatch.py` `_arguments_refused`, a later plan step that has no `BLOCKED` transition).
   - `outcome.reported` with status `UNKNOWN` leaves the action unchanged in the write path (`kernel/verification.py:80`, `:127`), but moves an answer to `VERIFICATION_FAILED` (`kernel/proposals.py:365`).
@@ -17,7 +17,7 @@ Target §5.1 item 2 says the event log is the audit truth, but the current-state
 - Receipts are already complete: `action.receipt_recorded` and `action.unknown` carry `receipt.model_dump(mode="json")` (`kernel/dispatch.py:409`).
 - A 1-step plan link in execution IR `on` is set on the action after `proposal.created` (`kernel/ir_on.py`, `_on_plan`) and stored by `wait_for_approval`; `ir.plan_compiled` with an action id is written in `shadow` too, where nothing is linked.
 
-Target §6.2 asks for a kernel-computed progress ledger, and §6.3 for a `KERNEL-REPEAT` finding. Today the kernel only short-circuits a repeated *verified* answer (`kernel/proposals.py:303-314`, in `_handle_answer`); a repeated blocked write proposal is validated again.
+Target §6.2 asks for a kernel-computed progress ledger, and §6.3 for a `KERNEL-REPEAT` finding. At `51c6c15` the kernel only short-circuits a repeated *verified* answer (`kernel/proposals.py:303-314`, in `_handle_answer`; now `_repeats_verified_answer`, `kernel/repeat.py:128-141`, called from `_handle_answer` at `kernel/grounding.py:401`); a repeated blocked write proposal is validated again.
 
 ADR 0027 requires that `off` is exactly today's behaviour, proved by a golden event stream. Adding payload keys changes that stream. Plan decision D7 refines the proof instead of re-recording it.
 
@@ -32,7 +32,7 @@ ADR 0027 requires that `off` is exactly today's behaviour, proved by a golden ev
   - `done` and `pending`: completed and open stages (reads, proposals, validation, approval wait, dispatch, verify), from step records where they exist and from events otherwise; `pending` names a wait for approval, input or reconciliation;
   - `open_findings`: rule id, rule version, status and message of the findings of the latest `validation.completed` that no later proposal has superseded;
   - `repair_turns`: the event ids of plain-text repair turns (`KERNEL-VERIFICATION`), never their text;
-  - `budgets_used`: what the events and step records show (reads, failed validations, admitted writes). A budget they do not show, such as driver turns or tokens without step records, is `unknown`, never zero (PR-24).
+  - `budgets_used`: what the events and step records show (reads, failed validations, admitted writes). Failed validations count the `validation.completed` events whose status is not `PASS`; this is not the repair counter of `max_validation_repairs`, which lives only in the continuation (a failed answer verification is a repair but writes no `validation.completed`). A budget they do not show, such as driver turns or tokens without step records, is `unknown`, never zero (PR-24).
 - The ledger holds no model text (no `message.final`, no `input.requested` question, no thinking; PR-28, ADR 0004).
 - Plan updates proposed by the model (`plan.proposed`, target §6.2) are not decided here. The `plan` items in the ledger are only the run's compiled plan steps and their kernel-observed status. A model plan-update variant of `DriverStep` needs its own ADR and `sdk_api` change.
 - The ContextAssembler (ADR 0032) renders the ledger into the dynamic suffix of the context pack; the explanation projection (ADR 0033) reads it.
@@ -69,18 +69,19 @@ These keys are added to existing events only. No event is added, removed or reor
 | Event type (writer) | New keys |
 |---|---|
 | `run.created` (`kernel/coordinator.py` `_prepare_run`) | `requester_id`, `logical_operation_id`, `created_at`, `task_id`, `task_version` (null when the run has no task definition) |
-| `run.state_changed` from `accept_input` (`kernel/run_loop.py:257`) | `from`, `to`, `reason` (null), `reason_code` (null); the existing `state` key stays |
-| `run.state_changed` from `_set_run_state` (`kernel/transitions.py`) | `blocked_action_ids`, only on the state change that the same kernel call writes after one of the four event-less `BLOCKED` writes (`kernel/dispatch.py:84`, through `_exhausted`; `kernel/dispatch.py:323`; `kernel/recovery.py:86`; `kernel/recovery.py:220`) |
-| `proposal.created` (`kernel/proposals.py:143`, `:331`; `kernel/plan_flow.py` `_proposal_event`) | `binding_id`, `connection_id`, `connection_version`, `credential_subject`, `credential_version`, `digest`, `logical_operation_id`, `plan_id`, `step_index`, `evidence_ids` (the evidence ids of the action's approved facts) |
+| `run.state_changed` from `accept_input` (`kernel/run_loop.py:279`) | `from`, `to`, `reason` (null), `reason_code` (null); the existing `state` key stays |
+| `run.state_changed` from `_set_run_state` (`kernel/transitions.py:74-78`) | `blocked_action_ids`, only on the state change that the same kernel call writes after one of the event-less `BLOCKED` writes: `kernel/dispatch.py:85` (revalidation deadline, through `_exhausted`); `kernel/dispatch.py:335` (`_block_if_allowed`, connection busy or duplicate operation); `kernel/recovery.py:88` (cancel); `kernel/recovery.py:227` (startup recovery before dispatch); `kernel/recovery.py:310` (driver-state mismatch, ADR 0032 §8, Task 3d.5) |
+| `proposal.created` (`kernel/proposals.py:198`; `_proposal_event`, `kernel/proposals.py:279-289`, used by `kernel/plan_flow.py:278` and `:452`; `kernel/grounding.py:428` for answers) | `binding_id`, `connection_id`, `connection_version`, `credential_subject`, `credential_version`, `digest`, `logical_operation_id`, `plan_id`, `step_index`, `evidence_ids` (the evidence ids of the action's approved facts) |
 | `validation.completed` written with an action id (`kernel/proposals.py`, `kernel/dispatch.py`, `kernel/plan_flow.py`) | `action_state` |
-| `approval.requested` (`kernel/proposals.py:261`) | `plan_id`, `step_index` (the plan link the stored action has, null when unlinked) |
-| `approval.decided` for `approved` and `rejected` (`kernel/approval_flow.py:213`) | `approval_id`, `policy_version`, `issued_at`, `expires_at` |
-| `outcome.reported` written with an action id (`kernel/verification.py`, `kernel/proposals.py`) | `action_state` |
+| `approval.requested` (`kernel/proposals.py:330`) | `plan_id`, `step_index` (the plan link the stored action has, null when unlinked) |
+| `approval.decided` for `approved` and `rejected` (`kernel/approval_flow.py:218`) | `approval_id`, `policy_version`, `issued_at`, `expires_at` |
+| `outcome.reported` written with an action id (`kernel/verification.py`; `kernel/grounding.py:465` for answers) | `action_state` |
 
 - `credential_version` is an approval-digest input (`kernel/approval.py:36`, `:47`). Plan D9 of the first draft, which would have shortened it in exports, is withdrawn, so the full value is recorded: an auditor recomputes the approval digest from the exported action.
 - `credential_subject` is the connection's credential subject identifier, already in the action row and the digest input; it is never a secret.
 - `approval.decided` for `expired` and `surface_changed` creates no approval record, so it needs no new key; it only moves the action to `BLOCKED`.
 - `approval.requested` already carries `digest` and `expires_at`; receipts need nothing.
+- **Pending an owner decision (Add or Skip; review 3c.3 C3-27):** `rule_bundle_version` is in no event payload, so the explanation (ADR 0033 §6) cannot name the rule bundle a validation ran. Adding it would be a further §3 key; until the owner decides, no event carries it.
 
 ### 4. The `off` proof, refined (D7)
 
@@ -98,12 +99,13 @@ No other Phase 3 change uses this refinement: `context_assembler`, `kernel_repea
 - **The rule.** A write proposal is a repeat when an earlier write proposal of the same run was blocked by validation in `_handle_proposal`, and both of these hold:
   - its approval digest, recomputed with the earlier revision's rule bundle version, equals the earlier action's `digest`;
   - the registry surface digest equals the run's `surface_digest`, so the validators and their rule bundles are the ones the earlier validation ran.
-- **The revision set.** The digest input covers the contract, connection and connection version, credential subject and version, arguments, expected effects, policy version, and, for every observation the validation saw, its evidence id, source, revision, completeness and, for a revision-less fact, its `fact_digest` (`digest_input`, `kernel/approval.py:38-61`; `observed_at` is not an input). It is the full set the original validation used: `_validate` receives exactly the continuation's observations (`kernel/proposals.py:445`). A re-read with a new revision, a new completeness, or new data for a revision-less fact changes the digest, so the proposal is validated again (Review Focus 6). A re-read with the same revision is the same fact, which is the rule the pre-dispatch staleness check already applies (`_staleness`, `kernel/dispatch.py`).
-- **Not repeats:** a proposal whose digest is the sentinel `invalid` (`KERNEL-ARGS`); a proposal blocked by staleness at dispatch, by approval rejection or expiry, or by policy (policy denial ends the run); a proposal in another run.
+- **The revision set.** The digest input covers the contract, binding, connection and connection version, credential subject and version, arguments, expected effects, policy version, and, for every observation the validation saw, its evidence id, source, revision, completeness and, for a revision-less fact, its `fact_digest` (`digest_input`, `kernel/approval.py:38-62`; `observed_at` is not an input). It is the full set the original validation used: `_validate` receives exactly the continuation's observations (`kernel/proposals.py:393`). A re-read with a new revision, a new completeness, or new data for a revision-less fact changes the digest, so the proposal is validated again (Review Focus 6). A re-read with the same revision is the same fact, which is the rule the pre-dispatch staleness check already applies (`_staleness`, `kernel/dispatch.py`).
+- **Where.** The rule is `find_repeat` and `_repeat_probe` in `kernel/repeat.py`, called from `_handle_proposal` (`kernel/proposals.py:144`) before validation and only when the policy decision permits the proposal.
+- **Not repeats:** a proposal whose digest is the sentinel `invalid` (`KERNEL-ARGS`); a proposal blocked by a validator that raised or returned `ERROR` (it has not judged the facts; review R1-1); a proposal blocked by staleness at dispatch, by approval rejection or expiry, or by policy (policy denial ends the run); a proposal in another run.
 - **`on`:** a repeat creates no action. The kernel records `validation.completed` (no action id) with status `FAIL`, the fixed finding `KERNEL-REPEAT` whose `observed` names the earlier action id, and the earlier revision's findings, and returns them to the driver as a repair. The repair counts against `max_validation_repairs`; past the budget the run fails `VALIDATION_FAILED`, as a blocked proposal does.
 - **`shadow`:** validation runs as today. The kernel records `repeat.compared` with `would_repeat` (bool), `repeat_of` (action id or null) and `same_findings` (whether validation returned the same rule ids and statuses). Real consumer: `test_repeat_shadow_agrees_with_validation` over the fixture corpus asserts zero disagreements and its case count, and the release report counts disagreements. A shadow error records `repeat.shadow_failed` with a stage and a fixed message and changes nothing else.
 - **`off`:** today. Nothing is recorded or kept.
-- The blocked revisions' digests and rule bundle versions are kept in the continuation only when the pinned mode is not `off`, and the field is left out when empty, so an `off` continuation is byte-identical (D8, ADR 0032).
+- The blocked revisions are kept in the continuation as `BlockedRevision` records (`kernel/continuation.py`): the action id, its approval digest, the rule bundle version that digest bound and the validation findings, which `on` returns with `KERNEL-REPEAT` (review 3d.6 R1-5). They are kept only when the pinned mode is not `off`, and the field is left out when empty, so an `off` continuation is byte-identical (D8, ADR 0032).
 - **Failure handling (ADR 0027):** before the run's first write reservation, `feature.fallback` with `REPEAT_CHECK_FAILED`, and the proposal is validated as today. After a reservation there is no fallback: the run fails closed with `REPEAT_UNAVAILABLE`, or goes to `NEEDS_RECONCILIATION` when a reservation is unresolved. `REPEAT_CHECK_FAILED` is carried only by `feature.fallback` and never ends a run. Both are `ReasonCode` members with fixed messages (the full code list is in ADR 0032).
 
 ## Alternatives considered
@@ -116,7 +118,7 @@ No other Phase 3 change uses this refinement: `context_assembler`, `kernel_repea
 
 ## Consequences
 
-- Code: `contracts/progress.py`, `kernel/progress.py` (3c.1); `kernel/reconstruct.py`, the key additions above and the v3 goldens with their recording scripts (3c.2); the repeat rule in `kernel/proposals.py`, `repeat.compared` and `repeat.shadow_failed` in `contracts/events.py`, and the release report's disagreement count (3d.6).
+- Code: `contracts/progress.py`, `kernel/progress.py` (3c.1); `kernel/reconstruct.py`, the key additions above and the v3 goldens with their recording scripts (3c.2); the repeat rule in `kernel/repeat.py`, `repeat.compared` and `repeat.shadow_failed` in `contracts/events.py`, and the release report's disagreement count (3d.6).
 - Known gap: a crash between an event-less write and the state change that carries `blocked_action_ids` leaves the log one write behind the row. Reconstruction then reports the earlier state for that action, which the U3 test does not cover because it runs completed sequences. Closing it needs those writes to carry their own event, which changes the `off` stream and needs its own golden refinement.
 - The `outcome.reported` payload of an unavailable verifier (`kernel/verification.py`, `{status, error}`) gains only `action_state` (null) from the §3 table and is not made a report; outcomes are not reconstructed here.
 - Events written before 3c.2 reconstruct as `partial`. No migration rewrites old events.

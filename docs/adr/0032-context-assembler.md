@@ -1,6 +1,6 @@
 # ADR 0032: ContextAssembler, per-run mode pinning and the per-call route check
 
-Date: 2026-10-19. Status: Accepted (2026-10-19, owner, gate G2, Phase 3 Task 3a.2). Refines ADRs 0004, 0027 and 0030; [target architecture](../design/target-architecture.md) §7.1–§7.4, §13.3, §17 C9. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D1, D3, D8, Tasks 3b.2, 3d.1–3d.5.
+Date: 2026-10-19. Status: Accepted (2026-10-19, owner, gate G2, Phase 3 Task 3a.2). Amended 2026-10-20 (Phase 3 review, owner accepted; Task 3.D1): the Task 3d.5 amendments (§8 restore check before a driver turn; §11 `context.assembled` and the `DRIVER_STATE_MISMATCH` cell), observation numbers as canonical decimal strings (§1), validator messages without rule text (§5), the `turn` encodings (§11), the full `sdk_api` 1.2 list (§12) and the open driver-state item (Consequences). Refines ADRs 0004, 0027 and 0030; [target architecture](../design/target-architecture.md) §7.1–§7.4, §13.3, §17 C9. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D1, D3, D8, Tasks 3b.2, 3d.1–3d.5.
 
 ## Context
 
@@ -20,7 +20,7 @@ ADR 0030 (its Phase 3 parts are accepted at the same gate) decides field classes
 
 - `ContextLayer`: `instructions`, `task`, `tools`, `skills` (the stable prefix) and `ledger`, `findings`, `evidence`, `knowledge`, `recent_turns` (the dynamic suffix), as in target §7.2. In Phase 3 `skills` and `knowledge` are always empty; their content arrives with their phases.
 - `ContextPolicy`: `max_input_tokens`, `layer_budgets: Mapping[ContextLayer, int]`, `tool_result_retention_turns`, `max_tool_output_tokens` (the bound per observation, D3) and `class_rules`, the class-per-route rule of section 5. In Phase 3 the policy is the record's defaults, the same for every run. Profile and task-definition overrides (target §7.2 rule 3) and per-capability bounds are later work. There is no summarization field: Phase 3 never summarizes (§7.2 rule 2, third step), and a field nothing reads is not added (PR-04).
-- `RenderedObservation(evidence, data, partial, truncated, masked)`: the observation as the model may see it. `partial` is true exactly when `truncated` or `masked` is true, or the evidence itself is not `COMPLETE` (`evidence.completeness`); the record refuses any other combination, so a partial rendering always says why (PR-21).
+- `RenderedObservation(evidence, data, partial, truncated, masked)`: the observation as the model may see it. `partial` is true exactly when `truncated` or `masked` is true, or the evidence itself is not `COMPLETE` (`evidence.completeness`); the record refuses any other combination, so a partial rendering always says why (PR-21). Every JSON number in `data` is written as its canonical decimal string (`number_text`, `contracts/context_pack.py`; ADR 0006): no exponent, no trailing zeros, `-0` as `0`, a float through its shortest round-trip text, and a non-finite value as `NaN`, `Infinity` or `-Infinity`. The pack therefore holds no JSON number and digests under the ADR 0006 profile, and the model sees the same number text the citation check compares (ADR 0033 §1; Task 3d.1).
 - `Dropped(kind, ref, reason)`:
   - `kind` is `observation`, `item`, `value` or `turn`;
   - `ref` is an evidence id, an evidence id with an RFC 6901 pointer into its data, or an event id, never a value;
@@ -68,11 +68,11 @@ A masked value is replaced by the string `[masked:<class>]` and recorded as a `D
 - a read error keeps its kernel code, and the provider's message after it is masked to `[masked:personal]`;
 - each mask is a `Dropped` entry of kind `value`, reason `class_route`, whose `ref` names the finding (`finding:<index>#/expected` or `#/observed`) or the read request (`read_error:<request_id>`).
 
-A finding's `rule_id` and `status` are kept. Its `message` is not trusted to be rule text: a SHACL result copies `sh:resultMessage` verbatim (`adapters/shacl/engine.py`), and `ValidationDataset.extra_findings` (`sdk/validation.py`) lets a validator write free-form messages. So on the same routes a non-`KERNEL-*` finding's `message` is rendered from the admitted rule inventory by `rule_id` (ADR 0009), or masked to `[masked:personal]` and logged in `dropped` when the rule is not in the inventory. The model can still repair from the rule id and the inventory text. Masking governs the model context only; the approval card is always built from the unmasked action (ADR 0030, ADR 0006, threat T9, Review Focus 3).
+A finding's `rule_id` and `status` are kept. Its `message` is not trusted to be rule text: a SHACL result copies `sh:resultMessage` verbatim (`adapters/shacl/engine.py`), and `ValidationDataset.extra_findings` (`sdk/validation.py`) lets a validator write free-form messages. So on the same routes a non-`KERNEL-*` finding's `message` is not sent: `assemble` can render rule text by `rule_id` in its place (its `rule_texts` argument), but in Phase 3 no caller passes any. The kernel holds no rule text: no SDK field carries it, `PluginContribution.rule_inventory` maps a rule id to its version only (ADR 0009, ADR 0033 §4), and the kernel may not import a plugin to read its inventory resources (PR-01). So on those routes every non-`KERNEL-*` finding's `message` is masked to `[masked:personal]` and logged in `dropped` (Task 3d.4). The model can still repair from the rule id, rule version and status. Masking governs the model context only; the approval card is always built from the unmasked action (ADR 0030, ADR 0006, threat T9, Review Focus 3).
 
 ### 6. Rendering (target §7.4, Task 3d.4)
 
-- When `DriverInput.context` is set, the driver renders the stable prefix as instructions and the dynamic suffix as a per-turn message that is not written to the persisted history. Findings are no longer appended to the history as a user prompt (`adapters/pydantic_ai/driver.py:387-399` today).
+- When `DriverInput.context` is set, the driver renders the stable prefix as instructions and the dynamic suffix as a per-turn message that is not written to the persisted history. Findings are no longer appended to the history as a user prompt (at `51c6c15` `adapters/pydantic_ai/driver.py:387-399`; the path without a pack keeps doing so, now `:535-546`).
 - Every observation that reaches the model comes from `ContextPack.observations`: the deferred read returns and the post-write acknowledgement turn included. `Observation.data` is never passed to the model on that path (Review Focus 4).
 - When `DriverInput.context` is `None`, the driver is exactly today's.
 - A driver that has rendered a pack marks its snapshot with `rendering: "pack"` and never removes the marker. A snapshot of a run that never rendered a pack has no such key, so `STATE_SCHEMA` and `off` snapshots are unchanged. The kernel reads this one key of the driver state (section 8).
@@ -108,7 +108,7 @@ Failure handling in `on` (ADR 0027 reservation rule):
 
 ### 9. The per-call route check (D8, T23)
 
-- The route is not pinned, so the startup rule (ADR 0030) cannot protect a run that resumes after a restart on another route. Before every model call, `_with_tools` (`kernel/ir_on.py:149`), the one function both driver call sites use, checks the run's pinned `context_assembler` mode against the current route's effective boundary.
+- The route is not pinned, so the startup rule (ADR 0030) cannot protect a run that resumes after a restart on another route. Before every model call, `_with_tools` (`kernel/ir_on.py:156`), the one function both driver call sites use, checks the run's pinned `context_assembler` mode against the current route's effective boundary.
 - A run not pinned `on`, on a route that is not `local` and has no `data_processing` declaration, makes no model call:
   - in the run loop, the run fails closed with `ROUTE_BOUNDARY_UNMET`, or goes to `NEEDS_RECONCILIATION` when a reservation is unresolved;
   - for the acknowledgement turn, the turn is skipped, `context.failed` is recorded with `ROUTE_BOUNDARY_UNMET`, and the run keeps its verified outcome.
@@ -143,18 +143,21 @@ New event types (`contracts/events.py`), each payload of ids, counts, digests an
   - `drop_log` lists each `Dropped` entry as (`kind`, `ref`, `reason`). A ref into observation data is cut before the first token that no class declaration names, so it never names an undeclared key and never holds a value;
   - a turn that fell back records `fallback: true` and no pack keys;
   - it is the turn marker that clearing ages reads by, and the record of the pack digests and drop log that the evidence bundle reports (§13);
-- `context.failed`, with `reason_code`, its fixed message and `turn: "acknowledgement"` (Task 3b.2, its first writer);
+- `context.failed`, with `reason_code`, its fixed message and `turn: "acknowledgement"` (Task 3b.2, its first writer; `context_failed_event`, `kernel/features.py`);
+- **Turn encodings (D3-33).** `context.compared`, `context.shadow_failed` and `context.assembled` carry `turn`, the driver turn as an integer, and `acknowledgement`, a boolean that is true for the post-write acknowledgement turn. `context.failed` is written only for an acknowledgement turn that was skipped and so never ran; it has no turn number, and its `turn` is the string `"acknowledgement"`. A reader tells the two apart by event type;
 - `repeat.compared`, `repeat.shadow_failed` (ADR 0031); `grounding.compared`, `grounding.shadow_failed` (ADR 0033).
 
 ### 12. `sdk_api` 1.2
 
-One additive minor version, `SDK_API_VERSION` `1.1` to `1.2`, covering three driver- and plugin-facing additions, each with a default so a `1.1` plugin or driver keeps working:
+One additive minor version, `SDK_API_VERSION` `1.1` to `1.2`, covering five driver- and plugin-facing additions, each with a default so a `1.1` plugin or driver keeps working:
 
 - `CapabilityDescriptor.data_classes` (ADR 0030; Task 3b.3 adds it and makes the bump);
+- `PluginContribution.output_schemas` (ADR 0030, Task 3b.3), the output schemas the registry resolves `data_classes` paths against;
 - `DriverInput.context: ContextPack | None = None` (Task 3d.1), with the snapshot marker of section 6;
+- `PluginContribution.rule_inventory` (ADR 0009, ADR 0033 §4, Task 3e.3), the plugin's rule ids and versions;
 - `DriverInput.grounding` (ADR 0033, Task 3e.4).
 
-Nothing is released between 3b.3 and 3e.4, so the three share one version. The existing `>=1.0,<2.0` manifest ranges still admit. `ActionProposal.citations` and `ActionProposal.rationale`, `ActionPlan.rationale` (ADR 0033) are optional contract fields with defaults that ship in the same unreleased window.
+Nothing is released between 3b.3 and 3e.4, so the five share one version. The existing `>=1.0,<2.0` manifest ranges still admit. `ActionProposal.citations` and `ActionProposal.rationale`, `ActionPlan.rationale` (ADR 0033) are optional contract fields with defaults that ship in the same unreleased window.
 
 ### 13. Observability (ENG-TOGGLE-3)
 
@@ -174,6 +177,7 @@ Nothing is released between 3b.3 and 3e.4, so the three share one version. The e
 - Code: `contracts/context_pack.py`, `kernel/context.py`, the shadow and `on` paths in `kernel/run_loop.py` and `kernel/verification.py`, the pin in `kernel/continuation.py` and `kernel/coordinator.py`, the route check in `kernel/ir_on.py`, the restore check before a driver turn (`_restore_for_turn` in `kernel/continuation.py`), the driver's rendering, the nine codes, the new events and the `sdk_api` bump.
 - Tests and evidence: the tests listed in Tasks 3b.2 and 3d.1–3d.5, the `off` model-request goldens (notes and ERP) unchanged, a new `on` model-request golden, and the Phase 3 `off` baseline report (`evals/reports/phase3-baseline.json`, fixture evidence).
 - Operations: an operator who moves a profile to a hosted route without `data_processing` gets a startup refusal while `context_assembler` is not `on` (ADR 0030), and in-flight runs that resume on it fail closed with `ROUTE_BOUNDARY_UNMET`.
+- Open, for the owner (parked from Task 3.R1, not decided here): the pydantic-ai driver's stored message history, which is the driver state at rest in the continuation, still holds the model's own tool arguments as written (citations and rationale refs included) and, on the path without a pack, the raw `expected` and `observed` of the findings it was given. Whether driver state is minimised is an ADR 0030 question.
 - The fixed budgets are a starting point. The ablation (research 03 §8, Task 3f.2) and the release report's context columns are the evidence for changing them.
 
 ## Verification

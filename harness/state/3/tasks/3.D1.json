@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-3-D1"
   ],
-  "context_digest": "4e1040d72d2d1efda11a6d732aad33080aad004b6cdf3ad7f8b4c7161a107db5",
+  "context_digest": "0110e0dc664ad8a1efe78c0a9c29a03115cbde49cce0857632d9a185ce434a8d",
   "allowed_paths": [
     "docs/adr/**",
     "docs/design/**",

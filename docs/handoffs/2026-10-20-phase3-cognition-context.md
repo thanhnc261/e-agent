@@ -114,10 +114,10 @@ The main rulings, each with its cost if wrong. The rest are in the task handoffs
 
 - **Rationale text is stored only as a digest** (owner, G2). Events, the bundle and the explanation hold ids, codes and text digests; the text lives only in the run's continuation, for the approval card. Cost if wrong: the text is gone once the continuation is; storing text is additive.
 - **Data classes are keyed by instance path** (owner, 3b.3), after three Codex rounds found schema aliasing that lowered a class. Cost if wrong: a shared definition is classed at each use.
-- **Numbers in observation data are rendered as canonical decimal strings**, so the pack digest stays the plain ADR 0006 digest (3d.1). Cost if wrong: the model sees `"3"` where a provider returned `3`; the owner may override with "Tag".
+- **Numbers in observation data are rendered as canonical decimal strings**, so the pack digest stays the plain ADR 0006 digest (3d.1). Cost if wrong: the model sees `"3"` where a provider returned `3`. Accepted by the owner on 2026-10-20 (ADR 0006 Decision 5).
 - **The repair budget's exact counter is the metric**: the ledger reports failed validations (3c.1), the release report reads the kernel's repair counter from the continuation (3f.2). Cost if wrong: one metric definition change.
 - **A run keeps the loosest route boundary it used and refuses a stricter one** (3d.5). Cost if wrong: a run whose route tightens fails instead of continuing.
-- **Driver state is restored only before a driver turn**; kernel-only paths never restore (3d.5, ADR 0032 §8 amended, owner acceptance pending). Cost if wrong: a mismatch is found at the first driver turn, not on load.
+- **Driver state is restored only before a driver turn**; kernel-only paths never restore (3d.5, ADR 0032 §8 amended, accepted by the owner on 2026-10-20). Cost if wrong: a mismatch is found at the first driver turn, not on load.
 - **With `context_assembler` on, a citation resolves only against what the pack showed the model**; masked, removed or reduced values are UNRESOLVED (3e.1). Cost if wrong: one repair for a legitimate citation on a masked value, never a leak.
 - **`open-pos` uses existing reads** and stays a preset for the live driver; the scripted driver refuses it (3e.2). Cost if wrong: the live question is reworded or a capability task is added.
 - **The UI mislabel of a grounded run as verified was fixed as a PR-19 correctness fix**, labels and tone only, without an `ag-*` stage (3e.2). Cost if wrong: a wording change after an `ag-*` review.
@@ -138,39 +138,32 @@ The main rulings, each with its cost if wrong. The rest are in the task handoffs
 - **Other gaps named in task handoffs:** restore errors other than the rendering mismatch still raise an uncaught `ValueError` (3a.1); `driver_turns` and `model_tokens` in the ledger stay unknown (3c.1); the post-reservation repeat path is tested white-box only (3d.6); a malformed citations or rationale field becomes a clarification turn and may stall a live run (3e.4); the CLI shows the scripted refusal of `open-pos` as an uncaught `ValueError`, not `STARTUP_REJECTED` (3e.2 R2-4); the repair rate overstates on two paths the corpus does not reach (3f.2 R3-1, R3-2).
 - **Not done:** levels 3 and 4 as phase-end evidence are the `make e2e` result above and the live check 3g.2, which has not run.
 
-## Owner decisions and ADR amendments pending
+## Owner decisions and ADR amendments
 
-Design and ADR text is the owner's to amend; this task changed none of it.
+On 2026-10-20 the owner accepted the design amendments from the Phase 3 review, and Task 3.D1 applied them, each checked against the code and with its `file:line` references moved to where the code is now. Each amended ADR carries the line "Amended 2026-10-20 (Phase 3 review, owner accepted)", and the ADR index says so. Two questions inside them stay with the owner (below).
 
-1. **target-architecture.md**
-   - :319 says no rationale field exists; now false (`ProposalRationale`, `Citation`, at-rest rationale, the bundle's `explanation` key).
-   - :548 marks repeat detection `[P]` and cites `kernel/proposals.py:303-314` for `_handle_answer`; it is now in `kernel/grounding.py` and `kernel/repeat.py`. :1199 has the same stale ref (3e.1).
-   - Re-tag what was built behind toggles: §5.1 item 2 reconstruction (:317), §5.6 explanation projection (:471), §7 ContextAssembler (:714), fitness rows U3 `[Pa]`, U6 `[P]`, Q5 `[Pa]`, G11.
-   - :451 still describes the `#acceptance-item` suffix and the old at-rest form (3.R1 R1-3).
-2. **ADR 0031**
-   - Line 20 and Consequences :119 put the repeat rule in `proposals.py`; it is in `repeat.py`. `BlockedRevision` also keeps findings, beyond §5's wording (3d.6 R1-5).
-   - File:line refs at :10, :74-78 and :101 are pre-change.
-   - `rule_bundle_version` is in no event payload, so the explanation cannot name it: **Add or Skip** a §3 key (3c.3 C3-27).
-   - `budgets_used` means failed validations, not the repair counter (3c.1).
-3. **ADR 0033**
-   - The CQ06 row (line 84) lists expected/observed, which §6 and the code exclude (3c.3 C3-28).
-   - §1 "the value at the pointer" means the class-walked view when `context_assembler` is on (3e.1).
-   - §4 and ADR 0009: the `PluginContribution.rule_inventory` seam, and that the record refuses non-id-shaped refs (3e.3).
-   - The value digest is unsalted, so short values can be guessed offline from stored digests (3e.1).
-   - §4 (lines 49, 59): `goal_ref` is kept as written only for `run` or `task_id@task_version`, else `goal_ref_digest`; unresolved rationale refs go to `unresolved_*_digests`; an unresolved citation stores `evidence_id_digest` and `pointer_digest`; pointer ≤ 1024 and evidence id ≤ 128 characters (3.R1).
-4. **ADR 0032**
-   - Accept the 3d.5 amendments: §8 restore check before a driver turn; §11 `context.assembled` and the `DRIVER_STATE_MISMATCH` cell.
-   - Reconcile the `context.failed` turn encoding (`turn: "acknowledgement"`) with the shadow events' `turn: int` plus `acknowledgement: bool` (D3-33).
-   - `rule_texts` cannot reach the kernel without a plugin import, so validator messages stay masked on undeclared hosted routes (3d.4).
-5. **ADR 0006 / 0032:** observation numbers rendered as canonical decimal strings (3d.1); the owner may override with "Tag".
-6. **ADR 0030:** the line-3 status still says "At gate G2 the owner accepts or amends"; a schema property named `items` is always at least `personal` (3d.5).
-7. **principles.md:** the PR-34 backlog row still lists the injection outcome test as Phase 3 Task 3d.5; it landed (scripted driver only).
-8. **`sdk/__init__.py`:** check that the `SDK_API_VERSION` 1.2 docstring names `PluginContribution.rule_inventory` as well as context and grounding.
-9. **3f.1 R1-3 (P-3):** in every rollout, `off` included, a reasoning-only reply after a finding now parks the run in WAITING_INPUT with "The model made no usable tool request." Keep it, or prefer a bounded model retry.
-10. **Driver state at rest:** whether the pydantic-ai stored message history is minimised (ADR 0032 / 0030; parked from 3.R1).
-11. **`open-pos`:** no agent-visible read lists purchase orders. Add a capability and Odoo binding, or reword the live question (3e.2).
+**Applied in Task 3.D1:**
+
+1. **target-architecture.md:** :319 (§5.1 item 4) now names `ProposalRationale`, `Citation`, the at-rest form and the bundle's `explanation` key. Repeat detection (§6.3) cites `kernel/repeat.py` and `kernel/grounding.py`, and the §15 kernel rows (:1199) list the Phase 3 modules. Items built behind a toggle are tagged `[I]` with the toggle and its `off` default, as §6.4 is: §5.1 item 2 reconstruction, §5.6 explanation projection, §7 ContextAssembler, and the U3, U6, Q5 and G11 rows. :451 no longer has the `#acceptance-item` suffix.
+2. **ADR 0031:** the repeat rule's module is `repeat.py`; `BlockedRevision` keeps the findings; the §3 and §5 references are current; the event-less `BLOCKED` writes include the driver-state mismatch; `budgets_used` counts failed validations, not the repair counter.
+3. **ADR 0033:** the CQ06 row; §1's value at the pointer (the class-walked view when `context_assembler` is `on`), number rendering and length caps; §4's `PluginContribution.rule_inventory` seam and `RefId` shapes (with ADR 0009); the unsalted-digest gap; the Task 3.R1 at-rest rule for `goal_ref`, unresolved refs, `KERNEL-*` ids, citations and recorded findings.
+4. **ADR 0032:** the Task 3d.5 amendments accepted (§8, §11); the `context.failed` and shadow-event `turn` encodings stated side by side (D3-33); validator messages stay masked on undeclared hosted routes because no rule text reaches the kernel (3d.4); the full `sdk_api` 1.2 list.
+5. **ADR 0006 / 0032:** observation numbers are rendered as canonical decimal strings (3d.1).
+6. **ADR 0030:** line 3 says the [Phase 3] parts were accepted at G2 on 2026-10-19; a property named `items` is always at least `personal` (3d.5).
+7. **principles.md:** PR-34 records the injection outcome test of 3d.5, for the scripted driver only.
+8. **`sdk/__init__.py`:** the `SDK_API_VERSION` 1.2 docstring names `PluginContribution.rule_inventory`, the context and grounding fields.
+
+**Ruled:**
+
+9. **3f.1 R1-3 (P-3): keep the clarification** (owner, 2026-10-20). In every rollout, `off` included, a reasoning-only reply after a finding parks the run in WAITING_INPUT with "The model made no usable tool request."; there is no bounded model retry.
+
+**Still pending an owner decision:**
+
+10. **Driver state at rest:** whether the pydantic-ai stored message history is minimised (ADR 0032 Consequences records it as open; ADR 0030; parked from 3.R1).
+11. **`open-pos`:** no agent-visible read lists purchase orders. Add a capability and Odoo binding (Read), or reword the live question (Reword) (3e.2).
 12. **`open-pos` goldens:** it is special-cased in the ERP catalog golden check and `BASELINE_PROMPTS` rather than added to the goldens (additive if wanted; 3e.2).
 13. **UI wording** "Completed · grounded, not verified" (en, vi) has had no `ag-*` review (3e.2).
+14. **`rule_bundle_version` in event payloads (ADR 0031 §3, 3c.3 C3-27):** Add or Skip a §3 key, so the explanation could name the rule bundle a validation ran. The ADR marks it pending; no event carries it.
 
 ## Before the live check 3g.2
 

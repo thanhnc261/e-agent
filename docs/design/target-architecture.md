@@ -1,6 +1,6 @@
 # e-agent: target architecture (v2)
 
-**Status:** Proposed. **Date:** 2026-10-11, revised 2026-10-12 after three review rounds; revised 2026-10-14 (merge markers, §6.4, §9, §13.3, §18). **Verified against:** commit `af50c62` plus the uncommitted working-tree changes present on 2026-10-12; every `[I]` tag and `file:line` reference refers to that tree and must be re-checked after the next commit. §15 and §16 were re-checked against the Phase 1 layout (2026-10-13); their paths are the moved ones. WP1 Tasks 2–8 and 10 re-verified against commit `591f3c6`. Unchanged `file:line` references were taken at `af50c62` and may have drifted after WP1. §6.4 and §13.3 were written on 2026-10-14 against `main` (`8bc7b1f`); the `af50c62` and `591f3c6` caveats still apply to the other sections, which were not re-verified then. On 2026-10-19 (Phase 3 Task 3a.1) the `file:line` references in §5.1, §5.6, §6.2, §6.3, §7 and §13.3 were re-checked against `51c6c15`; those sections are tagged with the ADR that decides them (ADRs 0031–0033 and ADR 0030's Phase 3 parts), all accepted by the owner at gate G2 on 2026-10-19, per the [Phase 3 plan](../plans/2026-10-19-phase3-cognition-context.md). **Baseline:** the [high-level design](high-level-design.md), the [MVP detailed design](mvp-detailed-design.md) and the accepted ADRs remain authoritative. ADRs 0018–0022 were accepted on 2026-10-14 and merged into the MVP design §7, §9, §10 and §11; the sections here that they cover are marked "merged" and the MVP text wins where they differ. The remaining §17 candidates stay proposals until their ADRs are accepted. This document does not change contracts or code. When an ADR candidate is accepted, its content moves into the HLD or MVP design and the matching section here is marked "merged", so this document does not become a second architecture specification.
+**Status:** Proposed. **Date:** 2026-10-11, revised 2026-10-12 after three review rounds; revised 2026-10-14 (merge markers, §6.4, §9, §13.3, §18). **Verified against:** commit `af50c62` plus the uncommitted working-tree changes present on 2026-10-12; every `[I]` tag and `file:line` reference refers to that tree and must be re-checked after the next commit. §15 and §16 were re-checked against the Phase 1 layout (2026-10-13); their paths are the moved ones. WP1 Tasks 2–8 and 10 re-verified against commit `591f3c6`. Unchanged `file:line` references were taken at `af50c62` and may have drifted after WP1. §6.4 and §13.3 were written on 2026-10-14 against `main` (`8bc7b1f`); the `af50c62` and `591f3c6` caveats still apply to the other sections, which were not re-verified then. On 2026-10-19 (Phase 3 Task 3a.1) the `file:line` references in §5.1, §5.6, §6.2, §6.3, §7 and §13.3 were re-checked against `51c6c15`; those sections are tagged with the ADR that decides them (ADRs 0031–0033 and ADR 0030's Phase 3 parts), all accepted by the owner at gate G2 on 2026-10-19, per the [Phase 3 plan](../plans/2026-10-19-phase3-cognition-context.md). On 2026-10-20 (Phase 3 Task 3.D1, the design amendments the owner accepted from the Phase 3 review) the tags and `file:line` references of §5.1, §5.6, §6.3, §7.1 and §7.4, the U3, U6, Q5 and G11 rows and the kernel rows of §15 and §16 were re-checked against the Phase 3 branch at `e3071e2`; a Phase 3 item built behind a toggle is tagged `[I]` with its toggle and default, as §6.4 is. **Baseline:** the [high-level design](high-level-design.md), the [MVP detailed design](mvp-detailed-design.md) and the accepted ADRs remain authoritative. ADRs 0018–0022 were accepted on 2026-10-14 and merged into the MVP design §7, §9, §10 and §11; the sections here that they cover are marked "merged" and the MVP text wins where they differ. The remaining §17 candidates stay proposals until their ADRs are accepted. This document does not change contracts or code. When an ADR candidate is accepted, its content moves into the HLD or MVP design and the matching section here is marked "merged", so this document does not become a second architecture specification.
 
 **Implementation:** [WP1 correctness plan](../../archive/docs/superpowers/plans/2026-10-12-target-architecture-wp1-correctness.md) (verified defects D1–D7, ADRs 0018–0021, accepted 2026-10-14) and the WP2–WP5 map in its Part A.
 
@@ -54,10 +54,10 @@ Rows R1–R6 are the first-round criteria, U1–U9 the second-round criteria and
 | R6 | HTTP framework | FastAPI confined to `e_agent.server` (§14) | [I] | import-linter forbids `fastapi` in core packages (exists) |
 | U1 | Explicit integration | Capability contract / binding / connection; adapter kinds native, bridge, MCP (§10) | [I] native, [P] MCP | New provider = new adapter + manifest only, with no kernel or domain edits |
 | U2 | Swappable runtime core | Seams: AgentDriver, RunStore work API, stores, knowledge, memory; trust anchor fixed (§4) | [Pa] | Two drivers pass the same driver-conformance suite; RunStore conformance passes on memory and PG stores (exists for stores) |
-| U3 | Traceable state | Typed run/action state machines with transition tables; append-only event log; step records (§5) | [Pa] (run table [I]; reconstructability [P]) | Illegal action transition raises [I]; illegal run transition raises [I] (run table, C6); run reconstructable from `run_events` [P target, §5.1] |
+| U3 | Traceable state | Typed run/action state machines with transition tables; append-only event log; step records (§5) | [I] (run table; reconstruction from `run_events`, ADR 0031, with the known gaps in §5.1 item 2) | Illegal action transition raises [I]; illegal run transition raises [I] (run table, C6); run reconstructable from `run_events` [I] (`tests/conformance/test_reconstruction.py::test_reconstruction_equals_stored_rows`, both stores, §5.1) |
 | U4 | Multi-step self-correction | Progress ledger + typed findings + repair budget (§6) | [Pa] | Injected invalid proposal is repaired within budget or stops safely; no write passes on model self-assessment |
 | U5 | Memory | Working / episodic / semantic / procedural mapped to stores; candidate → promotion (§8) | [P] | Memory candidate never affects a run before promotion; deleted source removes derived memory |
-| U6 | Context management | ContextAssembler policy (kernel) + rendering/compaction (driver) (§7) | [P] | Token budget respected over 12 turns; cleared tool result re-fetchable by EvidenceRef; tool set constant per run |
+| U6 | Context management | ContextAssembler policy (kernel) + rendering/compaction (driver) (§7) | [I] behind `features.context_assembler` (default `off`; ADR 0032) | Token budget respected over 12 turns [I] (`tests/unit/kernel/test_context_budget_turns.py::test_twelve_turn_conversation_respects_budget`); a cleared tool result keeps its call and its `EvidenceRef` id [I] (`tests/unit/adapters/pydantic_ai/test_driver_context.py::test_clearing_keeps_call_return_pairs`), and fetching it again is a new authorized read, not a lookup by ref; tool set constant per run |
 | U7 | Knowledge graph attachable | Canonical claims + projections; graph adapter behind EvidenceRetriever (§9) | [C] | Graph projection rebuilt from claims; ACL-revoked node absent from path answers |
 | U8 | Multi-domain production | Domain packs; non-ERP fixture domain; tenancy, OIDC, RLS, vault (§13) | [Pa] | Non-ERP fixture runs with no ERP installed (exists); cross-tenant probe returns not-found |
 | U9 | Generic core, specific by config + knowledge | Specialization layers and G-criteria (§2) | [Pa] | Each G-criterion's fitness test (§2.2) |
@@ -65,7 +65,7 @@ Rows R1–R6 are the first-round criteria, U1–U9 the second-round criteria and
 | Q2 | High load | §12.2 mechanisms; this round added nothing new | [P] | R1 fitness test |
 | Q3 | Concurrent requests | Idempotency keys, CAS revisions, 404 for foreign runs; request limits and bounded reads (§12.4) | [Pa] | Every row of the §12.4 table has a test: two identical creates make one run; two decides give one success and one 409; a 10 000-event run snapshots within the page limit |
 | Q4 | Auditing | Append-only event log with actor and correlation id on every event; database-enforced no UPDATE/DELETE; access log for reads and exports (§5.5) | [Pa] (actor [I]; DB grants, access log [P]) | Application roles cannot UPDATE or DELETE `run_events`, `approvals` or `receipts` (probe fails); every event carries an actor; exporting evidence writes an access-log entry with the actor |
-| Q5 | Explainability | Structured rationale with checked EvidenceRefs; reason codes; deterministic explanation projection (§5.6) | [Pa] (reason codes [I]; rationale and projection [P]) | Explanation projection answers the research 03 competency questions for any run without a model call (shared with G11); every rationale reference resolves to evidence recorded in the same run |
+| Q5 | Explainability | Structured rationale with checked EvidenceRefs; reason codes; deterministic explanation projection (§5.6) | [Pa] (reason codes [I]; explanation projection [I], ADR 0033 §6; rationale and citation checks [I] behind `features.grounded_answers`, default `off`; their approval-card and explanation UI [P], ADR 0033 D10) | Explanation projection answers the research 03 competency questions for any run without a model call (shared with G11); every rationale reference resolves to evidence recorded in the same run |
 
 ---
 
@@ -147,7 +147,7 @@ These criteria come from the 2026 platform references (control plane separated f
 | G8 | Knowledge and memory backends are replaceable without semantic loss | Same competency fixtures pass on two backends; deletions and ACL preserved | [C] |
 | G9 | Context and memory behavior are per-task policies | Changing the context budget or memory scopes in the profile changes behavior with no code change | [P] |
 | G10 | Tenancy and authority are host-derived everywhere | Model- or event-supplied tenant, connection or credential IDs are rejected unless resolved in host scope | [I] (runs), [P] (triggers) |
-| G11 | Every effect is traceable from goal to verified outcome | Evidence export answers research 03 competency questions for any run | [Pa] evidence export exists; competency-question test not located. Target test: the explanation projection of §5.6 (shared with Q5) |
+| G11 | Every effect is traceable from goal to verified outcome | Evidence export answers research 03 competency questions for any run | [Pa] the explanation projection of §5.6 (shared with Q5) answers CQ06–CQ10 for one run [I] (`tests/unit/kernel/test_explain.py::test_explanation_answers_competency_questions`; ADR 0033 §6); CQ01–CQ05 need the knowledge layer [P] |
 
 ### 2.3 What makes behavior *specific*
 
@@ -311,12 +311,12 @@ The market evidence is that topology, not framework, dominates cost: about 2.1×
 
 ### 5.1 Principles
 
-*Merged: principle 1 and actor attribution are in MVP §7 (ADR 0018, accepted 2026-10-14); same-transaction event appends are in MVP §9; reconstruction from the log stays [P]. The MVP design is authoritative for this part. Reconstruction (item 2) is decided in [ADR 0031](../adr/0031-progress-ledger-and-reconstruction.md) (Accepted, 2026-10-19), structured rationale (item 4) in [ADR 0033](../adr/0033-explanation-and-grounded-answers.md) (Accepted).*
+*Merged: principle 1 and actor attribution are in MVP §7 (ADR 0018, accepted 2026-10-14); same-transaction event appends are in MVP §9; reconstruction from the log is [I] (ADR 0031, Phase 3). The MVP design is authoritative for this part. Reconstruction (item 2) is decided in [ADR 0031](../adr/0031-progress-ledger-and-reconstruction.md) (Accepted, 2026-10-19), structured rationale (item 4) in [ADR 0033](../adr/0033-explanation-and-grounded-answers.md) (Accepted).*
 
 1. **State is typed and transitions are tabled.** Both run and action states change only through allowed transitions with compare-and-swap revisions. The action table exists (`contracts/action.py: ALLOWED_ACTION_TRANSITIONS`). The run table exists (`contracts/run.py: ALLOWED_RUN_TRANSITIONS`) and `_set_run_state` enforces it [I] (ADR 0018).
-2. **The event log is the audit truth.** Every state change appends a typed, versioned `RunEvent` in the same short transaction [I]. Current-state rows stay authoritative for compare-and-swap concurrency control. Making those rows fully reconstructable from the log is a [P] target, tested by the U3 fitness row; it is not guaranteed today. ADR 0031 lists the additive event keys it needs and leaves the compare-and-swap `revision` fields outside reconstruction.
+2. **The event log is the audit truth.** Every state change appends a typed, versioned `RunEvent` in the same short transaction [I]. Current-state rows stay authoritative for compare-and-swap concurrency control. The rows are reconstructable from the log [I] (`reconstruct`, `kernel/reconstruct.py`; ADR 0031, Phase 3 Task 3c.2), tested by the U3 fitness row. The additive event keys of ADR 0031 §3 are written in every mode. Outside reconstruction by design: the compare-and-swap `revision` fields and the data of approved facts (the field is `partial`). A run whose events predate those keys reconstructs as `partial`, and a crash between an event-less `BLOCKED` write and the state change that records it leaves the log one write behind the row (ADR 0031, Consequences).
 3. **Steps are first-class.** A *step* is one driver turn or one kernel action. Each step records its inputs (as refs), outputs, findings and status, so later steps and the model reason over results instead of re-deriving them.
-4. **No hidden reasoning is persisted.** Model reasoning parts are stripped (ADR 0004) [I]. Explanations today are proposals, findings, a free-text `run.reason` and a typed `ReasonCode` [I]; structured rationale fields are proposed in §5.6 [P]. No `rationale` field exists in the contracts, the driver or the evidence export.
+4. **No hidden reasoning is persisted.** Model reasoning parts are stripped (ADR 0004) [I]. Explanations are proposals, findings, a free-text `run.reason` and a typed `ReasonCode` [I], and the structured rationale and citations of §5.6 [I] behind `features.grounded_answers` (default `off`): `ProposalRationale` and `Citation` in `contracts/grounding.py`, stored at rest only as ids the kernel resolved, codes and digests (ADR 0033 §1, §4), and the evidence bundle's `explanation` key (ADR 0033 §6). Their UI is not built (ADR 0033 D10).
 
 ### 5.2 Run state machine (transition table implemented)
 
@@ -438,7 +438,7 @@ Redaction rules for the export stay as in MVP §11. HLD §9 requires export auth
 
 ### 5.6 Explanation contract
 
-*Merged: `ReasonCode` and the `reason_code` column are in MVP §7 and §11; `ProposalRationale` and the explanation projection stay [P] (ADR 0018, accepted 2026-10-14). The MVP design is authoritative for this part. `ProposalRationale`, citations, the generic grounded answer and the explanation projection are decided in [ADR 0033](../adr/0033-explanation-and-grounded-answers.md) (Accepted, 2026-10-19), whose record shapes replace the sketch below.*
+*Merged: `ReasonCode` and the `reason_code` column are in MVP §7 and §11; `ProposalRationale` and the explanation projection were left [P] there (ADR 0018, accepted 2026-10-14). The MVP design is authoritative for this part. `ProposalRationale`, citations, the generic grounded answer and the explanation projection are decided in [ADR 0033](../adr/0033-explanation-and-grounded-answers.md) (Accepted, 2026-10-19), whose record shapes replace the sketch below.*
 
 Three readers need explanations: the approver before a write, the requester after the outcome and the auditor afterwards. Three rules apply:
 
@@ -448,7 +448,7 @@ Three readers need explanations: the approver before a write, the requester afte
 
 ```python
 class ProposalRationale(BaseModel):              # driver structured output (proposed)
-    goal_ref: str                                  # task definition + acceptance item
+    goal_ref: str                                  # "run" or the run's task_id@task_version; any other value is stored only as its digest (ADR 0033 §4)
     cited_evidence: tuple[str, ...]                # evidence ids; kernel checks each exists in this run
     rules_considered: tuple[str, ...]              # rule IDs; each must exist in the rule inventory
     alternatives: tuple[RejectedAlternative, ...]  # proposal digest + ReasonCode + one line
@@ -468,7 +468,7 @@ class ReasonCode(StrEnum):                         # beside free-text run.reason
 
 A rationale whose reference does not resolve, or whose rule ID is unknown, produces a `KERNEL-RATIONALE` repair finding within `max_validation_repairs`, before the proposal is validated (ADR 0033). A rationale that resolves changes nothing: the proposal is validated on its own merits, and a rationale can never make it pass. `_set_run_state(reason, code=...)` records the `reason_code` on the run [I]; the human text stays.
 
-**Explanation projection [P]** (ADR 0033). A deterministic function over the event log renders goal → source facts (`read.recorded` refs) → validation (findings by rule ID) → proposal (digest, rationale) → approval (actor, policy version) → receipt → verified outcome. No model call is involved. It is the fitness test for G11 and Q5: the research 03 competency questions that concern one run (CQ06–CQ10, listed in ADR 0033) are answered from this projection. The approval card shows the canonical proposal first and the rationale second.
+**Explanation projection [I]** (ADR 0033 §6, `kernel/explain.py`; no toggle). A deterministic function over the event log renders goal → source facts (`read.recorded` refs) → validation (findings by rule ID) → proposal (digest, rationale) → approval (actor, policy version) → receipt → verified or grounded outcome. No model call is involved. It is the fitness test for G11 and Q5: the research 03 competency questions that concern one run (CQ06–CQ10, listed in ADR 0033) are answered from this projection. The approval card shows the canonical proposal first and the rationale second.
 
 ---
 
@@ -545,7 +545,7 @@ sequenceDiagram
     K->>K: acceptance spec → SUCCEEDED or repair/stop
 ```
 
-Repair limits come from the task definition and the profile (MVP §10 defaults). **Repeat detection [P]** (ADR 0031, toggle `features.kernel_repeat`): a proposal whose digest equals an already blocked revision in the same run, with every fact revision and the capability surface unchanged, gets a `KERNEL-REPEAT` finding without re-validation, and it counts against the repair budget. Today the kernel only short-circuits a repeated *verified* answer (`kernel/proposals.py:303-314`, in `_handle_answer`). An exhausted budget stops new work. A possibly dispatched write still goes to reconciliation.
+Repair limits come from the task definition and the profile (MVP §10 defaults). **Repeat detection [I]** behind `features.kernel_repeat` (default `off`; ADR 0031 §5, `kernel/repeat.py`): a proposal whose digest equals an already blocked revision in the same run, with every fact revision and the capability surface unchanged, gets a `KERNEL-REPEAT` finding without re-validation, and it counts against the repair budget. In every mode the kernel also short-circuits a repeated *verified* answer (`_repeats_verified_answer`, `kernel/repeat.py:128-141`, called from `_handle_answer` at `kernel/grounding.py:401`). An exhausted budget stops new work. A possibly dispatched write still goes to reconciliation.
 
 ### 6.4 Execution IR [I]
 
@@ -711,7 +711,7 @@ Nothing modifies an action after its approval digest is computed. A rule, guardr
 
 | Concern | Owner | Why |
 |---|---|---|
-| What may enter (authorization, redaction, scope, budget) | Kernel `ContextAssembler` [P] | Security boundary; must be framework-neutral |
+| What may enter (authorization, redaction, scope, budget) | Kernel `ContextAssembler` [I] behind `features.context_assembler` (default `off`; `kernel/context.py`) | Security boundary; must be framework-neutral |
 | How it is rendered and compacted (messages, history processors) | Driver adapter | Framework-specific; Pydantic AI history processors / Harness stay inside the adapter |
 | What is learned across runs | Memory service (§8) | Separate governance |
 
@@ -771,7 +771,7 @@ The driver receives the `ContextPack` inside `DriverInput` and maps it to framew
 
 Pydantic AI resumes deferred writes from `message_history` plus `deferred_tool_results` (ADR 0004), so the persisted history must stay valid.
 
-1. **The ledger and findings go into a dynamic suffix that is rebuilt every turn.** They are never written into the persisted continuation. Today the driver appends findings to the history as a new user prompt (`adapters/pydantic_ai/driver.py:387-399`). Per-turn ledgers would therefore accumulate stale copies in the continuation, so this behavior changes under C9.
+1. **The ledger and findings go into a dynamic suffix that is rebuilt every turn.** They are never written into the persisted continuation. Without a pack (`context_assembler` not `on`) the driver still appends findings to the history as a new user prompt (`adapters/pydantic_ai/driver.py:535-546`), so per-turn ledgers there would accumulate stale copies in the continuation; with a pack it renders them in the per-turn suffix only (ADR 0032 §6).
 2. **The stable prefix does not carry per-turn state.** Putting the ledger into system instructions would change the prefix every turn and defeat rule 1 of §7.2.
 3. **Clearing preserves pairing.** Clearing an old tool result replaces its content with a stub plus its `EvidenceRef`. The tool-call/return pair and any deferred call ID stay intact, so a resume can still match `DeferredToolResults.calls`.
 4. **Compaction runs only between resumable points.** It never runs while deferred calls are pending.
@@ -1182,7 +1182,10 @@ e-agent/
 │   ├── contracts/                  e_agent.contracts — portable records      [I]
 │   │   ├── action.py run.py events.py evidence.py ...                        [I]
 │   │   ├── step.py                 StepRecord [I], Finding persistence [P]    [I]/[P]
-│   │   ├── context.py              + ContextPolicy, ContextPack               [I]/[P]
+│   │   ├── context.py              TaskContext, Budgets, HostContext          [I]
+│   │   ├── context_pack.py         ContextPolicy, ContextPack                 [I]
+│   │   ├── grounding.py            Citation, ProposalRationale                [I]
+│   │   ├── progress.py explain.py  ProgressLedger, Explanation                [I]
 │   │   ├── task.py                 TaskDefinition, AcceptanceSpec             [I]
 │   │   └── trigger.py              TriggerSpec                                [P]
 │   ├── sdk/                        e_agent.sdk — ports, manifests            [I]
@@ -1196,13 +1199,20 @@ e-agent/
 │   │   ├── transitions.py          run + action transition enforcement        [I]
 │   │   ├── run_loop.py             driver stepping, input, budgets            [I]
 │   │   ├── gateway.py              authorized, recorded reads                 [I]
-│   │   ├── proposals.py            proposals, answers, validation             [I]
+│   │   ├── proposals.py            write proposals, validation                [I]
+│   │   ├── grounding.py            typed answers, citation check              [I]
+│   │   ├── repeat.py               KERNEL-REPEAT, repeated verified answer    [I]
+│   │   ├── rationale.py            rationale check                            [I]
+│   │   ├── at_rest.py              model-authored refs at rest                [I]
+│   │   ├── grounded_answer.py      grounded.answer.v1                         [I]
 │   │   ├── approval_flow.py        approval request, expiry, decide           [I]
 │   │   ├── dispatch.py             staleness, reserve, writer rule, receipt   [I]
 │   │   ├── verification.py         verifiers, verified finish                 [I]
 │   │   ├── recovery.py             reconcile, cancel, recover                 [I]
-│   │   ├── context.py              ContextAssembler                           [P]
-│   │   ├── ledger.py               ProgressLedger projection                  [P]
+│   │   ├── context.py              ContextAssembler (+ context_*.py)          [I]
+│   │   ├── progress.py             ProgressLedger projection                  [I]
+│   │   ├── reconstruct.py          reconstruction from run_events             [I]
+│   │   ├── explain.py              explanation projection                     [I]
 │   │   └── approval.py policy.py registry.py discovery.py ...                [I]
 │   ├── plugins/                    e_agent.plugins.* (namespace)              [I]
 │   │   └── erp/                    ERP plugin area (namespace)                [I]
@@ -1282,8 +1292,8 @@ Paths are relative to `src/e_agent/`.
 | ERP providers | `plugins/erp/odoo/`, `plugins/erp/simulator/` (ADR 0026) | further providers beside them |
 | Task catalog | `server/api.py: TaskTemplate` (ADR 0017) | backed by `contracts/task.py` definitions |
 | Authorization | `kernel/policy.py: DefaultPolicy` (two roles); `server/api.py` requester and tenant checks | `contracts/authz.py: AuthorizationBundle`; checks in `kernel/policy.py` and `kernel/approval.py` (C16) |
-| Reason codes and rationale | `contracts/run.py: reason` (free text) and `ReasonCode` / `RunRecord.reason_code` [I]; no rationale field | `contracts/action.py: ProposalRationale` (C18) |
-| Explanation projection and evidence | `kernel/evidence.py: build_evidence, classify` | `kernel/explain.py` projection over `run_events`; `classify` derived from `ReasonCode` (C17/C18) |
+| Reason codes and rationale | `contracts/run.py: reason` (free text) and `ReasonCode` / `RunRecord.reason_code` [I]; `contracts/grounding.py: ProposalRationale, Citation` and `kernel/rationale.py`, `kernel/grounding.py`, `kernel/at_rest.py` [I] (ADR 0033) | done (Phase 3) |
+| Explanation projection and evidence | `kernel/evidence.py: build_evidence, classify`; `kernel/explain.py: explain` over the progress ledger and the reconstruction [I] (ADR 0033 §6) | `classify` derived from `ReasonCode` (C17/C18) |
 | Import boundaries | root `pyproject.toml [tool.importlinter]` | + contracts for new kernel modules and adapters |
 
 ---
