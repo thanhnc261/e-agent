@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-4a-1"
   ],
-  "context_digest": "fc9c4aaf0fc0a3ac0f455400e85024f628517639fd1e6815c47bfd1fd90d018f",
+  "context_digest": "74dbfb4cdddb640784e36ec2b1c74ce96566a5fcc0918e50c38e255379bdbd96",
   "allowed_paths": [
     "docs/adr/**",
     "docs/design/target-architecture.md",

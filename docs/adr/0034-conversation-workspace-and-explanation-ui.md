@@ -40,7 +40,7 @@ Layout, density and placement are the brief's and the mockup's, decided at gates
 - A citation is shown as its **record and field**: the evidence id, resolved to that run's source in the `explanation` (`sources`: contract and revision), and the pointer.
 - **The value beside it** is read from the run's `actions[].approved_facts`, from the fact whose `evidence.evidence_id` equals the citation's evidence id, at the citation's pointer. It is never read from model text or the citation itself (which stores only a digest). When no approved fact of the run holds that evidence, or the pointer names nothing in it, no value is shown and the citation keeps its record and field.
 - Two limits follow from the code today, and are stated in the UI as "value not recorded", never as an empty value (EA-8):
-  - an answer's own action records no approved facts, so a typed answer's cited value is shown only when another action of the same run (a write proposal) recorded that evidence; in a run whose only action is the answer, no value is shown;
+  - an answer's own action records no approved facts, so a typed answer's cited value is shown only when another action of the same run (a write proposal) recorded that evidence. A verified write ends the run `SUCCEEDED` (`kernel/verification.py:264`), so that action can only be a blocked or superseded write proposal; in practice a typed answer's cited value is rarely shown, and in a run whose only action is the answer, no value is shown;
   - a `GROUNDED` run has no action, so its citations show the record and field and no value.
 - Citations are shown from two server sources only:
   - the bundle's `grounded_answer.citations`, each already labelled `grounded` by the server;
@@ -89,4 +89,4 @@ Status of this section: Proposed, on its own. The owner accepts it or defers it 
 - 4e.5: "a citation shows its record and field from the server", "a cited value comes from the run's approved facts, and an answer-only run shows value not recorded", "a grounded run says grounded, not verified" (EN and VI), "free text outside citations is labelled unverified", "the explanation lists facts before any rationale", "an unresolved citation is never shown as a fact".
 - 4e.6 (section 5 only): `test_rationale_never_changes_the_approval_digest`, `test_presentation_without_rationale_is_unchanged`, `test_rationale_is_not_in_any_event_payload`, "rationale renders after the facts, labelled as the agent's reason".
 - Gate G-D: the `ag-ux-review` of the built UI (Task 4e.7).
-- Revisit when a cited value must be shown, or when a surface outside ADR 0016's four needs the thread.
+- Revisit when a cited value must be shown for an answer-only run or a `GROUNDED` run (the server projection deferred under Alternatives), or when a surface outside ADR 0016's four needs the thread.
