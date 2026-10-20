@@ -80,7 +80,8 @@
         "pnpm --dir ui check and make e2e pass",
         "resolution file answers every finding; no open Blocker or High"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4b.5/2026-10-20T16-23-50.080345+00-00-full.json"
     },
     {
       "id": "F-4c-1",

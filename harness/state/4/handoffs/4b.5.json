@@ -1,0 +1,19 @@
+{
+  "task": "4b.5",
+  "changed": "Chat-defects UX review resolved after the owner's G-0 answer '1 ok, rest yes' (recorded in the review header). F-1 Blocker: the workspace switches to one column by a container query, so 200% text no longer collapses the conversation column. F-2 High: at 640px and below only the keyboard hint is hidden, so the Context text shows. F-3: the Context panel stays inside the composer width (no sideways scroll at 320/390px). F-4: the Context panel separates 'sent' (your message text only; this page sends no extra details) from 'used' (this task's messages and any systems you have connected, within your permissions) and drops the 'plus:' lead-in when no page context is sent. F-5: Activity says 'Your turn' for a reply wait, through runStatusKey. F-6: later replies show a muted visible 'not verified' note (conversation.replyNote, EN and VI). F-7: copy holds with no connections. F-8: the sidebar status shows the composer's marker (runStateTone.ts moved to components/src/primitives, no boundary rule changed). Added the 4b.4 R1-1 test that replyPending clears after the answer. Resolution: docs/reviews/2026-10-20-chat-defects-ux-review-RESOLUTION.md. Commits 0e78bfe, 1efbcc9, then coordinator fixes for review R1-2/R1-3 (space outside the aria-hidden separator; resolution VI note). pnpm check 196 tests; make e2e 168 passed, 4 skipped. Review harness/state/4/reviews/4b.5-r1.json (accept, three Low).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4b.5/2026-10-20T16-23-50.080345+00-00-full.json"
+  ],
+  "open_items": [
+    "Owner to confirm the shipped VI chip copy: 'Chỉ nội dung tin nhắn của bạn; trang này không gửi thêm thông tin nào.' and 'e-agent cũng dùng các tin nhắn của tác vụ này và mọi hệ thống bạn đã kết nối, trong phạm vi quyền của bạn.', and the later-reply note 'chưa xác minh'.",
+    "R1-1: the one-column switch happens about 15px earlier on classic-scrollbar platforms; no default-text breakpoint test.",
+    "No screen reader or real-device test; 200% text checked at 1440px by root font size."
+  ],
+  "rulings": [
+    {
+      "ruling": "The chip sentence from the G-0 brief is split into a 'sent' line and a 'used' line, because Q2 (split the panel) and Q3/Q7 (wording) apply together.",
+      "cost_if_wrong": "two i18n string pairs and one test"
+    }
+  ],
+  "outside_repo": []
+}
