@@ -1,0 +1,22 @@
+{
+  "task": "4a.2",
+  "changed": "Gate G-A recorded with the owner's words of 2026-10-20, \"1 accept 2 accept 3 defer 4 ok 5 ok 6 ok 7 yes\": ADR 0023 and ADR 0034 accepted; ADR 0034 section 5 (rationale on the approval card) deferred, so Task 4e.6 is deferred to a named follow-up in the plan and features.json; the D15 amendment (cited value only from actions[].approved_facts) confirmed; ADR 0023 section 9's refinement of ADR 0027 for conversations shadow confirmed; the four never-carried ref paths accepted as a known limit; and the ref guard narrowed so a recorded source ref and a CarriedRef come only from a read whose EvidenceRef.completeness is complete (new 4d.2 test test_ref_from_incomplete_read_is_not_carried). Status lines updated in ADRs 0022, 0023, 0027, 0032, 0034, the ADR index, target-architecture section 5.7 and C20, and the plan's status line, decisions table, ADRs table and every passage that assumed 4e.6 ships. Commits a517e91, f8aec01. Review: harness/state/4/reviews/4a.2-r1.json (rework; R1-1 and R1-2 fixed in f8aec01, R1-3 rejected).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4a.2/2026-10-20T15-15-16.900796+00-00-full.json"
+  ],
+  "open_items": [
+    "EA-10's source in ag-ux-foundations/references/e-agent.md should now point to ADR 0034; that file is outside this task's paths (a later UI task or a skills change).",
+    "Should answer actions record approved facts so cited values show for answer-only runs: owner answered 'ok' to the limit; a kernel change would be a later, separately planned task."
+  ],
+  "rulings": [
+    {
+      "ruling": "No scoped re-review of f8aec01: the fixes are mechanical wording changes the coordinator checked by grep (no 4e.6 mention left without a deferral note).",
+      "cost_if_wrong": "a stale plan sentence found at the 4e.7 or phase review"
+    },
+    {
+      "ruling": "Reviewer R1-3 (trailer model name) rejected: the session's attribution instruction names Claude Opus 5.5.",
+      "cost_if_wrong": "none"
+    }
+  ],
+  "outside_repo": []
+}

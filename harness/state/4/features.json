@@ -21,7 +21,8 @@
         "owner answers recorded in the decisions table and ADR status lines",
         "validate-context prints ok; full gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4a.2/2026-10-20T15-15-16.900796+00-00-full.json"
     },
     {
       "id": "F-4b-1",

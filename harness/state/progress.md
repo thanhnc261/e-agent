@@ -804,3 +804,8 @@
 - changed: harness/state/4/features.json, harness/state/4/handoffs/4a.1.json, harness/state/evidence/gates/4a.1/2026-10-20T14-39-21.833391+00-00-full.json, harness/state/evidence/gates/4a.1/2026-10-20T14-53-12.984558+00-00-full.json, harness/state/evidence/gates/4a.1/2026-10-20T14-57-01.208337+00-00-full.json
 - next: G-A owner questions; open task 4b.1 meanwhile
 - open: none
+
+## 2026-10-20T15:17:19.702657+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4a.2
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4a.2.json, harness/state/evidence/gates/4a.2/2026-10-20T15-15-16.900796+00-00-full.json
+- next: open task 4b.1 (legacy run.state_changed rows render without undefined)
+- open: none
