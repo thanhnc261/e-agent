@@ -3,6 +3,7 @@
  * fallback for anything unknown, and no secret or task text in the URL.
  */
 import { describe, expect, it } from "vitest";
+import { translate } from "@e-agent/ui-core";
 import { DEFAULT_ROUTE, formatRoute, parseRoute, sameRoute } from "../src/app/routes.ts";
 
 describe("standalone routes", () => {
@@ -56,5 +57,16 @@ describe("malformed addresses", () => {
   it("keeps a malformed encoding out of other routes too", () => {
     expect(() => parseRoute("#/%")).not.toThrow();
     expect(parseRoute("#/%")).toEqual(DEFAULT_ROUTE);
+  });
+});
+
+describe("context chip copy", () => {
+  it("context chip says what the agent uses", () => {
+    expect(translate("en", "context.noHost")).toBe(
+      "Uses this conversation and your connected systems; this page sends no extra details.",
+    );
+    expect(translate("vi", "context.noHost")).toBe(
+      "Dùng cuộc trò chuyện này và các hệ thống bạn đã kết nối; trang này không gửi thêm thông tin nào.",
+    );
   });
 });
