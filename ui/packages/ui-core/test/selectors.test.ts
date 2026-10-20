@@ -11,6 +11,7 @@ import {
   reduceRunView,
   selectConversation,
   selectPendingReply,
+  selectTimeline,
   type RunView,
 } from "../src/store.ts";
 import type { RunEvent, RunRecord } from "@e-agent/client";
@@ -222,5 +223,31 @@ describe("a recorded question replaces its streamed text (plan Task 5)", () => {
       snapshot: { run: run("WAITING_INPUT"), latest_sequence: 0, actions: [], pending_approval: null },
     });
     expect(view.streamingText).toBe("");
+  });
+});
+
+describe("timeline transitions", () => {
+  it("renders a legacy state row as unknown → RUNNING", () => {
+    const [item] = selectTimeline(viewWith("RUNNING", [event(1, "run.state_changed", { state: "RUNNING" })]));
+    expect(item?.detail).toBe("unknown → RUNNING");
+    expect(item?.transition).toEqual({ from: "unknown", to: "RUNNING" });
+  });
+
+  it("never prints undefined in a transition", () => {
+    const items = selectTimeline(
+      viewWith("RUNNING", [
+        event(1, "run.state_changed", {}),
+        event(2, "run.state_changed", { state: "RUNNING" }),
+        event(3, "run.state_changed", { from: "CREATED", to: "RUNNING" }),
+      ]),
+    );
+    for (const item of items) {
+      expect(item.detail).not.toContain("undefined");
+      expect(item.transition?.from).not.toBe("undefined");
+      expect(item.transition?.to).not.toBe("undefined");
+    }
+    expect(items[2]?.detail).toBe("CREATED → RUNNING");
+    expect(translate("en", "status.unknown")).toBe("Unknown");
+    expect(translate("vi", "status.unknown")).not.toBe("status.unknown");
   });
 });

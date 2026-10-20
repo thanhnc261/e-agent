@@ -154,6 +154,11 @@ export interface TimelineItem {
   transition?: { from: string; to: string };
 }
 
+function legacyTransition(p: Record<string, unknown>): { from: string; to: string } {
+  const text = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
+  return { from: text(p["from"]) ?? "unknown", to: text(p["to"]) ?? text(p["state"]) ?? "unknown" };
+}
+
 /** Plain-data timeline; detail is a short, non-HTML string. */
 export function selectTimeline(view: RunView): TimelineItem[] {
   return view.events.map((e) => {
@@ -161,7 +166,9 @@ export function selectTimeline(view: RunView): TimelineItem[] {
     const supported = e.schema_version === "1" && KNOWN_EVENT_TYPES.has(type);
     const p = e.payload ?? {};
     let detail: string | null = null;
-    if (supported && type === "run.state_changed") detail = `${String(p["from"])} → ${String(p["to"])}`;
+    // Rows written before ADR 0031 carry only `state`; an absent `from` stays "unknown", never "undefined".
+    const transition = supported && type === "run.state_changed" ? legacyTransition(p) : null;
+    if (transition) detail = `${transition.from} → ${transition.to}`;
     else if (supported && (type === "validation.completed" || type === "outcome.reported")) detail = String(p["status"] ?? "");
     else if (supported && type === "approval.decided") detail = String(p["decision"] ?? "");
     else if (supported && (type === "proposal.created" || type === "read.recorded")) detail = String(p["contract_id"] ?? "");
@@ -174,7 +181,7 @@ export function selectTimeline(view: RunView): TimelineItem[] {
       occurredAt: e.occurred_at,
       supported,
       detail,
-      ...(supported && type === "run.state_changed" ? { transition: { from: String(p["from"]), to: String(p["to"]) } } : {}),
+      ...(transition ? { transition } : {}),
     };
   });
 }
