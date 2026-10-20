@@ -80,7 +80,7 @@ Every target-architecture ADR candidate and criterion maps to a phase. Status ta
 | C16 authorization bundle | 7 (self-approval [I]) | | Q2 high load | 6 |
 | C17 audit integrity | actor [I]; 6 (correlation id); 7 (grants, access log) | | Q3 concurrent requests | paging [I]; 6 (limits) |
 | C18 explanation contract | reason codes [I]; 3 (rationale, projection) | | Q4 auditing | 6, 7 |
-| Conversation model (not in design) | 4, ADR 0023 | | Q5 explainability | 3 |
+| C20 conversation model ([ADR 0023](adr/0023-conversation-model.md), target §5.7) | 4 | | Q5 explainability | 3 |
 | Execution IR / action plans (target §6.4) | 2, ADRs 0024, 0025, 0027–0029 | | ERP-Bench tools (design P3 adapted) | 5 |
 | C19 data governance (target §13.3) | ADR 0030: 3, 5, 7 | | | |
 
