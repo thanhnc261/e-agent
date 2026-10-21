@@ -1,0 +1,28 @@
+{
+  "task": "4c.3",
+  "changed": "ConversationStore protocol in sdk/store.py (RunStore unchanged): create_conversation (revision exactly 1), get_conversation (NotFound for another owner or tenant), list_conversations (newest first, limit 1-100, id cursor), list_conversation_runs (oldest first), lookup_idempotent, create_run_in_conversation (idempotency record first; revision and one-active-run check and run insert in one transaction, conversation row FOR UPDATE on Postgres; _conversation_lock then _lock on memory). InMemoryConversationStore(InMemoryRunStore) in new kernel/memory_conversations.py, registered as one sorted source_modules entry; bootstrap builds it for the memory store. Migration 0007: conversations table, runs.conversation_id with FK and a CHECK that it equals the JSONB record, an expression index on record->>'created_at' and an owner index. conversations joins RECORD_KINDS (audit skeleton). One linked-run path on both stores: create_run and create_run_idempotent refuse a linked run, update_run and wait_for_approval refuse a changed conversation_id (ValueError), with no raw psycopg error reachable; Postgres turns a duplicate run id at admission into ConcurrencyConflict. FB-1: the CI Postgres step runs the pg gate set. FB-2: an empty {} driver state round-trips on memory (memory_store.py one line, 499 lines). Memory concurrency tests contend through two yield schedules and fail with the lock removed (verified by the re-reviewer). Commits 8819ef6, 522c44a, caec990. Reviews: harness/state/4/reviews/4c.3-A.json and 4c.3-B.json (rework), 4c.3-r2.json (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4c.3/2026-10-21T11-37-04.698235+00-00-full.json",
+    "harness/state/evidence/gates/4c.3/2026-10-21T11-38-35.932209+00-00-pg.json"
+  ],
+  "open_items": [
+    "A1-6: the created_at expression orders in the database default collation (correct today with fixed-width UTC strings); a later migration could add COLLATE C.",
+    "Postgres bumps updated_at with now() (transaction start), memory with utc_now().",
+    "Memory _check_link reads _runs outside _lock; harmless window (R2-2)."
+  ],
+  "rulings": [
+    {
+      "ruling": "Only create_run_in_conversation creates a linked run, and a run's conversation never changes, on both stores (ADR 0023 \u00a73).",
+      "cost_if_wrong": "a later caller needs a new port method"
+    },
+    {
+      "ruling": "A1-6 not applied: 0007 is applied to e_agent_test with its checksum, and its ordering is correct today.",
+      "cost_if_wrong": "a later migration"
+    },
+    {
+      "ruling": "The second reviewer for this store task was a second fresh-context Claude review (A and B in parallel), per the owner's Phase 3 ruling; Codex was not used.",
+      "cost_if_wrong": "a Codex pass later"
+    }
+  ],
+  "outside_repo": []
+}

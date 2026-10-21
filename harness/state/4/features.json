@@ -116,7 +116,8 @@
         "test_every_store_record_kind_declares_a_class lists conversations; test_runs_conversation_id_column_matches_record and the two reconstruct conversation_id cases pass",
         "wc -l shows memory_store.py at most 500 lines, changed only by the FB-2 fix; lint-imports keeps every contract; pg gate passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4c.3/2026-10-21T11-37-04.698235+00-00-full.json"
     },
     {
       "id": "F-4c-4",

@@ -844,3 +844,8 @@
 - changed: harness/state/4/features.json, harness/state/4/handoffs/4c.2.json, harness/state/evidence/gates/4c.2/2026-10-21T10-49-27.117331+00-00-full.json, harness/state/evidence/gates/4c.2/2026-10-21T10-55-13.643697+00-00-full.json
 - next: open task 4c.3 (ConversationStore on both stores, migration 0007)
 - open: none
+
+## 2026-10-21T11:40:28.976860+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4c.3
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4c.3.json, harness/state/evidence/gates/4c.3/2026-10-21T11-37-04.698235+00-00-full.json, harness/state/evidence/gates/4c.3/2026-10-21T11-38-35.932209+00-00-pg.json
+- next: open task 4c.4 (answer value formats in the manifest, D17)
+- open: none
