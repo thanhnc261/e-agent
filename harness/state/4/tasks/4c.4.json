@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-4c-4"
   ],
-  "context_digest": "88681dd6c206ab80735f1433fa2729d0e9ea31a6d7a591c0ac033e9ca9bad987",
+  "context_digest": "a02a44359279643ef79ecf481f58ef899cf4bec87aa68180e6868ffeabfcaa24",
   "allowed_paths": [
     "src/e_agent/contracts/value_formats.py",
     "src/e_agent/contracts/capability.py",

@@ -16,6 +16,7 @@ from collections.abc import Callable, Iterable, Iterator, Mapping
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from . import data_classes as dc
@@ -78,7 +79,7 @@ class FrozenFormats(Mapping[str, str]):
     __slots__ = ("_formats",)
 
     def __init__(self, formats: Mapping[str, str] | Iterable[tuple[str, str]] = ()) -> None:
-        self._formats = dict(formats)
+        self._formats: Mapping[str, str] = MappingProxyType(dict(formats))
 
     def __getitem__(self, key: str) -> str:
         return self._formats[key]
@@ -90,7 +91,7 @@ class FrozenFormats(Mapping[str, str]):
         return len(self._formats)
 
     def __repr__(self) -> str:
-        return f"FrozenFormats({self._formats!r})"
+        return f"FrozenFormats({dict(self._formats)!r})"
 
     def __copy__(self) -> FrozenFormats:
         return self

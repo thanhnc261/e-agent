@@ -3,6 +3,7 @@ what a value must be to pass, and the descriptor rule that only answers declare 
 
 import copy
 import json
+import pickle
 from typing import Any
 
 import pytest
@@ -185,3 +186,10 @@ def test_admitted_value_formats_are_immutable() -> None:
     # a deep copy (pydantic deep-copies defaults) keeps the frozen mapping
     assert copy.deepcopy(answer) == answer
     assert answer.model_copy(deep=True).answer_value_formats is formats
+    # the inner store is read-only too, and a pickle round trip stays frozen (review R2-1, R2-4)
+    with pytest.raises(TypeError):
+        formats._formats["/input/extra"] = "ref"  # type: ignore[attr-defined, index]
+    restored = pickle.loads(pickle.dumps(answer))
+    assert restored == answer
+    with pytest.raises(TypeError):
+        restored.answer_value_formats["/input/x"] = "ref"  # type: ignore[index]
