@@ -178,7 +178,8 @@
         "export_openapi.py --check and pnpm --dir ui gen:check pass",
         "pg gate runs test_conversation_api.py"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4d.4/2026-10-21T15-10-13.003158+00-00-full.json"
     },
     {
       "id": "F-4d-5",

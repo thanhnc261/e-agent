@@ -874,3 +874,8 @@
 - changed: harness/state/4/features.json, harness/state/4/handoffs/4d.3.json, harness/state/4/reviews/4d.3-r2.json, harness/state/evidence/gates/4d.3/2026-10-21T14-24-23.546422+00-00-full.json, harness/state/evidence/gates/4d.3/2026-10-21T14-25-55.827269+00-00-pg.json
 - next: open task 4d.4 (API routes, member features, route authorization); needs the owner's A/B answer on reply_to to an ended run
 - open: none
+
+## 2026-10-21T15:14:09.089167+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4d.4
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4d.4.json, harness/state/4/reviews/4d.4-r2.json, harness/state/evidence/gates/4d.4/2026-10-21T15-10-13.003158+00-00-full.json, harness/state/evidence/gates/4d.4/2026-10-21T15-11-48.251182+00-00-pg.json
+- next: open task 4d.5 (a fixture thread end to end)
+- open: none
