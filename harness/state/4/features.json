@@ -152,7 +152,8 @@
         "test_carried_items_are_not_approved_facts and test_carry_failure_falls_back_before_reservation pass",
         "Phase 3 pack digests and off goldens unchanged; replay suite passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4d.2/2026-10-21T13-37-21.836239+00-00-full.json"
     },
     {
       "id": "F-4d-3",

@@ -1,0 +1,29 @@
+{
+  "task": "4d.2",
+  "changed": "Carried context (ADR 0023 \u00a76, \u00a78; ADR 0032). New kernel/carried.py (pure): carry() builds up to five CarriedRun items, taken in the store's listing order and rendered newest first, from earlier runs of the conversation. Each holds the user's own messages (the task text and input.received), CarriedRefs from complete reads that a read.recorded event names and the stored continuation holds, and the values of VERIFIED answer actions at paths that have both a declared value format and a data_classes entry and that pass value_passes. A ref value is carried only when it equals a recorded source ref. render_carried renders the fenced, class-walked recent_turns layer, which drops oldest first before evidence. _Continuation.carried is left out when empty, so off and shadow continuations are byte-identical. A run is carried only when pinned conversations: on, at admission in the coordinator. A carry failure records feature.fallback CONVERSATION_CONTEXT_FAILED in the admission transaction, and the run stays linked. New event conversation.context_carried; the OpenAPI document and schema.ts are regenerated. 25 tests on both stores; the Phase 3 pack digests and the off goldens are unchanged. Commits 95169a02, e5861e64 and c2cf5fb. Reviews 4d.2-A.json and 4d.2-B.json both accept.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4d.2/2026-10-21T13-37-21.836239+00-00-full.json",
+    "harness/state/evidence/gates/4d.2/2026-10-21T13-38-58.578000+00-00-pg.json"
+  ],
+  "open_items": [
+    "Phase-close ADR lines. B2-1/A2-1: user messages, source_ref and revision get the personal class rule directly in carried._text_line, which copies context_walk's undeclared-leaf rule, not through Walker; the effect is the same. B2-2: refs are classed personal, so a locator kept as an internal answer value is masked as a ref on a hosted route without data_processing. B2-3: an empty list, or a list with a failing member, is not carried, so 'no late orders' is lost as a fact. B2-4: the Dropped.ref forms carried:<run_id> and carried:<run_id>#... are missing from contracts/context_pack.py's Dropped docstring and ADR 0032 \u00a75.",
+    "B2-6/A2-1: render_carried calls the private Walker._children and imports _plain; add a public input-side entry in context_walk.py in a task that has it in scope. ClassLookup is defined twice (context.py and carried.py).",
+    "A2-2/B2-5: the kernel suite's TurnDriver does not read the pack, so the proposal equality in test_injected_carried_text_does_not_change_the_proposal cannot fail; the fence assertions carry Review Focus 2. The docstring now says so.",
+    "4d.3: test_carry_runs_only_for_a_run_pinned_on[shadow] must change when shadow records conversation.compared; 4d.3 also adds two event types, so regenerate the OpenAPI document and schema.ts in its scope."
+  ],
+  "rulings": [
+    {
+      "ruling": "Accept '.carried' in test_assembler_is_pure's allowed imports for context.py, with carried.py held to the same import rule; both reviewers confirmed it reaches nothing new outside the kernel.",
+      "cost_if_wrong": "move render_carried into context.py"
+    },
+    {
+      "ruling": "Coordinator-added scope: ui/packages/client/openapi.json and src/schema.ts, regenerated for the new event type, as in 3d.5 and 4c.2.",
+      "cost_if_wrong": "none"
+    },
+    {
+      "ruling": "Runs are taken in the store's listing order, leaving out the run being admitted, the last five, rendered newest first, with no created_at sort.",
+      "cost_if_wrong": "a reorder in carry"
+    }
+  ],
+  "outside_repo": []
+}
