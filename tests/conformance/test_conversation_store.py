@@ -166,16 +166,16 @@ async def test_create_and_get_conversation(store: Any) -> None:
     for refused, error in (
         (_conv(), ConcurrencyConflict),  # a conversation is never overwritten
         (_conv("conv_0", rev=0), ValueError),  # a new conversation starts at revision 1
+        (_conv("conv_2", rev=2), ValueError),  # exactly 1 (4c.3 review R2-1)
     ):
         with pytest.raises(error):
             await store.create_conversation(refused)
         cases += 1
-    with pytest.raises(NotFound):
-        await store.get_conversation("t1", "u1", "conv_0")
-    with pytest.raises(NotFound):
-        await store.get_conversation("t1", "u1", "conv_missing")
+    for absent in ("conv_0", "conv_2", "conv_missing"):
+        with pytest.raises(NotFound):
+            await store.get_conversation("t1", "u1", absent)
     print(f"conversation create refusal cases: {cases}")
-    assert cases == 2
+    assert cases == 3
 
 
 async def test_foreign_owner_conversation_looks_absent(store: Any) -> None:

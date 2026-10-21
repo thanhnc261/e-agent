@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-4c-3"
   ],
-  "context_digest": "25666e72db5dcd444e90dbcd5ab503f83734a70879bcf524d006595eead5c332",
+  "context_digest": "88681dd6c206ab80735f1433fa2729d0e9ea31a6d7a591c0ac033e9ca9bad987",
   "allowed_paths": [
     "src/e_agent/sdk/store.py",
     "src/e_agent/kernel/memory_conversations.py",
