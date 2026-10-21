@@ -141,7 +141,7 @@
         "test_start_passes_host_context_to_the_run and test_message_while_waiting_approval_never_touches_the_action pass"
       ],
       "passes": true,
-      "evidence": "harness/state/evidence/gates/4d.1/2026-10-21T12-51-04.653190+00-00-pg.json"
+      "evidence": "harness/state/evidence/gates/4d.1/2026-10-21T12-49-22.986449+00-00-full.json"
     },
     {
       "id": "F-4d-2",
