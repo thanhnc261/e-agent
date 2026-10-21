@@ -1,0 +1,66 @@
+{
+  "task": "4c.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "A1-1",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "Memory create_run and create_run_idempotent accept a RunRecord whose conversation_id names no conversation; Postgres refuses with a raw psycopg ForeignKeyViolation outside the port vocabulary; no both-stores test.",
+      "evidence": "src/e_agent/adapters/postgres/store.py:241-247, :260-294; migration 0007 runs_conversation_fk"
+    },
+    {
+      "id": "A1-2",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "Memory update_run and wait_for_approval accept a changed conversation_id (re-linking bypasses the one-active-run check); Postgres refuses with a raw CheckViolation; the only test is Postgres-only and asserts the driver exception.",
+      "evidence": "src/e_agent/kernel/memory_store.py:163-195; src/e_agent/adapters/postgres/store.py:321, :372; tests/conformance/test_conversation_store.py:336-371"
+    },
+    {
+      "id": "A1-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "One active run per conversation holds only while create_run_in_conversation is the sole creator of linked runs; nothing enforces the premise.",
+      "evidence": "src/e_agent/kernel/memory_conversations.py:1-8; tests/conformance/test_conversation_store.py:343-345"
+    },
+    {
+      "id": "A1-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "No test pins that a same-key retry with a different request digest returns the recorded digest, which 4d.1's CONFLICT decision needs.",
+      "evidence": "tests/conformance/test_conversation_store.py:94-110"
+    },
+    {
+      "id": "A1-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The memory concurrency tests never interleave (an uncontended asyncio.Lock does not yield), so they cannot fail without _conversation_lock.",
+      "evidence": "tests/conformance/test_conversation_store.py:262-273, :322-333"
+    },
+    {
+      "id": "A1-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The created_at expression orders in the database default collation while the id tie-break uses COLLATE C; correct today with fixed-width UTC strings.",
+      "evidence": "migration 0007 runs_by_conversation; src/e_agent/contracts/common.py:53-58"
+    },
+    {
+      "id": "A1-7",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "A duplicate run_id in _admit raises a raw UniqueViolation on Postgres while memory raises ConcurrencyConflict.",
+      "evidence": "src/e_agent/adapters/postgres/store.py:260-294; src/e_agent/kernel/memory_store.py:131-133"
+    },
+    {
+      "id": "A1-8",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Close ritual pending; FB-2, migration 0007 safety, paging, NotFound and lock order otherwise check out.",
+      "evidence": "uv run e-agent-harness close-check"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}
