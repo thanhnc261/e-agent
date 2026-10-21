@@ -1,0 +1,22 @@
+{
+  "task": "4c.2",
+  "changed": "New contracts/conversation.py with Conversation (ids, owner, revision, timestamps; no text), CarriedRef(contract_id, source_ref, revision, observed_at), CarriedAnswer, CarriedRun (no model-text field), ReplyTo, RouteKind and MessageRoute (answer needs run_id and run_revision, refuse needs its hint), ConversationPage, ConversationSummary, ConversationList, ThreadRun and ConversationSnapshot (ADR 0023 \u00a72); MemberFeatures(conversations) in contracts/features.py; RunRecord.conversation_id: str | None = None; kernel/reconstruct.py rebuilds the conversation_id slot (known from run.created, known None when the key is absent, unknown without run.created) and run_created_keys adds the key only when set. OpenAPI and the UI client regenerated with only RunRecord.conversation_id. Commits 761f102, 5fa79bc, 23432a3. Review harness/state/4/reviews/4c.2-r1.json (rework: R1-1 contract steps stale after the ruling, fixed in 23432a3 with R1-3 and R1-5; R1-2 and R1-4 tests planned in 4c.3).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4c.2/2026-10-21T10-55-13.643697+00-00-full.json"
+  ],
+  "open_items": [
+    "4c.3 carries: the conversations record kind with its table; test_runs_conversation_id_column_matches_record (Postgres column agrees with the JSONB record at every insert site); the two reconstruct conversation_id cases.",
+    "The implementer wrote the tests after the code; the reviewer confirmed each would fail without its code."
+  ],
+  "rulings": [
+    {
+      "ruling": "The conversations RECORD_KINDS entry moves to 4c.3 beside its table, with no NOT_YET_KEPT exemption (AGENTS.md: never add an exemption to make a change fit).",
+      "cost_if_wrong": "one line moves back"
+    },
+    {
+      "ruling": "No scoped re-review of 23432a3: contract-step, test-name and docstring edits checked by the coordinator; the substantive test gaps move to 4c.3, where they can fail.",
+      "cost_if_wrong": "a stale step found at the phase review"
+    }
+  ],
+  "outside_repo": []
+}

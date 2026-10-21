@@ -103,7 +103,8 @@
         "tests/unit/contracts/test_conversation.py passes",
         "off v3 event goldens unchanged; openapi.json and schema.ts regenerated with only RunRecord.conversation_id; export_openapi.py --check is clean"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4c.2/2026-10-21T10-55-13.643697+00-00-full.json"
     },
     {
       "id": "F-4c-3",
