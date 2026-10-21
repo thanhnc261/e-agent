@@ -914,3 +914,8 @@
 - changed: harness/state/4/features.json, harness/state/4/handoffs/4e.4.json, harness/state/evidence/gates/4e.4/2026-10-21T20-50-21.840151+00-00-full.json
 - next: open task 4e.5 (citations and the explanation)
 - open: none
+
+## 2026-10-21T21:23:38.189923+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4e.5
+- changed: no working-tree changes
+- next: citations.test.tsx and explanation.spec.ts pass
+- open: none
