@@ -1,0 +1,28 @@
+{
+  "task": "4e.1",
+  "changed": "The chat surface gap audit after 4b (docs/reviews/2026-10-21-chat-surface-gap-audit.md) scored 88 items: 56 met, 25 partial, 4 missing, 3 not applicable. Its 19 findings are 6 High, 6 Medium and 7 Low. The High ones: F-1, no AI disclosure outside Overview; F-2, no thread; F-3, no closable workspace (EA-10); F-4, the agent's answer is unlabelled; F-5, card terms scroll with no cue; F-6, no citations. The design brief research/20-conversation-thread-brief.md covers all ten normative states, the AG and EA-1/3/5/6/9/10/16 criteria, three directions, the D15 surfaces (the card is unchanged, as ADR 0034 \u00a75 is deferred), the 'grounded, not verified' wording, and the questions for G-B. G-B (2026-10-21) was owner-delegated; the owner wrote verbatim: \"advisor can decide all on behalf me\". The advisor decided: 1 A (run cards with a closable side workspace); 2 group (legacy runs under 'last seen'); 3 refuse (an answer to an ended run gets CONFLICT 'the question changed; read it again', draft kept; amends ADR 0023 \u00a74 through new task 4d.6); 4 hint (open composer, server hint, draft kept, card unchanged); 5 both (label on the message and the result); 6 auto (the desktop workspace opens itself and is closable); 7 accept (new VI drafts, flagged at G-D as 'new VI since G-B'); 8 yes (a grounded-not-verified state in the UX standard, as a separate skill follow-up that also moves EA-10's source to ADR 0034). research/** is create-only, so this record lives in the plan's 4e.1 line and in this handoff, not in the brief. Commits a720c991, 62a29b83 and the plan record. Review harness/state/4/reviews/4e.1.json (rework) was fixed by the coordinator: the 4d.6 check order and retried-answer test (U1-1), the wording (U1-3), the audit line reference (U1-5) and the deferred index line (U1-6).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4e.1/2026-10-21T16-49-11.884973+00-00-full.json"
+  ],
+  "open_items": [
+    "U1-2: the brief's Approval and Decisions sections still say 'Pending', because research/** is create-only. The plan's 4e.1 line and this handoff are the record of G-B.",
+    "U1-2: decision 3 amends accepted ADR 0023 \u00a74 under the owner's delegation. The owner is told when 4d.6 lands and may revert it.",
+    "U1-4: the brief's refused-message and approval-wait rows describe the on refusal. In shadow, a message sent during approval starts an unlinked run, so the per-run fallback keeps today's composer behaviour. 4e.2 and 4e.3 must show the shadow case.",
+    "Decision 8 follow-up, outside Phase 4: a grounded-not-verified state in ag-ux-foundations, and EA-10's source moved to ADR 0034.",
+    "Gap audit F-5 (card terms in a scroll region with no cue) goes to the approval-card follow-up, because the card is unchanged in Phase 4.",
+    "The research/README.md index lines for 17 and 20 are missing; the file is protected.",
+    "G-C and G-D are new gates: ask the owner whether the delegation continues.",
+    "The 40 audit screenshots (320-1440 px) were taken outside the repo and are not committed."
+  ],
+  "rulings": [
+    {
+      "ruling": "Record G-B on the plan's 4e.1 line and in this handoff, because research/** is create-only.",
+      "cost_if_wrong": "an owner-approved harness exception to edit the brief"
+    },
+    {
+      "ruling": "The owner's delegation covers the eight G-B items and their direct consequences (the ADR 0023 \u00a74 amendment through 4d.6, and the decision 8 follow-up), but not G-C or G-D.",
+      "cost_if_wrong": "revert 4d.6"
+    }
+  ],
+  "outside_repo": []
+}

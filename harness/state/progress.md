@@ -884,3 +884,8 @@
 - changed: harness/state/4/features.json, harness/state/4/handoffs/4d.5.json, harness/state/evidence/gates/4d.5/2026-10-21T15-40-02.807482+00-00-full.json, harness/state/evidence/gates/4d.5/2026-10-21T15-41-44.166981+00-00-pg.json
 - next: open task 4e.1 (UI, ag-* stages; stops at gate G-B)
 - open: none
+
+## 2026-10-21T16:51:16.482470+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4e.1
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4e.1.json, harness/state/evidence/gates/4e.1/2026-10-21T16-49-11.884973+00-00-full.json
+- next: open task 4d.6 (refuse an answer to an ended run, G-B 3), then 4e.2
+- open: none
