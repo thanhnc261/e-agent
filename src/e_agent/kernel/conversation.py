@@ -207,9 +207,13 @@ class ConversationFlow:
             if not self._shadow:
                 raise
             code = failure_code(error)
-            if reply_to is not None:
-                return await self._plain_input(principal, reply_to, text, "answer", code)
-            return await self._unlinked(message, shadow_failed_event("start", code))
+            if reply_to is None:
+                return await self._unlinked(message, shadow_failed_event("start", code))
+            # Membership is unknown: the caller's own run is plain input; any other run is
+            # NOT_FOUND, never FORBIDDEN, before any replay check (plan invariant 5).
+            if await self._own_run(principal, reply_to.run_id) is None:
+                raise KernelError(ErrorCode.NOT_FOUND, NOT_FOUND_MESSAGE) from None
+            return await self._plain_input(principal, reply_to, text, "answer", code)
         if reply_to is not None:
             if reply_to.run_id not in {r.run_id for r in runs}:
                 if self._shadow and await self._own_unlinked(principal, reply_to.run_id):
@@ -288,14 +292,19 @@ class ConversationFlow:
         )
         return MessageRoute(kind=RouteKind.START, run_id=claimed), claimed
 
-    async def _own_unlinked(self, principal: Principal, run_id: str) -> bool:
-        """Whether ``run_id`` is the caller's own run outside any conversation (made by a
-        shadow fallback). Anything else, absent included, stays ``NOT_FOUND``."""
+    async def _own_run(self, principal: Principal, run_id: str) -> RunRecord | None:
+        """The caller's own run ``run_id`` in its tenant, or None (absent or another user's)."""
         try:
             run = await self._run_of(principal.tenant_id, run_id)
         except NotFound:
-            return False
-        return run.conversation_id is None and run.requester_id == principal.principal_id
+            return None
+        return run if run.requester_id == principal.principal_id else None
+
+    async def _own_unlinked(self, principal: Principal, run_id: str) -> bool:
+        """Whether ``run_id`` is the caller's own run outside any conversation (made by a
+        shadow fallback). Anything else, absent included, stays ``NOT_FOUND``."""
+        run = await self._own_run(principal, run_id)
+        return run is not None and run.conversation_id is None
 
     async def _plain_input(
         self, principal: Principal, reply_to: ReplyTo, text: str, stage: str, code: ErrorCode

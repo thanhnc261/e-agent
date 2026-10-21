@@ -476,18 +476,38 @@ async def test_shadow_message_without_reply_to_while_waiting_starts_unlinked(
     assert (still.state, still.revision) == (RunState.WAITING_INPUT, run.revision)
 
 
-async def test_shadow_stale_reply_to_still_conflicts(make_kernel: MakeKernel) -> None:
+async def test_shadow_stale_reply_to_still_conflicts(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Ruling 2: a ``reply_to`` for an earlier question is ``CONFLICT``, as ``/inputs`` gives
-    today; no run starts and nothing is recorded."""
+    today; no run starts anywhere (no store method that creates a run is called, linked or
+    not, and the message's key is unrecorded) and nothing is recorded."""
     k = _shadow(make_kernel, driver=ClarifyDriver())
     cid, q1 = await _waiting(k)
     n = q1.revision
     await _post(k, cid, "the standup note", reply_to=ReplyTo(run_id=q1.run_id, run_revision=n))
     q2 = await k.coordinator.continue_input(TENANT, q1.run_id)
     assert q2.state is RunState.WAITING_INPUT
+    created: list[str] = []
+    for name in ("create_run", "create_run_idempotent", "create_run_in_conversation"):
+
+        async def creates(*args: Any, _name: str = name, **kw: Any) -> Any:
+            created.append(_name)
+            raise AssertionError(f"{_name} called for a stale reply_to")
+
+        monkeypatch.setattr(k.store, name, creates)
     with pytest.raises(KernelError) as caught:
-        await _post(k, cid, "typed for Q1", reply_to=ReplyTo(run_id=q1.run_id, run_revision=n))
+        await _post(
+            k,
+            cid,
+            "typed for Q1",
+            reply_to=ReplyTo(run_id=q1.run_id, run_revision=n),
+            key="stale-1",
+        )
+    monkeypatch.undo()
     assert (caught.value.code, caught.value.safe_message) == (ErrorCode.CONFLICT, QUESTION_CHANGED)
+    assert created == []
+    assert await k.store.lookup_idempotent(TENANT, "alice", "stale-1") is None
     assert [r.run_id for r in await k.store.list_conversation_runs(TENANT, "alice", cid)] == [
         q1.run_id
     ]
@@ -712,6 +732,56 @@ async def test_shadow_conversation_error_falls_back_to_plain_input(
     (start_failed,) = _of(await _events(k, started), SHADOW_FAILED)
     _failed(start_failed, "start", ErrorCode.DEPENDENCY_UNAVAILABLE)
     assert "SECRET" not in json.dumps([e.payload for e in events])
+
+
+async def test_shadow_conversation_error_with_foreign_reply_to_is_not_found(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Plan invariant 5 (never ``FORBIDDEN``): when the conversation read fails, a
+    ``reply_to`` naming another user's run, or no run, is ``NOT_FOUND`` with the fixed
+    message of step (2), before any replay check, and that run receives nothing. The
+    caller's own run is still a plain ``accept_input``."""
+    k = _shadow(make_kernel, driver=ClarifyDriver())
+    cid, own = await _waiting(k)
+    carol = principal("carol", {"requester"})
+    carol_conv = await k.coordinator.create_conversation(carol)
+    _, carol_id = await _post(k, carol_conv.conversation_id, "carol's task", who=carol)
+    carol_run = await k.coordinator.start_admitted_run(TENANT, carol_id)
+    assert carol_run.state is RunState.WAITING_INPUT
+    replays: list[Any] = []
+    replayed = k.coordinator.input_replayed
+
+    async def spy(*args: Any, **kw: Any) -> bool:
+        replays.append(args[2])
+        return await replayed(*args, **kw)
+
+    async def down(*args: Any, **kw: Any) -> Any:
+        raise StoreDown("store down")
+
+    monkeypatch.setattr(k.coordinator, "input_replayed", spy)
+    monkeypatch.setattr(k.store, "list_conversation_runs", down)
+    messages = set()
+    for foreign in (
+        ReplyTo(run_id=carol_id, run_revision=carol_run.revision),
+        ReplyTo(run_id="run_absent", run_revision=1),
+    ):
+        with pytest.raises(KernelError) as caught:
+            await _post(k, cid, "the note", reply_to=foreign)
+        assert caught.value.code is ErrorCode.NOT_FOUND
+        messages.add(caught.value.safe_message)
+    assert messages == {"conversation not found"}
+    assert replays == []
+    route, run_id = await _post(
+        k, cid, "the note", reply_to=ReplyTo(run_id=own.run_id, run_revision=own.revision)
+    )
+    monkeypatch.undo()
+
+    assert (route.kind, run_id, replays) == (RouteKind.ANSWER, own.run_id, [own.run_id])
+    carol_events = await _events(k, carol_id)
+    assert not _of(carol_events, RunEventType.INPUT_RECEIVED)
+    assert not _of(carol_events, SHADOW_FAILED)
+    (failed,) = _of(await _events(k, own.run_id), SHADOW_FAILED)
+    _failed(failed, "answer", ErrorCode.DEPENDENCY_UNAVAILABLE)
 
 
 async def test_shadow_answer_fallback_is_one_write(
