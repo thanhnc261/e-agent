@@ -422,8 +422,70 @@ describe("citations and the explanation (ADR 0034 §3, §4)", () => {
     expect(byTest(container, "explain-list")).toHaveLength(0);
     expect(byTest(container, "explain-state")[0]!.getAttribute("data-state")).toBe("absent");
     details.open = true;
+    // Two toggle events before any re-render (a double open) still read the bundle once.
+    details.dispatchEvent(new Event("toggle"));
     details.dispatchEvent(new Event("toggle"));
     expect(loads()).toBe(1);
+  });
+
+  it("a verified answer's free-text field is never labelled verified", () => {
+    // ADR 0034 §4: a free-text answer field such as `explanation` is never presented as
+    // verified. The server labels no argument, so the values section claims no verification;
+    // what was verified stays in the independent checks.
+    const words = "Offer O-SAMPLE-2 is cheapest because the supplier is reliable.";
+    for (const [locale, verified] of [
+      ["en", /verif/i],
+      ["vi", /xác minh/i],
+    ] as const) {
+      const c = controller({ bundle: null, reasonCode: "verified", locale });
+      const base = c.controller.getState();
+      const events = [
+        ...base.view.events,
+        event(4, "outcome.reported", {
+          action_id: "a-answer",
+          status: "VERIFIED",
+          checks: [{ name: "offer_is_eligible", passed: true, observed: "eligible" }],
+        }),
+      ];
+      const state = {
+        ...base,
+        view: {
+          ...base.view,
+          events,
+          lastSequence: events.length,
+          actions: [
+            {
+              action_id: "a-answer",
+              contract_id: "procurement.offer.recommend.v1",
+              state: "VERIFIED",
+              arguments: { offer_ref: "O-SAMPLE-2", explanation: words },
+            },
+          ],
+        },
+      } as unknown as ControllerState;
+      const live = { ...c.controller, getState: () => state } as unknown as RunController;
+      const { container } = render(
+        <RunProvider controller={live}>
+          <OutcomePanel />
+        </RunProvider>,
+      );
+      // The free text is shown, and no section around it carries a verified label.
+      const value = [...container.querySelectorAll("dd")].find(dd => dd.textContent === words);
+      expect(value, locale).toBeDefined();
+      for (let node: Element | null = value!; node && node !== container; node = node.parentElement) {
+        if (node.tagName === "DETAILS") {
+          const summary = node.querySelector(":scope > summary")!.textContent ?? "";
+          expect(summary, locale).toBe(translate(locale, "outcome.values"));
+          expect(summary, locale).not.toMatch(verified);
+        }
+        const term = node.tagName === "DIV" ? node.querySelector(":scope > dt") : null;
+        if (term) expect(term.textContent, locale).not.toMatch(verified);
+      }
+      // What was verified is still said, in the independent checks.
+      expect(byTest(container, "outcome-check")).toHaveLength(1);
+      expect(container.textContent).toContain(translate(locale, "outcome.checks"));
+      cleanup();
+    }
   });
 
   it("the activity offers the explanation for the attached run only", () => {
