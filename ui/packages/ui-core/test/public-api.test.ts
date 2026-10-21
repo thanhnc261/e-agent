@@ -13,6 +13,7 @@ describe("public ui-core exports", () => {
       "DIGEST_PROFILE",
       "DISCOVERY_SCHEMA_VERSION",
       "EVIDENCE_SCHEMA",
+      "HIDDEN_EVENT_TYPES",
       "KNOWN_EVENT_TYPES",
       "RESULT_STATES",
       "RunController",

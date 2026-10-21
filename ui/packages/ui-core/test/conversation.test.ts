@@ -16,7 +16,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import { RunController, selectViewMode } from "../src/controller.ts";
 import { translate, translateServerHint } from "../src/i18n.ts";
-import { selectThread } from "../src/store.ts";
+import { emptyRunView, HIDDEN_EVENT_TYPES, reduceRunView, selectThread, selectTimeline } from "../src/store.ts";
 import { presentation } from "./fixtures.ts";
 
 type Mode = "off" | "shadow" | "on";
@@ -559,6 +559,109 @@ describe("conversation state behind features.conversations", () => {
       ["Hello.", true],
       ["Anything else?", false],
     ]);
+    c.dispose();
+  });
+});
+
+describe("conversation state, fix round 1 (review 4e.3)", () => {
+  it("in on, an answer to an unlinked run that waits for input goes to /inputs and makes no conversation", async () => {
+    const { server, client, controller } = fake("on");
+    server.runs["legacy-1"] = runSnap("legacy-1", "WAITING_INPUT", 4, { conversationId: null, task: "restock hinge H-3" });
+    const c = controller();
+    await c.init();
+    await c.attach("legacy-1");
+    expect(c.getState().conversationId).toBeNull();
+    expect(await c.start("40")).toBe(true);
+    expect(client.submitInput).toHaveBeenCalledTimes(1);
+    expect(client.submitInput).toHaveBeenCalledWith("legacy-1", "40", 4);
+    expect(client.createConversation).not.toHaveBeenCalled();
+    expect(client.postMessage).not.toHaveBeenCalled();
+    expect(client.createRun).not.toHaveBeenCalled();
+    expect(c.getState().conversationId).toBeNull();
+    c.dispose();
+  });
+
+  it("hidden conversation events show no row, need no snapshot and still advance lastSequence", () => {
+    expect([...HIDDEN_EVENT_TYPES].sort()).toEqual([
+      "conversation.compared",
+      "conversation.context_carried",
+      "conversation.shadow_failed",
+    ]);
+    const baseline = reduceRunView(emptyRunView, {
+      type: "events",
+      events: [
+        evt("run-1", 1, "run.created", { task: "restock" }),
+        evt("run-1", 2, "run.state_changed", { from: "CREATED", to: "RUNNING" }),
+        evt("run-1", 3, "read.recorded", { contract_id: "procurement.demand.read.v1" }),
+      ],
+    });
+    const shadow = reduceRunView(emptyRunView, {
+      type: "events",
+      events: [
+        evt("run-1", 1, "run.created", { task: "restock" }),
+        evt("run-1", 2, "conversation.compared", { conversation_id: "conv-1", route: "start", carried_run_ids: [], items: 0 }),
+        evt("run-1", 3, "run.state_changed", { from: "CREATED", to: "RUNNING" }),
+        evt("run-1", 4, "conversation.shadow_failed", { stage: "carry", code: "CONFLICT" }),
+        evt("run-1", 5, "conversation.context_carried", { conversation_id: "conv-1", carried_run_ids: ["run-0"] }),
+        evt("run-1", 6, "read.recorded", { contract_id: "procurement.demand.read.v1" }),
+      ],
+    });
+    const rows = (view: typeof shadow) => selectTimeline(view).map(r => [r.type, r.labelKey, r.detail, r.supported]);
+    expect(rows(shadow)).toEqual(rows(baseline));
+    expect(shadow.unsupportedEvents).toBe(0);
+    expect(shadow.needsSnapshot).toBe(false);
+    expect(shadow.lastSequence).toBe(6);
+    expect(shadow.events).toHaveLength(6);
+    // The next event after a hidden one is in order: no gap is invented.
+    const next = reduceRunView(shadow, { type: "events", events: [evt("run-1", 7, "validation.completed", { status: "PASS" })] });
+    expect(next.lastSequence).toBe(7);
+    expect(next.needsSnapshot).toBe(false);
+  });
+
+  it("a hidden conversation event on the stream causes no extra snapshot read", async () => {
+    const { server, client, controller, emit } = fake("shadow");
+    server.runs["run-1"] = runSnap("run-1", "RUNNING", 1, { conversationId: "conv-1", task: "restock" });
+    const c = controller();
+    await c.init();
+    expect(await c.start("restock")).toBe(true);
+    const reads = client.getRun.mock.calls.length;
+    emit(evt("run-1", 1, "conversation.compared", { conversation_id: "conv-1", route: "start" }));
+    expect(client.getRun.mock.calls.length).toBe(reads);
+    expect(c.getState().view.lastSequence).toBe(1);
+    expect(selectTimeline(c.getState().view)).toEqual([]);
+    c.dispose();
+  });
+
+  it("a pending conversation message refuses a different text and survives New task", async () => {
+    const { server, client, controller } = fake("shadow");
+    server.runs["run-1"] = runSnap("run-1", "RUNNING", 1, { conversationId: "conv-1", task: "restock A" });
+    const c = controller();
+    await c.init();
+    client.postMessage.mockRejectedValueOnce(new TypeError("network"));
+    expect(await c.start("restock A")).toBe(false);
+    // The first post may have been committed: another text is refused locally, as on the legacy path.
+    c.setDraft("restock A, 10 units");
+    expect(await c.start("restock A, 10 units")).toBe(false);
+    expect(c.getState().error).toBe(translate("en", "error.pending"));
+    expect(c.getState().draft).toBe("restock A, 10 units");
+    expect(client.postMessage).toHaveBeenCalledTimes(1);
+    // New task does not drop it: the same text still recovers it, to its conversation, under its key.
+    c.newTask();
+    expect(await c.start("restock B")).toBe(false);
+    expect(c.getState().error).toBe(translate("en", "error.pending"));
+    expect(await c.start("restock A")).toBe(true);
+    expect(client.postMessage).toHaveBeenCalledTimes(2);
+    expect(client.postMessage.mock.calls[1]?.[0]).toBe(client.postMessage.mock.calls[0]?.[0]);
+    expect(client.postMessage.mock.calls[1]?.[1]).toEqual(client.postMessage.mock.calls[0]?.[1]);
+    expect(client.postMessage.mock.calls[1]?.[2]).toBe(client.postMessage.mock.calls[0]?.[2]);
+    expect(client.createConversation).toHaveBeenCalledTimes(1);
+    expect(c.getState().conversationId).toBe("conv-1");
+    // Once recovered, a new text is a new message.
+    client.postMessage.mockResolvedValueOnce({ route: "start", run_id: "run-1" });
+    server.runs["run-1"] = runSnap("run-1", "SUCCEEDED", 2, { conversationId: "conv-1", task: "restock A" });
+    await c.refresh();
+    expect(await c.start("restock B")).toBe(true);
+    expect(client.postMessage.mock.calls[2]?.[2]).not.toBe(client.postMessage.mock.calls[0]?.[2]);
     c.dispose();
   });
 });

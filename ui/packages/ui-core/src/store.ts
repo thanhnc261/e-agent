@@ -5,7 +5,19 @@
  */
 import type { ActionSummary, ConversationSnapshot, RunEvent, RunRecord, RunSnapshot, TextFrame } from "@e-agent/client";
 
+/**
+ * Conversation bookkeeping (ADR 0023 §11): ids, counts and digests the server records for
+ * comparison and evidence. They are known, kept in the view and advance its sequence, so gap
+ * detection still holds, but no timeline row shows them: `shadow` keeps today's view.
+ */
+export const HIDDEN_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "conversation.compared",
+  "conversation.context_carried",
+  "conversation.shadow_failed",
+]);
+
 export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
+  ...HIDDEN_EVENT_TYPES,
   "run.created",
   "run.state_changed",
   "read.recorded",
@@ -168,7 +180,8 @@ export function selectTimeline(view: RunView): TimelineItem[] {
   // The kind of the last recorded request, and whether the current wait is on a reply.
   let lastRequest: string | null = null;
   let waitingOnReply = false;
-  return view.events.map((e) => {
+  const shown = view.events.filter(e => !(e.schema_version === "1" && HIDDEN_EVENT_TYPES.has(e.type as string)));
+  return shown.map((e) => {
     const type = e.type as string;
     const supported = e.schema_version === "1" && KNOWN_EVENT_TYPES.has(type);
     const p = e.payload ?? {};

@@ -11,6 +11,7 @@ import {
   type EAgentClient,
   type FeatureMode,
   type HostContext,
+  type PostMessage,
   type ReplyTo,
   type RunEvent,
 } from "@e-agent/client";
@@ -158,7 +159,7 @@ export class RunController {
    * written to browser storage), so the user's own resend reuses its key and the server
    * replays it; the UI itself never re-posts.
    */
-  private pendingMessage: { text: string; key: string; conversationId: string } | null = null;
+  private pendingMessage: { text: string; key: string; conversationId: string; body: PostMessage } | null = null;
   /** False once a conversation route answered "not mounted": an older server. */
   private routesMounted = true;
   /** Thread runs whose events were read after they ended; they do not change any more. */
@@ -338,28 +339,40 @@ export class RunController {
   private async sendMessage(text: string, mode: "shadow" | "on"): Promise<boolean> {
     const run = this.state.view.run;
     const runId = this.state.runId;
-    const replyTo: ReplyTo | null =
-      run && runId && run.run_id === runId && run.state === "WAITING_INPUT"
-        ? { run_id: runId, run_revision: run.revision }
-        : null;
-    let conversationId = this.state.conversationId;
+    const unresolved = this.pendingMessage;
+    if (unresolved && unresolved.text !== text) {
+      // The lost message may have been committed: another text waits until it is recovered,
+      // as on the legacy path (PR-18). Its draft is kept.
+      this.set({ error: translate(this.state.locale, "error.pending") });
+      return false;
+    }
+    const waiting = !!run && !!runId && run.run_id === runId && run.state === "WAITING_INPUT";
+    if (!unresolved && waiting && mode === "on" && !run?.conversation_id) {
+      // A legacy run, outside every conversation: today's /inputs answers it and starts
+      // nothing, so no conversation is made up for it (ADR 0023 §10, D11).
+      return this.startLegacy(text);
+    }
+    let conversationId = unresolved?.conversationId ?? this.state.conversationId;
     let posted: { route: "start" | "answer"; run_id: string };
     try {
-      if (!conversationId) {
-        conversationId = (await this.client.createConversation()).conversation_id;
-        this.useConversation(conversationId);
+      let pending = unresolved;
+      if (!pending) {
+        if (!conversationId) {
+          conversationId = (await this.client.createConversation()).conversation_id;
+          this.useConversation(conversationId);
+        }
+        const replyTo: ReplyTo | null = waiting && run ? { run_id: run.run_id, run_revision: run.revision } : null;
+        const body: PostMessage = {
+          text,
+          reply_to: replyTo,
+          host_context: replyTo ? null : (this.hostContext?.() ?? null),
+        };
+        pending = { text, conversationId, key: newIdempotencyKey(), body };
+        this.pendingMessage = pending;
       }
-      const reuse = this.pendingMessage;
-      const pending =
-        reuse && reuse.text === text && reuse.conversationId === conversationId
-          ? reuse
-          : { text, conversationId, key: newIdempotencyKey() };
-      this.pendingMessage = pending;
-      posted = await this.client.postMessage(
-        conversationId,
-        { text, reply_to: replyTo, host_context: replyTo ? null : (this.hostContext?.() ?? null) },
-        pending.key,
-      );
+      // A resend of a lost message repeats its exact body, conversation and key.
+      conversationId = pending.conversationId;
+      posted = await this.client.postMessage(pending.conversationId, pending.body, pending.key);
       this.pendingMessage = null;
     } catch (err) {
       if (isNotMounted(err)) {
@@ -466,7 +479,7 @@ export class RunController {
   private useConversation(conversationId: string | null): void {
     if (conversationId === this.state.conversationId) return;
     this.settledRuns.clear();
-    this.pendingMessage = null;
+    // A pending message is kept: it may have been committed, and only its resend recovers it.
     this.set({ conversationId, thread: emptyThread, refusal: null });
   }
 
