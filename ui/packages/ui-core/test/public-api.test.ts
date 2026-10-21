@@ -47,10 +47,13 @@ describe("public ui-core exports", () => {
       "selectEvidence",
       "selectOutcome",
       "selectPendingReply",
+      "selectThread",
       "selectTimeline",
       "selectVerifiedResults",
+      "selectViewMode",
       "statusKey",
       "translate",
+      "translateServerHint",
       "verifyDigest",
     ]);
   });

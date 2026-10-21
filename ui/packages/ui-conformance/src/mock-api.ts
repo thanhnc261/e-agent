@@ -4,11 +4,23 @@
  * after_sequence, and some responses overlap on purpose to exercise dedup.
  */
 import type { Page, Route } from "@playwright/test";
-import type { ApprovalPresentation, RunEvent, RunSnapshot, TextFrame } from "@e-agent/client";
+import type {
+  ApprovalPresentation,
+  ConversationSnapshot,
+  ConversationSummary,
+  FeatureMode,
+  RunEvent,
+  RunSnapshot,
+  TextFrame,
+} from "@e-agent/client";
 import { canonicalize } from "@e-agent/ui-core";
 import { createHash } from "node:crypto";
 
 export const RUN_ID = "run-conformance-1";
+export const CONVERSATION_ID = "conv-conformance-1";
+/** The server's fixed refusal hints (ADR 0023 §4). */
+export const HINT_BUSY = "wait, decide the approval, or stop the run";
+export const HINT_QUESTION_CHANGED = "the question changed; read it again";
 
 export function digestOf(value: unknown): string {
   return `jcs-sha256-v1:${createHash("sha256").update(canonicalize(value), "utf8").digest("hex")}`;
@@ -124,6 +136,22 @@ export class MockApi {
   /** Evidence bundle served by GET /evidence; override to script missing provenance. */
   evidence: Record<string, unknown> = { schema: "e-agent-evidence-v1" };
   createRuns = 0;
+  /**
+   * `GET /v1/me/features` (ADR 0023 §10). `off` by default, so every per-run spec runs
+   * today's path; `null` makes the route answer FastAPI's own 404 (an older server).
+   */
+  features: FeatureMode | null = "off";
+  /** False makes every conversation route "not mounted": a plain 404, or 405 for a POST. */
+  conversationRoutesMounted = true;
+  /** The run's conversation, once a message started it there; null is an unlinked run. */
+  runConversation: string | null = null;
+  /** Rows of `GET /v1/conversations`, newest first, as the server orders them. */
+  conversationList: ConversationSummary[] = [];
+  /** Set to a hint to refuse the next messages with `CONFLICT` (ADR 0023 §4). */
+  refuseMessages: string | null = null;
+  readonly conversations = new Set<string>();
+  readonly messages: { conversationId: string; body: Record<string, unknown>; key: string | undefined }[] =
+    [];
   snapshotReads = 0;
   streamOpens = 0;
   /** Max events per stream response; the response then ends (a dropped stream). */
@@ -181,10 +209,38 @@ export class MockApi {
         logical_operation_id: "op-1",
         created_at: "2026-10-06T00:00:00Z",
         reason: null,
+        conversation_id: this.runConversation,
       },
       latest_sequence: this.events.length,
       actions: [],
       pending_approval: this.state === "WAITING_APPROVAL" ? this.pending : null,
+    };
+  }
+
+  conversationSnapshot(conversationId: string): ConversationSnapshot {
+    const runs =
+      this.runConversation === conversationId
+        ? [
+            {
+              run_id: RUN_ID,
+              task: "restock",
+              state: this.state,
+              reason_code: null,
+              revision: this.pending?.run_revision ?? 1,
+              created_at: "2026-10-06T00:00:00Z",
+            },
+          ]
+        : [];
+    return {
+      conversation: {
+        conversation_id: conversationId,
+        tenant_id: "tenant",
+        owner_id: "operator",
+        revision: runs.length,
+        created_at: "2026-10-06T00:00:00Z",
+        updated_at: "2026-10-06T00:00:00Z",
+      },
+      runs,
     };
   }
 
@@ -207,6 +263,14 @@ export class MockApi {
     if (method === "POST" && path === "/v1/runs") {
       this.createRuns += 1;
       return this.json(route, { run_id: RUN_ID, created: this.createRuns === 1 }, 202);
+    }
+    if (method === "GET" && path === "/v1/me/features") {
+      return this.features
+        ? this.json(route, { conversations: this.features })
+        : this.json(route, { detail: "Not Found" }, 404);
+    }
+    if (path === "/v1/conversations" || path.startsWith("/v1/conversations/")) {
+      return this.handleConversation(route, method, path);
     }
     if (method === "GET" && path === "/v1/me/connections") {
       return this.connections
@@ -265,5 +329,44 @@ export class MockApi {
     }
     if (method === "GET" && sub === "/evidence") return this.json(route, this.evidence);
     return this.json(route, { code: "NOT_FOUND", message: "not found" }, 404);
+  }
+
+  /** The conversation routes of 4d.4, with the server's envelope on every e-agent error. */
+  private async handleConversation(route: Route, method: string, path: string): Promise<void> {
+    const req = route.request();
+    if (!this.conversationRoutesMounted) {
+      // An older server: FastAPI's own 404, or the static mount's plain-text 405 for a POST.
+      return method === "POST"
+        ? route.fulfill({ status: 405, contentType: "text/plain", body: "Method Not Allowed" })
+        : this.json(route, { detail: "Not Found" }, 404);
+    }
+    const envelope = (status: number, code: string, message: string) =>
+      this.json(route, { code, message, correlation_id: "corr-conformance" }, status);
+    if (this.features === "off") return envelope(404, "NOT_FOUND", "conversations are off");
+    if (method === "POST" && path === "/v1/conversations") {
+      this.conversations.add(CONVERSATION_ID);
+      return this.json(route, { conversation_id: CONVERSATION_ID }, 201);
+    }
+    if (method === "GET" && path === "/v1/conversations") {
+      return this.json(route, { items: this.conversationList, next_after: null });
+    }
+    const m = /^\/v1\/conversations\/([^/]+)(\/messages)?$/.exec(path);
+    const conversationId = m?.[1] ? decodeURIComponent(m[1]) : null;
+    if (!m || !conversationId || !this.conversations.has(conversationId))
+      return envelope(404, "NOT_FOUND", "not found");
+    if (method === "GET" && !m[2]) return this.json(route, this.conversationSnapshot(conversationId));
+    if (method !== "POST" || !m[2]) return envelope(404, "NOT_FOUND", "not found");
+    const body = req.postDataJSON() as Record<string, unknown>;
+    this.messages.push({ conversationId, body, key: req.headers()["idempotency-key"] });
+    if (this.refuseMessages) return envelope(409, "CONFLICT", this.refuseMessages);
+    if (body["reply_to"]) {
+      this.state = "RUNNING";
+      this.emit("input.received", { input: String(body["text"] ?? "") });
+      this.emit("run.state_changed", { from: "WAITING_INPUT", to: "RUNNING" });
+      return this.json(route, { route: "answer", run_id: RUN_ID }, 202);
+    }
+    this.createRuns += 1;
+    this.runConversation = conversationId;
+    return this.json(route, { route: "start", run_id: RUN_ID }, 202);
   }
 }

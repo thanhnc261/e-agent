@@ -104,6 +104,10 @@ const en = {
   "messages.question": "A detail is needed to continue",
   "conversation.reply": "Reply · not a verified result",
   "conversation.replyNote": "not verified",
+  "conversation.refusedBusy": "This conversation is busy. Wait, decide the approval, or stop the task.",
+  "conversation.refusedQuestion": "The question changed. Read it again before answering.",
+  "conversation.notSent": "This message could not be sent. Your text is kept and was not sent again.",
+  "conversation.featuresFailed": "Conversations could not be loaded, so this message was not sent. Your text is kept.",
   "messages.progress": "Working on your task",
   "approval.kicker": "YOUR DECISION",
   "approval.description": "Check every detail below before approving.",
@@ -375,6 +379,10 @@ const vi: Record<MessageKey, string> = {
   "messages.question": "Cần thêm thông tin để tiếp tục",
   "conversation.reply": "Trả lời · không phải kết quả đã xác minh",
   "conversation.replyNote": "chưa xác minh",
+  "conversation.refusedBusy": "Cuộc trò chuyện đang bận. Hãy chờ, quyết định phê duyệt, hoặc dừng tác vụ.",
+  "conversation.refusedQuestion": "Câu hỏi đã thay đổi. Hãy đọc lại trước khi trả lời.",
+  "conversation.notSent": "Không gửi được tin nhắn này. Nội dung vẫn được giữ và chưa được gửi lại.",
+  "conversation.featuresFailed": "Không tải được cuộc trò chuyện, nên tin nhắn này chưa được gửi. Nội dung của bạn vẫn được giữ.",
   "messages.progress": "Đang xử lý yêu cầu",
   "approval.kicker": "QUYẾT ĐỊNH CỦA BẠN",
   "approval.description": "Kiểm tra đầy đủ các chi tiết dưới đây trước khi phê duyệt.",
@@ -549,6 +557,20 @@ export function resolveLocale(preferred: string | null | undefined): Locale {
 export function translate(locale: Locale, key: string): string {
   const catalog = catalogs[locale];
   return (catalog as Record<string, string>)[key] ?? (en as Record<string, string>)[key] ?? key;
+}
+
+/**
+ * The server's fixed refusal hints (ADR 0023 §4), shown in the user's language. A hint the
+ * UI does not know is shown exactly as the server wrote it, never replaced or dropped.
+ */
+const SERVER_HINTS: ReadonlyMap<string, MessageKey> = new Map([
+  ["wait, decide the approval, or stop the run", "conversation.refusedBusy"],
+  ["the question changed; read it again", "conversation.refusedQuestion"],
+]);
+
+export function translateServerHint(locale: Locale, message: string): string {
+  const key = SERVER_HINTS.get(message);
+  return key ? translate(locale, key) : message;
 }
 
 export function catalogKeys(locale: Locale): string[] {

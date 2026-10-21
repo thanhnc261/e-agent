@@ -3,7 +3,7 @@
  * events are ordered deltas deduplicated by ``sequence``. A gap or an unknown event
  * type never guesses: it asks the controller for a fresh snapshot.
  */
-import type { ActionSummary, RunEvent, RunRecord, RunSnapshot, TextFrame } from "@e-agent/client";
+import type { ActionSummary, ConversationSnapshot, RunEvent, RunRecord, RunSnapshot, TextFrame } from "@e-agent/client";
 
 export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
   "run.created",
@@ -227,6 +227,63 @@ export function selectConversation(view: RunView): ConversationItem[] {
     const firstReply = kind === "reply" && !seenReply;
     if (kind === "reply") seenReply = true;
     return [{ id: e.event_id, role: e.type === "input.received" ? "user" as const : "agent" as const, text, pending: e.type === "input.requested" && text === view.question, kind, firstReply }];
+  });
+}
+
+/** What a thread is built from: the server's conversation snapshot and its runs' events. */
+export interface ThreadSource {
+  snapshot: ConversationSnapshot | null;
+  /** Event views of the thread's runs other than the active one, keyed by run id. */
+  runs: Readonly<Record<string, RunView>>;
+}
+
+/** One run of a conversation thread, with its messages, as the server recorded them. */
+export interface ThreadRunEntry {
+  runId: string;
+  /** The message that started the run, as the server stored it. */
+  task: string;
+  state: RunRecord["state"];
+  reasonCode: RunRecord["reason_code"] | null;
+  /** The revision shown with the run; an answer's `reply_to` carries it. */
+  revision: number;
+  createdAt: string;
+  /** The conversation's latest run: the one a new message goes to. */
+  latest: boolean;
+  /** False when the run's events could not be read yet: its messages are unknown, not none. */
+  loaded: boolean;
+  messages: ConversationItem[];
+}
+
+/**
+ * The conversation thread (ADR 0023, ADR 0034): the snapshot's runs, oldest first, each with
+ * the messages of its own events. The active run's view is the controller's `view`, so a
+ * thread never holds a second copy of it, and a sent message appears only once the server's
+ * snapshot or events have it (AG-FE-2, EA-1). The reply label goes on the first reply of the
+ * whole conversation (4b.2, extended to a thread).
+ */
+export function selectThread(source: ThreadSource, active: { runId: string | null; view: RunView }): ThreadRunEntry[] {
+  const runs = source.snapshot?.runs ?? [];
+  let seenReply = false;
+  return runs.map((row, index) => {
+    const live = active.runId === row.run_id && active.view.run?.run_id === row.run_id ? active.view : null;
+    const view = live ?? source.runs[row.run_id] ?? null;
+    const messages = (view ? selectConversation(view) : []).map(message => {
+      const firstReply = message.kind === "reply" && !seenReply;
+      if (message.kind === "reply") seenReply = true;
+      return { ...message, firstReply };
+    });
+    const run = live?.run ?? null;
+    return {
+      runId: row.run_id,
+      task: row.task,
+      state: run?.state ?? row.state,
+      reasonCode: (run ? run.reason_code : row.reason_code) ?? null,
+      revision: run?.revision ?? row.revision,
+      createdAt: row.created_at,
+      latest: index === runs.length - 1,
+      loaded: view !== null,
+      messages,
+    };
   });
 }
 

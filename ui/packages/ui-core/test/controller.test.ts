@@ -8,6 +8,8 @@ function fakeClient(snap: () => Promise<ReturnType<typeof snapshot>>) {
   const client = {
     hasSession: true,
     startLocalSession: vi.fn(),
+    // Today's server: conversations are off, so every test here runs the per-run path.
+    myFeatures: vi.fn(async () => ({ conversations: "off" as const })),
     createRun: vi.fn(async () => ({ run_id: "run-1", created: true })),
     getRun: vi.fn(async () => snap()),
     listEvents: vi.fn(async (): Promise<ReturnType<typeof ev>[]> => []),
