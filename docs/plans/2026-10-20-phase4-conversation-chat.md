@@ -709,8 +709,16 @@ Every task here reads `ag-ux-foundations` first and cites AG and EA criteria by 
 - [ ] Build the mockup with `ag-ux-mockup`: every normative state of the brief with labelled samples, 2–3 comparable directions on the same scenario, a stop control in every state (AG-CTRL-1), and the closable artifact workspace (EA-10).
 - [ ] Run `node research/mockups/conversation-thread-v<N>/verify.mjs`; expected: every state checked, with the output in the QA file.
 - [ ] Self-review the screenshots with the `ag-ux-review` rubric; open findings go in the QA file.
-- [ ] The owner selects a direction (G-C). Record it in the QA file.
-- [ ] Commit `docs(research): conversation thread mockup (G-C)`.
+- [x] The owner selects a direction (G-C). `research/**` is create-only, so the QA file's Selection still reads "awaiting G-C"; this line and the 4e.2 handoff are the record.
+  - **G-C (2026-10-22), owner-delegated.** Asked "Reply 'advisor' if you want the advisor to decide G-C as well", the owner answered verbatim: "Advisor".
+  - The advisor chose variant **A1 as rendered**:
+    1. A1;
+    2. the refusal hint sits inside the composer, above the kept draft;
+    3. ended runs keep their messages;
+    4. the desktop workspace is medium width, about 40 %;
+    5. when the workspace is closed, the run card and the stop slot carry the status;
+    6. run cards are compact: status, one result line, Open.
+- [x] Commit `docs(research): conversation thread mockup (G-C)` (922d793c).
 
 ### Task 4e.3: ui-core conversation state
 
