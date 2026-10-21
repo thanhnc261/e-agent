@@ -13,6 +13,9 @@ the model's choice of task: it composes the plugin's own scripted procurement dr
 shortage answer and the draft PO, default refs) by the run's task text, and keeps every driver
 input so the tests can read the packs the model would see. It keeps no state between turns.
 
+Shadow with ``context_assembler`` ``off`` is not covered here; only the live check's item 7
+covers it (T5-3).
+
 Every test runs on both stores: ``E_AGENT_TEST_STORE=postgres`` gives the server a
 PostgreSQL ledger at ``E_AGENT_TEST_PG_DSN``, truncated per app (ENG-STORE-1, PL-5).
 """
@@ -149,6 +152,13 @@ def _first_run(api: Api, cid: str) -> dict[str, Any]:
     return done
 
 
+def _carried_line(run_id: str, pointer: str, name: str, value: str) -> str:
+    """One carried value as ``render_carried`` writes it (stripped of its indent): the name,
+    then the value fenced as data with its source ``carried:<run>#<pointer>``."""
+    source = f"carried:{run_id}#{pointer}"
+    return f'{name}: <untrusted-data source="{source}">"{value}"</untrusted-data>'
+
+
 def _verified_answer(api: Api, run_id: str) -> Any:
     (answer,) = [a for a in _actions(api, run_id) if a.contract_id == SHORTAGE_ANSWER]
     assert answer.state == "VERIFIED", answer.state
@@ -227,9 +237,18 @@ def test_two_run_thread_carries_first_run_findings(
         assert opening.observations == () and opening.context is not None
         packs = driver.packs(second)
         assert packs[0] is opening.context
+        # the whole rendered element of each answer path, apart from the demand read's ref
+        run1 = first["run_id"]
+        answer_lines = {
+            _carried_line(run1, "/answers/0/arguments/shortage", '"shortage"', shortage),
+            _carried_line(run1, "/answers/0/arguments/demand_ref", '"demand_ref"', demand_ref),
+        }
+        (at,) = [n for n, r in enumerate(item.refs) if r.contract_id == DEMAND_READ]
+        ref_line = _carried_line(run1, f"/refs/{at}/source_ref", "source_ref", demand_ref)
         for pack in packs:  # every pack of run 2 renders it
-            layer = pack.dynamic_suffix[ContextLayer.RECENT_TURNS]
-            assert first["run_id"] in layer and demand_ref in layer and shortage in layer
+            lines = pack.dynamic_suffix[ContextLayer.RECENT_TURNS].splitlines()
+            assert answer_lines <= {line.strip() for line in lines}, lines
+            assert ref_line in {line.strip() for line in lines}, lines
 
         # run 2 never re-asks: no question event at all, so none names the shortage
         assert not _of(api, second, "input.requested")
