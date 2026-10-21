@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-4d-1"
   ],
-  "context_digest": "a02a44359279643ef79ecf481f58ef899cf4bec87aa68180e6868ffeabfcaa24",
+  "context_digest": "907e365ff6d5adaa00d1843e6eebff9a99e5069b968641b8fc316c80bb19152a",
   "allowed_paths": [
     "src/e_agent/kernel/conversation.py",
     "src/e_agent/kernel/run_loop.py",

@@ -1,0 +1,42 @@
+{
+  "task": "4d.1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "A1-1",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "A concurrent retry of a start can get CONFLICT instead of the replay. In post_message, step (0) lookup_idempotent and the later get_conversation/list_conversation_runs are separate reads with nothing tying them together. Take two requests A and B with the same Idempotency-Key and digest. B misses at (0) because A has not committed yet. A then commits, so B's list_conversation_runs sees A's CREATED run. _latest returns it, route_message returns REFUSE WAIT_FOR_RUN, and B raises CONFLICT 'wait, decide the approval, or stop the run'. B never reaches create_run_in_conversation, whose under-lock idempotency re-check exists so that a retried start replays while the first run is still active (ADR 0023 section 3). This breaks the rule that a same-digest hit returns the original (start, run_id) whatever state that run is in (section 4 step (0)), and the brief's 'no CONFLICT' for test_retried_message_starts_one_run. It fails closed: there is no second run, no write and no leak, so the severity is Low. test_retried_message_starts_one_run is sequential and cannot see this window. Fix: in the REFUSE branch, call lookup_idempotent once more before raising. A hit with the same digest returns (START, recorded run_id), a hit with another digest is CONFLICT KEY_REUSED, and a miss raises the route's hint. That is one extra read, on the refuse path only. Test on both stores without threads: post once (run 1 CREATED or RUNNING), make store.lookup_idempotent return None on its next call only, post again with the same key and digest, then assert (START, run 1) and one linked run.",
+      "evidence": "src/e_agent/kernel/conversation.py post_message: the lookup_idempotent call at step (0), then the route.kind is RouteKind.REFUSE branch that raises KernelError(CONFLICT, route.hint) before self._admit; docs/adr/0023-conversation-model.md section 3 (store replay sentence) and section 4 'Order of checks' (0); brief task-4d.1-brief.md test_retried_message_starts_one_run ('no CONFLICT'); PR-17; ENG-TRUST"
+    },
+    {
+      "id": "A1-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Item 9, the reviewer's view; not a defect. A reply_to that names a run of this conversation, with no matching replay, while the latest run is terminal is routed to START. The answer text then becomes a new run's task. The ADR section 4 table row ('none, or SUCCEEDED, FAILED, CANCELLED | any | start') allows this, and nothing is bypassed: the new run still goes through admission, a new approval digest and verification. Still, a fail-closed CONFLICT 'the question changed; read it again' whenever reply_to is set and no replay matches is the safer reading of 'an answer is bound to the question the user saw'. It costs the user one round trip, and it stops an answer like 'yes', typed for a run that was then cancelled, from spending a model call and budget as a task. The brief describes start as '(no reply_to, latest run terminal or none)', which is narrower than the ADR's 'any'. The owner should settle this tension in one place, the ADR section 4 table row, before 4d.4 ships the route.",
+      "evidence": "src/e_agent/kernel/conversation.py route_message, first branch (latest is None or terminal -> START regardless of reply_to); docs/adr/0023-conversation-model.md section 4 table, first row; .superpowers/sdd/2026-10-20-phase4-conversation-chat/task-4d.1-brief.md line 15"
+    },
+    {
+      "id": "A1-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Ruling R2 (latest = the active run if any, else the last listed) is correct. With one active run per conversation, enforced under the store's lock, an active run was always created after every terminal one, so _latest is deterministic when an active run exists. With no active run, every terminal choice routes to START. That matches route_message's contract. test_latest_run_does_not_depend_on_created_at_order is honest: the frozen clock plus the patched run ids force the active run to sort first, and runs[-1] would route the answer as a start, which the store then refuses. However, the ruling is recorded only in the private _latest docstring and the SDD report. The 4d.3 shadow comparison has to use the same rule, or conversation.compared will diverge in the equal-created_at case. Record R2 on the plan's 4d.1 line or in ADR section 4, as R1 was, and make the helper public (e.g. latest_run) for 4d.3.",
+      "evidence": "src/e_agent/kernel/conversation.py _latest; tests/unit/kernel/test_conversation_routing.py:522-544; docs/plans/2026-10-20-phase4-conversation-chat.md 4d.1 Files line (R1 only)"
+    },
+    {
+      "id": "A1-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "test_new_run_cannot_reuse_an_earlier_approval proves what the brief asks: a distinct action_id, a distinct digest (digest_input binds the per-run logical_operation_id), no approval rows for action 2, and run 2 in WAITING_APPROVAL. Run 1 is never approved, though, and nothing tries pres1.digest against run 2. To make the test name literally true, add a decide on run 2's pending action with action_digest=pres1.digest and expect APPROVAL_STALE.",
+      "evidence": "tests/unit/kernel/test_conversation_routing.py:504-519; src/e_agent/kernel/approval.py:20-41 (digest_input binds logical_operation_id); src/e_agent/kernel/approval_flow.py:167-168"
+    },
+    {
+      "id": "A1-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Minor items. (a) In the ANSWER route, a run that moves between list_conversation_runs and accept_input gets accept_input's '/inputs' hint, 'input does not match the pending question', not QUESTION_CHANGED. It still fails closed. (b) post_message uses assert for control-flow invariants (route.hint, reply_to), and assert is stripped under -O. (c) admit_run_in_conversation repeats the 'idempotency key reused with another request' literal where conversation.KEY_REUSED exists. (d) ADR 0023 section 4 and the plan still cite server/api.py:467-478 for the replay check, but those lines are gone after the move; cite run_loop.py input_replayed at phase close (ENG-DOC-1).",
+      "evidence": "src/e_agent/kernel/conversation.py post_message ANSWER and REFUSE branches; src/e_agent/kernel/coordinator.py admit_run_in_conversation; docs/adr/0023-conversation-model.md section 4 bullets 'A retried answer is idempotent'"
+    }
+  ],
+  "reviewer": {"provider": "claude-opus", "fresh_context": true}
+}

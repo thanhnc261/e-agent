@@ -1,0 +1,73 @@
+{
+  "task": "4d.1",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "B1-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "reply_to on a terminal latest run is ignored and the text starts a new run, per the ADR 0023 \u00a74 table; needs an owner ruling before 4d.4 exposes the route.",
+      "evidence": "src/e_agent/kernel/conversation.py:42-43, :125-133; docs/adr/0023-conversation-model.md:49"
+    },
+    {
+      "id": "B1-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The kernel never builds the request digest; 4d.4 must build it in one tested function over conversation_id, text, reply_to and host_context, with a test that one key posted to two conversations is CONFLICT.",
+      "evidence": "tests/unit/kernel/test_conversation_routing.py:73-86; src/e_agent/kernel/conversation.py:113-118"
+    },
+    {
+      "id": "B1-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "post_message does not bound start text; CreateRun does at the route; 4d.4 needs a 422 test for empty and over-4000 bodies.",
+      "evidence": "src/e_agent/server/api.py:77; src/e_agent/kernel/conversation.py:143-153"
+    },
+    {
+      "id": "B1-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The /inputs guard test claims a before-and-after replay but checks only after; no HTTP test of the non-requester refusal.",
+      "evidence": "tests/unit/server/test_api.py:286-327"
+    },
+    {
+      "id": "B1-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The moved replay check is equivalent but not verbatim (enum is-comparison, early return).",
+      "evidence": "src/e_agent/kernel/run_loop.py:298-315"
+    },
+    {
+      "id": "B1-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "admit_run_in_conversation shares structure with admit_run and repeats the key-reused literal.",
+      "evidence": "src/e_agent/kernel/coordinator.py:206-224, :241-264"
+    },
+    {
+      "id": "B1-7",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "admit_run_in_conversation is public and has no owner check; a caller that skipped the flow could link a run into another owner's conversation.",
+      "evidence": "src/e_agent/kernel/coordinator.py:226"
+    },
+    {
+      "id": "B1-8",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The latest-run choice lives in private _latest; 4d.3 must reuse it exactly.",
+      "evidence": "src/e_agent/kernel/conversation.py:40-63"
+    },
+    {
+      "id": "B1-9",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Contract digest stale after the plan line edit; refresh-task before close.",
+      "evidence": "uv run e-agent-harness close-check"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}

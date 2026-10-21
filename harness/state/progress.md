@@ -854,3 +854,8 @@
 - changed: harness/state/4/features.json, harness/state/4/handoffs/4c.4.json, harness/state/evidence/gates/4c.4/2026-10-21T12-14-23.143772+00-00-full.json
 - next: open task 4d.1 (message routing in the kernel facade)
 - open: none
+
+## 2026-10-21T12:44:40.184098+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4d.1
+- changed: harness/state/4/reviews/4d.1-B.json, harness/state/evidence/gates/4d.1/2026-10-21T12-37-15.990933+00-00-full.json, harness/state/evidence/gates/4d.1/2026-10-21T12-38-52.740791+00-00-pg.json
+- next: tests/unit/kernel/test_conversation_routing.py passes on both stores
+- open: none
