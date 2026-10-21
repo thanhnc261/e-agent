@@ -17,8 +17,12 @@ refuse without a ``reply_to`` starts an unlinked run, as ``POST /v1/runs`` would
 ``conversation.compared`` with ``route: refuse``; a stale ``reply_to`` is still ``CONFLICT``,
 as ``/inputs`` gives today. A linked start or answer that fails in the conversation step
 falls back, in the same request and under the message's own idempotency record, to today's
-unlinked run or plain input, recording ``conversation.shadow_failed``. Every other mode
-routes as ``on`` (``off`` is Task 4d.4's).
+unlinked run or plain input, recording ``conversation.shadow_failed``. ``on`` routes as
+the table says; in ``off`` the coordinator refuses every conversation call with
+``NOT_FOUND`` `CONVERSATIONS_OFF` before it builds a flow (Task 4d.4).
+
+The list and snapshot reads project the conversation's runs: the title is the first run's
+task cut to `TITLE_LENGTH` characters, empty while the conversation has no run (D4).
 """
 
 from __future__ import annotations
@@ -30,7 +34,17 @@ from types import MappingProxyType
 
 from e_agent.contracts.common import new_id
 from e_agent.contracts.context import HostContext, Principal
-from e_agent.contracts.conversation import Conversation, MessageRoute, ReplyTo, RouteKind
+from e_agent.contracts.conversation import (
+    Conversation,
+    ConversationList,
+    ConversationSnapshot,
+    ConversationSummary,
+    MessageRoute,
+    ReplyTo,
+    RouteKind,
+    ThreadRun,
+)
+from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord, RunState
@@ -45,6 +59,9 @@ NOT_FOUND_MESSAGE = "conversation not found"
 """One message for an absent, foreign or other-tenant conversation and for a ``reply_to`` run
 outside it, so a refusal never tells which (PR-24)."""
 KEY_REUSED = "idempotency key reused with another request"
+CONVERSATIONS_OFF = "conversations are off"
+"""The refusal of every conversation call in ``off`` (ADR 0023 §9)."""
+TITLE_LENGTH = 80
 
 SHADOW_FAILED_MESSAGES = MappingProxyType(
     {
@@ -87,8 +104,27 @@ def shadow_failed_event(stage: str, code: ErrorCode) -> EventSpec:
     return (RunEventType.CONVERSATION_SHADOW_FAILED, payload, None)
 
 
+def message_digest(
+    conversation_id: str,
+    text: str,
+    reply_to: ReplyTo | None,
+    host_context: HostContext | None,
+) -> str:
+    """The request digest of one posted message: the conversation id, the text, ``reply_to``
+    and ``host_context`` (ADR 0023 §4), in the number-free digest profile (ADR 0006). One
+    Idempotency-Key reused with any other of these is ``CONFLICT`` (PR-17)."""
+    body: dict[str, object] = {"conversation_id": conversation_id, "text": text}
+    if reply_to is not None:
+        body["reply_to"] = {"run_id": reply_to.run_id, "run_revision": str(reply_to.run_revision)}
+    if host_context is not None:
+        body["host_context"] = host_context.model_dump(mode="json", exclude_none=True)
+    return digest(body)
+
+
 def route_message(latest: RunRecord | None, reply_to: ReplyTo | None) -> MessageRoute:
-    """The route for a message to a conversation whose latest run is ``latest`` (D2)."""
+    """The route for a message to a conversation whose latest run is ``latest`` (D2). A
+    ``reply_to`` naming a run of this conversation while the latest run has ended starts a
+    new run (ADR 0023 §4's table; the owner may change this, so it stays in this branch)."""
     if latest is None or latest.state in TERMINAL_RUN_STATES:
         return MessageRoute(kind=RouteKind.START)
     if latest.state is RunState.WAITING_INPUT:
@@ -113,6 +149,17 @@ def latest_run(runs: tuple[RunRecord, ...]) -> RunRecord | None:
     this, so ``on`` and ``shadow`` see the same latest run."""
     active = [r for r in runs if r.state not in TERMINAL_RUN_STATES]
     return active[-1] if active else (runs[-1] if runs else None)
+
+
+def _summary(conversation: Conversation, runs: tuple[RunRecord, ...]) -> ConversationSummary:
+    latest = latest_run(runs)
+    return ConversationSummary(
+        conversation_id=conversation.conversation_id,
+        title=runs[0].task[:TITLE_LENGTH] if runs else "",
+        updated_at=conversation.updated_at,
+        latest_state=None if latest is None else latest.state,
+        reply_pending=latest is not None and latest.state is RunState.WAITING_INPUT,
+    )
 
 
 @dataclass(frozen=True)
@@ -170,6 +217,47 @@ class ConversationFlow:
         )
         await self._store.create_conversation(conversation)
         return conversation
+
+    async def list_conversations(
+        self, principal: Principal, *, after: str | None, limit: int
+    ) -> ConversationList:
+        """The caller's conversations, newest first, each with its title and latest run."""
+        tenant, owner = principal.tenant_id, principal.principal_id
+        try:
+            page = await self._store.list_conversations(tenant, owner, after=after, limit=limit)
+            items = []
+            for conversation in page.items:
+                runs = await self._store.list_conversation_runs(
+                    tenant, owner, conversation.conversation_id
+                )
+                items.append(_summary(conversation, runs))
+        except NotFound:  # an `after` the caller does not have
+            raise KernelError(ErrorCode.NOT_FOUND, NOT_FOUND_MESSAGE) from None
+        return ConversationList(items=tuple(items), next_after=page.next_after)
+
+    async def get_conversation(
+        self, principal: Principal, conversation_id: str
+    ) -> ConversationSnapshot:
+        """The conversation and its runs, oldest first, each with the revision the UI sends
+        back in ``reply_to``."""
+        tenant, owner = principal.tenant_id, principal.principal_id
+        try:
+            conversation = await self._store.get_conversation(tenant, owner, conversation_id)
+            runs = await self._store.list_conversation_runs(tenant, owner, conversation_id)
+        except NotFound:
+            raise KernelError(ErrorCode.NOT_FOUND, NOT_FOUND_MESSAGE) from None
+        thread = tuple(
+            ThreadRun(
+                run_id=r.run_id,
+                task=r.task,
+                state=r.state,
+                reason_code=r.reason_code,
+                revision=r.revision,
+                created_at=r.created_at,
+            )
+            for r in runs
+        )
+        return ConversationSnapshot(conversation=conversation, runs=thread)
 
     async def post_message(
         self,

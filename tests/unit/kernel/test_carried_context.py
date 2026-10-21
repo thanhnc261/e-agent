@@ -27,6 +27,7 @@ import pytest
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.capability import CapabilityDescriptor, EffectKind
+from e_agent.contracts.common import new_id
 from e_agent.contracts.context import TaskContext
 from e_agent.contracts.context_pack import (
     FENCE_CLOSE,
@@ -41,6 +42,7 @@ from e_agent.contracts.context_pack import (
 )
 from e_agent.contracts.conversation import CarriedAnswer, CarriedRef, CarriedRun
 from e_agent.contracts.data_classes import DataClass
+from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.evidence import Completeness, EvidenceRef
 from e_agent.contracts.features import FeatureMode, Features
@@ -60,6 +62,7 @@ from e_agent.kernel.carried import (
 from e_agent.kernel.context import assemble, estimate_tokens
 from e_agent.kernel.context_on import drop_log
 from e_agent.kernel.continuation import _Continuation
+from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.features import FALLBACK_MESSAGES
 from e_agent.kernel.memory_conversations import InMemoryConversationStore
 from e_agent.sdk.ports import (
@@ -899,6 +902,26 @@ async def _turn(k: Kernel, conversation_id: str, text: str) -> RunRecord:
     return run
 
 
+async def _unlinked_turn(k: Kernel, text: str) -> RunRecord:
+    """One finished run started as ``POST /v1/runs`` starts it (`admit_run`), outside any
+    conversation: the honest ``off`` baseline, since ``off`` refuses the conversation calls
+    (Task 4d.4)."""
+    run_id, _ = await k.coordinator.admit_run(
+        k.requester,
+        text,
+        k.scope,
+        run_id=new_id("run"),
+        idempotency_key=new_id("key"),
+        request_digest=digest({"task": text}),
+    )
+    run = await k.coordinator.start_admitted_run(TENANT, run_id)
+    if run.state is RunState.WAITING_APPROVAL:
+        run = await _approve(k, run_id)
+    assert run.state is RunState.SUCCEEDED, (run.state, run.reason)
+    assert run.conversation_id is None
+    return run
+
+
 async def _stored(k: Kernel, run_id: str) -> _Continuation:
     stored = await k.store.load_continuation(TENANT, run_id)
     assert stored is not None
@@ -1164,17 +1187,24 @@ async def test_carry_runs_only_for_a_run_pinned_on(
     features = Features(conversations=mode, context_assembler=FeatureMode.ON)
     driver = TurnDriver()
     k = _kernel(make_kernel, features, driver=driver)
-    conv = await k.coordinator.create_conversation(k.requester)
-    first = await _turn(k, conv.conversation_id, "summarise the notes")
     called: list[Any] = []
 
     def spy(*args: Any) -> tuple[CarriedRun, ...]:
         called.append(args)
         return carry(*args)
 
-    monkeypatch.setattr(coordinator_module, "carry", spy)
-
-    run = await _turn(k, conv.conversation_id, "write the standup note")
+    if mode is FeatureMode.OFF:  # off refuses the conversation calls: today's runs (4d.4)
+        with pytest.raises(KernelError) as refused:
+            await k.coordinator.create_conversation(k.requester)
+        assert refused.value.code is ErrorCode.NOT_FOUND
+        await _unlinked_turn(k, "summarise the notes")
+        monkeypatch.setattr(coordinator_module, "carry", spy)
+        run = await _unlinked_turn(k, "write the standup note")
+    else:
+        conv = await k.coordinator.create_conversation(k.requester)
+        first = await _turn(k, conv.conversation_id, "summarise the notes")
+        monkeypatch.setattr(coordinator_module, "carry", spy)
+        run = await _turn(k, conv.conversation_id, "write the standup note")
 
     stored = await k.store.load_continuation(TENANT, run.run_id)
     assert stored is not None and "carried" not in stored[0]["data"]

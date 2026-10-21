@@ -20,12 +20,14 @@ from e_agent.contracts.context_pack import ContextLayer
 from e_agent.contracts.conversation import (
     CarriedRun,
     Conversation,
+    ConversationList,
+    ConversationSnapshot,
     MessageRoute,
     ReplyTo,
     RouteKind,
 )
 from e_agent.contracts.events import RunEventType
-from e_agent.contracts.features import FeatureMode, Features
+from e_agent.contracts.features import FeatureMode, Features, MemberFeatures
 from e_agent.contracts.run import (
     ReasonCode,
     RunRecord,
@@ -64,12 +66,14 @@ from .continuation import LOG as LOG
 from .continuation import _Continuation as _Continuation
 from .continuation import _GatewayReader as _GatewayReader
 from .conversation import (
+    CONVERSATIONS_OFF,
     KEY_REUSED,
     NOT_FOUND_MESSAGE,
     WAIT_FOR_RUN,
     ConversationFlow,
     ConversationStepFailed,
     failure_code,
+    message_digest,
     shadow_failed_event,
 )
 from .dispatch import DispatchMixin
@@ -393,7 +397,10 @@ class RunCoordinator(
 
     def _conversation_flow(self) -> ConversationFlow:
         """Built per call, so it always reaches this coordinator's current methods. Routing
-        follows the profile's ``conversations`` toggle: no run, and so no pin, exists yet."""
+        follows the profile's ``conversations`` toggle: no run, and so no pin, exists yet.
+        In ``off`` every conversation call is ``NOT_FOUND`` before any store read (§9)."""
+        if self._features.conversations is FeatureMode.OFF:
+            raise KernelError(ErrorCode.NOT_FOUND, CONVERSATIONS_OFF)
         return ConversationFlow(
             self._conversation_store(),
             self._clock,
@@ -405,8 +412,24 @@ class RunCoordinator(
             run_of=self._store.get_run,
         )
 
+    def member_features(self) -> MemberFeatures:
+        """What a member may learn of the modes, in every mode (ADR 0023 §10)."""
+        return MemberFeatures(conversations=self._features.conversations)
+
     async def create_conversation(self, principal: Principal) -> Conversation:
         return await self._conversation_flow().create_conversation(principal)
+
+    async def list_conversations(
+        self, principal: Principal, *, after: str | None, limit: int
+    ) -> ConversationList:
+        return await self._conversation_flow().list_conversations(
+            principal, after=after, limit=limit
+        )
+
+    async def get_conversation(
+        self, principal: Principal, conversation_id: str
+    ) -> ConversationSnapshot:
+        return await self._conversation_flow().get_conversation(principal, conversation_id)
 
     async def post_message(
         self,
@@ -417,12 +440,16 @@ class RunCoordinator(
         reply_to: ReplyTo | None,
         host_context: HostContext | None,
         idempotency_key: str,
-        request_digest: str,
         resource_scope: frozenset[str],
+        request_digest: str | None = None,
     ) -> tuple[MessageRoute, str]:
         """Route one message (ADR 0023 §4): the route and the run id. ``conversation_id``
-        comes from the route path and the owner from ``principal``, never from the body."""
-        return await self._conversation_flow().post_message(
+        comes from the route path and the owner from ``principal``, never from the body.
+        ``request_digest`` defaults to `message_digest` of the message, which the API uses."""
+        flow = self._conversation_flow()
+        if request_digest is None:
+            request_digest = message_digest(conversation_id, text, reply_to, host_context)
+        return await flow.post_message(
             principal,
             conversation_id,
             text,

@@ -18,11 +18,12 @@ import pytest
 from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.context import HostContext, Principal, ResourceHint, TaskContext
-from e_agent.contracts.conversation import MessageRoute, ReplyTo, RouteKind
+from e_agent.contracts.conversation import Conversation, MessageRoute, ReplyTo, RouteKind
 from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEventType
+from e_agent.contracts.features import FeatureMode, Features, MemberFeatures
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord, RunState
-from e_agent.kernel.conversation import route_message
+from e_agent.kernel.conversation import CONVERSATIONS_OFF, route_message
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.memory_conversations import InMemoryConversationStore
 from e_agent.sdk.ports import AskClarification, DriverInput, DriverStep
@@ -57,6 +58,22 @@ async def run_store() -> AsyncIterator[Any]:
         yield store
     finally:
         await store.close()
+
+
+ON = Features(conversations=FeatureMode.ON, context_assembler=FeatureMode.ON)
+"""The routing under test: ``off`` refuses every conversation call (Task 4d.4), and ``on``
+needs ``context_assembler`` ``on`` at startup (ADR 0023 §9)."""
+
+
+@pytest.fixture
+def make_kernel(make_kernel: MakeKernel) -> MakeKernel:
+    """The suite's kernel with ``conversations: on`` unless a test names other features."""
+
+    def _make(*args: Any, **kw: Any) -> Kernel:
+        kw.setdefault("features", ON)
+        return make_kernel(*args, **kw)
+
+    return _make
 
 
 @dataclass
@@ -583,3 +600,42 @@ async def test_concurrent_retry_replays_instead_of_refusing(
     misses.append(None)
     error = await _conflict(k, cid, "write another note", key="message-race")
     assert error.safe_message == "idempotency key reused with another request"
+
+
+async def test_off_refuses_every_conversation_call(make_kernel: MakeKernel) -> None:
+    """ADR 0023 §9, Task 4d.4: in ``off`` the facade refuses every conversation call with
+    ``NOT_FOUND`` "conversations are off" before any store read, so nothing is written;
+    the member features answer in every mode."""
+    k = make_kernel(features=Features())
+    owned = await k.store.create_conversation(  # a row the refusal must not reveal
+        Conversation(
+            tenant_id=TENANT,
+            conversation_id="conv_kept",
+            owner_id=k.requester.principal_id,
+            revision=1,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+    )
+    assert owned is None
+    calls = (
+        k.coordinator.create_conversation(k.requester),
+        k.coordinator.list_conversations(k.requester, after=None, limit=10),
+        k.coordinator.get_conversation(k.requester, "conv_kept"),
+        _post(k, "conv_kept", "write a note", key="key-off-0001"),
+    )
+    for call in calls:
+        with pytest.raises(KernelError) as refused:
+            await call
+        assert (refused.value.code, refused.value.safe_message) == (
+            ErrorCode.NOT_FOUND,
+            CONVERSATIONS_OFF,
+        )
+    page = await k.store.list_conversations(TENANT, k.requester.principal_id, after=None, limit=10)
+    assert [c.conversation_id for c in page.items] == ["conv_kept"]
+    assert await k.store.list_conversation_runs(TENANT, k.requester.principal_id, "conv_kept") == ()
+    assert await k.store.lookup_idempotent(TENANT, k.requester.principal_id, "key-off-0001") is None
+    assert k.coordinator.member_features() == MemberFeatures(conversations=FeatureMode.OFF)
+    assert make_kernel().coordinator.member_features() == MemberFeatures(
+        conversations=FeatureMode.ON
+    )

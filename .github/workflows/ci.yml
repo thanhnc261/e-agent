@@ -44,7 +44,7 @@ jobs:
       - name: release task matrix (fixture)
         run: uv run python scripts/release_report.py --out "$RUNNER_TEMP/release.json"
       - name: pg gate set against the PostgreSQL test database
-        run: uv run pytest -q tests/unit/kernel tests/conformance tests/unit/adapters/postgres
+        run: uv run pytest -q tests/unit/kernel tests/conformance tests/unit/adapters/postgres tests/unit/server/test_conversation_api.py
         env:
           E_AGENT_TEST_STORE: postgres
 

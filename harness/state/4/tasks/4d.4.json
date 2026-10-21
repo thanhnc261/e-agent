@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-4d-4"
   ],
-  "context_digest": "27a1fdd09db09c5d1d3c986ab989063f0108748b88a7b74cb751db2d46cb9747",
+  "context_digest": "c46c4c2b1290c3fa21e94b62b85c69641fa5f68f6e99480785fd0b5a946d2876",
   "allowed_paths": [
     "src/e_agent/server/conversations.py",
     "src/e_agent/server/api.py",

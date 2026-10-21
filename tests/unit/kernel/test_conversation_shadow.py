@@ -66,6 +66,7 @@ from .test_carried_context import (
     _of,
     _stored,
     _turn,
+    _unlinked_turn,
 )
 from .test_context_assembler import UNDECLARED
 from .test_conversation_routing import ClarifyDriver, _post, _waiting, _waiting_approval
@@ -80,6 +81,7 @@ SHADOW_FAILED = RunEventType.CONVERSATION_SHADOW_FAILED
 NO_ITEMS = {"user_messages": 0, "answers": 0, "refs": 0}
 WAIT = "wait, decide the approval, or stop the run"
 QUESTION_CHANGED = "the question changed; read it again"
+THREAD = ("summarise the notes", "write the standup note", "summarise them again")
 
 
 @pytest.fixture
@@ -367,21 +369,32 @@ async def test_shadow_gives_the_driver_no_carried_item(
 async def _thread(k: Kernel) -> list[RunRecord]:
     conv = await k.coordinator.create_conversation(k.requester)
     runs = []
-    for text in ("summarise the notes", "write the standup note", "summarise them again"):
+    for text in THREAD:
         runs.append(await _turn(k, conv.conversation_id, text))
         k.clock.advance(seconds=1)
     return runs
 
 
+async def _unlinked_thread(k: Kernel) -> list[RunRecord]:
+    """The thread's three tasks as today's ``POST /v1/runs`` runs: ``off`` refuses the
+    conversation calls (Task 4d.4), so this is the baseline ``shadow`` is held to."""
+    runs = []
+    for text in THREAD:
+        runs.append(await _unlinked_turn(k, text))
+        k.clock.advance(seconds=1)
+    return runs
+
+
 async def test_shadow_adds_no_model_call_read_or_budget(make_kernel: MakeKernel) -> None:
-    """ADR 0023 §9: the same thread pinned ``off`` and ``shadow`` makes the same driver calls
-    and provider reads and uses the same budgets; the event logs differ only by
-    ``conversation.compared``. The comparison reads the store, never a model or provider."""
+    """ADR 0023 §9: the thread's tasks as today's unlinked runs (``off``) and as a ``shadow``
+    thread make the same driver calls and provider reads and use the same budgets; the
+    event logs differ only by ``conversation.compared``. The comparison reads the store,
+    never a model or provider."""
     played = []
     for features in (OFF, SHADOW):
         driver = TurnDriver()
         k = _kernel(make_kernel, features, driver=driver)
-        runs = await _thread(k)
+        runs = await (_unlinked_thread(k) if features is OFF else _thread(k))
         calls = [sum(r == run.run_id for r, _ in driver.seen) for run in runs]
         budgets = []
         types = []

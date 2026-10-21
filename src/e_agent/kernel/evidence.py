@@ -21,6 +21,11 @@ steps (ADR 0033 §6): ids, versions, digests and statuses, no observation values
 text. A run that ended ``GROUNDED`` (``grounded.answer.v1``, ADR 0033 §3) carries the additive
 ``grounded_answer`` key: its summary, the model's free text outside the citations, labelled
 ``unverified``, and each at-rest citation labelled ``grounded``; no other bundle has it.
+A run linked to a conversation, or pinned a ``conversations`` mode other than ``off``,
+carries the additive ``conversation`` key (ADR 0023 §12): its conversation id (None for a
+``shadow`` fallback's unlinked run), the pinned mode, the run ids carried into it
+(``conversation.context_carried``) and its ``conversation.compared`` counts by route. An
+``off`` run is never linked and pins no such mode, so its bundle is unchanged.
 """
 
 from __future__ import annotations
@@ -30,6 +35,7 @@ from typing import Any
 
 from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.common import utc_now
+from e_agent.contracts.conversation import RouteKind
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.explain import Explanation
 from e_agent.contracts.features import FeatureMode, Features, RunModes
@@ -200,6 +206,30 @@ def _context_section(events: Sequence[RunEvent]) -> list[dict[str, Any]]:
     ]
 
 
+def _conversation_section(
+    run: RunRecord, modes: RunModes | None, events: Sequence[RunEvent]
+) -> dict[str, Any] | None:
+    """The run's conversation facts (ADR 0023 §12): ids, a mode and counts, never text."""
+    mode = FeatureMode.OFF if modes is None else modes.conversations
+    if run.conversation_id is None and mode is FeatureMode.OFF:
+        return None
+    carried = [
+        run_id
+        for e in events
+        if e.type is RunEventType.CONVERSATION_CONTEXT_CARRIED
+        for run_id in e.payload["carried_run_ids"]
+    ]
+    routes = [e.payload["route"] for e in events if e.type is RunEventType.CONVERSATION_COMPARED]
+    return {
+        "conversation_id": run.conversation_id,
+        "mode": mode.value,
+        "carried_run_ids": carried,
+        "compared": {
+            kind.value: routes.count(kind.value) for kind in (RouteKind.START, RouteKind.REFUSE)
+        },
+    }
+
+
 def _grounded_section(run: RunRecord, events: Sequence[RunEvent]) -> dict[str, Any] | None:
     """The kernel's ``message.final`` of a ``GROUNDED`` end with its labels: the summary is
     model-authored and ``unverified``, each citation ``grounded`` in this run's evidence,
@@ -278,6 +308,9 @@ async def build_evidence(
         bundle["modes"] = modes.model_dump(mode="json")
         if modes.context_assembler is FeatureMode.ON:
             bundle["context"] = _context_section(events)
+    conversation = _conversation_section(run, modes, events)
+    if conversation is not None:
+        bundle["conversation"] = conversation
     grounded = _grounded_section(run, events)
     if grounded is not None:
         bundle["grounded_answer"] = grounded
