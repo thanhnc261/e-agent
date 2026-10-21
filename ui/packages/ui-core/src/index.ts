@@ -8,6 +8,7 @@ export * from "./store.ts";
 export * from "./presentation.ts";
 export * from "./selectors/discovery.ts";
 export * from "./selectors/evidence.ts";
+export * from "./selectors/explanation.ts";
 export * from "./selectors/outcome.ts";
 export * from "./selectors/thread.ts";
 

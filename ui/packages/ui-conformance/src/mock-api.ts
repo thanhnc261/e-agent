@@ -26,6 +26,81 @@ export const EARLIER_ANSWER = "Bracket B-12 is short by 40 (sample).";
 export const HINT_BUSY = "wait, decide the approval, or stop the run";
 export const HINT_QUESTION_CHANGED = "the question changed; read it again";
 
+/** A grounded answer's summary (fictional), its one named citation and one digest-only one. */
+export const GROUNDED_ANSWER = "grounded.answer.v1";
+export const GROUNDED_SUMMARY = "Two orders are late: SO-SAMPLE-7 and SO-SAMPLE-9 (sample).";
+export const GROUNDED_EVIDENCE_ID = "ev-orders-sample-1";
+export const UNRESOLVED_CITATION_DIGEST = `jcs-sha256-v1:${"a1".repeat(32)}`;
+const GROUNDED_CITATIONS = [
+  {
+    evidence_id: GROUNDED_EVIDENCE_ID,
+    pointer: "/orders/0/ref",
+    value_digest: `jcs-sha256-v1:${"c3".repeat(32)}`,
+  },
+  {
+    evidence_id_digest: UNRESOLVED_CITATION_DIGEST,
+    pointer_digest: `jcs-sha256-v1:${"b2".repeat(32)}`,
+    value_digest: `jcs-sha256-v1:${"d4".repeat(32)}`,
+  },
+];
+
+/**
+ * The evidence bundle of a `GROUNDED` run as `kernel/evidence.py` builds it: no action, the
+ * `grounded_answer` key (summary `unverified`, each citation `grounded`) and the `explanation`
+ * key (ADR 0033 §6) with the read's source and the grounded outcome.
+ */
+export function groundedEvidence(
+  run: RunSnapshot["run"],
+  summary: string,
+  events: RunEvent[],
+): Record<string, unknown> {
+  return {
+    schema: "e-agent-evidence-v1",
+    generated_at: "2026-10-22T00:00:00Z",
+    environment: "fixture",
+    run,
+    modes: { grounded_answers: "on", conversations: "on" },
+    actions: [],
+    approvals: [],
+    receipts: [],
+    outcomes: [],
+    events,
+    grounded_answer: {
+      contract_id: GROUNDED_ANSWER,
+      summary: { text: summary, label: "unverified" },
+      citations: GROUNDED_CITATIONS.map(c => ({ ...c, label: "grounded" })),
+    },
+    explanation: {
+      completeness: "known",
+      run: {
+        run_id: run.run_id,
+        goal: run.task,
+        task_ref: null,
+        task_ref_state: "none",
+        requester_id: run.requester_id,
+        driver_id: "fixture",
+        state: "SUCCEEDED",
+        reason_code: "grounded",
+      },
+      sources: [
+        {
+          evidence_id: GROUNDED_EVIDENCE_ID,
+          contract_id: "sales.order.read.v1",
+          revision: "rev-17",
+          label: "provider_read",
+        },
+      ],
+      validation: { stages: [], open_findings: [], rules_evaluated: [], input_requests: [] },
+      proposals: [],
+      approvals: [],
+      receipts: [],
+      outcomes: [
+        { action_id: null, status: "succeeded", event_id: null, step_id: null, label: "grounded_answer" },
+      ],
+    },
+  };
+}
+
 export function digestOf(value: unknown): string {
   return `jcs-sha256-v1:${createHash("sha256").update(canonicalize(value), "utf8").digest("hex")}`;
 }
@@ -195,6 +270,8 @@ export class MockApi {
   discoveryStatus = 404;
   /** Evidence bundle served by GET /evidence; override to script missing provenance. */
   evidence: Record<string, unknown> = { schema: "e-agent-evidence-v1" };
+  /** `GET /v1/runs/{id}/evidence` calls. */
+  evidenceReads = 0;
   /** `POST /v1/runs` calls only (today's path). Message starts are counted apart. */
   createRuns = 0;
   /** Messages the conversation route answered with `route: start` (a new run in a thread). */
@@ -317,6 +394,26 @@ export class MockApi {
     primary.conversationId = conversationId;
     this.conversations.add(conversationId);
     return earlier;
+  }
+
+  /**
+   * Record a run's `GROUNDED` end (ADR 0033 §3): one read, then the kernel's `message.final`
+   * with the answer contract and the at-rest citations, and the terminal state with reason
+   * code `grounded`. No outcome report: a grounded answer is never verified. The evidence
+   * bundle is set to the server's shape for that run (`groundedEvidence`).
+   */
+  groundedEnd(runId: string = this.current, text = GROUNDED_SUMMARY): this {
+    const run = this.run(runId);
+    const from = run.state;
+    this.emit("read.recorded", { contract_id: "sales.order.read.v1", connection_id: "conn-1" }, runId);
+    this.emit("message.final", { text, contract_id: GROUNDED_ANSWER, citations: GROUNDED_CITATIONS }, runId);
+    this.emit("run.terminal", { state: "SUCCEEDED", reason_code: "grounded" }, runId);
+    this.emit("run.state_changed", { from, to: "SUCCEEDED", reason_code: "grounded" }, runId);
+    run.state = "SUCCEEDED";
+    run.reasonCode = "grounded";
+    run.pending = null;
+    this.evidence = groundedEvidence(this.snapshot(runId).run, text, this.run(runId).events);
+    return this;
   }
 
   emitText(text: string, reset = false): void {
@@ -482,7 +579,10 @@ export class MockApi {
         ? this.json(route, run.pending)
         : this.json(route, { code: "NOT_FOUND", message: "none" }, 404);
     }
-    if (method === "GET" && sub === "/evidence") return this.json(route, this.evidence);
+    if (method === "GET" && sub === "/evidence") {
+      this.evidenceReads += 1;
+      return this.json(route, this.evidence);
+    }
     return this.json(route, { code: "NOT_FOUND", message: "not found" }, 404);
   }
 

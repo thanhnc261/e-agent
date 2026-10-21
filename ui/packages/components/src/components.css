@@ -1139,3 +1139,56 @@ body.ea-root {
 .ea-thread-nav .ea-task-history summary {
   padding-block: var(--ea-space-xs);
 }
+/* Citations and the explanation (Task 4e.5, ADR 0034 §3, §4). */
+.ea-citations {
+  margin-top: var(--ea-space-md);
+}
+.ea-citation-list,
+.ea-explain-items {
+  margin: 0;
+  padding-left: var(--ea-space-lg);
+}
+.ea-citation {
+  margin-bottom: var(--ea-space-md);
+}
+.ea-citation .ea-meta {
+  margin-top: 0;
+}
+.ea-citation-unresolved {
+  color: var(--ea-color-text-muted);
+}
+.ea-explain-list dd {
+  min-width: 0;
+}
+.ea-explain-items li {
+  margin-bottom: var(--ea-space-xs);
+}
+.ea-digest {
+  display: block;
+  font-family: var(--ea-font-mono);
+  font-size: var(--ea-font-size-sm);
+  color: var(--ea-color-text-muted);
+  overflow-wrap: anywhere;
+}
+.ea-block {
+  display: block;
+}
+.ea-explain-words {
+  margin: var(--ea-space-md) 0 0;
+  padding: var(--ea-space-md);
+  border: 1px dashed var(--ea-color-border-strong);
+  border-radius: var(--ea-radius-md);
+}
+.ea-explain-words figcaption {
+  font-size: var(--ea-font-size-sm);
+  color: var(--ea-color-text-muted);
+  margin-bottom: var(--ea-space-xs);
+}
+.ea-explain-words blockquote {
+  margin: 0;
+}
+.ea-explain-words-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
