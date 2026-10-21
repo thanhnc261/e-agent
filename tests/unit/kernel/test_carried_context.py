@@ -1157,24 +1157,39 @@ async def test_carry_failure_falls_back_before_reservation(
 async def test_carry_runs_only_for_a_run_pinned_on(
     make_kernel: MakeKernel, monkeypatch: Any, mode: FeatureMode
 ) -> None:
-    """Ruling 2: the gate is the run's pinned ``conversations`` mode. Outside ``on`` the
-    carrier is never called, no carried item is stored and the driver gets no layer."""
+    """Ruling 2: the gate is the run's pinned ``conversations`` mode. Outside ``on`` no
+    carried item is stored and the driver gets no layer. ``off`` never calls the carrier;
+    ``shadow`` calls it once, at admission, only to record ``conversation.compared``
+    (Task 4d.3)."""
     features = Features(conversations=mode, context_assembler=FeatureMode.ON)
     driver = TurnDriver()
     k = _kernel(make_kernel, features, driver=driver)
     conv = await k.coordinator.create_conversation(k.requester)
-    await _turn(k, conv.conversation_id, "summarise the notes")
+    first = await _turn(k, conv.conversation_id, "summarise the notes")
     called: list[Any] = []
-    monkeypatch.setattr(coordinator_module, "carry", lambda *a: called.append(a))
+
+    def spy(*args: Any) -> tuple[CarriedRun, ...]:
+        called.append(args)
+        return carry(*args)
+
+    monkeypatch.setattr(coordinator_module, "carry", spy)
 
     run = await _turn(k, conv.conversation_id, "write the standup note")
 
-    assert called == []
     stored = await k.store.load_continuation(TENANT, run.run_id)
     assert stored is not None and "carried" not in stored[0]["data"]
-    types = {e.type for e in await _events(k, run.run_id)}
+    events = await _events(k, run.run_id)
+    types = {e.type for e in events}
     assert RunEventType.CONVERSATION_CONTEXT_CARRIED not in types
     assert RunEventType.FEATURE_FALLBACK not in types
+    compared = _of(events, RunEventType.CONVERSATION_COMPARED)
+    if mode is FeatureMode.OFF:
+        assert called == [] and compared == []
+    else:
+        assert len(called) == 1
+        assert [(c.payload["route"], c.payload["carried_run_ids"]) for c in compared] == [
+            ("start", [first.run_id])
+        ]
     packs = driver.packs(run.run_id)
     assert packs and all(ContextLayer.RECENT_TURNS not in p.dynamic_suffix for p in packs)
 

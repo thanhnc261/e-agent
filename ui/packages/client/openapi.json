@@ -831,7 +831,9 @@
           "repeat.shadow_failed",
           "grounding.compared",
           "grounding.shadow_failed",
-          "conversation.context_carried"
+          "conversation.context_carried",
+          "conversation.compared",
+          "conversation.shadow_failed"
         ],
         "title": "RunEventType",
         "type": "string"

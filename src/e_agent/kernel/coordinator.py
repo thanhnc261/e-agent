@@ -8,7 +8,7 @@ report findings; executors only execute admitted invocations.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -16,7 +16,15 @@ from e_agent.contracts.action import ActionState
 from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.context import Budgets, HostContext, Principal, TaskContext
-from e_agent.contracts.conversation import CarriedRun, Conversation, MessageRoute, ReplyTo
+from e_agent.contracts.context_pack import ContextLayer
+from e_agent.contracts.conversation import (
+    CarriedRun,
+    Conversation,
+    MessageRoute,
+    ReplyTo,
+    RouteKind,
+)
+from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.run import (
@@ -43,16 +51,28 @@ from .approval_flow import ApprovalFlowMixin
 from .carried import (
     MAX_CARRIED_RUNS,
     AnswerDeclarations,
+    ComparedLayer,
     answer_declarations,
     carried_digest,
     carry,
+    compared_payload,
 )
 from .connections import ConnectionCatalog
+from .context import _Turns, context_route
+from .context_on import ON_POLICY
 from .continuation import CONTINUATION_SCHEMA as CONTINUATION_SCHEMA
 from .continuation import LOG as LOG
 from .continuation import _Continuation as _Continuation
 from .continuation import _GatewayReader as _GatewayReader
-from .conversation import KEY_REUSED, NOT_FOUND_MESSAGE, WAIT_FOR_RUN, ConversationFlow
+from .conversation import (
+    KEY_REUSED,
+    NOT_FOUND_MESSAGE,
+    WAIT_FOR_RUN,
+    ConversationFlow,
+    ConversationStepFailed,
+    failure_code,
+    shadow_failed_event,
+)
 from .dispatch import DispatchMixin
 from .errors import ErrorCode, KernelError
 from .features import LOCAL_ROUTE, FeaturesMixin, fallback_event
@@ -211,8 +231,11 @@ class RunCoordinator(
         request_digest: str,
         host_context: HostContext | None = None,
         task_kind: str | None = None,
+        recorded: Sequence[EventSpec] = (),
     ) -> tuple[str, bool]:
-        """``task_kind`` as in `start_run`; the API passes none in Phase 2 (D8)."""
+        """``task_kind`` as in `start_run`; the API passes none in Phase 2 (D8).
+        ``recorded`` is what a ``conversations: shadow`` fallback records in the admission
+        (ADR 0023 §9); the API passes none."""
         run, cont, events = self._prepare_run(
             principal,
             task,
@@ -221,6 +244,7 @@ class RunCoordinator(
             host_context=host_context,
             task_kind=task_kind,
         )
+        events.extend(recorded)
         claimed, previous_digest = await self._store.create_run_idempotent(
             run,
             events,
@@ -247,8 +271,9 @@ class RunCoordinator(
         host_context: HostContext | None = None,
     ) -> tuple[str, bool]:
         """`admit_run` for a run of ``conversation_id``, at the revision the flow read
-        (ADR 0023 §3). A moved revision or an active run is ``CONFLICT`` with the fixed hint.
-        Private: only `ConversationFlow` calls it, after its ownership check (review B1-7)."""
+        (ADR 0023 §3). A moved revision or an active run is ``CONFLICT`` with the fixed hint
+        (`ConversationStepFailed`, on which ``shadow`` falls back). Private: only
+        `ConversationFlow` calls it, after its ownership check (review B1-7)."""
         store = self._conversation_store()
         run, cont, events = self._prepare_run(
             principal,
@@ -258,8 +283,11 @@ class RunCoordinator(
             host_context=host_context,
             conversation_id=conversation_id,
         )
-        if self._run_modes(cont).conversations is FeatureMode.ON:  # the pin (ADR 0023 §9)
+        mode = self._run_modes(cont).conversations  # the pin (ADR 0023 §9)
+        if mode is FeatureMode.ON:
             events.extend(await self._carry_into(cont, principal, conversation_id))
+        elif mode is FeatureMode.SHADOW:  # compared, never carried: `cont.carried` stays ()
+            events.extend(await self._compare_into(principal, conversation_id, run_id))
         try:
             claimed, previous_digest = await store.create_run_in_conversation(
                 run,
@@ -271,9 +299,9 @@ class RunCoordinator(
                 conversation_revision,
             )
         except ConcurrencyConflict:
-            raise KernelError(ErrorCode.CONFLICT, WAIT_FOR_RUN) from None
+            raise ConversationStepFailed(ErrorCode.CONFLICT, WAIT_FOR_RUN) from None
         except NotFound:
-            raise KernelError(ErrorCode.NOT_FOUND, NOT_FOUND_MESSAGE) from None
+            raise ConversationStepFailed(ErrorCode.NOT_FOUND, NOT_FOUND_MESSAGE) from None
         if previous_digest != request_digest:
             raise KernelError(ErrorCode.CONFLICT, KEY_REUSED)
         return claimed, claimed == run_id
@@ -300,16 +328,47 @@ class RunCoordinator(
         }
         return [(RunEventType.CONVERSATION_CONTEXT_CARRIED, payload, None)]
 
+    async def _compare_into(
+        self, principal: Principal, conversation_id: str, run_id: str
+    ) -> list[EventSpec]:
+        """``shadow``: the carried items and the ``recent_turns`` layer ``on`` would give this
+        run's first pack, under the route's class rule and the layer budget, as
+        ``conversation.compared`` in the admission transaction (ADR 0023 §9, §11). The pack's
+        second fit, against ``max_input_tokens``, depends on that turn's evidence, unknown at
+        admission: the layer is the pack's whenever that fit drops no carried run. Nothing
+        reaches the driver.
+        Any failure is ``conversation.shadow_failed`` with stage ``carry`` and changes
+        nothing else. No item, no event, for the conversation's first run."""
+        try:
+            carried = await self._carried_for(principal, conversation_id, run_id)
+            if not carried:
+                return []
+            turns = _Turns(
+                carried,
+                ON_POLICY.class_rules[context_route(self._route)],
+                self._registry.data_classes,
+            )
+            budget = ON_POLICY.layer_budgets[ContextLayer.RECENT_TURNS]
+            turns.fit(lambda tokens: tokens <= budget)
+            layer = ComparedLayer(text=turns.text, tokens=turns.tokens, drops=turns.drops)
+            payload = compared_payload(conversation_id, RouteKind.START, carried, layer)
+        except Exception as error:  # no exception text reaches an event (PR-25, PR-28)
+            return [shadow_failed_event("carry", failure_code(error))]
+        return [(RunEventType.CONVERSATION_COMPARED, payload, None)]
+
     async def _carried_for(
         self, principal: Principal, conversation_id: str, run_id: str
     ) -> tuple[CarriedRun, ...]:
         """The earlier runs' records, read once at admission, and `carry` over them: the
-        store's listing order without the admitted run, never sorted by time (ruling R2)."""
+        store's listing order without the admitted run, never sorted by time (ruling R2).
+        No earlier run carries nothing."""
         tenant = principal.tenant_id
         listed = await self._conversation_store().list_conversation_runs(
             tenant, principal.principal_id, conversation_id
         )
         runs = [r for r in listed if r.run_id != run_id][-MAX_CARRIED_RUNS:]
+        if not runs:
+            return ()
         events, actions, evidence = {}, {}, {}
         declarations: dict[str, AnswerDeclarations] = {}
         for run in runs:
@@ -334,14 +393,44 @@ class RunCoordinator(
         return self._store
 
     def _conversation_flow(self) -> ConversationFlow:
-        """Built per call, so it always reaches this coordinator's current methods."""
+        """Built per call, so it always reaches this coordinator's current methods. Routing
+        follows the profile's ``conversations`` toggle: no run, and so no pin, exists yet."""
         return ConversationFlow(
             self._conversation_store(),
             self._clock,
+            mode=self._features.conversations,
             admit=self._admit_run_in_conversation,
+            admit_unlinked=self.admit_run,
             accept=self.accept_input,
+            accept_recorded=self._accept_recorded,
             replayed=self.input_replayed,
+            run_of=self._store.get_run,
         )
+
+    async def _accept_recorded(
+        self,
+        principal: Principal,
+        run_id: str,
+        text: str,
+        expected_revision: int,
+        events: Sequence[EventSpec],
+    ) -> RunRecord:
+        """A ``shadow`` fallback's plain input (ADR 0023 §9): `accept_input` as ``/inputs``
+        takes it, then ``events`` with the input work it would have queued, in one write. No
+        work exists until that write, so no worker can move the run in between; a crash
+        between the two leaves a ``RUNNING`` run with no work, which startup recovery fails
+        closed. A run that moved meanwhile (a cancel) needs no work and keeps no event."""
+        run = await self.accept_input(principal, run_id, text, expected_revision)
+        work = digest({"revision": str(expected_revision), "input": text})  # as accept_input
+        try:
+            return await self._store.update_run(
+                run.model_copy(update={"revision": run.revision + 1}),
+                run.revision,
+                events,
+                work=("input", {}, work),
+            )
+        except ConcurrencyConflict:
+            return await self._store.get_run(run.tenant_id, run_id)
 
     async def create_conversation(self, principal: Principal) -> Conversation:
         return await self._conversation_flow().create_conversation(principal)

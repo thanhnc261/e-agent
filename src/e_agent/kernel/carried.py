@@ -37,7 +37,7 @@ from e_agent.contracts.context_pack import (
     json_text,
     masked_marker,
 )
-from e_agent.contracts.conversation import CarriedAnswer, CarriedRef, CarriedRun
+from e_agent.contracts.conversation import CarriedAnswer, CarriedRef, CarriedRun, RouteKind
 from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.evidence import Completeness, EvidenceRef
@@ -122,6 +122,50 @@ def carry(
 def carried_digest(carried: Sequence[CarriedRun]) -> str:
     """The ``jcs-sha256-v1`` digest of the carried items (``conversation.context_carried``)."""
     return digest([c.model_dump(mode="json") for c in carried])
+
+
+# -- shadow --------------------------------------------------------------------------------
+@dataclass(frozen=True)
+class ComparedLayer:
+    """The ``recent_turns`` layer ``on`` would render at admission: its text, the kernel's
+    token estimate of it and its drops (the caller fits it, as the pack does)."""
+
+    text: str
+    tokens: int
+    drops: tuple[Dropped, ...]
+
+
+def compared_payload(
+    conversation_id: str,
+    route: RouteKind,
+    carried: Sequence[CarriedRun] = (),
+    layer: ComparedLayer | None = None,
+) -> dict[str, Any]:
+    """The ``conversation.compared`` payload (ADR 0023 §11): ids, counts, a digest and an
+    estimate, never a value or text (PR-26). ``masked`` counts the values the route's class
+    rule masked or withheld, ``dropped`` the carried runs left out for the layer budget.
+    For ``route: refuse`` there is no carried item and no layer, since ``on`` would have
+    started no run: the counts are zero and ``layer_digest`` and ``layer_tokens`` are left
+    out."""
+    drops = () if layer is None else layer.drops
+    payload: dict[str, Any] = {
+        "conversation_id": conversation_id,
+        "route": route.value,
+        "carried_run_ids": [c.run_id for c in carried],
+        "items": {
+            "user_messages": sum(len(c.user_messages) for c in carried),
+            "answers": sum(len(c.answers) for c in carried),
+            "refs": sum(len(c.refs) for c in carried),
+        },
+        "masked": sum(
+            d.kind is DroppedKind.VALUE and d.reason is DroppedReason.CLASS_ROUTE for d in drops
+        ),
+        "dropped": sum(d.kind is DroppedKind.TURN for d in drops),
+    }
+    if layer is not None:
+        payload["layer_digest"] = digest(layer.text)
+        payload["layer_tokens"] = layer.tokens
+    return payload
 
 
 def _carried_run(

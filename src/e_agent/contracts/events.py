@@ -61,6 +61,11 @@ class RunEventType(StrEnum):
     # `conversations: on` (ADR 0023 §6, §11, Task 4d.2): the carried items a run admitted
     # into a conversation holds, by run id and digest, never a value.
     CONVERSATION_CONTEXT_CARRIED = "conversation.context_carried"
+    # `conversations: shadow` (ADR 0023 §9, §11, Task 4d.3): what `on` would carry at a run's
+    # admission (ids, counts, a digest and an estimate, never a value), or a would-be refusal;
+    # and the stage and kernel code of a conversation step that fell back to today's path.
+    CONVERSATION_COMPARED = "conversation.compared"
+    CONVERSATION_SHADOW_FAILED = "conversation.shadow_failed"
 
 
 class RunEvent(Record):
