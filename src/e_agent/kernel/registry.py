@@ -305,9 +305,10 @@ class PluginRegistry:
                 raise _reject(f"conflicting schema definitions for {schema_id}")
             self.output_schemas[schema_id] = schema
         for cap in sorted(declared, key=lambda c: c.contract_id):  # ADR 0030 class paths
+            document = self.schema_document(cap.contract_id)
             try:
-                dc.check_declarations(self.schema_document(cap.contract_id), cap.data_classes)
-                vf.check_format_declarations(self.schema_document(cap.contract_id), cap)
+                dc.check_declarations(document, cap.data_classes)
+                vf.check_format_declarations(document, cap)
             except ValueError as exc:
                 raise _reject(f"{plugin_id}: {cap.contract_id} {exc}") from None
         if contribution.agent_guidance:

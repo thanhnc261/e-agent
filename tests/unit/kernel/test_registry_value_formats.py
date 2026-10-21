@@ -4,9 +4,11 @@ Uses the notes pack's answer (``SUMMARY``) with a classed input schema registere
 test, never ERP: the shared fixture registers no input schema for it.
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 import pytest
+from e_agent.contracts.value_formats import FrozenFormats
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.registry import PluginRegistry
 from e_agent.sdk.ports import PluginContribution
@@ -75,22 +77,32 @@ def test_registry_admits_formats_and_reads_them_through_the_descriptor() -> None
     assert dict(reg.descriptor(SUMMARY.contract_id).answer_value_formats) == ADMITTED
 
 
+def _register_unvalidated(formats: Mapping[str, str]) -> None:
+    summary = SUMMARY.model_copy(update={"data_classes": CLASSES, "answer_value_formats": formats})
+    PluginRegistry({}).register(
+        plugin_id="notes-fixture",
+        plugin_version="1",
+        declared_capabilities=(summary,),
+        binding_templates=(),
+        contribution=PluginContribution(
+            capabilities=(summary,), input_schemas={"s": SUMMARY_INPUT}
+        ),
+    )
+
+
 def test_registry_refuses_an_unknown_format() -> None:
     """The descriptor validator refuses one too; a copy that skipped validation does not
     get past admission."""
-    summary = SUMMARY.model_copy(
-        update={"data_classes": CLASSES, "answer_value_formats": {"/input/count": "number"}}
-    )
-    with pytest.raises(KernelError, match="value format"):
-        PluginRegistry({}).register(
-            plugin_id="notes-fixture",
-            plugin_version="1",
-            declared_capabilities=(summary,),
-            binding_templates=(),
-            contribution=PluginContribution(
-                capabilities=(summary,), input_schemas={"s": SUMMARY_INPUT}
-            ),
-        )
+    with pytest.raises(KernelError, match="unknown answer value format"):
+        _register_unvalidated(FrozenFormats({"/input/count": "number"}))
+
+
+def test_registry_refuses_formats_that_are_not_frozen() -> None:
+    """Review A1-1: a copy that skipped validation keeps a mutable mapping, which a plugin
+    could change after admission; admission refuses it."""
+    with pytest.raises(KernelError, match="not frozen"):
+        _register_unvalidated({"/input/count": "integer"})
+    _register_unvalidated(FrozenFormats({"/input/count": "integer"}))
 
 
 def test_registry_refuses_a_format_path_the_schema_lacks() -> None:

@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 import re
 import unicodedata
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 from . import data_classes as dc
 from .common import Record, format_decimal
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # capability.py imports this module at runtime: a type-only import
     from .capability import CapabilityDescriptor
 
 
@@ -53,24 +53,74 @@ _DATE_TIME = re.compile(
 
 
 def parse_format(text: str) -> ValueFormat:
-    """The format ``text`` names; ``ValueError`` for anything outside the closed set,
-    an ``enum`` with an empty or repeated value included."""
+    """The format ``text`` names; ``ValueError`` for anything outside the closed set.
+    An ``enum`` value is non-empty, unique and holds no whitespace, control or format
+    character, so it can match a value exactly (narrower than ADR 0023 §7, review A1-3)."""
     if not isinstance(text, str):
         raise ValueError(f"an answer value format is a string: {text!r}")
     if text in _PLAIN:
         return ValueFormat(kind=_PLAIN[text])
     if text.startswith(ENUM_PREFIX):
         values = tuple(text[len(ENUM_PREFIX) :].split("|"))
-        if all(values) and len(set(values)) == len(values):
+        unique = len(set(values)) == len(values)
+        if unique and all(v and not any(map(_blank_or_control, v)) for v in values):
             return ValueFormat(kind=FormatKind.ENUM, values=values)
-        raise ValueError(f"an enum value format has an empty or repeated value: {text!r}")
+        raise ValueError(
+            f"an enum value format has an empty, repeated or blank-holding value: {text!r}"
+        )
     raise ValueError(f"unknown answer value format: {text!r}")
+
+
+class FrozenFormats(Mapping[str, str]):
+    """An immutable path-to-format mapping. Unlike a ``MappingProxyType`` it survives
+    ``copy.deepcopy`` (pydantic deep-copies defaults), since a copy is the mapping itself."""
+
+    __slots__ = ("_formats",)
+
+    def __init__(self, formats: Mapping[str, str] | Iterable[tuple[str, str]] = ()) -> None:
+        self._formats = dict(formats)
+
+    def __getitem__(self, key: str) -> str:
+        return self._formats[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._formats)
+
+    def __len__(self) -> int:
+        return len(self._formats)
+
+    def __repr__(self) -> str:
+        return f"FrozenFormats({self._formats!r})"
+
+    def __copy__(self) -> FrozenFormats:
+        return self
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> FrozenFormats:
+        return self
+
+    def __reduce__(self) -> tuple[type[FrozenFormats], tuple[list[tuple[str, str]]]]:
+        return FrozenFormats, (list(self._formats.items()),)
+
+
+NO_FORMATS = FrozenFormats()
+"""The default: an answer that declares no format carries no value."""
+
+
+def frozen_formats(formats: Mapping[str, str]) -> FrozenFormats:
+    """A checked, immutable copy, as ``dc.frozen_classes`` takes for data classes (review
+    A1-1): a later change to the declaring mapping never reaches the descriptor."""
+    for key, text in formats.items():
+        dc.check_class_key(key)
+        parse_format(text)
+    return FrozenFormats(formats)
 
 
 def value_passes(fmt: ValueFormat, value: Any, *, nullable: bool) -> bool:
     """Whether ``value`` is a value of ``fmt``. A ``None`` passes only when ``nullable``
-    (the schema property admits ``null``). The recorded-source-ref check of a ``ref`` is
-    the carrier's, which holds the run's evidence."""
+    (the schema property admits ``null``). A ``ref`` holds no whitespace, no control
+    character (Unicode ``Cc``) and no format character (``Cf``: zero-width and bidi
+    controls), so two refs that look alike are equal. The recorded-source-ref check of a
+    ``ref`` is the carrier's, which holds the run's evidence."""
     if value is None:
         return nullable
     if isinstance(value, bool):
@@ -104,7 +154,7 @@ def _canonical_decimal(text: str) -> bool:
 
 
 def _blank_or_control(char: str) -> bool:
-    return char.isspace() or unicodedata.category(char) == "Cc"
+    return char.isspace() or unicodedata.category(char) in ("Cc", "Cf")
 
 
 def _parses(parse: Callable[[str], object], text: str) -> bool:
@@ -119,8 +169,15 @@ def check_format_declarations(document: Mapping[str, Any], cap: CapabilityDescri
     """Admission: ``ValueError`` for an unknown format, a path the input schema does not
     have, a format the schema type there cannot hold (a nullable union judged by its
     non-null member), or a path no ``data_classes`` entry covers, on the path itself or
-    an ancestor (``ClassIndex.declared``). The message names the path, never a value."""
+    an ancestor (``ClassIndex.declared``). The message names the path, never a value.
+
+    A mapping that is not frozen (a descriptor copied past its validator) is refused, so
+    admitted formats never change. The type check unions the types of every branch at
+    the path and refuses ``decimal`` on an ``integer`` schema: it can only refuse more,
+    and ``value_passes`` still checks every value (review A1-4)."""
     formats = cap.answer_value_formats
+    if not isinstance(formats, FrozenFormats):
+        raise ValueError("its answer_value_formats are not frozen; validate the descriptor")
     if not formats:
         return
     unsupported = dc.unsupported_sides(document)
@@ -145,7 +202,10 @@ def check_format_declarations(document: Mapping[str, Any], cap: CapabilityDescri
             raise ValueError(f"{prefix} no data_classes entry covers the path or an ancestor")
 
 
-def _types(declared: Any) -> tuple[str, ...]:
+def _types(declared: Any) -> set[str]:
+    """The type names a node's ``type`` keyword gives: one string or a list of them."""
     if isinstance(declared, str):
-        return (declared,)
-    return tuple(t for t in declared if isinstance(t, str)) if isinstance(declared, list) else ()
+        return {declared}
+    if isinstance(declared, list):
+        return {t for t in declared if isinstance(t, str)}
+    return set()

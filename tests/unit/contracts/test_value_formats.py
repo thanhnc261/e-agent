@@ -1,6 +1,8 @@
 """Host-side answer value formats (ADR 0023 §7, D17, Task 4c.4): the closed format set,
 what a value must be to pass, and the descriptor rule that only answers declare formats."""
 
+import copy
+import json
 from typing import Any
 
 import pytest
@@ -42,6 +44,10 @@ def test_every_format_in_the_closed_set_parses() -> None:
         "enum:a||b",
         "enum:a|a",
         "pattern:^x$",
+        "enum: a",
+        "enum:a\nb",
+        "enum:open| late",
+        "enum:a\u200bb",
     ],
 )
 def test_unknown_format_is_refused(text: str) -> None:
@@ -86,7 +92,19 @@ FAILING: dict[str, list[Any]] = {
         None,
     ],
     "enum:open|late": ["Open", "", "closed", 1, None],
-    "ref": ["", "x" * 257, "SO 42", "SO42\n", "\tSO42", "SO\x0042", "SO\u00a042", 42, None],
+    "ref": [
+        "",
+        "x" * 257,
+        "SO 42",
+        "SO42\n",
+        "\tSO42",
+        "SO\x0042",
+        "SO\u00a042",
+        "SO\u200b42",  # zero-width space (Cf)
+        "SO42\u202e",  # right-to-left override (Cf)
+        42,
+        None,
+    ],
 }
 
 
@@ -139,3 +157,31 @@ def test_format_on_a_non_answer_capability_is_refused() -> None:
         _descriptor(EffectKind.ANSWER, answer_value_formats={"/count": "integer"})
     with pytest.raises(ValidationError, match="value format"):
         _descriptor(EffectKind.ANSWER, answer_value_formats={"/input/count": "number"})
+
+
+def test_admitted_value_formats_are_immutable() -> None:
+    """Review A1-1: the descriptor holds a frozen copy, as admission keeps ``data_classes``;
+    a change to the declaring mapping, in place or by a new key, never reaches it."""
+    declared = {"/input/count": "integer"}
+    answer = _descriptor(EffectKind.ANSWER, answer_value_formats=declared)
+    formats = answer.answer_value_formats
+    with pytest.raises(TypeError):
+        formats["/input/count"] = "decimal"  # type: ignore[index]
+    with pytest.raises(TypeError):
+        formats["/input/extra"] = "ref"  # type: ignore[index]
+    declared["/input/count"] = "decimal"
+    assert dict(formats) == {"/input/count": "integer"}
+    with pytest.raises(TypeError):
+        _descriptor(EffectKind.ANSWER).answer_value_formats["/input/x"] = "ref"  # type: ignore[index]
+    # the frozen mapping still serialises, and a dump validates back to an equal descriptor
+    dumped = answer.model_dump()
+    assert dumped["answer_value_formats"] == {"/input/count": "integer"}
+    assert (
+        json.loads(answer.model_dump_json())["answer_value_formats"]
+        == dumped["answer_value_formats"]
+    )
+    assert CapabilityDescriptor.model_validate(dumped) == answer
+    assert CapabilityDescriptor.model_validate_json(answer.model_dump_json()) == answer
+    # a deep copy (pydantic deep-copies defaults) keeps the frozen mapping
+    assert copy.deepcopy(answer) == answer
+    assert answer.model_copy(deep=True).answer_value_formats is formats
