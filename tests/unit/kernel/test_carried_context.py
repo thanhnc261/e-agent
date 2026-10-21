@@ -1055,9 +1055,10 @@ async def test_validation_ignores_carried_values(make_kernel: MakeKernel) -> Non
 
 
 async def test_injected_carried_text_does_not_change_the_proposal(make_kernel: MakeKernel) -> None:
-    """Review Focus 2: the notes driver (the scripted driver's stand-in in the kernel suite)
-    proposes the same action whether the carried user text is clean or reads as an
-    instruction; the injected text reaches the pack only inside fences."""
+    """Review Focus 2: the injected text reaches the pack only inside fences. The notes
+    driver (the scripted driver's stand-in in the kernel suite) does not read the pack, so
+    the equal proposals show only that the kernel's own path from proposal to stored action
+    takes in no carried text; the fence assertions carry the property (4d.2 A2-2, B2-5)."""
     driver = TurnDriver()
     k = _kernel(make_kernel, driver=driver)
     proposals = []

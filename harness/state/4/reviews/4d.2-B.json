@@ -1,0 +1,49 @@
+{
+  "task": "4d.2",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "B2-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "ADR 0023 §8 says every carried field goes through the class walk (kernel/context_walk.py), but user messages, source_ref and revision get the route's unmarked-class rule directly in _text_line, not through Walker. The behaviour is the same for flat strings: KEEP is fenced, MASK is a marker plus a value/class_route drop, ABSENT plus a drop, and test_carried_personal_value_masked_on_hosted_route proves the masking. Add a §8 line saying unstructured carried strings take the personal rule directly (implementer ruling 4)",
+      "evidence": "src/e_agent/kernel/carried.py:303-318; docs/adr/0023-conversation-model.md:134-136; PR-35"
+    },
+    {
+      "id": "B2-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Carried CarriedRef.source_ref and revision are classed personal (the unmarked class, ADR 0030), but ADR 0023 §6 item 3 gives refs no class. On a hosted route without data_processing, the same locator is kept as an internal answer argument and masked as a record ref (the test asserts text.count('demand:d-001') == 1). This is not a leak, but the ADR should state the rule (ruling 5)",
+      "evidence": "src/e_agent/kernel/carried.py:289-299; tests/unit/kernel/test_carried_context.py:702; docs/adr/0023-conversation-model.md:75"
+    },
+    {
+      "id": "B2-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Array paths are undocumented. An empty list at an /items format path is not carried, and a list with any failing member is dropped whole. This is conservative and fits PR-21 (a carried list is never silently shorter), but ADR 0023 §6 item 2 and §7 do not say it. Add a line (ruling 8). An empty list (for example, no late orders) is a fact that is lost",
+      "evidence": "src/e_agent/kernel/carried.py:206-207, 214-232; tests/unit/kernel/test_carried_context.py:561-563"
+    },
+    {
+      "id": "B2-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The task adds two new Dropped.ref forms, carried:<run_id> (turn/budget drops) and carried:<run_id>#/user_messages/<i>, #/refs/<i>/source_ref|revision and #/answers/<i>/arguments/<name> (value drops). Neither form is in the Dropped docstring, which is stale, nor in ADR 0032 §5's list of ref forms. contracts/context_pack.py is outside this task's allowed paths, so this is a handoff item. drop_log's safe_ref passes the forms through unchanged, and they hold only kernel ids and declared argument names, never a value",
+      "evidence": "src/e_agent/contracts/context_pack.py:196-200; docs/adr/0032-context-assembler.md:71; src/e_agent/kernel/context.py:362-366"
+    },
+    {
+      "id": "B2-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The headline assertion of test_injected_carried_text_does_not_change_the_proposal cannot fail. TurnDriver branches on step_input.task and never reads step_input.context, so the two proposals are equal by construction. The property rests on the test's fence assertions (INJECTED only inside fences, 'Ignore' never outside them), and those are sound: fence() JSON-encodes and escapes <, > and &. The brief's scripted driver is an ERP plugin, which the kernel suite may not import, but the report does not record this substitution among its rulings. The docstring should say the proposal check is a smoke test",
+      "evidence": "tests/unit/kernel/test_carried_context.py:1057-1078, 829-860; src/e_agent/contracts/context_pack.py:306-312"
+    },
+    {
+      "id": "B2-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Simplicity. (a) ClassLookup is defined again in carried.py:247, identical to context.py:51. (b) render_carried calls the private walker._children and imports _plain from context_walk; a public input-side entry belongs in context_walk.py, which is outside scope, so this is a handoff item. (c) The duplicate-ref check `ref not in refs` is close to dead code: each evidence id maps to one stored observation, and observed_at differs per read. (d) MAX_CARRIED_RUNS is sliced both in the coordinator and in carry; the coordinator's slice saves store reads, so it can stay",
+      "evidence": "src/e_agent/kernel/carried.py:47, 143, 247, 338; src/e_agent/kernel/context.py:51; src/e_agent/kernel/coordinator.py:312"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}
