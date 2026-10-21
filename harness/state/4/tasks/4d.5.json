@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-4d-5"
   ],
-  "context_digest": "c46c4c2b1290c3fa21e94b62b85c69641fa5f68f6e99480785fd0b5a946d2876",
+  "context_digest": "df6bf7d29b130215123e288595a38710392175a43f87d189cd2fb6da0721bb6d",
   "allowed_paths": [
     "tests/**",
     "harness/context.toml",

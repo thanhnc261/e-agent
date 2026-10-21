@@ -57,7 +57,7 @@ full = [
 ]
 # UI type check, unit tests, layer and neutrality rules, build (pilot log HP-12).
 ui = ["pnpm --dir ui check"]
-pg = ["E_AGENT_TEST_STORE=postgres uv run pytest -q tests/unit/kernel tests/conformance tests/unit/adapters/postgres tests/unit/server/test_conversation_api.py"]
+pg = ["E_AGENT_TEST_STORE=postgres uv run pytest -q tests/unit/kernel tests/conformance tests/unit/adapters/postgres tests/unit/server/test_conversation_api.py tests/unit/server/test_conversation_e2e.py"]
 e2e = ["make e2e"]
 # Core wheels and a non-ERP test pack install without any ERP wheel; the server starts (Task 1d.8).
 core = ["uv run python scripts/check_core_only.py"]
