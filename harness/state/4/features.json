@@ -189,7 +189,8 @@
         "tests/unit/server/test_conversation_e2e.py passes on both stores",
         "pg gate and the CI checks job's PostgreSQL step (both now with test_conversation_e2e.py) and make e2e pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4d.5/2026-10-21T15-40-02.807482+00-00-full.json"
     },
     {
       "id": "F-4e-1",

@@ -1,0 +1,24 @@
+{
+  "task": "4d.5",
+  "changed": "Fixture conversation thread end to end through the HTTP routes, on both stores (tests/unit/server/test_conversation_e2e.py). test_two_run_thread_carries_first_run_findings: 'hi', then 'which products are short?', then 'draft a PO for it'. It checks that there are two linked runs, and that every pack of run 2 renders the exact fenced lines for run 1's VERIFIED ShortageAnswer shortage and demand_ref, kept apart from the record ref. Run 2 never asks a question, reads before it proposes and cites only its own evidence, and the approval goes through the approvals route only. test_thread_in_shadow_matches_per_run_behaviour: the same thread in shadow gives the per-run outcomes plus conversation.compared, and a message sent while run 2 waits for approval starts an unlinked run that changes nothing in run 2. The pg gate set and the CI Postgres step include the file. The scripted driver is unchanged, so the domain-erp artifact digest is unchanged. Commits b7555680 and e023b30c (review fix T5-1). Reviews 4d.5.json (rework, T5-1 Medium) and 4d.5-r2.json (accept). make e2e: 168 passed, 4 skipped, at b7555680 (the later fix touches only this test file).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4d.5/2026-10-21T15-40-02.807482+00-00-full.json",
+    "harness/state/evidence/gates/4d.5/2026-10-21T15-41-44.166981+00-00-pg.json"
+  ],
+  "open_items": [
+    "T5-2: the test-local ThreadDriver picks the plugin's shortage or draft-PO driver from the task text, and the draft-PO driver never asks. So 'never re-asks' proves only that the kernel adds no question; whether a model uses the carried shortage is live check item 4.",
+    "T5-3: shadow with context_assembler off is not run end to end in fixtures; live check item 7 covers it.",
+    "The owner's A/B question on a reply_to to an ended run is still open (it starts a new run now, per ADR 0023 \u00a74)."
+  ],
+  "rulings": [
+    {
+      "ruling": "Shadow end to end runs with context_assembler: on, so the conversations toggle is the only difference and 'nothing carried' is checked on real packs.",
+      "cost_if_wrong": "one more parametrised case"
+    },
+    {
+      "ruling": "The test-local ThreadDriver stands in for the model and composes the plugin's own drivers; no plugin code changed, so no re-pin is needed.",
+      "cost_if_wrong": "a scripted-driver branch and a domain-erp re-pin"
+    }
+  ],
+  "outside_repo": []
+}
