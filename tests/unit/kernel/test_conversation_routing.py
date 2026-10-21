@@ -19,11 +19,10 @@ from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.context import HostContext, Principal, ResourceHint, TaskContext
 from e_agent.contracts.conversation import Conversation, MessageRoute, ReplyTo, RouteKind
-from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode, Features, MemberFeatures
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord, RunState
-from e_agent.kernel.conversation import CONVERSATIONS_OFF, route_message
+from e_agent.kernel.conversation import CONVERSATIONS_OFF, message_digest, route_message
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.memory_conversations import InMemoryConversationStore
 from e_agent.sdk.ports import AskClarification, DriverInput, DriverStep
@@ -94,14 +93,9 @@ def _digest(
     reply_to: ReplyTo | None = None,
     host_context: HostContext | None = None,
 ) -> str:
-    """The request digest covers the conversation id, the text, ``reply_to`` and
-    ``host_context`` (ADR 0023 §4), in the number-free digest profile (ADR 0006)."""
-    body: dict[str, Any] = {"conversation_id": conversation_id, "text": text}
-    if reply_to is not None:
-        body["reply_to"] = {"run_id": reply_to.run_id, "run_revision": str(reply_to.run_revision)}
-    if host_context is not None:
-        body["host_context"] = host_context.model_dump(mode="json", exclude_none=True)
-    return digest(body)
+    """The kernel's one request digest (`message_digest`, Task 4d.4 B1-2): the conversation
+    id, the text, ``reply_to`` and ``host_context`` (ADR 0023 §4)."""
+    return message_digest(conversation_id, text, reply_to, host_context)
 
 
 async def _post(
