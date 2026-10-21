@@ -293,7 +293,8 @@
         "test_retried_answer_after_its_run_ended_replays and test_message_without_reply_to_after_an_ended_run_starts pass",
         "ADR 0023 §4 table and order of checks amended in the same commit"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4d.6/2026-10-21T17-00-05.222421+00-00-full.json"
     }
   ]
 }

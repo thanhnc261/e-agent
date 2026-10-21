@@ -1,0 +1,23 @@
+{
+  "task": "4d.6",
+  "changed": "G-B decision 3 (owner-delegated, 2026-10-21): route_message now refuses a message that carries a reply_to while the latest run has ended or there is no run, giving REFUSE QUESTION_CHANGED, i.e. CONFLICT 'the question changed; read it again'. A message without a reply_to still starts a run. The change is confined to the route, so a retried start still replays at step (0), an already-accepted answer still replays through input_replayed at step (3), and a reply_to that names no run of the conversation stays NOT_FOUND at step (2). Shadow gives the same CONFLICT with no run, as /inputs does today. ADR 0023 \u00a74 is amended (the table row is split, the order-of-checks note and a dated G-B 3 line are added; the status stays Accepted), along with the \u00a79 shadow row, the Verification list, and the plan's D2 and shadow rows. New tests: test_reply_to_an_ended_run_is_refused (on and shadow), test_message_without_reply_to_after_an_ended_run_starts and test_retried_answer_after_its_run_ended_replays. Commit 18df9713, plus coordinator doc fixes. Reviews 4d.6-A and 4d.6-B both accept. The pg gate passed at 18df971, before the doc-only commits.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4d.6/2026-10-21T17-00-05.222421+00-00-full.json",
+    "harness/state/evidence/gates/4d.6/2026-10-21T16-56-29.263822+00-00-pg.json"
+  ],
+  "open_items": [
+    "Closes 4d.1 A1-2 and B1-1 and the open A/B question in the 4d.4 handoff; those handoffs are history and still list it as open.",
+    "B6-3: docs/design/target-architecture.md \u00a75.7 (line 477) still says a message starts a new run when the latest run has ended. Fix it at phase close (4f.1), since the file is outside this task's scope.",
+    "B6-4: ADR 0023's header task list does not mention 4d.6.",
+    "A6-2: two of the new tests passed before the fix. They guard the check order and the no-reply_to path, and test_message_without_reply_to_after_an_ended_run_starts duplicates test_terminal_run_message_starts_a_new_run with weaker asserts.",
+    "A6-3: no test checks NOT_FOUND for a foreign reply_to while the latest run has ended. The code order covers it, but the router's 'no runs + reply_to' refusal cannot be reached through post_message.",
+    "The owner was told this amends accepted ADR 0023 \u00a74 under their delegation and may revert it."
+  ],
+  "rulings": [
+    {
+      "ruling": "Apply G-B decision 3 under the owner's delegation, as an amendment of accepted ADR 0023 \u00a74 (status stays Accepted, dated line).",
+      "cost_if_wrong": "revert one route branch, three tests and the ADR lines"
+    }
+  ],
+  "outside_repo": []
+}
