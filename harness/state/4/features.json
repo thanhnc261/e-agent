@@ -283,6 +283,17 @@
         "live results recorded in the handoff, labelled live; no PO proposed is a partial result"
       ],
       "passes": false
+    },
+    {
+      "id": "F-4d-6",
+      "category": "kernel",
+      "description": "Task 4d.6: an answer (reply_to) to an ended run is refused with CONFLICT 'the question changed; read it again' (G-B decision 3, ADR 0023 §4 amended); retries and accepted answers still replay",
+      "steps": [
+        "test_reply_to_an_ended_run_is_refused passes in on and shadow on both stores, with no run created anywhere",
+        "test_retried_answer_after_its_run_ended_replays and test_message_without_reply_to_after_an_ended_run_starts pass",
+        "ADR 0023 §4 table and order of checks amended in the same commit"
+      ],
+      "passes": false
     }
   ]
 }
