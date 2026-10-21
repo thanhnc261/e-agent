@@ -1,0 +1,27 @@
+{
+  "id": "4d.5",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4d-5"
+  ],
+  "context_digest": "c46c4c2b1290c3fa21e94b62b85c69641fa5f68f6e99480785fd0b5a946d2876",
+  "allowed_paths": [
+    "tests/**",
+    "harness/context.toml",
+    ".github/workflows/ci.yml",
+    "src/e_agent/plugins/erp/domain/testing/scripted_driver.py",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "tests/unit/server/test_conversation_e2e.py passes on both stores",
+    "pg gate and the CI checks job's PostgreSQL step (both now with test_conversation_e2e.py) and make e2e pass"
+  ],
+  "gate_set": "full",
+  "base_commit": "620dc94d840192d22e8c4355b989b37288373fac",
+  "created_at": "2026-10-21T15:14:39+00:00",
+  "features_digest": "f907f87e6e7e693182c3f2f3772f611ec0594669c6971a7416f2f9bfb318d0d9"
+}
