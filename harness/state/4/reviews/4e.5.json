@@ -1,0 +1,42 @@
+{
+  "task": "4e.5",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "E5-1",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "ADR 0034 §4 (accepted, assigned to Task 4e.5; Review Focus 8, PR-19, EA-3) says a free-text answer field such as `summary` or `explanation` is never presented as verified. OutcomePanel still lists every argument of a VERIFIED action, typed-answer free text included (the ERP offer.recommend answer has `/input/explanation`, absent from its answer_value_formats), under the heading 'Verified values' / 'Giá trị đã xác minh'. The server sends the UI no per-field label: action arguments are unlabelled, outcome.reported drops verified_values, and answer_value_formats is on CapabilityDescriptor only and exposed by no route. So filtering on a server label (option a) is impossible today, and a server label (option b) is a bundle contract change that needs an ADR and is outside allowed_paths. Smallest correct fix in scope (option c): change outcome.values in EN and VI to a label that claims no verification, such as 'Values of this action' (what was verified stays in the existing Checks disclosure), and add a component test with a VERIFIED answer action whose arguments hold an `explanation` string, asserting that no verified label covers it. The tests in this task hide the gap: typedBundle and the spec give the answer action `arguments: {}` or none. Labelling the field as model-authored (the rest of §4) needs a server declaration: record it as a G-D follow-up (option b, with an ADR).",
+      "evidence": "ui/packages/components/src/features/outcome/OutcomePanel.tsx:74; ui/packages/ui-core/src/i18n.ts:138; ui/packages/ui-core/src/i18n.ts:490; ui/packages/ui-core/src/store.ts:333; src/e_agent/plugins/erp/domain/e_agent_plugin.json:149-162; docs/adr/0034-conversation-workspace-and-explanation-ui.md:55"
+    },
+    {
+      "id": "E5-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The report says the load test fires the toggle twice to prove that one read is made, but the test dispatches a single toggle event, so the useRef double-toggle guard has no test. The test still asserts what its name claims (it loads when opened and shows the absent state). Either fire the toggle twice or correct the report.",
+      "evidence": "ui/packages/components/test/citations.test.tsx:424-426; ui/packages/components/src/features/outcome/Explanation.tsx:37-47"
+    },
+    {
+      "id": "E5-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Server enum strings appear untranslated in the explanation list, in VI as well: the outcome stage status ('succeeded'), the rule status ('PASS'), the approval decision and the receipt status. The labels are translated. This is copy for the ag-ux-review at G-D (4e.7), not a trust issue.",
+      "evidence": "ui/packages/components/src/features/outcome/Explanation.tsx:267; ui/packages/components/src/features/outcome/Explanation.tsx:320; ui/packages/components/src/features/outcome/Explanation.tsx:333; ui/packages/components/src/features/outcome/Explanation.tsx:346"
+    },
+    {
+      "id": "E5-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Deviations from mockup A1, all acceptable to carry to G-D. (1) Citations sit in an on-demand disclosure: ADR 0034 §4 says the explanation 'opens from' the outcome, the run is terminal and no decision depends on the citations, and the badge and the grounded explain line stay at the top level. (2) containers/Activity.tsx becomes the default timeline slot, a default that hosts can see: record it in the handoff and in ui-architecture §12, which is outside this contract's paths. (3) The summary appears twice in a grounded Result tab; both copies carry honest model-authored labels. (4) EA-14: .ea-explain-words has no forced-colors rule and forced-colors.spec.ts has no explanation state. The dashed border carries no meaning on its own, because the 'Not verified' text label does, so this is for 4e.7.",
+      "evidence": "ui/packages/components/src/containers/Activity.tsx:13-21; ui/packages/components/src/defaults.ts:21; ui/packages/components/src/components.css (.ea-explain-words); .superpowers/sdd/2026-10-20-phase4-conversation-chat/task-4e.5-report.md (Concerns)"
+    },
+    {
+      "id": "E5-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "In a run pinned grounded_answers: on, the citations of a typed answer's proposal.created event are stored by id and pointer even when the kernel's verdict was mismatched or unresolved at the pointer (citation_at_rest named=True). The UI lists them under 'Sources this answer cites' and does not show the KERNEL-CITATION finding beside them. The value shown is still the approved fact's, never the model's, and the outcome row carries the server's not_verified label, so ADR 0034 §3 is met. A note for G-D.",
+      "evidence": "src/e_agent/kernel/at_rest.py:114-121; ui/packages/ui-core/src/selectors/explanation.ts:351-363"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}
