@@ -180,7 +180,7 @@ class InMemoryRunStore:
                 state, driver_state = continuation
                 self._continuations[key] = (
                     dict(state),
-                    dict(driver_state) if driver_state else None,
+                    dict(driver_state) if driver_state is not None else None,
                 )
             if work is not None:
                 kind, payload, request_digest = work

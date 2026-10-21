@@ -148,6 +148,7 @@ source_modules = [
     "e_agent.kernel.grounding",
     "e_agent.kernel.ir",
     "e_agent.kernel.ir_on",
+    "e_agent.kernel.memory_conversations",
     "e_agent.kernel.memory_store",
     "e_agent.kernel.plan_flow",
     "e_agent.kernel.policy",

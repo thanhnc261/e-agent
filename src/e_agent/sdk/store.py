@@ -13,6 +13,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from e_agent.contracts.action import ActionRecord
 from e_agent.contracts.approval import ApprovalRecord
+from e_agent.contracts.conversation import Conversation, ConversationPage
 from e_agent.contracts.events import RunEvent, RunEventType
 from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.plan import ActionPlan
@@ -223,3 +224,67 @@ class RunStore(Protocol):
     def work_scope(self, claim: WorkClaim) -> AbstractAsyncContextManager[None]: ...
 
     async def has_pending_work(self, tenant_id: str, run_id: str) -> bool: ...
+
+
+MAX_CONVERSATION_PAGE = 100
+"""The largest ``limit`` of ``ConversationStore.list_conversations``."""
+
+
+@runtime_checkable
+class ConversationStore(Protocol):
+    """Conversations and the runs linked to them (ADR 0023 §3), beside ``RunStore``.
+
+    Every read filters by tenant **and** owner: another owner's or tenant's conversation
+    raises ``NotFound``, so it looks absent, never forbidden (PR-24)."""
+
+    async def create_conversation(self, conversation: Conversation) -> None:
+        """Store a new conversation at revision 1 (``ValueError`` below it). A conversation is
+        never overwritten: a second create of its id in the tenant is a ``ConcurrencyConflict``."""
+        ...
+
+    async def get_conversation(
+        self, tenant_id: str, owner_id: str, conversation_id: str
+    ) -> Conversation: ...
+
+    async def list_conversations(
+        self, tenant_id: str, owner_id: str, *, after: str | None, limit: int
+    ) -> ConversationPage:
+        """Newest first by ``created_at`` (then id), so a revision bump never reorders a page.
+        ``after`` is the ``next_after`` of the previous page: the last conversation id it
+        held; one the owner does not have raises ``NotFound``. ``limit`` outside 1 to
+        ``MAX_CONVERSATION_PAGE`` raises ``ValueError``; ``next_after`` is set only when more
+        conversations follow."""
+        ...
+
+    async def list_conversation_runs(
+        self, tenant_id: str, owner_id: str, conversation_id: str
+    ) -> tuple[RunRecord, ...]:
+        """The conversation's runs, oldest first by ``created_at`` (then run id)."""
+        ...
+
+    async def lookup_idempotent(
+        self, tenant_id: str, actor_id: str, key: str
+    ) -> tuple[str, str] | None:
+        """The (run id, request digest) recorded for the key, or ``None``. Writes nothing."""
+        ...
+
+    async def create_run_in_conversation(
+        self,
+        run: RunRecord,
+        events: EventBatch,
+        state: Mapping[str, Any],
+        actor_id: str,
+        key: str,
+        request_digest: str,
+        conversation_revision: int,
+    ) -> tuple[str, str]:
+        """``create_run_idempotent`` for a run of ``run.conversation_id`` (``ValueError`` when
+        unset; ``NotFound`` when the tenant has no such conversation).
+
+        A recorded (tenant, actor, key) returns its (run id, digest) at once, with no
+        conversation check and no bump; the caller compares the digest. Otherwise, in the
+        transaction of the run insert, a conversation revision other than
+        ``conversation_revision`` or a run of the conversation in a non-terminal state raises
+        ``ConcurrencyConflict``; else the run is admitted and the conversation's revision and
+        ``updated_at`` move. One active run per conversation is this check."""
+        ...

@@ -1,4 +1,4 @@
-"""PostgreSQL implementation of the RunStore port.
+"""PostgreSQL implementation of the RunStore and ConversationStore ports.
 
 Each method is one short local transaction; no transaction is ever held
 across a model or provider call (ADR 0003). Event sequences are assigned
@@ -15,6 +15,7 @@ from typing import Any
 from e_agent.contracts.action import ActionRecord
 from e_agent.contracts.approval import ApprovalRecord
 from e_agent.contracts.common import new_id, utc_now
+from e_agent.contracts.conversation import Conversation, ConversationPage
 from e_agent.contracts.events import RunEvent
 from e_agent.contracts.outcome import OutcomeReport
 from e_agent.contracts.plan import ActionPlan, plan_from_wire, plan_to_wire
@@ -23,6 +24,7 @@ from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord
 from e_agent.contracts.step import StepRecord
 from e_agent.contracts.work import WorkClaim
 from e_agent.sdk.store import (
+    MAX_CONVERSATION_PAGE,
     ConcurrencyConflict,
     ConnectionBusy,
     DuplicateOperation,
@@ -35,10 +37,32 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
 NOTIFY_CHANNEL = "e_agent_run_events"
+_RUN_INSERT = (
+    "INSERT INTO runs (tenant_id, run_id, state, revision, record, conversation_id)"
+    " VALUES (%s, %s, %s, %s, %s, %s)"
+)
+"""Every run insert: ``conversation_id`` comes from the record it indexes (migration 0007)."""
+_IDEMPOTENCY_ROW = (
+    "SELECT run_id, request_digest FROM api_idempotency"
+    " WHERE tenant_id = %s AND actor_id = %s AND idem_key = %s"
+)
+_CONVERSATION_SELECT = (
+    "SELECT tenant_id, conversation_id, owner_id, revision, created_at, updated_at"
+    " FROM conversations WHERE tenant_id = %s AND owner_id = %s"
+)
+"""The columns in ``Conversation`` field order, of one tenant and owner."""
 
 
 def _json(model: Any) -> Jsonb:
     return Jsonb(model.model_dump(mode="json"))
+
+
+def _run_row(run: RunRecord) -> tuple[Any, ...]:
+    return (run.tenant_id, run.run_id, run.state, run.revision, _json(run), run.conversation_id)
+
+
+def _conversation(row: Sequence[Any]) -> Conversation:
+    return Conversation.model_validate(dict(zip(Conversation.model_fields, row, strict=True)))
 
 
 class PostgresRunStore:
@@ -67,7 +91,7 @@ class PostgresRunStore:
             await conn.execute(
                 "TRUNCATE runs, run_events, actions, operation_reservations, approvals,"
                 " receipts, outcome_reports, continuations, api_idempotency, run_work,"
-                " action_plans, run_steps"
+                " action_plans, run_steps, conversations"
             )
 
     # -- helpers --------------------------------------------------------------
@@ -218,11 +242,7 @@ class PostgresRunStore:
             await self._fence(conn)
             try:
                 async with conn.transaction():
-                    await conn.execute(
-                        "INSERT INTO runs (tenant_id, run_id, state, revision, record)"
-                        " VALUES (%s, %s, %s, %s, %s)",
-                        (run.tenant_id, run.run_id, run.state, run.revision, _json(run)),
-                    )
+                    await conn.execute(_RUN_INSERT, _run_row(run))
             except errors.UniqueViolation as exc:
                 raise ConcurrencyConflict(f"run {run.run_id} exists") from exc
             await self._append(conn, run.tenant_id, run.run_id, events)
@@ -237,35 +257,41 @@ class PostgresRunStore:
         request_digest: str,
     ) -> tuple[str, str]:
         async with self._pool.connection() as conn, conn.transaction():
-            cur = await conn.execute(
-                "INSERT INTO api_idempotency"
-                " (tenant_id, actor_id, idem_key, request_digest, run_id)"
-                " VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING RETURNING run_id",
-                (run.tenant_id, actor_id, key, request_digest, run.run_id),
-            )
-            if await cur.fetchone() is None:
-                cur = await conn.execute(
-                    "SELECT run_id, request_digest FROM api_idempotency"
-                    " WHERE tenant_id = %s AND actor_id = %s AND idem_key = %s",
-                    (run.tenant_id, actor_id, key),
-                )
-                row = await cur.fetchone()
-                assert row is not None
-                return str(row[0]), str(row[1])
-            await conn.execute(
-                "INSERT INTO runs (tenant_id, run_id, state, revision, record)"
-                " VALUES (%s, %s, %s, %s, %s)",
-                (run.tenant_id, run.run_id, run.state, run.revision, _json(run)),
-            )
-            await self._save_continuation(conn, run.tenant_id, run.run_id, state, None)
-            await self._append(conn, run.tenant_id, run.run_id, events)
-            await conn.execute(
-                "INSERT INTO run_work"
-                " (work_id, tenant_id, run_id, kind, payload, request_digest)"
-                " VALUES (%s, %s, %s, 'start', '{}', %s)",
-                (new_id("work"), run.tenant_id, run.run_id, request_digest),
-            )
-            return run.run_id, request_digest
+            return await self._admit(conn, run, events, state, actor_id, key, request_digest)
+
+    @staticmethod
+    async def _admit(
+        conn: AsyncConnection[Any],
+        run: RunRecord,
+        events: EventBatch,
+        state: Mapping[str, Any],
+        actor_id: str,
+        key: str,
+        request_digest: str,
+    ) -> tuple[str, str]:
+        """Record the key and admit the run, its continuation and start work, in the caller's
+        transaction; a recorded key returns its (run id, digest) and writes nothing else."""
+        cur = await conn.execute(
+            "INSERT INTO api_idempotency"
+            " (tenant_id, actor_id, idem_key, request_digest, run_id)"
+            " VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING RETURNING run_id",
+            (run.tenant_id, actor_id, key, request_digest, run.run_id),
+        )
+        if await cur.fetchone() is None:
+            cur = await conn.execute(_IDEMPOTENCY_ROW, (run.tenant_id, actor_id, key))
+            row = await cur.fetchone()
+            assert row is not None
+            return str(row[0]), str(row[1])
+        await conn.execute(_RUN_INSERT, _run_row(run))
+        await PostgresRunStore._save_continuation(conn, run.tenant_id, run.run_id, state, None)
+        await PostgresRunStore._append(conn, run.tenant_id, run.run_id, events)
+        await conn.execute(
+            "INSERT INTO run_work"
+            " (work_id, tenant_id, run_id, kind, payload, request_digest)"
+            " VALUES (%s, %s, %s, 'start', '{}', %s)",
+            (new_id("work"), run.tenant_id, run.run_id, request_digest),
+        )
+        return run.run_id, request_digest
 
     async def get_run(self, tenant_id: str, run_id: str) -> RunRecord:
         async with self._pool.connection() as conn:
@@ -569,6 +595,128 @@ class PostgresRunStore:
             row = await cur.fetchone()
         assert row is not None
         return str(row[0]), str(row[1])
+
+    # -- conversations (ADR 0023 §3) ---------------------------------------------
+    async def create_conversation(self, conversation: Conversation) -> None:
+        if conversation.revision < 1:
+            raise ValueError("a new conversation starts at revision 1")
+        try:
+            async with self._pool.connection() as conn, conn.transaction():
+                await conn.execute(
+                    "INSERT INTO conversations (tenant_id, conversation_id, owner_id, revision,"
+                    " created_at, updated_at)"
+                    " VALUES (%s, %s, %s, %s, %s, %s)",
+                    tuple(getattr(conversation, f) for f in Conversation.model_fields),
+                )
+        except errors.UniqueViolation as exc:
+            raise ConcurrencyConflict(
+                f"conversation {conversation.conversation_id} exists"
+            ) from exc
+
+    async def get_conversation(
+        self, tenant_id: str, owner_id: str, conversation_id: str
+    ) -> Conversation:
+        async with self._pool.connection() as conn:
+            return await self._owned(conn, tenant_id, owner_id, conversation_id)
+
+    @staticmethod
+    async def _owned(
+        conn: AsyncConnection[Any], tenant_id: str, owner_id: str, conversation_id: str
+    ) -> Conversation:
+        cur = await conn.execute(
+            _CONVERSATION_SELECT + " AND conversation_id = %s",
+            (tenant_id, owner_id, conversation_id),
+        )
+        row = await cur.fetchone()
+        if row is None:
+            raise NotFound(conversation_id)
+        return _conversation(row)
+
+    async def list_conversations(
+        self, tenant_id: str, owner_id: str, *, after: str | None, limit: int
+    ) -> ConversationPage:
+        if not 1 <= limit <= MAX_CONVERSATION_PAGE:
+            raise ValueError(f"limit must be 1 to {MAX_CONVERSATION_PAGE}, not {limit}")
+        sql = _CONVERSATION_SELECT
+        params: tuple[Any, ...] = (tenant_id, owner_id)
+        async with self._pool.connection() as conn:
+            if after is not None:
+                cursor = await self._owned(conn, tenant_id, owner_id, after)
+                sql += ' AND (created_at, conversation_id COLLATE "C") < (%s, %s)'
+                params += (cursor.created_at, cursor.conversation_id)
+            sql += ' ORDER BY created_at DESC, conversation_id COLLATE "C" DESC LIMIT %s'
+            cur = await conn.execute(sql, (*params, limit + 1))
+            rows = await cur.fetchall()
+        items = tuple(_conversation(row) for row in rows[:limit])
+        more = len(rows) > limit
+        return ConversationPage(items=items, next_after=items[-1].conversation_id if more else None)
+
+    async def list_conversation_runs(
+        self, tenant_id: str, owner_id: str, conversation_id: str
+    ) -> tuple[RunRecord, ...]:
+        async with self._pool.connection() as conn:
+            await self._owned(conn, tenant_id, owner_id, conversation_id)
+            cur = await conn.execute(
+                "SELECT record FROM runs WHERE tenant_id = %s AND conversation_id = %s"
+                " ORDER BY record ->> 'created_at', run_id COLLATE \"C\"",
+                (tenant_id, conversation_id),
+            )
+            rows = await cur.fetchall()
+        return tuple(RunRecord.model_validate(row[0]) for row in rows)
+
+    async def lookup_idempotent(
+        self, tenant_id: str, actor_id: str, key: str
+    ) -> tuple[str, str] | None:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(_IDEMPOTENCY_ROW, (tenant_id, actor_id, key))
+            row = await cur.fetchone()
+        return None if row is None else (str(row[0]), str(row[1]))
+
+    async def create_run_in_conversation(
+        self,
+        run: RunRecord,
+        events: EventBatch,
+        state: Mapping[str, Any],
+        actor_id: str,
+        key: str,
+        request_digest: str,
+        conversation_revision: int,
+    ) -> tuple[str, str]:
+        if run.conversation_id is None:
+            raise ValueError("a run created in a conversation names its conversation")
+        idem = (run.tenant_id, actor_id, key)
+        async with self._pool.connection() as conn, conn.transaction():
+            cur = await conn.execute(_IDEMPOTENCY_ROW, idem)
+            if (row := await cur.fetchone()) is not None:  # a replay: no check, no bump
+                return str(row[0]), str(row[1])
+            cur = await conn.execute(
+                "SELECT revision FROM conversations"
+                " WHERE tenant_id = %s AND conversation_id = %s FOR UPDATE",
+                (run.tenant_id, run.conversation_id),
+            )
+            if (locked := await cur.fetchone()) is None:
+                raise NotFound(run.conversation_id)
+            # A same-key request may have committed while this one waited for the lock.
+            cur = await conn.execute(_IDEMPOTENCY_ROW, idem)
+            if (row := await cur.fetchone()) is not None:
+                return str(row[0]), str(row[1])
+            if locked[0] != conversation_revision:
+                raise ConcurrencyConflict(f"conversation {run.conversation_id} changed")
+            cur = await conn.execute(
+                "SELECT 1 FROM runs WHERE tenant_id = %s AND conversation_id = %s"
+                " AND NOT (state = ANY(%s)) LIMIT 1",
+                (run.tenant_id, run.conversation_id, [str(s) for s in TERMINAL_RUN_STATES]),
+            )
+            if await cur.fetchone() is not None:
+                raise ConcurrencyConflict(f"conversation {run.conversation_id} has an active run")
+            admitted = await self._admit(conn, run, events, state, actor_id, key, request_digest)
+            if admitted == (run.run_id, request_digest):  # created here, not another's record
+                await conn.execute(
+                    "UPDATE conversations SET revision = revision + 1, updated_at = now()"
+                    " WHERE tenant_id = %s AND conversation_id = %s",
+                    (run.tenant_id, run.conversation_id),
+                )
+            return admitted
 
     async def list_unfinished_runs(self) -> list[RunRecord]:
         terminal = [str(s) for s in TERMINAL_RUN_STATES]

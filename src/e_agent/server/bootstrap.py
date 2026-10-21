@@ -25,7 +25,7 @@ from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.coordinator import RunCoordinator
 from e_agent.kernel.credentials import CredentialService
 from e_agent.kernel.errors import ErrorCode, KernelError
-from e_agent.kernel.memory_store import InMemoryRunStore
+from e_agent.kernel.memory_conversations import InMemoryConversationStore
 from e_agent.kernel.policy import DefaultPolicy
 from e_agent.kernel.registry import EnabledPlugin, PluginRegistry
 from e_agent.sdk.auth import SecretStore
@@ -95,7 +95,7 @@ async def open_store(profile: Profile) -> Any:
     if profile.store.kind == "memory":
         if profile.environment == "live":
             raise KernelError(ErrorCode.STARTUP_REJECTED, "live runs require a PostgreSQL ledger")
-        return InMemoryRunStore()
+        return InMemoryConversationStore()  # the run store and the conversation store
     dsn = require_env(profile.store.dsn_env)
     check_ledger_separation(profile, dsn)
     await apply_migrations(dsn)

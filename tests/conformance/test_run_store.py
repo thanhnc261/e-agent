@@ -161,6 +161,25 @@ async def test_continuation_round_trip(store: Any) -> None:
     )
 
 
+async def test_empty_driver_state_round_trips(store: Any) -> None:
+    """An empty driver state ``{}`` is stored as ``{}``, never as ``None`` (Phase 3 FB-2), by
+    both writes that carry a continuation; ``load_continuation`` restores it."""
+    await store.create_run(_run(), [EV])
+    cases = 0
+    await store.update_run(_run(rev=2), 1, [EV], continuation=({"k": "update"}, {}))
+    assert await store.load_continuation("t1", "run_1") == ({"k": "update"}, {})
+    cases += 1
+    await store.put_action(_action(), None, [])
+    waiting = _action(rev=2, state=ActionState.AWAITING_APPROVAL)
+    await store.wait_for_approval(waiting, 1, _run(rev=3), 2, ({"k": "wait"}, {}), [EV])
+    assert await store.load_continuation("t1", "run_1") == ({"k": "wait"}, {})
+    cases += 1
+    await store.update_run(_run(rev=4), 3, [EV], continuation=({"k": "none"}, None))
+    assert await store.load_continuation("t1", "run_1") == ({"k": "none"}, None)
+    print(f"empty driver state cases: {cases}")
+    assert cases == 2
+
+
 async def test_unfinished_runs(store: Any) -> None:
     await store.create_run(_run("r1"), [EV])
     await store.create_run(_run("r2"), [EV])
