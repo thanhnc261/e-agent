@@ -652,9 +652,16 @@ export interface components {
             /** Text */
             text: string;
         };
-        /** PostedMessage */
+        /**
+         * PostedMessage
+         * @description A refusal is never a 202: it is ``CONFLICT`` with the fixed hint (ADR 0023 §4).
+         */
         PostedMessage: {
-            route: components["schemas"]["RouteKind"];
+            /**
+             * Route
+             * @enum {string}
+             */
+            route: "start" | "answer";
             /** Run Id */
             run_id: string;
         };
@@ -698,11 +705,6 @@ export interface components {
          * @enum {string}
          */
         Risk: "read" | "write_low" | "write_high" | "destructive";
-        /**
-         * RouteKind
-         * @enum {string}
-         */
-        RouteKind: "answer" | "start" | "refuse";
         /** RunEvent */
         RunEvent: {
             /** Action Id */

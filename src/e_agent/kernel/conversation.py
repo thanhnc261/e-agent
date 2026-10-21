@@ -268,10 +268,11 @@ class ConversationFlow:
         reply_to: ReplyTo | None,
         host_context: HostContext | None,
         idempotency_key: str,
-        request_digest: str,
         resource_scope: frozenset[str],
     ) -> tuple[MessageRoute, str]:
+        """The digest is always `message_digest` of the message, never a caller's (4d.1 B1-2)."""
         tenant, owner = principal.tenant_id, principal.principal_id
+        request_digest = message_digest(conversation_id, text, reply_to, host_context)
         message = _Message(
             principal,
             conversation_id,

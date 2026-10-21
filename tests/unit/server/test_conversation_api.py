@@ -122,6 +122,7 @@ def _refused(r: Any, code: str, message: str) -> None:
     assert r.status_code == 404, r.text
     body = r.json()
     assert set(body) == ENVELOPE
+    assert isinstance(body["correlation_id"], str) and body["correlation_id"]
     assert (body["code"], body["message"]) == (code, message)
 
 

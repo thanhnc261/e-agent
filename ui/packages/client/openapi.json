@@ -823,9 +823,15 @@
         "type": "object"
       },
       "PostedMessage": {
+        "description": "A refusal is never a 202: it is ``CONFLICT`` with the fixed hint (ADR 0023 \u00a74).",
         "properties": {
           "route": {
-            "$ref": "#/components/schemas/RouteKind"
+            "enum": [
+              "start",
+              "answer"
+            ],
+            "title": "Route",
+            "type": "string"
           },
           "run_id": {
             "title": "Run Id",
@@ -947,15 +953,6 @@
           "destructive"
         ],
         "title": "Risk",
-        "type": "string"
-      },
-      "RouteKind": {
-        "enum": [
-          "answer",
-          "start",
-          "refuse"
-        ],
-        "title": "RouteKind",
         "type": "string"
       },
       "RunEvent": {

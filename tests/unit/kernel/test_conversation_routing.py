@@ -22,7 +22,7 @@ from e_agent.contracts.conversation import Conversation, MessageRoute, ReplyTo, 
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode, Features, MemberFeatures
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord, RunState
-from e_agent.kernel.conversation import CONVERSATIONS_OFF, message_digest, route_message
+from e_agent.kernel.conversation import CONVERSATIONS_OFF, route_message
 from e_agent.kernel.errors import ErrorCode, KernelError
 from e_agent.kernel.memory_conversations import InMemoryConversationStore
 from e_agent.sdk.ports import AskClarification, DriverInput, DriverStep
@@ -87,17 +87,6 @@ class ClarifyDriver:
         return AskClarification(question="Q2: anything else?")
 
 
-def _digest(
-    conversation_id: str,
-    text: str,
-    reply_to: ReplyTo | None = None,
-    host_context: HostContext | None = None,
-) -> str:
-    """The kernel's one request digest (`message_digest`, Task 4d.4 B1-2): the conversation
-    id, the text, ``reply_to`` and ``host_context`` (ADR 0023 §4)."""
-    return message_digest(conversation_id, text, reply_to, host_context)
-
-
 async def _post(
     k: Kernel,
     conversation_id: str,
@@ -107,7 +96,6 @@ async def _post(
     key: str | None = None,
     who: Principal | None = None,
     host_context: HostContext | None = None,
-    request_digest: str | None = None,
 ) -> tuple[MessageRoute, str]:
     return await k.coordinator.post_message(
         who or k.requester,
@@ -116,7 +104,6 @@ async def _post(
         reply_to=reply_to,
         host_context=host_context,
         idempotency_key=key or new_id("key"),
-        request_digest=request_digest or _digest(conversation_id, text, reply_to, host_context),
         resource_scope=k.scope,
     )
 

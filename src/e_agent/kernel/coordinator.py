@@ -73,7 +73,6 @@ from .conversation import (
     ConversationFlow,
     ConversationStepFailed,
     failure_code,
-    message_digest,
     shadow_failed_event,
 )
 from .dispatch import DispatchMixin
@@ -441,22 +440,17 @@ class RunCoordinator(
         host_context: HostContext | None,
         idempotency_key: str,
         resource_scope: frozenset[str],
-        request_digest: str | None = None,
     ) -> tuple[MessageRoute, str]:
         """Route one message (ADR 0023 §4): the route and the run id. ``conversation_id``
         comes from the route path and the owner from ``principal``, never from the body.
-        ``request_digest`` defaults to `message_digest` of the message, which the API uses."""
-        flow = self._conversation_flow()
-        if request_digest is None:
-            request_digest = message_digest(conversation_id, text, reply_to, host_context)
-        return await flow.post_message(
+        The request digest is the flow's `message_digest` of the message."""
+        return await self._conversation_flow().post_message(
             principal,
             conversation_id,
             text,
             reply_to=reply_to,
             host_context=host_context,
             idempotency_key=idempotency_key,
-            request_digest=request_digest,
             resource_scope=resource_scope,
         )
 

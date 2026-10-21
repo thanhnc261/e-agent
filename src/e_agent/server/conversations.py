@@ -12,6 +12,7 @@ test walks (PR-27).
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from typing import Literal
 
 from e_agent.contracts.context import HostContext
 from e_agent.contracts.conversation import (
@@ -45,7 +46,9 @@ class CreatedConversation(BaseModel):
 
 
 class PostedMessage(BaseModel):
-    route: RouteKind
+    """A refusal is never a 202: it is ``CONFLICT`` with the fixed hint (ADR 0023 §4)."""
+
+    route: Literal[RouteKind.START, RouteKind.ANSWER]
     run_id: str
 
 
