@@ -136,6 +136,7 @@ source_modules = [
     "e_agent.kernel.context_shadow",
     "e_agent.kernel.context_walk",
     "e_agent.kernel.continuation",
+    "e_agent.kernel.conversation",
     "e_agent.kernel.credentials",
     "e_agent.kernel.discovery",
     "e_agent.kernel.dispatch",

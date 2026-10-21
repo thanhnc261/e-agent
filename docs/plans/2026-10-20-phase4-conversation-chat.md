@@ -472,7 +472,7 @@ Added in round 3 for the owner's D17 ruling. This is a plugin contract change, d
 - `src/e_agent/kernel/conversation.py` (new): `route_message(latest: RunRecord | None, reply_to: ReplyTo | None) -> MessageRoute`, pure (D2); `ConversationFlow`, which the coordinator delegates to.
 - `src/e_agent/kernel/run_loop.py`: `input_replayed(actor, tenant_id, run_id, expected_revision, text) -> bool`, today's replay check moved out of the `/v1/runs/{id}/inputs` handler (`server/api.py`), unchanged in meaning. It refuses a non-requester with `FORBIDDEN` before it reads any event, exactly as `api.py:467-468` does today.
 - `src/e_agent/server/api.py`: the `/inputs` handler calls `input_replayed`; its behaviour is unchanged.
-- `src/e_agent/kernel/coordinator.py`: `create_conversation(principal) -> Conversation` and `post_message(principal, conversation_id, text, *, reply_to, host_context, idempotency_key, request_digest) -> tuple[MessageRoute, str]` (the route and the run id).
+- `src/e_agent/kernel/coordinator.py`: `create_conversation(principal) -> Conversation` and `post_message(principal, conversation_id, text, *, reply_to, host_context, idempotency_key, request_digest, resource_scope) -> tuple[MessageRoute, str]` (the route and the run id). Ruling (4d.1): `resource_scope` added, because a start needs the scope `admit_run` takes and the coordinator does not hold it; the route passes `rt.scope`, as `/v1/runs` does. The conversation variant of `admit_run` is `admit_run_in_conversation`.
 - `pyproject.toml`: `"e_agent.kernel.conversation"` in the same import contract's `source_modules`, in sorted order.
 - `tests/unit/kernel/test_conversation_routing.py` (new); `tests/unit/server/test_api.py`.
 

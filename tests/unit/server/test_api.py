@@ -283,6 +283,50 @@ def test_clarification_resumes_same_run_and_input_replay_is_idempotent() -> None
         assert sum(e["type"] == "input.received" for e in events) == 1
 
 
+def test_inputs_route_replay_unchanged() -> None:
+    """Task 4d.1 moved the replay check into the kernel (`input_replayed`): the route keeps
+    its status codes and hint text, for a replay before and after the run moved on."""
+    from e_agent.sdk.ports import AskClarification
+
+    class AskTwice:
+        driver_id = "ask-twice-fixture"
+
+        async def advance(self, ctx, step_input):
+            return AskClarification(question="Q2?" if step_input.user_input else "Q1?")
+
+    with TestClient(
+        create_app(
+            lambda: build_runtime(
+                load_profile(fixture_profile_path()), driver_factory=lambda registry: AskTwice()
+            )
+        )
+    ) as client:
+        headers = {**_login(client), "Idempotency-Key": "inputs-replay-001"}
+        rid = client.post("/v1/runs", json={"task": "draft PO"}, headers=headers).json()["run_id"]
+        q1 = _wait(client, rid, {"WAITING_INPUT"})["run"]["revision"]
+        body = {"input": "demand:d-001", "expected_revision": q1}
+        url = f"/v1/runs/{rid}/inputs"
+        assert client.post(url, json=body, headers=headers).status_code == 202
+        for _ in range(100):  # Q2 pending at a later revision
+            snapshot = _wait(client, rid, {"WAITING_INPUT"})
+            if snapshot["run"]["revision"] > q1:
+                break
+            time.sleep(0.05)
+        assert snapshot["run"]["revision"] > q1
+        replay = client.post(url, json=body, headers=headers)
+        assert (replay.status_code, replay.json()) == (202, {"status": "accepted"})
+        stale = client.post(url, json={**body, "input": "different"}, headers=headers)
+        assert stale.status_code == 409
+        assert (stale.json()["code"], stale.json()["message"]) == (
+            "CONFLICT",
+            "input does not match the pending question",
+        )
+        absent = client.post("/v1/runs/run_absent/inputs", json=body, headers=headers)
+        assert absent.status_code == 404
+        events = client.get(f"/v1/runs/{rid}/events").json()
+        assert sum(e["type"] == "input.received" for e in events) == 1
+
+
 async def test_lost_work_lease_stops_claim_without_killing_worker(monkeypatch) -> None:
     import asyncio
 

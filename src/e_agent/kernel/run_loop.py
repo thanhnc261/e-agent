@@ -295,6 +295,25 @@ class RunLoopMixin(GatewayMixin, ContextOnMixin):
         )
         return run
 
+    async def input_replayed(
+        self, actor: Principal, tenant_id: str, run_id: str, expected_revision: int, text: str
+    ) -> bool:
+        """Whether ``text`` was already accepted at ``expected_revision`` (a retried answer).
+
+        A non-requester is ``FORBIDDEN`` before any event is read. A run still waiting at
+        ``expected_revision`` is no replay and reads no event (ADR 0023 §4)."""
+        run = await self._store.get_run(tenant_id, run_id)
+        if actor.principal_id != run.requester_id:
+            raise KernelError(ErrorCode.FORBIDDEN, "only the requester may answer")
+        if run.revision == expected_revision and run.state is RunState.WAITING_INPUT:
+            return False
+        return any(
+            e.type is RunEventType.INPUT_RECEIVED
+            and e.payload.get("expected_revision") == expected_revision
+            and e.payload.get("input") == text
+            for e in await self._store.list_events(tenant_id, run_id)
+        )
+
     async def continue_input(self, tenant_id: str, run_id: str) -> RunRecord:
         run = await self._store.get_run(tenant_id, run_id)
         if run.state is not RunState.RUNNING:

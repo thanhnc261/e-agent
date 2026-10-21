@@ -14,6 +14,7 @@ from typing import Any
 
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.context import Budgets, HostContext, Principal, TaskContext
+from e_agent.contracts.conversation import Conversation, MessageRoute, ReplyTo
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import Features
 from e_agent.contracts.run import (
@@ -27,7 +28,13 @@ from e_agent.sdk.ports import (
     PolicyEvaluator,
     SafeTextSink,
 )
-from e_agent.sdk.store import EventSpec, RunStore
+from e_agent.sdk.store import (
+    ConcurrencyConflict,
+    ConversationStore,
+    EventSpec,
+    NotFound,
+    RunStore,
+)
 
 from .approval_flow import ApprovalFlowMixin
 from .connections import ConnectionCatalog
@@ -35,6 +42,7 @@ from .continuation import CONTINUATION_SCHEMA as CONTINUATION_SCHEMA
 from .continuation import LOG as LOG
 from .continuation import _Continuation as _Continuation
 from .continuation import _GatewayReader as _GatewayReader
+from .conversation import NOT_FOUND_MESSAGE, WAIT_FOR_RUN, ConversationFlow
 from .dispatch import DispatchMixin
 from .errors import ErrorCode, KernelError
 from .features import LOCAL_ROUTE, FeaturesMixin
@@ -107,6 +115,7 @@ class RunCoordinator(
         run_id: str | None = None,
         host_context: HostContext | None = None,
         task_kind: str | None = None,
+        conversation_id: str | None = None,
     ) -> tuple[RunRecord, _Continuation, list[EventSpec]]:
         run_id = run_id or new_id("run")
         run = RunRecord(
@@ -118,6 +127,7 @@ class RunCoordinator(
             revision=1,
             logical_operation_id=new_id("op"),  # host-assigned; survives repairs
             created_at=self._clock(),
+            conversation_id=conversation_id,  # linked before `run_created_keys` (ADR 0023 §2)
         )
         run, admitted = self._admit_task(run, task_kind)  # execution IR (ADR 0027, ADR 0028)
         # `on` only: the admitted definition narrows the budgets (D7) and is snapshotted into
@@ -212,6 +222,92 @@ class RunCoordinator(
         if previous_digest != request_digest:
             raise KernelError(ErrorCode.CONFLICT, "idempotency key reused with another request")
         return claimed, claimed == run_id
+
+    async def admit_run_in_conversation(
+        self,
+        principal: Principal,
+        task: str,
+        resource_scope: frozenset[str],
+        *,
+        run_id: str,
+        conversation_id: str,
+        conversation_revision: int,
+        idempotency_key: str,
+        request_digest: str,
+        host_context: HostContext | None = None,
+    ) -> tuple[str, bool]:
+        """`admit_run` for a run of ``conversation_id``, at the revision the flow read
+        (ADR 0023 §3). A moved revision or an active run is ``CONFLICT`` with the fixed hint."""
+        store = self._conversation_store()
+        run, cont, events = self._prepare_run(
+            principal,
+            task,
+            resource_scope,
+            run_id=run_id,
+            host_context=host_context,
+            conversation_id=conversation_id,
+        )
+        try:
+            claimed, previous_digest = await store.create_run_in_conversation(
+                run,
+                events,
+                {"schema": CONTINUATION_SCHEMA, "data": cont.model_dump(mode="json")},
+                principal.principal_id,
+                idempotency_key,
+                request_digest,
+                conversation_revision,
+            )
+        except ConcurrencyConflict:
+            raise KernelError(ErrorCode.CONFLICT, WAIT_FOR_RUN) from None
+        except NotFound:
+            raise KernelError(ErrorCode.NOT_FOUND, NOT_FOUND_MESSAGE) from None
+        if previous_digest != request_digest:
+            raise KernelError(ErrorCode.CONFLICT, "idempotency key reused with another request")
+        return claimed, claimed == run_id
+
+    # --------------------------------------------------------- conversations
+    def _conversation_store(self) -> ConversationStore:
+        if not isinstance(self._store, ConversationStore):
+            raise KernelError(ErrorCode.DEPENDENCY_UNAVAILABLE, "no conversation store")
+        return self._store
+
+    def _conversation_flow(self) -> ConversationFlow:
+        """Built per call, so it always reaches this coordinator's current methods."""
+        return ConversationFlow(
+            self._conversation_store(),
+            self._clock,
+            admit=self.admit_run_in_conversation,
+            accept=self.accept_input,
+            replayed=self.input_replayed,
+        )
+
+    async def create_conversation(self, principal: Principal) -> Conversation:
+        return await self._conversation_flow().create_conversation(principal)
+
+    async def post_message(
+        self,
+        principal: Principal,
+        conversation_id: str,
+        text: str,
+        *,
+        reply_to: ReplyTo | None,
+        host_context: HostContext | None,
+        idempotency_key: str,
+        request_digest: str,
+        resource_scope: frozenset[str],
+    ) -> tuple[MessageRoute, str]:
+        """Route one message (ADR 0023 §4): the route and the run id. ``conversation_id``
+        comes from the route path and the owner from ``principal``, never from the body."""
+        return await self._conversation_flow().post_message(
+            principal,
+            conversation_id,
+            text,
+            reply_to=reply_to,
+            host_context=host_context,
+            idempotency_key=idempotency_key,
+            request_digest=request_digest,
+            resource_scope=resource_scope,
+        )
 
     async def start_admitted_run(self, tenant_id: str, run_id: str) -> RunRecord:
         run = await self._store.get_run(tenant_id, run_id)

@@ -463,19 +463,10 @@ def create_app(
         s: Session = Depends(session),
     ) -> Accepted:
         rt = state().runtime
-        run = await rt.store.get_run(s.principal.tenant_id, run_id)
-        if run.requester_id != s.principal.principal_id:
-            raise KernelError(ErrorCode.FORBIDDEN, "only the requester may answer")
-        if run.revision != body.expected_revision or run.state is not RunState.WAITING_INPUT:
-            events = await rt.store.list_events(s.principal.tenant_id, run_id)
-            if any(
-                e.type == "input.received"
-                and e.payload.get("expected_revision") == body.expected_revision
-                and e.payload.get("input") == body.input
-                for e in events
-            ):
-                return Accepted(status="accepted")
-            raise KernelError(ErrorCode.CONFLICT, "input does not match the pending question")
+        if await rt.coordinator.input_replayed(
+            s.principal, s.principal.tenant_id, run_id, body.expected_revision, body.input
+        ):
+            return Accepted(status="accepted")
         await rt.coordinator.accept_input(
             s.principal, run_id, body.input, body.expected_revision, enqueue=True
         )
