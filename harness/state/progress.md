@@ -859,3 +859,8 @@
 - changed: harness/state/4/reviews/4d.1-B.json, harness/state/evidence/gates/4d.1/2026-10-21T12-37-15.990933+00-00-full.json, harness/state/evidence/gates/4d.1/2026-10-21T12-38-52.740791+00-00-pg.json
 - next: tests/unit/kernel/test_conversation_routing.py passes on both stores
 - open: none
+
+## 2026-10-21T12:53:21.309859+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4d.1
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4d.1.json, harness/state/4/reviews/4d.1-r2.json, harness/state/evidence/gates/4d.1/2026-10-21T12-49-22.986449+00-00-full.json, harness/state/evidence/gates/4d.1/2026-10-21T12-51-04.653190+00-00-pg.json
+- next: open task 4d.2 (carried context, ADR 0023 §6)
+- open: none

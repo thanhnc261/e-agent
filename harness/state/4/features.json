@@ -140,7 +140,8 @@
         "test_answer_for_an_earlier_question_conflicts, test_retried_answer_is_accepted_once, test_retried_message_starts_one_run (second while run 1 is RUNNING), test_reply_to_foreign_run_is_not_found and test_input_replayed_refuses_a_non_requester pass",
         "test_start_passes_host_context_to_the_run and test_message_while_waiting_approval_never_touches_the_action pass"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4d.1/2026-10-21T12-51-04.653190+00-00-pg.json"
     },
     {
       "id": "F-4d-2",
