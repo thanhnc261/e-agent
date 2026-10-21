@@ -433,6 +433,24 @@ describe("citations and the explanation (ADR 0034 §3, §4)", () => {
     expect(byTest(own.container, "timeline-explanation")).toHaveLength(1);
     expect(defaultSlots.timeline).toBe(Activity);
     cleanup();
+    // Before a result there is nothing to explain yet: the timeline alone.
+    const c = controller({ bundle: groundedBundle(), reasonCode: null });
+    const running = {
+      ...c.controller.getState(),
+      view: {
+        ...c.controller.getState().view,
+        run: { ...c.controller.getState().view.run!, state: "RUNNING" as const },
+      },
+    };
+    const live = { ...c.controller, getState: () => running } as unknown as RunController;
+    const before = render(
+      <RunProvider controller={live}>
+        <Activity />
+      </RunProvider>,
+    ).container;
+    expect(byTest(before, "timeline")).toHaveLength(1);
+    expect(byTest(before, "timeline-explanation")).toHaveLength(0);
+    cleanup();
     // An earlier run's items, given by a layout to `Timeline`, have no bundle here: none.
     const items = [
       {
