@@ -17,7 +17,8 @@
     "harness/state/**",
     ".superpowers/sdd/**",
     "docs/plans/2026-10-20-phase4-conversation-chat.md",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "src/e_agent/kernel/run_loop.py"
   ],
   "acceptance": [
     "test_shadow_layer_digest_equals_on_layer_digest passes and prints its case count",
@@ -27,5 +28,12 @@
   "gate_set": "full",
   "base_commit": "f8c13bde60dd2f3ceffb5df985899e15e55ba624",
   "created_at": "2026-10-21T13:41:18+00:00",
-  "features_digest": "03981f972a23fbf9d6e8c6e607ba6e15453c6161d98a5aedeba211cb7dd256a2"
+  "features_digest": "03981f972a23fbf9d6e8c6e607ba6e15453c6161d98a5aedeba211cb7dd256a2",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/kernel/run_loop.py",
+      "reason": "shadow answer fallback must be one atomic write (PR-17): accept_input gains an events keyword",
+      "at": "2026-10-21T14:08:47+00:00"
+    }
+  ]
 }
