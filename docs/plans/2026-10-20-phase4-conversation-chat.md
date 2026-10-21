@@ -656,10 +656,16 @@ Added on 2026-10-21 from G-B decision 3. It runs after 4e.1 and before 4e.2.
 - A message with a `reply_to`, sent while the latest run is terminal or there is no latest run, routes to `REFUSE` `QUESTION_CHANGED` and gets CONFLICT "the question changed; read it again".
 - A message with no `reply_to` still starts a run.
 - In `shadow` this is the same CONFLICT, as `/inputs` gives today (4d.3 B3-1).
+- **Order of checks (4e.1 review U1-1).** The change touches only the route, which comes after steps (0) to (3).
+  - A retried message whose idempotency key and digest match still replays its original result, as at step (0).
+  - An answer whose input was already accepted still replays through `input_replayed`, as at step (3).
+  - Neither becomes a refusal.
+  - A `reply_to` naming no run of the conversation stays `NOT_FOUND`, at step (2).
 
 - [ ] Failing tests, on both stores:
   - `test_reply_to_an_ended_run_is_refused`, in `on` and in `shadow`: CONFLICT, and no linked or unlinked run is created anywhere (the 4d.3 A3-4 pattern);
   - `test_message_without_reply_to_after_an_ended_run_starts`.
+  - `test_retried_answer_after_its_run_ended_replays`: an answer is accepted, its run then ends, and the same message is retried with the same key; the original answer result is returned, not CONFLICT.
 - [ ] Implement it, amend ADR 0023 §4 in the same commit, and run the routing, shadow, API and e2e conversation tests on both stores.
 - [ ] Commit `fix(kernel): an answer to an ended run is refused (ADR 0023 §4, G-B 3)`.
 
@@ -685,13 +691,14 @@ Every task here reads `ag-ux-foundations` first and cites AG and EA criteria by 
   - **G-B (2026-10-21), owner-delegated.** The owner wrote, verbatim: "advisor can decide all on behalf me". The advisor decided the brief's eight questions:
     1. Direction A: run cards with a closable side workspace.
     2. Legacy runs go in their own group, "last seen".
-    3. An answer to a run that has ended is refused: CONFLICT "the question changed; read it again", with the draft kept. This closes the open question in ADR 0023 §4. Task 4d.6 amends §4 and the router before 4e.3.
+    3. An answer to a run that has ended is refused: CONFLICT "the question changed; read it again", with the draft kept. This amends the start row of ADR 0023 §4's table. Task 4d.6 changes §4 and the router before 4e.3, under the owner's delegation.
     4. While a decision waits: the server's hint shows, the composer stays open, the draft is kept and the card is unchanged.
     5. The agent's-words label goes on the message and on the result.
     6. On desktop the workspace opens by itself and the user can close it.
     7. The new Vietnamese drafts are accepted, and flagged at G-D as "new VI since G-B".
     8. A grounded-not-verified state is added to the UX standard as a separate skill task, which also moves EA-10's source to ADR 0034. It is a follow-up and not part of Phase 4.
 - [x] Commit `docs(research): conversation thread design brief (G-B)` (62a29b83; gap audit a720c991).
+  - The `research/README.md` index line for 20 is deferred: the file is protected and create-only, and 17 has no index line either. The brief's own Approval section still reads "Pending" for the same reason, so this line and the handoff are the record.
 
 ### Task 4e.2: mockup (gate G-C)
 

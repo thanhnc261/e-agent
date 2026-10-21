@@ -148,7 +148,7 @@ Top gaps, by severity:
 | AG-DS-4 | review | met | Brand-mark avatar only on agent messages; not on facts or decision terms | none |
 | AG-DS-5 | test | met | Marker and text on every status (`StatusBadge.tsx`) | none |
 | AG-DS-6 | test | met | Duration tokens; reduced-motion spec | none |
-| AG-DS-7 | review | partial | A grounded run shows "· Completed · grounded, not verified" in grey in the result and in the verified green in the composer pill (`RunStatus.tsx:28` adds `ea-state-succeeded`, coloured by `components.css:135-140`; `grounded-1440x1000.png`) | F-7 |
+| AG-DS-7 | review | partial | A grounded run shows "· Completed · grounded, not verified" in grey in the result and in the verified green in the composer pill (`RunStatus.tsx:26` adds `ea-state-succeeded`, coloured by `components.css:135-140`; `grounded-1440x1000.png`) | F-7 |
 
 ## State coverage
 
@@ -234,7 +234,7 @@ Thread states the conversation model adds (ADR 0023) do not exist on this surfac
 
 - **Severity:** Medium
 - **Violates:** AG-DS-7, EA-3
-- **Where:** `ui/packages/components/src/features/composer/RunStatus.tsx:28` (`ea-state-${run.state}`), `components.css:135-140` (`.ea-state-succeeded` → `--ea-color-status-verified`); `grounded-1440x1000.png`
+- **Where:** `ui/packages/components/src/features/composer/RunStatus.tsx:26` (`ea-state-${run.state}`), `components.css:135-140` (`.ea-state-succeeded` → `--ea-color-status-verified`); `grounded-1440x1000.png`
 - **Observed:** The same status ("Completed · grounded, not verified", neutral marker "·") is grey in the result and green in the composer pill, because the pill's class comes from the run state alone.
 - **Expected:** One treatment per status level (AG-DS-7); nothing styled as verified that the server did not verify (EA-3). The text is correct, so the effect is a mixed signal, not a false claim.
 - **Recommendation:** Derive the pill class from the same tone as the badge (`runStateTone`), not from `run.state`.
