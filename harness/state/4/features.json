@@ -173,6 +173,8 @@
       "description": "Task 4d.4: conversation routes and GET /v1/me/features with session dependencies; /v1 route authorization test (PR-27); server tests in the pg gate",
       "steps": [
         "test_conversation_api.py passes on both stores; test_route_authorization.py prints its count",
+        "one tested request-digest function over conversation_id, text, reply_to and host_context; one key posted to two conversations gives CONFLICT; empty and over-4000-character text give 422 (4d.1 B1-2, B1-3)",
+        "evidence bundle reports the conversation key; the off conversation route refuses NOT_FOUND 'conversations are off'",
         "export_openapi.py --check and pnpm --dir ui gen:check pass",
         "pg gate runs test_conversation_api.py"
       ],

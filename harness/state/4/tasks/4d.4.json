@@ -1,0 +1,35 @@
+{
+  "id": "4d.4",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4d-4"
+  ],
+  "context_digest": "27a1fdd09db09c5d1d3c986ab989063f0108748b88a7b74cb751db2d46cb9747",
+  "allowed_paths": [
+    "src/e_agent/server/conversations.py",
+    "src/e_agent/server/api.py",
+    "src/e_agent/kernel/evidence.py",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "docs/design/principles.md",
+    "harness/context.toml",
+    ".github/workflows/ci.yml",
+    "tests/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "test_conversation_api.py passes on both stores; test_route_authorization.py prints its count",
+    "one tested request-digest function over conversation_id, text, reply_to and host_context; one key posted to two conversations gives CONFLICT; empty and over-4000-character text give 422 (4d.1 B1-2, B1-3)",
+    "evidence bundle reports the conversation key; the off conversation route refuses NOT_FOUND 'conversations are off'",
+    "export_openapi.py --check and pnpm --dir ui gen:check pass",
+    "pg gate runs test_conversation_api.py"
+  ],
+  "gate_set": "full",
+  "base_commit": "7646d302f1454dd44abf2feb9219941e700c789c",
+  "created_at": "2026-10-21T14:28:37+00:00",
+  "features_digest": "f1d64f56f5dee8d492260ced4c61b2d682d0d0df3d3dbccb4119089045aea16e"
+}
