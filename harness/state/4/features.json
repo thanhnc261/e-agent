@@ -148,7 +148,8 @@
       "category": "kernel",
       "description": "Task 4d.2: carried context (user messages, VERIFIED answer values that pass their declared value format, ref values only when the run recorded them, record refs from the run's evidence) rendered fenced in recent_turns; never evidence of the new run",
       "steps": [
-        "tests/unit/kernel/test_carried_context.py passes on both stores, including test_ref_not_among_recorded_source_refs_is_dropped and test_carry_holds_the_shortage_quantity_and_demand_ref",
+        "tests/unit/kernel/test_carried_context.py passes on both stores, including test_ref_not_among_recorded_source_refs_is_dropped test_carry_holds_the_shortage_quantity_and_demand_ref and test_ref_from_incomplete_read_is_not_carried",
+        "test_carried_items_are_not_approved_facts and test_carry_failure_falls_back_before_reservation pass",
         "Phase 3 pack digests and off goldens unchanged; replay suite passes"
       ],
       "passes": false

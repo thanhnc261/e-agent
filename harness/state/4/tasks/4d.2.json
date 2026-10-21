@@ -1,0 +1,32 @@
+{
+  "id": "4d.2",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4d-2"
+  ],
+  "context_digest": "27a1fdd09db09c5d1d3c986ab989063f0108748b88a7b74cb751db2d46cb9747",
+  "allowed_paths": [
+    "src/e_agent/kernel/carried.py",
+    "src/e_agent/kernel/context.py",
+    "src/e_agent/kernel/continuation.py",
+    "src/e_agent/kernel/context_on.py",
+    "src/e_agent/kernel/coordinator.py",
+    "src/e_agent/contracts/events.py",
+    "pyproject.toml",
+    "tests/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "tests/unit/kernel/test_carried_context.py passes on both stores, including test_ref_not_among_recorded_source_refs_is_dropped test_carry_holds_the_shortage_quantity_and_demand_ref and test_ref_from_incomplete_read_is_not_carried",
+    "test_carried_items_are_not_approved_facts and test_carry_failure_falls_back_before_reservation pass",
+    "Phase 3 pack digests and off goldens unchanged; replay suite passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "7deed6da6195f2a2b894235aa7677f8cb63a6ce8",
+  "created_at": "2026-10-21T12:55:26+00:00",
+  "features_digest": "cad51ba22428b67925079bee06eda8f14391585eebfc96574e9f33783267790b"
+}
