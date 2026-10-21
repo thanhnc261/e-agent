@@ -17,6 +17,7 @@ export function TextAreaField({
   onKeyDown,
   inputRef,
   testId,
+  describedBy,
 }: {
   label: string;
   value: string;
@@ -29,6 +30,8 @@ export function TextAreaField({
   onKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   inputRef?: Ref<HTMLTextAreaElement>;
   testId?: string;
+  /** Ids of text shown elsewhere that describes this input, for example a hint above it. */
+  describedBy?: string;
 }) {
   return (
     <TextField
@@ -45,6 +48,7 @@ export function TextAreaField({
         className="ea-input"
         placeholder={placeholder}
         data-testid={testId}
+        aria-describedby={describedBy}
         onKeyDown={onKeyDown}
       />
       {description && (

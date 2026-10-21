@@ -69,6 +69,8 @@ export interface ThreadState extends ThreadSource {
 export interface MessageRefusal {
   code: string;
   message: string;
+  /** The server's correlation id for the refusal, when it sent one; shown as a reference. */
+  correlationId?: string | null;
 }
 
 export type ViewMode =
@@ -405,7 +407,7 @@ export class RunController {
     if (err.enveloped && err.code === "CONFLICT") {
       // Refused: keep the draft, show the hint, and read the latest state so the user can
       // read the question again. The approval card changes only if the server's did.
-      this.set({ refusal: { code: err.code, message: err.message } });
+      this.set({ refusal: { code: err.code, message: err.message, correlationId: err.correlationId ?? null } });
       await this.refresh();
       if (this.isOn() && conversationId) await this.loadThread(conversationId);
       return;

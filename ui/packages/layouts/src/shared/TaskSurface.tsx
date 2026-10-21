@@ -3,14 +3,18 @@
  * conversation and composer, the exact decision, the result and the evidence.
  *
  * Region membership and order are decided here, once, so a placement chooses only
- * the geometry variant. It arranges slots: task, approval and evidence authority
+ * the geometry variant. In `conversations: on` the regions are the thread's: the
+ * conversation and composer, with the decision, result, evidence and activity in the
+ * closable artifact workspace beside it (ThreadSurface). It arranges slots: task, approval and evidence authority
  * stay in the core and the server, so no variant can drop the decision, separate it
  * from the terms it belongs to, or hide the result.
  */
+import { selectThreadShown } from "@e-agent/ui-core";
 import type { SlotName } from "@e-agent/ui-react";
-import { useRun } from "@e-agent/ui-react";
+import { useRun, useRunState } from "@e-agent/ui-react";
 import type { LayoutConfig } from "../config.ts";
 import { ConfiguredSlot } from "./ConfiguredSlot.tsx";
+import { ThreadSurface } from "./ThreadSurface.tsx";
 
 /** Decision and result always travel with the conversation they belong to. */
 const TASK_ORDER: SlotName[] = ["messages", "outcome", "approval", "composer"];
@@ -59,7 +63,19 @@ export function TaskSurface({
   navigation?: boolean;
 }) {
   const { run } = useRun();
+  const thread = selectThreadShown(useRunState());
   const nav = navigation ? <ConfiguredSlot name="navigation" config={config} /> : null;
+
+  // `conversations: on`: every placement shows the thread and its closable workspace (ADR
+  // 0034 §2). The variant only picks the landmark; the thread measures its own width.
+  if (thread) {
+    const body = <ThreadSurface config={config} navigation={navigation} />;
+    return variant === "page" ? (
+      <main className="ea-workarea ea-thread-page">{body}</main>
+    ) : (
+      <div className={`ea-thread-${variant}`}>{body}</div>
+    );
+  }
 
   if (variant === "page") {
     return (

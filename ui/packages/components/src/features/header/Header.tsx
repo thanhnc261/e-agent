@@ -5,6 +5,7 @@
  * document is L8's job, so this component never inspects its own root node.
  */
 import { useEffect, useRef } from "react";
+import { selectThreadShown } from "@e-agent/ui-core";
 import { useI18n, useRunState, useSurface, type SurfaceMode } from "@e-agent/ui-react";
 import { BrandMark } from "../../primitives/BrandMark.tsx";
 import { Preferences } from "./Preferences.tsx";
@@ -13,7 +14,8 @@ import { ConnectionStatus } from "./ConnectionStatus.tsx";
 export function Header() {
   const { t } = useI18n();
   const surface = useSurface();
-  const { busy } = useRunState();
+  const state = useRunState();
+  const { busy } = state;
   const viewRef = useRef<HTMLSelectElement>(null);
   useEffect(() => {
     if (surface?.focusOnMount) viewRef.current?.focus();
@@ -25,7 +27,8 @@ export function Header() {
         <span>e-agent</span>
       </div>
       <div className="ea-header-tools">
-        <ConnectionStatus />
+        {/* In the thread the stream status sits in the thread head, at every width (S-2). */}
+        {!selectThreadShown(state) && <ConnectionStatus />}
         {surface && (
           <select
             ref={viewRef}

@@ -6,13 +6,16 @@
  * (ADR 0011), which the panel says when hints are sent.
  */
 import { useRef } from "react";
-import { useController, useI18n } from "@e-agent/ui-react";
+import { selectThreadShown } from "@e-agent/ui-core";
+import { useController, useI18n, useRunState } from "@e-agent/ui-react";
 
 export function ContextPreview() {
   const { t } = useI18n();
   const controller = useController();
   const disclosure = useRef<HTMLDetailsElement>(null);
   const context = controller.hostContextPreview();
+  // In a thread, e-agent also carries earlier runs' checked values as hints (ADR 0023 §6).
+  const thread = selectThreadShown(useRunState());
   const rows: [string, string][] = context
     ? [
         ["context.host", t(`context.host.${context.host_kind}`)],
@@ -65,7 +68,7 @@ export function ContextPreview() {
             </p>
             <div className="ea-context-uses">
               <p className="ea-small" data-testid="context-none">
-                {t("context.noHost")}
+                {t(thread ? "context.noHostThread" : "context.noHost")}
               </p>
             </div>
           </>

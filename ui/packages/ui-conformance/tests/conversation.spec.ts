@@ -1,0 +1,429 @@
+/**
+ * Conversation threads (Task 4e.4, ADR 0034 §1–§2, owner-selected mockup variant A1).
+ * Every spec runs against the conformance mock with `features.conversations` set as named;
+ * the thread is built from the mock's conversation snapshot and run events only.
+ */
+import { expect, test, type Page } from "@playwright/test";
+import {
+  AXE_CORE_PATH,
+  EARLIER_ANSWER,
+  EARLIER_RUN_ID,
+  HINT_BUSY,
+  MockApi,
+  RUN_ID,
+  runAxe,
+} from "../src/index.ts";
+
+interface Surface {
+  /** The ADR 0016 name the view switch shows. */
+  name: string;
+  url: string;
+  open(page: Page): Promise<void>;
+}
+
+const launch = async (page: Page) => {
+  const launcher = page.getByTestId("overlay-launcher");
+  await launcher.waitFor();
+  if ((await launcher.getAttribute("aria-expanded")) !== "true") await launcher.click();
+};
+
+/** The four surfaces of ADR 0016 (mockup self-review S-5). */
+const SURFACES: Surface[] = [
+  { name: "Workspace", url: "/", open: async () => {} },
+  { name: "Docked", url: "/?layout=sidebar", open: async () => {} },
+  { name: "Compact", url: "/host.html", open: launch },
+  { name: "Workbench", url: "/?layout=workbench", open: launch },
+];
+const WORKSPACE = SURFACES[0] as Surface;
+
+function onApi(): MockApi {
+  const api = new MockApi();
+  api.features = "on";
+  return api;
+}
+
+/** Open the conversation from the sidebar, as a user would. */
+async function openThread(page: Page, surface: Surface = WORKSPACE): Promise<void> {
+  await page.goto(surface.url);
+  await surface.open(page);
+  const row = page.getByTestId("thread-row").first();
+  // Wait for the server's list; narrow surfaces keep it in a closed disclosure.
+  await row.waitFor({ state: "attached" });
+  if (!(await row.isVisible())) await page.getByTestId("thread-list-toggle").click();
+  await row.click();
+  await expect(page.getByTestId("thread")).toBeVisible();
+}
+
+async function send(page: Page, text: string): Promise<void> {
+  const input = page.getByTestId("composer-input");
+  await input.fill(text);
+  await input.press("Enter");
+}
+
+for (const surface of SURFACES) {
+  test(`two runs show in one thread · ${surface.name}`, async ({ page }) => {
+    const api = onApi();
+    api.twoRunThread();
+    api.waitingForApproval();
+    await api.install(page);
+    await openThread(page, surface);
+
+    const runs = page.getByTestId("thread-run");
+    await expect(runs).toHaveCount(2);
+    // Oldest first, each with its own messages and its own compact card.
+    await expect(runs.nth(0)).toHaveAttribute("data-run-id", EARLIER_RUN_ID);
+    await expect(runs.nth(0)).toContainText("which products are short?");
+    await expect(runs.nth(0)).toContainText(EARLIER_ANSWER);
+    await expect(runs.nth(0).getByTestId("run-card-status")).toHaveText(/Completed · verified/);
+    await expect(runs.nth(1)).toHaveAttribute("data-run-id", RUN_ID);
+    await expect(runs.nth(1)).toContainText("draft a PO for it");
+    await expect(runs.nth(1).getByTestId("run-card-status")).toHaveText(/Needs review/);
+    // The agent's words are labelled on the message (G-B 5).
+    await expect(runs.nth(0).getByTestId("agent-words-message")).toBeVisible();
+    // One composer for the whole thread.
+    await expect(page.getByTestId("composer")).toHaveCount(1);
+    // The stream status is shown in the thread at every width (S-2, AG-STAT-3).
+    await expect(page.getByTestId("thread-head").getByTestId("connection-status")).toBeVisible();
+    // Opening a conversation sends nothing.
+    expect(api.createRuns).toBe(0);
+    expect(api.messageStarts).toBe(0);
+    expect(api.messages).toHaveLength(0);
+  });
+}
+
+test("the sidebar lists one thread", async ({ page }) => {
+  const api = onApi();
+  await api.install(page);
+  await page.goto("/");
+  await expect(page.getByTestId("thread-list")).toContainText("No conversations yet");
+
+  await send(page, "which products are short?");
+  await expect(page.getByTestId("thread-run")).toHaveCount(1);
+  api.finish(RUN_ID, EARLIER_ANSWER);
+  await expect(page.getByTestId("run-card-status")).toHaveText(/Completed · verified/);
+
+  await send(page, "draft a PO for it");
+  await expect(page.getByTestId("thread-run")).toHaveCount(2);
+  const rows = page.getByTestId("thread-row");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("which products are short?");
+  await expect(rows.first()).toHaveAttribute("aria-current", "page");
+  // The row shows the latest run's state, as the server lists it.
+  await expect(rows.first()).toContainText("Working on it");
+  expect(api.messageStarts).toBe(2);
+  expect(api.createRuns).toBe(0);
+  expect(api.conversations.size).toBe(1);
+});
+
+test("the sidebar keeps legacy runs in a separate last-seen group", async ({ page }) => {
+  const api = new MockApi().waitingForApproval();
+  await api.install(page);
+  await page.goto("/?layout=sidebar");
+  await send(page, "restock");
+  await expect(page.getByTestId("run-status")).toBeVisible();
+  // The server turns conversations on; this session's earlier run stays outside them.
+  api.features = "on";
+  await page.reload();
+  const legacy = page.getByTestId("legacy-group");
+  if (!(await legacy.isVisible())) await page.getByTestId("thread-list-toggle").click();
+  await expect(legacy).toContainText("Earlier tasks · this session · last seen");
+  await expect(legacy.getByTestId("history-task")).toHaveCount(1);
+  await expect(legacy.getByTestId("history-task")).toContainText("last seen");
+  await expect(page.getByTestId("thread-row")).toHaveCount(0);
+  // The legacy run opens as today's per-run view, marked as outside every conversation.
+  await expect(page.getByTestId("legacy-note")).toContainText("not part of a conversation");
+  await expect(page.getByTestId("thread")).toHaveCount(0);
+});
+
+test("the workspace closes and reopens, and the conversation stays", async ({ page }) => {
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval();
+  await api.install(page);
+  await openThread(page);
+
+  const workspace = page.getByTestId("artifact-workspace");
+  // It opened by itself for the decision (G-B 6) and holds today's unchanged card.
+  await expect(workspace).toBeVisible();
+  await expect(workspace.getByTestId("approval-approve")).toBeEnabled();
+  const card = await page.getByTestId("approval").innerText();
+  await page.getByTestId("composer-input").fill("keep this draft");
+
+  await page.getByTestId("workspace-close").click();
+  await expect(workspace).toHaveCount(0);
+  await expect(page.getByTestId("approval-approve")).toHaveCount(0);
+  await expect(page.getByTestId("thread-run")).toHaveCount(2);
+  await expect(page.getByTestId("composer-input")).toHaveValue("keep this draft");
+  // With the workspace closed, the run card and the stop slot carry the status (A1).
+  const latest = page.getByTestId("thread-run").nth(1);
+  await expect(latest.getByTestId("run-card-status")).toHaveText(/Needs review/);
+  await expect(page.getByTestId("stop-slot")).toContainText("Needs review");
+  const open = latest.getByTestId("run-card-open");
+  await expect(open).toHaveText(/Open the decision/);
+  await expect(open).toBeFocused();
+
+  await open.click();
+  await expect(workspace).toBeVisible();
+  await expect(page.getByTestId("workspace-heading")).toBeFocused();
+  await expect(page.getByTestId("approval-approve")).toBeEnabled();
+  await expect(page.getByTestId("material-field")).toHaveCount(3);
+  expect(await page.getByTestId("approval").innerText()).toBe(card);
+
+  // Escape backs out of the confirmation first, then closes; focus returns to Open.
+  await page.getByTestId("approval-approve").click();
+  await expect(page.getByTestId("approval-confirm")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("approval-confirm")).toHaveCount(0);
+  await expect(workspace).toBeVisible();
+  await page.getByTestId("approval-approve").press("Escape");
+  await expect(workspace).toHaveCount(0);
+  await expect(open).toBeFocused();
+  await expect(page.getByTestId("composer-input")).toHaveValue("keep this draft");
+  expect(api.decisions).toHaveLength(0);
+});
+
+test("a narrow workspace replaces the thread, and Back returns to the conversation", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval();
+  await api.install(page);
+  await openThread(page, SURFACES[1] as Surface);
+  // On a narrow surface it does not open by itself: the card offers the decision.
+  await expect(page.getByTestId("artifact-workspace")).toHaveCount(0);
+  const open = page.getByTestId("thread-run").nth(1).getByTestId("run-card-open");
+  await open.click();
+  await expect(page.getByTestId("artifact-workspace")).toBeVisible();
+  await expect(page.getByTestId("thread")).toBeHidden();
+  await expect(page.getByTestId("approval-approve")).toBeEnabled();
+  await page.getByTestId("workspace-back").click();
+  await expect(page.getByTestId("thread")).toBeVisible();
+  await expect(open).toBeFocused();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test("a message during approval shows the hint, and the card is unchanged", async ({ page }) => {
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval();
+  api.refuseMessages = HINT_BUSY;
+  await api.install(page);
+  await openThread(page);
+  await expect(page.getByTestId("approval-approve")).toBeEnabled();
+  const card = await page.getByTestId("approval").innerText();
+
+  const input = page.getByTestId("composer-input");
+  // The composer stays open while the decision waits (G-B 4).
+  await expect(input).toBeEnabled();
+  await send(page, "also add 10 of hinge H-3");
+
+  const refusal = page.getByTestId("composer").getByTestId("refusal");
+  await expect(refusal).toContainText(
+    "This conversation is busy. Wait, decide the approval, or stop the task.",
+  );
+  await expect(refusal).toContainText("Not sent · your text is kept");
+  await expect(input).toHaveValue("also add 10 of hinge H-3");
+  // Inside the composer, above the kept draft (A1).
+  const hintBox = await refusal.boundingBox();
+  const inputBox = await input.boundingBox();
+  expect(hintBox && inputBox && hintBox.y + hintBox.height <= inputBox.y + 1).toBe(true);
+  // The card is unchanged, still decidable, and the thread gained nothing.
+  expect(await page.getByTestId("approval").innerText()).toBe(card);
+  await expect(page.getByTestId("approval-approve")).toBeEnabled();
+  await expect(page.getByTestId("thread-run")).toHaveCount(2);
+  await expect(page.getByTestId("thread")).not.toContainText("also add 10 of hinge H-3");
+  expect(api.messages).toHaveLength(1);
+  expect(api.messageStarts).toBe(0);
+  expect(api.decisions).toHaveLength(0);
+});
+
+test("a new run is announced politely", async ({ page }) => {
+  const api = onApi();
+  api.twoRunThread();
+  api.finish(RUN_ID, "Draft order PO-SAMPLE-1 (sample).");
+  await api.install(page);
+  await openThread(page);
+
+  const announcer = page.getByTestId("thread-announcer");
+  await expect(announcer).toHaveAttribute("role", "status");
+  await expect(announcer).toHaveText("Run 2: Completed · verified");
+  const input = page.getByTestId("composer-input");
+  await input.click();
+  await send(page, "and the next one");
+  await expect(page.getByTestId("thread-run")).toHaveCount(3);
+  await expect(announcer).toHaveText("Run 3: Working on it");
+  // Announced without moving focus, and never as an alert (EA-16).
+  await expect(input).toBeFocused();
+  await expect(page.locator('[aria-live="assertive"], [role="alert"]')).toHaveCount(0);
+  expect(api.messageStarts).toBe(1);
+});
+
+test("the thread stop slot stays in place: enabled while the latest run is active, disabled with a reason otherwise", async ({
+  page,
+}) => {
+  const api = onApi();
+  api.twoRunThread();
+  api.state = "RUNNING";
+  await api.install(page);
+  await openThread(page);
+  const slot = page.getByTestId("stop-slot");
+  await expect(slot.getByTestId("stop")).toBeEnabled();
+  await expect(page.getByTestId("thread-run").nth(1).getByTestId("run-card-stop")).toBeEnabled();
+
+  api.finish(RUN_ID);
+  await expect(slot.getByTestId("stop")).toBeDisabled();
+  await expect(slot.getByTestId("stop-reason")).toHaveText("Nothing is running");
+  await expect(slot.getByTestId("stop")).toHaveAttribute("aria-describedby", /.+/);
+  await expect(page.getByTestId("run-card-stop")).toHaveCount(0);
+});
+
+test("the thread stop slot offers the safe check, not Stop, while the result is unconfirmed", async ({
+  page,
+}) => {
+  const api = onApi();
+  api.twoRunThread();
+  api.state = "NEEDS_RECONCILIATION";
+  await api.install(page);
+  await openThread(page);
+  const slot = page.getByTestId("stop-slot");
+  await expect(slot.getByTestId("stop")).toBeDisabled();
+  await expect(slot.getByTestId("stop-reason")).toHaveText(
+    "Stopping is unavailable while the result is unconfirmed",
+  );
+  await expect(slot.getByTestId("stop-reconcile")).toHaveText("Check operation status");
+});
+
+for (const mode of ["off", "shadow"] as const) {
+  test(`the ${mode} profile shows today's per-run view`, async ({ page }) => {
+    const api = new MockApi().waitingForApproval();
+    api.features = mode;
+    await api.install(page);
+    await page.goto("/?layout=sidebar");
+    await send(page, "restock");
+    await expect(page.getByTestId("approval-approve")).toBeEnabled();
+    await expect(page.getByTestId("run-status")).toBeVisible();
+    // Today's per-run view: no thread, no workspace, the locked composer, today's list.
+    await expect(page.getByTestId("thread")).toHaveCount(0);
+    await expect(page.getByTestId("artifact-workspace")).toHaveCount(0);
+    await expect(page.getByTestId("stop-slot")).toHaveCount(0);
+    await expect(page.getByTestId("thread-list")).toHaveCount(0);
+    await expect(page.getByTestId("composer-input")).toBeDisabled();
+    await expect(page.getByTestId("new-task")).toHaveText(/New task/);
+    expect(api.messageStarts + api.createRuns).toBe(1);
+    expect(api.createRuns).toBe(mode === "off" ? 1 : 0);
+  });
+}
+
+/** Each state the thread can be in, reached as a user would, for the axe check. */
+const AXE_STATES: {
+  name: string;
+  viewport?: { width: number; height: number };
+  reach(page: Page): Promise<void>;
+}[] = [
+  {
+    name: "empty thread",
+    reach: async page => {
+      await onApi().install(page);
+      await page.goto("/?layout=sidebar");
+      await expect(page.getByTestId("thread-empty")).toBeVisible();
+    },
+  },
+  {
+    name: "decision open in the workspace",
+    reach: async page => {
+      const api = onApi();
+      api.twoRunThread();
+      api.waitingForApproval();
+      await api.install(page);
+      await openThread(page);
+      await expect(page.getByTestId("approval-approve")).toBeEnabled();
+    },
+  },
+  {
+    name: "workspace closed",
+    reach: async page => {
+      const api = onApi();
+      api.twoRunThread();
+      api.waitingForApproval();
+      await api.install(page);
+      await openThread(page);
+      await page.getByTestId("workspace-close").click();
+      await expect(page.getByTestId("artifact-workspace")).toHaveCount(0);
+    },
+  },
+  ...(["light", "dark", "high-contrast"] as const).map(theme => ({
+    name: `refused message (${theme})`,
+    reach: async (page: Page) => {
+      const api = onApi();
+      api.twoRunThread();
+      api.waitingForApproval();
+      api.refuseMessages = HINT_BUSY;
+      await api.install(page);
+      await page.goto(`/?theme=${theme}`);
+      const row = page.getByTestId("thread-row").first();
+      await row.click();
+      await send(page, "also add 10");
+      await expect(page.getByTestId("refusal")).toBeVisible();
+    },
+  })),
+  {
+    name: "verified result in the workspace",
+    reach: async page => {
+      const api = onApi();
+      api.twoRunThread();
+      api.finish(RUN_ID, "Draft order PO-SAMPLE-1 (sample).");
+      await api.install(page);
+      await openThread(page);
+      await expect(page.getByTestId("artifact-workspace")).toBeVisible();
+    },
+  },
+  {
+    name: "narrow workspace",
+    viewport: { width: 390, height: 844 },
+    reach: async page => {
+      const api = onApi();
+      api.twoRunThread();
+      api.waitingForApproval();
+      await api.install(page);
+      await openThread(page, SURFACES[1] as Surface);
+      await page.getByTestId("thread-run").nth(1).getByTestId("run-card-open").click();
+      await expect(page.getByTestId("artifact-workspace")).toBeVisible();
+    },
+  },
+  {
+    name: "legacy last-seen group",
+    reach: async page => {
+      const api = new MockApi().waitingForApproval();
+      await api.install(page);
+      await page.goto("/");
+      await send(page, "restock");
+      await expect(page.getByTestId("approval-approve")).toBeEnabled();
+      api.features = "on";
+      await page.reload();
+      await expect(page.getByTestId("legacy-group")).toBeVisible();
+    },
+  },
+  {
+    name: "off per-run view",
+    reach: async page => {
+      await new MockApi().waitingForApproval().install(page);
+      await page.goto("/");
+      await send(page, "restock");
+      await expect(page.getByTestId("approval-approve")).toBeEnabled();
+    },
+  },
+];
+
+for (const state of AXE_STATES) {
+  test(`axe: thread state "${state.name}" has no WCAG 2.2 AA violation`, async ({ page }) => {
+    test.skip(!AXE_CORE_PATH, "axe-core is not in the repository: set AXE_CORE_PATH to run this check");
+    if (state.viewport) await page.setViewportSize(state.viewport);
+    await state.reach(page);
+    const result = await runAxe(page);
+    // The count is printed so a run shows how many rules it checked (PR-31).
+    console.log(`axe ${state.name}: ${result.rules} rules, ${result.violations.length} violations`);
+    expect(result.rules, "axe ran no rule").toBeGreaterThan(0);
+    expect(result.violations).toEqual([]);
+  });
+}

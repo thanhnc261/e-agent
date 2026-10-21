@@ -273,3 +273,61 @@ Plan: [UI rework 2](../../archive/docs/superpowers/plans/2026-10-12-ui-rework-2.
 - **Overview.** Only the composer, a one-line AI disclosure with details on demand, and recent prompts. A recent prompt only refills the composer.
 - **Capabilities.** The task catalog (or the installed-scope statement) moves to the Capabilities page, above the connections. Session work is removed: the sidebar's Recent tasks list opens a task through the route (`TaskNavigation onOpen`), so the route stays the one place that attaches.
 - **Inspector.** It is 23rem wide with body-size type. The timeline shows state changes with localised labels (`TimelineItem.transition`) and a time of day (`formatTime`), with the full date in a title.
+
+## 12. Conversation threads (2026-10-22)
+
+Decision: [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md), built to the owner-selected mockup variant A1 (`research/mockups/conversation-thread-v1/`, gates G-B 2026-10-21 and G-C 2026-10-22). Plan: [Phase 4](../plans/2026-10-20-phase4-conversation-chat.md), task 4e.4. Everything below applies only when the server reports `features.conversations: on`. `off`, and `shadow`'s per-run view, keep the per-run view described in §10 and §11 unchanged, with the composer locked as before.
+
+**State and ownership.**
+
+- **L3 (`ui-core`).** The pure selectors live in `selectors/thread.ts`:
+  - `isConversationsOn`;
+  - `selectThreadShown`: the thread view, unless the open run belongs to no conversation;
+  - `selectStopControl`: `active`, `idle` or `unconfirmed`;
+  - `isLiveEntry` and `threadRunStatusKey`;
+  - `selectRunLine`: the card's one result line, which is the last outcome, else the last supported event;
+  - `selectReadConnections`: the connection ids that the server recorded on reads.
+
+  The thread itself is `selectThread` (task 4e.3). The browser infers no run, message or status that the server did not send.
+- **L6 (`components`).**
+  - `Messages` renders `Thread` in thread mode and today's view otherwise.
+  - `TaskNavigation` lists the server's conversations, plus a separate "last seen" group for this session's runs that belong to no conversation.
+  - `Composer` holds the refusal hint (`RefusalHint`) above the kept draft and the stop slot (`StopSlot`) below it.
+  - The `Header` leaves the stream status to the thread head.
+- **One owner for the workspace state.**
+  - The open workspace (which run, and the control that opened it) has one owner: the L7 `Layout`, above the surface swap, so it survives a change of placement.
+  - The context (`ArtifactWorkspaceProvider`, `useArtifactWorkspace`) is exported from `components`, because run cards (L6) open the workspace and L6 cannot import L7.
+  - The focus hand-off (`workspaceFocus.ts`) is internal to `layouts`.
+
+**Geometry.**
+
+- `TaskSurface` renders `ThreadSurface` for every placement. The placement only picks the landmark.
+- The thread measures its own width in rem (a container query and `useContainerWidth`, both at **60rem**), so the layout holds at 200 % text (AG-FE-6, AG-A11Y-3).
+- **At 60rem and wider,** the artifact workspace sits beside the thread at about 40 % (`clamp(22rem, 40%, 34rem)`). It opens by itself, once each, for a new decision or a result, without moving focus (G-B 6).
+- **Narrower,** an open workspace replaces the thread as a full view with "Back to conversation", and it opens only from a run card.
+
+**Workspace.**
+
+- `ArtifactWorkspace` is a labelled `aside` with React Aria tabs (APG): Decision, Result, Sources and Activity. They hold today's slots unchanged, so the approval card keeps its fields, checks and confirm step (ADR 0034 §5 deferred).
+- Sources shows the connections recorded on reads, with the acting identity when `/v1/me/connections` discloses it.
+- An earlier run shows only its recorded activity, because that is the only thing read for it.
+- Escape backs out of an open confirmation first, then closes. Closing returns focus to the opening control.
+- When the workspace is closed, the run card and the stop slot carry the status (EA-10).
+
+**Composer and stop.**
+
+- In `on` the composer keeps no local lock, and its input stays enabled while a message is sent, so focus stays in it. A refused message shows the server's hint inside the composer above the kept draft, and the approval card does not change (G-B 4).
+- Stop is enabled only while the latest run is active. Otherwise it stays in place, disabled, with its reason. While the result is unconfirmed it offers the safe status check instead (EA-4).
+- A new run and run-state changes are announced in one polite region, and focus does not move (EA-16).
+
+**Phase 3 events.** These rules keep `lastSequence` advancing and keep the unknown-event state for genuinely unknown types:
+
+- `context.assembled`, `context.compared`, `repeat.compared` and `grounding.compared`, and each `*.shadow_failed` of these, are known but hidden. They are internal records that do not change the run, like the `conversation.*` records.
+- `context.failed` is a labelled timeline row with its `reason_code`, like `feature.fallback`.
+
+**Verification.**
+
+- `ui-conformance/tests/conversation.spec.ts` covers each claim above on the conformance mock, across the four ADR 0016 surfaces.
+- An axe check runs per state: WCAG 2.2 AA tags, failing when no rule ran (PR-31).
+- The repository does not carry axe-core yet, because adding it needs a lockfile change. The axe states run when `AXE_CORE_PATH` names a local `axe.min.js`, and are skipped with that reason otherwise.
+- Browser checks prove mechanics, not design quality or usability. No assistive-technology or user testing was done.

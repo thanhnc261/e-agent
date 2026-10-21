@@ -9,6 +9,7 @@ export * from "./presentation.ts";
 export * from "./selectors/discovery.ts";
 export * from "./selectors/evidence.ts";
 export * from "./selectors/outcome.ts";
+export * from "./selectors/thread.ts";
 
 /**
  * Wire contracts upper layers render. L3 owns the projection boundary, so L6/L7
@@ -18,6 +19,7 @@ export type {
   ActionState,
   ActionSummary,
   ApprovalPresentation,
+  ConversationSummary,
   Finding,
   MaterialField,
   RunEvent,

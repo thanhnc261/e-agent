@@ -14,6 +14,17 @@ export const HIDDEN_EVENT_TYPES: ReadonlySet<string> = new Set([
   "conversation.compared",
   "conversation.context_carried",
   "conversation.shadow_failed",
+  // Phase 3 records (ADR 0031 §5, ADR 0032 §7, §13, ADR 0033 §5): the context pack, the
+  // repeat rule and the citation check as counts and digests, or the stage at which a
+  // `shadow` comparison failed. The run is otherwise unchanged, so, like the conversation
+  // records above, they show no row. `context.failed` is not here: it is labelled.
+  "context.assembled",
+  "context.compared",
+  "context.shadow_failed",
+  "repeat.compared",
+  "repeat.shadow_failed",
+  "grounding.compared",
+  "grounding.shadow_failed",
 ]);
 
 export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
@@ -44,6 +55,8 @@ export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
   "ir.shadow_failed",
   "ir.lineage_resolved",
   "ir.step_verified",
+  // A skipped acknowledgement turn, with its code (ADR 0032 §11): a labelled row.
+  "context.failed",
 ]);
 
 /** Events after which the snapshot (actions, pending approval) must be re-read. */
@@ -202,7 +215,7 @@ export function selectTimeline(view: RunView): TimelineItem[] {
     else if (supported && type === "approval.decided") detail = String(p["decision"] ?? "");
     else if (supported && (type === "proposal.created" || type === "read.recorded")) detail = String(p["contract_id"] ?? "");
     else if (supported && type === "read.rejected") detail = typeof p["code"] === "string" ? p["code"] : null;
-    else if (supported && (type === "feature.fallback" || type === "ir.shadow_failed")) detail = typeof p["reason_code"] === "string" ? p["reason_code"] : null;
+    else if (supported && (type === "feature.fallback" || type === "ir.shadow_failed" || type === "context.failed")) detail = typeof p["reason_code"] === "string" ? p["reason_code"] : null;
     return {
       sequence: e.sequence,
       type,
@@ -227,6 +240,8 @@ export interface ConversationItem {
   kind: "reply" | "message";
   /** True on the first reply of the thread (one run for now); later replies show the label only as a description. */
   firstReply: boolean;
+  /** The run's final message (`message.final`): the agent's words, labelled as such (G-B 5). */
+  final: boolean;
 }
 
 export function selectConversation(view: RunView): ConversationItem[] {
@@ -239,7 +254,7 @@ export function selectConversation(view: RunView): ConversationItem[] {
     const kind = e.type === "input.requested" && p["kind"] === "reply" ? "reply" as const : "message" as const;
     const firstReply = kind === "reply" && !seenReply;
     if (kind === "reply") seenReply = true;
-    return [{ id: e.event_id, role: e.type === "input.received" ? "user" as const : "agent" as const, text, pending: e.type === "input.requested" && text === view.question, kind, firstReply }];
+    return [{ id: e.event_id, role: e.type === "input.received" ? "user" as const : "agent" as const, text, pending: e.type === "input.requested" && text === view.question, kind, firstReply, final: e.type === "message.final" }];
   });
 }
 

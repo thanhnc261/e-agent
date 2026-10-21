@@ -250,7 +250,7 @@ describe("conversation state behind features.conversations", () => {
     expect(await c.start("also add 10 of hinge H-3")).toBe(false);
     const s = c.getState();
     expect(s.draft).toBe("also add 10 of hinge H-3");
-    expect(s.refusal).toEqual({ code: "CONFLICT", message: BUSY });
+    expect(s.refusal).toEqual({ code: "CONFLICT", message: BUSY, correlationId: null });
     expect(s.error).toBeNull();
     expect(translateServerHint("en", s.refusal!.message)).toBe(translate("en", "conversation.refusedBusy"));
     expect(translateServerHint("vi", s.refusal!.message)).toBe(translate("vi", "conversation.refusedBusy"));
@@ -262,7 +262,7 @@ describe("conversation state behind features.conversations", () => {
     // An answer to a run that has ended is refused the same way, with its own hint (G-B 3).
     client.postMessage.mockRejectedValueOnce(enveloped(409, "CONFLICT", QUESTION_CHANGED));
     expect(await c.start("40")).toBe(false);
-    expect(c.getState().refusal).toEqual({ code: "CONFLICT", message: QUESTION_CHANGED });
+    expect(c.getState().refusal).toEqual({ code: "CONFLICT", message: QUESTION_CHANGED, correlationId: null });
     expect(translateServerHint("en", QUESTION_CHANGED)).toBe(translate("en", "conversation.refusedQuestion"));
     expect(translateServerHint("vi", QUESTION_CHANGED)).toBe(translate("vi", "conversation.refusedQuestion"));
     // A hint the UI does not know is shown as the server wrote it.
@@ -582,7 +582,8 @@ describe("conversation state, fix round 1 (review 4e.3)", () => {
   });
 
   it("hidden conversation events show no row, need no snapshot and still advance lastSequence", () => {
-    expect([...HIDDEN_EVENT_TYPES].sort()).toEqual([
+    // The conversation records; Task 4e.4 adds the Phase 3 records (thread.test.ts).
+    expect([...HIDDEN_EVENT_TYPES].filter(type => type.startsWith("conversation.")).sort()).toEqual([
       "conversation.compared",
       "conversation.context_carried",
       "conversation.shadow_failed",

@@ -924,3 +924,218 @@ body.ea-root {
     forced-color-adjust: none;
   }
 }
+
+/* Conversation thread (Task 4e.4, ADR 0034 §2, mockup A1). Runs in order, each with its
+   messages and a compact run card; one composer with the refusal hint inside it and the
+   stop slot under it. Semantic tokens only (AG-DS-1). */
+.ea-thread-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ea-space-lg);
+}
+.ea-thread,
+.ea-thread-messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ea-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ea-space-xl);
+}
+.ea-thread-run {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ea-space-md);
+  padding-left: var(--ea-space-md);
+  border-left: 2px solid var(--ea-color-border-subtle);
+  min-width: 0;
+}
+.ea-run-gutter {
+  margin: 0;
+  font-size: var(--ea-font-size-sm);
+  font-weight: var(--ea-font-weight-semibold);
+  color: var(--ea-color-text-muted);
+}
+.ea-thread-messages .ea-message {
+  margin-bottom: var(--ea-space-md);
+}
+.ea-origin-label {
+  display: inline-block;
+  margin: 0 0 var(--ea-space-xs);
+  padding: 0 var(--ea-space-xs);
+  font-size: var(--ea-font-size-sm);
+  color: var(--ea-color-text-muted);
+  border: 1px solid var(--ea-color-border-subtle);
+  border-radius: var(--ea-radius-sm);
+}
+.ea-run-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ea-space-sm);
+  padding: var(--ea-space-md);
+  background: var(--ea-color-card);
+  border: 1px solid var(--ea-color-border);
+  border-left: 4px solid var(--ea-color-border-strong);
+  border-radius: var(--ea-radius-md);
+  min-width: 0;
+}
+.ea-run-card-attention {
+  border-left-color: var(--ea-color-status-unknown);
+}
+.ea-run-card-progress {
+  border-left-color: var(--ea-color-accent);
+}
+.ea-run-card-verified {
+  border-left-color: var(--ea-color-status-verified);
+}
+.ea-run-card-failed {
+  border-left-color: var(--ea-color-status-failed);
+}
+.ea-run-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--ea-space-xs) var(--ea-space-sm);
+  min-width: 0;
+}
+.ea-run-num {
+  font-size: var(--ea-font-size-sm);
+  font-weight: var(--ea-font-weight-semibold);
+  color: var(--ea-color-text-muted);
+}
+.ea-run-title {
+  flex: 1 1 10rem;
+  margin: 0;
+  font-size: var(--ea-font-size-md);
+  font-weight: var(--ea-font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+.ea-run-line {
+  margin: 0;
+  font-size: var(--ea-font-size-sm);
+  overflow-wrap: anywhere;
+}
+.ea-run-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--ea-space-sm);
+}
+.ea-stop-square {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-right: var(--ea-space-xs);
+  background: currentColor;
+  border-radius: 1px;
+}
+.ea-thread-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ea-space-md);
+  padding: var(--ea-space-lg) 0;
+}
+.ea-thread-empty h1 {
+  font-size: var(--ea-font-size-xl);
+  margin: 0;
+}
+.ea-thread-empty .ea-welcome-mark {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+.ea-thread-empty .ea-ai-disclosure > p {
+  margin: 0 0 var(--ea-space-sm);
+}
+.ea-thread-empty .ea-ai-disclosure ul {
+  margin: var(--ea-space-sm) 0 0;
+  padding-left: var(--ea-space-lg);
+}
+.ea-legacy-note {
+  margin: 0 0 var(--ea-space-md);
+}
+.ea-composer-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ea-space-xs);
+}
+.ea-refusal {
+  padding: var(--ea-space-sm) var(--ea-space-md);
+  border: 1px solid var(--ea-color-status-unknown);
+  border-radius: var(--ea-radius-md);
+  background: var(--ea-color-status-unknown-surface);
+  overflow-wrap: anywhere;
+}
+.ea-refusal-hint {
+  display: flex;
+  gap: var(--ea-space-xs);
+  margin: 0;
+  font-weight: var(--ea-font-weight-semibold);
+  color: var(--ea-color-text);
+}
+.ea-refusal-hint .ea-badge-marker {
+  color: var(--ea-color-status-unknown);
+}
+.ea-refusal > p:not(.ea-refusal-hint) {
+  margin: var(--ea-space-xs) 0 0;
+}
+.ea-mono {
+  font-family: var(--ea-font-mono);
+}
+.ea-answering {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ea-space-xs);
+  margin: 0;
+  color: var(--ea-color-text-muted);
+}
+.ea-stop-slot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ea-space-sm);
+  margin-top: var(--ea-space-sm);
+  padding-top: var(--ea-space-sm);
+  border-top: 1px solid var(--ea-color-border-subtle);
+}
+.ea-stop-run,
+.ea-stop-off {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ea-space-sm);
+  font-size: var(--ea-font-size-sm);
+}
+.ea-stop-off {
+  margin-left: auto;
+}
+.ea-last-seen {
+  font-style: italic;
+}
+.ea-legacy-group {
+  margin-top: var(--ea-space-lg);
+}
+.ea-nav-heading {
+  margin: 0 0 var(--ea-space-xs);
+  font-size: var(--ea-font-size-sm);
+  font-weight: var(--ea-font-weight-semibold);
+  color: var(--ea-color-text-muted);
+}
+@media (forced-colors: active) {
+  .ea-run-card,
+  .ea-refusal {
+    border: 1px solid CanvasText;
+  }
+  .ea-stop-square {
+    forced-color-adjust: none;
+    background: ButtonText;
+  }
+}
+/* The conversation list toggle is a 24 px target at least (WCAG 2.5.8, AG-A11Y-1). */
+.ea-thread-nav .ea-task-history summary {
+  padding-block: var(--ea-space-xs);
+}
