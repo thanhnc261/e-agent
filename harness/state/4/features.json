@@ -164,7 +164,8 @@
         "shadow fallback tests (stale revision, concurrent pair, conversation error, test_shadow_start_carries_host_context_as_create_run, test_shadow_answer_to_own_unlinked_run_is_plain_input) pass; no request fails",
         "shadow adds no model call, read or budget use"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4d.3/2026-10-21T14-24-23.546422+00-00-full.json"
     },
     {
       "id": "F-4d-4",

@@ -869,3 +869,8 @@
 - changed: harness/state/4/features.json, harness/state/4/handoffs/4d.2.json, harness/state/evidence/gates/4d.2/2026-10-21T13-37-21.836239+00-00-full.json, harness/state/evidence/gates/4d.2/2026-10-21T13-38-58.578000+00-00-pg.json
 - next: open task 4d.3 (conversations: shadow, comparison and fallback)
 - open: none
+
+## 2026-10-21T14:28:06.572527+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4d.3
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4d.3.json, harness/state/4/reviews/4d.3-r2.json, harness/state/evidence/gates/4d.3/2026-10-21T14-24-23.546422+00-00-full.json, harness/state/evidence/gates/4d.3/2026-10-21T14-25-55.827269+00-00-pg.json
+- next: open task 4d.4 (API routes, member features, route authorization); needs the owner's A/B answer on reply_to to an ended run
+- open: none
