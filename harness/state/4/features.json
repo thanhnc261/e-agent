@@ -211,7 +211,8 @@
         "verify.mjs output in the QA file",
         "owner selection recorded"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4e.2/2026-10-21T19-04-22.260486+00-00-full.json"
     },
     {
       "id": "F-4e-3",

@@ -1,0 +1,28 @@
+{
+  "task": "4e.2",
+  "changed": "Conversation thread mockup research/mockups/conversation-thread-v1/ (922d793c). It holds 13 states, among them every normative state of the brief, the ended-run answer, four fallback modes and legacy runs under 'last seen'. Each state is drawn in three variants within direction A: A1 run cards, A2 folded runs and A3 wide workspace, all on one procurement scenario. verify.mjs passes 336 cases with axe, or 258 without it, and fails when a state is removed. The reviewer confirmed this by mutation. The QA file holds the self-review findings S-1 to S-5. G-C (2026-10-22) was owner-delegated: asked whether the advisor should decide G-C, the owner answered verbatim 'Advisor'. The advisor chose A1 as rendered: (1) A1; (2) the refusal hint inside the composer, above the kept draft; (3) ended runs keep their messages; (4) a medium desktop workspace, about 40 %; (5) when the workspace is closed, the run card and the stop slot carry the status; (6) compact run cards. research/** is create-only, so the record is in the plan's 4e.2 line and this handoff, not the QA file. Review harness/state/4/reviews/4e.2.json: accept.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4e.2/2026-10-21T19-04-22.260486+00-00-full.json"
+  ],
+  "open_items": [
+    "To 4e.4: S-1, S-3 and S-4 are closed by choosing A1. S-2 (no connection or reconnect state in the thread) and S-5 (Compact and Workbench surfaces not rendered) are 4e.4 work, as is gap-audit F-11 (no identity on answers). F-5 (the card's inner scroll) stays with the approval-card follow-up.",
+    "To 4e.3: the client branches on route start|answer only and treats a refusal as a 409 error envelope (4d.4). 4d.6 adds a refusal for a reply_to to an ended run.",
+    "To G-D: the mockup adds EN and VI strings beyond the brief's drafts. Review them as 'new VI since G-B'; the list is in the 4e.2 SDD report (.superpowers/sdd, git-ignored), so 4e.4 must carry them into i18n.ts and name them.",
+    "Tooling follow-up, not a Phase 4 task: verify.mjs needs AXE_CORE_PATH because the repository has no axe-core; without it, axe is reported as not run."
+  ],
+  "rulings": [
+    {
+      "ruling": "The mockup's comparables are A plus two variants within A, because G-B had already chosen direction A.",
+      "cost_if_wrong": "B and C mockups"
+    },
+    {
+      "ruling": "Stop control: enabled while the latest run is active; otherwise kept in place and disabled with the reason 'Nothing is running'; disabled with the safe status check offered when the result is unconfirmed (EA-4). 4e.4 builds the same (M2-1).",
+      "cost_if_wrong": "a stop-control redesign in 4e.4"
+    },
+    {
+      "ruling": "G-C is recorded in the plan and this handoff, because research/** is create-only.",
+      "cost_if_wrong": "none"
+    }
+  ],
+  "outside_repo": []
+}
