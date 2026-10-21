@@ -129,6 +129,14 @@
         "/input/available": "internal",
         "/input/inbound": "internal",
         "/input/shortage": "internal"
+      },
+      "answer_value_formats": {
+        "/input/demand_ref": "ref",
+        "/input/product_ref": "ref",
+        "/input/demand_quantity": "decimal",
+        "/input/available": "decimal",
+        "/input/inbound": "decimal",
+        "/input/shortage": "decimal"
       }
     },
     {
@@ -144,6 +152,13 @@
         "/input/supplier_ref": "internal",
         "/input/unit_price": "internal",
         "/input/explanation": "personal"
+      },
+      "answer_value_formats": {
+        "/input/demand_ref": "ref",
+        "/input/product_ref": "ref",
+        "/input/offer_ref": "ref",
+        "/input/supplier_ref": "ref",
+        "/input/unit_price": "decimal"
       }
     },
     {
@@ -268,6 +283,10 @@
         "/input/as_of": "internal",
         "/input/late_order_refs": "internal",
         "/input/summary": "personal"
+      },
+      "answer_value_formats": {
+        "/input/as_of": "date",
+        "/input/late_order_refs/items": "ref"
       }
     },
     {
@@ -363,6 +382,10 @@
         "/input/totals/items/currency": "internal",
         "/input/totals/items/total": "internal",
         "/input/summary": "personal"
+      },
+      "answer_value_formats": {
+        "/input/as_of": "date",
+        "/input/overdue_invoice_refs/items": "ref"
       }
     }
   ],

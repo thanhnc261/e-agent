@@ -13,6 +13,7 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Literal
 
 from e_agent.contracts import data_classes as dc
+from e_agent.contracts import value_formats as vf
 from e_agent.contracts.capability import CapabilityBinding, CapabilityDescriptor, EffectKind
 from e_agent.contracts.context import Budgets
 from e_agent.contracts.task import GROUNDED_ANSWER, TaskDefinition, check_answer_condition
@@ -306,6 +307,7 @@ class PluginRegistry:
         for cap in sorted(declared, key=lambda c: c.contract_id):  # ADR 0030 class paths
             try:
                 dc.check_declarations(self.schema_document(cap.contract_id), cap.data_classes)
+                vf.check_format_declarations(self.schema_document(cap.contract_id), cap)
             except ValueError as exc:
                 raise _reject(f"{plugin_id}: {cap.contract_id} {exc}") from None
         if contribution.agent_guidance:
