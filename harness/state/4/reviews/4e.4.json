@@ -1,0 +1,70 @@
+{
+  "task": "4e.4",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "T4-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Acceptance step 'axe check per state' is not shown by any repository gate. All 10 axe states skip unless AXE_CORE_PATH is set, so make e2e and pnpm conformance skip them (reviewer rerun: 36 passed, 11 skipped). The only passing run used an axe.min.js from a VS Code extension on the implementer's machine, which nobody else can reproduce. The skip is named, so this is not a silent pass, but the step stays unmet. Fix: amend the contract scope to include ui/package.json and ui/pnpm-lock.yaml, add axe-core as a dev dependency, and make a missing engine fail the spec instead of skipping it.",
+      "evidence": "ui/packages/ui-conformance/tests/conversation.spec.ts:430; ui/packages/ui-conformance/src/axe.ts:11; harness/state/4/tasks/4e.4.json acceptance[0]; ENG-EVID-2, ENG-EVID-4"
+    },
+    {
+      "id": "T4-2",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "The auto-open memory ('seen') lives in ThreadSurface, but Layout holds the workspace state. Switching surface remounts ThreadSurface, so a decision workspace the user closed opens again by itself once. That overrides the user's close (EA-10, G-B 6). Move the seen set into Layout next to workspaceRun.",
+      "evidence": "ui/packages/layouts/src/shared/ThreadSurface.tsx:52-57; ui/packages/layouts/src/presentation/Layout.tsx:122-162"
+    },
+    {
+      "id": "T4-3",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "G-B 5 puts the agent's-words label on the message and on the result. No spec asserts the result label: agent-words-result appears only in ArtifactWorkspace.tsx, and the 'verified result' axe state only checks that the workspace is visible.",
+      "evidence": "ui/packages/layouts/src/shared/ArtifactWorkspace.tsx:177-189; ui/packages/ui-conformance/tests/conversation.spec.ts:82,380-390"
+    },
+    {
+      "id": "T4-4",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "UI architecture §12 says conversation.spec.ts 'covers each claim above ... across the four ADR 0016 surfaces'. Only 'two runs show in one thread' runs on all four surfaces. Several claims have no spec: the ~40 % width, auto-open for a result, and the agent's words on the result. Narrow the sentence to what is tested.",
+      "evidence": "docs/design/ui-architecture.md §12 Verification (line ~330); ENG-EVID-2, ENG-DOC-1"
+    },
+    {
+      "id": "T4-5",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "In thread mode the stream status moved from Header, which rendered ConnectionStatus unconditionally, to ConfiguredSlot('connection-status'), which honours slots.hidden. A host config that hides that slot now removes lost-connection and stale status from the thread, which AG-STAT-3 requires to stay visible. Render it unconditionally in the thread head, as the approval slot is protected.",
+      "evidence": "ui/packages/layouts/src/shared/ThreadSurface.tsx:80; ui/packages/components/src/features/header/Header.tsx:30-31; ui/packages/layouts/src/shared/ConfiguredSlot.tsx:12-14"
+    },
+    {
+      "id": "T4-6",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "Traced in code, not run. In 'on', a legacy run opened in the per-run view gets an unlocked composer (canSend = isConversationsOn || canCompose). If that legacy run is in WAITING_APPROVAL, a send creates a new conversation and attaches its run, so the view leaves the pending approval without any refusal or hint. The approval itself is not decided. No spec covers the legacy composer. Either keep today's lock for a legacy run, or test and document this path.",
+      "evidence": "ui/packages/components/src/features/composer/Composer.tsx:39; ui/packages/ui-core/src/controller.ts sendMessage (waiting requires WAITING_INPUT)"
+    },
+    {
+      "id": "T4-7",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "A1's legacy state shows the status read now beside the last-seen status ('Last seen was: ...'). The implementation shows only the current status. Opening the run also calls remember(), which overwrites the stored 'last seen' with the current state.",
+      "evidence": "research/mockups/conversation-thread-v1/app.js:687; ui/packages/components/src/features/conversation/Messages.tsx:21-33"
+    },
+    {
+      "id": "T4-8",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The exact-set guard on HIDDEN_EVENT_TYPES was narrowed to conversation.* only. thread.test.ts checks membership, not the full set, so a hidden type added without a ruling would pass silently. Assert the full sorted set.",
+      "evidence": "ui/packages/ui-core/test/conversation.test.ts:585; ui/packages/ui-core/test/thread.test.ts:28"
+    },
+    {
+      "id": "T4-9",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Not checked, because the coordinator stopped the review at the turn limit. (1) make e2e was not rerun; only pnpm --dir ui check (exit 0, 224 unit tests, depcruise clean, neutrality ok) and the -g 'thread|sidebar|workspace' Playwright run (36 passed, 11 skipped) were. (2) Screenshots were not compared with the A1 mockup. (3) VI wording quality was not judged; the key set is complete, because the typed catalog enforces it and the report's new-VI list matches the 34 added keys. (4) The implementer's rulings on ir.shadow_failed and on earlier-run Activity-only were judged acceptable but not traced against every ADR.",
+      "evidence": "/private/tmp/claude-501/-Users-thanhnguyen-dev-projects-personal-e-agent/30e35c7d-9cc1-475e-b4fa-41eeb645f95a/scratchpad/pw.log; scratchpad/check.log"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}
