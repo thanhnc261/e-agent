@@ -1,0 +1,31 @@
+{
+  "task": "4d.4",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "B4-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "PostedMessage.route is typed RouteKind, so the OpenAPI document and schema.ts advertise 'refuse' on the 202 body. No path returns it: every REFUSE branch of ConversationFlow.post_message either raises CONFLICT or returns START through _unlinked. Typing it Literal[RouteKind.START, RouteKind.ANSWER] would make the client type Task 4e.3 consumes honest. The report already notes this deviation.",
+      "evidence": "src/e_agent/server/conversations.py:47-49; ui/packages/client/openapi.json:825-841,956; src/e_agent/kernel/conversation.py:317-328,348-354"
+    },
+    {
+      "id": "B4-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The route authorization test walks only /v1/ APIRoutes. The health probes are out of scope in PR-27's row, but nothing asserts that list, so a later unguarded APIRoute outside /v1 would pass silently. One assertion that the non-/v1 APIRoute paths are exactly {/health/live, /health/ready} would make the row's out-of-scope list a checked fact (PR-06, PR-27). The test matches the brief's PL-9 scope as written, so this is style.",
+      "evidence": "tests/unit/server/test_route_authorization.py:59-64; docs/design/principles.md PR-27 row"
+    },
+    {
+      "id": "B4-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "_refused checks the envelope's key set {code, message, correlation_id} but not that correlation_id is non-empty, so a null correlation id would still pass test_conversation_errors_use_the_error_envelope.",
+      "evidence": "tests/unit/server/test_conversation_api.py:121-125"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}
