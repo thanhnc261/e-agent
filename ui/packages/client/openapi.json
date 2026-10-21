@@ -830,7 +830,8 @@
           "repeat.compared",
           "repeat.shadow_failed",
           "grounding.compared",
-          "grounding.shadow_failed"
+          "grounding.shadow_failed",
+          "conversation.context_carried"
         ],
         "title": "RunEventType",
         "type": "string"
