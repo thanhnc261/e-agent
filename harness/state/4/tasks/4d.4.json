@@ -19,7 +19,9 @@
     "harness/state/**",
     ".superpowers/sdd/**",
     "docs/plans/2026-10-20-phase4-conversation-chat.md",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "src/e_agent/kernel/conversation.py",
+    "src/e_agent/kernel/coordinator.py"
   ],
   "acceptance": [
     "test_conversation_api.py passes on both stores; test_route_authorization.py prints its count",
@@ -31,5 +33,17 @@
   "gate_set": "full",
   "base_commit": "7646d302f1454dd44abf2feb9219941e700c789c",
   "created_at": "2026-10-21T14:28:37+00:00",
-  "features_digest": "f1d64f56f5dee8d492260ced4c61b2d682d0d0df3d3dbccb4119089045aea16e"
+  "features_digest": "f1d64f56f5dee8d492260ced4c61b2d682d0d0df3d3dbccb4119089045aea16e",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/kernel/conversation.py",
+      "reason": "the off refusal and the request digest belong in the kernel facade, not the handler (PR-03)",
+      "at": "2026-10-21T14:28:47+00:00"
+    },
+    {
+      "glob": "src/e_agent/kernel/coordinator.py",
+      "reason": "facade methods for list/get conversation and member features delegate through the coordinator",
+      "at": "2026-10-21T14:28:47+00:00"
+    }
+  ]
 }
