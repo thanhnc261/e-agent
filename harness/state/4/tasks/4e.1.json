@@ -1,0 +1,26 @@
+{
+  "id": "4e.1",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4e-1"
+  ],
+  "context_digest": "df6bf7d29b130215123e288595a38710392175a43f87d189cd2fb6da0721bb6d",
+  "allowed_paths": [
+    "research/20-conversation-thread-brief.md",
+    "research/README.md",
+    "docs/reviews/2026-10-21-chat-surface-gap-audit.md",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "gap audit written under docs/reviews",
+    "brief approved by the owner, approval recorded verbatim"
+  ],
+  "gate_set": "full",
+  "base_commit": "9284c8c0dafd599c9a52f841258bae05c06fc0d7",
+  "created_at": "2026-10-21T15:44:44+00:00",
+  "features_digest": "5e52c54d93368a6efb0aee7b31f6509a9036656f920106e6e2e156be472e553f"
+}
