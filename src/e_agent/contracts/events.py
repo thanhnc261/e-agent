@@ -58,6 +58,9 @@ class RunEventType(StrEnum):
     # the check failed.
     GROUNDING_COMPARED = "grounding.compared"
     GROUNDING_SHADOW_FAILED = "grounding.shadow_failed"
+    # `conversations: on` (ADR 0023 §6, §11, Task 4d.2): the carried items a run admitted
+    # into a conversation holds, by run id and digest, never a value.
+    CONVERSATION_CONTEXT_CARRIED = "conversation.context_carried"
 
 
 class RunEvent(Record):

@@ -168,6 +168,7 @@ class ContextOnMixin(ContextShadowMixin):
                 observation_turns=inputs.observation_turns,
                 deferred_pending=cont.pending_action_id is not None,
                 referenced_evidence=inputs.referenced,
+                carried=cont.carried,  # fixed at admission (ADR 0023 §6, §8)
             )
         except Exception:  # no exception text reaches an event (PR-25, PR-28)
             events = await self._store.list_events(run.tenant_id, run.run_id)

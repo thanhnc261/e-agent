@@ -520,19 +520,22 @@ def make_kernel(run_store: Any) -> Callable[..., Kernel]:
         input_schemas: dict[str, dict[str, Any]] | None = None,
         with_pin: bool = False,
         with_answer: bool = False,
+        answer: CapabilityDescriptor | None = None,
         answer_verifier: bool = True,
         route: dict[str, Any] | None = None,
         read_only: bool = False,
     ) -> Kernel:
         """``read_only`` offers the read alone (no write, no write binding), for a run that
-        cannot write (ADR 0033 §3); pair it with a definition that names no write."""
+        cannot write (ADR 0033 §3); pair it with a definition that names no write.
+        ``answer`` replaces ``SUMMARY`` (same contract id) with ``with_answer``, for a classed
+        variant with value formats (ADR 0023 §7); pass its input schema in ``input_schemas``."""
         backend, validator, verifier = NotesBackend(), NotesValidator(), NotesVerifier()
         driver = driver or NotesDriver(texts=list(texts or ["standup notes"]))
         capabilities = (READ, CREATE, PIN) if with_pin else (READ, CREATE)
         capabilities = (READ,) if read_only else capabilities
         verifiers: tuple[Any, ...] = (verifier,)
         if with_answer:  # the answer needs no binding; its verifier is optional (2c.8c)
-            capabilities = (*capabilities, SUMMARY)
+            capabilities = (*capabilities, answer or SUMMARY)
             verifiers = (verifier, NotesAnswerVerifier()) if answer_verifier else verifiers
         bindings = (*BINDINGS, PIN_BINDING) if with_pin else BINDINGS
         bindings = BINDINGS[:1] if read_only else bindings

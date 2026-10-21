@@ -44,7 +44,7 @@ from e_agent.contracts.progress import (
 )
 from e_agent.contracts.task import AcceptanceSpec, RequiredEffect, TaskDefinition
 from e_agent.contracts.validation import Finding, ValidationStatus
-from e_agent.kernel import approval, approval_flow, context_walk
+from e_agent.kernel import approval, approval_flow, carried, context_walk
 from e_agent.kernel import context as context_module
 from e_agent.kernel.approval import presentation_for
 from e_agent.kernel.context import INSTRUCTIONS, assemble, context_route, estimate_tokens
@@ -778,11 +778,15 @@ def _imports(path: Path) -> set[str]:
 
 def test_assembler_is_pure() -> None:
     """No plugin, adapter, store, server, driver or I/O: the assembler is a function of its
-    inputs and makes no model call (ADR 0032 §2, Review Focus 8). Its value walker is
-    held to the same imports."""
+    inputs and makes no model call (ADR 0032 §2, Review Focus 8). Its value walker and the
+    carried-context renderer it calls (ADR 0023 §8) are held to the same imports."""
     allowed_prefixes = ("e_agent.contracts", "e_agent.sdk.ports", ".errors", "__future__")
     stdlib = {"collections.abc", "dataclasses", "decimal", "re", "types", "typing"}
-    for module, extra in ((context_module, (".context_walk",)), (context_walk, ())):
+    for module, extra in (
+        (context_module, (".context_walk", ".carried")),
+        (carried, (".context_walk",)),
+        (context_walk, ()),
+    ):
         imported = _imports(Path(inspect.getfile(module)))
         assert imported, f"no imports parsed in {module.__name__}"
         for name in imported:

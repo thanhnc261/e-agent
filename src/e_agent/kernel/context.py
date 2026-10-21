@@ -37,12 +37,14 @@ from e_agent.contracts.context_pack import (
     tool_return_payload,
     tool_return_text,
 )
+from e_agent.contracts.conversation import CarriedRun
 from e_agent.contracts.evidence import Completeness
 from e_agent.contracts.progress import ProgressLedger
 from e_agent.contracts.task import TaskDefinition
 from e_agent.contracts.validation import Finding
 from e_agent.sdk.ports import Observation
 
+from .carried import render_carried
 from .context_walk import Walker
 from .errors import ErrorCode, KernelError
 
@@ -275,6 +277,7 @@ def assemble(
     observation_turns: Mapping[str, int] = _EMPTY,
     deferred_pending: bool = False,
     referenced_evidence: Collection[str] = (),
+    carried: Sequence[CarriedRun] = (),
 ) -> ContextPack:
     """The pack for one driver turn (ADR 0032 §2).
 
@@ -283,6 +286,8 @@ def assemble(
     admitted rule inventory's text by rule id; ``observation_turns`` the driver turn each
     observation's request returned on, by request id, for clearing at ``turn``.
     ``referenced_evidence`` names evidence a proposal or answer of the run refers to.
+    ``carried`` (newest first, ADR 0023 §8) is rendered as the ``recent_turns`` layer, whose
+    oldest runs drop first, before any evidence; with none the pack is Phase 3's.
     ``KernelError(BUDGET_EXCEEDED)`` when what is never dropped exceeds
     ``max_input_tokens``."""
     route = context_route(boundary)
@@ -308,15 +313,54 @@ def assemble(
 
     referenced = set(referenced_evidence) | {e for f in findings for e in f.evidence_ids}
     fixed = sum(estimate_tokens(t) for t in (*stable.values(), *suffix.values()))
-    # knowledge and recent turns come first in the drop order; in Phase 3 both are empty
+    # the drop order: knowledge (empty until its phase), the oldest recent turns, then the
+    # oldest unreferenced evidence (ADR 0032 §2)
+    turns = _Turns(carried, rules, classes)
+    turns.fit(lambda tokens: tokens <= policy.layer_budgets[ContextLayer.RECENT_TURNS])
     evidence_budget = policy.layer_budgets[ContextLayer.EVIDENCE]
     _drop_for_budget(rendered, referenced, estimate_tokens(errors_text), evidence_budget)
-    _drop_for_budget(rendered, referenced, fixed, policy.max_input_tokens)
-    if fixed + sum(r.tokens for r in rendered) > policy.max_input_tokens:
+    evidence = sum(r.tokens for r in rendered)
+    turns.fit(lambda tokens: fixed + tokens + evidence <= policy.max_input_tokens)
+    _drop_for_budget(rendered, referenced, fixed + turns.tokens, policy.max_input_tokens)
+    if fixed + turns.tokens + sum(r.tokens for r in rendered) > policy.max_input_tokens:
         raise KernelError(ErrorCode.BUDGET_EXCEEDED, "the context does not fit max_input_tokens")
+    if turns.text:
+        suffix[ContextLayer.RECENT_TURNS] = turns.text
     return ContextPack.build(
         stable_prefix=stable,
         dynamic_suffix=suffix,
         observations=tuple(r.rendered for r in rendered),
-        dropped=(*text_drops, *(d for r in rendered for d in r.drops)),
+        dropped=(*text_drops, *turns.drops, *(d for r in rendered for d in r.drops)),
     )
+
+
+class _Turns:
+    """The ``recent_turns`` layer of carried runs (newest first) and its drops. `fit` drops
+    the oldest run, as a ``turn`` drop, until the rendering's tokens pass ``check``; a value
+    drop of a run left out is not kept, since the run is not sent at all."""
+
+    def __init__(
+        self,
+        carried: Sequence[CarriedRun],
+        rules: Mapping[dc.DataClass, ClassAction],
+        classes: ClassLookup,
+    ) -> None:
+        self._kept = tuple(carried)
+        self._rules, self._classes = rules, classes
+        self._left: list[Dropped] = []
+        self._render()
+
+    def _render(self) -> None:
+        self.text, self._values = render_carried(self._kept, self._rules, self._classes)
+        self.tokens = estimate_tokens(self.text) if self.text else 0
+
+    @property
+    def drops(self) -> tuple[Dropped, ...]:
+        return (*self._values, *self._left)
+
+    def fit(self, check: Callable[[int], bool]) -> None:
+        while self._kept and not check(self.tokens):
+            ref = f"carried:{self._kept[-1].run_id}"
+            self._left.append(Dropped(kind=DroppedKind.TURN, ref=ref, reason=DroppedReason.BUDGET))
+            self._kept = self._kept[:-1]
+            self._render()

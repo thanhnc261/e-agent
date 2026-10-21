@@ -23,6 +23,7 @@ from e_agent.contracts.capability import CapabilityBinding
 from e_agent.contracts.common import new_id
 from e_agent.contracts.context import Budgets, TaskContext
 from e_agent.contracts.context_pack import ContextRoute
+from e_agent.contracts.conversation import CarriedRun
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.evidence import Completeness
 from e_agent.contracts.features import FeatureMode, RunModes
@@ -156,6 +157,9 @@ class _Continuation(BaseModel):
     the one place its text lives, never an event (owner G2). Left out when None."""
     step_rationales: dict[str, ProposalRationale] = Field(default_factory=dict)
     """That plan's step rationales by step id, as ``rationale``; left out when empty."""
+    carried: tuple[CarriedRun, ...] = ()
+    """Facts carried from earlier runs of the conversation, fixed at admission (ADR 0023 §6):
+    never in ``observations`` or ``reads``. Left out when empty."""
     _stored_driver_state: dict[str, Any] | None = PrivateAttr(default=None)
     """The stored driver state this entry was loaded with, whatever the current driver
     supports, kept until the driver's ``advance`` is about to run (`_timed` with
@@ -168,15 +172,15 @@ class _Continuation(BaseModel):
     @model_serializer(mode="wrap")
     def _omit_unbound_task(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
         """Leave ``task``, ``plan``, ``modes``, ``context_boundary`` and ``rationale`` out when
-        unset, and ``blocked`` and ``step_rationales`` when empty, so an ``off`` continuation
-        is stored exactly as before Task 2c.6, 3b.2, 3d.6 and 3e.3. A run pinned
+        unset, and ``blocked``, ``step_rationales`` and ``carried`` when empty, so an ``off``
+        continuation is stored as before Task 2c.6, 3b.2, 3d.6, 3e.3 and 4d.2. A run pinned
         ``kernel_repeat`` ``shadow`` or ``on`` keeps a non-empty ``blocked`` once a proposal is
         blocked."""
         data: dict[str, Any] = handler(self)
         for name in ("task", "plan", "modes", "context_boundary", "rationale"):
             if getattr(self, name) is None:
                 data.pop(name, None)
-        for name in ("blocked", "step_rationales"):
+        for name in ("blocked", "step_rationales", "carried"):
             if not getattr(self, name):
                 data.pop(name, None)
         return data

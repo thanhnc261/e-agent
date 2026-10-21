@@ -12,12 +12,15 @@ from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
 from typing import Any
 
+from e_agent.contracts.action import ActionState
+from e_agent.contracts.capability import EffectKind
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.context import Budgets, HostContext, Principal, TaskContext
-from e_agent.contracts.conversation import Conversation, MessageRoute, ReplyTo
+from e_agent.contracts.conversation import CarriedRun, Conversation, MessageRoute, ReplyTo
 from e_agent.contracts.events import RunEventType
-from e_agent.contracts.features import Features
+from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.run import (
+    ReasonCode,
     RunRecord,
     RunState,
 )
@@ -37,6 +40,13 @@ from e_agent.sdk.store import (
 )
 
 from .approval_flow import ApprovalFlowMixin
+from .carried import (
+    MAX_CARRIED_RUNS,
+    AnswerDeclarations,
+    answer_declarations,
+    carried_digest,
+    carry,
+)
 from .connections import ConnectionCatalog
 from .continuation import CONTINUATION_SCHEMA as CONTINUATION_SCHEMA
 from .continuation import LOG as LOG
@@ -45,7 +55,7 @@ from .continuation import _GatewayReader as _GatewayReader
 from .conversation import KEY_REUSED, NOT_FOUND_MESSAGE, WAIT_FOR_RUN, ConversationFlow
 from .dispatch import DispatchMixin
 from .errors import ErrorCode, KernelError
-from .features import LOCAL_ROUTE, FeaturesMixin
+from .features import LOCAL_ROUTE, FeaturesMixin, fallback_event
 from .gateway import GatewayMixin
 from .ir_on import merged_budgets
 from .plan_flow import PlanFlowMixin
@@ -248,6 +258,8 @@ class RunCoordinator(
             host_context=host_context,
             conversation_id=conversation_id,
         )
+        if self._run_modes(cont).conversations is FeatureMode.ON:  # the pin (ADR 0023 §9)
+            events.extend(await self._carry_into(cont, principal, conversation_id))
         try:
             claimed, previous_digest = await store.create_run_in_conversation(
                 run,
@@ -265,6 +277,55 @@ class RunCoordinator(
         if previous_digest != request_digest:
             raise KernelError(ErrorCode.CONFLICT, KEY_REUSED)
         return claimed, claimed == run_id
+
+    async def _carry_into(
+        self, cont: _Continuation, principal: Principal, conversation_id: str
+    ) -> list[EventSpec]:
+        """Build the admitted run's carried items into ``cont.carried`` and return the event
+        that records them, in the admission transaction (ADR 0023 §6, §9). Any failure is
+        ``feature.fallback`` with ``CONVERSATION_CONTEXT_FAILED``: the run stays linked and
+        starts without carried items, before it can reserve anything (ruling 3)."""
+        try:
+            carried = await self._carried_for(principal, conversation_id, cont.ctx.run_id)
+        except Exception:  # no exception text reaches an event (PR-25, PR-28)
+            cont.carried = ()
+            return [fallback_event("conversations", ReasonCode.CONVERSATION_CONTEXT_FAILED)]
+        cont.carried = carried
+        if not carried:
+            return []
+        payload = {
+            "conversation_id": conversation_id,
+            "carried_run_ids": [c.run_id for c in carried],
+            "carried_digest": carried_digest(carried),
+        }
+        return [(RunEventType.CONVERSATION_CONTEXT_CARRIED, payload, None)]
+
+    async def _carried_for(
+        self, principal: Principal, conversation_id: str, run_id: str
+    ) -> tuple[CarriedRun, ...]:
+        """The earlier runs' records, read once at admission, and `carry` over them: the
+        store's listing order without the admitted run, never sorted by time (ruling R2)."""
+        tenant = principal.tenant_id
+        listed = await self._conversation_store().list_conversation_runs(
+            tenant, principal.principal_id, conversation_id
+        )
+        runs = [r for r in listed if r.run_id != run_id][-MAX_CARRIED_RUNS:]
+        events, actions, evidence = {}, {}, {}
+        declarations: dict[str, AnswerDeclarations] = {}
+        for run in runs:
+            events[run.run_id] = await self._store.list_events(tenant, run.run_id)
+            actions[run.run_id] = await self._store.list_actions(tenant, run.run_id)
+            stored, _ = await self._read_cont(tenant, run.run_id)
+            evidence[run.run_id] = {
+                o.evidence.evidence_id: o.evidence for o in stored.observations.values()
+            }
+            for action in actions[run.run_id]:
+                cap = self._registry.capabilities.get(action.contract_id)
+                verified = action.state is ActionState.VERIFIED
+                if verified and cap is not None and cap.effect is EffectKind.ANSWER:
+                    document = self._registry.schema_document(cap.contract_id)
+                    declarations[cap.contract_id] = answer_declarations(cap, document)
+        return carry(runs, events, actions, evidence, declarations)
 
     # --------------------------------------------------------- conversations
     def _conversation_store(self) -> ConversationStore:
