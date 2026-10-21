@@ -19,7 +19,9 @@
     "harness/state/**",
     ".superpowers/sdd/**",
     "docs/plans/2026-10-20-phase4-conversation-chat.md",
-    "docs/handoffs/**"
+    "docs/handoffs/**",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts"
   ],
   "acceptance": [
     "tests/unit/contracts/test_conversation.py passes",
@@ -29,5 +31,17 @@
   "gate_set": "full",
   "base_commit": "57ce9511b977db8c5c5f72448b8a73a323617941",
   "created_at": "2026-10-20T16:46:26+00:00",
-  "features_digest": "58d6e854071605fe70a62e9b8e1b1eb2354df97eed7b28f86d1074d2586e563d"
+  "features_digest": "58d6e854071605fe70a62e9b8e1b1eb2354df97eed7b28f86d1074d2586e563d",
+  "scope_changes": [
+    {
+      "glob": "ui/packages/client/openapi.json",
+      "reason": "RunRecord is in the OpenAPI schema; the additive conversation_id field regenerates it (export_openapi --check)",
+      "at": "2026-10-21T10:46:32+00:00"
+    },
+    {
+      "glob": "ui/packages/client/src/schema.ts",
+      "reason": "generated from openapi.json (pnpm gen)",
+      "at": "2026-10-21T10:46:45+00:00"
+    }
+  ]
 }

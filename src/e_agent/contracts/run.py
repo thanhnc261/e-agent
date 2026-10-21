@@ -170,6 +170,8 @@ class RunRecord(Record):
     task_id: str | None = None
     """The task definition the run resolved (ADR 0028, C11); null for free-text runs."""
     task_version: str | None = None
+    conversation_id: str | None = None
+    """The conversation the run belongs to (ADR 0023); null before Phase 4 and in ``off``."""
 
     @model_validator(mode="after")
     def _check_task_link(self) -> Self:

@@ -57,3 +57,9 @@ class RunModes(Record):
     @property
     def all_off(self) -> bool:
         return all(getattr(self, name) is FeatureMode.OFF for name in type(self).model_fields)
+
+
+class MemberFeatures(Record):
+    """What a member may learn of the server's modes: the conversations mode (ADR 0023 §10)."""
+
+    conversations: FeatureMode = FeatureMode.OFF

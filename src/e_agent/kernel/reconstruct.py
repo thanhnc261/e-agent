@@ -76,7 +76,10 @@ ADDED_KEYS: Mapping[RunEventType, frozenset[str]] = MappingProxyType(
 def run_created_keys(run: RunRecord) -> dict[str, Any]:
     """The ``run.created`` keys of ``run``, timestamps as the record serialises them."""
     wire = run.model_dump(mode="json")
-    return {key: wire[key] for key in RUN_CREATED_KEYS}
+    keys = {key: wire[key] for key in RUN_CREATED_KEYS}
+    if run.conversation_id is not None:  # only when set, so the `off` goldens do not move
+        keys["conversation_id"] = run.conversation_id
+    return keys
 
 
 def proposal_keys(action: ActionRecord) -> dict[str, Any]:
@@ -293,6 +296,12 @@ def _run(events: list[RunEvent], created: RunEvent | None) -> Rebuilt:
         "task": _keyed(RunRecord, "task", payload),
         **{key: _keyed(RunRecord, key, payload) for key in RUN_CREATED_KEYS},
     }
+    if created is not None:  # written only when set (`run_created_keys`): absent means none
+        fields["conversation_id"] = _known(
+            RunRecord, "conversation_id", payload.get("conversation_id")
+        )
+    else:
+        fields["conversation_id"] = UNKNOWN_SLOT
     # Created CREATED with no reason (`_prepare_run`); every state change carries the new one.
     state = reason = code = UNKNOWN_SLOT
     if created is not None:

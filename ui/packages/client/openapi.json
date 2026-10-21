@@ -838,6 +838,17 @@
       "RunRecord": {
         "additionalProperties": false,
         "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
           "created_at": {
             "title": "Created At",
             "type": "string"

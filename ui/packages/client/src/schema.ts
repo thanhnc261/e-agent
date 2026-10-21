@@ -574,6 +574,8 @@ export interface components {
         RunEventType: "run.created" | "run.state_changed" | "read.recorded" | "read.rejected" | "proposal.created" | "validation.completed" | "approval.requested" | "approval.decided" | "connect.required" | "input.requested" | "input.received" | "action.reserved" | "action.dispatching" | "action.receipt_recorded" | "action.unknown" | "reconciliation.completed" | "outcome.reported" | "message.final" | "budget.exhausted" | "run.cancel_requested" | "run.terminal" | "feature.fallback" | "ir.plan_compiled" | "ir.shadow_failed" | "ir.lineage_resolved" | "ir.step_verified" | "context.failed" | "context.compared" | "context.shadow_failed" | "context.assembled" | "repeat.compared" | "repeat.shadow_failed" | "grounding.compared" | "grounding.shadow_failed";
         /** RunRecord */
         RunRecord: {
+            /** Conversation Id */
+            conversation_id?: string | null;
             /** Created At */
             created_at: string;
             /** Logical Operation Id */
