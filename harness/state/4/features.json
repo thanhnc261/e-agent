@@ -244,7 +244,8 @@
         "citations.test.tsx and explanation.spec.ts pass",
         "make e2e passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4e.5/2026-10-21T21-28-41.657302+00-00-full.json"
     },
     {
       "id": "F-4e-6",

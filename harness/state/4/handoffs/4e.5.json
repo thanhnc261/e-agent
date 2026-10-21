@@ -1,0 +1,24 @@
+{
+  "task": "4e.5",
+  "changed": "Citations and the explanation, grounded not verified (ADR 0033, ADR 0034 §3-§4). The result shows the sources the answer cites, each value read from actions[].approved_facts (D15), never from the model. A grounded answer is labelled as not verified. The explanation disclosure loads the evidence bundle once on first open and shows only the server's records. The Activity container offers no explanation before a result. The outcome's argument list is labelled 'Values of this action' / 'Giá trị của hành động này', so a typed answer's free-text field (offer.recommend's explanation) is never shown as verified (E5-1, option c). What was verified stays in the Checks disclosure. New files: Explanation.tsx, containers/Activity.tsx, selectors/explanation.ts. 42 new i18n keys. citations.test.tsx (10 tests) and explanation.spec.ts. pnpm --dir ui check: 240 unit tests. make e2e: 201 passed, 4 skipped. Commits e2760b1a, d3678423, 5bdfbf1e. Reviews 4e.5.json (rework) and 4e.5-r2.json (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4e.5/2026-10-21T21-28-41.657302+00-00-full.json"
+  ],
+  "open_items": [
+    "G-D (E5-3): the server's enum strings (reason codes, check names) are shown untranslated.",
+    "G-D (E5-5): in grounded_answers on, citations whose kernel verdict was mismatched or unresolved are still listed under 'Sources this answer cites', without the KERNEL-CITATION finding beside them. The value shown is still the approved fact's.",
+    "G-D (R5-1): event.outcome.reported reads 'Outcome verified' whatever the reported status (predates 4e.5), and outcome.references is unused.",
+    "Follow-up (E5-1 option b): labelling a free-text answer field as model-authored needs a server declaration of free-text fields and an ADR. It is not built.",
+    "4f.1 (E5-4): record the Activity default slot and the brief deviations in UI architecture §12.",
+    "4e.7 (EA-14): the dashed border under forced colours.",
+    "G-D: the 'new VI since G-B' keys from 4e.5, including the changed outcome.values, are in the 4e.5 SDD report and must be listed in the 4e.7 review for the owner.",
+    "These are browser-mechanics checks only: no assistive-technology, device or user testing was done."
+  ],
+  "rulings": [
+    {
+      "ruling": "E5-1 is fixed by relabelling outcome.values so it claims no verification (EN and VI), plus a test with a free-text explanation argument. Per-field labels from the server need an ADR.",
+      "cost_if_wrong": "one i18n pair, or an ADR and a bundle field later"
+    }
+  ],
+  "outside_repo": []
+}
