@@ -643,6 +643,26 @@ Added in round 3 for the owner's D17 ruling. This is a plugin contract change, d
 - [ ] Change the `pg` gate set; run `uv run e-agent-harness validate-context` (expected: ok). Run the same test command with `E_AGENT_TEST_STORE=postgres`, the `pg` gate and `make e2e`; expected: pass.
 - [ ] Commit `test(server): fixture conversation thread end to end`.
 
+### Task 4d.6: refuse an answer to an ended run (G-B decision 3)
+
+Added on 2026-10-21 from G-B decision 3. It runs after 4e.1 and before 4e.2.
+
+**Files:**
+- `docs/adr/0023-conversation-model.md`: the §4 table row and "Order of checks";
+- `src/e_agent/kernel/conversation.py`: the first branch of `route_message`;
+- `tests/**`.
+
+**Behaviour:**
+- A message with a `reply_to`, sent while the latest run is terminal or there is no latest run, routes to `REFUSE` `QUESTION_CHANGED` and gets CONFLICT "the question changed; read it again".
+- A message with no `reply_to` still starts a run.
+- In `shadow` this is the same CONFLICT, as `/inputs` gives today (4d.3 B3-1).
+
+- [ ] Failing tests, on both stores:
+  - `test_reply_to_an_ended_run_is_refused`, in `on` and in `shadow`: CONFLICT, and no linked or unlinked run is created anywhere (the 4d.3 A3-4 pattern);
+  - `test_message_without_reply_to_after_an_ended_run_starts`.
+- [ ] Implement it, amend ADR 0023 §4 in the same commit, and run the routing, shadow, API and e2e conversation tests on both stores.
+- [ ] Commit `fix(kernel): an answer to an ended run is refused (ADR 0023 §4, G-B 3)`.
+
 ## Part 4e: UI through the `ag-*` stages
 
 Every task here reads `ag-ux-foundations` first and cites AG and EA criteria by ID. A stage never starts before the previous gate is recorded.
@@ -661,8 +681,17 @@ Every task here reads `ag-ux-foundations` first and cites AG and EA criteria by 
   - the D15 surfaces (citations and explanation; the rationale on the card is deferred at G-A, so the card is unchanged);
   - the "grounded, not verified" wording (handoff item 14);
   - open questions, among them: where legacy runs appear (D11), and the VI copy of 4b.3.
-- [ ] The owner approves the brief and names a direction. Record the approval verbatim in the brief's Approval section (G-B).
-- [ ] Commit `docs(research): conversation thread design brief (G-B)`.
+- [x] The owner approves the brief and names a direction (G-B). `research/**` is create-only, so the approval is recorded here and in the 4e.1 handoff, not in the brief (ruling, 2026-10-21).
+  - **G-B (2026-10-21), owner-delegated.** The owner wrote, verbatim: "advisor can decide all on behalf me". The advisor decided the brief's eight questions:
+    1. Direction A: run cards with a closable side workspace.
+    2. Legacy runs go in their own group, "last seen".
+    3. An answer to a run that has ended is refused: CONFLICT "the question changed; read it again", with the draft kept. This closes the open question in ADR 0023 §4. Task 4d.6 amends §4 and the router before 4e.3.
+    4. While a decision waits: the server's hint shows, the composer stays open, the draft is kept and the card is unchanged.
+    5. The agent's-words label goes on the message and on the result.
+    6. On desktop the workspace opens by itself and the user can close it.
+    7. The new Vietnamese drafts are accepted, and flagged at G-D as "new VI since G-B".
+    8. A grounded-not-verified state is added to the UX standard as a separate skill task, which also moves EA-10's source to ADR 0034. It is a follow-up and not part of Phase 4.
+- [x] Commit `docs(research): conversation thread design brief (G-B)` (62a29b83; gap audit a720c991).
 
 ### Task 4e.2: mockup (gate G-C)
 
