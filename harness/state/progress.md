@@ -849,3 +849,8 @@
 - changed: harness/state/4/features.json, harness/state/4/handoffs/4c.3.json, harness/state/evidence/gates/4c.3/2026-10-21T11-37-04.698235+00-00-full.json, harness/state/evidence/gates/4c.3/2026-10-21T11-38-35.932209+00-00-pg.json
 - next: open task 4c.4 (answer value formats in the manifest, D17)
 - open: none
+
+## 2026-10-21T12:16:09.332890+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4c.4
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4c.4.json, harness/state/evidence/gates/4c.4/2026-10-21T12-14-23.143772+00-00-full.json
+- next: open task 4d.1 (message routing in the kernel facade)
+- open: none

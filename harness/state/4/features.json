@@ -128,7 +128,8 @@
         "the registry refuses an unknown format, a path the schema lacks, a type mismatch and a format without a data class",
         "both off model-request goldens byte-identical; registry.py at most 500 lines; check_wheels passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4c.4/2026-10-21T12-14-23.143772+00-00-full.json"
     },
     {
       "id": "F-4d-1",
