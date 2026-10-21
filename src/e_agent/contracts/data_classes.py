@@ -105,7 +105,6 @@ RECORD_KINDS: Mapping[str, RecordKind] = _kinds(
     RecordKind(kind="approvals", holds="an approval decision and its digest", **_AUDIT),
     RecordKind(kind="receipts", holds="an execution attempt's receipt", **_AUDIT),
     RecordKind(kind="run_steps", holds="a step of a run and its status", **_AUDIT),
-    RecordKind(kind="conversations", holds="a conversation's ids, owner and revision", **_AUDIT),
     RecordKind(kind="outcome_reports", holds="a verification outcome", **_PAYLOAD),
     RecordKind(kind="continuations", holds="the driver's resume state", **_PAYLOAD),
     RecordKind(kind="action_plans", holds="a proposed plan with its arguments", **_PAYLOAD),

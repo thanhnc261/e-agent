@@ -360,9 +360,8 @@ The server already emits `from` and `to` (`kernel/run_loop.py`, ADR 0031). Old r
   - `ThreadRun(run_id, task, state, reason_code, revision, created_at)` and `ConversationSnapshot(conversation, runs)`: the API thread.
 - `src/e_agent/contracts/features.py`: `MemberFeatures(conversations)`, the member projection (D10).
 - `src/e_agent/contracts/run.py`: `RunRecord.conversation_id: str | None = None`.
-- `src/e_agent/contracts/data_classes.py`: `RECORD_KINDS` gains `conversations` (audit skeleton, "a conversation's ids, owner and revision").
 - `src/e_agent/kernel/reconstruct.py`: `run_created_keys` adds `conversation_id` only when set.
-- Tests: `tests/unit/contracts/test_conversation.py` (new), `tests/conformance/test_record_classes.py`, `tests/unit/kernel/test_off_projection.py`.
+- Tests: `tests/unit/contracts/test_conversation.py` (new), `tests/unit/kernel/test_off_projection.py`.
 
 **Interfaces:** produces the records above, consumed by 4c.3–4e.
 
@@ -373,11 +372,10 @@ The server already emits `from` and `to` (`kernel/run_loop.py`, ADR 0031). Old r
   - `test_message_route_answer_needs_run_and_revision`;
   - `test_member_features_has_only_conversations`;
   - `test_run_record_conversation_id_defaults_none`;
-  - `test_run_created_has_no_conversation_key_when_unset`;
-  - `test_every_store_record_kind_declares_a_class` (existing; now lists `conversations`).
+  - `test_run_created_has_no_conversation_key_when_unset`.
 - [ ] Run `uv run pytest -q tests/unit/contracts/test_conversation.py`; expected: `ModuleNotFoundError: e_agent.contracts.conversation`.
 - [ ] Implement.
-- [ ] Run the same command, `tests/conformance/test_record_classes.py`, `tests/unit/kernel/test_off_projection.py` and the `off` baselines; expected: pass, the v3 goldens unchanged. Run `uv run python scripts/export_openapi.py --check`; expected: no change (no route exposes the records yet).
+- [ ] Run the same command, `tests/conformance/test_record_classes.py`, `tests/unit/kernel/test_off_projection.py` and the `off` baselines; expected: pass, the v3 goldens unchanged. Run `uv run python scripts/export_openapi.py --check`; expected: it changes, because `RunRecord` is in the API schema; regenerate `ui/packages/client/openapi.json` and `src/schema.ts` (`pnpm --dir ui gen`) in the same commit.
 - [ ] Commit `feat(contracts): Conversation record and RunRecord.conversation_id (ADR 0023)`.
 
 ### Task 4c.3: the `ConversationStore` port on both stores, with migration `0007`
@@ -393,9 +391,10 @@ Both stores ship in this one task (ENG-STORE-1, PR-30). The first draft split th
 - `pyproject.toml`: `"e_agent.kernel.memory_conversations"` in the `source_modules` of the import contract "Only the facade module imports e_agent.kernel.coordinator", in sorted order (before `"e_agent.kernel.memory_store"`). No other contract changes (PR-06).
 - `src/e_agent/server/bootstrap.py`: the memory store kind builds `InMemoryConversationStore`, which is both stores.
 - `src/e_agent/adapters/postgres/migrations/0007_conversations.sql` (new): table `conversations (tenant_id, conversation_id, owner_id, revision, created_at, updated_at)` with primary key `(tenant_id, conversation_id)`; `runs.conversation_id` nullable, with a composite foreign key `(tenant_id, conversation_id)`; index `(tenant_id, conversation_id, created_at)`. Forward-only, no data rewrite.
+- `src/e_agent/contracts/data_classes.py`: `RECORD_KINDS` gains `conversations` (audit skeleton, "a conversation's ids, owner and revision"). Moved from 4c.2: declared with the table, never ahead of it (4c.2 ruling).
 - `src/e_agent/adapters/postgres/store.py`: implements `ConversationStore`; `create_run_in_conversation` runs the revision and active-run check in the same transaction as the run insert, with the conversation row locked `FOR UPDATE`.
 - `.github/workflows/ci.yml`: in job `checks`, the step "kernel suite against the PostgreSQL ledger" runs `tests/unit/kernel tests/conformance tests/unit/adapters/postgres`, the `pg` gate's set (FB-1).
-- Tests: `tests/conformance/test_conversation_store.py` (new), `tests/conformance/test_run_store.py`, `tests/unit/adapters/postgres/test_migrations.py`.
+- Tests: `tests/conformance/test_conversation_store.py` (new), `tests/conformance/test_run_store.py`, `tests/unit/adapters/postgres/test_migrations.py`, `tests/conformance/test_record_classes.py` (`test_every_store_record_kind_declares_a_class` now lists `conversations`; moved from 4c.2 with the declaration).
 
 **Interfaces:**
 - `create_conversation(conversation) -> None`;

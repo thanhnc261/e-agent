@@ -77,23 +77,19 @@ async def store_kinds(request: pytest.FixtureRequest) -> AsyncIterator[set[str]]
     yield tables - set(NOT_RECORD_KINDS)
 
 
-NOT_YET_KEPT = {"conversations": "Task 4c.3 adds the store's table (migration 0007)"}
-"""Declared kinds no store keeps yet, each with the task that adds it. Task 4c.3 empties it."""
-
-
 def check_declared(store_kinds: set[str]) -> int:
     """Assert the store's record kinds equal the declared kinds; return how many."""
     assert store_kinds, "the store holds no record kinds: 0 cases is a failure (PR-31)"
     undeclared = sorted(store_kinds - set(RECORD_KINDS))
     assert not undeclared, f"record kinds with no record and retention class: {undeclared}"
-    stale = sorted(set(RECORD_KINDS) - set(NOT_YET_KEPT) - store_kinds)
+    stale = sorted(set(RECORD_KINDS) - store_kinds)
     assert not stale, f"declared record kinds this store does not keep: {stale}"
     return len(store_kinds)
 
 
 def test_every_store_record_kind_declares_a_class(store_kinds: set[str]) -> None:
     print(f"record kinds checked: {len(store_kinds)}")
-    assert check_declared(store_kinds) == len(RECORD_KINDS) - len(NOT_YET_KEPT)
+    assert check_declared(store_kinds) == len(RECORD_KINDS)
 
 
 def test_the_check_fails_on_a_missing_declaration_and_on_zero_kinds() -> None:
