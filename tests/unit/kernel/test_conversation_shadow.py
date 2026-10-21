@@ -714,6 +714,53 @@ async def test_shadow_conversation_error_falls_back_to_plain_input(
     assert "SECRET" not in json.dumps([e.payload for e in events])
 
 
+async def test_shadow_answer_fallback_is_one_write(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PR-17: an answer fallback (stage ``answer``, then stage ``reply_to``) writes the run
+    once: ``input.received``, its state change and ``conversation.shadow_failed`` in one
+    ``update_run`` with the input work, so no failure can leave a ``RUNNING`` run without
+    work or without its event."""
+    k = _shadow(make_kernel, driver=ClarifyDriver())
+    cid, run = await _waiting(k)
+    _, unlinked_id = await _post(k, cid, "a new task")  # would refuse: unlinked
+    unlinked = await k.coordinator.start_admitted_run(TENANT, unlinked_id)
+    update_run = k.store.update_run
+    writes: list[tuple[str, list[RunEventType], Any]] = []
+
+    async def spy(record: RunRecord, expected: int, events: Any, **kw: Any) -> Any:
+        writes.append((record.run_id, [e[0] for e in events], kw.get("work")))
+        return await update_run(record, expected, events, **kw)
+
+    async def down(*args: Any, **kw: Any) -> Any:
+        raise StoreDown("store down")
+
+    for target, stage in ((run, "answer"), (unlinked, "reply_to")):
+        reply_to = ReplyTo(run_id=target.run_id, run_revision=target.revision)
+        writes.clear()
+        monkeypatch.setattr(k.store, "update_run", spy)
+        if stage == "answer":
+            monkeypatch.setattr(k.store, "list_conversation_runs", down)
+        await _post(k, cid, "the note", reply_to=reply_to)
+        monkeypatch.undo()
+
+        ((run_id, types, work),) = writes
+        assert run_id == target.run_id
+        assert types == [
+            RunEventType.INPUT_RECEIVED,
+            RunEventType.RUN_STATE_CHANGED,
+            SHADOW_FAILED,
+        ]
+        assert work is not None and work[0] == "input"
+        (failed,) = _of(await _events(k, target.run_id), SHADOW_FAILED)
+        _failed(
+            failed,
+            stage,
+            ErrorCode.DEPENDENCY_UNAVAILABLE if stage == "answer" else ErrorCode.NOT_FOUND,
+        )
+        assert await k.store.has_pending_work(TENANT, target.run_id)
+
+
 async def test_shadow_answer_to_own_unlinked_run_is_plain_input(
     make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
 ) -> None:

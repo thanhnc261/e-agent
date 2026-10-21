@@ -29,6 +29,7 @@ from e_agent.sdk.ports import (
     ProposePlan,
     RequestReads,
 )
+from e_agent.sdk.store import EventSpec
 
 from .context_on import ContextOnMixin, ContextUnavailable
 from .errors import ErrorCode, KernelError
@@ -248,8 +249,12 @@ class RunLoopMixin(GatewayMixin, ContextOnMixin):
         expected_revision: int,
         *,
         enqueue: bool = False,
+        events: Sequence[EventSpec] = (),
     ) -> RunRecord:
-        """Resume the requester's persisted run; input grants no additional authority."""
+        """Resume the requester's persisted run; input grants no additional authority.
+        ``events`` are recorded in the same write, after the input's (a ``conversations:
+        shadow`` fallback's ``conversation.shadow_failed``, ADR 0023 §9); ``/inputs`` passes
+        none."""
         run = await self._store.get_run(actor.tenant_id, run_id)
         if actor.principal_id != run.requester_id:
             raise KernelError(ErrorCode.FORBIDDEN, "only the requester may answer")
@@ -287,6 +292,7 @@ class RunLoopMixin(GatewayMixin, ContextOnMixin):
                     },
                     None,
                 ),
+                *events,
             ],
             continuation=self._snapshot(run_id),
             work=("input", {}, digest({"revision": str(expected_revision), "input": text}))

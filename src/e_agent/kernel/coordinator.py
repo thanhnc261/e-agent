@@ -24,7 +24,6 @@ from e_agent.contracts.conversation import (
     ReplyTo,
     RouteKind,
 )
-from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.features import FeatureMode, Features
 from e_agent.contracts.run import (
@@ -402,35 +401,9 @@ class RunCoordinator(
             admit=self._admit_run_in_conversation,
             admit_unlinked=self.admit_run,
             accept=self.accept_input,
-            accept_recorded=self._accept_recorded,
             replayed=self.input_replayed,
             run_of=self._store.get_run,
         )
-
-    async def _accept_recorded(
-        self,
-        principal: Principal,
-        run_id: str,
-        text: str,
-        expected_revision: int,
-        events: Sequence[EventSpec],
-    ) -> RunRecord:
-        """A ``shadow`` fallback's plain input (ADR 0023 §9): `accept_input` as ``/inputs``
-        takes it, then ``events`` with the input work it would have queued, in one write. No
-        work exists until that write, so no worker can move the run in between; a crash
-        between the two leaves a ``RUNNING`` run with no work, which startup recovery fails
-        closed. A run that moved meanwhile (a cancel) needs no work and keeps no event."""
-        run = await self.accept_input(principal, run_id, text, expected_revision)
-        work = digest({"revision": str(expected_revision), "input": text})  # as accept_input
-        try:
-            return await self._store.update_run(
-                run.model_copy(update={"revision": run.revision + 1}),
-                run.revision,
-                events,
-                work=("input", {}, work),
-            )
-        except ConcurrencyConflict:
-            return await self._store.get_run(run.tenant_id, run_id)
 
     async def create_conversation(self, principal: Principal) -> Conversation:
         return await self._conversation_flow().create_conversation(principal)

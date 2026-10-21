@@ -132,9 +132,9 @@ class ConversationFlow:
     """One message's checks and act. ``admit`` is the coordinator's conversation variant of
     ``admit_run`` (private: only this flow calls it, after its ownership check), and
     ``admit_unlinked`` its ``admit_run``, today's ``POST /v1/runs`` path, with the events a
-    shadow fallback records; ``accept`` and ``replayed`` are its ``accept_input`` and
-    ``input_replayed``, and ``accept_recorded`` a plain ``accept_input`` that also records
-    events (shadow). Admission only creates the run and its start work in one store
+    shadow fallback records; ``accept`` and ``replayed`` are its ``accept_input`` (which
+    records a shadow fallback's events in the input's own write) and ``input_replayed``.
+    Admission only creates the run and its start work in one store
     transaction; the worker starts it, so no driver call happens here (PR-17)."""
 
     def __init__(
@@ -146,7 +146,6 @@ class ConversationFlow:
         admit: Admit,
         admit_unlinked: Admit,
         accept: Accept,
-        accept_recorded: Accept,
         replayed: Replayed,
         run_of: RunOf,
     ) -> None:
@@ -156,7 +155,6 @@ class ConversationFlow:
         self._admit = admit
         self._admit_unlinked = admit_unlinked
         self._accept = accept
-        self._accept_recorded = accept_recorded
         self._replayed = replayed
         self._run_of = run_of
 
@@ -303,11 +301,12 @@ class ConversationFlow:
         self, principal: Principal, reply_to: ReplyTo, text: str, stage: str, code: ErrorCode
     ) -> tuple[MessageRoute, str]:
         """The answer as ``/v1/runs/{id}/inputs`` takes it: the replay check, then a plain
-        ``accept_input`` that also records ``conversation.shadow_failed``."""
+        ``accept_input`` that records ``conversation.shadow_failed`` in the same write as the
+        input and its work (PR-17)."""
         run_id, revision = reply_to.run_id, reply_to.run_revision
         if not await self._replayed(principal, principal.tenant_id, run_id, revision, text):
             events: Sequence[EventSpec] = (shadow_failed_event(stage, code),)
-            await self._accept_recorded(principal, run_id, text, revision, events)
+            await self._accept(principal, run_id, text, revision, enqueue=True, events=events)
         return self._answered(reply_to)
 
     async def _replayed_start(
