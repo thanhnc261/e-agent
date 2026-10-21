@@ -233,7 +233,8 @@
         "conversation.spec.ts passes, axe check per state",
         "make e2e passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4e.4/2026-10-21T20-50-21.840151+00-00-full.json"
     },
     {
       "id": "F-4e-5",
