@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-4e-1"
   ],
-  "context_digest": "df6bf7d29b130215123e288595a38710392175a43f87d189cd2fb6da0721bb6d",
+  "context_digest": "578f323f3203912d74515d1b352e9576495d5f0d97a1ee9dae1807c3ced64070",
   "allowed_paths": [
     "research/20-conversation-thread-brief.md",
     "research/README.md",
