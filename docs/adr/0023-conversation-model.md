@@ -46,13 +46,15 @@ A protocol in `sdk/store.py` beside `RunStore` (`sdk/store.py:70`), which is unc
 
 | Latest run | Message | Route |
 |---|---|---|
-| none, or `SUCCEEDED`, `FAILED`, `CANCELLED` | any | `start`: a new run in the conversation |
+| none, or `SUCCEEDED`, `FAILED`, `CANCELLED` | no `reply_to` | `start`: a new run in the conversation |
+| none, or `SUCCEEDED`, `FAILED`, `CANCELLED` | `reply_to` | `CONFLICT`, fixed hint "the question changed; read it again": the question no longer waits |
 | `WAITING_INPUT` | `reply_to` names this run and the revision it is at | `answer`, through the existing `accept_input` |
 | `WAITING_INPUT` | no `reply_to`, or another revision (Q1 while Q2 is pending) | `CONFLICT`, fixed hint "the question changed; read it again" |
 | `CREATED`, `RUNNING`, `VERIFYING`, `WAITING_APPROVAL`, `NEEDS_RECONCILIATION` | any | `refuse`: `CONFLICT`, fixed hint "wait, decide the approval, or stop the run" |
 
 - **An answer is bound to the question the user saw**, never to the conversation revision. `answer` calls `accept_input(run_id, text, reply_to.run_revision)`, whose revision and state check (`kernel/run_loop.py:243-256`) refuses a stale answer, as `/inputs` does today.
-- **Order of checks** in `post_message`: (0) the (tenant, actor, Idempotency-Key) record (`lookup_idempotent`), before anything else: a hit with the same request digest returns the original `(start, run_id)` whatever state that run is in now, another digest is `CONFLICT` (PR-17); the digest covers the conversation id, the text, `reply_to` and `host_context`; (1) the caller owns the conversation, else `NOT_FOUND`; (2) `reply_to.run_id` is a run of this conversation, else `NOT_FOUND`, with the one `shadow` exception of section 9; (3) the answer replay check.
+- **Order of checks** in `post_message`: (0) the (tenant, actor, Idempotency-Key) record (`lookup_idempotent`), before anything else: a hit with the same request digest returns the original `(start, run_id)` whatever state that run is in now, another digest is `CONFLICT` (PR-17); the digest covers the conversation id, the text, `reply_to` and `host_context`; (1) the caller owns the conversation, else `NOT_FOUND`; (2) `reply_to.run_id` is a run of this conversation, else `NOT_FOUND`, with the one `shadow` exception of section 9; (3) the answer replay check. The route comes after all four, so a retried message and an already accepted answer replay their first result even when the run has ended since, and a `reply_to` naming no run of the conversation stays `NOT_FOUND`. In `shadow` the ended-run `reply_to` is the same `CONFLICT` and starts no run (section 9).
+- Amended 2026-10-21 by the owner's gate G-B decision 3 (delegated to the advisor): a `reply_to` while the latest run has ended, or there is none, is `CONFLICT` instead of `start`. Status stays Accepted.
 - **A retried answer is idempotent.** Today's replay check in the `/inputs` handler (`server/api.py:469-478`) moves into the kernel as `input_replayed`, unchanged in meaning, and refuses a non-requester with `FORBIDDEN` before it reads any event, as `server/api.py:467-468` does. The `/inputs` handler calls it; its behaviour is unchanged.
 - A `start` uses the message's own `Idempotency-Key` and request digest, and passes the message's `host_context` with the type and validation of `CreateRun` (`server/api.py:76-78`).
 - No queue and no auto-cancel. A run beside a `WAITING_APPROVAL` run is not allowed (alternatives).

@@ -123,9 +123,12 @@ def message_digest(
 
 def route_message(latest: RunRecord | None, reply_to: ReplyTo | None) -> MessageRoute:
     """The route for a message to a conversation whose latest run is ``latest`` (D2). A
-    ``reply_to`` naming a run of this conversation while the latest run has ended starts a
-    new run (ADR 0023 §4's table; the owner may change this, so it stays in this branch)."""
+    ``reply_to`` while the latest run has ended, or there is none, answers a question that
+    no longer waits: ``REFUSE`` (ADR 0023 §4, owner gate G-B decision 3). Without a
+    ``reply_to`` it starts a new run."""
     if latest is None or latest.state in TERMINAL_RUN_STATES:
+        if reply_to is not None:
+            return MessageRoute(kind=RouteKind.REFUSE, hint=QUESTION_CHANGED)
         return MessageRoute(kind=RouteKind.START)
     if latest.state is RunState.WAITING_INPUT:
         if (

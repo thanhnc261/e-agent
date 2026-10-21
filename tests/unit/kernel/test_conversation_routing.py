@@ -146,16 +146,23 @@ def _record(state: RunState, revision: int = 3) -> RunRecord:
 
 # ------------------------------------------------------------------- the pure router
 def test_route_message_follows_the_table() -> None:
-    """ADR 0023 §4, every state: terminal or none starts, a waiting run answers only its
-    own question, an active run refuses with the fixed hint."""
+    """ADR 0023 §4, every state: terminal or none starts without a reply_to and refuses with
+    one, a waiting run answers only its own question, an active run refuses with the hint."""
     assert route_message(None, None).kind is RouteKind.START
+    ask = ReplyTo(run_id="run_1", run_revision=3)
+    assert (route_message(None, ask).kind, route_message(None, ask).hint) == (
+        RouteKind.REFUSE,
+        QUESTION_CHANGED,
+    )
     checked = 0
     for state in RunState:
         latest = _record(state)
         for reply_to in (None, ReplyTo(run_id="run_1", run_revision=3)):
             route = route_message(latest, reply_to)
-            if state in TERMINAL_RUN_STATES:
+            if state in TERMINAL_RUN_STATES and reply_to is None:
                 assert route.kind is RouteKind.START, state
+            elif state in TERMINAL_RUN_STATES:  # G-B 3: an answer to an ended run
+                assert (route.kind, route.hint) == (RouteKind.REFUSE, QUESTION_CHANGED), state
             elif state is RunState.WAITING_INPUT and reply_to is not None:
                 assert route == MessageRoute(kind=RouteKind.ANSWER, run_id="run_1", run_revision=3)
             elif state is RunState.WAITING_INPUT:
@@ -226,6 +233,57 @@ async def test_retried_answer_is_accepted_once(make_kernel: MakeKernel) -> None:
         MessageRoute(kind=RouteKind.ANSWER, run_id=run.run_id, run_revision=run.revision),
         run.run_id,
     )
+    assert await _received(k, run.run_id) == 1
+
+
+async def test_reply_to_an_ended_run_is_refused(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR 0023 §4 (G-B 3): a reply_to while the latest run has ended is CONFLICT; no run is
+    created anywhere and the message's key is unrecorded."""
+    k = make_kernel(driver=ClarifyDriver())
+    cid, run = await _waiting(k)
+    assert (await k.coordinator.cancel(k.requester, run.run_id)).state is RunState.CANCELLED
+    created: list[str] = []
+    for name in ("create_run", "create_run_idempotent", "create_run_in_conversation"):
+
+        async def creates(*args: Any, _name: str = name, **kw: Any) -> Any:
+            created.append(_name)
+            raise AssertionError(f"{_name} called for an answer to an ended run")
+
+        monkeypatch.setattr(k.store, name, creates)
+    reply_to = ReplyTo(run_id=run.run_id, run_revision=run.revision)
+    error = await _conflict(k, cid, "the note", reply_to=reply_to, key="ended-1")
+    monkeypatch.undo()
+    assert error.safe_message == QUESTION_CHANGED
+    assert created == []
+    assert await k.store.lookup_idempotent(TENANT, "alice", "ended-1") is None
+    runs = await k.store.list_conversation_runs(TENANT, "alice", cid)
+    assert [r.run_id for r in runs] == [run.run_id]
+
+
+async def test_message_without_reply_to_after_an_ended_run_starts(
+    make_kernel: MakeKernel,
+) -> None:
+    k = make_kernel(driver=ClarifyDriver())
+    cid, run = await _waiting(k)
+    await k.coordinator.cancel(k.requester, run.run_id)
+    k.clock.advance(seconds=1)
+    route, run_id = await _post(k, cid, "a fresh task")
+    assert route == MessageRoute(kind=RouteKind.START, run_id=run_id)
+    assert run_id != run.run_id
+
+
+async def test_retried_answer_after_its_run_ended_replays(make_kernel: MakeKernel) -> None:
+    """Steps (0) and (3) come before the route: the same key replays the original answer
+    after the run ended, and so does the same answer under a new key."""
+    k = make_kernel(driver=ClarifyDriver())
+    cid, run = await _waiting(k)
+    reply_to = ReplyTo(run_id=run.run_id, run_revision=run.revision)
+    first = await _post(k, cid, "the standup note", reply_to=reply_to, key="answer-1")
+    assert (await k.coordinator.cancel(k.requester, run.run_id)).state is RunState.CANCELLED
+    assert await _post(k, cid, "the standup note", reply_to=reply_to, key="answer-1") == first
+    assert await _post(k, cid, "the standup note", reply_to=reply_to, key="answer-2") == first
     assert await _received(k, run.run_id) == 1
 
 

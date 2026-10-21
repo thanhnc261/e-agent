@@ -527,6 +527,39 @@ async def test_shadow_stale_reply_to_still_conflicts(
     assert not _of(await _events(k, q1.run_id), SHADOW_FAILED)
 
 
+async def test_reply_to_an_ended_run_is_refused(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """G-B 3 in ``shadow``: a ``reply_to`` while the latest run has ended is ``CONFLICT``, as
+    ``on`` and ``/inputs`` give; no run starts anywhere and the key is unrecorded."""
+    k = _shadow(make_kernel, driver=ClarifyDriver())
+    cid, run = await _waiting(k)
+    assert (await k.coordinator.cancel(k.requester, run.run_id)).state is RunState.CANCELLED
+    created: list[str] = []
+    for name in ("create_run", "create_run_idempotent", "create_run_in_conversation"):
+
+        async def creates(*args: Any, _name: str = name, **kw: Any) -> Any:
+            created.append(_name)
+            raise AssertionError(f"{_name} called for an answer to an ended run")
+
+        monkeypatch.setattr(k.store, name, creates)
+    with pytest.raises(KernelError) as caught:
+        await _post(
+            k,
+            cid,
+            "the note",
+            reply_to=ReplyTo(run_id=run.run_id, run_revision=run.revision),
+            key="ended-1",
+        )
+    monkeypatch.undo()
+    assert (caught.value.code, caught.value.safe_message) == (ErrorCode.CONFLICT, QUESTION_CHANGED)
+    assert created == []
+    assert await k.store.lookup_idempotent(TENANT, "alice", "ended-1") is None
+    assert [r.run_id for r in await k.store.list_conversation_runs(TENANT, "alice", cid)] == [
+        run.run_id
+    ]
+
+
 # -------------------------------------------------------------------- start fallbacks
 async def test_shadow_stale_revision_falls_back_to_an_unlinked_run(
     make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
