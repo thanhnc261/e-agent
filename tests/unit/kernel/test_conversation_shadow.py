@@ -693,6 +693,18 @@ async def test_shadow_conversation_error_falls_back_to_plain_input(
     (failed,) = _of(events, SHADOW_FAILED)
     _failed(failed, "answer", ErrorCode.DEPENDENCY_UNAVAILABLE)
     assert await k.store.has_pending_work(TENANT, run.run_id)
+    _, plain = await _waiting(k)  # the same answer through `accept_input`, as /inputs takes it
+    await k.coordinator.accept_input(
+        k.requester, plain.run_id, "the standup note", plain.revision, enqueue=True
+    )
+    queued = {}
+    for _ in range(12):  # one live claim per run: finish each before the next
+        claim = await k.store.claim_work("test-owner")
+        if claim is None:
+            break
+        queued[(claim.run_id, claim.kind)] = claim.payload
+        await k.store.finish_work(claim)
+    assert queued[(run.run_id, "input")] == queued[(plain.run_id, "input")] == {}
     resumed = await k.coordinator.continue_input(TENANT, run.run_id)
     assert resumed.state is RunState.WAITING_INPUT  # Q2: the run went on as /inputs would
     assert route.kind is RouteKind.START
