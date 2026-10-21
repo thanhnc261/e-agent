@@ -24,6 +24,8 @@ from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord
 from e_agent.contracts.step import StepRecord
 from e_agent.contracts.work import WorkClaim
 from e_agent.sdk.store import (
+    LINK_CHANGE_REFUSED,
+    LINKED_RUN_REFUSED,
     MAX_CONVERSATION_PAGE,
     ConcurrencyConflict,
     ConnectionBusy,
@@ -42,6 +44,12 @@ _RUN_INSERT = (
     " VALUES (%s, %s, %s, %s, %s, %s)"
 )
 """Every run insert: ``conversation_id`` comes from the record it indexes (migration 0007)."""
+_RUN_UPDATE = (
+    "UPDATE runs SET state = %s, revision = %s, record = %s, updated_at = now()"
+    " WHERE tenant_id = %s AND run_id = %s AND revision = %s"
+    " AND conversation_id IS NOT DISTINCT FROM %s"
+)
+"""A run's CAS write; a record that changes its conversation matches no row."""
 _IDEMPOTENCY_ROW = (
     "SELECT run_id, request_digest FROM api_idempotency"
     " WHERE tenant_id = %s AND actor_id = %s AND idem_key = %s"
@@ -59,6 +67,10 @@ def _json(model: Any) -> Jsonb:
 
 def _run_row(run: RunRecord) -> tuple[Any, ...]:
     return (run.tenant_id, run.run_id, run.state, run.revision, _json(run), run.conversation_id)
+
+
+def _run_update_values(run: RunRecord) -> tuple[Any, ...]:
+    return (run.state, run.revision, _json(run), run.tenant_id, run.run_id)
 
 
 def _conversation(row: Sequence[Any]) -> Conversation:
@@ -236,8 +248,22 @@ class PostgresRunStore:
         if cur.rowcount != 1:
             raise ConcurrencyConflict(f"action {action.action_id} changed")
 
+    @staticmethod
+    async def _refuse_link_change(conn: AsyncConnection[Any], run: RunRecord) -> None:
+        """After a CAS matched no row: ``ValueError`` when the stored run belongs to another
+        conversation than the record, so the schema's CHECK is never what refuses it."""
+        cur = await conn.execute(
+            "SELECT conversation_id FROM runs WHERE tenant_id = %s AND run_id = %s",
+            (run.tenant_id, run.run_id),
+        )
+        row = await cur.fetchone()
+        if row is not None and row[0] != run.conversation_id:
+            raise ValueError(LINK_CHANGE_REFUSED)
+
     # -- runs ---------------------------------------------------------------
     async def create_run(self, run: RunRecord, events: EventBatch) -> None:
+        if run.conversation_id is not None:  # only create_run_in_conversation links a run
+            raise ValueError(LINKED_RUN_REFUSED)
         async with self._pool.connection() as conn, conn.transaction():
             await self._fence(conn)
             try:
@@ -256,6 +282,8 @@ class PostgresRunStore:
         key: str,
         request_digest: str,
     ) -> tuple[str, str]:
+        if run.conversation_id is not None:  # only create_run_in_conversation links a run
+            raise ValueError(LINKED_RUN_REFUSED)
         async with self._pool.connection() as conn, conn.transaction():
             return await self._admit(conn, run, events, state, actor_id, key, request_digest)
 
@@ -282,7 +310,11 @@ class PostgresRunStore:
             row = await cur.fetchone()
             assert row is not None
             return str(row[0]), str(row[1])
-        await conn.execute(_RUN_INSERT, _run_row(run))
+        try:
+            async with conn.transaction():
+                await conn.execute(_RUN_INSERT, _run_row(run))
+        except errors.UniqueViolation as exc:  # as the in-memory store refuses it
+            raise ConcurrencyConflict("run already exists") from exc
         await PostgresRunStore._save_continuation(conn, run.tenant_id, run.run_id, state, None)
         await PostgresRunStore._append(conn, run.tenant_id, run.run_id, events)
         await conn.execute(
@@ -318,11 +350,11 @@ class PostgresRunStore:
         async with self._pool.connection() as conn, conn.transaction():
             await self._fence(conn)
             cur = await conn.execute(
-                "UPDATE runs SET state = %s, revision = %s, record = %s, updated_at = now()"
-                " WHERE tenant_id = %s AND run_id = %s AND revision = %s",
-                (run.state, run.revision, _json(run), run.tenant_id, run.run_id, expected_revision),
+                _RUN_UPDATE,
+                (*_run_update_values(run), expected_revision, run.conversation_id),
             )
             if cur.rowcount != 1:
+                await self._refuse_link_change(conn, run)
                 raise ConcurrencyConflict(f"run {run.run_id} changed")
             if continuation is not None:
                 state, driver_state = continuation
@@ -369,18 +401,11 @@ class PostgresRunStore:
         async with self._pool.connection() as conn, conn.transaction():
             await self._fence(conn)
             cur = await conn.execute(
-                "UPDATE runs SET state = %s, revision = %s, record = %s, updated_at = now()"
-                " WHERE tenant_id = %s AND run_id = %s AND revision = %s",
-                (
-                    run.state,
-                    run.revision,
-                    _json(run),
-                    run.tenant_id,
-                    run.run_id,
-                    expected_run_revision,
-                ),
+                _RUN_UPDATE,
+                (*_run_update_values(run), expected_run_revision, run.conversation_id),
             )
             if cur.rowcount != 1:
+                await self._refuse_link_change(conn, run)
                 raise ConcurrencyConflict("run changed before approval checkpoint")
             await self._cas_action(conn, action, expected_action_revision)
             await self._save_continuation(conn, run.tenant_id, run.run_id, *continuation)
@@ -598,7 +623,7 @@ class PostgresRunStore:
 
     # -- conversations (ADR 0023 §3) ---------------------------------------------
     async def create_conversation(self, conversation: Conversation) -> None:
-        if conversation.revision < 1:
+        if conversation.revision != 1:
             raise ValueError("a new conversation starts at revision 1")
         try:
             async with self._pool.connection() as conn, conn.transaction():

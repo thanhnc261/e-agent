@@ -228,6 +228,8 @@ class RunStore(Protocol):
 
 MAX_CONVERSATION_PAGE = 100
 """The largest ``limit`` of ``ConversationStore.list_conversations``."""
+LINKED_RUN_REFUSED = "a linked run is created only by create_run_in_conversation"
+LINK_CHANGE_REFUSED = "a run's conversation_id never changes"
 
 
 @runtime_checkable
@@ -235,11 +237,19 @@ class ConversationStore(Protocol):
     """Conversations and the runs linked to them (ADR 0023 §3), beside ``RunStore``.
 
     Every read filters by tenant **and** owner: another owner's or tenant's conversation
-    raises ``NotFound``, so it looks absent, never forbidden (PR-24)."""
+    raises ``NotFound``, so it looks absent, never forbidden (PR-24).
+
+    Only ``create_run_in_conversation`` creates a linked run. A store that implements this
+    port refuses a run with ``conversation_id`` set in ``create_run`` and
+    ``create_run_idempotent`` (``ValueError(LINKED_RUN_REFUSED)``), and a record whose
+    ``conversation_id`` differs from the stored run's in ``update_run`` and
+    ``wait_for_approval`` (``ValueError(LINK_CHANGE_REFUSED)``), so the active-run check
+    sees every linked run."""
 
     async def create_conversation(self, conversation: Conversation) -> None:
-        """Store a new conversation at revision 1 (``ValueError`` below it). A conversation is
-        never overwritten: a second create of its id in the tenant is a ``ConcurrencyConflict``."""
+        """Store a new conversation, whose revision is exactly 1 (``ValueError`` otherwise). A
+        conversation is never overwritten: a second create of its id in the tenant is a
+        ``ConcurrencyConflict``."""
         ...
 
     async def get_conversation(

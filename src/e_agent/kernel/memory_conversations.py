@@ -1,10 +1,17 @@
 """In-memory ConversationStore (ADR 0023 §3): the run store plus conversation rows.
 
+One rule on both stores keeps one active run per conversation: only
+``create_run_in_conversation`` creates a linked run. ``create_run`` and
+``create_run_idempotent`` refuse a run whose ``conversation_id`` is set, and ``update_run``
+and ``wait_for_approval`` refuse a record whose ``conversation_id`` differs from the stored
+run's, each with ``ValueError``. With terminal states final, the active-run check therefore
+sees every linked run. The base ``InMemoryRunStore`` stays the plain run store the kernel
+suite uses; bootstrap builds this class.
+
 Lock order: ``_conversation_lock``, then the parent's ``_lock``, never the reverse. No parent
 method takes ``_conversation_lock``, and this class never takes ``_lock`` itself
 (``asyncio.Lock`` is not reentrant). Reads of the parent's dicts between two ``await``s need
-no lock: nothing else runs in between. The one-active-run check holds because only
-``create_run_in_conversation`` creates linked runs and terminal states are final.
+no lock: nothing else runs in between.
 """
 
 from __future__ import annotations
@@ -13,10 +20,13 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any
 
+from e_agent.contracts.action import ActionRecord
 from e_agent.contracts.common import utc_now
 from e_agent.contracts.conversation import Conversation, ConversationPage
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord
 from e_agent.sdk.store import (
+    LINK_CHANGE_REFUSED,
+    LINKED_RUN_REFUSED,
     MAX_CONVERSATION_PAGE,
     ConcurrencyConflict,
     EventBatch,
@@ -32,6 +42,62 @@ class InMemoryConversationStore(InMemoryRunStore):
         self._conversation_lock = asyncio.Lock()
         self._conversations: dict[tuple[str, str], Conversation] = {}
 
+    # -- the one linked-run path ---------------------------------------------------
+    async def create_run(self, run: RunRecord, events: EventBatch) -> None:
+        if run.conversation_id is not None:
+            raise ValueError(LINKED_RUN_REFUSED)
+        await super().create_run(run, events)
+
+    async def create_run_idempotent(
+        self,
+        run: RunRecord,
+        events: EventBatch,
+        state: Mapping[str, Any],
+        actor_id: str,
+        key: str,
+        request_digest: str,
+    ) -> tuple[str, str]:
+        if run.conversation_id is not None:
+            raise ValueError(LINKED_RUN_REFUSED)
+        return await super().create_run_idempotent(
+            run, events, state, actor_id, key, request_digest
+        )
+
+    async def update_run(
+        self,
+        run: RunRecord,
+        expected_revision: int,
+        events: EventBatch,
+        *,
+        continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None] | None = None,
+        work: tuple[str, Mapping[str, Any], str] | None = None,
+    ) -> RunRecord:
+        self._check_link(run)
+        return await super().update_run(
+            run, expected_revision, events, continuation=continuation, work=work
+        )
+
+    async def wait_for_approval(
+        self,
+        action: ActionRecord,
+        expected_action_revision: int,
+        run: RunRecord,
+        expected_run_revision: int,
+        continuation: tuple[Mapping[str, Any], Mapping[str, Any] | None],
+        events: EventBatch,
+    ) -> None:
+        self._check_link(run)
+        await super().wait_for_approval(
+            action, expected_action_revision, run, expected_run_revision, continuation, events
+        )
+
+    def _check_link(self, run: RunRecord) -> None:
+        """A run's conversation never changes; a missing run is the parent's conflict."""
+        stored = self._runs.get((run.tenant_id, run.run_id))
+        if stored is not None and stored.conversation_id != run.conversation_id:
+            raise ValueError(LINK_CHANGE_REFUSED)
+
+    # -- conversations --------------------------------------------------------------
     def _owned(self, tenant_id: str, owner_id: str, conversation_id: str) -> Conversation:
         found = self._conversations.get((tenant_id, conversation_id))
         if found is None or found.owner_id != owner_id:
@@ -39,7 +105,7 @@ class InMemoryConversationStore(InMemoryRunStore):
         return found
 
     async def create_conversation(self, conversation: Conversation) -> None:
-        if conversation.revision < 1:
+        if conversation.revision != 1:
             raise ValueError("a new conversation starts at revision 1")
         async with self._conversation_lock:
             key = (conversation.tenant_id, conversation.conversation_id)
@@ -104,7 +170,7 @@ class InMemoryConversationStore(InMemoryRunStore):
         if run.conversation_id is None:
             raise ValueError("a run created in a conversation names its conversation")
         async with self._conversation_lock:
-            recorded = self._idempotency.get((run.tenant_id, actor_id, key))
+            recorded = await self.lookup_idempotent(run.tenant_id, actor_id, key)
             if recorded is not None:  # a replay: no conversation check, no bump
                 return recorded
             ckey = (run.tenant_id, run.conversation_id)
@@ -116,12 +182,14 @@ class InMemoryConversationStore(InMemoryRunStore):
             linked = self._linked(run.tenant_id, run.conversation_id)
             if any(r.state not in TERMINAL_RUN_STATES for r in linked):
                 raise ConcurrencyConflict(f"conversation {run.conversation_id} has an active run")
+            # The parent's admission (``super()`` skips this class's refusal of a linked run).
             admitted = await super().create_run_idempotent(
                 run, events, state, actor_id, key, request_digest
             )
             if admitted == (run.run_id, request_digest):  # created here, not another's record
-                self._conversations[ckey] = conversation.model_copy(
-                    update={"revision": conversation.revision + 1, "updated_at": utc_now()}
+                current = self._conversations[ckey]
+                self._conversations[ckey] = current.model_copy(
+                    update={"revision": current.revision + 1, "updated_at": utc_now()}
                 )
             return admitted
 

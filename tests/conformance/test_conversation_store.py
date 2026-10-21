@@ -13,11 +13,20 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from e_agent.contracts.action import ActionRecord, ActionState
 from e_agent.contracts.conversation import Conversation
 from e_agent.contracts.events import RunEventType
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord, RunState
 from e_agent.kernel.memory_conversations import InMemoryConversationStore
-from e_agent.sdk.store import ConcurrencyConflict, ConversationStore, NotFound, RunStore
+from e_agent.kernel.memory_store import InMemoryRunStore
+from e_agent.sdk.store import (
+    LINK_CHANGE_REFUSED,
+    LINKED_RUN_REFUSED,
+    ConcurrencyConflict,
+    ConversationStore,
+    NotFound,
+    RunStore,
+)
 
 DSN = os.environ.get("E_AGENT_TEST_PG_DSN")
 KINDS = ["memory"] + (["postgres"] if DSN else [])
@@ -92,6 +101,7 @@ async def _start(
     conv: str = "conv_1",
     tenant: str = "t1",
     at: datetime = T0,
+    digest: str | None = None,
 ) -> tuple[str, str]:
     return await store.create_run_in_conversation(
         _run(rid, conv, tenant, at=at),
@@ -99,9 +109,42 @@ async def _start(
         {"step": rid},
         ACTOR,
         key,
-        f"digest_{key}",
+        digest or f"digest_{key}",
         conversation_revision,
     )
+
+
+SCHEDULES = ("read", "admit")
+"""Where the in-memory store yields (review A1-5), as a Postgres round trip would:
+
+- ``read``: the idempotency read returns and then yields, so a second request can read the
+  same miss before the first commits, and then meet the first request's bump;
+- ``admit``: the parent's admission yields first, so both requests pass the conversation
+  checks before either inserts.
+
+Without ``_conversation_lock`` the same-key test fails under ``read`` (a replay becomes a
+stale-revision refusal) and the two-message test under ``admit`` (two active runs). Postgres
+contends through its own connections, so it is left as is."""
+_READ = InMemoryConversationStore.lookup_idempotent
+_ADMIT = InMemoryRunStore.create_run_idempotent
+
+
+def _contend(store: Any, monkeypatch: pytest.MonkeyPatch, schedule: str) -> None:
+    if not isinstance(store, InMemoryConversationStore):
+        return
+
+    async def slow_read(self: Any, *args: Any) -> Any:
+        found = await _READ(self, *args)
+        await asyncio.sleep(0)
+        return found
+
+    async def slow_admit(self: Any, *args: Any) -> Any:
+        await asyncio.sleep(0)
+        return await _ADMIT(self, *args)
+
+    read, admit = (slow_read, _ADMIT) if schedule == "read" else (_READ, slow_admit)
+    monkeypatch.setattr(InMemoryConversationStore, "lookup_idempotent", read)
+    monkeypatch.setattr(InMemoryRunStore, "create_run_idempotent", admit)
 
 
 async def _end(store: Any, rid: str, state: RunState, tenant: str = "t1") -> None:
@@ -275,21 +318,34 @@ async def test_idempotent_replay_starts_one_run(store: Any) -> None:
     assert await _start(store, "run_retry", "k1", 1) == first
     await _end(store, "run_1", RunState.RUNNING)
     assert await _start(store, "run_retry", "k1", 1) == first
-    with pytest.raises(NotFound):
-        await store.get_run("t1", "run_retry")
+    # A same-key retry with another request: the recorded digest comes back, so the caller
+    # sees the mismatch (4d.1's CONFLICT), and nothing starts.
+    assert await _start(store, "run_other", "k1", 2, digest="digest_other") == first
+    for rid in ("run_retry", "run_other"):
+        with pytest.raises(NotFound):
+            await store.get_run("t1", rid)
     assert (await store.get_conversation("t1", "u1", "conv_1")).revision == 2  # bumped once
     assert await _linked(store) == ["run_1"]
 
 
-async def test_concurrent_same_key_starts_one_run(store: Any) -> None:
-    await store.create_conversation(_conv())
-    got = await asyncio.gather(
-        _start(store, "run_a", "k1", 1),
-        _start(store, "run_b", "k1", 1),
-    )
-    assert got[0] == got[1] and got[0][1] == "digest_k1"
-    assert await _linked(store) == [got[0][0]]
-    assert (await store.get_conversation("t1", "u1", "conv_1")).revision == 2
+async def test_concurrent_same_key_starts_one_run(
+    store: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cases = 0
+    for schedule in SCHEDULES:
+        cid = f"conv_{schedule}"
+        await store.create_conversation(_conv(cid))
+        _contend(store, monkeypatch, schedule)
+        got = await asyncio.gather(
+            _start(store, f"run_a_{schedule}", f"k_{schedule}", 1, conv=cid),
+            _start(store, f"run_b_{schedule}", f"k_{schedule}", 1, conv=cid),
+        )
+        assert got[0] == got[1] and got[0][1] == f"digest_k_{schedule}", schedule
+        assert await _linked(store, cid) == [got[0][0]]
+        assert (await store.get_conversation("t1", "u1", cid)).revision == 2
+        cases += 1
+    print(f"same-key schedules: {cases}")
+    assert cases == len(SCHEDULES) == 2
 
 
 async def test_lookup_idempotent_reads_without_writing(store: Any) -> None:
@@ -319,34 +375,151 @@ async def test_lookup_idempotent_reads_without_writing(store: Any) -> None:
     assert cases == 4
 
 
-async def test_concurrent_messages_start_one_run(store: Any) -> None:
+async def test_concurrent_messages_start_one_run(
+    store: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cases = 0
+    for schedule in SCHEDULES:
+        cid = f"conv_{schedule}"
+        await store.create_conversation(_conv(cid))
+        _contend(store, monkeypatch, schedule)
+        got = await asyncio.gather(
+            _start(store, f"run_a_{schedule}", f"ka_{schedule}", 1, conv=cid),
+            _start(store, f"run_b_{schedule}", f"kb_{schedule}", 1, conv=cid),
+            return_exceptions=True,
+        )
+        started = [g for g in got if isinstance(g, tuple)]
+        refused = [g for g in got if isinstance(g, ConcurrencyConflict)]
+        assert (len(started), len(refused)) == (1, 1), (schedule, got)
+        assert await _linked(store, cid) == [started[0][0]]
+        assert (await store.get_conversation("t1", "u1", cid)).revision == 2
+        cases += 1
+    print(f"two-message schedules: {cases}")
+    assert cases == len(SCHEDULES) == 2
+
+
+async def test_create_run_refuses_a_linked_run(store: Any) -> None:
+    """Only ``create_run_in_conversation`` links a run (review A1-1, B1-2)."""
     await store.create_conversation(_conv())
-    got = await asyncio.gather(
-        _start(store, "run_a", "ka", 1),
-        _start(store, "run_b", "kb", 1),
-        return_exceptions=True,
+    cases = 0
+    for conv in ("conv_1", "conv_missing"):
+        with pytest.raises(ValueError, match=LINKED_RUN_REFUSED):
+            await store.create_run(_run(f"run_{conv}", conv=conv), [EV])
+        with pytest.raises(NotFound):
+            await store.get_run("t1", f"run_{conv}")
+        cases += 1
+    assert (await store.get_conversation("t1", "u1", "conv_1")).revision == 1
+    assert await _linked(store) == []
+    print(f"linked create_run refusals: {cases}")
+    assert cases == 2
+
+
+async def test_create_run_idempotent_refuses_a_linked_run(store: Any) -> None:
+    await store.create_conversation(_conv())
+    cases = 0
+    for conv in ("conv_1", "conv_missing"):
+        with pytest.raises(ValueError, match=LINKED_RUN_REFUSED):
+            await store.create_run_idempotent(
+                _run(f"run_{conv}", conv=conv), [EV], {}, ACTOR, f"k_{conv}", "d"
+            )
+        with pytest.raises(NotFound):
+            await store.get_run("t1", f"run_{conv}")
+        assert await store.lookup_idempotent("t1", ACTOR, f"k_{conv}") is None
+        cases += 1
+    assert (await store.get_conversation("t1", "u1", "conv_1")).revision == 1
+    assert await _linked(store) == []
+    print(f"linked create_run_idempotent refusals: {cases}")
+    assert cases == 2
+
+
+def _waiting_action(run_id: str) -> ActionRecord:
+    return ActionRecord(
+        action_id=f"act_{run_id}",
+        tenant_id="t1",
+        run_id=run_id,
+        logical_operation_id=f"op_{run_id}",
+        contract_id="notes.note.create.v1",
+        binding_id="b",
+        connection_id="c",
+        connection_version=1,
+        credential_subject="c@1/s",
+        arguments={"text": "hi"},
+        digest="d",
+        state=ActionState.AWAITING_APPROVAL,
+        revision=2,
     )
-    started = [g for g in got if isinstance(g, tuple)]
-    refused = [g for g in got if isinstance(g, ConcurrencyConflict)]
-    assert (len(started), len(refused)) == (1, 1), got
-    assert await _linked(store) == [started[0][0]]
-    assert (await store.get_conversation("t1", "u1", "conv_1")).revision == 2
+
+
+async def test_update_refuses_a_changed_conversation(store: Any) -> None:
+    """A run's conversation never changes, so a write cannot move a run into or out of a
+    conversation past the active-run check (review A1-2)."""
+    await store.create_conversation(_conv())
+    await store.create_conversation(_conv("conv_2"))
+    await _start(store, "run_1", "k1", 1)
+    await store.create_run(_run("run_plain", conv=None), [EV])
+    for rid in ("run_1", "run_plain"):
+        proposed = _waiting_action(rid).model_copy(
+            update={"state": ActionState.PROPOSED, "revision": 1}
+        )
+        await store.put_action(proposed, None, [])
+    cases = 0
+    for rid, conv in (("run_1", "conv_2"), ("run_1", None), ("run_plain", "conv_2")):
+        moved = _run(rid, conv=conv, state=RunState.RUNNING, rev=2)
+        with pytest.raises(ValueError, match=LINK_CHANGE_REFUSED):
+            await store.update_run(moved, 1, [EV])
+        cases += 1
+        with pytest.raises(ValueError, match=LINK_CHANGE_REFUSED):
+            await store.wait_for_approval(_waiting_action(rid), 1, moved, 1, ({}, None), [EV])
+        cases += 1
+    for rid, conv in (("run_1", "conv_1"), ("run_plain", None)):
+        run = await store.get_run("t1", rid)
+        assert (run.revision, run.conversation_id, run.state) == (1, conv, RunState.CREATED)
+        assert len(await store.list_events("t1", rid)) == 1
+        assert (await store.get_action("t1", f"act_{rid}")).state is ActionState.PROPOSED
+    assert await _linked(store) == ["run_1"]
+    assert await _linked(store, "conv_2") == []
+    # The same write with the link unchanged is accepted.
+    await store.update_run(_run("run_1", state=RunState.RUNNING, rev=2), 1, [EV])
+    print(f"conversation change refusals: {cases}")
+    assert cases == 6
+
+
+async def test_duplicate_run_id_admission_conflicts(store: Any) -> None:
+    """Admitting a run id that exists is a ``ConcurrencyConflict`` on both stores and
+    writes nothing, not even the idempotency record (review A1-7)."""
+    await store.create_conversation(_conv())
+    await store.create_run(_run("run_x", conv=None), [EV])
+    cases = 0
+    with pytest.raises(ConcurrencyConflict):
+        await store.create_run_idempotent(_run("run_x", conv=None), [EV], {}, ACTOR, "k_a", "d")
+    cases += 1
+    with pytest.raises(ConcurrencyConflict):
+        await _start(store, "run_x", "k_b", 1)
+    cases += 1
+    for key in ("k_a", "k_b"):
+        assert await store.lookup_idempotent("t1", ACTOR, key) is None
+    assert (await store.get_run("t1", "run_x")).conversation_id is None
+    assert len(await store.list_events("t1", "run_x")) == 1
+    assert (await store.get_conversation("t1", "u1", "conv_1")).revision == 1
+    print(f"duplicate run id cases: {cases}")
+    assert cases == 2
 
 
 @pytest.mark.skipif(not DSN, reason="E_AGENT_TEST_PG_DSN unset")
 async def test_runs_conversation_id_column_matches_record() -> None:
     """Migration 0007's ``runs.conversation_id`` is written from the record at every insert
-    site, and the schema refuses a record that disagrees with it (4c.2 review R1-4)."""
-    import psycopg
-
+    site: linked runs come only from ``create_run_in_conversation``, unlinked ones from
+    ``create_run`` and ``create_run_idempotent`` (4c.2 review R1-4). The schema's FK and
+    CHECK stay as a backstop behind the port's refusals."""
     pg = await _open_postgres()
     try:
         await pg.create_conversation(_conv())
         await pg.create_conversation(_conv("conv_2"))
-        await pg.create_run(_run("run_create"), [EV])
-        await pg.create_run(_run("run_unlinked", conv=None), [EV])
-        await pg.create_run_idempotent(_run("run_idem"), [EV], {}, ACTOR, "k_idem", "d")
-        await _start(pg, "run_conv", "k_conv", 1, conv="conv_2")
+        await pg.create_run(_run("run_create", conv=None), [EV])
+        await pg.create_run_idempotent(_run("run_idem", conv=None), [EV], {}, ACTOR, "k_i", "d")
+        await _start(pg, "run_conv_1", "k_c1", 1)
+        await _start(pg, "run_conv_2", "k_c2", 1, conv="conv_2")
+        await pg.update_run(_run("run_conv_1", state=RunState.RUNNING, rev=2), 1, [])
         async with pg._pool.connection() as conn:
             cur = await conn.execute(
                 "SELECT run_id, conversation_id, record ->> 'conversation_id' FROM runs"
@@ -354,18 +527,12 @@ async def test_runs_conversation_id_column_matches_record() -> None:
             )
             rows = await cur.fetchall()
         assert rows == [
-            ("run_conv", "conv_2", "conv_2"),
-            ("run_create", "conv_1", "conv_1"),
-            ("run_idem", "conv_1", "conv_1"),
-            ("run_unlinked", None, None),
+            ("run_conv_1", "conv_1", "conv_1"),
+            ("run_conv_2", "conv_2", "conv_2"),
+            ("run_create", None, None),
+            ("run_idem", None, None),
         ]
-        cases = len(rows)
-        moved = _run("run_create", conv="conv_2", rev=2)  # an update cannot move a run
-        with pytest.raises(psycopg.errors.CheckViolation):
-            await pg.update_run(moved, 1, [])
-        cases += 1
-        assert (await pg.get_run("t1", "run_create")).conversation_id == "conv_1"
-        print(f"conversation_id column cases: {cases}")
-        assert cases == 5
+        print(f"conversation_id column cases: {len(rows)}")
+        assert len(rows) == 4
     finally:
         await pg.close()
