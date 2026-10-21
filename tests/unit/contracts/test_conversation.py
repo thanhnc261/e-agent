@@ -60,7 +60,7 @@ def test_carried_run_has_no_model_text_field() -> None:
     assert set(CarriedRef.model_fields) == {"contract_id", "source_ref", "revision", "observed_at"}
 
 
-def test_carried_answer_holds_only_declared_paths() -> None:
+def test_carried_answer_has_only_contract_and_arguments() -> None:
     assert set(CarriedAnswer.model_fields) == {"contract_id", "arguments"}
     with pytest.raises(ValidationError):
         CarriedAnswer(contract_id="c", arguments={}, summary="text")  # type: ignore[call-arg]

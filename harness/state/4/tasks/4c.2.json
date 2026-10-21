@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-4c-2"
   ],
-  "context_digest": "8c0df4f83579546cd6cfb8698bc32627fb987ec004b3ea655023e8984c563c58",
+  "context_digest": "25666e72db5dcd444e90dbcd5ab503f83734a70879bcf524d006595eead5c332",
   "allowed_paths": [
     "src/e_agent/contracts/conversation.py",
     "src/e_agent/contracts/features.py",
@@ -25,13 +25,12 @@
   ],
   "acceptance": [
     "tests/unit/contracts/test_conversation.py passes",
-    "test_every_store_record_kind_declares_a_class lists conversations",
-    "off v3 event goldens unchanged; export_openapi.py --check reports no change"
+    "off v3 event goldens unchanged; openapi.json and schema.ts regenerated with only RunRecord.conversation_id; export_openapi.py --check is clean"
   ],
   "gate_set": "full",
   "base_commit": "57ce9511b977db8c5c5f72448b8a73a323617941",
   "created_at": "2026-10-20T16:46:26+00:00",
-  "features_digest": "58d6e854071605fe70a62e9b8e1b1eb2354df97eed7b28f86d1074d2586e563d",
+  "features_digest": "9f9c93f7e28864a0b352f6b407e40117142880ff27d4489da9630b8f062edcdd",
   "scope_changes": [
     {
       "glob": "ui/packages/client/openapi.json",

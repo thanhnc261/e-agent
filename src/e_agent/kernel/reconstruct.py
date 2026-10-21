@@ -70,7 +70,8 @@ ADDED_KEYS: Mapping[RunEventType, frozenset[str]] = MappingProxyType(
         RunEventType.OUTCOME_REPORTED: frozenset({ACTION_STATE_KEY}),
     }
 )
-"""Every key ADR 0031 §3 adds, by event type. No other key is added to any event."""
+"""Every key ADR 0031 §3 adds, by event type. The one other key is ``run.created``'s
+``conversation_id``, written only when the run belongs to a conversation (ADR 0023 §2)."""
 
 
 def run_created_keys(run: RunRecord) -> dict[str, Any]:

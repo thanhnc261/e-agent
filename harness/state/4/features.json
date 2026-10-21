@@ -98,11 +98,10 @@
     {
       "id": "F-4c-2",
       "category": "contracts",
-      "description": "Task 4c.2: Conversation contract, RunRecord.conversation_id and the conversations record kind",
+      "description": "Task 4c.2: Conversation contract records and RunRecord.conversation_id (the conversations record kind moved to 4c.3 with its table)",
       "steps": [
         "tests/unit/contracts/test_conversation.py passes",
-        "test_every_store_record_kind_declares_a_class lists conversations",
-        "off v3 event goldens unchanged; export_openapi.py --check reports no change"
+        "off v3 event goldens unchanged; openapi.json and schema.ts regenerated with only RunRecord.conversation_id; export_openapi.py --check is clean"
       ],
       "passes": false
     },
@@ -113,6 +112,7 @@
       "steps": [
         "tests/conformance/test_conversation_store.py passes on memory and Postgres and prints its case count",
         "test_concurrent_messages_start_one_run, test_idempotent_replay_starts_one_run (replay while the first run is active), test_concurrent_same_key_starts_one_run and test_empty_driver_state_round_trips pass on both stores",
+        "test_every_store_record_kind_declares_a_class lists conversations; test_runs_conversation_id_column_matches_record and the two reconstruct conversation_id cases pass",
         "wc -l shows memory_store.py at most 500 lines, changed only by the FB-2 fix; lint-imports keeps every contract; pg gate passes"
       ],
       "passes": false

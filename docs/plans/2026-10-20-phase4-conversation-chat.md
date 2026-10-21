@@ -368,7 +368,7 @@ The server already emits `from` and `to` (`kernel/run_loop.py`, ADR 0031). Old r
 - [ ] Failing tests:
   - `test_conversation_record_holds_no_text`: the field set is ids, owner, revision and timestamps;
   - `test_carried_run_has_no_model_text_field`;
-  - `test_carried_answer_holds_only_declared_paths`;
+  - `test_carried_answer_has_only_contract_and_arguments` (the declared-paths rule is `carry`'s, Task 4d.2);
   - `test_message_route_answer_needs_run_and_revision`;
   - `test_member_features_has_only_conversations`;
   - `test_run_record_conversation_id_defaults_none`;
@@ -420,6 +420,8 @@ Both stores ship in this one task (ENG-STORE-1, PR-30). The first draft split th
   - `test_lookup_idempotent_reads_without_writing`;
   - `test_concurrent_messages_start_one_run`: two tasks against one conversation;
   - `test_empty_driver_state_round_trips` (FB-2, in `test_run_store.py`): both `update_run` and `wait_for_approval`, then restore;
+  - `test_runs_conversation_id_column_matches_record` (Postgres, 4c.2 review R1-4): migration 0007's `runs.conversation_id` column is written from `RunRecord.conversation_id` at every insert site (`create_run`, `create_run_idempotent`, `create_run_in_conversation`) and never disagrees with the JSONB record;
+  - `test_reconstruct_conversation_id_from_run_created` and `test_reconstruct_conversation_id_unknown_without_run_created` (in `tests/conformance/test_reconstruction.py`, 4c.2 review R1-2): a `run.created` payload carrying `conversation_id` rebuilds a known value; events without `run.created` give an unknown slot;
   - `test_migration_0007_applies_after_0006` (in `test_migrations.py`); the existing `test_migrations_apply_once_and_are_idempotent` and `test_modified_applied_migration_is_rejected` keep passing.
 - [ ] Run `uv run pytest -q tests/conformance/test_conversation_store.py tests/conformance/test_run_store.py`; expected: fails with `ImportError` on `ConversationStore`.
 - [ ] Implement both stores. Never hold a transaction across a model or ERP call (PR-17).
