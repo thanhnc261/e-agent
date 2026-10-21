@@ -293,11 +293,11 @@ Decision: [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md), 
   - `Messages` renders `Thread` in thread mode and today's view otherwise.
   - `TaskNavigation` lists the server's conversations, plus a separate "last seen" group for this session's runs that belong to no conversation.
   - `Composer` holds the refusal hint (`RefusalHint`) above the kept draft and the stop slot (`StopSlot`) below it.
-  - The `Header` leaves the stream status to the thread head.
+  - The `Header` leaves the stream status to the thread head, which renders `ConnectionStatus` directly rather than through a slot, so no layout config can hide a lost or stale connection (AG-STAT-3).
 - **One owner for the workspace state.**
   - The open workspace (which run, and the control that opened it) has one owner: the L7 `Layout`, above the surface swap, so it survives a change of placement.
   - The context (`ArtifactWorkspaceProvider`, `useArtifactWorkspace`) is exported from `components`, because run cards (L6) open the workspace and L6 cannot import L7.
-  - The focus hand-off (`workspaceFocus.ts`) is internal to `layouts`.
+  - The focus hand-off and the memory of what already opened by itself (`workspaceFocus.ts`) are internal to `layouts` and owned by `Layout` too, so a surface switch never reopens a workspace the user closed (EA-10).
 
 **Geometry.**
 
@@ -316,7 +316,7 @@ Decision: [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md), 
 
 **Composer and stop.**
 
-- In `on` the composer keeps no local lock, and its input stays enabled while a message is sent, so focus stays in it; on success only the sent text is cleared, and anything typed meanwhile is kept. A refused message shows the server's hint inside the composer above the kept draft, and the approval card does not change (G-B 4).
+- In the `on` thread the composer keeps no local lock, and its input stays enabled while a message is sent, so focus stays in it; on success only the sent text is cleared, and anything typed meanwhile is kept. A refused message shows the server's hint inside the composer above the kept draft, and the approval card does not change (G-B 4). A legacy run's per-run view keeps today's lock in `on` as well, so a send cannot start a conversation and move away from that run's pending approval.
 - Stop is enabled only while the latest run is active. Otherwise it stays in place, disabled, with its reason. While the result is unconfirmed it offers the safe status check instead (EA-4).
 - A new run and run-state changes are announced in one polite region, and focus does not move (EA-16).
 
@@ -327,7 +327,8 @@ Decision: [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md), 
 
 **Verification.**
 
-- `ui-conformance/tests/conversation.spec.ts` covers each claim above on the conformance mock, across the four ADR 0016 surfaces.
-- An axe check runs per state: WCAG 2.2 AA tags, failing when no rule ran (PR-31).
-- The repository does not carry axe-core yet, because adding it needs a lockfile change. The axe states run when `AXE_CORE_PATH` names a local `axe.min.js`, and are skipped with that reason otherwise.
+- `ui-conformance/tests/conversation.spec.ts` checks these claims on the conformance mock. Two runs in one thread are checked on all four ADR 0016 surfaces. The other specs run on one surface each: Workspace for most, Docked at 390px for the narrow workspace, and Workspace and Workbench for the surface switch.
+- No spec measures the workspace's ~40 % width; that geometry has no automated check.
+- The stream status that a layout config cannot hide is a unit test (`layouts/test/thread-stream-status.test.tsx`).
+- An axe check runs per state: WCAG 2.2 AA tags, failing when no rule ran (PR-31). The engine is the pinned `axe-core` dev dependency of `ui-conformance` (4.10.3), evaluated through the browser protocol so the page's CSP stays as shipped. A missing engine fails the check. `AXE_CORE_PATH` may override the build.
 - Browser checks prove mechanics, not design quality or usability. No assistive-technology or user testing was done.

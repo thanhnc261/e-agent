@@ -125,6 +125,9 @@ export function Layout({
   const [workspaceRun, setWorkspaceRun] = useState<string | null>(null);
   const opener = useRef<HTMLElement | null>(null);
   const focusRequested = useRef(false);
+  // What already opened by itself: kept here, not in the surface, so remounting a surface
+  // cannot reopen a workspace the user closed.
+  const autoOpened = useRef(new Set<string>());
   const openRun = useRef<string | null>(null);
   openRun.current = workspaceRun;
   const close = useCallback(() => {
@@ -157,6 +160,11 @@ export function Layout({
         return requested;
       },
       dismiss: () => setWorkspaceRun(null),
+      claimAutoOpen: (key: string) => {
+        if (autoOpened.current.has(key)) return false;
+        autoOpened.current.add(key);
+        return true;
+      },
     }),
     [],
   );

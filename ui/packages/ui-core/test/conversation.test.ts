@@ -582,11 +582,19 @@ describe("conversation state, fix round 1 (review 4e.3)", () => {
   });
 
   it("hidden conversation events show no row, need no snapshot and still advance lastSequence", () => {
-    // The conversation records; Task 4e.4 adds the Phase 3 records (thread.test.ts).
-    expect([...HIDDEN_EVENT_TYPES].filter(type => type.startsWith("conversation.")).sort()).toEqual([
+    // The full hidden set, pinned: hiding another event type needs a deliberate change here
+    // (the conversation records, then the Phase 3 records ruled in Task 4e.4).
+    expect([...HIDDEN_EVENT_TYPES].sort()).toEqual([
+      "context.assembled",
+      "context.compared",
+      "context.shadow_failed",
       "conversation.compared",
       "conversation.context_carried",
       "conversation.shadow_failed",
+      "grounding.compared",
+      "grounding.shadow_failed",
+      "repeat.compared",
+      "repeat.shadow_failed",
     ]);
     const baseline = reduceRunView(emptyRunView, {
       type: "events",

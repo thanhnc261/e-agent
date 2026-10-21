@@ -10,7 +10,7 @@
  * The CSS container query and `useContainerWidth` use the same 60 rem threshold.
  */
 import { useEffect, useRef } from "react";
-import { useArtifactWorkspace } from "@e-agent/components";
+import { ConnectionStatus, useArtifactWorkspace } from "@e-agent/components";
 import { hasResult, isAwaitingDecision, selectThread } from "@e-agent/ui-core";
 import { useI18n, usePendingApproval, useRunState } from "@e-agent/ui-react";
 import type { LayoutConfig } from "../config.ts";
@@ -51,12 +51,10 @@ export function ThreadSurface({ config, navigation }: { config: LayoutConfig; na
       : runState && hasResult(runState) && !["VERIFYING", "CANCELLED"].includes(runState)
         ? `result:${runId}:${runState}`
         : null;
-  const seen = useRef(new Set<string>());
   useEffect(() => {
-    if (!auto || !runId || !wide || !workspace || seen.current.has(auto)) return;
-    seen.current.add(auto);
+    if (!auto || !runId || !wide || !workspace || !focus.claimAutoOpen(auto)) return;
     if (workspace.runId !== runId) workspace.open(runId);
-  }, [auto, runId, wide, workspace]);
+  }, [auto, runId, wide, workspace, focus]);
 
   // A run that left the thread (New conversation, another conversation) closes its workspace.
   const open = workspace?.runId ?? null;
@@ -76,8 +74,9 @@ export function ThreadSurface({ config, navigation }: { config: LayoutConfig; na
           {navigation && <ConfiguredSlot name="navigation" config={config} />}
           <div className="ea-thread-head" data-testid="thread-head">
             <p className="ea-thread-title">{title || t("nav.new")}</p>
-            {/* The stream status, at every width (S-2, AG-STAT-3). */}
-            <ConfiguredSlot name="connection-status" config={config} />
+            {/* The stream status, at every width (S-2). Rendered directly, as the header did,
+                so no layout config can hide a lost or stale connection (AG-STAT-3). */}
+            <ConnectionStatus />
           </div>
           <ConfiguredSlot name="messages" config={config} />
           <ConfiguredSlot name="composer" config={config} />

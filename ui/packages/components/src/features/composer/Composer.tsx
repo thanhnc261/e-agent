@@ -1,7 +1,7 @@
 /**
  * Task entry and clarifying answers. Enter sends text; it can never approve.
  *
- * In `conversations: on` the composer keeps no local lock (G-B 4): a message that cannot go
+ * In the `conversations: on` thread the composer keeps no local lock (G-B 4): a message that cannot go
  * now is refused by the server, whose hint shows inside the composer above the kept draft,
  * and the approval card does not change. `off` and `shadow` keep today's lock. In the thread
  * view, the stop slot under the composer names the latest run and its status (mockup A1);
@@ -35,7 +35,9 @@ export function Composer() {
   const hintId = useId();
   const controller = useController();
   const thread = selectThreadShown(state);
-  const canSend = isConversationsOn(state.features) || canCompose(run?.state);
+  // Only the thread drops the local lock. A legacy run's per-run view keeps today's lock in
+  // `on` too, so a send cannot start a conversation and move away from its pending approval.
+  const canSend = (thread && isConversationsOn(state.features)) || canCompose(run?.state);
   const reply = selectPendingReply(view);
   const answer = run?.state === "WAITING_INPUT" && !reply;
   const entries = thread ? selectThread(state.thread, state) : [];

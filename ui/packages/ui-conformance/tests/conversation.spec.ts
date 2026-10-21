@@ -4,15 +4,7 @@
  * the thread is built from the mock's conversation snapshot and run events only.
  */
 import { expect, test, type Page } from "@playwright/test";
-import {
-  AXE_CORE_PATH,
-  EARLIER_ANSWER,
-  EARLIER_RUN_ID,
-  HINT_BUSY,
-  MockApi,
-  RUN_ID,
-  runAxe,
-} from "../src/index.ts";
+import { EARLIER_ANSWER, EARLIER_RUN_ID, HINT_BUSY, MockApi, RUN_ID, runAxe } from "../src/index.ts";
 
 interface Surface {
   /** The ADR 0016 name the view switch shows. */
@@ -135,6 +127,26 @@ test("the sidebar keeps legacy runs in a separate last-seen group", async ({ pag
   await expect(page.getByTestId("thread")).toHaveCount(0);
 });
 
+test("a legacy run in on keeps today's composer lock while its approval waits", async ({ page }) => {
+  const api = new MockApi().waitingForApproval();
+  await api.install(page);
+  await page.goto("/?layout=sidebar");
+  await send(page, "restock");
+  await expect(page.getByTestId("approval-approve")).toBeEnabled();
+  api.features = "on";
+  await page.reload();
+  // The legacy run's per-run view: the decision waits, and the composer is locked as today,
+  // so a send cannot start a conversation and move the view away from the approval.
+  await expect(page.getByTestId("legacy-note")).toBeVisible();
+  await expect(page.getByTestId("approval-approve")).toBeEnabled();
+  await expect(page.getByTestId("composer-input")).toBeDisabled();
+  await expect(page.getByTestId("composer-submit")).toBeDisabled();
+  await expect(page.getByTestId("stop-slot")).toHaveCount(0);
+  expect(api.messageStarts).toBe(0);
+  expect(api.messages).toHaveLength(0);
+  expect(api.createRuns).toBe(1);
+});
+
 test("the workspace closes and reopens, and the conversation stays", async ({ page }) => {
   const api = onApi();
   api.twoRunThread();
@@ -180,6 +192,47 @@ test("the workspace closes and reopens, and the conversation stays", async ({ pa
   await expect(open).toBeFocused();
   await expect(page.getByTestId("composer-input")).toHaveValue("keep this draft");
   expect(api.decisions).toHaveLength(0);
+});
+
+test("a workspace the user closed stays closed after a surface switch", async ({ page }) => {
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval();
+  await api.install(page);
+  await openThread(page);
+  const workspace = page.getByTestId("artifact-workspace");
+  await expect(workspace).toBeVisible(); // opened by itself for the decision (G-B 6)
+  await page.getByTestId("workspace-close").click();
+  await expect(workspace).toHaveCount(0);
+
+  // Both surfaces are wide enough to open it by itself; the user's close still holds (EA-10).
+  await page.getByTestId("view-switch").selectOption("workbench");
+  await expect(page.getByTestId("thread-run")).toHaveCount(2);
+  await expect(workspace).toHaveCount(0);
+  await page.getByTestId("view-switch").selectOption("full-page");
+  await expect(page.getByTestId("thread-run")).toHaveCount(2);
+  await expect(workspace).toHaveCount(0);
+  // It reopens from the run card, with the decision unchanged.
+  await page.getByTestId("thread-run").nth(1).getByTestId("run-card-open").click();
+  await expect(workspace.getByTestId("approval-approve")).toBeEnabled();
+  expect(api.decisions).toHaveLength(0);
+});
+
+test("the result carries the agent's-words label apart from what was checked", async ({ page }) => {
+  const api = onApi();
+  api.twoRunThread();
+  api.finish(RUN_ID, "Draft order PO-SAMPLE-1 (sample).");
+  await api.install(page);
+  await openThread(page);
+  const workspace = page.getByTestId("artifact-workspace");
+  await expect(workspace).toBeVisible(); // opened by itself for the result (G-B 6)
+  await expect(workspace.getByTestId("workspace-tab-result")).toHaveAttribute("aria-selected", "true");
+  // G-B 5: the agent's words are labelled on the result, beside the checked outcome.
+  const words = workspace.getByTestId("agent-words-result");
+  await expect(words).toContainText("The agent's words");
+  await expect(words).toContainText("Written by e-agent. The result shows what was checked.");
+  await expect(words).toContainText("Draft order PO-SAMPLE-1 (sample).");
+  await expect(workspace.getByTestId("outcome")).toBeVisible();
 });
 
 test("a narrow workspace replaces the thread, and Back returns to the conversation", async ({ page }) => {
@@ -427,7 +480,6 @@ const AXE_STATES: {
 
 for (const state of AXE_STATES) {
   test(`axe: thread state "${state.name}" has no WCAG 2.2 AA violation`, async ({ page }) => {
-    test.skip(!AXE_CORE_PATH, "axe-core is not in the repository: set AXE_CORE_PATH to run this check");
     if (state.viewport) await page.setViewportSize(state.viewport);
     await state.reach(page);
     const result = await runAxe(page);
