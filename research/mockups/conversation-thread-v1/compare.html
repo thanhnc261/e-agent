@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Variant comparison · conversation thread (mockup)</title>
+    <link rel="stylesheet" href="../../../ui/packages/tokens/src/generated/tokens.css" />
+    <style>
+      body {
+        margin: 0;
+        padding: var(--ea-space-lg);
+        font-family: var(--ea-font-family);
+        color: var(--ea-color-text);
+        background: var(--ea-color-surface-sunken);
+      }
+      h1 {
+        font-size: var(--ea-font-size-xl);
+        margin: 0 0 var(--ea-space-xs);
+      }
+      p {
+        margin: 0 0 var(--ea-space-md);
+        color: var(--ea-color-text-muted);
+        max-width: 80rem;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--ea-space-lg);
+        margin-bottom: var(--ea-space-lg);
+      }
+      figure {
+        margin: 0;
+        display: grid;
+        gap: var(--ea-space-xs);
+        justify-items: center;
+      }
+      figcaption {
+        font-weight: var(--ea-font-weight-semibold);
+        font-size: var(--ea-font-size-lg);
+      }
+      figcaption small {
+        display: block;
+        font-weight: var(--ea-font-weight-regular);
+        font-size: var(--ea-font-size-sm);
+        color: var(--ea-color-text-muted);
+        max-width: 26rem;
+        text-align: center;
+      }
+      .frame {
+        border: 1px solid var(--ea-color-border-strong);
+        border-radius: var(--ea-radius-md);
+        overflow: hidden;
+        background: var(--ea-color-card);
+      }
+      .phone {
+        width: 390px;
+        height: 760px;
+      }
+      .phone iframe {
+        width: 390px;
+        height: 760px;
+        border: 0;
+      }
+      .desk-row {
+        display: grid;
+        grid-template-columns: 22rem auto;
+        gap: var(--ea-space-lg);
+        align-items: start;
+        margin-bottom: var(--ea-space-lg);
+      }
+      .desk-row h2 {
+        font-size: var(--ea-font-size-lg);
+        margin: 0 0 var(--ea-space-xs);
+      }
+      .desk {
+        width: 979px;
+        height: 612px;
+      }
+      .desk iframe {
+        width: 1440px;
+        height: 900px;
+        border: 0;
+        transform: scale(0.68);
+        transform-origin: 0 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Conversation thread · three variants of direction A (sample data)</h1>
+    <p>
+      Same sample moment in each: run 2 waits for approval and the message "also add 10 of hinge H-3" was refused with the
+      server's hint; the draft is kept and the card is unchanged. Top row: phone width 390 px. Below: desktop 1440 px (scaled),
+      with the workspace open by itself.
+    </p>
+    <div class="row">
+      <figure>
+        <figcaption>A1 · Run cards<small>Every message stays; a run card ends each run. Hint inside the composer.</small></figcaption>
+        <div class="frame phone"><iframe title="A1 at 390 px" src="index.html?variant=a1&state=refused&lang=en&theme=light&surface=page"></iframe></div>
+      </figure>
+      <figure>
+        <figcaption>A2 · Folded runs<small>Ended runs fold to one line; narrow workspace. Hint one line under the composer.</small></figcaption>
+        <div class="frame phone"><iframe title="A2 at 390 px" src="index.html?variant=a2&state=refused&lang=en&theme=light&surface=page"></iframe></div>
+      </figure>
+      <figure>
+        <figcaption>A3 · Wide workspace<small>Rich run cards; wide workspace with a reopen bar. Hint callout links to the decision.</small></figcaption>
+        <div class="frame phone"><iframe title="A3 at 390 px" src="index.html?variant=a3&state=refused&lang=en&theme=light&surface=page"></iframe></div>
+      </figure>
+    </div>
+    <div class="desk-row">
+      <div><h2>A1 · Run cards · desktop</h2><p>Workspace about 40 % wide, opened by itself for the decision. Messages and run cards stay in the thread.</p></div>
+      <div class="frame desk"><iframe title="A1 at 1440 px" src="index.html?variant=a1&state=refused&lang=en&theme=light&surface=page"></iframe></div>
+    </div>
+    <div class="desk-row">
+      <div><h2>A2 · Folded runs · desktop</h2><p>Run 1 folds to one row; the narrow workspace (24 rem) leaves the widest thread.</p></div>
+      <div class="frame desk"><iframe title="A2 at 1440 px" src="index.html?variant=a2&state=refused&lang=en&theme=light&surface=page"></iframe></div>
+    </div>
+    <div class="desk-row">
+      <div><h2>A3 · Wide workspace · desktop</h2><p>The workspace takes about half the width; rich run cards carry the result line and the earlier runs used as hints.</p></div>
+      <div class="frame desk"><iframe title="A3 at 1440 px" src="index.html?variant=a3&state=refused&lang=en&theme=light&surface=page"></iframe></div>
+    </div>
+  </body>
+</html>
