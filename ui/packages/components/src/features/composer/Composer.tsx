@@ -17,7 +17,7 @@ import {
   selectThreadShown,
   threadRunStatusKey,
 } from "@e-agent/ui-core";
-import { useComposer, useI18n, useRun, useRunState } from "@e-agent/ui-react";
+import { useComposer, useController, useI18n, useRun, useRunState } from "@e-agent/ui-react";
 import { ActionButton } from "../../primitives/ActionButton.tsx";
 import { StatusBadge } from "../../primitives/StatusBadge.tsx";
 import { TextAreaField } from "../../primitives/TextAreaField.tsx";
@@ -33,6 +33,7 @@ export function Composer() {
   const state = useRunState();
   const { view, refusal } = state;
   const hintId = useId();
+  const controller = useController();
   const thread = selectThreadShown(state);
   const canSend = isConversationsOn(state.features) || canCompose(run?.state);
   const reply = selectPendingReply(view);
@@ -43,8 +44,12 @@ export function Composer() {
   const onSubmit = (e?: FormEvent) => {
     e?.preventDefault();
     if (!task.trim() || busy || !canSend) return;
-    void submit(task).then(ok => {
-      if (ok) setTask("");
+    const sent = task;
+    void submit(sent).then(ok => {
+      if (!ok) return;
+      // Clear only what was sent: text typed while the send was in flight is kept.
+      const now = controller.getState().draft;
+      setTask(now.startsWith(sent) ? now.slice(sent.length).trimStart() : now);
     });
   };
   const placeholder = answer

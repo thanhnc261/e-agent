@@ -249,12 +249,22 @@ test("a new run is announced politely", async ({ page }) => {
   await expect(announcer).toHaveAttribute("role", "status");
   await expect(announcer).toHaveText("Run 2: Completed · verified");
   const input = page.getByTestId("composer-input");
+  // Hold the send so the user can keep typing while it is in flight.
+  let release = () => {};
+  const held = new Promise<void>(resolve => (release = resolve));
+  await page.route(/\/v1\/conversations\/[^/]+\/messages$/, async route => {
+    await held;
+    await route.fallback();
+  });
   await input.click();
   await send(page, "and the next one");
+  await input.pressSequentially(" then B-14");
+  release();
   await expect(page.getByTestId("thread-run")).toHaveCount(3);
   await expect(announcer).toHaveText("Run 3: Working on it");
-  // Announced without moving focus, and never as an alert (EA-16).
+  // Announced without moving focus, and never as an alert (EA-16); only the sent text is cleared.
   await expect(input).toBeFocused();
+  await expect(input).toHaveValue("then B-14");
   await expect(page.locator('[aria-live="assertive"], [role="alert"]')).toHaveCount(0);
   expect(api.messageStarts).toBe(1);
 });

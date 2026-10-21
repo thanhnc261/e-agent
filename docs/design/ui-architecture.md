@@ -302,7 +302,7 @@ Decision: [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md), 
 **Geometry.**
 
 - `TaskSurface` renders `ThreadSurface` for every placement. The placement only picks the landmark.
-- The thread measures its own width in rem (a container query and `useContainerWidth`, both at **60rem**), so the layout holds at 200 % text (AG-FE-6, AG-A11Y-3).
+- The thread measures its own width in rem (a container query and `useContainerWidth`, both at **60rem**), so the layout holds at 200 % text (AG-FE-6, AG-A11Y-3). The script converts with the root font size, as `rem` does, not the inherited body size (0.9375rem), so the two never disagree.
 - **At 60rem and wider,** the artifact workspace sits beside the thread at about 40 % (`clamp(22rem, 40%, 34rem)`). It opens by itself, once each, for a new decision or a result, without moving focus (G-B 6).
 - **Narrower,** an open workspace replaces the thread as a full view with "Back to conversation", and it opens only from a run card.
 
@@ -316,7 +316,7 @@ Decision: [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md), 
 
 **Composer and stop.**
 
-- In `on` the composer keeps no local lock, and its input stays enabled while a message is sent, so focus stays in it. A refused message shows the server's hint inside the composer above the kept draft, and the approval card does not change (G-B 4).
+- In `on` the composer keeps no local lock, and its input stays enabled while a message is sent, so focus stays in it; on success only the sent text is cleared, and anything typed meanwhile is kept. A refused message shows the server's hint inside the composer above the kept draft, and the approval card does not change (G-B 4).
 - Stop is enabled only while the latest run is active. Otherwise it stays in place, disabled, with its reason. While the result is unconfirmed it offers the safe status check instead (EA-4).
 - A new run and run-state changes are announced in one polite region, and focus does not move (EA-16).
 

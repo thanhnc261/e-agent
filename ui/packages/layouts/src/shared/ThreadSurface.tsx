@@ -22,8 +22,10 @@ import { useWorkspaceFocus } from "./workspaceFocus.ts";
 /** The thread's width, in rem, from which the workspace sits beside it. */
 export const SIDE_BY_SIDE_REM = 60;
 
-function remOf(element: HTMLElement | null): number {
-  const size = element ? parseFloat(getComputedStyle(element).fontSize) : NaN;
+/** One rem in px: the root's font size, which is what the container query's `60rem` means. */
+function rootRem(element: HTMLElement | null): number {
+  const root = element?.ownerDocument.documentElement;
+  const size = root ? parseFloat(getComputedStyle(root).fontSize) : NaN;
   return Number.isFinite(size) && size > 0 ? size : 16;
 }
 
@@ -35,7 +37,7 @@ export function ThreadSurface({ config, navigation }: { config: LayoutConfig; na
   const focus = useWorkspaceFocus();
   const shellRef = useRef<HTMLDivElement>(null);
   const width = useContainerWidth(shellRef);
-  const wide = width !== null && width >= SIDE_BY_SIDE_REM * remOf(shellRef.current);
+  const wide = width !== null && width >= SIDE_BY_SIDE_REM * rootRem(shellRef.current);
   const entries = selectThread(state.thread, state);
   const runId = state.view.run?.run_id === state.runId ? state.runId : null;
   const runState = state.view.run?.state;
