@@ -1,0 +1,49 @@
+{
+  "task": "4d.3",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "B3-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "ADR 0023 section 9 lists 'a missing conversation' as a fallback trigger. The build (ruling 2) keeps a NotFound at read time, step (1), as NOT_FOUND in shadow, and falls back only on the NotFound at insert time from create_run_in_conversation (a row gone between the read and the insert). This matches section 4's 'the one shadow exception' at step (2), but section 9 should say so. It should also state that a refused message carrying any reply_to (not only a stale-revision one) stays CONFLICT, as /inputs gives today, and that routing follows the profile toggle while compare and carry follow the run's pin. These are ADR lines; docs/adr is outside this task's paths, so they are a follow-up",
+      "evidence": "src/e_agent/kernel/conversation.py:204-212, 231-232; docs/adr/0023-conversation-model.md:55, 146; PR-35"
+    },
+    {
+      "id": "B3-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "ADR 0023 section 11 leaves three things unstated: the sub-keys of 'items' (user_messages, answers, refs); what masked and dropped count (value/class_route drops and turn drops); and that conversation.shadow_failed carries a third key, 'message'. The 'message' key follows the sibling *.shadow_failed payloads (features.py, repeat.py, grounding.py). Section 11 should also say that layer_digest and layer_tokens describe the layer fitted against the recent_turns budget only, rendered under ON_POLICY whatever context_assembler is set to, so they equal the on pack's layer whenever the max_input_tokens fit drops no carried run (ruling 8). ADR follow-up",
+      "evidence": "src/e_agent/kernel/carried.py:140-170; src/e_agent/kernel/coordinator.py:330-356; docs/adr/0023-conversation-model.md:180-181"
+    },
+    {
+      "id": "B3-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "In the answer-stage fallback (a store error at step (1) with a reply_to), step (2) is skipped and input_replayed is called directly. A reply_to naming another same-tenant user's run is therefore FORBIDDEN, not NOT_FOUND. Plan Review Focus 5 says the conversation route is never FORBIDDEN for another user's run, while plan D8 and ADR section 9 say the fallback takes the answer 'as /inputs would take it', and /inputs already returns FORBIDDEN for that run. The case is narrow (a store outage plus a foreign reply_to) and was disclosed as ruling 6. Record the exception in ADR section 9, or check the requester before input_replayed in _plain_input for stage 'answer'",
+      "evidence": "src/e_agent/kernel/conversation.py:206-210, 300-309; src/e_agent/kernel/run_loop.py:311-313; docs/plans/2026-10-20-phase4-conversation-chat.md:102, 41"
+    },
+    {
+      "id": "B3-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Three follow-ups are recorded only in the git-ignored .superpowers progress.md and the implementer report, so nothing durable holds them yet: the two 4d.4 re-baselines (test_shadow_adds_no_model_call_read_or_budget and test_carry_runs_only_for_a_run_pinned_on[off] both post through the conversation route in off, which 4d.4 makes refuse with NOT_FOUND), and the evidence bundle's conversation key (ADR 0023 section 12, plan line 594, 4d.4). harness/state/4/handoffs/4d.3.json does not exist yet; when written it must name all three, as the 4d.2 handoff did for this task. The [shadow] case of test_carry_runs_only_for_a_run_pinned_on was updated honestly: it wraps the real carry in a spy and asserts one call and compared == [(start, [first.run_id])]",
+      "evidence": ".superpowers/sdd/2026-10-20-phase4-conversation-chat/progress.md:80-81; harness/state/4/handoffs/4d.2.json:12; tests/unit/kernel/test_carried_context.py:940-984"
+    },
+    {
+      "id": "B3-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "coordinator.py imports the private _Turns from context.py. This is within the kernel package and crosses no import contract (lint-imports is clean, no allow-list or exemption changed), and there is precedent (_Continuation, _GatewayReader, _plain). It is acceptable reuse. A follow-up should export a public helper from context.py, used by both assemble and _compare_into, that builds and fits the recent_turns layer. That would make 'the same code renders both' structural and remove the two-line construct-and-fit that is duplicated in the coordinator. failure_code's ConcurrencyConflict branch looks unreachable: both store ConcurrencyConflicts are converted to ConversationStepFailed before it",
+      "evidence": "src/e_agent/kernel/coordinator.py:60, 345-351; src/e_agent/kernel/context.py:318-319, 337; src/e_agent/kernel/conversation.py:76-77"
+    },
+    {
+      "id": "B3-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The consumer test_shadow_layer_digest_equals_on_layer_digest prints its count, fails on zero and pins 10 cases (PR-31). The corpus covers the five threads the brief names. But every case asserts dropped == 0 and masked == 0, so cross-mode digest equality is shown only on the local route with no budget drop. test_compared_event_holds_no_value_or_text covers masked == 1 on a hosted route, but not digest equality there. A later corpus thread on a hosted route, or over budget, would cover the ruling-8 limit",
+      "evidence": "tests/unit/kernel/test_conversation_shadow.py:327-331, 851-860; tests/unit/kernel/fixtures/conversation_threads.json"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}
