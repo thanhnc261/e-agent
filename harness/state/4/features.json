@@ -222,7 +222,8 @@
         "packages/ui-core/test/conversation.test.ts passes",
         "pnpm --dir ui check passes"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4e.3/2026-10-21T19-44-55.498384+00-00-full.json"
     },
     {
       "id": "F-4e-4",

@@ -1,0 +1,30 @@
+{
+  "task": "4e.3",
+  "changed": "ui-core conversation state behind features.conversations. The client gains getMemberFeatures, createConversation, listConversations, getConversation and postMessage; request() no longer throws on a plain-text 405. The controller reads the mode from /v1/me/features. In off, and in the per-run view of shadow, it keeps today's behaviour. Shadow and on post through the conversation route; on lists server threads, newest first. selectThread builds the thread only from server snapshots and run events (AG-FE-2, EA-1). A refused message keeps the draft and shows the server's fixed hint, mapped to i18n keys (EN and VI from research 20), with the server text as the fallback. /v1/runs or /inputs is used only when features report off, or when a route answers 404 or 405 without the error envelope, and then with a fresh key. In on, an enveloped NOT_FOUND is shown, keeps the draft and re-reads features, and nothing is re-posted. An answer carries the run revision shown with its question. Review fixes: in on, an answer to a legacy unlinked run goes through /inputs with no conversation created (C3-1). conversation.compared, context_carried and shadow_failed are known and hidden (HIDDEN_EVENT_TYPES); they still advance lastSequence (C3-2). A pending message blocks a different text with error.pending and survives New task (C3-3). Real-client tests cover the error bodies (C3-4). Commits 89112fff and 4682f487. Reviews 4e.3.json (rework) and 4e.3-r2.json (accept). make e2e: 168 passed, 4 skipped.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4e.3/2026-10-21T19-44-55.498384+00-00-full.json"
+  ],
+  "open_items": [
+    "To 4e.4: Composer.tsx still disables the input while an approval waits. G-B 4 asks for an open composer that shows the server hint and keeps the draft.",
+    "To 4e.4: the Phase 3 context.*, repeat.* and grounding.* events still render as unsupported rows when their toggles are on. Decide their labels in the timeline; context.failed is close to feature.fallback.",
+    "To 4e.4: the conformance mock has one run and one conversation, and its created-run counter also counts message starts. The thread specs need several runs per conversation and a separate counter.",
+    "To G-D: the new VI strings conversation.notSent and conversation.featuresFailed, which are not approved ('new VI since G-B').",
+    "No e2e test runs against a real shadow or on server yet; make e2e runs against off. 4e.4 and 4e.7 should add one.",
+    "C3-1 adds a rule ADR 0023 does not state: in on, an answer to a legacy unlinked run goes through /inputs. Add a D11 line at phase close."
+  ],
+  "rulings": [
+    {
+      "ruling": "In on, an answer to a legacy unlinked run waiting for input goes through /inputs (today's path, never a start) and creates no conversation.",
+      "cost_if_wrong": "an ADR 0023 D11 line and one controller branch"
+    },
+    {
+      "ruling": "The conversation.* events are hidden from the timeline with an explicit set, still appended, and still advance lastSequence; Phase 3 events are left to 4e.4.",
+      "cost_if_wrong": "none"
+    },
+    {
+      "ruling": "A pending conversation message blocks a different text with error.pending, as the legacy path does.",
+      "cost_if_wrong": "none"
+    }
+  ],
+  "outside_repo": []
+}
