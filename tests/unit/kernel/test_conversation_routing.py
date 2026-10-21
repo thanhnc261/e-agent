@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
+from e_agent.contracts.approval import ApprovalDecision
 from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.context import HostContext, Principal, ResourceHint, TaskContext
 from e_agent.contracts.conversation import MessageRoute, ReplyTo, RouteKind
@@ -517,13 +518,26 @@ async def test_new_run_cannot_reuse_an_earlier_approval(make_kernel: MakeKernel)
     assert pres2.action_id != pres1.action_id
     assert pres2.digest != pres1.digest
     assert await k.store.list_approvals(TENANT, pres2.action_id) == []
+    # Run 1's digest does not decide run 2's action (review A1-4).
+    with pytest.raises(KernelError) as caught:
+        await k.coordinator.decide(
+            actor=k.approver,
+            run_id=second_id,
+            action_id=pres2.action_id,
+            action_digest=pres1.digest,
+            expected_run_revision=pres2.run_revision,
+            decision=ApprovalDecision.APPROVED,
+        )
+    assert caught.value.code is ErrorCode.APPROVAL_STALE
+    assert await k.store.list_approvals(TENANT, pres2.action_id) == []
 
 
 async def test_latest_run_does_not_depend_on_created_at_order(
     make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Two runs with one ``created_at`` (the kernel suite's clock is frozen) are ordered by run
-    id; the waiting run 2 sorts first, and is still the run the message answers."""
+    id; the waiting run 2 sorts first, and is still the run the message answers
+    (`latest_run`, ruling R2)."""
     import e_agent.kernel.conversation as conversation_module
 
     run_ids = iter(["run_b", "run_a"])
@@ -542,3 +556,30 @@ async def test_latest_run_does_not_depend_on_created_at_order(
     reply_to = ReplyTo(run_id="run_a", run_revision=second.revision)
     route, run_id = await _post(k, cid, "the note", reply_to=reply_to)
     assert (route.kind, run_id) == (RouteKind.ANSWER, "run_a")
+
+
+async def test_concurrent_retry_replays_instead_of_refusing(
+    make_kernel: MakeKernel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review A1-1: a retry that missed step (0) because the first request had not committed
+    yet, and then sees that request's run as the active one, still replays (START, run 1)."""
+    k = make_kernel()
+    conv = await k.coordinator.create_conversation(k.requester)
+    cid = conv.conversation_id
+    first = await _post(k, cid, "write a note", key="message-race")
+    original = k.store.lookup_idempotent
+    misses = [None]
+
+    async def miss_once(tenant_id: str, actor_id: str, key: str) -> Any:
+        if misses:
+            return misses.pop()  # the first request had not committed at step (0)
+        return await original(tenant_id, actor_id, key)
+
+    monkeypatch.setattr(k.store, "lookup_idempotent", miss_once)
+    assert await _post(k, cid, "write a note", key="message-race") == first
+    assert misses == []
+    assert first[0] == MessageRoute(kind=RouteKind.START, run_id=first[1])
+    assert len(await k.store.list_conversation_runs(TENANT, "alice", cid)) == 1
+    misses.append(None)
+    error = await _conflict(k, cid, "write another note", key="message-race")
+    assert error.safe_message == "idempotency key reused with another request"

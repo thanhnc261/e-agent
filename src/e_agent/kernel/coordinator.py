@@ -42,7 +42,7 @@ from .continuation import CONTINUATION_SCHEMA as CONTINUATION_SCHEMA
 from .continuation import LOG as LOG
 from .continuation import _Continuation as _Continuation
 from .continuation import _GatewayReader as _GatewayReader
-from .conversation import NOT_FOUND_MESSAGE, WAIT_FOR_RUN, ConversationFlow
+from .conversation import KEY_REUSED, NOT_FOUND_MESSAGE, WAIT_FOR_RUN, ConversationFlow
 from .dispatch import DispatchMixin
 from .errors import ErrorCode, KernelError
 from .features import LOCAL_ROUTE, FeaturesMixin
@@ -223,7 +223,7 @@ class RunCoordinator(
             raise KernelError(ErrorCode.CONFLICT, "idempotency key reused with another request")
         return claimed, claimed == run_id
 
-    async def admit_run_in_conversation(
+    async def _admit_run_in_conversation(
         self,
         principal: Principal,
         task: str,
@@ -237,7 +237,8 @@ class RunCoordinator(
         host_context: HostContext | None = None,
     ) -> tuple[str, bool]:
         """`admit_run` for a run of ``conversation_id``, at the revision the flow read
-        (ADR 0023 §3). A moved revision or an active run is ``CONFLICT`` with the fixed hint."""
+        (ADR 0023 §3). A moved revision or an active run is ``CONFLICT`` with the fixed hint.
+        Private: only `ConversationFlow` calls it, after its ownership check (review B1-7)."""
         store = self._conversation_store()
         run, cont, events = self._prepare_run(
             principal,
@@ -262,7 +263,7 @@ class RunCoordinator(
         except NotFound:
             raise KernelError(ErrorCode.NOT_FOUND, NOT_FOUND_MESSAGE) from None
         if previous_digest != request_digest:
-            raise KernelError(ErrorCode.CONFLICT, "idempotency key reused with another request")
+            raise KernelError(ErrorCode.CONFLICT, KEY_REUSED)
         return claimed, claimed == run_id
 
     # --------------------------------------------------------- conversations
@@ -276,7 +277,7 @@ class RunCoordinator(
         return ConversationFlow(
             self._conversation_store(),
             self._clock,
-            admit=self.admit_run_in_conversation,
+            admit=self._admit_run_in_conversation,
             accept=self.accept_input,
             replayed=self.input_replayed,
         )

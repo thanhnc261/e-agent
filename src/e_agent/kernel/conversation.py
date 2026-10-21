@@ -55,19 +55,22 @@ def route_message(latest: RunRecord | None, reply_to: ReplyTo | None) -> Message
     return MessageRoute(kind=RouteKind.REFUSE, run_id=latest.run_id, hint=WAIT_FOR_RUN)
 
 
-def _latest(runs: tuple[RunRecord, ...]) -> RunRecord | None:
-    """The latest run: the active one when there is one, which is always the newest (only
-    ``create_run_in_conversation`` links a run, never beside an active one), else the last.
-    It does not depend on two runs' ``created_at`` differing."""
+def latest_run(runs: tuple[RunRecord, ...]) -> RunRecord | None:
+    """The latest run of ``runs`` (oldest first): the active one when there is one, which is
+    always the newest (only ``create_run_in_conversation`` links a run, never beside an
+    active one), else the last listed. It does not depend on two runs' ``created_at``
+    differing (ruling R2). Every caller that routes, the shadow comparison included, uses
+    this, so ``on`` and ``shadow`` see the same latest run."""
     active = [r for r in runs if r.state not in TERMINAL_RUN_STATES]
     return active[-1] if active else (runs[-1] if runs else None)
 
 
 class ConversationFlow:
     """One message's checks and act. ``admit`` is the coordinator's conversation variant of
-    ``admit_run``; ``accept`` and ``replayed`` are its ``accept_input`` and
-    ``input_replayed``. Admission only creates the run and its start work in one store
-    transaction; the worker starts it, so no driver call happens here (PR-17)."""
+    ``admit_run`` (private: only this flow calls it, after its ownership check); ``accept``
+    and ``replayed`` are its ``accept_input`` and ``input_replayed``. Admission only creates
+    the run and its start work in one store transaction; the worker starts it, so no driver
+    call happens here (PR-17)."""
 
     def __init__(
         self,
@@ -111,11 +114,9 @@ class ConversationFlow:
     ) -> tuple[MessageRoute, str]:
         tenant, owner = principal.tenant_id, principal.principal_id
         # (0) A recorded key replays its start whatever state that run is in now (PR-17).
-        recorded = await self._store.lookup_idempotent(tenant, owner, idempotency_key)
-        if recorded is not None:
-            if recorded[1] != request_digest:
-                raise KernelError(ErrorCode.CONFLICT, KEY_REUSED)
-            return MessageRoute(kind=RouteKind.START, run_id=recorded[0]), recorded[0]
+        replayed = await self._replayed_start(principal, idempotency_key, request_digest)
+        if replayed is not None:
+            return replayed
         # (1) The caller owns the conversation; (2) reply_to names one of its runs.
         try:
             conversation = await self._store.get_conversation(tenant, owner, conversation_id)
@@ -130,12 +131,17 @@ class ConversationFlow:
                 principal, tenant, reply_to.run_id, reply_to.run_revision, text
             ):
                 return self._answered(reply_to)
-        route = route_message(_latest(runs), reply_to)
+        route = route_message(latest_run(runs), reply_to)
         if route.kind is RouteKind.REFUSE:
-            assert route.hint is not None
-            raise KernelError(ErrorCode.CONFLICT, route.hint)
+            # The active run may be this key's own start, committed after step (0) missed
+            # (review A1-1): read the record again, so a retried start still replays.
+            replayed = await self._replayed_start(principal, idempotency_key, request_digest)
+            if replayed is not None:
+                return replayed
+            raise KernelError(ErrorCode.CONFLICT, route.hint or WAIT_FOR_RUN)
         if route.kind is RouteKind.ANSWER:
-            assert reply_to is not None
+            if reply_to is None:  # route_message answers only a reply_to
+                raise KernelError(ErrorCode.CONFLICT, QUESTION_CHANGED)
             await self._accept(
                 principal, reply_to.run_id, text, reply_to.run_revision, enqueue=True
             )
@@ -152,6 +158,20 @@ class ConversationFlow:
             host_context=host_context,
         )
         return MessageRoute(kind=RouteKind.START, run_id=claimed), claimed
+
+    async def _replayed_start(
+        self, principal: Principal, idempotency_key: str, request_digest: str
+    ) -> tuple[MessageRoute, str] | None:
+        """Step (0): a recorded key with this digest replays its start whatever state that run
+        is in now; another digest is ``CONFLICT`` (PR-17). ``None`` when nothing is recorded."""
+        recorded = await self._store.lookup_idempotent(
+            principal.tenant_id, principal.principal_id, idempotency_key
+        )
+        if recorded is None:
+            return None
+        if recorded[1] != request_digest:
+            raise KernelError(ErrorCode.CONFLICT, KEY_REUSED)
+        return MessageRoute(kind=RouteKind.START, run_id=recorded[0]), recorded[0]
 
     @staticmethod
     def _answered(reply_to: ReplyTo) -> tuple[MessageRoute, str]:
