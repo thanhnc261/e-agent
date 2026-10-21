@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-4e-2"
   ],
-  "context_digest": "ea4bf0b795ac684aa87cf86a2f5988923e00d9632f7bb7c7da6c607330fa2340",
+  "context_digest": "5ee8c9f6cc51f94349db753e103635d809f32f70f70bdc3cf1d364346ac007fa",
   "allowed_paths": [
     "research/mockups/conversation-thread-v1/**",
     "harness/state/**",
