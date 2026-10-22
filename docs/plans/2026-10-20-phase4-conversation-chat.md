@@ -813,6 +813,8 @@ Every task here reads `ag-ux-foundations` first and cites AG and EA criteria by 
 - [ ] The owner reviews the UI change (G-D, the `ag-ui-implement` stop gate).
 - [ ] Commit `docs(reviews): conversation thread UX review and resolution (G-D)`.
 
+Gate G-D was answered by the owner, not the advisor, on 2026-10-22 with "Fix all". The review (`docs/reviews/2026-10-22-conversation-thread-ux-review.md`) had 0 Blocker, 0 High, 4 Medium and 3 Low findings. 4.U1 to 4.U7 and the flagged VI rows V-1 to V-4 are fixed inside the 4e.7 scope, and the 68 unflagged VI rows are accepted. The VI rows that the fixes added or changed are listed in the resolution for the owner to confirm separately.
+
 ## Part 4f: verification
 
 ### Task 4f.1: end-of-phase verification and handoff
