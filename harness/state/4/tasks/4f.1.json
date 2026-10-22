@@ -5,7 +5,7 @@
   "feature_ids": [
     "F-4f-1"
   ],
-  "context_digest": "ae77d58c35ba92bf12f06b53f1a450739c8f47ac1d360e9d758c397e9c476819",
+  "context_digest": "bb6d293c996ee245a42bb9236f08eeaf2e4d8f325924af3f4482e0ab74d280e6",
   "allowed_paths": [
     "README.md",
     "docs/roadmap.md",
