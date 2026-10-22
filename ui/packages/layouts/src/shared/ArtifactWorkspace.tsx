@@ -12,6 +12,7 @@ import { Tab, TabList, TabPanel, Tabs } from "react-aria-components";
 import {
   ARTIFACT_WORKSPACE_ID,
   ActionButton,
+  CarriedRuns,
   MessageText,
   StatusBadge,
   Timeline,
@@ -170,6 +171,8 @@ export function ArtifactWorkspace({ config, runId }: { config: LayoutConfig; run
             )}
             {key === "sources" && (
               <>
+                {/* The earlier runs used as hints, above the sources (mockup A1, G-D 4.U1). */}
+                <CarriedRuns />
                 <ReadThrough connectionIds={selectReadConnections(view)} />
                 <ConfiguredSlot name="evidence" config={config} />
               </>

@@ -372,3 +372,34 @@ export function selectExplanation(bundle: Record<string, unknown> | null | undef
     agentText,
   };
 }
+
+/** An earlier run this run used as a hint, named as the thread names it. */
+export interface CarriedRunView {
+  runId: string;
+  /** Its place in the loaded thread (1 is the first run); null when the thread does not hold it. */
+  ordinal: number | null;
+  /** The message that started it, from the thread; null when the thread does not hold it. */
+  task: string | null;
+}
+
+/**
+ * The earlier runs whose checked values and record refs this run received as hints (ADR 0023
+ * §6, brief item 8), from the bundle's `conversation.carried_run_ids` only. Listed only when
+ * the run was pinned `conversations: on` and the section agrees: in `shadow` nothing reached
+ * the model, and `off` carries nothing. Hints, never evidence: nothing here is a fact. The
+ * server's order is kept and a repeat (one record per turn) is listed once.
+ */
+export function selectCarriedRuns(
+  bundle: Record<string, unknown> | null | undefined,
+  entries: readonly { runId: string; task: string }[] = [],
+): CarriedRunView[] {
+  if (!bundle || text(bundle["schema"]) !== EVIDENCE_SCHEMA) return [];
+  const conversation = record(bundle["conversation"]);
+  if (record(bundle["modes"])["conversations"] !== "on" || conversation["mode"] !== "on") return [];
+  const ids = [...new Set(strings(conversation["carried_run_ids"]).filter(id => id.length > 0))];
+  return ids.map(runId => {
+    const index = entries.findIndex(entry => entry.runId === runId);
+    const entry = entries[index];
+    return { runId, ordinal: entry ? index + 1 : null, task: entry ? entry.task : null };
+  });
+}

@@ -579,6 +579,27 @@
   font-size: var(--ea-font-size-sm);
   margin: var(--ea-space-lg) 0 var(--ea-space-sm);
 }
+/* The earlier runs a run used as hints (G-D 4.U1): quiet, apart from the sources below. */
+.ea-carried {
+  border-bottom: 1px solid var(--ea-color-border);
+  padding-bottom: var(--ea-space-md);
+  margin-bottom: var(--ea-space-md);
+}
+.ea-carried .ea-subtitle {
+  margin-top: 0;
+}
+.ea-carried-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ea-space-xs);
+}
+.ea-carried-run {
+  text-align: start;
+  overflow-wrap: anywhere;
+}
 .ea-text a {
   color: var(--ea-color-accent);
   overflow-wrap: anywhere;

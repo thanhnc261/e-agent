@@ -101,6 +101,40 @@ export function groundedEvidence(
   };
 }
 
+/**
+ * The evidence bundle of a conversation run pinned `mode`, with the `conversation` section as
+ * `kernel/evidence.py` builds it (ADR 0023 §12): ids, the pinned mode and counts, never text.
+ * Its `carried_run_ids` are those of the run's `conversation.context_carried` events.
+ */
+export function conversationEvidence(
+  run: RunSnapshot["run"],
+  mode: "off" | "shadow" | "on",
+  events: RunEvent[],
+): Record<string, unknown> {
+  const carried = events.flatMap(e => {
+    const ids = e.type === "conversation.context_carried" ? e.payload?.["carried_run_ids"] : null;
+    return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [];
+  });
+  return {
+    schema: "e-agent-evidence-v1",
+    generated_at: "2026-10-22T00:00:00Z",
+    environment: "fixture",
+    run,
+    modes: { conversations: mode },
+    actions: [],
+    approvals: [],
+    receipts: [],
+    outcomes: [],
+    events,
+    conversation: {
+      conversation_id: run.conversation_id ?? null,
+      mode,
+      carried_run_ids: carried,
+      compared: { start: 0, refuse: 0 },
+    },
+  };
+}
+
 export function digestOf(value: unknown): string {
   return `jcs-sha256-v1:${createHash("sha256").update(canonicalize(value), "utf8").digest("hex")}`;
 }
@@ -394,6 +428,31 @@ export class MockApi {
     primary.conversationId = conversationId;
     this.conversations.add(conversationId);
     return earlier;
+  }
+
+  /**
+   * Pin `runId` to `conversations: mode` and record that it received `carriedRunIds` as hints:
+   * the kernel's `conversation.context_carried` event, recorded only in `on` (ADR 0023 §6, §9),
+   * and the evidence bundle's `conversation` section built from it (`conversationEvidence`).
+   */
+  carryContext(
+    carriedRunIds: string[],
+    mode: "off" | "shadow" | "on" = "on",
+    runId: string = this.current,
+  ): this {
+    const run = this.run(runId);
+    if (mode === "on" && carriedRunIds.length > 0)
+      this.emit(
+        "conversation.context_carried",
+        {
+          conversation_id: run.conversationId,
+          carried_run_ids: carriedRunIds,
+          carried_digest: digestOf(carriedRunIds),
+        },
+        runId,
+      );
+    this.evidence = conversationEvidence(this.snapshot(runId).run, mode, run.events);
+    return this;
   }
 
   /**

@@ -11,6 +11,7 @@ export { ConnectionStatus } from "./features/header/ConnectionStatus.tsx";
 export { EvidencePanel } from "./features/evidence/EvidencePanel.tsx";
 export { Footer } from "./features/footer/Footer.tsx";
 export { Header } from "./features/header/Header.tsx";
+export { CarriedRuns } from "./features/conversation/CarriedRuns.tsx";
 export { MessageText } from "./features/conversation/MessageText.tsx";
 export { Messages } from "./features/conversation/Messages.tsx";
 export {

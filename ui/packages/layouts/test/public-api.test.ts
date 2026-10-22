@@ -19,6 +19,7 @@ describe("public UI exports", () => {
       "ArtifactWorkspaceProvider",
       "BUTTON_VARIANTS",
       "BrandMark",
+      "CarriedRuns",
       "Composer",
       "ConnectionCard",
       "ConnectionStatus",

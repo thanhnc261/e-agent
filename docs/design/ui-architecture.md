@@ -310,6 +310,7 @@ Decision: [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md), 
 
 - `ArtifactWorkspace` is a labelled `aside` with React Aria tabs (APG): Decision, Result, Sources and Activity. They hold today's slots unchanged, so the approval card keeps its fields, checks and confirm step (ADR 0034 §5 deferred).
 - Sources shows the connections recorded on reads, with the acting identity when `/v1/me/connections` discloses it.
+- Sources first lists the earlier runs used as hints (L6 `CarriedRuns`, from the L3 `selectCarriedRuns`), read from the bundle's `conversation.carried_run_ids` only when the run was pinned `conversations: on`, so `shadow`, `off` and an empty list show nothing. Each run is named "Run n" with its task, or by its id outside the loaded thread, and opens in the workspace as its run card does. It reads the bundle when the tab opens and the session has not read it yet, and it never uses "evidence" or "verified" wording (G-D 4.U1, AG-EXPL-2).
 - An earlier run shows only its recorded activity, because that is the only thing read for it.
 - Escape backs out of an open confirmation first, then closes. Closing returns focus to the opening control.
 - When the workspace is closed, the run card and the stop slot carry the status (EA-10).

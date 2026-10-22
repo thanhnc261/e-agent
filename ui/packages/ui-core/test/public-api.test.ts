@@ -48,6 +48,7 @@ describe("public ui-core exports", () => {
       "resultStatusKey",
       "runStatusKey",
       "segmentText",
+      "selectCarriedRuns",
       "selectConversation",
       "selectEvidence",
       "selectExplanation",
