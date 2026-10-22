@@ -16,7 +16,8 @@
     "ui/packages/ui-core/src/**",
     "ui/packages/ui-core/test/**",
     "ui/packages/components/**",
-    "ui/packages/ui-conformance/**"
+    "ui/packages/ui-conformance/**",
+    "uv.lock"
   ],
   "acceptance": [
     "uv run e-agent-harness live-check passes and writes evidence under harness/state/evidence/live/",
@@ -47,6 +48,11 @@
       "glob": "ui/packages/ui-conformance/**",
       "reason": "4.R3: browser-run defects B-1 (stale refusal hint) and B-2 (Outcome verified line while a run awaits review)",
       "at": "2026-10-22T10:43:18+00:00"
+    },
+    {
+      "glob": "uv.lock",
+      "reason": "certifi bump for PYSEC-2026-4320 (CI pip-audit blocks the Phase 4 merge)",
+      "at": "2026-10-22T12:26:45+00:00"
     }
   ]
 }
