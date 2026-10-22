@@ -1,0 +1,38 @@
+{
+ "task": "4-kernel-A",
+ "verdict": "accept",
+ "findings": [
+  {
+   "id": "KA-1",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "An answer message writes no idempotency record, so a key first used for an answer and reused with a different message is routed anew rather than refused KEY_REUSED; matches ADR 0023 section 4 (answers replay through input_replayed).",
+   "evidence": "src/e_agent/kernel/conversation.py:289,333; docs/adr/0023-conversation-model.md:56-58"
+  },
+  {
+   "id": "KA-2",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "Two identical concurrent answers can both pass input_replayed; the run-revision compare-and-set accepts one and gives the other CONFLICT, not a replay. Exactly one input is accepted; the window predates Phase 4.",
+   "evidence": "src/e_agent/kernel/run_loop.py:261,304"
+  },
+  {
+   "id": "KA-3",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "Conversation updated_at uses utc_now()/now() rather than the injected clock; paging orders by created_at.",
+   "evidence": "src/e_agent/kernel/memory_conversations.py:192; src/e_agent/adapters/postgres/store.py:740"
+  },
+  {
+   "id": "KA-4",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "The coordinator imports the private _Turns from kernel/context to build the shadow comparison layer.",
+   "evidence": "src/e_agent/kernel/coordinator.py:62"
+  }
+ ],
+ "reviewer": {
+  "provider": "claude",
+  "fresh_context": true
+ }
+}

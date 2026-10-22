@@ -1,0 +1,45 @@
+{
+ "task": "4-kernel-B",
+ "verdict": "accept",
+ "findings": [
+  {
+   "id": "KB-1",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "No committed test covers an UNKNOWN write or crash recovery for a run linked to a conversation; a throwaway probe showed the link is kept, the next message is refused while NEEDS_RECONCILIATION, and after reconcile the next run carries it.",
+   "evidence": "tests/unit/kernel/test_conversation_routing.py:36-42; src/e_agent/kernel/recovery.py:104-134"
+  },
+  {
+   "id": "KB-2",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "The fixed refusal hint 'wait, decide the approval, or stop' also applies under NEEDS_RECONCILIATION, where stopping does not unblock the conversation; a note on ADR 0023 section 4.",
+   "evidence": "src/e_agent/kernel/conversation.py:57,143-144; docs/adr/0023-conversation-model.md:53"
+  },
+  {
+   "id": "KB-3",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "Conversation updated_at uses the wall clock while created_at uses the kernel clock; ordering is by created_at.",
+   "evidence": "src/e_agent/kernel/memory_conversations.py:190-193"
+  },
+  {
+   "id": "KB-4",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "The runs_by_conversation index does not cover the run_id tie-break; ordering stays correct.",
+   "evidence": "src/e_agent/adapters/postgres/migrations/0007_conversations.sql:29-31"
+  },
+  {
+   "id": "KB-5",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "list_conversations makes one list_conversation_runs call per conversation and loads full run records (N+1); correct but slow.",
+   "evidence": "src/e_agent/kernel/conversation.py:224-239"
+  }
+ ],
+ "reviewer": {
+  "provider": "claude",
+  "fresh_context": true
+ }
+}
