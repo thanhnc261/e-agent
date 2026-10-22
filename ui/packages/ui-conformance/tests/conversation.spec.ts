@@ -4,7 +4,15 @@
  * the thread is built from the mock's conversation snapshot and run events only.
  */
 import { expect, test, type Page } from "@playwright/test";
-import { EARLIER_ANSWER, EARLIER_RUN_ID, HINT_BUSY, MockApi, RUN_ID, runAxe } from "../src/index.ts";
+import {
+  EARLIER_ANSWER,
+  EARLIER_RUN_ID,
+  HINT_BUSY,
+  MockApi,
+  RUN_ID,
+  runAxe,
+  tenFieldPresentation,
+} from "../src/index.ts";
 
 interface Surface {
   /** The ADR 0016 name the view switch shows. */
@@ -358,6 +366,68 @@ test("a wide workspace adds no second Stop or status: the thread beside it shows
   await expect(page.getByTestId("thread-head").getByTestId("connection-status")).toBeVisible();
 });
 
+/** True when `testId` lies fully inside the workspace's visible box (not scrolled out of it). */
+async function insideWorkspace(page: Page, testId: string): Promise<boolean> {
+  return page.getByTestId("artifact-workspace").evaluate((aside, id) => {
+    const el = aside.querySelector(`[data-testid="${id}"]`);
+    if (!el) return false;
+    const box = aside.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    return r.top >= box.top - 1 && r.bottom <= box.bottom + 1 && r.bottom <= innerHeight;
+  }, testId);
+}
+
+test("a tall decision keeps the workspace head in view and shows that more is below", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval(tenFieldPresentation());
+  await api.install(page);
+  await openThread(page);
+  const workspace = page.getByTestId("artifact-workspace");
+  const approve = workspace.getByTestId("approval-approve");
+  await expect(approve).toBeEnabled();
+  await expect(workspace.getByTestId("material-field")).toHaveCount(10);
+  // Let the bring-into-view of the new proposal settle.
+  await page.waitForTimeout(400);
+  // G-D 4.U4 (AG-STAT-1): the title, its status and Close stay in view on open.
+  for (const id of ["workspace-heading", "workspace-status", "workspace-close"])
+    expect(await insideWorkspace(page, id), id).toBe(true);
+  // AG-APPR-3: Approve is below the fold, and the region says that more is below.
+  expect(await insideWorkspace(page, "approval-approve")).toBe(false);
+  const cue = workspace.getByTestId("workspace-scroll-cue");
+  await expect(cue).toBeVisible();
+  await expect(cue).toHaveAttribute("aria-hidden", "true");
+  // Scrolled to the end: Approve is in view, the cue is gone and the head is still there.
+  await workspace.evaluate(el => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await expect(cue).toBeHidden();
+  expect(await insideWorkspace(page, "approval-approve")).toBe(true);
+  for (const id of ["workspace-heading", "workspace-status", "workspace-close"])
+    expect(await insideWorkspace(page, id), id).toBe(true);
+  // The head covers no term: the first field sits below it once scrolled back.
+  await workspace.evaluate(el => {
+    el.scrollTop = 0;
+  });
+  await expect(cue).toBeVisible();
+  expect(api.decisions).toHaveLength(0);
+});
+
+test("a short decision shows no scroll cue", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval();
+  await api.install(page);
+  await openThread(page);
+  const workspace = page.getByTestId("artifact-workspace");
+  await expect(workspace.getByTestId("approval-approve")).toBeEnabled();
+  await page.waitForTimeout(400);
+  expect(await insideWorkspace(page, "approval-approve")).toBe(true);
+  await expect(workspace.getByTestId("workspace-scroll-cue")).toBeHidden();
+});
+
 test("a message during approval shows the hint, and the card is unchanged", async ({ page }) => {
   const api = onApi();
   api.twoRunThread();
@@ -528,6 +598,9 @@ const AXE_STATES: {
       await page.goto(`/?theme=${theme}`);
       const row = page.getByTestId("thread-row").first();
       await row.click();
+      // Send once the thread is shown, as a user would (the composer sends nothing before).
+      await expect(page.getByTestId("thread-run")).toHaveCount(2);
+      await expect(page.getByTestId("approval-approve")).toBeEnabled();
       await send(page, "also add 10");
       await expect(page.getByTestId("refusal")).toBeVisible();
     },

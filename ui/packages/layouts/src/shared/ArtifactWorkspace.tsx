@@ -38,6 +38,7 @@ import { useConnections, useController, useI18n, usePendingApproval, useRunState
 import type { LayoutConfig } from "../config.ts";
 import { ConfiguredSlot } from "./ConfiguredSlot.tsx";
 import { useWorkspaceFocus } from "./workspaceFocus.ts";
+import { useWorkspaceScroll } from "./workspaceScroll.ts";
 
 type TabKey = "decision" | "result" | "sources" | "activity";
 
@@ -63,6 +64,8 @@ export function ArtifactWorkspace({
   const entries = selectThread(state.thread, state);
   const index = entries.findIndex(entry => entry.runId === runId);
   const entry = entries[index];
+  // Beside the thread it scrolls inside itself, under a sticky head; say when more is below.
+  const more = useWorkspaceScroll(asideRef, entry !== undefined);
   const live = entry ? isLiveEntry(entry, state) : false;
   const run = live ? state.view.run : null;
   const decision = live && isAwaitingDecision(approval.phase);
@@ -116,6 +119,7 @@ export function ArtifactWorkspace({
       aria-labelledby={headingId}
       data-testid="artifact-workspace"
       data-run-id={runId}
+      data-more-below={more}
       ref={asideRef}
       onKeyDown={onKeyDown}
     >
@@ -222,6 +226,8 @@ export function ArtifactWorkspace({
           </TabPanel>
         ))}
       </Tabs>
+      {/* More is below, inside this region (G-D 4.U4); decoration only, so hidden from AT. */}
+      <div className="ea-ws-cue" aria-hidden="true" data-testid="workspace-scroll-cue" hidden={!more} />
     </aside>
   );
 }

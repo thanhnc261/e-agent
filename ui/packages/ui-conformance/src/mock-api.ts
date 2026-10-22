@@ -180,6 +180,36 @@ export function presentation(
 }
 
 /**
+ * A proposal with ten material fields, as tall as the fixture server's card (G-D 4.U4).
+ * The arguments and the shown terms match, so the digest check passes and Approve is enabled.
+ */
+export function tenFieldPresentation(): ApprovalPresentation {
+  const args: Record<string, string> = {
+    quantity: "40",
+    supplier_ref: "supplier:approved-co",
+    unit_price: "100",
+    currency: "USD",
+    delivery_date: "2026-11-02",
+    warehouse_ref: "warehouse:main",
+    payment_terms: "net-30",
+    incoterm: "FCA",
+    buyer_ref: "buyer:sample",
+    note: "Sample restock (sample)",
+  };
+  const canonical = { contract_id: "procurement.purchase-order.create-draft.v1", arguments: args };
+  return presentation({
+    canonical_proposal: canonical,
+    digest: digestOf(canonical),
+    material_fields: Object.entries(args).map(([path, value]) => ({
+      path,
+      value,
+      previous_value: value,
+      changed: false,
+    })),
+  });
+}
+
+/**
  * One run the mock serves. The primary run (`RUN_ID`) is the one every per-run spec
  * scripts; a conversation can hold more (Task 4e.4: several runs per thread).
  */
