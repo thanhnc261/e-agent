@@ -293,6 +293,8 @@ Decision: [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md), 
   - `Messages` renders `Thread` in thread mode and today's view otherwise.
   - `TaskNavigation` lists the server's conversations, plus a separate "last seen" group for this session's runs that belong to no conversation.
   - `Composer` holds the refusal hint (`RefusalHint`) above the kept draft and the stop slot (`StopSlot`) below it.
+  - In every mode, the default `timeline` slot is the container `containers/Activity.tsx` (`defaultSlots`, `components/src/defaults.ts:21`): the run's `Timeline`, then, once the run has a result, its explanation. This default is visible to hosts, and a host that replaces the slot replaces both (review E5-4).
+  - In every mode, citations sit in an on-demand explanation disclosure (`features/outcome/Explanation.tsx`) that opens from the outcome and from the activity (ADR 0034 §4), not at the top level of the result. Opening it reads the evidence bundle when this session has not read it yet. The outcome badge and, for a grounded end, its "grounded, not verified" line stay at the top level (review E5-4).
   - The `Header` leaves the stream status to the thread head, which renders `ConnectionStatus` directly rather than through a slot, so no layout config can hide a lost or stale connection (AG-STAT-3).
 - **One owner for the workspace state.**
   - The open workspace (which run, and the control that opened it) has one owner: the L7 `Layout`, above the surface swap, so it survives a change of placement.
