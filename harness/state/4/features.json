@@ -265,7 +265,8 @@
         "review quotes real pnpm check and conformance output",
         "no open Blocker or High; owner review recorded"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4e.7/2026-10-22T03-41-43.138350+00-00-full.json"
     },
     {
       "id": "F-4f-1",
