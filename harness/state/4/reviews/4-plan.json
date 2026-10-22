@@ -1,0 +1,105 @@
+{
+  "task": "4-plan",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "PL-1",
+      "severity": "High",
+      "affects": "correctness",
+      "summary": "Task 4c.3 adds the ConversationStore implementation, the conversation revision check and the FB-2 fix to kernel/memory_store.py, which already has 499 lines. test_kernel_module_size applies MAX_KERNEL_MODULE_LINES = 500 to every kernel/*.py, so 4c.3 as written fails its own full gate. Global Constraints line 84 plans new modules only for routing and carrying. Fix: name a new kernel module, or a split of memory_store.py, in 4c.3's Files (ENG-WORK-1).",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md:351; src/e_agent/kernel/memory_store.py (wc -l 499); tests/unit/kernel/test_structure.py:71,86-89; docs/plans/2026-10-20-phase4-conversation-chat.md:84"
+    },
+    {
+      "id": "PL-2",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "In conversations: shadow, messages go through the new route and the new store checks. A linked start calls create_run_idempotent with conversation_revision, which raises ConcurrencyConflict on a stale revision or on a concurrent second run. So shadow can refuse a message today's path accepts, against Review Focus 7 ('refuse no message') and D8's claim that the one-active-run check 'never fires' (it can, under a race). There is no fallback to POST /v1/runs when the conversation route fails in shadow; the UI fallback only changes the view. Shadow must act on the existing path (PR-22, PR-23, ENG-TOGGLE-1, ENG-TOGGLE-2). Fix: in shadow, skip the revision and active-run refusals, or record them as compared without refusing; and fall back to today's run and input routes when a conversation route errors. Add tests for a stale revision and a concurrent pair in shadow.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md:41,103,144,151,359"
+    },
+    {
+      "id": "PL-3",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "The answer route loses the pending-question binding. The message body's expected_revision is the conversation's revision, and only run creation bumps it. 4d.1 calls accept_input with the run's current revision as the router reads it. A message written against question Q1 therefore answers Q2 if the same run asked again in between. Today's /inputs route binds to the run revision the client saw. Retrying an answer is also unspecified: the input replay check lives in the HTTP handler (api.py), not in accept_input. After the answer moves the run to RUNNING, a retry is routed refuse and gets CONFLICT instead of the original result. Only test_retried_message_starts_one_run, which covers start, is named. Fix: bind answers to the run revision (or bump the conversation revision on every input request), make post_message idempotent for answers, and add test_retried_answer_is_accepted_once (PR-15, PR-17, ENG-TRUST-4).",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md:35,359,403,415,480; src/e_agent/server/api.py:470-479; src/e_agent/kernel/run_loop.py:256-257"
+    },
+    {
+      "id": "PL-4",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "Concern (a) is real. The answer verifiers build OutcomeReport without verified_values (answers.py _report), only the procurement write verifier sets it, and ir_on._kept drops it unless execution_ir is on. So run 2's findings can come only from D5's other clause, the arguments of a VERIFIED typed answer. ShortageAnswer (refs plus decimals, no free text) is a good carrier. But carry(runs, events_by_run, outcomes, classes) takes no action records, nothing checks that the shortage answer contract declares data_classes (unmarked counts as personal and is masked), and the owner is asked to approve D5 before 4a.1 fixes its content. Fix now: state that the carried values are the normalised arguments of the VERIFIED answer action, add actions (or the action.proposed payload) to carry's inputs, and have test_two_run_thread_carries_first_run_findings assert that run 2's carried item holds the shortage quantity. Also state that a GROUNDED free-text answer carries refs only, so a live run 2 may re-read but must not re-ask (core plan exit).",
+      "evidence": "src/e_agent/plugins/erp/domain/procurement/answers.py:28-49; src/e_agent/plugins/erp/domain/procurement/verifier.py:101; src/e_agent/kernel/ir_on.py:234-238; src/e_agent/plugins/erp/domain/procurement/api.py:91-99; docs/plans/2026-10-20-phase4-conversation-chat.md:38,220,427,510"
+    },
+    {
+      "id": "PL-5",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Global Constraints say both stores change together under conformance (ENG-STORE-1, PR-30), but 4c.3 ships the memory store only, with the Postgres tests skipped until 4c.4, while its gate set is full and pg. A pg gate whose new tests skip is not a pass for them. Also, the API-level foreign-conversation test (Review Focus 5, 'on both stores and through the API') and the 4d.5 e2e test live in tests/unit/server, which the pg gate's path set does not run. Fix: merge 4c.3 and 4c.4, or drop pg from 4c.3 and say conformance on both stores closes at 4c.4. Run the server conversation tests on Postgres through eng-verify, or state they run on memory only.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md:66,82,101,162,373"
+    },
+    {
+      "id": "PL-6",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Core plan Phase 0's exit evidence has no task. It asks for a live odoo19-learning 'hi → hi → question' run with no undefined, a single reply label and the correct chip copy. The Live check section and the Self-review spec coverage cover only the Phase 1 exit. Fix: add the Phase 0 live items to 4f.2, or state they are fixture evidence only (ENG-EVID-2).",
+      "evidence": "docs/plans/2026-10-12-core-conversation-cognition.md:61; docs/plans/2026-10-20-phase4-conversation-chat.md:176-195,661-679"
+    },
+    {
+      "id": "PL-7",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Concern (b) is real. D7 is coherent (carried items reach the model only through the pack). But it makes 4f.2 the first live write with context_assembler: on, which the Phase 3 handoff gates, and it puts two new features into one live write. If it fails or the model proposes no PO, as in both Phase 3 tries, neither the Phase 3 gap nor the Phase 4 exit can be attributed. Fix: before the thread, run a single-run draft PO with context_assembler on and conversations off. Record that the owner's 4f.2 instruction is the Phase 3 ruling. State that no PO means the exit is partial and does not block the merge, as in Phase 3.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md:40,178,184; docs/handoffs/2026-10-20-phase3-cognition-context.md:160"
+    },
+    {
+      "id": "PL-8",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "4d.1 says another requester gets FORBIDDEN (test_other_requester_is_forbidden). Global Constraints, Review Focus 5 and 4d.4 say a foreign conversation looks absent (NOT_FOUND, PR-24), and get_conversation already filters by owner, so FORBIDDEN is unreachable. Pick NOT_FOUND and rename the test.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md:80,101,356,406,417,491"
+    },
+    {
+      "id": "PL-9",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "The scope of test_every_v1_route_has_an_authorization_dependency is unclear. Its 'exactly three' allow-list includes /health/live and /health/ready, which are not /v1. If it enumerates all app.routes, FastAPI's default /openapi.json, /docs, /docs/oauth2-redirect and /redoc (FastAPI() keeps the default docs_url) and the static Mount fail it. Choose one scope, all APIRoutes or /v1 only, and make the allow-list match (PR-27, PR-06).",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md:497; src/e_agent/server/api.py:230,547"
+    },
+    {
+      "id": "PL-10",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "ag-* stop gates in 4b. 4b.4 runs ag-ux-review and resolves its findings in the same task and commit, but ag-ux-review's stop gate makes resolution a separate task. ag-ui-implement's stop gate needs an owner review before the next design stage, and no owner gate sits between 4b and 4e.1. 4e.7 does this correctly with 4.U<n> tasks.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md:292-293,527; .claude/skills/ag-ux-review/SKILL.md:57-59; .claude/skills/ag-ui-implement/SKILL.md:59-61"
+    },
+    {
+      "id": "PL-11",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Type consistency gap. 4c.3 returns ConversationPage and 4d.4 returns ConversationList, and neither is in 4c.2's record list or the Self-review type list. MemberFeatures is also unlisted.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md:327,357,478,481,682"
+    },
+    {
+      "id": "PL-12",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Task 4f.2 has no Files section (the handoff it writes to), and its step names no command with an expected output. plan-sections.md item 9 requires both.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md:652-657; .claude/skills/eng-phase-plan/templates/plan-sections.md:13"
+    },
+    {
+      "id": "PL-13",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Concern (c). 24 tasks and four serial owner gates (G-A, G-B, G-C, G-D) with one cut line is thin. 4e.5 (the D10 citation and explanation UI) comes from the Phase 3 handoff, not roadmap row 4, and is the natural second cut line. The second-reviewer list also omits 4c.4, whose FOR UPDATE check in the run-creating transaction is Review Focus 6's concurrency path.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md:49,86,102"
+    },
+    {
+      "id": "PL-14",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The edited README status paragraph still says 'eight ERP tasks'. The domain pack ships 10 task definitions (commit e408cc3), though two of them may not count as ERP tasks; check the wording.",
+      "evidence": "README.md:5; src/e_agent/plugins/erp/domain/tasks/"
+    }
+  ],
+  "reviewer": {"provider": "claude-opus", "fresh_context": true}
+}

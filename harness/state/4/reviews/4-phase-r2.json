@@ -1,0 +1,31 @@
+{
+ "task": "4-phase",
+ "verdict": "accept",
+ "findings": [
+  {
+   "id": "P4R-1",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "Mock evidence bundles send partial modes and omit classification, versions, features and rules_evaluated; the UI reads only fields the mock sends, so nothing diverges. P4-1 is closed: the e2e gate evidence is on clean commit 70ac1a50 and no src or ui code changed after it. P4-8 checked: value formats are enforced at admission, migration 0007 is forward-only, checksummed and tenant-scoped.",
+   "evidence": "ui/packages/ui-conformance/src/mock-api.ts:62,123-134; src/e_agent/kernel/evidence.py:296-313; src/e_agent/kernel/registry.py:307-313"
+  },
+  {
+   "id": "P4R-2",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "Mock refusals reduce every cause to CONFLICT 409 with one scripted message and never produce the real triggers (stale run_revision, reused key); the server tests cover those paths, and the e2e proves the UI side only.",
+   "evidence": "ui/packages/ui-conformance/src/mock-api.ts:688,705,709-712"
+  },
+  {
+   "id": "P4R-3",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "The mock's conversation and ThreadRun revisions approximate the server's per-transition revision; shapes match, but no advanced revision is exercised.",
+   "evidence": "ui/packages/ui-conformance/src/mock-api.ts:548-561"
+  }
+ ],
+ "reviewer": {
+  "provider": "claude",
+  "fresh_context": true
+ }
+}

@@ -1,0 +1,32 @@
+{
+  "task": "4d.4",
+  "changed": "Conversation HTTP routes (ADR 0023 \u00a710): POST /v1/conversations (201), GET /v1/conversations (paged), GET /v1/conversations/{id} (ConversationSnapshot with each ThreadRun's revision), POST /v1/conversations/{id}/messages (Idempotency-Key; body text 1 to 4000 characters, reply_to, host_context validated like CreateRun; 202 {route: start|answer, run_id}), and GET /v1/me/features, which answers in every mode. Every route has Depends(session), and the handlers make a single facade call (PR-03). In off, every conversation call is refused in the kernel facade with NOT_FOUND 'conversations are off', before any store read. message_digest (conversation_id, text, reply_to, host_context) is computed in the flow and is the only source of the digest; one key posted to two conversations gives CONFLICT. rt.scope is passed as resource_scope. The evidence bundle gains a conversation key (id, pinned mode, carried_run_ids from context_carried, conversation.compared counts by route); off bundles are unchanged. test_route_authorization checks the 17 /v1 routes and allows only POST /v1/local/session; the routes outside /v1 are pinned to the two health probes, and the static mount is accounted for. The routes are added to the app directly, because FastAPI 0.142 hides included routers in a private _IncludedRouter entry. PR-27's row names the check. The pg gate set and the CI Postgres step include test_conversation_api.py. Commits c7402764, 66bd694b and 07be2cf0. Reviews 4d.4-A and 4d.4-B accept; 4d.4-r2 accept.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4d.4/2026-10-21T15-10-13.003158+00-00-full.json",
+    "harness/state/evidence/gates/4d.4/2026-10-21T15-11-48.251182+00-00-pg.json"
+  ],
+  "open_items": [
+    "Owner A/B question still open: a reply_to while the latest run has ended starts a new run, as ADR 0023 \u00a74 says (the first branch of route_message). B would refuse it with CONFLICT 'the question changed; read it again' and needs an ADR line.",
+    "A4-3: in off, FastAPI validation runs before the facade, so a malformed message gets 422, not NOT_FOUND. Nothing is read or written and existence is not revealed (ruled acceptable).",
+    "A4-4: a shadow bundle's carried_run_ids is always []; it lists what was carried, not what would have been. Add an ADR 0023 \u00a712 line at phase close.",
+    "A4-5: listing conversations makes one store call per conversation (101 calls for a page of 100). Performance only.",
+    "A4-6 (pre-existing): any member of a tenant can read another member's run through GET /v1/runs/{id} and /evidence, and the bundle now also shows its conversation_id. This belongs to Phase 7 grants (PR-24, PR-27).",
+    "4e.3: the client branches on route start|answer only; a refusal is always a 409 CONFLICT error envelope.",
+    "create_app imports add_conversation_routes inside the function to avoid an import cycle; a cleaner fix moves ApiState and Session into their own module."
+  ],
+  "rulings": [
+    {
+      "ruling": "Routes are added to the FastAPI app directly, not through include_router, so the authorization walk sees them; the test fails on any unseen route entry.",
+      "cost_if_wrong": "a refactor to a router once FastAPI exposes included routes"
+    },
+    {
+      "ruling": "The off refusal and the request digest live in the kernel facade, not the handler (PR-03); the scope was widened to kernel/conversation.py and coordinator.py.",
+      "cost_if_wrong": "none"
+    },
+    {
+      "ruling": "carried_run_ids in the evidence bundle comes from conversation.context_carried, i.e. what was carried.",
+      "cost_if_wrong": "one field in the bundle"
+    }
+  ],
+  "outside_repo": []
+}

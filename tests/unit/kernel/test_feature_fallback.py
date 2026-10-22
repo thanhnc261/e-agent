@@ -37,6 +37,8 @@ FALLBACK_CODES = (
     ReasonCode.CONTEXT_ASSEMBLY_FAILED,
     ReasonCode.REPEAT_CHECK_FAILED,
     ReasonCode.GROUNDING_CHECK_FAILED,
+    # Phase 4 (ADR 0023 §11)
+    ReasonCode.CONVERSATION_CONTEXT_FAILED,
 )
 NOT_FALLBACK_CODES = tuple(c for c in ReasonCode if c not in FALLBACK_CODES)
 PHASE3_TERMINAL = {
@@ -65,7 +67,9 @@ def test_phase3_codes_have_fixed_messages() -> None:
     """The eight Phase 3 codes of ADR 0032 §11 (``GROUNDED`` lands with Task 3e.2): three
     fallback codes, five terminal ones, each with one fixed message and a ``classify``
     group; a terminal code is never a fallback code."""
-    phase3_fallback = {c for c in FALLBACK_CODES if FALLBACK_FEATURES[c] != "execution_ir"}
+    phase3_fallback = {
+        c for c in FALLBACK_CODES if FALLBACK_FEATURES[c] not in {"execution_ir", "conversations"}
+    }
     codes = phase3_fallback | set(PHASE3_TERMINAL)
     assert len(codes) == 8
     assert set(TERMINAL_MESSAGES) == set(PHASE3_TERMINAL)
@@ -86,6 +90,34 @@ def test_phase3_codes_have_fixed_messages() -> None:
     for code in phase3_fallback:  # never ends a run, so in no terminal group
         assert code not in BLOCKED_BY_DESIGN | INFRASTRUCTURE_OR_BUDGET, code
     print(f"phase 3 codes: {len(codes)}")
+
+
+async def test_conversation_code_has_a_fixed_message(make_kernel: MakeKernel) -> None:
+    """``CONVERSATION_CONTEXT_FAILED`` (ADR 0023 §11) is a ``conversations`` fallback code
+    with one fixed message of its own: ``feature.fallback`` carries it, it is in no terminal
+    group and no other feature may record it."""
+    code = ReasonCode.CONVERSATION_CONTEXT_FAILED
+    assert code.value == "conversation_context_failed"
+    assert FALLBACK_FEATURES[code] == "conversations"
+    message = FALLBACK_MESSAGES[code]
+    assert message.strip() and message.endswith(".")
+    others = [m for c, m in FALLBACK_MESSAGES.items() if c is not code]
+    assert message not in others and message not in TERMINAL_MESSAGES.values()
+    assert code not in TERMINAL_MESSAGES
+    assert code not in BLOCKED_BY_DESIGN | INFRASTRUCTURE_OR_BUDGET
+    k = make_kernel()
+    run = await _start(k)
+    await k.coordinator.record_fallback(run, "conversations", code)
+    event = (await k.store.list_events(TENANT, run.run_id))[-1]
+    assert event.type is RunEventType.FEATURE_FALLBACK
+    assert event.payload == {
+        "feature": "conversations",
+        "reason_code": "conversation_context_failed",
+        "message": message,
+    }
+    with pytest.raises(KernelError) as exc:
+        await k.coordinator.record_fallback(run, "context_assembler", code)
+    assert exc.value.code is ErrorCode.INVALID_REQUEST
 
 
 def _code_arg(call: ast.Call, index: int | None) -> ast.expr | None:

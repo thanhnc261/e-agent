@@ -1,13 +1,30 @@
-/** Recorded host events in order. Unsupported events stay visible and labelled. */
-import { formatDateTime, formatTime, readableLabel, resultStatusKey, statusKey } from "@e-agent/ui-core";
+/**
+ * Recorded host events in order. Unsupported events stay visible and labelled. By default it
+ * shows the attached run; a layout may pass another run's items (an earlier run of a thread,
+ * read from its recorded events) with that run's reason code.
+ */
+import {
+  formatDateTime,
+  formatTime,
+  readableLabel,
+  runStatusKey,
+  translateServerValue,
+  type TimelineItem,
+} from "@e-agent/ui-core";
 import { useI18n, useRun, useTimeline } from "@e-agent/ui-react";
 import { Disclosure } from "../../primitives/Disclosure.tsx";
 
-export function Timeline() {
+export function Timeline({
+  items: given,
+  reasonCode: givenReason = null,
+}: { items?: TimelineItem[]; reasonCode?: string | null } = {}) {
   const { t, locale } = useI18n();
-  const items = useTimeline();
+  const own = useTimeline();
   // SUCCEEDED is terminal, so its one transition ends with the run's own reason code.
+  // A wait on a reply reads "Your turn", as in the composer and the sidebar (runStatusKey).
   const { run } = useRun();
+  const items = given ?? own;
+  const reasonCode = given ? givenReason : run?.reason_code;
   if (!items.length) return null;
   return (
     <Disclosure
@@ -27,15 +44,17 @@ export function Timeline() {
             <span>{t(item.labelKey)}</span>
             {item.transition ? (
               <small>
-                {t(statusKey(item.transition.from))} →{" "}
-                {t(resultStatusKey(item.transition.to, run?.reason_code))}
+                {t(runStatusKey(item.transition.from, [], item.transition.fromReply === true))} →{" "}
+                {t(runStatusKey(item.transition.to, [], item.transition.toReply === true, reasonCode))}
               </small>
             ) : (
               item.detail && (
                 <small>
-                  {item.type.endsWith(".recorded") || item.type === "proposal.created"
-                    ? readableLabel(item.detail)
-                    : item.detail}
+                  {item.detailField
+                    ? translateServerValue(locale, item.detailField, item.detail)
+                    : item.type.endsWith(".recorded") || item.type === "proposal.created"
+                      ? readableLabel(item.detail)
+                      : item.detail}
                 </small>
               )
             )}

@@ -1,0 +1,28 @@
+{
+  "task": "4c.4",
+  "changed": "New contracts/value_formats.py: ValueFormat and the closed set decimal, integer, date, date-time, enum:<v1>|<v2>\u2026 and ref; parse_format (refuses anything else, and enum values with whitespace, Cc or Cf characters); value_passes (strict; ref refuses blank, Cc and Cf); FrozenFormats, an immutable mapping (read-only proxy inside; survives deepcopy and pickle as frozen; dumps as a dict); check_format_declarations(document, cap). CapabilityDescriptor.answer_value_formats (frozen by its validator). contracts/data_classes.py gains schema_nodes over a shared _frontier (path_exists unchanged). kernel/registry.py: one call beside dc.check_declarations, refusing at admission a format on a non-answer capability, a missing path, a path no data_classes entry covers on the path or an ancestor, a type that does not fit, or a mapping that is not frozen; registry.py is at 500 lines. The ERP manifest declares the per-contract formats of ADR 0023 \u00a77; grounded.answer.v1 and the notes pack declare none. SDK_API_VERSION stays 1.2 (unreleased list). Tool schemas and both off model-request goldens unchanged. Commits c50c5a1, 38e67ef, 76af4fb. Reviews: harness/state/4/reviews/4c.4-A.json and 4c.4-B.json (rework), 4c.4-r2.json (accept; R2-1, R2-3 and R2-4 fixed in 76af4fb).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4c.4/2026-10-21T12-14-23.143772+00-00-full.json"
+  ],
+  "open_items": [
+    "Live check: the domain-erp artifact digest changed from cb7c29b1ff4178e2ad30b764b6eb7ffa5f9aaff32c4fbd99e736d6a7ca781b0d to 9f4fd8c745f7ccf75418da7e735353a194ed635a37ef790e73eac8436420f44d; re-pin before 4f.2 (plan Live check preamble).",
+    "kernel/registry.py is at 500 lines: the next task that touches it has no room.",
+    "R2-1: the registry serves the descriptor's own (now frozen) mapping rather than its own copy.",
+    "R2-2: model_json_schema() warns on the FrozenFormats default (latent; nothing generates that schema)."
+  ],
+  "rulings": [
+    {
+      "ruling": "check_format_declarations(document, cap), not (document, formats, classes), so the registry call fits on one line (plan review PL4-1).",
+      "cost_if_wrong": "none"
+    },
+    {
+      "ruling": "Formats frozen at admission now (review A1-1), not left to 4d.2.",
+      "cost_if_wrong": "none"
+    },
+    {
+      "ruling": "Enum values with whitespace or control characters and ref values with Cf characters are refused (narrows ADR 0023 \u00a77).",
+      "cost_if_wrong": "a plugin author widens an enum value"
+    }
+  ],
+  "outside_repo": []
+}

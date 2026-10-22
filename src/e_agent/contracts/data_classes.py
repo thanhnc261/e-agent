@@ -105,6 +105,7 @@ RECORD_KINDS: Mapping[str, RecordKind] = _kinds(
     RecordKind(kind="approvals", holds="an approval decision and its digest", **_AUDIT),
     RecordKind(kind="receipts", holds="an execution attempt's receipt", **_AUDIT),
     RecordKind(kind="run_steps", holds="a step of a run and its status", **_AUDIT),
+    RecordKind(kind="conversations", holds="a conversation's ids, owner and revision", **_AUDIT),
     RecordKind(kind="outcome_reports", holds="a verification outcome", **_PAYLOAD),
     RecordKind(kind="continuations", holds="the driver's resume state", **_PAYLOAD),
     RecordKind(kind="action_plans", holds="a proposed plan with its arguments", **_PAYLOAD),
@@ -367,9 +368,7 @@ def _children(node: Mapping[str, Any], token: str) -> Iterator[tuple[Any, bool]]
             yield element, False
 
 
-def path_exists(schema: Mapping[str, Any], tokens: Sequence[str]) -> bool:
-    """Whether the instance path ``tokens`` (below the side) resolves to a property
-    through at least one branch of ``schema``."""
+def _frontier(schema: Mapping[str, Any], tokens: Sequence[str]) -> list[tuple[Any, bool]]:
     frontier: list[tuple[Any, bool]] = [(schema, False)]
     for token in tokens:
         frontier = [
@@ -378,9 +377,24 @@ def path_exists(schema: Mapping[str, Any], tokens: Sequence[str]) -> bool:
             for expanded in _expand(node, schema, set())
             for child in _children(expanded, token)
         ]
-        if not frontier:
-            return False
-    return any(is_property for _, is_property in frontier)
+    return frontier
+
+
+def path_exists(schema: Mapping[str, Any], tokens: Sequence[str]) -> bool:
+    """Whether the instance path ``tokens`` (below the side) resolves to a property
+    through at least one branch of ``schema``."""
+    return any(is_property for _, is_property in _frontier(schema, tokens))
+
+
+def schema_nodes(schema: Mapping[str, Any], tokens: Sequence[str]) -> list[Mapping[str, Any]]:
+    """Every schema node the instance path ``tokens`` (below the side) resolves to, a
+    property or an array element, with ``$ref`` targets and branches expanded; empty
+    when it resolves to nothing (answer value formats, ADR 0023 §7)."""
+    return [
+        expanded
+        for node, _ in _frontier(schema, tokens)
+        for expanded in _expand(node, schema, set())
+    ]
 
 
 def check_declarations(document: Mapping[str, Any], classes: Mapping[str, DataClass]) -> None:

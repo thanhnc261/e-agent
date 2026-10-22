@@ -38,6 +38,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Conversations */
+        get: operations["list_conversations_v1_conversations_get"];
+        put?: never;
+        /** Create Conversation */
+        post: operations["create_conversation_v1_conversations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/conversations/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Conversation */
+        get: operations["get_conversation_v1_conversations__conversation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/conversations/{conversation_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Message */
+        post: operations["post_message_v1_conversations__conversation_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/local/session": {
         parameters: {
             query?: never;
@@ -64,6 +116,26 @@ export interface paths {
         };
         /** My Connections */
         get: operations["my_connections_v1_me_connections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Features
+         * @description The conversations mode, in every mode (ADR 0023 §10); the UI reads it only here.
+         */
+        get: operations["my_features_v1_me_features_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -347,6 +419,49 @@ export interface components {
             /** Run Revision */
             run_revision: number;
         };
+        /** Conversation */
+        Conversation: {
+            /** Conversation Id */
+            conversation_id: string;
+            /** Created At */
+            created_at: string;
+            /** Owner Id */
+            owner_id: string;
+            /** Revision */
+            revision: number;
+            /** Tenant Id */
+            tenant_id: string;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** ConversationList */
+        ConversationList: {
+            /** Items */
+            items: components["schemas"]["ConversationSummary"][];
+            /** Next After */
+            next_after?: string | null;
+        };
+        /** ConversationSnapshot */
+        ConversationSnapshot: {
+            conversation: components["schemas"]["Conversation"];
+            /** Runs */
+            runs: components["schemas"]["ThreadRun"][];
+        };
+        /** ConversationSummary */
+        ConversationSummary: {
+            /** Conversation Id */
+            conversation_id: string;
+            latest_state?: components["schemas"]["RunState"] | null;
+            /**
+             * Reply Pending
+             * @default false
+             */
+            reply_pending: boolean;
+            /** Title */
+            title: string;
+            /** Updated At */
+            updated_at: string;
+        };
         /** CreateRun */
         CreateRun: {
             host_context?: components["schemas"]["HostContext"] | null;
@@ -359,6 +474,11 @@ export interface components {
             created: boolean;
             /** Run Id */
             run_id: string;
+        };
+        /** CreatedConversation */
+        CreatedConversation: {
+            /** Conversation Id */
+            conversation_id: string;
         };
         /** Decide */
         Decide: {
@@ -374,6 +494,11 @@ export interface components {
             /** Expected Revision */
             expected_revision: number;
         };
+        /**
+         * FeatureMode
+         * @enum {string}
+         */
+        FeatureMode: "off" | "shadow" | "on";
         /** Finding */
         Finding: {
             /**
@@ -477,6 +602,14 @@ export interface components {
             schema_version: string;
         };
         /**
+         * MemberFeatures
+         * @description What a member may learn of the server's modes: the conversations mode (ADR 0023 §10).
+         */
+        MemberFeatures: {
+            /** @default off */
+            conversations: components["schemas"]["FeatureMode"];
+        };
+        /**
          * PlanStepPresentation
          * @description One step of a multi-step plan on the approval card (ADR 0024). Its arguments show a
          *     lineage placeholder as ``from step N: <pointer>``; ``risk`` and ``reversibility`` are the
@@ -509,11 +642,45 @@ export interface components {
             step_index: number;
         };
         /**
+         * PostMessage
+         * @description ``text`` has ``CreateRun.task``'s bounds and ``host_context`` its type and validation
+         *     (``server/api.py`` ``CreateRun``; 4d.1 B1-3).
+         */
+        PostMessage: {
+            host_context?: components["schemas"]["HostContext"] | null;
+            reply_to?: components["schemas"]["ReplyTo"] | null;
+            /** Text */
+            text: string;
+        };
+        /**
+         * PostedMessage
+         * @description A refusal is never a 202: it is ``CONFLICT`` with the fixed hint (ADR 0023 §4).
+         */
+        PostedMessage: {
+            /**
+             * Route
+             * @enum {string}
+             */
+            route: "start" | "answer";
+            /** Run Id */
+            run_id: string;
+        };
+        /**
          * ReasonCode
          * @description Typed cause of a run state change (ADR 0018). The human `reason` text stays.
          * @enum {string}
          */
-        ReasonCode: "answered" | "verified" | "verification_pending" | "verification_failed" | "validation_failed" | "policy_denied" | "stale" | "surface_changed" | "approval_rejected" | "approval_expired" | "operation_reserved" | "connection_busy" | "effect_unknown" | "provider_error" | "budget_exhausted" | "interrupted" | "cancelled" | "acceptance_unmet" | "plan_lineage_rejected" | "ir_task_unresolved" | "ir_compile_failed" | "ir_validation_failed" | "context_assembly_failed" | "repeat_check_failed" | "grounding_check_failed" | "context_unavailable" | "repeat_unavailable" | "grounding_unavailable" | "driver_state_mismatch" | "route_boundary_unmet" | "grounded";
+        ReasonCode: "answered" | "verified" | "verification_pending" | "verification_failed" | "validation_failed" | "policy_denied" | "stale" | "surface_changed" | "approval_rejected" | "approval_expired" | "operation_reserved" | "connection_busy" | "effect_unknown" | "provider_error" | "budget_exhausted" | "interrupted" | "cancelled" | "acceptance_unmet" | "plan_lineage_rejected" | "ir_task_unresolved" | "ir_compile_failed" | "ir_validation_failed" | "context_assembly_failed" | "repeat_check_failed" | "grounding_check_failed" | "conversation_context_failed" | "context_unavailable" | "repeat_unavailable" | "grounding_unavailable" | "driver_state_mismatch" | "route_boundary_unmet" | "grounded";
+        /**
+         * ReplyTo
+         * @description The waiting run and the revision the user saw with its question (D2).
+         */
+        ReplyTo: {
+            /** Run Id */
+            run_id: string;
+            /** Run Revision */
+            run_revision: number;
+        };
         /**
          * ResourceHint
          * @description What a host page says the user is looking at. Untrusted; never grants access.
@@ -571,9 +738,11 @@ export interface components {
          * RunEventType
          * @enum {string}
          */
-        RunEventType: "run.created" | "run.state_changed" | "read.recorded" | "read.rejected" | "proposal.created" | "validation.completed" | "approval.requested" | "approval.decided" | "connect.required" | "input.requested" | "input.received" | "action.reserved" | "action.dispatching" | "action.receipt_recorded" | "action.unknown" | "reconciliation.completed" | "outcome.reported" | "message.final" | "budget.exhausted" | "run.cancel_requested" | "run.terminal" | "feature.fallback" | "ir.plan_compiled" | "ir.shadow_failed" | "ir.lineage_resolved" | "ir.step_verified" | "context.failed" | "context.compared" | "context.shadow_failed" | "context.assembled" | "repeat.compared" | "repeat.shadow_failed" | "grounding.compared" | "grounding.shadow_failed";
+        RunEventType: "run.created" | "run.state_changed" | "read.recorded" | "read.rejected" | "proposal.created" | "validation.completed" | "approval.requested" | "approval.decided" | "connect.required" | "input.requested" | "input.received" | "action.reserved" | "action.dispatching" | "action.receipt_recorded" | "action.unknown" | "reconciliation.completed" | "outcome.reported" | "message.final" | "budget.exhausted" | "run.cancel_requested" | "run.terminal" | "feature.fallback" | "ir.plan_compiled" | "ir.shadow_failed" | "ir.lineage_resolved" | "ir.step_verified" | "context.failed" | "context.compared" | "context.shadow_failed" | "context.assembled" | "repeat.compared" | "repeat.shadow_failed" | "grounding.compared" | "grounding.shadow_failed" | "conversation.context_carried" | "conversation.compared" | "conversation.shadow_failed";
         /** RunRecord */
         RunRecord: {
+            /** Conversation Id */
+            conversation_id?: string | null;
             /** Created At */
             created_at: string;
             /** Logical Operation Id */
@@ -687,6 +856,19 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** ThreadRun */
+        ThreadRun: {
+            /** Created At */
+            created_at: string;
+            reason_code?: components["schemas"]["ReasonCode"] | null;
+            /** Revision */
+            revision: number;
+            /** Run Id */
+            run_id: string;
+            state: components["schemas"]["RunState"];
+            /** Task */
+            task: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -758,6 +940,142 @@ export interface operations {
             };
         };
     };
+    list_conversations_v1_conversations_get: {
+        parameters: {
+            query?: {
+                after?: string | null;
+                limit?: number;
+            };
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_conversation_v1_conversations_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedConversation"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_conversation_v1_conversations__conversation_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationSnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_message_v1_conversations__conversation_id__messages_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "idempotency-key": string;
+                "x-csrf-token"?: string | null;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostMessage"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostedMessage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     local_session_v1_local_session_post: {
         parameters: {
             query?: never;
@@ -796,6 +1114,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberConnections"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_features_v1_me_features_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberFeatures"];
                 };
             };
             /** @description Validation Error */

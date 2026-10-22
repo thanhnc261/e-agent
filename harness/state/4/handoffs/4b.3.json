@@ -1,0 +1,14 @@
+{
+  "task": "4b.3",
+  "changed": "context.noHost now says what the agent uses: EN 'Uses this conversation and your connected systems; this page sends no extra details.' (no provider name, PR-11); VI 'Dùng cuộc trò chuyện này và các hệ thống bạn đã kết nối; trang này không gửi thêm thông tin nào.' (owner to confirm at G-0). Test routes.test.ts 'context chip says what the agent uses' in EN and VI. Commit 2f1d5a7. Review harness/state/4/reviews/4b.3-r1.json (accept, three Low notes).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4b.3/2026-10-20T15-26-54.257545+00-00-full.json"
+  ],
+  "open_items": [
+    "G-0: the owner confirms the VI text.",
+    "R1-1: the lead-in 'Your message text, plus:' reads awkwardly before the new sentence; the 4b.4 ag-ux-review should judge it.",
+    "R1-2: the composer.spec.ts title still says 'sends no page context'."
+  ],
+  "rulings": [],
+  "outside_repo": []
+}

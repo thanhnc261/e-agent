@@ -12,6 +12,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 from e_agent.contracts.data_classes import RECORD_KINDS
+from e_agent.kernel.memory_conversations import InMemoryConversationStore
 from e_agent.kernel.memory_store import InMemoryRunStore
 
 DSN = os.environ.get("E_AGENT_TEST_PG_DSN")
@@ -30,6 +31,7 @@ MEMORY_COLLECTIONS = {
     "_work": "run_work",
     "_plans": "action_plans",
     "_steps": "run_steps",
+    "_conversations": "conversations",
 }
 """The in-memory store's collection for each record kind."""
 NOT_RECORD_KINDS = {
@@ -39,6 +41,7 @@ NOT_RECORD_KINDS = {
 """What a store holds that is not a record kind, each with its reason."""
 NOT_COLLECTIONS = {
     "_lock": "the store's asyncio lock",
+    "_conversation_lock": "the conversation store's asyncio lock, taken before `_lock`",
     "_work_claim": "a ContextVar holding the current work claim",
 }
 """In-memory attributes that hold no records at all."""
@@ -61,7 +64,7 @@ def memory_record_kinds(store: object) -> set[str]:
 @pytest.fixture(params=KINDS)
 async def store_kinds(request: pytest.FixtureRequest) -> AsyncIterator[set[str]]:
     if request.param == "memory":
-        yield memory_record_kinds(InMemoryRunStore())
+        yield memory_record_kinds(InMemoryConversationStore())  # both stores in one
         return
     import psycopg
     from e_agent.adapters.postgres import apply_migrations

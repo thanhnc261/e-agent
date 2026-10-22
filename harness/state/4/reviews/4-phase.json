@@ -1,0 +1,73 @@
+{
+ "task": "4-phase",
+ "verdict": "rework",
+ "findings": [
+  {
+   "id": "P4-1",
+   "severity": "Medium",
+   "affects": "contract",
+   "summary": "4f.1 evidence lacked level 3 (make e2e): only the full and pg gate files were recorded.",
+   "evidence": "harness/state/evidence/gates/4f.1/; ENG-EVID-1"
+  },
+  {
+   "id": "P4-2",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "Target architecture section 5.7 is still tagged [P] and says nothing is implemented, and the status header calls ADR 0023 Proposed (B6-3, listed for 4f.1).",
+   "evidence": "docs/design/target-architecture.md:3,475-477"
+  },
+  {
+   "id": "P4-3",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "The roadmap row 4 and the README Status paragraph are not yet updated for Phase 4 (4f.1 bookkeeping).",
+   "evidence": "docs/roadmap.md; README.md"
+  },
+  {
+   "id": "P4-4",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "conversation.compared compares the recent_turns layer after the layer-budget fit only; a second fit against max_input_tokens in on can drop a carried run unseen by the digest comparison (documented).",
+   "evidence": "src/e_agent/kernel/coordinator.py _compare_into; src/e_agent/kernel/context.py assemble"
+  },
+  {
+   "id": "P4-5",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "Conversation updated_at uses utc_now()/now() rather than the injected clock; ordering uses created_at, so store parity holds.",
+   "evidence": "src/e_agent/kernel/memory_conversations.py:192"
+  },
+  {
+   "id": "P4-7",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "Not reviewed in this pass: honest tests (ENG-WORK-2) across the new test files; covered by the per-task reviews.",
+   "evidence": "tests/unit/kernel/test_carried_context.py and others"
+  },
+  {
+   "id": "P4-8",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "Not reviewed in this pass: value_formats.py, registry format admission, migration 0007 and the ERP manifest formats.",
+   "evidence": "src/e_agent/contracts/value_formats.py; src/e_agent/adapters/postgres/migrations/0007_conversations.sql"
+  },
+  {
+   "id": "P4-9",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "Not reviewed in this pass: conformance mock versus server schemas, layouts components, 4b diffs, VI copy (the VI copy and layouts were covered by 4e.7).",
+   "evidence": "ui/packages/ui-conformance/src/mock-api.ts"
+  },
+  {
+   "id": "P4-10",
+   "severity": "Low",
+   "affects": "style",
+   "summary": "Not reviewed in this pass: a secret or key-shape scan of the Phase 4 evidence and mockup screenshots.",
+   "evidence": "harness/state/evidence/gates/4*; research/mockups/conversation-thread-v1/"
+  }
+ ],
+ "reviewer": {
+  "provider": "claude",
+  "fresh_context": true
+ }
+}

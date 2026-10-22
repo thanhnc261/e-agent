@@ -1,0 +1,35 @@
+{
+  "id": "4e.3",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4e-3"
+  ],
+  "context_digest": "5ee8c9f6cc51f94349db753e103635d809f32f70f70bdc3cf1d364346ac007fa",
+  "allowed_paths": [
+    "ui/packages/client/src/index.ts",
+    "ui/packages/ui-core/src/**",
+    "ui/packages/ui-core/test/**",
+    "ui/packages/ui-conformance/src/mock-api.ts",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**",
+    "ui/packages/client/test/**"
+  ],
+  "acceptance": [
+    "packages/ui-core/test/conversation.test.ts passes",
+    "pnpm --dir ui check passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "2abc88861bd72a96365fd806c512af313bd25c79",
+  "created_at": "2026-10-21T19:06:34+00:00",
+  "features_digest": "3c2a2e31694076db9320f2ef32abe511a2a12b0c5b36216c4b1c9c2ef5e45b8d",
+  "scope_changes": [
+    {
+      "glob": "ui/packages/client/test/**",
+      "reason": "C3-4: real-client tests for the enveloped NOT_FOUND and FastAPI detail 404 bodies the fallback depends on",
+      "at": "2026-10-21T19:39:55+00:00"
+    }
+  ]
+}

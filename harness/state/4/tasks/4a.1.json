@@ -1,0 +1,27 @@
+{
+  "id": "4a.1",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4a-1"
+  ],
+  "context_digest": "74dbfb4cdddb640784e36ec2b1c74ce96566a5fcc0918e50c38e255379bdbd96",
+  "allowed_paths": [
+    "docs/adr/**",
+    "docs/design/target-architecture.md",
+    "docs/roadmap.md",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "harness/state/**",
+    "docs/handoffs/**",
+    ".superpowers/sdd/**"
+  ],
+  "acceptance": [
+    "ADRs 0023 and 0034 written from D1-D17 with current file:line references (ADR 0023 includes the answer_value_formats manifest field and the per-contract format and ref-match list); ADR 0022 and 0032 carry an amended-by line",
+    "ADR index rows and target 5.7 added",
+    "repo_move.py check reports no broken links; full gate passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "664372a2c841a8eb7661864ce07af55f238f95cf",
+  "created_at": "2026-10-20T14:16:24+00:00",
+  "features_digest": "3a7e0e01423fb98b3cd0b22c2b72138c851c134becfe6c180c6a627fb31c6048"
+}

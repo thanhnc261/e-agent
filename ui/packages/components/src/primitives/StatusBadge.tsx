@@ -14,6 +14,11 @@ const MARKER: Record<StatusTone, string> = {
   unknown: "？",
 };
 
+/** The shape marker for a tone, for status text shown outside a badge. */
+export function statusMarker(tone: StatusTone): string {
+  return MARKER[tone];
+}
+
 export function StatusBadge({
   tone = "neutral",
   children,

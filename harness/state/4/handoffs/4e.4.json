@@ -1,0 +1,30 @@
+{
+  "task": "4e.4",
+  "changed": "Conversation thread view, server-listed sidebar and closable artifact workspace, following G-C variant A1 on the four ADR 0016 surfaces. Ended runs keep their messages, and run cards are compact (status, one result line, Open). The refusal hint sits inside the composer above the kept draft. In on, the composer stays open while a decision waits and the approval card is unchanged; off and shadow's per-run view keep today's lock, and so does a legacy run in on (T4-6). The desktop workspace is about 40 % wide, opens by itself for a decision or a result, can be closed (EA-10), and the close persists across surface switches (T4-2). When it is closed, the run card and the stop slot carry the status. The agent's-words label appears on the message and the result. Legacy runs are grouped under 'last seen'. Stop follows the 4e.2 ruling (EA-4, AG-CTRL-1). The thread head always renders the connection status (AG-STAT-3, T4-5). Phase 3 internal events are hidden through HIDDEN_EVENT_TYPES (10 types, pinned) and still advance lastSequence; failure and fallback events such as context.failed get labelled rows. axe-core 4.10.3 is a pinned dev dependency of ui-conformance; a missing engine fails the spec, and all 10 axe states run in every gate (T4-1). conversation.spec.ts has 27 specs. UI architecture \u00a712 'Conversation threads' was added. make e2e: 195 passed, 4 skipped. Commits 29f85a26, b7869105, da561bf9. Reviews 4e.4.json (rework) and 4e.4-r2.json (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4e.4/2026-10-21T20-50-21.840151+00-00-full.json"
+  ],
+  "open_items": [
+    "G-D (T4-7): the legacy view shows only the current status, not 'now' beside 'last seen', and opening the run overwrites the stored last-seen value.",
+    "G-D: the 'new VI since G-B' list (34 new keys, plus 4e.3's conversation.notSent and conversation.featuresFailed) is in the 4e.4 SDD report and must be listed in the 4e.7 review for the owner.",
+    "Accepted limits: ir.shadow_failed still shows a row while the other *.shadow_failed events are hidden. Sidebar rows other than the current one say 'Completed', never 'verified', because the list has no reason_code (correct under PR-19). An earlier run's workspace shows only Activity. On narrow surfaces the workspace never opens by itself; the card's 'Open the decision' is the way in.",
+    "The ~40 % workspace width has no automated check.",
+    "These are browser-mechanics checks only: no assistive-technology, device or user testing was done.",
+    "New dependency: axe-core 4.10.3 (dev only, ui-conformance). The CI dependency scan (PR-39) covers it."
+  ],
+  "rulings": [
+    {
+      "ruling": "axe-core is an exactly pinned dev dependency loaded through page.evaluate (the CSP is unchanged), and a missing engine fails the spec; scope widened to ui/pnpm-lock.yaml and ui/package.json.",
+      "cost_if_wrong": "remove one dev dependency"
+    },
+    {
+      "ruling": "In on, a legacy unlinked run's per-run view keeps today's composer lock while its approval waits.",
+      "cost_if_wrong": "one canSend condition"
+    },
+    {
+      "ruling": "Phase 3 context.*, repeat.* and grounding.* internal records are hidden, and failure or fallback events get labelled rows.",
+      "cost_if_wrong": "label changes at G-D"
+    }
+  ],
+  "outside_repo": []
+}

@@ -5,14 +5,22 @@
  */
 export { ApprovalPanel } from "./features/approval/ApprovalPanel.tsx";
 export { Composer } from "./features/composer/Composer.tsx";
+export { StopSlot } from "./features/composer/StopSlot.tsx";
 export { ConnectionCard, Connections } from "./features/discovery/Connections.tsx";
 export { TaskCatalog, TaskCatalogCard } from "./features/discovery/TaskCatalog.tsx";
 export { ConnectionStatus } from "./features/header/ConnectionStatus.tsx";
 export { EvidencePanel } from "./features/evidence/EvidencePanel.tsx";
 export { Footer } from "./features/footer/Footer.tsx";
 export { Header } from "./features/header/Header.tsx";
+export { CarriedRuns } from "./features/conversation/CarriedRuns.tsx";
 export { MessageText } from "./features/conversation/MessageText.tsx";
 export { Messages } from "./features/conversation/Messages.tsx";
+export {
+  ARTIFACT_WORKSPACE_ID,
+  ArtifactWorkspaceProvider,
+  useArtifactWorkspace,
+  type ArtifactWorkspaceControls,
+} from "./features/conversation/workspace.ts";
 export { OutcomePanel } from "./features/outcome/OutcomePanel.tsx";
 export { TaskNavigation } from "./features/task-navigation/TaskNavigation.tsx";
 export { TaskOverview } from "./features/task-overview/TaskOverview.tsx";
@@ -25,7 +33,8 @@ export { BrandMark } from "./primitives/BrandMark.tsx";
 export { Icon } from "./primitives/Icon.tsx";
 export { Disclosure } from "./primitives/Disclosure.tsx";
 export { Panel } from "./primitives/Panel.tsx";
-export { StatusBadge } from "./primitives/StatusBadge.tsx";
+export { StatusBadge, statusMarker } from "./primitives/StatusBadge.tsx";
+export { runStateTone } from "./primitives/runStateTone.ts";
 export { Surface } from "./primitives/Surface.tsx";
 export { TextAreaField } from "./primitives/TextAreaField.tsx";
 export {

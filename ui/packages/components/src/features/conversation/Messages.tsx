@@ -1,20 +1,37 @@
-/** Conversation transcript and the neutral welcome state. */
-import { selectConversation } from "@e-agent/ui-core";
+/**
+ * Conversation transcript and the neutral welcome state. In `conversations: on` it is the
+ * thread (ADR 0034 §2); `off`, `shadow` and any failed conversation read keep today's
+ * per-run view. A run outside every conversation, opened in `on`, keeps the per-run view
+ * and says it is not part of a conversation (G-B 2).
+ */
+import { selectConversation, selectThreadShown, selectViewMode } from "@e-agent/ui-core";
 import { useI18n, useRun, useRunState } from "@e-agent/ui-react";
 import { BrandMark } from "../../primitives/BrandMark.tsx";
 import { MessageText } from "./MessageText.tsx";
+import { Thread } from "./Thread.tsx";
 
 export function Messages() {
+  return selectThreadShown(useRunState()) ? <Thread /> : <RunMessages />;
+}
+
+function RunMessages() {
   const { t } = useI18n();
   const { run, finalMessage, streamingText, question, error } = useRun();
-  const { view } = useRunState();
+  const state = useRunState();
+  const { view } = state;
   const conversation = selectConversation(view);
+  const legacy = selectViewMode(state).kind === "thread" && !!run && !state.conversationId;
   return (
     <section
       className={`ea-messages ${run ? "" : "ea-welcome"}`}
       data-testid="messages"
       aria-label={t("messages.title")}
     >
+      {legacy && (
+        <p className="ea-eyebrow ea-legacy-note" data-testid="legacy-note">
+          {t("thread.legacyNote")}
+        </p>
+      )}
       {!run && (
         <>
           <p className="ea-eyebrow">{t("workspace.kicker")}</p>
@@ -51,8 +68,18 @@ export function Messages() {
               <BrandMark className="ea-message-avatar ea-message-avatar-agent" />
             )}
             <div>
-              <p className="ea-message-author">{t(m.role === "user" ? "messages.you" : "messages.agent")}</p>
-              {m.kind === "reply" && (
+              <p className="ea-message-author">
+                {t(m.role === "user" ? "messages.you" : "messages.agent")}
+                {m.kind === "reply" && !m.firstReply && (
+                  // Owner G-0 (2026-10-20): every later reply stays visibly unverified.
+                  <small className="ea-muted ea-reply-note" data-testid="reply-note">
+                    {" "}
+                    <span aria-hidden="true">· </span>
+                    {t("conversation.replyNote")}
+                  </small>
+                )}
+              </p>
+              {m.kind === "reply" && m.firstReply && (
                 <p className="ea-muted ea-small" data-testid="reply-label">
                   {t("conversation.reply")}
                 </p>

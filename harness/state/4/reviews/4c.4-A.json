@@ -1,0 +1,45 @@
+{
+  "task": "4c.4",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "A1-1",
+      "severity": "Low",
+      "affects": "correctness",
+      "summary": "The admitted answer_value_formats is the descriptor's own mutable dict; it can be changed after admission, unlike data_classes (frozen by C3-14).",
+      "evidence": "src/e_agent/kernel/registry.py:252-253, :308-310; src/e_agent/contracts/capability.py:112-118; src/e_agent/contracts/data_classes.py:253-256"
+    },
+    {
+      "id": "A1-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "ref refuses only Unicode Cc; format characters such as U+200B and U+202E pass.",
+      "evidence": "src/e_agent/contracts/value_formats.py:106-107"
+    },
+    {
+      "id": "A1-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "parse_format admits enum values with surrounding whitespace or an embedded newline, which can never match.",
+      "evidence": "src/e_agent/contracts/value_formats.py:62-66"
+    },
+    {
+      "id": "A1-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The type-fit check unions types across branches and refuses decimal on a JSON-schema integer; over-refusal only, value_passes still gates every value.",
+      "evidence": "src/e_agent/contracts/value_formats.py:138-140"
+    },
+    {
+      "id": "A1-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The plan's 4c.4 Files list does not name contracts/data_classes.py.",
+      "evidence": "harness/state/4/tasks/4c.4.json scope_changes"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}

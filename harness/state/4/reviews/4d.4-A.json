@@ -1,0 +1,49 @@
+{
+  "task": "4d.4",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "A4-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The route test can still miss one kind of route: a plain APIRoute whose path does not start with /v1/ (for example /v2/... or /internal/...). It is neither 'unseen' nor checked, and nothing limits the non-/v1 APIRoutes to the two health probes. A probe on FastAPI 0.142.2 confirmed that include_router (_IncludedRouter), websockets (APIWebSocketRoute) and mounts (Mount) are all caught by the 'unseen' guard. This is inside PL-9's /v1/ scope, so it is not a contract breach. Fix: assert that the non-/v1 APIRoute paths equal {/health/live, /health/ready}. Smaller gaps: the static mount is never built, because the test calls create_app without static_dir, and a bare '/v1' path falls outside startswith('/v1/') (PR-27, PR-06).",
+      "evidence": "tests/unit/server/test_route_authorization.py:51-63"
+    },
+    {
+      "id": "A4-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "RunCoordinator.post_message still takes an optional request_digest parameter. Only the handler relies on the default, and no test or caller passes a value different from message_digest, since the routing tests' _digest now calls it. The 'one request digest' guarantee (4d.1 B1-2) therefore depends on future callers leaving the parameter out. Removing it, or making it private to tests, would close that second source of digests. This is an unused seam (PR-04, ENG-ARCH-4).",
+      "evidence": "src/e_agent/kernel/coordinator.py:444-451"
+    },
+    {
+      "id": "A4-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "In off, FastAPI validates the request before the facade runs. So a POST /messages with no Idempotency-Key or an invalid body, or a GET /v1/conversations with limit=0, answers 422 instead of NOT_FOUND 'conversations are off'. Nothing is read or written and existence is not revealed. The UI learns the mode only from /v1/me/features (ADR 0023 §10). Still, §9's 'refuse with NOT_FOUND' holds only for well-formed requests; record this as a ruling.",
+      "evidence": "src/e_agent/server/conversations.py:66-84; src/e_agent/kernel/coordinator.py:401-403"
+    },
+    {
+      "id": "A4-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "In a shadow bundle, conversation.carried_run_ids is always [], because it is read from conversation.context_carried, which only on writes. The run ids shadow would have carried, which sit in conversation.compared's carried_run_ids, do not appear in the bundle. Reading ADR 0023 §12's 'its carried run ids' as the runs actually carried is defensible, and the shadow comparison is still reported in the compared counts. The ruling is recorded only in the task report. It belongs in ADR §12 or the evidence docstring, so Phase 5 export does not reinterpret it.",
+      "evidence": "src/e_agent/kernel/evidence.py:209-230"
+    },
+    {
+      "id": "A4-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "list_conversations makes one list_conversation_runs store call per listed conversation. A page of 100 is 101 store calls, and on Postgres each one is its own connection and query. This affects performance only, not correctness or authorization.",
+      "evidence": "src/e_agent/kernel/conversation.py:221-236"
+    },
+    {
+      "id": "A4-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "This was already true before the task: within a tenant, GET /v1/runs/{id} and /evidence read a run by tenant only, so any member of the tenant can read another member's run. The new evidence 'conversation' key adds that run's conversation_id to the bundle, and RunRecord already exposes it. The conversation routes themselves keep a foreign conversation NOT_FOUND. The tenant-wide run visibility belongs to Phase 7 grants (PR-24, PR-27), not to this task. Recorded so the Phase 7 work covers it.",
+      "evidence": "src/e_agent/server/api.py:486-498; src/e_agent/kernel/evidence.py:311-313"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}

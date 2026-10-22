@@ -1,0 +1,41 @@
+{
+  "id": "4c.4",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4c-4"
+  ],
+  "context_digest": "a02a44359279643ef79ecf481f58ef899cf4bec87aa68180e6868ffeabfcaa24",
+  "allowed_paths": [
+    "src/e_agent/contracts/value_formats.py",
+    "src/e_agent/contracts/capability.py",
+    "src/e_agent/contracts/__init__.py",
+    "src/e_agent/kernel/registry.py",
+    "src/e_agent/sdk/__init__.py",
+    "src/e_agent/plugins/erp/domain/e_agent_plugin.json",
+    "tests/**",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**",
+    "src/e_agent/contracts/data_classes.py"
+  ],
+  "acceptance": [
+    "tests/unit/contracts/test_value_formats.py, tests/unit/kernel/test_registry_value_formats.py and tests/unit/plugins/erp/domain/test_manifest_value_formats.py pass",
+    "the registry refuses an unknown format, a path the schema lacks, a type mismatch and a format without a data class",
+    "both off model-request goldens byte-identical; registry.py at most 500 lines; check_wheels passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "1648718898ab05e59841d75f1740fc3fd5d939d4",
+  "created_at": "2026-10-21T11:40:42+00:00",
+  "features_digest": "6dc5c18835fe466e60d8dc4c13632e548dc204d85eccde433f0164a664cd0cca",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/contracts/data_classes.py",
+      "reason": "format admission needs the schema nodes at an instance path, array element included; a public resolver beside path_exists reuses the one schema walk instead of a second copy (ADR 0023 s7)",
+      "at": "2026-10-21T11:47:33+00:00"
+    }
+  ]
+}

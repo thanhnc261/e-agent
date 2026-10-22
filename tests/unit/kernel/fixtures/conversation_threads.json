@@ -1,0 +1,60 @@
+{
+  "schema": "conversation-threads/1",
+  "note": "Authored fixture input for the conversations shadow consumer (Task 4d.3, test_shadow_layer_digest_equals_on_layer_digest), not model evidence (PR-29). Steps: say (a message without reply_to; expect refuse when the router would refuse it), answer (reply_to the waiting run at the revision it is at), approve (the pending action), cancel (the latest run). Each started run's state after the worker's first pass is in `then`.",
+  "threads": [
+    {
+      "name": "hi-hi",
+      "steps": [
+        {"say": "hi", "then": "WAITING_INPUT"},
+        {"answer": "hi", "then": "WAITING_INPUT"},
+        {"cancel": true},
+        {"say": "write the standup note", "then": "WAITING_APPROVAL"},
+        {"approve": true, "then": "SUCCEEDED"}
+      ]
+    },
+    {
+      "name": "hi-question",
+      "steps": [
+        {"say": "hi", "then": "WAITING_INPUT"},
+        {"cancel": true},
+        {"say": "question: which supplier for paper?", "then": "WAITING_INPUT"},
+        {"answer": "the usual one", "then": "WAITING_APPROVAL"},
+        {"approve": true, "then": "SUCCEEDED"},
+        {"say": "summarise the notes", "then": "SUCCEEDED"}
+      ]
+    },
+    {
+      "name": "question-po",
+      "steps": [
+        {"say": "question: order more paper?", "then": "WAITING_INPUT"},
+        {"answer": "yes, ten reams", "then": "WAITING_APPROVAL"},
+        {"approve": true, "then": "SUCCEEDED"},
+        {"say": "order the same again", "then": "WAITING_APPROVAL"},
+        {"approve": true, "then": "SUCCEEDED"}
+      ]
+    },
+    {
+      "name": "during-approval",
+      "steps": [
+        {"say": "write the standup note", "then": "WAITING_APPROVAL"},
+        {"say": "yes, approve it", "expect": "refuse"},
+        {"approve": true, "then": "SUCCEEDED"},
+        {"say": "summarise the notes", "then": "SUCCEEDED"}
+      ]
+    },
+    {
+      "name": "six-runs",
+      "steps": [
+        {"say": "write the first note", "then": "WAITING_APPROVAL"},
+        {"approve": true, "then": "SUCCEEDED"},
+        {"say": "summarise the notes", "then": "SUCCEEDED"},
+        {"say": "write the second note", "then": "WAITING_APPROVAL"},
+        {"approve": true, "then": "SUCCEEDED"},
+        {"say": "summarise the notes again", "then": "SUCCEEDED"},
+        {"say": "write the third note", "then": "WAITING_APPROVAL"},
+        {"approve": true, "then": "SUCCEEDED"},
+        {"say": "summarise all of them", "then": "SUCCEEDED"}
+      ]
+    }
+  ]
+}

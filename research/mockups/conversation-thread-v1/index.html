@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>e-agent · conversation thread (mockup)</title>
+    <!-- Production tokens, linked, not copied (single source; AG-DS-1). Serve from the repository root. -->
+    <link rel="stylesheet" href="../../../ui/packages/tokens/src/generated/tokens.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#prompt">Skip to the message box</a>
+    <div id="proto" class="proto" role="region" aria-label="Prototype controls"></div>
+    <div class="proto-actions"><button type="button" id="proto-next" class="btn btn-proto" hidden></button></div>
+    <div class="host">
+      <div class="host-page" aria-hidden="true">
+        <p class="host-kicker">Sample host page</p>
+        <p class="host-title">Stock overview (sample)</p>
+        <div class="host-row"></div>
+        <div class="host-row"></div>
+        <div class="host-row short"></div>
+      </div>
+      <div id="app" class="app"></div>
+    </div>
+    <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

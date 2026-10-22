@@ -1,0 +1,38 @@
+{
+  "task": "4e.7",
+  "changed": "G-D UI review and its resolution. The ag-ux-review of the conversation UI (docs/reviews/2026-10-22-conversation-thread-ux-review.md, HEAD 2343467d) gave 'accept with findings': 0 Blocker, 0 High, 4 Medium, 3 Low, and 81 VI rows with 5 flagged. The owner answered G-D directly with 'Fix all'; the advisor delegation did not continue. Fixes, in the 4e.7 scope as amended: 4.U1, earlier runs used as hints in Sources, with a quiet bundle read (0d79968c, 8544f1ef); 4.U2, Stop and connection status in the narrow full-view workspace head (d81db1a7); 4.U3, the thread opens at its latest run, with a sticky thread head and scroll padding so focus is never obscured (1f88eb5d, b1707ef0, 356341f4); 4.U4, sticky workspace head and scroll cue (a21f886f); 4.U5, Open the decision only opens (2387733a); 4.U6, server enums translated through translateServerValue, the outcome label taken from an allow-list, and the unused keys deleted (d60ecf5a, 0eab058b); 4.U7, forced-colours tabs (1e7440e9); V-1 to V-4 and the GD-6 wording (6e4805a2, 4403a7f4); GD-4 (09dcfee1). UI architecture §12 updated (eb543338, 9a8eb109). Resolution: docs/reviews/2026-10-22-conversation-thread-ux-review-RESOLUTION.md. pnpm --dir ui check: 258 tests. pnpm --dir ui conformance: 219 passed, 4 skipped. Fix reviews: 4e.7-fixes.json (rework), -r2 (rework, GR-1) and -r3 (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4e.7/2026-10-22T03-41-43.138350+00-00-full.json"
+  ],
+  "open_items": [
+    "Owner: confirm the 'New VI since G-D' rows in the resolution file (33 rows), and decide whether context.noHost (owner-confirmed F-7 copy, pinned by ui/apps/web/test/routes.test.ts) changes 'tác vụ' to 'yêu cầu'.",
+    "4f.1: record the owner's G-B 'VI ok' in docs/reviews/2026-10-20-chat-defects-ux-review-RESOLUTION.md, and the G-D VI answer in the G-D resolution.",
+    "Follow-up: RuleFindings.tsx:24 in the approval card still shows raw rule statuses; translateServerValue('validation') exists for it.",
+    "Follow-up (E5-1 option b): labelling free-text answer fields as model-authored needs an ADR.",
+    "GS-1 (Low): the focus-not-obscured spec does not cover the split layout and runs in Chromium only.",
+    "These are browser-mechanics checks on the mock API only: no real on server, and no assistive-technology, device or user testing."
+  ],
+  "rulings": [
+    {
+      "ruling": "The G-D fixes stay inside 4e.7 (scope amended), so the resolution names the fix commits.",
+      "cost_if_wrong": "a longer task record"
+    },
+    {
+      "ruling": "4.U4 keeps the inner scroll region, with a sticky head and a scroll cue, rather than switching to page scroll.",
+      "cost_if_wrong": "revisit with the F-5 card follow-up"
+    },
+    {
+      "ruling": "4.U5 makes the button open-only. A hint opens its run in the workspace, not in the thread as the mockup did.",
+      "cost_if_wrong": "one handler"
+    },
+    {
+      "ruling": "V-3: the user's task is 'yêu cầu' everywhere except the owner-pinned context.noHost. value.receipt.COMMITTED reads 'Committed' / 'Đã ghi vào hệ thống' (PR-19).",
+      "cost_if_wrong": "string swaps"
+    },
+    {
+      "ruling": "'Fix all' accepts the 68 unflagged VI rows from the review.",
+      "cost_if_wrong": "the owner names rows to change"
+    }
+  ],
+  "outside_repo": []
+}

@@ -1,0 +1,64 @@
+{
+  "id": "4f.2",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4f-2"
+  ],
+  "context_digest": "bb6d293c996ee245a42bb9236f08eeaf2e4d8f325924af3f4482e0ab74d280e6",
+  "allowed_paths": [
+    "docs/handoffs/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/roadmap.md",
+    "README.md",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "ui/packages/ui-core/src/**",
+    "ui/packages/ui-core/test/**",
+    "ui/packages/components/**",
+    "ui/packages/ui-conformance/**",
+    "uv.lock",
+    "docs/design/ui-architecture.md"
+  ],
+  "acceptance": [
+    "uv run e-agent-harness live-check passes and writes evidence under harness/state/evidence/live/",
+    "gitleaks dir over harness/state/evidence/live/ reports no leaks and the key-shape grep finds no matches; nothing reads the secret store or a key value",
+    "live results recorded in the handoff, labelled live; no PO proposed is a partial result"
+  ],
+  "gate_set": "full",
+  "base_commit": "56ac891a67a47545be6bf5988b70f7d13c994843",
+  "created_at": "2026-10-22T06:51:41+00:00",
+  "features_digest": "ce8fcacac877d102d790d5b4ce80864e842a51bbd56da64ebc32f7f3db234bdf",
+  "scope_changes": [
+    {
+      "glob": "ui/packages/ui-core/src/**",
+      "reason": "4.R3: browser-run defects B-1 (stale refusal hint) and B-2 (Outcome verified line while a run awaits review)",
+      "at": "2026-10-22T10:43:18+00:00"
+    },
+    {
+      "glob": "ui/packages/ui-core/test/**",
+      "reason": "4.R3: browser-run defects B-1 (stale refusal hint) and B-2 (Outcome verified line while a run awaits review)",
+      "at": "2026-10-22T10:43:18+00:00"
+    },
+    {
+      "glob": "ui/packages/components/**",
+      "reason": "4.R3: browser-run defects B-1 (stale refusal hint) and B-2 (Outcome verified line while a run awaits review)",
+      "at": "2026-10-22T10:43:18+00:00"
+    },
+    {
+      "glob": "ui/packages/ui-conformance/**",
+      "reason": "4.R3: browser-run defects B-1 (stale refusal hint) and B-2 (Outcome verified line while a run awaits review)",
+      "at": "2026-10-22T10:43:18+00:00"
+    },
+    {
+      "glob": "uv.lock",
+      "reason": "certifi bump for PYSEC-2026-4320 (CI pip-audit blocks the Phase 4 merge)",
+      "at": "2026-10-22T12:26:45+00:00"
+    },
+    {
+      "glob": "docs/design/ui-architecture.md",
+      "reason": "4.R4 updates the U3 thread-scroll rule",
+      "at": "2026-10-22T12:50:59+00:00"
+    }
+  ]
+}

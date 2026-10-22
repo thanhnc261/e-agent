@@ -1,0 +1,27 @@
+{
+  "id": "4b.5",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4b-5"
+  ],
+  "context_digest": "8c0df4f83579546cd6cfb8698bc32627fb987ec004b3ea655023e8984c563c58",
+  "allowed_paths": [
+    "ui/packages/**",
+    "ui/apps/**",
+    "docs/reviews/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "each finding has a failing-then-passing test named after it",
+    "pnpm --dir ui check and make e2e pass",
+    "resolution file answers every finding; no open Blocker or High"
+  ],
+  "gate_set": "full",
+  "base_commit": "4a4802f48438e401c9fddd98259e0fd3fdda53bd",
+  "created_at": "2026-10-20T15:52:19+00:00",
+  "features_digest": "a6278b1b5d0ead8dd7da9a94529447b8fa6d991be2f375ac3e9ae288a75e3aec"
+}

@@ -41,3 +41,54 @@ test("an embedded surface shows the context it will send", async ({ page }) => {
   await expect(panel).toContainText(new URL(page.url()).origin);
   await expect(page.getByTestId("context-none")).toHaveCount(0);
 });
+
+async function twoReplies(page: import("@playwright/test").Page) {
+  const api = new MockApi();
+  api.emit("run.created", { task: "hi" });
+  api.emit("input.requested", { question: "Hello! What next?", kind: "reply" });
+  api.emit("input.received", { input: "hi" });
+  api.emit("input.requested", { question: "Hello again! What next?", kind: "reply" });
+  api.emit("run.state_changed", { from: "RUNNING", to: "WAITING_INPUT" });
+  api.state = "WAITING_INPUT";
+  await api.install(page);
+  await page.goto("/");
+  await page.getByTestId("composer-input").fill("hi");
+  await page.getByTestId("composer-submit").click();
+}
+
+test("reply label shows once after hi, hi", async ({ page }) => {
+  await twoReplies(page);
+  await expect(page.getByTestId("pending-reply")).toContainText("Hello again! What next?");
+  await expect(page.getByTestId("reply-label")).toHaveCount(1);
+  await expect(page.getByTestId("reply-label")).toHaveText("Reply · not a verified result");
+});
+
+test("F-6 a later reply shows a small visible not-verified note", async ({ page }) => {
+  await twoReplies(page);
+  const later = page.locator(".ea-message").filter({ has: page.getByTestId("pending-reply") });
+  await expect(later.getByTestId("pending-reply")).toContainText("Hello again! What next?");
+  const note = later.getByTestId("reply-note");
+  await expect(note).toBeVisible();
+  await expect(note).toContainText("not verified");
+  await expect(note).toHaveClass(/ea-muted/);
+  await expect(later.getByTestId("reply-label")).toHaveCount(0);
+});
+
+test("F-5 the Activity timeline says Your turn after a reply", async ({ page }) => {
+  await twoReplies(page);
+  await expect(page.getByTestId("pending-reply")).toContainText("Hello again! What next?");
+  const rows = page.locator("[data-testid=timeline-item][data-type='run.state_changed']");
+  await expect(rows.last()).toContainText("Your turn");
+  await expect(page.getByTestId("timeline")).not.toContainText("Your answer is needed");
+});
+
+test("sidebar says Your turn after a reply", async ({ page }) => {
+  await twoReplies(page);
+  await expect(page.getByTestId("pending-reply")).toContainText("Hello again! What next?");
+  const history = page.locator(".ea-task-history");
+  if (!(await history.evaluate(el => (el as HTMLDetailsElement).open)))
+    await history.locator(":scope > summary").click();
+  const item = page.getByTestId("history-task").first();
+  await expect(item).toContainText("Your turn");
+  await expect(item).not.toContainText("Your answer is needed");
+});

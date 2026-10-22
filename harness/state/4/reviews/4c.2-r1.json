@@ -1,0 +1,49 @@
+{
+  "task": "4c.2",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R1-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "The contract acceptance and feature F-4c-2 still describe the plan as it was before the ruling. Two of the three acceptance steps are now false. Step 2 says 'test_every_store_record_kind_declares_a_class lists conversations', but under the ruling the record kind moved to 4c.3, and data_classes.py and test_record_classes.py are byte-identical to BASE. Step 3 says 'export_openapi.py --check reports no change', but openapi.json and schema.ts were regenerated with the new field, and the scope amendment and the plan both say this. The F-4c-2 description also still says 'and the conversations record kind'. close-check reports 'contract is stale' and points to refresh-task. Running `refresh-task --from-features` re-derives acceptance from features.json, so it would bring the stale steps back (tools/harness/src/e_agent_harness/tasks.py:65-71). Fix: edit F-4c-2 first. Drop step 2, reword step 3 to say the off v3 goldens are unchanged, openapi.json and schema.ts were regenerated with only RunRecord.conversation_id, and export_openapi --check is clean. Remove the record kind from the description. Add the record-classes step to F-4c-3, which today does not list it although the plan's 4c.3 test list now does. Then run `refresh-task --from-features`.",
+      "evidence": "harness/state/4/tasks/4c.2.json acceptance[1], acceptance[2]; harness/state/4/features.json entry F-4c-2 (description, steps), entry F-4c-3 (steps lack test_record_classes); docs/plans/2026-10-20-phase4-conversation-chat.md 4c.2 and 4c.3 bullets (fix-round diff); close-check output 'contract is stale: authoritative files changed; run e-agent-harness refresh-task'; ENG-WORK-1, ENG-EVID-1"
+    },
+    {
+      "id": "R1-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The reconstruct._run conversation_id slot is correct by reading, but only one of its three branches is tested. With run.created and no key, the slot is KNOWN None. With the key, it is KNOWN with the value, validated through _known. Without run.created, it is UNKNOWN. test_reconstruction._compare compares field sets and values against the stored rows, so it covers only the KNOWN None branch. A version that ignored the payload (always KNOWN None) would pass every current test, because nothing sets conversation_id yet. Add two reconstruct() cases: a run.created payload carrying conversation_id gives KNOWN 'c1', and events with no run.created give UNKNOWN. Add them here or in 4c.3, the first task where runs get a conversation id.",
+      "evidence": "src/e_agent/kernel/reconstruct.py:299-304; tests/conformance/test_reconstruction.py:281-292 (_compare); tests/unit/contracts/test_conversation.py:91-93 tests only the writer side (run_created_keys); ENG-WORK-2"
+    },
+    {
+      "id": "R1-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The ADDED_KEYS docstring says 'No other key is added to any event'. That stops being true for run.created once a run carries conversation_id. ADR 0023 §2 allows the conditional key, and without_reconstruction_keys correctly keeps it, because it is not an ADR 0031 §3 key. The comment should name the exception, so no reader takes the off-baseline subset assertions (test_off_projection.py:92, test_off_baseline_erp.py:94) as applying to on runs.",
+      "evidence": "src/e_agent/kernel/reconstruct.py:62-73; src/e_agent/kernel/reconstruct.py:79-82; ADR 0023 §2; ENG-DOC-1"
+    },
+    {
+      "id": "R1-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Brief item 4 rests on a premise that is wrong. Postgres does not drop RunRecord.conversation_id. Both INSERT sites store the whole record as JSONB, and _json is model_dump(mode='json'). Reads use RunRecord.model_validate on that JSON, so the field round-trips on both stores today, and memory and Postgres cannot diverge. The real risk is in 4c.3: migration 0007 adds a runs.conversation_id column beside the JSON record. That column must be written from run.conversation_id at both INSERT sites (create_run and create_run_idempotent, and the new create_run_in_conversation) and must never disagree with the record. One line in the 4c.3 plan or a conformance assertion would pin this.",
+      "evidence": "src/e_agent/adapters/postgres/store.py:40-41 (_json), :222, :256 (INSERT ... record), :279, :579 (RunRecord.model_validate); docs/plans/2026-10-20-phase4-conversation-chat.md Task 4c.3 migration bullet; ENG-STORE-1"
+    },
+    {
+      "id": "R1-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Test names and placement. test_carried_answer_holds_only_declared_paths asserts only the field set and Record's extra-forbid. The 'only declared paths' rule is enforced by carry in 4d.2, so the name claims more than the test checks; 'test_carried_answer_has_only_contract_and_arguments' would fit. test_run_created_has_no_conversation_key_when_unset tests kernel code (run_created_keys) from tests/unit/contracts/. The brief placed it there, but tests/unit/kernel/ mirrors the code.",
+      "evidence": "tests/unit/contracts/test_conversation.py:63-66, :91-93"
+    },
+    {
+      "id": "R1-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Observations, no fix needed. (a) Field sets match ADR 0023 §2 and plan 4c.2 exactly. Conversation has no text. CarriedRef is (contract_id, source_ref, revision: str|None, observed_at), which matches EvidenceRef.revision. CarriedRun has no model-text field. MemberFeatures has only conversations. RunRecord.conversation_id defaults to None. The MessageRoute validator requires run_id and run_revision for answer, and a hint for refuse, matching the fixed hints in §4. (b) RUN_CREATED_KEYS is unchanged, the writer (coordinator.py:138 via run_created_keys) adds the key only when it is set, and data_classes.py, test_record_classes.py and test_off_projection.py are byte-identical to BASE. (c) The openapi.json and schema.ts diffs contain only RunRecord.conversation_id, and export_openapi --check exits 0. (d) The implementer reports the tests were written after the code (ENG-WORK-2 not met as a process). Each named test would still fail without its code: ModuleNotFoundError, or an exact field-set or validator assertion. (e) The 35 focused tests pass locally, with Postgres variants skipped (no E_AGENT_TEST_PG_DSN). F-4c-2 passes=false, and there are no gate evidence, progress entry or handoff yet, so ENG-EVID-1 and ENG-STORE-1 on Postgres are not checkable by this review. (f) This task changes kernel/reconstruct.py. Under H0, a kernel task is reviewed by the other provider; this review was run by claude-opus.",
+      "evidence": "src/e_agent/contracts/conversation.py; src/e_agent/contracts/features.py:62-65; src/e_agent/contracts/run.py:173-174; git diff 0e859a9..5fa79bc -- ui/packages/client; uv run pytest -q tests/unit/contracts/test_conversation.py tests/unit/kernel/test_off_projection.py tests/conformance/test_reconstruction.py tests/conformance/test_record_classes.py tests/unit/plugins/erp/simulator/test_off_baseline_erp.py -> 35 passed; close-check output"
+    }
+  ],
+  "reviewer": {"provider": "claude-opus", "fresh_context": true}
+}

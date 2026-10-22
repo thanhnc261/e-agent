@@ -1,5 +1,5 @@
 /** Maps a run state to a status tone. Presentation only; it decides nothing. */
-import type { StatusTone } from "../../primitives/variants.ts";
+import type { StatusTone } from "./variants.ts";
 
 const TONES: Record<string, StatusTone> = {
   CREATED: "progress",

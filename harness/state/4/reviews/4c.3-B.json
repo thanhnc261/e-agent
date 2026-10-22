@@ -1,0 +1,45 @@
+{
+  "task": "4c.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "B1-1",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "Contract acceptance step 4 ('pg gate passes') has no evidence. The only gate record for 4c.3 is the 'full' set, which has no E_AGENT_TEST_STORE=postgres step; the full pytest ran with 32 skipped. The implementer's report says the pg gate was not run and cites a self-reported '1203 passed' from the same command run by hand. Close-check validates the full gate, so nothing forces the pg run before close. Fix: run `uv run e-agent-harness gate pg` on the clean commit (test DB e_agent_test, never the live ledger, HP-13) and cite its evidence file in the handoff.",
+      "evidence": "harness/state/4/tasks/4c.3.json acceptance[3]; harness/state/evidence/gates/4c.3/2026-10-21T11-13-17.148630+00-00-full.json (steps: no pg command; pytest 2092 passed, 32 skipped); harness/context.toml:60 (pg set); .superpowers/sdd/2026-10-20-phase4-conversation-chat/task-4c.3-report.md 'Concerns' first bullet; ENG-EVID-1, ENG-STORE-1"
+    },
+    {
+      "id": "B1-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The stores diverge on a linked run created outside create_run_in_conversation. The memory create_run and create_run_idempotent accept a RunRecord whose conversation_id names no conversation. Postgres refuses it through runs_conversation_fk with a raw psycopg ForeignKeyViolation, not a port error. Plain create_run also bypasses the active-run check and the revision bump on both stores, so 'one active run per conversation' holds only while create_run_in_conversation is the sole creator of linked runs. No path in 4c.3 reaches this, and the brief freezes memory_store.py. The implementer flagged it. Task 4d.1 must create linked runs only through create_run_in_conversation; an override in kernel/memory_conversations.py that refuses a dangling id would close the gap without touching memory_store.py.",
+      "evidence": "src/e_agent/kernel/memory_conversations.py:4-8 (module docstring states the invariant); src/e_agent/adapters/postgres/migrations/0007_conversations.sql:21-22; tests/conformance/test_conversation_store.py:346 (Postgres-only test creates a linked run via plain create_run); ENG-STORE-1"
+    },
+    {
+      "id": "B1-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The brief says each test prints its case count and fails on zero. Four single-scenario tests print no counter: test_run_creation_bumps_conversation_revision, test_idempotent_replay_starts_one_run, test_concurrent_same_key_starts_one_run and test_concurrent_messages_start_one_run. They assert fixed outcomes, so a zero-case pass cannot happen. Contract acceptance step 1 ('the file prints its case count') is met by the other tests.",
+      "evidence": "tests/conformance/test_conversation_store.py:205, 269, 284, 322; task-4c.3-brief.md 'Failing tests, each parametrised over both stores, each printing its case count'"
+    },
+    {
+      "id": "B1-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The wording does not match the enforcement. The ConversationStore.create_conversation docstring says 'Store a new conversation at revision 1', and the plan ruling says 'a new conversation starts at revision 1'. Both stores and CHECK (revision >= 1) refuse only values below 1, so revision 5 is accepted. Either the wording should say 'at revision 1 or more', or the stores should require exactly 1.",
+      "evidence": "src/e_agent/sdk/store.py:241-243; src/e_agent/kernel/memory_conversations.py:41-42; src/e_agent/adapters/postgres/store.py:601-602; 0007_conversations.sql:9"
+    },
+    {
+      "id": "B1-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "There are small cross-store and naming notes. Postgres bumps updated_at with the database's now(), the transaction start time; memory uses the process clock (utc_now()). The CI step is still named 'kernel suite against the PostgreSQL ledger' but now runs the full pg gate set. close-check also reports a stale contract digest, because this commit edits the plan, along with the usual close-ritual items: progress, passes and handoff.",
+      "evidence": "src/e_agent/adapters/postgres/store.py:715 ('updated_at = now()'); src/e_agent/kernel/memory_conversations.py:124; .github/workflows/ci.yml:46; `uv run e-agent-harness close-check` output 'contract is stale: authoritative files changed'"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}

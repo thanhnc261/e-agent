@@ -1,0 +1,86 @@
+{
+  "gate_set": "full",
+  "task": "4d.3",
+  "commit": "99a9eb456e85e2c91f1f9f41c4cf0944deed2e56",
+  "clean_tree": true,
+  "started_at": "2026-10-21T14:24:23.546422+00:00",
+  "ok": true,
+  "commands": [
+    {
+      "command": "uv sync --locked",
+      "exit_code": 0,
+      "seconds": 0.034,
+      "output_tail": "Resolved 86 packages in 4ms\nChecked 82 packages in 1ms",
+      "counts": {}
+    },
+    {
+      "command": "uv run ruff check .",
+      "exit_code": 0,
+      "seconds": 0.094,
+      "output_tail": "All checks passed!",
+      "counts": {}
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "exit_code": 0,
+      "seconds": 0.046,
+      "output_tail": "400 files already formatted",
+      "counts": {}
+    },
+    {
+      "command": "uv run mypy",
+      "exit_code": 0,
+      "seconds": 0.736,
+      "output_tail": "Success: no issues found in 157 source files",
+      "counts": {}
+    },
+    {
+      "command": "uv run lint-imports",
+      "exit_code": 0,
+      "seconds": 0.154,
+      "output_tail": "\n╔══╗─────────▶╔╗ ╔╗      ╔╗◀───┐\n╚╣╠╝◀─────┐  ╔╝╚╗║║────▶╔╝╚╗   │\n ║║   ╔══╦══╦╩╗╔╝║║  ╔╦═╩╗╔╝╔═╦══╗\n ║║╔══╣╔╗║╔╗║╔╣║ ║║ ╔╬╣╔╗║║ ║│║╔═╝\n╔╣╠╣║║║╚╝║╚╝║║║╚╗║╚═╝║║║║║╚╗║═╣║\n╚══╩╩╩╣╔═╩══╩╝╚═╝╚═══╩╩╝╚╩═╩╩═╩╝\n  └──▶║║                    ▲ \n      ╚╝────────────────────┘\n\n\n---------\nContracts\n---------\n\nAnalyzed 173 files, 1263 dependencies.\n--------------------------------------\n\nLayered dependency direction (HLD §4) KEPT\nCore never imports plugins KEPT\nPlugins are guests KEPT\nOnly the facade module imports e_agent.kernel.coordinator KEPT\nDomain packs never import the kernel or server KEPT\nAdapters never import kernel, domains, server or sibling adapters KEPT\nProvider adapters use only public domain APIs, never kernel, server or fixtures KEPT\nServer never imports the ERP simulator; profiles enable it (ADR 0026) KEPT\nERP providers are independent of each other (ADR 0026) KEPT\nDomain bounded contexts are independent (ADR 0002) KEPT\nProduct code never imports the development harness KEPT\nCore packages do not import agent frameworks or provider SDKs KEPT (1 ignored import)\n\nContracts: 12 kept, 0 broken.",
+      "counts": {}
+    },
+    {
+      "command": "uv run python scripts/export_openapi.py --check",
+      "exit_code": 0,
+      "seconds": 0.827,
+      "output_tail": "",
+      "counts": {}
+    },
+    {
+      "command": "uv run pytest -q",
+      "exit_code": 0,
+      "seconds": 74.321,
+      "output_tail": "........................................................................ [  3%]\n.....................................................s.................. [  6%]\n........................................................................ [  9%]\n........................................................................ [ 12%]\n........................................................................ [ 16%]\n........................................................................ [ 19%]\n........................................................................ [ 22%]\n................ssssssssssssssssssssssssssss......................sss... [ 25%]\n........................................................................ [ 29%]\n........................................................................ [ 32%]\n........................................................................ [ 35%]\n........................................................................ [ 38%]\n........................................................................ [ 42%]\n........................................................................ [ 45%]\n........................................................................ [ 48%]\n........................................................................ [ 51%]\n........................................................................ [ 54%]\n........................................................................ [ 58%]\n........................................................................ [ 61%]\n........................................................................ [ 64%]\n........................................................................ [ 67%]\n........................................................................ [ 71%]\n........................................................................ [ 74%]\n........................................................................ [ 77%]\n........................................................................ [ 80%]\n........................................................................ [ 84%]\n........................................................................ [ 87%]\n........................................................................ [ 90%]\n........................................................................ [ 93%]\n........................................................................ [ 96%]\n....................................................................     [100%]\n2196 passed, 32 skipped in 73.76s (0:01:13)",
+      "counts": {
+        "passed": 2196,
+        "skipped": 32
+      }
+    },
+    {
+      "command": "pnpm --dir ui gen:check",
+      "exit_code": 0,
+      "seconds": 1.116,
+      "output_tail": "\n> e-agent-ui@ gen:check /Users/thanhnguyen/dev/projects/personal/e-agent/ui\n> pnpm gen && git diff --exit-code -- packages/client/src/schema.ts packages/tokens/src/generated\n\n\n> e-agent-ui@ gen /Users/thanhnguyen/dev/projects/personal/e-agent/ui\n> openapi-typescript packages/client/openapi.json -o packages/client/src/schema.ts && node packages/tokens/build.mjs\n\n✨ openapi-typescript 7.13.0\n🚀 packages/client/openapi.json → packages/client/src/schema.ts [41.5ms]",
+      "counts": {}
+    },
+    {
+      "command": "pnpm --dir ui check",
+      "exit_code": 0,
+      "seconds": 6.237,
+      "output_tail": "\n✔ no dependency violations found (151 modules, 402 dependencies cruised)\n\n\n> e-agent-ui@ lint:neutral /Users/thanhnguyen/dev/projects/personal/e-agent/ui\n> node scripts/check-provider-neutrality.mjs\n\nok  no provider identifiers in ui/\n\n> e-agent-ui@ build /Users/thanhnguyen/dev/projects/personal/e-agent/ui\n> vite build --config apps/web/vite.config.ts && vite build --config packages/overlay-element/vite.config.ts && vite build --config apps/reference-vanilla/vite.config.ts\n\nvite v8.3.3 building client environment for production...\ntransforming...\n✓ 1406 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/web/index.html                   0.39 kB │ gzip:   0.26 kB\ndist/web/assets/index-BtifC7bb.css   38.99 kB │ gzip:   6.78 kB\ndist/web/assets/index-D-uhWz_I.js   379.68 kB │ gzip: 115.89 kB\n\n✓ built in 129ms\nvite v8.3.3 building client environment for production...\ntransforming...\n✓ 1397 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/web/overlay/e-agent-overlay.js  532.94 kB │ gzip: 134.58 kB\n\n✓ built in 88ms\nvite v8.3.3 building client environment for production...\ntransforming...\n✓ 19 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/web/reference/index.html                  0.42 kB │ gzip:  0.27 kB\ndist/web/reference/assets/index-FX_QZI3v.css   8.25 kB │ gzip:  1.63 kB\ndist/web/reference/assets/index-BXoeAVxG.js   58.93 kB │ gzip: 18.73 kB\n\n✓ built in 25ms",
+      "counts": {
+        "passed": 196
+      }
+    },
+    {
+      "command": "uv run python scripts/check_core_only.py",
+      "exit_code": 0,
+      "seconds": 8.574,
+      "output_tail": "ok  built 9 wheels (core and the test pack) outside dist/\nok  72 third-party versions constrained to uv.lock\nok  54 distributions installed; none of the 4 ERP distributions, none of the 1 ERP packages importable\nok  installed server is ready with only core-test-pack: 2 fields\ncore-only check passed in 8.4s",
+      "counts": {}
+    }
+  ],
+  "finished_at": "2026-10-21T14:25:55.708570+00:00"
+}

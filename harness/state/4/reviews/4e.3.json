@@ -1,0 +1,38 @@
+{
+  "task": "4e.3",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "C3-1",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "In `on`, a legacy (unlinked) run in WAITING_INPUT can never be answered, and the first try makes a conversation that has no run in it. sendMessage builds reply_to from the active run without checking run.conversation_id. When no conversation is set it calls createConversation (a server write) and useConversation(newId), then posts a reply_to that names a run outside that conversation. ADR 0023 §4 check (2) answers that with an enveloped NOT_FOUND every time outside shadow (kernel/conversation.py:310-314). The user sees conversation.notSent ('could not be sent'), which hides that the send can never work. state.conversationId now points at an empty conversation while the active run is legacy. That breaks ADR 0023 §10 / D11 ('no thread is made up for them') and the report's own statement that a legacy run opened in `on` keeps conversationId: null. Reproduced with a scratch probe (real RunController, fake client in `on`, attach of an unlinked WAITING_INPUT run, start('40') twice): createConversation called once, postMessage called twice to conv-new with reply_to {legacy-1, 4}, both NOT_FOUND, submitInput 0, conversationId 'conv-new'. No test covers this. The fix needs a ruling: either the controller refuses locally with its own message and makes no create call, or a legacy answer in `on` may use /inputs (which would amend the 'only when off or not mounted' rule).",
+      "evidence": "ui/packages/ui-core/src/controller.ts:341-351; src/e_agent/kernel/conversation.py:310-314; docs/adr/0023-conversation-model.md §10 (D11)"
+    },
+    {
+      "id": "C3-2",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "Shadow does not keep today's per-run view. With 4e.3 the UI in shadow posts through the conversation route, so linked runs now record conversation.compared, or conversation.shadow_failed, which are not in KNOWN_EVENT_TYPES. Phase 3's context.*, repeat.* and grounding.* are also missing. applyEvent counts each one as unsupported and forces an extra snapshot read, and selectTimeline gives it an 'Unsupported event (view refreshed)' row. That contradicts plan line 147 and ADR 0023 §9 (shadow holds back only the refusal and the carried context) and roadmap rule 3 / ENG-TOGGLE-1. Test 2 passes only because its fake emits no conversation.* event. The coordinator's ruling is safe with three conditions: (a) adding the names to KNOWN_EVENT_TYPES alone is not enough, because selectTimeline would then return labelKey 'event.conversation.compared' and translate() falls back to the raw key, so 'no row' needs an explicit hidden set filtered in selectTimeline; (b) hidden events must still go into view.events and advance lastSequence, or gap detection breaks; (c) context.failed (ADR 0032 §11, a skipped turn with a code) is closer to feature.fallback, which renders a row, than to a shadow comparison, so whether to hide it should be decided on purpose. The payloads are ids, counts and digests (ADR 0023 §11), so hiding them hides no user data. Add a test that a shadow run carrying conversation.compared gives the same timeline and unsupportedEvents as one without it.",
+      "evidence": "ui/packages/ui-core/src/store.ts:8-35, 90-91, 196; docs/plans/2026-10-20-phase4-conversation-chat.md:147; src/e_agent/contracts/events.py:43-68"
+    },
+    {
+      "id": "C3-3",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "After a lost response the outcome is unknown, yet sending an edited text gets a fresh key and is posted without a guard. In shadow that can turn one intended message into two runs. The key is reused only when reuse.text === text. The legacy path refuses a different text while a submission is pending (error.pending), and the conversation path has no such guard. newTask() and useConversation() also clear pendingMessage, while the legacy path keeps pendingSubmission. Reproduced with a scratch probe in shadow: start('restock A') fails with a network error, then start('restock A, 10 units') posts with a new key and returns true, with no error. If the first post was committed and its run is still active, the server's router would refuse the second, but in shadow a refused message starts an unlinked run (ADR 0023 §9), so the user ends up with two runs. In `on` the router's refusal protects the user. PR-18 asks not to replay a possibly committed write without a guarantee. Keep the legacy parity: while pendingMessage is set, refuse a different text with error.pending, and do not clear it on New task.",
+      "evidence": "ui/packages/ui-core/src/controller.ts:352-357, 466-470 (versus 316-318)"
+    },
+    {
+      "id": "C3-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The request() fix is right: it parses the body in a try block, sets enveloped from a string `code`, and leaves the success path unchanged. The real-client test covers only the text/plain 405. The two JSON error bodies that the fallback rule turns on reach the controller tests only as ApiErrors built by hand: an enveloped {code:'NOT_FOUND', ...} that must not fall back, and FastAPI's {detail:'Not Found'} 404 that must. Two more fake-fetch cases in conversation.test.ts would pin request()'s envelope detection. ui/packages/client/test/ does exist (list-events.test.ts), but it is outside this contract's allowed_paths.",
+      "evidence": "ui/packages/client/src/index.ts:268-285; ui/packages/ui-core/test/conversation.test.ts:380-402"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

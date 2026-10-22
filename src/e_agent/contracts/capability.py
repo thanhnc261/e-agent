@@ -7,10 +7,11 @@ from collections.abc import Mapping
 from enum import StrEnum
 from typing import Any, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, field_serializer, field_validator, model_validator
 
 from .common import Record
 from .data_classes import DataClass, check_class_key
+from .value_formats import NO_FORMATS, frozen_formats
 
 _CONTRACT_ID = re.compile(r"^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+\.v[0-9]+$")
 
@@ -84,6 +85,14 @@ class CapabilityDescriptor(Record):
     restrictive one declared on its path or an ancestor; an undeclared value is
     ``personal``. The schemas are unchanged, so the model-facing tool schemas are too;
     admission refuses a path that resolves to no property of the schema."""
+    answer_value_formats: Mapping[str, str] = NO_FORMATS
+    """Value formats of an answer's input paths (ADR 0023 §7, D17, sdk_api 1.2), keyed by
+    instance path as ``data_classes`` is; each value is a format of the closed set in
+    ``contracts/value_formats.py``. Only an ``answer`` declares formats. The host carries
+    a verified answer's value only on a path with a format, and never shows the formats
+    to the model; admission refuses a path the input schema lacks, a format its type
+    cannot hold and a path no ``data_classes`` entry covers. The validator stores a
+    frozen copy (review A1-1)."""
 
     def __hash__(self) -> int:
         # The mapping field is not hashable; equal descriptors share a contract id.
@@ -101,6 +110,15 @@ class CapabilityDescriptor(Record):
             check_class_key(key)
         return value
 
+    @field_validator("answer_value_formats")
+    @classmethod
+    def _freeze_value_formats(cls, value: Mapping[str, str]) -> Mapping[str, str]:
+        return frozen_formats(value)
+
+    @field_serializer("answer_value_formats")
+    def _dump_value_formats(self, value: Mapping[str, str]) -> dict[str, str]:
+        return dict(value)
+
     @field_validator("compensating_contract_id")
     @classmethod
     def _check_compensating_id(cls, value: str | None) -> str | None:
@@ -108,6 +126,8 @@ class CapabilityDescriptor(Record):
 
     @model_validator(mode="after")
     def _check_effect_declarations(self) -> Self:
+        if self.answer_value_formats and self.effect is not EffectKind.ANSWER:
+            raise ValueError("only an answer capability declares answer_value_formats")
         if self.risk is Risk.READ and self.effect is EffectKind.WRITE:
             raise ValueError("a write capability may not declare risk 'read'")
         compensable = self.reversibility is Reversibility.COMPENSABLE

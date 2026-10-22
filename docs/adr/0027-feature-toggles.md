@@ -2,6 +2,8 @@
 
 Date: 2026-10-14. Status: Accepted (owner, 2026-10-18, gate G1 of the Phase 2 plan). Refines roadmap rule 3 and ENG-TOGGLE-1..3; [target architecture](../design/target-architecture.md) §6.4.8.
 
+Refined by [ADR 0023](0023-conversation-model.md) (accepted at gate G-A, 2026-10-20) for `features.conversations` only: its `shadow` links runs to conversations and writes conversation rows, and adds no driver call, provider read, budget use, refusal or carried context (ADR 0023 §9).
+
 ## Context
 
 Roadmap rule 3 requires every new runtime feature (execution IR, ContextAssembler, conversations, grounded answers, action plans) to ship behind a profile toggle `off | shadow | on`, with fallback only before a write is reserved. Nothing in the code implements it: the `Profile` record in `server/profile.py` has no `features` field, and no `feature.fallback` event exists. Phase 2's first runtime task (2b.1) builds it, and every later phase uses it. The [adoption review](../reviews/2026-10-14-x-agent-adoption-review.md) (XA-24) adds that a shadow path must have a real comparison consumer, and that a toggle is not cover for a stub.

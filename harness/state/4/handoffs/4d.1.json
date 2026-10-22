@@ -1,0 +1,28 @@
+{
+  "task": "4d.1",
+  "changed": "Conversation message routing in the kernel (ADR 0023 \u00a74). kernel/conversation.py: the pure route_message, ConversationFlow.post_message and the public latest_run (the active run if any, else the last listed; ruling R2). Checks run in this order: (0) idempotency lookup and digest compare, (1) owner, (2) reply_to membership, (3) input_replayed, then the route. A same-key retry that lands on the refuse path reads the idempotency record again, so it replays instead of conflicting (A1-1). coordinator.py: create_conversation, post_message and the private _admit_run_in_conversation. run_loop.py: input_replayed, moved from the /inputs handler, which now calls it. 22 routing tests run on both stores. Commits 69b7bb0d and 28e29763 (review fixes). Reviews: 4d.1-A.json (rework, A1-1), 4d.1-B.json (accept), 4d.1-r2.json (accept).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4d.1/2026-10-21T12-49-22.986449+00-00-full.json",
+    "harness/state/evidence/gates/4d.1/2026-10-21T12-51-04.653190+00-00-pg.json"
+  ],
+  "open_items": [
+    "A1-2/B1-1: a reply_to that names a run of this conversation while the latest run is terminal starts a new run, per the ADR 0023 \u00a74 table. Both reviewers prefer CONFLICT 'the question changed; read it again'. This needs the owner's A/B answer before 4d.4 ships the route.",
+    "4d.4 acceptance (B1-2): one tested request-digest function covering conversation_id, text, reply_to and host_context, plus a test that one key posted to two conversations gives CONFLICT.",
+    "4d.4 acceptance (B1-3): a 422 test for empty message text and for text over 4000 characters.",
+    "4d.4 acceptance (B1-4): HTTP-level coverage of the FORBIDDEN order on /inputs; pass rt.scope as resource_scope.",
+    "4d.3: the shadow comparison must use conversation.latest_run (A1-3/B1-8).",
+    "A1-5(a): an ANSWER whose run moves between the listing and accept_input gets accept_input's '/inputs' hint, not QUESTION_CHANGED. It still fails closed.",
+    "A1-5(d): ADR 0023 \u00a74 and the plan still cite server/api.py:467-478 for the replay check. Re-cite run_loop.input_replayed at phase close."
+  ],
+  "rulings": [
+    {
+      "ruling": "Keep the ADR routing (start) for a reply_to while the latest run is terminal until the owner answers.",
+      "cost_if_wrong": "one route change and a test in 4d.4"
+    },
+    {
+      "ruling": "R2: the latest run is the active run if any, else the last listed; do not order by created_at.",
+      "cost_if_wrong": "the 4d.3 shadow comparison diverges on equal timestamps"
+    }
+  ],
+  "outside_repo": []
+}

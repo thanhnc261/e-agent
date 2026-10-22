@@ -29,6 +29,7 @@ from e_agent.sdk.ports import (
     ProposePlan,
     RequestReads,
 )
+from e_agent.sdk.store import EventSpec
 
 from .context_on import ContextOnMixin, ContextUnavailable
 from .errors import ErrorCode, KernelError
@@ -248,8 +249,12 @@ class RunLoopMixin(GatewayMixin, ContextOnMixin):
         expected_revision: int,
         *,
         enqueue: bool = False,
+        events: Sequence[EventSpec] = (),
     ) -> RunRecord:
-        """Resume the requester's persisted run; input grants no additional authority."""
+        """Resume the requester's persisted run; input grants no additional authority.
+        ``events`` are recorded in the same write, after the input's (a ``conversations:
+        shadow`` fallback's ``conversation.shadow_failed``, ADR 0023 §9); ``/inputs`` passes
+        none."""
         run = await self._store.get_run(actor.tenant_id, run_id)
         if actor.principal_id != run.requester_id:
             raise KernelError(ErrorCode.FORBIDDEN, "only the requester may answer")
@@ -287,6 +292,7 @@ class RunLoopMixin(GatewayMixin, ContextOnMixin):
                     },
                     None,
                 ),
+                *events,
             ],
             continuation=self._snapshot(run_id),
             work=("input", {}, digest({"revision": str(expected_revision), "input": text}))
@@ -294,6 +300,25 @@ class RunLoopMixin(GatewayMixin, ContextOnMixin):
             else None,
         )
         return run
+
+    async def input_replayed(
+        self, actor: Principal, tenant_id: str, run_id: str, expected_revision: int, text: str
+    ) -> bool:
+        """Whether ``text`` was already accepted at ``expected_revision`` (a retried answer).
+
+        A non-requester is ``FORBIDDEN`` before any event is read. A run still waiting at
+        ``expected_revision`` is no replay and reads no event (ADR 0023 §4)."""
+        run = await self._store.get_run(tenant_id, run_id)
+        if actor.principal_id != run.requester_id:
+            raise KernelError(ErrorCode.FORBIDDEN, "only the requester may answer")
+        if run.revision == expected_revision and run.state is RunState.WAITING_INPUT:
+            return False
+        return any(
+            e.type is RunEventType.INPUT_RECEIVED
+            and e.payload.get("expected_revision") == expected_revision
+            and e.payload.get("input") == text
+            for e in await self._store.list_events(tenant_id, run_id)
+        )
 
     async def continue_input(self, tenant_id: str, run_id: str) -> RunRecord:
         run = await self._store.get_run(tenant_id, run_id)

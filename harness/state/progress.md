@@ -789,3 +789,178 @@
 - changed: harness/state/3/features.json, harness/state/3/handoffs/3.R3.json, harness/state/evidence/gates/3.R3/2026-10-20T12-28-32.878734+00-00-full.json
 - next: CI green on PR #7; owner merges; then Phase 4 plan
 - open: none
+
+## 2026-10-20T13:45:37.182067+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3.R3
+- changed: docs/plans/2026-10-20-phase4-conversation-chat.md, harness/state/4/reviews/4-plan-r2.json
+- next: uv run python scripts/check_wheels.py passes locally
+- open: none
+
+## 2026-10-20T14:03:55.153451+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 3.R3
+- changed: harness/state/progress.md
+- next: uv run python scripts/check_wheels.py passes locally
+- open: none
+
+## 2026-10-20T14:59:15.582837+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4a.1
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4a.1.json, harness/state/evidence/gates/4a.1/2026-10-20T14-39-21.833391+00-00-full.json, harness/state/evidence/gates/4a.1/2026-10-20T14-53-12.984558+00-00-full.json, harness/state/evidence/gates/4a.1/2026-10-20T14-57-01.208337+00-00-full.json
+- next: G-A owner questions; open task 4b.1 meanwhile
+- open: none
+
+## 2026-10-20T15:17:19.702657+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4a.2
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4a.2.json, harness/state/evidence/gates/4a.2/2026-10-20T15-15-16.900796+00-00-full.json
+- next: open task 4b.1 (legacy run.state_changed rows render without undefined)
+- open: none
+
+## 2026-10-20T15:21:41.504576+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4b.1
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4b.1.json, harness/state/4/reviews/4b.1-r1.json, harness/state/evidence/gates/4b.1/2026-10-20T15-19-54.723142+00-00-full.json
+- next: open task 4b.2 (reply label once per thread)
+- open: none
+
+## 2026-10-20T15:25:40.173417+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4b.2
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4b.2.json, harness/state/4/reviews/4b.2-r1.json, harness/state/evidence/gates/4b.2/2026-10-20T15-23-53.695341+00-00-full.json
+- next: open task 4b.3 (Context chip copy)
+- open: none
+
+## 2026-10-20T15:28:44.426586+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4b.3
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4b.3.json, harness/state/4/reviews/4b.3-r1.json, harness/state/evidence/gates/4b.3/2026-10-20T15-26-54.257545+00-00-full.json
+- next: open task 4b.4 (sidebar Your turn) and the 4b UX review
+- open: none
+
+## 2026-10-20T15:51:07.260079+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4b.4
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4b.4.json, harness/state/4/reviews/4b.4-r1.json, harness/state/evidence/gates/4b.4/2026-10-20T15-32-09.571608+00-00-full.json, harness/state/evidence/gates/4b.4/2026-10-20T15-49-22.787824+00-00-full.json
+- next: G-0 owner answers, then task 4b.5 (chat defects review resolution)
+- open: none
+
+## 2026-10-20T16:27:12.930441+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4b.5
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4b.5.json, harness/state/4/reviews/4b.5-r1.json, harness/state/evidence/gates/4b.5/2026-10-20T16-17-28.926637+00-00-full.json, harness/state/evidence/gates/4b.5/2026-10-20T16-23-50.080345+00-00-full.json
+- next: open task 4c.1 (features.conversations toggle)
+- open: none
+
+## 2026-10-20T16:46:06.790049+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4c.1
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4c.1.json, harness/state/evidence/gates/4c.1/2026-10-20T16-40-14.352672+00-00-full.json, harness/state/evidence/gates/4c.1/2026-10-20T16-44-20.374449+00-00-full.json
+- next: open task 4c.2 (Conversation contract and RunRecord.conversation_id)
+- open: none
+
+## 2026-10-21T10:56:58.778934+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4c.2
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4c.2.json, harness/state/evidence/gates/4c.2/2026-10-21T10-49-27.117331+00-00-full.json, harness/state/evidence/gates/4c.2/2026-10-21T10-55-13.643697+00-00-full.json
+- next: open task 4c.3 (ConversationStore on both stores, migration 0007)
+- open: none
+
+## 2026-10-21T11:40:28.976860+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4c.3
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4c.3.json, harness/state/evidence/gates/4c.3/2026-10-21T11-37-04.698235+00-00-full.json, harness/state/evidence/gates/4c.3/2026-10-21T11-38-35.932209+00-00-pg.json
+- next: open task 4c.4 (answer value formats in the manifest, D17)
+- open: none
+
+## 2026-10-21T12:16:09.332890+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4c.4
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4c.4.json, harness/state/evidence/gates/4c.4/2026-10-21T12-14-23.143772+00-00-full.json
+- next: open task 4d.1 (message routing in the kernel facade)
+- open: none
+
+## 2026-10-21T12:44:40.184098+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4d.1
+- changed: harness/state/4/reviews/4d.1-B.json, harness/state/evidence/gates/4d.1/2026-10-21T12-37-15.990933+00-00-full.json, harness/state/evidence/gates/4d.1/2026-10-21T12-38-52.740791+00-00-pg.json
+- next: tests/unit/kernel/test_conversation_routing.py passes on both stores
+- open: none
+
+## 2026-10-21T12:53:21.309859+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4d.1
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4d.1.json, harness/state/4/reviews/4d.1-r2.json, harness/state/evidence/gates/4d.1/2026-10-21T12-49-22.986449+00-00-full.json, harness/state/evidence/gates/4d.1/2026-10-21T12-51-04.653190+00-00-pg.json
+- next: open task 4d.2 (carried context, ADR 0023 §6)
+- open: none
+
+## 2026-10-21T13:40:58.983850+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4d.2
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4d.2.json, harness/state/evidence/gates/4d.2/2026-10-21T13-37-21.836239+00-00-full.json, harness/state/evidence/gates/4d.2/2026-10-21T13-38-58.578000+00-00-pg.json
+- next: open task 4d.3 (conversations: shadow, comparison and fallback)
+- open: none
+
+## 2026-10-21T14:28:06.572527+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4d.3
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4d.3.json, harness/state/4/reviews/4d.3-r2.json, harness/state/evidence/gates/4d.3/2026-10-21T14-24-23.546422+00-00-full.json, harness/state/evidence/gates/4d.3/2026-10-21T14-25-55.827269+00-00-pg.json
+- next: open task 4d.4 (API routes, member features, route authorization); needs the owner's A/B answer on reply_to to an ended run
+- open: none
+
+## 2026-10-21T15:14:09.089167+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4d.4
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4d.4.json, harness/state/4/reviews/4d.4-r2.json, harness/state/evidence/gates/4d.4/2026-10-21T15-10-13.003158+00-00-full.json, harness/state/evidence/gates/4d.4/2026-10-21T15-11-48.251182+00-00-pg.json
+- next: open task 4d.5 (a fixture thread end to end)
+- open: none
+
+## 2026-10-21T15:44:12.373655+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4d.5
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4d.5.json, harness/state/evidence/gates/4d.5/2026-10-21T15-40-02.807482+00-00-full.json, harness/state/evidence/gates/4d.5/2026-10-21T15-41-44.166981+00-00-pg.json
+- next: open task 4e.1 (UI, ag-* stages; stops at gate G-B)
+- open: none
+
+## 2026-10-21T16:51:16.482470+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4e.1
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4e.1.json, harness/state/evidence/gates/4e.1/2026-10-21T16-49-11.884973+00-00-full.json
+- next: open task 4d.6 (refuse an answer to an ended run, G-B 3), then 4e.2
+- open: none
+
+## 2026-10-21T17:02:03.399198+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4d.6
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4d.6.json, harness/state/4/tasks/4d.6.json, harness/state/evidence/gates/4d.6/2026-10-21T16-54-52.324287+00-00-full.json, harness/state/evidence/gates/4d.6/2026-10-21T16-56-29.263822+00-00-pg.json, harness/state/evidence/gates/4d.6/2026-10-21T17-00-05.222421+00-00-full.json
+- next: open task 4e.2 (mockup, gate G-C)
+- open: none
+
+## 2026-10-21T19:06:16.553187+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4e.2
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4e.2.json, harness/state/evidence/gates/4e.2/2026-10-21T19-04-22.260486+00-00-full.json
+- next: open task 4e.3 (ui-core conversation state)
+- open: none
+
+## 2026-10-21T19:47:08.898974+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4e.3
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4e.3.json, harness/state/4/reviews/4e.3-r2.json, harness/state/evidence/gates/4e.3/2026-10-21T19-44-55.498384+00-00-full.json
+- next: open task 4e.4 (thread view, sidebar, closable workspace)
+- open: none
+
+## 2026-10-21T20:13:50.820732+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4e.4
+- changed: ui/packages/components/src/components.css, ui/packages/components/src/features/composer/Composer.tsx, ui/packages/components/src/features/composer/ContextPreview.tsx, ui/packages/components/src/features/composer/RefusalHint.tsx, ui/packages/components/src/features/composer/StopSlot.tsx, ui/packages/components/src/features/conversation/Messages.tsx, ui/packages/components/src/features/conversation/RunCard.tsx, ui/packages/components/src/features/conversation/Thread.tsx, ui/packages/components/src/features/conversation/workspace.ts, ui/packages/components/src/features/task-navigation/TaskNavigation.tsx, ui/packages/components/src/features/timeline/Timeline.tsx, ui/packages/components/src/index.tsx, ui/packages/components/src/primitives/TextAreaField.tsx, ui/packages/layouts/src/presentation/Layout.tsx, ui/packages/layouts/src/shared/ArtifactWorkspace.tsx, ui/packages/layouts/src/shared/TaskSurface.tsx, ui/packages/layouts/src/shared/ThreadSurface.tsx, ui/packages/layouts/src/shared/workspaceFocus.ts, ui/packages/ui-conformance/src/axe.ts, ui/packages/ui-conformance/src/index.ts, ui/packages/ui-conformance/src/mock-api.ts, ui/packages/ui-conformance/tests/conversation.spec.ts, ui/packages/ui-core/src/controller.ts, ui/packages/ui-core/src/i18n.ts, ui/packages/ui-core/src/index.ts, ui/packages/ui-core/src/selectors/thread.ts, ui/packages/ui-core/src/store.ts, ui/packages/ui-core/test/conversation.test.ts, ui/packages/ui-core/test/public-api.test.ts, ui/packages/ui-core/test/thread.test.ts
+- next: conversation.spec.ts passes, axe check per state
+- open: none
+
+## 2026-10-21T20:52:14.744390+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4e.4
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4e.4.json, harness/state/evidence/gates/4e.4/2026-10-21T20-50-21.840151+00-00-full.json
+- next: open task 4e.5 (citations and the explanation)
+- open: none
+
+## 2026-10-21T21:23:38.189923+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4e.5
+- changed: no working-tree changes
+- next: citations.test.tsx and explanation.spec.ts pass
+- open: none
+
+## 2026-10-21T21:30:49.306011+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4e.5
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4e.5.json, harness/state/evidence/gates/4e.5/2026-10-21T21-28-41.657302+00-00-full.json
+- next: open task 4e.7 (UI review, gate G-D)
+- open: none
+
+## 2026-10-22T03:43:43.242430+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4e.7
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4e.7.json, harness/state/evidence/gates/4e.7/2026-10-22T03-41-43.138350+00-00-full.json
+- next: owner confirms new VI since G-D; then open task 4f.1 (end-of-phase verification)
+- open: none
+
+## 2026-10-22T04:24:28.052585+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4f.1
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4f.1.json, harness/state/evidence/gates/4f.1/2026-10-22T04-18-51.228455+00-00-full.json, harness/state/evidence/gates/4f.1/2026-10-22T04-20-28.589529+00-00-pg.json
+- next: owner: confirm new VI since G-D and context.noHost; then 4f.2 live check on the owner's instruction
+- open: none
+
+## 2026-10-22T04:26:22.451872+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4f.1
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4f.1.json, harness/state/evidence/gates/4f.1/2026-10-22T04-24-35.498585+00-00-full.json
+- next: owner: confirm new VI since G-D and context.noHost; then 4f.2 live check on the owner's instruction
+- open: none
+
+## 2026-10-22T06:50:23.581900+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4.R2
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4.R2.json, harness/state/evidence/gates/4.R2/2026-10-22T06-48-32.190243+00-00-full.json
+- next: 4f.2 live check (advisor go with hard stops): re-pin check, then live-sandbox
+- open: none
+
+## 2026-10-22T11:02:28.171755+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4f.2
+- changed: no working-tree changes
+- next: uv run e-agent-harness live-check passes and writes evidence under harness/state/evidence/live/
+- open: none
+
+## 2026-10-22T11:09:02.603486+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4f.2
+- changed: harness/state/evidence/gates/4f.2/2026-10-22T11-04-35.699896+00-00-full.json, harness/state/evidence/gates/4f.2/2026-10-22T11-06-35.991847+00-00-e2e.json
+- next: 4f.2 live check: waits for the owner to renew both Odoo keys and say go; merge waits for the owner's ask
+- open: none
+
+## 2026-10-22T11:12:56.555211+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4f.2
+- changed: harness/state/4/features.json, harness/state/evidence/gates/4f.2/2026-10-22T11-11-15.567847+00-00-full.json
+- next: Do NOT set F-4f-2 passing: its steps are the live check; the full/e2e evidence under gates/4f.2/ is the 4.R3 gate (F-4R-3). 4f.2 waits for the owner's key renewal and 'go'; merge waits for the owner's ask.
+- open: none
+
+## 2026-10-22T13:02:25.827231+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4f.2
+- changed: harness/state/evidence/gates/4f.2/2026-10-22T13-00-34.526536+00-00-full.json
+- next: Phase 4 merging as PR #8. Do NOT set F-4f-2 passing: its steps are the live check; gates under gates/4f.2/ are 4.R3/4.R4 evidence. 4f.2 waits for the owner's key renewal and 'go'; branch from main before it writes.
+- open: none

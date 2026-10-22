@@ -11,6 +11,7 @@ import {
   reduceRunView,
   selectConversation,
   selectPendingReply,
+  selectTimeline,
   type RunView,
 } from "../src/store.ts";
 import type { RunEvent, RunRecord } from "@e-agent/client";
@@ -182,6 +183,16 @@ describe("conversation item kind (ADR 0022)", () => {
     expect(kindOf({ question: "x", kind: "something-new" })).toBe("message");
   });
 
+  it("marks only the first reply of a thread", () => {
+    const view = viewWith("WAITING_INPUT", [
+      event(1, "input.requested", { question: "Hello!", kind: "reply" }),
+      event(2, "input.received", { input: "hi" }),
+      event(3, "input.requested", { question: "Hi again!", kind: "reply" }),
+      event(4, "input.requested", { question: "Which one?", kind: "clarification" }),
+    ]);
+    expect(selectConversation(view).map(m => m.firstReply)).toEqual([true, false, false, false]);
+  });
+
   it("marks only the pending question and flags a pending reply for the status label", () => {
     const view = viewWith("WAITING_INPUT", [
       event(1, "input.requested", { question: "Hello!", kind: "reply" }),
@@ -222,5 +233,52 @@ describe("a recorded question replaces its streamed text (plan Task 5)", () => {
       snapshot: { run: run("WAITING_INPUT"), latest_sequence: 0, actions: [], pending_approval: null },
     });
     expect(view.streamingText).toBe("");
+  });
+});
+
+describe("timeline transitions", () => {
+  it("renders a legacy state row as unknown → RUNNING", () => {
+    const [item] = selectTimeline(viewWith("RUNNING", [event(1, "run.state_changed", { state: "RUNNING" })]));
+    expect(item?.detail).toBe("unknown → RUNNING");
+    expect(item?.transition).toEqual({ from: "unknown", to: "RUNNING" });
+  });
+
+  it("never prints undefined in a transition", () => {
+    const items = selectTimeline(
+      viewWith("RUNNING", [
+        event(1, "run.state_changed", {}),
+        event(2, "run.state_changed", { state: "RUNNING" }),
+        event(3, "run.state_changed", { from: "CREATED", to: "RUNNING" }),
+      ]),
+    );
+    for (const item of items) {
+      expect(item.detail).not.toContain("undefined");
+      expect(item.transition?.from).not.toBe("undefined");
+      expect(item.transition?.to).not.toBe("undefined");
+    }
+    expect(items[2]?.detail).toBe("CREATED → RUNNING");
+    expect(translate("en", "status.unknown")).toBe("Unknown");
+    expect(translate("vi", "status.unknown")).not.toBe("status.unknown");
+  });
+});
+
+describe("F-5 timeline reply turn", () => {
+  it("F-5 marks a WAITING_INPUT change after a reply as the user's turn, both ways", () => {
+    const items = selectTimeline(
+      viewWith("RUNNING", [
+        event(1, "input.requested", { question: "Hello! What next?", kind: "reply" }),
+        event(2, "run.state_changed", { from: "RUNNING", to: "WAITING_INPUT" }),
+        event(3, "input.received", { input: "hi" }),
+        event(4, "run.state_changed", { from: "WAITING_INPUT", to: "RUNNING" }),
+        event(5, "input.requested", { question: "Which supplier?", kind: "clarification" }),
+        event(6, "run.state_changed", { from: "RUNNING", to: "WAITING_INPUT" }),
+        event(7, "run.state_changed", { from: "WAITING_INPUT", to: "RUNNING" }),
+      ]),
+    );
+    const transitions = items.flatMap(i => (i.transition ? [i.transition] : []));
+    expect(transitions[0]).toMatchObject({ to: "WAITING_INPUT", toReply: true });
+    expect(transitions[1]).toMatchObject({ from: "WAITING_INPUT", fromReply: true });
+    expect(transitions[2]?.toReply).toBeFalsy();
+    expect(transitions[3]?.fromReply).toBeFalsy();
   });
 });

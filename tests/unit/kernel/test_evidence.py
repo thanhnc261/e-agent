@@ -113,6 +113,7 @@ async def test_evidence_records_features(make_kernel: Callable[..., Kernel]) -> 
         "context_assembler": "off",
         "kernel_repeat": "off",
         "grounded_answers": "off",
+        "conversations": "off",
     }
     assert "modes" not in off  # an all-off run pins nothing (ADR 0032 §8)
     shadow = await _bundle(make_kernel(), Features(execution_ir=FeatureMode.SHADOW))

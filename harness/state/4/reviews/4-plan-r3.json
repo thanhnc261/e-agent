@@ -1,0 +1,28 @@
+{
+  "task": "4-plan",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "PL3-1",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "D17's default (c) does not meet the core plan's Phase 1 exit ('the second run uses the first run's findings without re-asking'), and the plan does not say so.\n- Every ShortageAnswer field is a bare string, the refs included (model_json_schema: demand_ref and product_ref have type string with no pattern). So under D5 even the answer's demand_ref and product_ref, which record which product is short, are dropped.\n- Run 2 gets only every ref run 1 read (read.recorded) plus the user's text. It must re-derive the finding, not use it. Only 'without re-asking' is met.\n- The Self-review still maps the core plan exit to 4d.5 and 4f.2 item 4 as if it were met in full.\n- The reason given for excluding option (b) is true: off_model_request_erp.json embeds the answer tool schema ('demand_quantity' appears 6 times), so adding a pattern changes the off model request.\nFix, either of:\n- Have D17 state that (c) narrows the core plan exit to 'without re-asking', and record the owner's acceptance of that narrowing at G-A (core plan and roadmap note).\n- Add an option (d) with no schema change: carry an answer's string field only when its value equals a source_ref the same run recorded in read.recorded (a host-checked ref, not free text). That carries 'which demand and product' and keeps the exit.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md@f8649f4 D5, D17 rows (lines 38, 50), 4d.5 assertion; docs/plans/2026-10-12-core-conversation-cognition.md:95; src/e_agent/plugins/erp/domain/procurement/api.py:91-99; tests/unit/plugins/erp/simulator/golden/off_model_request_erp.json"
+    },
+    {
+      "id": "PL3-2",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "A retried start cannot be replayed. In post_message, the checks are ownership, then reply_to membership, then input_replayed, then route. For a retried start message (same Idempotency-Key), the conversation's latest run is now the first message's run, which is CREATED or RUNNING, so route_message refuses it with CONFLICT in on. The store has the same problem: create_run_in_conversation runs the revision and active-run checks before 'creates the run as create_run_idempotent does', and the memory lock order is check → super().create_run_idempotent → bump. So the idempotent replay is unreachable while the first run is non-terminal. As specified, test_retried_message_starts_one_run (4d.1) and test_idempotent_replay_starts_one_run (4c.3) cannot both pass. Fix: look up the message's idempotency record (tenant, actor, key) first, before routing and before the conversation checks, both in post_message and in create_run_in_conversation (memory and Postgres). A hit with the same digest returns the first route and run; a hit with another digest is CONFLICT (PR-17, ENG-TRUST-4).",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md@f8649f4 4c.3 Interfaces (create_run_in_conversation, memory locking), 4d.1 Interfaces (check order, start); src/e_agent/kernel/memory_store.py:129-132"
+    },
+    {
+      "id": "PL3-3",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "The UI fallback depends on telling 'the conversations route is 404 because it is not mounted' apart from the off-mode 404 ('conversations are off') and a missing-conversation 404. If the UI cannot tell them apart, a missing-conversation 404 in on sends the message to POST /v1/runs with a fresh key, which creates an unlinked run in on. Distinguish the cases by error code or message, not by status alone, and test it in 4e.3.",
+      "evidence": "docs/plans/2026-10-20-phase4-conversation-chat.md@f8649f4 Toggles and fallback, 'UI fallback' paragraph; 4e.3 test list"
+    }
+  ],
+  "reviewer": {"provider": "claude-opus", "fresh_context": true}
+}

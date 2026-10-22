@@ -1,0 +1,37 @@
+{
+  "task": "4d.3",
+  "changed": "conversations: shadow (ADR 0023 \u00a79, ADR 0027). Routing in post_message follows the profile toggle; carry and compare at admission follow the run's pinned mode. Shadow admission builds the carried items and the recent_turns layer through the same _Turns code as on, records conversation.compared {conversation_id, route, carried_run_ids, items, layer_digest, layer_tokens, masked, dropped}, and gives the driver nothing (cont.carried stays empty). A message the router would refuse starts an unlinked run and records route: refuse. A stale reply_to is still CONFLICT. A linked start or answer that fails in the conversation step falls back inside the same request, under the message's idempotency record, to an unlinked run or a plain accept_input, and records conversation.shadow_failed {stage, code, message}. Each fallback is one write: accept_input gains a keyword-only events parameter, so /inputs and on are unchanged. In the read-failure fallback, a reply_to naming an absent or foreign run is NOT_FOUND, never FORBIDDEN. The fixture corpus tests/unit/kernel/fixtures/conversation_threads.json has 5 threads; the consumer test_shadow_layer_digest_equals_on_layer_digest runs 10 cases and fails on zero. The OpenAPI document and schema.ts are regenerated. Commits 2796508b, 82368007, a110063c (one-write fallback) and 88e874af (review fix). Reviews 4d.3-A and 4d.3-B accept; 4d.3-r2 accept.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4d.3/2026-10-21T14-24-23.546422+00-00-full.json",
+    "harness/state/evidence/gates/4d.3/2026-10-21T14-25-55.827269+00-00-pg.json"
+  ],
+  "open_items": [
+    "4d.4: build the evidence bundle's conversation key (ADR 0023 \u00a712; plan line 594). A3-8, B3-4.",
+    "4d.4: when off refuses NOT_FOUND, re-baseline test_shadow_adds_no_model_call_read_or_budget and test_carry_runs_only_for_a_run_pinned_on[off], which post through the conversation route in off. B3-4.",
+    "Phase-close ADR 0023 lines. B3-1, \u00a79: a NotFound at read time stays NOT_FOUND; only one at insert falls back. A refused message with any reply_to is CONFLICT. Routing follows the profile toggle, while compare and carry follow the pin. B3-2, \u00a711: the items sub-keys, what masked and dropped count, the message key on shadow_failed, and that layer_digest and layer_tokens describe the recent_turns budget fit.",
+    "A3-3/B3-6: every corpus case has masked == 0 and dropped == 0. Digest equality is not shown for a masked or budget-trimmed layer, and there is no test of the known divergence when the pack's second fit drops a carried run.",
+    "A3-2: _own_unlinked accepts any of the caller's own unlinked runs, not only ones a fallback made, with the same authority as /inputs. A3-6: the catch in _start is broader than a conversation-row error; the net behaviour is still today's.",
+    "A3-5: a carry bug is recorded as DEPENDENCY_UNAVAILABLE because there is no INTERNAL code.",
+    "A3-7/B3-5: coordinator.py imports the private context._Turns. A follow-up could add a public helper in context.py that builds and fits the recent_turns layer. failure_code's ConcurrencyConflict branch looks unreachable.",
+    "R3-1: in the read-failure fallback, _run_of can raise a raw store error when the store is down, as the old path did."
+  ],
+  "rulings": [
+    {
+      "ruling": "Routing follows the profile toggle (no run exists yet); carry and compare at admission follow the run's pinned RunModes.conversations.",
+      "cost_if_wrong": "rework of the mode lookup"
+    },
+    {
+      "ruling": "Each shadow fallback is one store write (PR-17); scope widened to kernel/run_loop.py for accept_input's events keyword.",
+      "cost_if_wrong": "none"
+    },
+    {
+      "ruling": "In the conversation-read-failure fallback, a reply_to naming a run the caller does not own is NOT_FOUND: the plan's 'never FORBIDDEN' wins over parity with /inputs.",
+      "cost_if_wrong": "one branch"
+    },
+    {
+      "ruling": "A non-kernel error in the conversation step is recorded with code DEPENDENCY_UNAVAILABLE.",
+      "cost_if_wrong": "a new reason code"
+    }
+  ],
+  "outside_repo": []
+}

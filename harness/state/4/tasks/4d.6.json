@@ -1,0 +1,27 @@
+{
+  "id": "4d.6",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4d-6"
+  ],
+  "context_digest": "ea4bf0b795ac684aa87cf86a2f5988923e00d9632f7bb7c7da6c607330fa2340",
+  "allowed_paths": [
+    "docs/adr/0023-conversation-model.md",
+    "src/e_agent/kernel/conversation.py",
+    "tests/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "test_reply_to_an_ended_run_is_refused passes in on and shadow on both stores, with no run created anywhere",
+    "test_retried_answer_after_its_run_ended_replays and test_message_without_reply_to_after_an_ended_run_starts pass",
+    "ADR 0023 §4 table and order of checks amended in the same commit"
+  ],
+  "gate_set": "full",
+  "base_commit": "f01f2fb5013bbd931ebecfdec62bdc6ba4880ef1",
+  "created_at": "2026-10-21T16:51:25+00:00",
+  "features_digest": "1ed6f514724c1e926495eeb12ffc7bab0ffc522eaaf7804dff2d5ed74e2243de"
+}

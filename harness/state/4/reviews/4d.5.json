@@ -1,0 +1,31 @@
+{
+  "task": "4d.5",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "T5-1",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "The pack-side check that every run-2 recent_turns layer renders run 1's shortage value cannot fail. The fixture shortage is the one-character string '7'; a read-only probe found it 33 times in run 2's first layer, inside run ids and other text, so `shortage in layer` passes whether or not the shortage answer is rendered. `demand_ref in layer` may also be satisfied by the carried demand-read ref rather than the answer argument. Line 229 (`packs[0] is opening.context`) holds by construction. The stored-continuation check (lines 216-222) does prove the carried value, but nothing proves the D17 / ADR 0023 section 8 rendering of the carried answer that the report claims ('every run-2 pack's recent_turns layer contains ... the shortage value'). This breaks ENG-WORK-2 (assert real behaviour). The fix is cheap: assert the fenced element for the answer path, e.g. the substring `carried:<run1>#/answers/0/arguments/shortage\">\"<shortage>\"` (and the same for demand_ref), or parse the layer line for the shortage argument.",
+      "evidence": "tests/unit/server/test_conversation_e2e.py:230-232; probe: shortage == '7', layer.count('7') == 33 in driver.packs(run2)[0].dynamic_suffix[RECENT_TURNS]"
+    },
+    {
+      "id": "T5-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The 'never re-asks' check (no input.requested, no user_input, never WAITING_INPUT) is a real check on the kernel and the routes, not a tautology: it would fail if routing or the kernel turned run 2 into a question. But the scripted draft-PO driver never asks a question in any case (scripted_driver.py has no question step), so the check cannot show that the carried layer is what prevents a re-ask. The same holds for po.quantity == shortage and po.demand_ref == demand_ref (lines 250-251): both drivers get these from the same simulator reads, so the match shows consistency, not use of the carry. The report discloses this and leaves the model-side claim to live item 4, which is adequate. A stronger fixture check would only re-state the layer content check (T5-1, once fixed), so no change is required. Describing lines 250-251 as a consistency check in the handoff would avoid overclaiming.",
+      "evidence": "tests/unit/server/test_conversation_e2e.py:73-83, 234-236, 250-251, 269-271; src/e_agent/plugins/erp/domain/testing/scripted_driver.py:66-139"
+    },
+    {
+      "id": "T5-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The shadow test runs with context_assembler: on, while the plan's live item 7 uses off. This is a fair choice: ADR 0023 section 9 only refuses conversations: on without context_assembler: on, shadow is allowed with either mode (plan test test_conversations_shadow_allowed_with_any_context_assembler_mode), and with the assembler on, 'no recent_turns layer in any pack' is a check that can fail (line 340) rather than holding by construction. Shadow with context_assembler: off is not run end to end in fixtures here; live item 7 still covers it. The handoff should say so.",
+      "evidence": "tests/unit/server/test_conversation_e2e.py:43, 336-340; docs/plans/2026-10-20-phase4-conversation-chat.md:195, 344; docs/adr/0023-conversation-model.md section 9"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude",
+    "fresh_context": true
+  }
+}

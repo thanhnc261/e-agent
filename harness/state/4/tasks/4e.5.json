@@ -1,0 +1,27 @@
+{
+  "id": "4e.5",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4e-5"
+  ],
+  "context_digest": "5ee8c9f6cc51f94349db753e103635d809f32f70f70bdc3cf1d364346ac007fa",
+  "allowed_paths": [
+    "ui/packages/ui-core/src/**",
+    "ui/packages/ui-core/test/**",
+    "ui/packages/components/**",
+    "ui/packages/ui-conformance/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "citations.test.tsx and explanation.spec.ts pass",
+    "make e2e passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "8ee37694a229156297b2225009ecd420d9322eb3",
+  "created_at": "2026-10-21T20:52:34+00:00",
+  "features_digest": "07ce9ab53dfaf79efb4f8a033b7e55635f8a91d957c12be81e948b6379ba9add"
+}

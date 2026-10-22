@@ -145,6 +145,37 @@ async def test_execution_ir_is_not_pinned(make_kernel: MakeKernel) -> None:
     assert "modes" not in (await _stored(k, run.run_id))["data"]
 
 
+@pytest.mark.parametrize("mode", [FeatureMode.SHADOW, FeatureMode.ON])
+async def test_conversations_pinned_only_when_not_off(
+    make_kernel: MakeKernel, mode: FeatureMode
+) -> None:
+    """``conversations`` is pinned with the Phase 3 modes when it is not ``off`` (ADR 0023 §9),
+    in ``start_run`` and ``admit_run``, and a profile flip leaves the run's pin; with every
+    other mode ``off``, a run prepared with ``conversations: off`` writes no pin."""
+    pinned = RunModes(conversations=mode)
+    k = make_kernel(features=Features(conversations=mode))
+    run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
+    admitted, _ = await k.coordinator.admit_run(
+        k.requester,
+        "write standup note",
+        k.scope,
+        run_id="run_admitted_conv",
+        idempotency_key="conv-1",
+        request_digest="d1",
+    )
+    flipped = make_kernel()
+    checked = 0
+    for run_id in (run.run_id, admitted):
+        assert (await _stored(k, run_id))["data"]["modes"] == pinned.model_dump(mode="json")
+        cont = await flipped.coordinator._load_cont(TENANT, run_id)
+        assert flipped.coordinator._run_modes(cont).conversations is mode, run_id
+        checked += 1
+    assert checked == 2
+    off = make_kernel(features=Features(conversations=FeatureMode.OFF))
+    fresh = await off.coordinator.start_run(k.requester, "write standup note", k.scope)
+    assert "modes" not in (await _stored(off, fresh.run_id))["data"]
+
+
 async def test_off_run_writes_no_pin(make_kernel: MakeKernel) -> None:
     k = make_kernel()
     run = await k.coordinator.start_run(k.requester, "write standup note", k.scope)
@@ -178,6 +209,7 @@ async def test_absent_pin_means_off(make_kernel: MakeKernel) -> None:
         context_assembler=FeatureMode.ON,
         kernel_repeat=FeatureMode.ON,
         grounded_answers=FeatureMode.ON,
+        conversations=FeatureMode.ON,
     )
     restarted = make_kernel(features=all_on)
     cont = await restarted.coordinator._load_cont(TENANT, run.run_id)

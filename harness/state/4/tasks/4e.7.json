@@ -1,0 +1,62 @@
+{
+  "id": "4e.7",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4e-7"
+  ],
+  "context_digest": "5ee8c9f6cc51f94349db753e103635d809f32f70f70bdc3cf1d364346ac007fa",
+  "allowed_paths": [
+    "docs/reviews/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**",
+    "ui/packages/ui-core/src/**",
+    "ui/packages/ui-core/test/**",
+    "ui/packages/components/**",
+    "ui/packages/layouts/**",
+    "ui/packages/ui-conformance/**",
+    "docs/design/ui-architecture.md"
+  ],
+  "acceptance": [
+    "review quotes real pnpm check and conformance output",
+    "no open Blocker or High; owner review recorded"
+  ],
+  "gate_set": "full",
+  "base_commit": "1a8b15e45e78e42a5ea642554bd225de44dcd07d",
+  "created_at": "2026-10-21T21:31:05+00:00",
+  "features_digest": "39fb0c9e34c83172e78412abddbcb59a8769f19ccd1e48ec8e682ec81a158f87",
+  "scope_changes": [
+    {
+      "glob": "ui/packages/ui-core/src/**",
+      "reason": "G-D owner 'Fix all': fixes 4.U1-4.U7 and five VI strings, answered in the 4e.7 resolution",
+      "at": "2026-10-22T02:10:28+00:00"
+    },
+    {
+      "glob": "ui/packages/ui-core/test/**",
+      "reason": "G-D owner 'Fix all': fixes 4.U1-4.U7 and five VI strings, answered in the 4e.7 resolution",
+      "at": "2026-10-22T02:10:28+00:00"
+    },
+    {
+      "glob": "ui/packages/components/**",
+      "reason": "G-D owner 'Fix all': fixes 4.U1-4.U7 and five VI strings, answered in the 4e.7 resolution",
+      "at": "2026-10-22T02:10:29+00:00"
+    },
+    {
+      "glob": "ui/packages/layouts/**",
+      "reason": "G-D owner 'Fix all': fixes 4.U1-4.U7 and five VI strings, answered in the 4e.7 resolution",
+      "at": "2026-10-22T02:10:29+00:00"
+    },
+    {
+      "glob": "ui/packages/ui-conformance/**",
+      "reason": "G-D owner 'Fix all': fixes 4.U1-4.U7 and five VI strings, answered in the 4e.7 resolution",
+      "at": "2026-10-22T02:10:29+00:00"
+    },
+    {
+      "glob": "docs/design/ui-architecture.md",
+      "reason": "G-D owner 'Fix all': fixes 4.U1-4.U7 and five VI strings, answered in the 4e.7 resolution",
+      "at": "2026-10-22T02:10:29+00:00"
+    }
+  ]
+}

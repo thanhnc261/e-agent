@@ -1,0 +1,18 @@
+{
+  "task": "4c.1",
+  "changed": "Features.conversations and RunModes.conversations (both off by default); ReasonCode.CONVERSATION_CONTEXT_FAILED with its fixed message in kernel/features.py; the pin written by _pin_modes only when a mode is not off, so an off continuation is byte-identical; the startup rule check_conversation_toggle in bootstrap.py (after check_route_boundary, on every startup path) refuses conversations: on unless context_assembler is on, with STARTUP_REJECTED and a message that names the settings, never a value; shadow is allowed with any context_assembler mode. The three committed profiles set conversations: off explicitly. OpenAPI and the UI client regenerated (the enum value only). README counts the toggle. Commits 6c914e2, 0538e6e, b4f120a. Tests: 1831 unit and conformance passed locally; off baselines and both off model-request goldens unchanged. Review harness/state/4/reviews/4c.1-r1.json (accept; R1-1 and R1-2 fixed in b4f120a).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4c.1/2026-10-20T16-44-20.374449+00-00-full.json"
+  ],
+  "open_items": [
+    "R1-3: until 4d.2 and 4d.3 land, conversations: shadow or on is accepted at startup but nothing compares or carries anything; the phase must not merge before 4d.2/4d.3 (phase-end review checks it).",
+    "The pin is a field in the existing JSON continuation; no migration; Postgres not exercised by this task's gate (full)."
+  ],
+  "rulings": [
+    {
+      "ruling": "amend-scope for ui/packages/client/openapi.json, ui/packages/client/src/schema.ts (where the generators write) and README.md (toggle counts).",
+      "cost_if_wrong": "none; recorded in the contract"
+    }
+  ],
+  "outside_repo": []
+}

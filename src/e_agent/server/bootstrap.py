@@ -25,7 +25,7 @@ from e_agent.kernel.connections import ConnectionCatalog
 from e_agent.kernel.coordinator import RunCoordinator
 from e_agent.kernel.credentials import CredentialService
 from e_agent.kernel.errors import ErrorCode, KernelError
-from e_agent.kernel.memory_store import InMemoryRunStore
+from e_agent.kernel.memory_conversations import InMemoryConversationStore
 from e_agent.kernel.policy import DefaultPolicy
 from e_agent.kernel.registry import EnabledPlugin, PluginRegistry
 from e_agent.sdk.auth import SecretStore
@@ -95,7 +95,7 @@ async def open_store(profile: Profile) -> Any:
     if profile.store.kind == "memory":
         if profile.environment == "live":
             raise KernelError(ErrorCode.STARTUP_REJECTED, "live runs require a PostgreSQL ledger")
-        return InMemoryRunStore()
+        return InMemoryConversationStore()  # the run store and the conversation store
     dsn = require_env(profile.store.dsn_env)
     check_ledger_separation(profile, dsn)
     await apply_migrations(dsn)
@@ -251,6 +251,23 @@ def check_route_boundary(profile: Profile) -> RouteBoundary:
                 "declaration (data_owner, legal_basis, region)",
             )
     return RouteBoundary(boundary=boundary, basis=basis)
+
+
+def check_conversation_toggle(profile: Profile) -> None:
+    """Startup rule (ADR 0023 §9): ``features.conversations`` ``on`` needs
+    ``features.context_assembler`` ``on``. Both modes are pinned together, so a run pinned
+    ``conversations: on`` is pinned ``context_assembler: on`` and the per-call route check
+    (ADR 0032 §9) covers the carried context it sends. ``shadow`` carries nothing to the
+    driver and is allowed with any ``context_assembler`` mode. The message names the
+    settings, never a value."""
+    on, features = FeatureMode.ON, profile.features
+    if features.conversations is on and features.context_assembler is not on:
+        raise KernelError(
+            ErrorCode.STARTUP_REJECTED,
+            "features.conversations needs features.context_assembler: carried conversation "
+            "context is sent only in the context pack; raise features.context_assembler or "
+            "lower features.conversations",
+        )
 
 
 def build_driver(profile: Profile, registry: PluginRegistry) -> AgentDriver:
@@ -441,6 +458,7 @@ async def build_runtime(
     check_live_write_budget(profile)
     fixture_scenario_check(profile)
     route = check_route_boundary(profile)
+    check_conversation_toggle(profile)
     catalog = ConnectionCatalog(profile.connections)
     registry, credentials = admit_plugins(
         profile, catalog, discover(plugin_paths), _secret_store(profile), plugin_settings

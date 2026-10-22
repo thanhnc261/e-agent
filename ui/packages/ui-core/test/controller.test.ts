@@ -8,6 +8,8 @@ function fakeClient(snap: () => Promise<ReturnType<typeof snapshot>>) {
   const client = {
     hasSession: true,
     startLocalSession: vi.fn(),
+    // Today's server: conversations are off, so every test here runs the per-run path.
+    myFeatures: vi.fn(async () => ({ conversations: "off" as const })),
     createRun: vi.fn(async () => ({ run_id: "run-1", created: true })),
     getRun: vi.fn(async () => snap()),
     listEvents: vi.fn(async (): Promise<ReturnType<typeof ev>[]> => []),
@@ -44,6 +46,24 @@ describe("RunController", () => {
     await c.approve();
     expect(c.getState().approval.digestOk).toBe(false);
     expect(client.decide).not.toHaveBeenCalled();
+  });
+
+  it("a quiet bundle read never sets the shared error; the explicit read still does (GD-1)", async () => {
+    const { client } = fakeClient(async () => snapshot("RUNNING", null));
+    const evidence = vi.fn(async () => {
+      throw new ApiError(500, "INTERNAL", "boom");
+    });
+    const c = new RunController({
+      client: { ...client, evidence } as unknown as EAgentClient,
+      storage: null,
+    });
+    await c.start("x");
+    await c.loadEvidence({ quiet: true });
+    expect(evidence).toHaveBeenCalledTimes(1);
+    expect(c.getState().error).toBeNull();
+    expect(c.getState().evidence).toBeNull();
+    await c.loadEvidence();
+    expect(c.getState().error).not.toBeNull();
   });
 
   it("refreshes the snapshot on an unknown event without crashing", async () => {
@@ -170,4 +190,58 @@ it("keeps an unsent draft in the shared controller across presentation mounts", 
   c.back();
   expect(c.getState().draft).toBe("Draft business request");
   c.dispose();
+});
+
+describe("task history reply state", () => {
+  it("history entry records a pending reply", async () => {
+    const { client } = fakeClient(async () => snapshot("WAITING_INPUT", null, 1));
+    client.listEvents.mockImplementation(async () => [ev(1, "input.requested", { question: "Hello! What next?", kind: "reply" })]);
+    const c = new RunController({ client: client as unknown as EAgentClient, storage: null });
+    await c.start("hi");
+    expect(c.getState().history).toMatchObject([{ runId: "run-1", state: "WAITING_INPUT", replyPending: true }]);
+    c.dispose();
+  });
+
+  it("records no pending reply for a clarification question", async () => {
+    const { client } = fakeClient(async () => snapshot("WAITING_INPUT", null, 1));
+    client.listEvents.mockImplementation(async () => [ev(1, "input.requested", { question: "Which supplier?" })]);
+    const c = new RunController({ client: client as unknown as EAgentClient, storage: null });
+    await c.start("restock");
+    expect(c.getState().history[0]?.replyPending).toBeFalsy();
+    c.dispose();
+  });
+
+  it("a stored entry without replyPending still loads", async () => {
+    const store = new Map<string, string>([
+      ["e-agent.run.history", JSON.stringify([{ runId: "run-0", task: "old", state: "WAITING_INPUT", reasonCode: null }])],
+    ]);
+    const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) };
+    const { client } = fakeClient(async () => snapshot("SUCCEEDED", null));
+    const c = new RunController({ client: client as unknown as EAgentClient, storage });
+    await c.init();
+    expect(c.getState().history).toMatchObject([{ runId: "run-0", task: "old", state: "WAITING_INPUT" }]);
+    expect(c.getState().history[0]?.replyPending).toBeUndefined();
+    c.dispose();
+  });
+});
+
+describe("task history reply state after the answer", () => {
+  it("history entry clears replyPending after the answer", async () => {
+    let state: "WAITING_INPUT" | "RUNNING" = "WAITING_INPUT";
+    const { client, emit } = fakeClient(async () => snapshot(state, null, 1));
+    client.listEvents.mockImplementation(async () => [ev(1, "input.requested", { question: "Hello! What next?", kind: "reply" })]);
+    const submitInput = vi.fn(async () => ({ status: "accepted" }));
+    const c = new RunController({ client: { ...client, submitInput } as unknown as EAgentClient, storage: null });
+    await c.start("hi");
+    expect(c.getState().history[0]?.replyPending).toBe(true);
+    state = "RUNNING";
+    await c.start("hi");
+    expect(submitInput).toHaveBeenCalledTimes(1);
+    emit(ev(2, "input.received", { input: "hi" }));
+    emit(ev(3, "run.state_changed", { from: "WAITING_INPUT", to: "RUNNING" }));
+    await c.refresh();
+    expect(c.getState().history[0]).toMatchObject({ runId: "run-1", state: "RUNNING" });
+    expect(c.getState().history[0]?.replyPending).toBe(false);
+    c.dispose();
+  });
 });

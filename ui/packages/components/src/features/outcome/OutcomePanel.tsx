@@ -2,7 +2,9 @@
  * Task result from the typed outcome projection. Committed, verified, failed and
  * unknown stay distinct: an unresolved external effect is never presented as a
  * verified one, a check without a recorded verdict is shown as unknown rather than
- * as a failure, and nothing here retries a possibly committed write.
+ * as a failure, and nothing here retries a possibly committed write. A grounded run says what
+ * grounded, not verified means, and the explanation with the answer's citations opens from
+ * here (ADR 0034 §4).
  */
 import { actionStatusKey, formatFieldValue, hasResult, readableLabel, selectOutcome } from "@e-agent/ui-core";
 import { useController, useI18n, useRunState } from "@e-agent/ui-react";
@@ -11,6 +13,7 @@ import { Disclosure } from "../../primitives/Disclosure.tsx";
 import { Panel } from "../../primitives/Panel.tsx";
 import { StatusBadge } from "../../primitives/StatusBadge.tsx";
 import type { StatusTone } from "../../primitives/variants.ts";
+import { Explanation } from "./Explanation.tsx";
 
 const TONES: Record<string, StatusTone> = {
   checking: "progress",
@@ -44,6 +47,12 @@ export function OutcomePanel() {
           {t(outcome.labelKey)}
         </StatusBadge>
       </p>
+      {outcome.status === "grounded" && (
+        // What "grounded, not verified" means, from the server's reason code (ADR 0034 §4, PR-19).
+        <p className="ea-muted ea-small" data-testid="outcome-grounded-explain">
+          {t("outcome.groundedExplain")}
+        </p>
+      )}
       {outcome.unresolved && (
         <div className="ea-alert ea-warning" role="alert" data-testid="outcome-unresolved">
           <p>{t("outcome.effectUnknown")}</p>
@@ -95,6 +104,7 @@ export function OutcomePanel() {
           </ul>
         </Disclosure>
       )}
+      <Explanation />
       <Disclosure className="ea-review-details" summary={t("workspace.details")}>
         {outcome.reason && <p className="ea-muted">{outcome.reason}</p>}
         <ul className="ea-actions-list">

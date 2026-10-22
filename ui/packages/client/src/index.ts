@@ -25,16 +25,38 @@ export type MemberConnection = S["MemberConnection"];
 export type MemberConnections = S["MemberConnections"];
 export type TaskTemplate = S["TaskTemplate"];
 export type TaskCatalog = S["TaskCatalog"];
+export type FeatureMode = S["FeatureMode"];
+export type MemberFeatures = S["MemberFeatures"];
+export type Conversation = S["Conversation"];
+export type ConversationList = S["ConversationList"];
+export type ConversationSummary = S["ConversationSummary"];
+export type ConversationSnapshot = S["ConversationSnapshot"];
+export type ThreadRun = S["ThreadRun"];
+export type ReplyTo = S["ReplyTo"];
+export type PostMessage = S["PostMessage"];
+export type PostedMessage = S["PostedMessage"];
+export type CreatedConversation = S["CreatedConversation"];
 export type { components, paths } from "./schema.ts";
 
 export class ApiError extends Error {
+  /**
+   * True when the body was e-agent's error envelope `{code, message, correlation_id}`.
+   * A route that is not mounted (an older server) answers without it, so the UI can tell
+   * "not there" from "refused" by the envelope and never by the status alone (ADR 0023).
+   */
+  readonly enveloped: boolean;
+  readonly correlationId: string | null;
+
   constructor(
     readonly status: number,
     readonly code: string,
     message: string,
+    options: { enveloped?: boolean; correlationId?: string | null } = {},
   ) {
     super(message);
     this.name = "ApiError";
+    this.enveloped = options.enveloped ?? true;
+    this.correlationId = options.correlationId ?? null;
   }
 }
 
@@ -165,6 +187,43 @@ export class EAgentClient {
     return this.request("GET", "/v1/me/task-catalog");
   }
 
+  /** The member's view of the server's modes; answers in every conversations mode (ADR 0023 §10). */
+  myFeatures(): Promise<MemberFeatures> {
+    return this.request("GET", "/v1/me/features");
+  }
+
+  createConversation(): Promise<CreatedConversation> {
+    return this.request("POST", "/v1/conversations");
+  }
+
+  /** The caller's conversations, newest first, as the server orders them. */
+  listConversations(options: { after?: string | null; limit?: number } = {}): Promise<ConversationList> {
+    const query = new URLSearchParams();
+    if (options.after) query.set("after", options.after);
+    if (options.limit !== undefined) query.set("limit", String(options.limit));
+    const qs = query.toString();
+    return this.request("GET", qs ? `/v1/conversations?${qs}` : "/v1/conversations");
+  }
+
+  /** The conversation and its runs, oldest first, each with the revision an answer's `reply_to` uses. */
+  getConversation(conversationId: string): Promise<ConversationSnapshot> {
+    return this.request("GET", `/v1/conversations/${encodeURIComponent(conversationId)}`);
+  }
+
+  /**
+   * One message into a conversation. The server routes it (start or answer); a refusal is a
+   * `CONFLICT` with a fixed hint, never a 202 (ADR 0023 §4).
+   */
+  postMessage(
+    conversationId: string,
+    body: PostMessage,
+    idempotencyKey: string = newIdempotencyKey(),
+  ): Promise<PostedMessage> {
+    return this.request("POST", `/v1/conversations/${encodeURIComponent(conversationId)}/messages`, body, {
+      "Idempotency-Key": idempotencyKey,
+    });
+  }
+
   /**
    * Subscribe to run events after ``afterSequence``. The browser resumes with
    * ``Last-Event-ID`` on transient drops; callers dedupe by ``sequence`` anyway.
@@ -206,11 +265,23 @@ export class EAgentClient {
       credentials: this.base === "" ? "same-origin" : "include",
     });
     const text = await response.text();
-    const data: unknown = text ? JSON.parse(text) : null;
     if (!response.ok) {
-      const err = (data ?? {}) as { code?: string; message?: string };
-      throw new ApiError(response.status, err.code ?? "HTTP_ERROR", err.message ?? response.statusText);
+      // An error body may be plain text (a static mount's 405) or FastAPI's `{"detail": ...}`.
+      let err: { code?: unknown; message?: unknown; correlation_id?: unknown } = {};
+      try {
+        const parsed: unknown = text ? JSON.parse(text) : null;
+        if (parsed && typeof parsed === "object") err = parsed as typeof err;
+      } catch {
+        /* not JSON: no envelope */
+      }
+      const enveloped = typeof err.code === "string";
+      throw new ApiError(
+        response.status,
+        enveloped ? (err.code as string) : "HTTP_ERROR",
+        typeof err.message === "string" ? err.message : response.statusText,
+        { enveloped, correlationId: typeof err.correlation_id === "string" ? err.correlation_id : null },
+      );
     }
-    return data as T;
+    return (text ? JSON.parse(text) : null) as T;
   }
 }

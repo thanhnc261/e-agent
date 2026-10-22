@@ -1,0 +1,29 @@
+{
+  "id": "4b.2",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4b-2"
+  ],
+  "context_digest": "8c0df4f83579546cd6cfb8698bc32627fb987ec004b3ea655023e8984c563c58",
+  "allowed_paths": [
+    "ui/packages/ui-core/src/**",
+    "ui/packages/ui-core/test/**",
+    "ui/packages/components/src/features/conversation/**",
+    "ui/packages/components/test/**",
+    "ui/packages/ui-conformance/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**"
+  ],
+  "acceptance": [
+    "selectors.test.ts marks only the first reply",
+    "composer.spec.ts reply label shows once after hi, hi",
+    "pnpm --dir ui check passes"
+  ],
+  "gate_set": "full",
+  "base_commit": "f30fd1ffc405aed6aa87acaf06763cc4bc1df6aa",
+  "created_at": "2026-10-20T15:21:49+00:00",
+  "features_digest": "ce78c538462746918308b86050b3aca90e855a3d7035a58371a6edbaf5f5ea88"
+}

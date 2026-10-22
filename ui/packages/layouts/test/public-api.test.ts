@@ -13,10 +13,13 @@ const names = (module: object): string[] => Object.keys(module).sort();
 describe("public UI exports", () => {
   it("keeps the L6 component surface", () => {
     expect(names(components)).toEqual([
+      "ARTIFACT_WORKSPACE_ID",
       "ActionButton",
       "ApprovalPanel",
+      "ArtifactWorkspaceProvider",
       "BUTTON_VARIANTS",
       "BrandMark",
+      "CarriedRuns",
       "Composer",
       "ConnectionCard",
       "ConnectionStatus",
@@ -33,6 +36,7 @@ describe("public UI exports", () => {
       "STATUS_TONES",
       "SURFACE_TONES",
       "StatusBadge",
+      "StopSlot",
       "Surface",
       "TaskCatalog",
       "TaskCatalogCard",
@@ -41,6 +45,9 @@ describe("public UI exports", () => {
       "TextAreaField",
       "Timeline",
       "defaultSlots",
+      "runStateTone",
+      "statusMarker",
+      "useArtifactWorkspace",
     ]);
   });
 

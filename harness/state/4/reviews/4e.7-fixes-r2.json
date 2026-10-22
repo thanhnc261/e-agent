@@ -1,0 +1,4 @@
+{"task":"4e.7","verdict":"rework","findings":[
+{"id":"GR-1","severity":"Medium","affects":"correctness","summary":"GD-2's sticky thread head handles only programmatic scrolling: the thread scroller has no scroll-padding-top, so a control focused by Tab inside a run card can sit fully under the head (WCAG 2.4.11).","evidence":"ui/packages/layouts/src/layouts.css:82,88-91; ui/packages/layouts/src/shared/ThreadSurface.tsx:60-71"},
+{"id":"GR-2","severity":"Low","affects":"style","summary":"The quiet carried read swallows every error and does not retry for the same run; consistent with the documented 'shows nothing', no change required.","evidence":"ui/packages/ui-core/src/controller.ts:753-772"}
+],"reviewer":{"provider":"claude","fresh_context":true}}

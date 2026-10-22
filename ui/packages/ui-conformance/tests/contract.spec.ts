@@ -91,6 +91,19 @@ for (const target of TARGETS) {
       expect(api.decisions).toHaveLength(0);
     });
 
+    test("legacy state row shows no undefined", async ({ page }) => {
+      const api = new MockApi();
+      api.emit("run.created", { task: "legacy" });
+      // Rows written before ADR 0031 carry only `state`.
+      api.emit("run.state_changed", { state: "RUNNING" });
+      api.state = "RUNNING";
+      await startRun(page, target, api);
+      const items = page.getByTestId("timeline-item");
+      await expect(items).toHaveCount(2);
+      const text = (await items.allTextContents()).join(" ");
+      expect(text).not.toContain("undefined");
+    });
+
     test("a clarification without kind keeps its label and status (old rows)", async ({ page }) => {
       test.skip(
         target.name === "reference",

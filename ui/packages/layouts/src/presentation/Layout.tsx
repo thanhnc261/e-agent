@@ -5,7 +5,8 @@
  * confirmation. Host document attributes are applied by L8 through `onPresentation`;
  * no component below reads or mutates its host document.
  */
-import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
+import { ArtifactWorkspaceProvider, type ArtifactWorkspaceControls } from "@e-agent/components";
 import {
   PresentationProvider,
   SURFACE_MODES,
@@ -27,6 +28,7 @@ import {
   type PresentationValues,
 } from "./preferences.ts";
 import { isCompact, useContainerWidth } from "./useContainerWidth.ts";
+import { WorkspaceFocusProvider } from "../shared/workspaceFocus.ts";
 
 /** What L8 needs to reflect on its document or shadow host. */
 export interface HostPresentation extends PresentationValues {
@@ -117,6 +119,59 @@ export function Layout({
       /* Storage is optional. */
     }
   };
+  // The closable artifact workspace (EA-10, ADR 0034 §1): one owner, above the surface swap,
+  // so a surface change keeps it. Closing resets an open confirmation to review (EA-9) and
+  // gives focus back to the control that opened it, or to its run card's Open.
+  const [workspaceRun, setWorkspaceRun] = useState<string | null>(null);
+  // Each user's open, counted, so opening the run already shown still focuses its workspace.
+  const [requests, setRequests] = useState(0);
+  const opener = useRef<HTMLElement | null>(null);
+  const focusRequested = useRef(false);
+  // What already opened by itself: kept here, not in the surface, so remounting a surface
+  // cannot reopen a workspace the user closed.
+  const autoOpened = useRef(new Set<string>());
+  const openRun = useRef<string | null>(null);
+  openRun.current = workspaceRun;
+  const close = useCallback(() => {
+    controller.back();
+    const current = openRun.current;
+    setWorkspaceRun(null);
+    if (!current) return;
+    requestAnimationFrame(() => {
+      const card = surfaceRef.current?.querySelector<HTMLElement>(`[data-open-run="${CSS.escape(current)}"]`);
+      (opener.current?.isConnected ? opener.current : card)?.focus();
+    });
+  }, [controller]);
+  const artifactWorkspace = useMemo<ArtifactWorkspaceControls>(
+    () => ({
+      runId: workspaceRun,
+      open: (runId, from) => {
+        opener.current = from ?? null;
+        focusRequested.current = !!from;
+        if (from) setRequests(n => n + 1);
+        setWorkspaceRun(runId);
+      },
+      close,
+    }),
+    [workspaceRun, close],
+  );
+  const focus = useMemo(
+    () => ({
+      requests,
+      take: () => {
+        const requested = focusRequested.current;
+        focusRequested.current = false;
+        return requested;
+      },
+      dismiss: () => setWorkspaceRun(null),
+      claimAutoOpen: (key: string) => {
+        if (autoOpened.current.has(key)) return false;
+        autoOpened.current.add(key);
+        return true;
+      },
+    }),
+    [requests],
+  );
   const selected = { ...config, layout: mode };
   const surface =
     mode === "overlay" || mode === "workbench" ? (
@@ -145,7 +200,9 @@ export function Layout({
       }}
     >
       <SurfaceProvider value={{ mode, available, change, focusOnMount: switched, compact }}>
-        {surface}
+        <ArtifactWorkspaceProvider value={artifactWorkspace}>
+          <WorkspaceFocusProvider value={focus}>{surface}</WorkspaceFocusProvider>
+        </ArtifactWorkspaceProvider>
       </SurfaceProvider>
     </PresentationProvider>
   );

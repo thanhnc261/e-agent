@@ -1,0 +1,88 @@
+{
+  "label": "fixture, not live",
+  "date": "2026-10-22",
+  "code": "03f3d546",
+  "stack": "make dev with scratch copies of profiles/dev-ollama.json (local Ollama model e-agent-mvp-qwen3-coder-20261007, fixture ERP data, in-memory ledger), real FastAPI server and Vite UI, driven in a browser through the Playwright MCP",
+  "why": "the live check 4f.2 is blocked at identity (admin key 401); this run exercises the real server and UI instead of the conformance mock (P4R-2), on fixture data",
+  "items": [
+    {
+      "item": 1,
+      "result": "pass",
+      "detail": "/health/ready reported conversations on, shadow, off and context_assembler on/off as configured; GET /v1/me/features reported conversations on in the on stack"
+    },
+    {
+      "item": 4,
+      "mode": "conversations on, context_assembler on",
+      "runs": {
+        "run_1": "run_559499929861478aa5f8e1ff7be350c7",
+        "run_2": "run_8ed3c24778644ae49ff16bf36a4e387c"
+      },
+      "conversation": "conv_4b3299ac64474cc88682b9d1e1179ed4",
+      "result": "pass",
+      "detail": "hi -> which products are short? -> draft a PO for it. Run 1 SUCCEEDED answered (shortage 7 units of widget-a, 8/8 checks). Run 2 started after run 1 ended, recorded conversation.context_carried naming run 1, built a context pack every turn, and proposed a draft PO for quantity 7 without asking again; after approval in the fixture stack it ended SUCCEEDED verified (receipt COMMITTED, outcome VERIFIED, classification fixture:succeeded). Sources tab: 'Used earlier runs as hints: Run 1 · hi'."
+    },
+    {
+      "item": 5,
+      "result": "pass",
+      "detail": "while run 2 waited for approval, 'approve it' got 409 with 'This conversation is busy. Wait, decide the approval, or stop the task.'; the draft text was kept and the approval card unchanged"
+    },
+    {
+      "item": 6,
+      "result": "pass",
+      "detail": "GET /v1/conversations listed one conversation; the sidebar showed one thread"
+    },
+    {
+      "item": 7,
+      "mode": "conversations shadow, context_assembler off",
+      "runs": {
+        "run_1": "run_f738b7ec24d44ebea2e46703fb6967af",
+        "run_2": "run_792ffff051464c14a6eafbd27e934d91"
+      },
+      "result": "pass",
+      "detail": "hi -> which products are short? -> which offers cover it?; no message refused; run 2 recorded conversation.compared route start with carried_run_ids [run 1] and items {user_messages 2, answers 1, refs 3}; the bundle's carried_run_ids is [] and no context.assembled event, so nothing was carried into the model request; no write"
+    },
+    {
+      "item": 2,
+      "mode": "conversations off, context_assembler off",
+      "runs": {
+        "run_1": "run_2329e766e1c840af9fb7f9342a98c5c2"
+      },
+      "result": "pass",
+      "detail": "hi -> hi -> which products are short? in the per-run view; no 'undefined' in the page, one 'Reply · not a verified result' label and one later reply note, Context chip reads 'e-agent also uses this task's messages and any systems you have connected, within your permissions.'; SUCCEEDED answered"
+    },
+    {
+      "item": 3,
+      "mode": "conversations off, context_assembler on",
+      "runs": {
+        "run_1": "run_c879984a2c6644fab70da0c518247932"
+      },
+      "result": "pass",
+      "detail": "draft a PO for the shortage: the model proposed the draft PO, approved in the fixture stack, SUCCEEDED verified, receipt COMMITTED, outcome VERIFIED, 6 context packs, one acknowledgement turn rendered from the pack, no fallback"
+    }
+  ],
+  "defects_found": [
+    {
+      "id": "B-1",
+      "summary": "the 'conversation is busy' refusal hint and the kept draft stay on screen after the run that caused the refusal has ended"
+    },
+    {
+      "id": "B-2",
+      "summary": "while run 2 needed review, its run card's line read 'Outcome verified' (the recommendation step's outcome), next to 'Needs review'"
+    },
+    {
+      "id": "B-3",
+      "summary": "the agent's Markdown (**bold**, list markers) is shown as raw text in the thread"
+    }
+  ],
+  "limits": "fixture ERP data and an in-memory ledger; local model; approvals clicked by the agent in the fixture stack only (never under a live profile); not the odoo19-learning sandbox; screenshots kept outside the repository",
+  "recheck_after_4R3": {
+    "code": "659cd50f",
+    "mode": "conversations on, context_assembler on",
+    "runs": {
+      "run_1": "run_6f3164ad77c54a92a4b24367d87f7b30"
+    },
+    "B-1": "fixed: 'approve it' while the run waited for approval got 409 and the busy hint with the draft kept; after approve and confirm the run ended SUCCEEDED verified, the hint was gone and the draft 'approve it' was still in the composer",
+    "B-2": "fixed: while the run waited for approval the card line read 'Approval requested' next to 'Needs review'; after the end it read 'Outcome verified' next to 'Completed · verified'",
+    "B-3": "open follow-up (pre-existing)"
+  }
+}

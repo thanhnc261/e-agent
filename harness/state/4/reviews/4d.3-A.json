@@ -1,0 +1,63 @@
+{
+  "task": "4d.3",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "A3-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The step-(1) fallback for a store error on the conversation row skips the owner and reply_to membership checks and goes straight to input_replayed/accept_input. The caller's own run in another conversation is then taken as plain input, and another user's run gets /inputs' FORBIDDEN, not NOT_FOUND. Authority is the same as /inputs and ADR 0023 s9 allows it, but plan invariant 5 (docs/plans/2026-10-20-phase4-conversation-chat.md:102, never FORBIDDEN) and line 501 disagree. This is a plan/ADR tension for the owner to rule on. Optional hardening: map FORBIDDEN to NOT_FOUND in this branch.",
+      "evidence": "src/e_agent/kernel/conversation.py:206-212"
+    },
+    {
+      "id": "A3-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "_own_unlinked accepts any of the caller's own unlinked runs (a POST /v1/runs run, or a fallback from another conversation), not only one 'made by such a fallback' (ADR 0023 s9). Nothing marks fallback runs. Authority is the same as /inputs.",
+      "evidence": "src/e_agent/kernel/conversation.py:291-298"
+    },
+    {
+      "id": "A3-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The consumer test_shadow_layer_digest_equals_on_layer_digest is real: it compares against packs[0].dynamic_suffix[RECENT_TURNS] of the on run, asserts that layer is non-empty, and fails under the wrong-route mutation. But all 10 corpus cases have masked == 0 and dropped == 0, so digest equality is never shown for a masked or budget-dropped layer, and the documented second-fit divergence has no test. The hosted masked case is only in the privacy test and is not compared with an on pack.",
+      "evidence": "tests/unit/kernel/test_conversation_shadow.py:327"
+    },
+    {
+      "id": "A3-4",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "test_shadow_stale_reply_to_still_conflicts says 'no run starts' but checks only the conversation's linked runs, where an unlinked run would not appear. It could also assert that the key is unrecorded (lookup_idempotent is None) or that the tenant's run count is unchanged.",
+      "evidence": "tests/unit/kernel/test_conversation_shadow.py:491"
+    },
+    {
+      "id": "A3-5",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "failure_code records any non-kernel error, a bug in carry included, as DEPENDENCY_UNAVAILABLE. This is acceptable: it labels a shadow-only event that changes nothing, and there is no INTERNAL code. Noted for the owner, since it can mislead an operator reading shadow_failed {carry}.",
+      "evidence": "src/e_agent/kernel/conversation.py:80"
+    },
+    {
+      "id": "A3-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "In shadow, _start's 'except Exception' catches more than 'a store error on the conversation row': a bug in _prepare_run also takes the fallback. Net behaviour stays today's, because admit_run runs the same preparation and raises the same error, and the shared idempotency key stops a second run.",
+      "evidence": "src/e_agent/kernel/conversation.py:268"
+    },
+    {
+      "id": "A3-7",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The coordinator imports the private _Turns from context.py. This is deliberate, so the compared layer is built by the same code as assemble (same ON_POLICY, context_route and data_classes as context_on.py:157-171). It works, but it couples the coordinator to a private name.",
+      "evidence": "src/e_agent/kernel/coordinator.py:60"
+    },
+    {
+      "id": "A3-8",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The evidence bundle's conversation key (ADR 0023 s12, the plan's second shadow consumer) is not built. The coordinator moved it to 4d.4, and this contract's acceptance does not list it. Record the deferral so it is not lost.",
+      "evidence": ".superpowers/sdd/2026-10-20-phase4-conversation-chat/task-4d.3-report.md (Concerns 2, fix section)"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}

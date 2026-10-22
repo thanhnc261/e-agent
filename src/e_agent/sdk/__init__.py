@@ -5,7 +5,8 @@ SDK_API_VERSION = "1.2"
 1.2 (ADR 0032 §12), one unreleased additive version, every field with a default:
 `CapabilityDescriptor.data_classes` and `PluginContribution.output_schemas` (ADR 0030,
 Task 3b.3), `DriverInput.context` (Task 3d.1), `PluginContribution.rule_inventory` (ADR
-0009, ADR 0033 §4, Task 3e.3) and `DriverInput.grounding` (ADR 0033, Task 3e.4)."""
+0009, ADR 0033 §4, Task 3e.3), `DriverInput.grounding` (ADR 0033, Task 3e.4) and
+`CapabilityDescriptor.answer_value_formats` (ADR 0023 §7, D17, Task 4c.4)."""
 ENTRY_POINT_GROUP = "e_agent.plugins.v1"
 MANIFEST_FILENAME = "e_agent_plugin.json"
 

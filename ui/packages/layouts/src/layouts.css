@@ -1,7 +1,7 @@
 .ea-slot { min-width:0; }
 .ea-slot:empty { display:none; }
 .ea-layout-full { min-height:100dvh; }
-.ea-workspace { display:grid; grid-template-columns:14rem minmax(0,1fr); min-height:calc(100dvh - 4.5rem); }
+.ea-workspace { display:grid; grid-template-columns:14rem minmax(0,1fr); min-height:calc(100dvh - 4.5rem); container-type:inline-size; container-name:ea-workspace; }
 .ea-workspace > [data-slot="navigation"] { border-right:1px solid var(--ea-color-border-subtle); background:var(--ea-color-surface-raised); }
 .ea-workarea { padding:var(--ea-space-2xl); max-width:84rem; width:100%; margin:0 auto; min-width:0; }
 .ea-conversation { max-width:44rem; margin:0 auto; display:flex; flex-direction:column; gap:var(--ea-space-lg); min-width:0; }
@@ -31,7 +31,10 @@
 .ea-overlay-panel .ea-term,.ea-layout-sidebar .ea-term { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.3fr); }
 .ea-overlay-panel .ea-term-before,.ea-layout-sidebar .ea-term-before { grid-column:1 / -1; }
 .ea-launcher { float:right; border-radius:var(--ea-radius-lg); box-shadow:0 4px 16px rgb(0 0 0 / .12); }
-@media (max-width:1180px) { .ea-workarea-active { grid-template-columns:minmax(0,1fr); max-width:50rem; } .ea-inspector { flex-direction:column; } }
+/* One column when the workspace is narrower than 73.75rem (1180 px at default text).
+   A container query in rem, so it also fires when text grows: at 200 % text the thread
+   keeps its width instead of collapsing beside the inspector (AG-A11Y-3). */
+@container ea-workspace (max-width:73.75rem) { .ea-workarea-active { grid-template-columns:minmax(0,1fr); max-width:50rem; } .ea-inspector { flex-direction:column; } }
 @media (max-width:760px) {
  .ea-workspace { grid-template-columns:minmax(0,1fr); }
  .ea-workspace > [data-slot="navigation"] { border-right:0; border-bottom:1px solid var(--ea-color-border); }
@@ -71,3 +74,73 @@
 .ea-overlay-panel .ea-brand { font-size:1rem; }
 .ea-overlay-panel .ea-state-pill { padding-inline:var(--ea-space-sm); }
 .ea-stack .ea-task-nav { align-items:center; }
+
+/* Conversation thread and closable artifact workspace (Task 4e.4, ADR 0034, mockup A1).
+   The thread measures its own width in rem (AG-FE-6, AG-A11Y-3): from 60rem the workspace
+   sits beside it at about 40 %; narrower, an open workspace replaces the thread as a full
+   view with "Back to conversation". ThreadSurface uses the same 60rem threshold. */
+.ea-thread-page { max-width:96rem; }
+.ea-thread-stack,.ea-thread-split { display:flex; flex-direction:column; min-height:0; flex:1; overflow-y:auto; }
+.ea-thread-shell { container-type:inline-size; container-name:ea-thread; min-width:0; }
+.ea-thread-stack .ea-thread-shell,.ea-thread-split .ea-thread-shell { padding:var(--ea-space-lg); }
+.ea-thread-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--ea-space-xl); align-items:start; }
+.ea-thread-main { display:flex; flex-direction:column; gap:var(--ea-space-lg); min-width:0; max-width:48rem; width:100%; margin:0 auto; }
+/* The head holds the stream status, so it stays in view in its scroller (GD-2, AG-STAT-3). */
+.ea-thread-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:var(--ea-space-sm); padding-top:var(--ea-space-xs); padding-bottom:var(--ea-space-sm); border-bottom:1px solid var(--ea-color-border-subtle); position:sticky; top:0; z-index:2; background:var(--ea-color-canvas); }
+/* Whatever scrolls the thread keeps what it scrolls or focuses into view below the sticky head
+   (GR-1, WCAG 2.4.11): the surface's own scroller, or the page on the Workspace page.
+   ThreadSurface writes the head's height there; 4.5rem covers a wrapped head until it does. */
+.ea-thread-stack,.ea-thread-split,:root:has(.ea-layout-full .ea-thread-shell) { scroll-padding-top:calc(var(--ea-thread-head-h, 4.5rem) + var(--ea-space-sm)); }
+.ea-thread-title { margin:0; font-weight:var(--ea-font-weight-semibold); overflow-wrap:anywhere; min-width:0; }
+.ea-thread-head .ea-connection { display:inline-flex; }
+.ea-stack .ea-thread-head .ea-connection,.ea-overlay-panel .ea-thread-head .ea-connection { display:inline-flex; }
+.ea-thread-main .ea-task-nav { padding:0; display:flex; flex-wrap:wrap; align-items:start; gap:var(--ea-space-md); }
+.ea-thread-main .ea-task-nav .ea-button-new { width:auto; }
+.ea-thread-main .ea-task-history { margin:0; flex:1; min-width:12rem; }
+.ea-artifact-workspace { display:flex; flex-direction:column; gap:var(--ea-space-md); min-width:0; padding:var(--ea-space-lg); background:var(--ea-color-surface-raised); border:1px solid var(--ea-color-border); border-radius:var(--ea-radius-lg); }
+.ea-ws-head { display:flex; flex-wrap:wrap; align-items:center; gap:var(--ea-space-xs) var(--ea-space-sm); }
+.ea-ws-kicker { flex-basis:100%; margin:0; order:1; }
+.ea-ws-back { order:0; flex-basis:100%; justify-content:flex-start; }
+.ea-ws-title { order:2; flex:1 1 12rem; margin:0; font-size:var(--ea-font-size-lg); overflow-wrap:anywhere; }
+.ea-ws-status { order:3; }
+.ea-ws-close { order:4; margin-left:auto; }
+/* A full view's head: the stream status and the thread's stop slot (G-D 4.U2). */
+.ea-ws-live { order:5; flex-basis:100%; display:flex; flex-wrap:wrap; align-items:center; gap:var(--ea-space-xs) var(--ea-space-md); }
+.ea-ws-live .ea-connection,.ea-stack .ea-ws-live .ea-connection,.ea-overlay-panel .ea-ws-live .ea-connection { display:inline-flex; }
+.ea-ws-live .ea-stop-slot { flex:1 1 14rem; margin-top:0; padding-top:0; border-top:0; }
+.ea-ws-live[data-latest-run="true"] .ea-stop-run { display:none; }
+.ea-ws-title:focus-visible { outline:2px solid var(--ea-color-focus); outline-offset:2px; }
+.ea-tab-list { display:flex; flex-wrap:wrap; gap:var(--ea-space-xs); border-bottom:1px solid var(--ea-color-border); }
+.ea-tab { padding:var(--ea-space-xs) var(--ea-space-sm); min-height:var(--ea-control-min-height); display:inline-flex; align-items:center; cursor:default; color:var(--ea-color-text-muted); border-bottom:2px solid transparent; margin-bottom:-1px; outline:none; }
+.ea-tab[data-selected] { color:var(--ea-color-text); border-bottom-color:var(--ea-color-accent); font-weight:var(--ea-font-weight-semibold); }
+.ea-tab[data-focus-visible] { outline:2px solid var(--ea-color-focus); outline-offset:-2px; }
+.ea-tab-panel { display:flex; flex-direction:column; gap:var(--ea-space-md); padding-top:var(--ea-space-md); min-width:0; outline:none; }
+.ea-tab-panel[data-focus-visible] { outline:2px solid var(--ea-color-focus); outline-offset:2px; }
+.ea-agent-words { margin:0; padding:var(--ea-space-md); border:1px dashed var(--ea-color-border-strong); border-radius:var(--ea-radius-md); }
+.ea-agent-words figcaption { font-size:var(--ea-font-size-sm); color:var(--ea-color-text-muted); margin-bottom:var(--ea-space-xs); }
+.ea-agent-words blockquote { margin:0; }
+/* Narrow: an open workspace is a full view; Back returns to the conversation. */
+.ea-thread-grid[data-workspace-open="true"] > .ea-thread-main { display:none; }
+@container ea-thread (min-width:60rem) {
+ .ea-thread-grid[data-workspace-open="true"] { grid-template-columns:minmax(0,1fr) clamp(22rem,40%,34rem); }
+ .ea-thread-grid[data-workspace-open="true"] > .ea-thread-main { display:flex; }
+ /* Beside the thread, Back and the full view's Stop and status are not needed; ThreadSurface
+    renders the latter only once the thread is measured narrow, and this rule backs it up. */
+ .ea-ws-back,.ea-ws-live { display:none; }
+ /* Its own scroll region (G-D 4.U4): the head stays at its top, a bring-into-view and focus
+    land below the head, and a cue shows while more is below. */
+ .ea-artifact-workspace { position:sticky; top:var(--ea-space-lg); max-height:min(calc(100dvh - 7rem), calc(var(--ea-ws-room, 100dvh) - 2 * var(--ea-space-lg))); overflow:auto; padding-top:0; scroll-padding-top:var(--ea-ws-head-h,0px); }
+ .ea-ws-head { position:sticky; top:0; z-index:1; padding-top:var(--ea-space-lg); padding-bottom:var(--ea-space-xs); background:var(--ea-color-surface-raised); }
+ .ea-artifact-workspace .ea-approval { scroll-margin-top:calc(var(--ea-ws-tabs-h,0px) + 2 * var(--ea-space-md)); }
+ .ea-ws-cue:not([hidden]) { display:block; position:sticky; bottom:calc(-1 * var(--ea-space-lg)); z-index:1; flex:none; height:2.5rem; margin-top:calc(-2.5rem - var(--ea-space-md)); pointer-events:none; background:linear-gradient(to bottom, transparent, var(--ea-color-surface-raised) 65%); }
+ .ea-ws-cue:not([hidden])::after { content:""; position:absolute; left:50%; bottom:0.6rem; width:0.6rem; height:0.6rem; border-right:2px solid var(--ea-color-text-muted); border-bottom:2px solid var(--ea-color-text-muted); transform:translateX(-50%) rotate(45deg); }
+}
+.ea-ws-cue { display:none; }
+@media (forced-colors: active) {
+ .ea-ws-cue:not([hidden]) { background:Canvas; border-top:2px dashed CanvasText; }
+ /* Only the current tab is underlined; a transparent border would show as CanvasText (G-D 4.U7).
+    An unselected tab's Canvas border sits above the list's line, not over it, at the same height. */
+ .ea-tab { border-bottom:1px solid Canvas; margin-bottom:0; }
+ .ea-tab[data-selected] { border-bottom:2px solid Highlight; margin-bottom:-1px; }
+ .ea-artifact-workspace { border:1px solid CanvasText; }
+}

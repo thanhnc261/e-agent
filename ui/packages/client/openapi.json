@@ -183,6 +183,133 @@
         "title": "ApprovalPresentation",
         "type": "object"
       },
+      "Conversation": {
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "owner_id": {
+            "title": "Owner Id",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "conversation_id",
+          "owner_id",
+          "revision",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Conversation",
+        "type": "object"
+      },
+      "ConversationList": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next After"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ConversationList",
+        "type": "object"
+      },
+      "ConversationSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "conversation": {
+            "$ref": "#/components/schemas/Conversation"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/ThreadRun"
+            },
+            "title": "Runs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "conversation",
+          "runs"
+        ],
+        "title": "ConversationSnapshot",
+        "type": "object"
+      },
+      "ConversationSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "latest_state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reply_pending": {
+            "default": false,
+            "title": "Reply Pending",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "title",
+          "updated_at"
+        ],
+        "title": "ConversationSummary",
+        "type": "object"
+      },
       "CreateRun": {
         "additionalProperties": false,
         "properties": {
@@ -227,6 +354,19 @@
         "title": "CreateRunResponse",
         "type": "object"
       },
+      "CreatedConversation": {
+        "properties": {
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversation_id"
+        ],
+        "title": "CreatedConversation",
+        "type": "object"
+      },
       "Decide": {
         "additionalProperties": false,
         "properties": {
@@ -259,6 +399,15 @@
         ],
         "title": "Decide",
         "type": "object"
+      },
+      "FeatureMode": {
+        "enum": [
+          "off",
+          "shadow",
+          "on"
+        ],
+        "title": "FeatureMode",
+        "type": "string"
       },
       "Finding": {
         "additionalProperties": false,
@@ -557,6 +706,18 @@
         "title": "MemberConnections",
         "type": "object"
       },
+      "MemberFeatures": {
+        "additionalProperties": false,
+        "description": "What a member may learn of the server's modes: the conversations mode (ADR 0023 \u00a710).",
+        "properties": {
+          "conversations": {
+            "$ref": "#/components/schemas/FeatureMode",
+            "default": "off"
+          }
+        },
+        "title": "MemberFeatures",
+        "type": "object"
+      },
       "PlanStepPresentation": {
         "additionalProperties": false,
         "description": "One step of a multi-step plan on the approval card (ADR 0024). Its arguments show a\nlineage placeholder as ``from step N: <pointer>``; ``risk`` and ``reversibility`` are the\ncapability's declarations (ADR 0029), a presentation annotation outside the digest.",
@@ -624,6 +785,66 @@
         "title": "PlanStepPresentation",
         "type": "object"
       },
+      "PostMessage": {
+        "additionalProperties": false,
+        "description": "``text`` has ``CreateRun.task``'s bounds and ``host_context`` its type and validation\n(``server/api.py`` ``CreateRun``; 4d.1 B1-3).",
+        "properties": {
+          "host_context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HostContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reply_to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplyTo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "text": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "PostMessage",
+        "type": "object"
+      },
+      "PostedMessage": {
+        "description": "A refusal is never a 202: it is ``CONFLICT`` with the fixed hint (ADR 0023 \u00a74).",
+        "properties": {
+          "route": {
+            "enum": [
+              "start",
+              "answer"
+            ],
+            "title": "Route",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "route",
+          "run_id"
+        ],
+        "title": "PostedMessage",
+        "type": "object"
+      },
       "ReasonCode": {
         "description": "Typed cause of a run state change (ADR 0018). The human `reason` text stays.",
         "enum": [
@@ -652,6 +873,7 @@
           "context_assembly_failed",
           "repeat_check_failed",
           "grounding_check_failed",
+          "conversation_context_failed",
           "context_unavailable",
           "repeat_unavailable",
           "grounding_unavailable",
@@ -661,6 +883,26 @@
         ],
         "title": "ReasonCode",
         "type": "string"
+      },
+      "ReplyTo": {
+        "additionalProperties": false,
+        "description": "The waiting run and the revision the user saw with its question (D2).",
+        "properties": {
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "run_revision": {
+            "title": "Run Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "run_id",
+          "run_revision"
+        ],
+        "title": "ReplyTo",
+        "type": "object"
       },
       "ResourceHint": {
         "additionalProperties": false,
@@ -829,7 +1071,10 @@
           "repeat.compared",
           "repeat.shadow_failed",
           "grounding.compared",
-          "grounding.shadow_failed"
+          "grounding.shadow_failed",
+          "conversation.context_carried",
+          "conversation.compared",
+          "conversation.shadow_failed"
         ],
         "title": "RunEventType",
         "type": "string"
@@ -837,6 +1082,17 @@
       "RunRecord": {
         "additionalProperties": false,
         "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
           "created_at": {
             "title": "Created At",
             "type": "string"
@@ -1177,6 +1433,49 @@
         "title": "TextFrame",
         "type": "object"
       },
+      "ThreadRun": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RunState"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "task",
+          "state",
+          "revision",
+          "created_at"
+        ],
+        "title": "ThreadRun",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -1277,6 +1576,255 @@
         "summary": "Ready"
       }
     },
+    "/v1/conversations": {
+      "get": {
+        "operationId": "list_conversations_v1_conversations_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Conversations"
+      },
+      "post": {
+        "operationId": "create_conversation_v1_conversations_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedConversation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Conversation"
+      }
+    },
+    "/v1/conversations/{conversation_id}": {
+      "get": {
+        "operationId": "get_conversation_v1_conversations__conversation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Conversation"
+      }
+    },
+    "/v1/conversations/{conversation_id}/messages": {
+      "post": {
+        "operationId": "post_message_v1_conversations__conversation_id__messages_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 8,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostedMessage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Message"
+      }
+    },
     "/v1/local/session": {
       "post": {
         "operationId": "local_session_v1_local_session_post",
@@ -1339,6 +1887,53 @@
           }
         },
         "summary": "My Connections"
+      }
+    },
+    "/v1/me/features": {
+      "get": {
+        "description": "The conversations mode, in every mode (ADR 0023 \u00a710); the UI reads it only here.",
+        "operationId": "my_features_v1_me_features_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-csrf-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberFeatures"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Features"
       }
     },
     "/v1/me/task-catalog": {

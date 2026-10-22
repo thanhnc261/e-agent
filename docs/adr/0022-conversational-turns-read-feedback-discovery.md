@@ -2,6 +2,8 @@
 
 Date: 2026-10-12. Status: Accepted (owner, 2026-10-14). Refines ADRs 0003, 0018; MVP design §7.
 
+Amended by [ADR 0023](0023-conversation-model.md) (accepted at gate G-A, 2026-10-20): a reply run can belong to a conversation, and the conversation's next message answers it. The reply rule below is unchanged, and no model call happens outside a run (ADR 0023 §5).
+
 ## Context
 
 The first live run of the Pydantic AI + Ollama driver against the `odoo19-learning` sandbox

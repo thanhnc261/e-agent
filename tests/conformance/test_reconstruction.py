@@ -515,6 +515,32 @@ def test_the_driver_is_read_from_run_created() -> None:
     assert reconstruct([]).driver.state is FieldState.UNKNOWN
 
 
+def test_reconstruct_conversation_id_from_run_created() -> None:
+    """``run.created`` carries ``conversation_id`` only when the run is linked (ADR 0023 §2):
+    a carried value rebuilds as known, and its absence from ``run.created`` means none."""
+    linked = _event(1, RunEventType.RUN_CREATED, {"task": "t", "conversation_id": "conv_1"})
+    slot = reconstruct([linked]).run.fields["conversation_id"]
+    assert (slot.state, slot.value) == (FieldState.KNOWN, "conv_1")
+    unlinked = reconstruct([_event(1, RunEventType.RUN_CREATED, {"task": "t"})])
+    slot = unlinked.run.fields["conversation_id"]
+    assert (slot.state, slot.value) == (FieldState.KNOWN, None)
+
+
+def test_reconstruct_conversation_id_unknown_without_run_created() -> None:
+    """Without ``run.created`` the link is not known, never guessed as none (PR-24)."""
+    cases = 0
+    for events in (
+        [],
+        [_event(2, RunEventType.RUN_STATE_CHANGED, {"state": "RUNNING"})],
+        [_event(2, RunEventType.PROPOSAL_CREATED, PHASE2_PROPOSAL, "a1")],
+    ):
+        slot = reconstruct(events).run.fields["conversation_id"]
+        assert (slot.state, slot.value) == (FieldState.UNKNOWN, None)
+        cases += 1
+    print(f"conversation_id unknown cases: {cases}")
+    assert cases == 3
+
+
 def test_an_empty_log_is_unknown() -> None:
     got = reconstruct([])
     assert got.state is FieldState.UNKNOWN

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runStateTone } from "../src/features/composer/runStateTone.ts";
+import { runStateTone } from "../src/primitives/runStateTone.ts";
 
 describe("run state tone", () => {
   it("never gives a grounded run the verified tone (PR-19)", () => {

@@ -1,0 +1,39 @@
+{
+  "id": "4d.3",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4d-3"
+  ],
+  "context_digest": "27a1fdd09db09c5d1d3c986ab989063f0108748b88a7b74cb751db2d46cb9747",
+  "allowed_paths": [
+    "src/e_agent/kernel/carried.py",
+    "src/e_agent/kernel/conversation.py",
+    "src/e_agent/kernel/coordinator.py",
+    "src/e_agent/contracts/events.py",
+    "ui/packages/client/openapi.json",
+    "ui/packages/client/src/schema.ts",
+    "tests/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "docs/handoffs/**",
+    "src/e_agent/kernel/run_loop.py"
+  ],
+  "acceptance": [
+    "test_shadow_layer_digest_equals_on_layer_digest passes and prints its case count",
+    "shadow fallback tests (stale revision, concurrent pair, conversation error, test_shadow_start_carries_host_context_as_create_run, test_shadow_answer_to_own_unlinked_run_is_plain_input) pass; no request fails",
+    "shadow adds no model call, read or budget use"
+  ],
+  "gate_set": "full",
+  "base_commit": "f8c13bde60dd2f3ceffb5df985899e15e55ba624",
+  "created_at": "2026-10-21T13:41:18+00:00",
+  "features_digest": "03981f972a23fbf9d6e8c6e607ba6e15453c6161d98a5aedeba211cb7dd256a2",
+  "scope_changes": [
+    {
+      "glob": "src/e_agent/kernel/run_loop.py",
+      "reason": "shadow answer fallback must be one atomic write (PR-17): accept_input gains an events keyword",
+      "at": "2026-10-21T14:08:47+00:00"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "task": "4d.2",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "A2-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Focus 5: there is no masking gap. render_carried sends user messages, CarriedRef.source_ref and revision through _text_line instead of context_walk.Walker. _text_line applies rules[UNMARKED_CLASS] in the same way as Walker._node does for an undeclared leaf. On KEEP the text is fenced. On MASK it writes a kernel marker with a value/class_route drop. On ABSENT it leaves the field out with the same drop. A scratch probe on local, hosted_declared and hosted_undeclared confirmed this. Answer arguments do go through the Walker, and a contract that is no longer admitted is classed {}, so everything in it is dropped on a hosted route. The finding is that the letter of ADR 0023 §8 ('every carried field goes through the class walk (kernel/context_walk.py)') is met only in effect. carried.py:312-318 is a second copy of the unmarked-leaf rule in context_walk.py:96-105, and carried.py:338 calls the private Walker._children. A side effect of the split: the same locator (demand:d-001) is kept as an internal answer argument but masked as a personal CarriedRef.source_ref on hosted_undeclared (test_carried_context.py:702 asserts this). That is fail-safe, with no leak, but 4d.3's comparison has to expect it. Fix: either record the ruling in the plan's 4d.2 line or in ADR 0023 §8, or, in a task that has context_walk.py in scope, add a public input-side entry point and a leaf entry point to Walker and route all three strings through them, so one class-rule implementation remains.",
+      "evidence": "src/e_agent/kernel/carried.py:303-318 (_text_line), :338 (walker._children); src/e_agent/kernel/context_walk.py:96-105; docs/adr/0023-conversation-model.md §8 bullet 2; tests/unit/kernel/test_carried_context.py:702"
+    },
+    {
+      "id": "A2-2",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "test_injected_carried_text_does_not_change_the_proposal asserts proposal equality, but that equality holds for any driver here. TurnDriver.advance picks its proposal from step_input.task and step_input.observations only and never reads step_input.context. The equality at :1075 therefore cannot fail, whatever the carried layer holds. The load-bearing assertions are the fence checks at :1077-1078: the injected text appears only inside fences, and 'Ignore' never appears outside them. The brief asked for exactly this scripted-driver check, so the test meets the contract. Its name claims more than it shows (ENG-WORK-2). Consider renaming it to say it checks the fencing, or add a driver that branches on the layer text, so the test would catch a kernel path that lets carried text steer the proposal.",
+      "evidence": "tests/unit/kernel/test_carried_context.py:838-857 (TurnDriver.advance), :1057-1078; task-4d.2-brief.md failing-tests list"
+    },
+    {
+      "id": "A2-3",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Implementer ruling 2, the purity-test allow-list edit, is accepted. The brief puts render_carried in carried.py and has assemble in context.py call it, so context.py has to import .carried. test_assembler_is_pure now holds carried.py to the same rule (contracts, sdk.ports, .context_walk, .errors and the listed stdlib), so the assembler can reach no new outside dependency. pyproject.toml adds e_agent.kernel.carried to the facade contract's source_modules. That brings carried.py under the import contract, which tightens it. No exemption was added (PR-06 not engaged).",
+      "evidence": "tests/unit/kernel/test_context_assembler.py:779-790; pyproject.toml:133; src/e_agent/kernel/carried.py:22-48"
+    }
+  ],
+  "reviewer": {"provider": "claude", "fresh_context": true}
+}

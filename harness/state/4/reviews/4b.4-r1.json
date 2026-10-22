@@ -1,0 +1,17 @@
+{
+  "task": "4b.4",
+  "verdict": "accept",
+  "findings": [
+    {
+      "id": "R1-1",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "No test pins replyPending clearing after the run leaves WAITING_INPUT or is answered; the code is correct (state and replyPending are written together in remember()). Carried to 4b.5.",
+      "evidence": "ui/packages/ui-core/test/controller.test.ts:170-200; ui/packages/ui-core/src/controller.ts:215-221"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-sonnet",
+    "fresh_context": true
+  }
+}

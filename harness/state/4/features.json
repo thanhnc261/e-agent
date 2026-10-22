@@ -1,0 +1,336 @@
+{
+  "phase": "4",
+  "entries": [
+    {
+      "id": "F-4a-1",
+      "category": "adr",
+      "description": "Task 4a.1: ADRs 0023 (conversation model) and 0034 (conversation-first workspace and explanation UI), ADR 0022/0032 notes, target 5.7",
+      "steps": [
+        "ADRs 0023 and 0034 written from D1-D17 with current file:line references (ADR 0023 includes the answer_value_formats manifest field and the per-contract format and ref-match list); ADR 0022 and 0032 carry an amended-by line",
+        "ADR index rows and target 5.7 added",
+        "repo_move.py check reports no broken links; full gate passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4a.1/2026-10-20T14-57-01.208337+00-00-full.json"
+    },
+    {
+      "id": "F-4a-2",
+      "category": "adr",
+      "description": "Task 4a.2: owner acceptance of the Phase 4 ADRs and decisions (gate G-A)",
+      "steps": [
+        "owner answers recorded in the decisions table and ADR status lines",
+        "validate-context prints ok; full gate passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4a.2/2026-10-20T15-15-16.900796+00-00-full.json"
+    },
+    {
+      "id": "F-4b-1",
+      "category": "ui",
+      "description": "Task 4b.1: legacy run.state_changed rows render as unknown -> state, never undefined (core plan 0.1)",
+      "steps": [
+        "selectors.test.ts legacy-row tests pass",
+        "contract.spec.ts legacy state row shows no undefined",
+        "pnpm --dir ui check passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4b.1/2026-10-20T15-19-54.723142+00-00-full.json"
+    },
+    {
+      "id": "F-4b-2",
+      "category": "ui",
+      "description": "Task 4b.2: the reply label shows once per thread, later replies keep a quiet not-verified hint (core plan 0.2)",
+      "steps": [
+        "selectors.test.ts marks only the first reply",
+        "composer.spec.ts reply label shows once after hi, hi",
+        "pnpm --dir ui check passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4b.2/2026-10-20T15-23-53.695341+00-00-full.json"
+    },
+    {
+      "id": "F-4b-3",
+      "category": "ui",
+      "description": "Task 4b.3: Context chip copy says what the agent uses, EN and VI, provider-neutral (core plan 0.3)",
+      "steps": [
+        "routes.test.ts context chip test passes in EN and VI",
+        "pnpm --dir ui lint:neutral passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4b.3/2026-10-20T15-26-54.257545+00-00-full.json"
+    },
+    {
+      "id": "F-4b-4",
+      "category": "ui",
+      "description": "Task 4b.4: sidebar says Your turn after a reply; ag-ux-review over the 4b diffs, stopping for the owner (gate G-0)",
+      "steps": [
+        "controller.test.ts history entry records a pending reply",
+        "composer.spec.ts sidebar says Your turn after a reply; make e2e exits 0",
+        "review written without fixes; owner G-0 answer recorded"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4b.4/2026-10-20T15-49-22.787824+00-00-full.json"
+    },
+    {
+      "id": "F-4b-5",
+      "category": "ui",
+      "description": "Task 4b.5: chat defects review resolution, before 4e.1",
+      "steps": [
+        "each finding has a failing-then-passing test named after it",
+        "pnpm --dir ui check and make e2e pass",
+        "resolution file answers every finding; no open Blocker or High"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4b.5/2026-10-20T16-23-50.080345+00-00-full.json"
+    },
+    {
+      "id": "F-4c-1",
+      "category": "contracts",
+      "description": "Task 4c.1: features.conversations default off, pinned per run, CONVERSATION_CONTEXT_FAILED, startup refuses on without context_assembler on",
+      "steps": [
+        "features, committed profile, pinning and startup tests pass",
+        "off baselines and both off model-request goldens unchanged",
+        "readiness reports five toggles"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4c.1/2026-10-20T16-44-20.374449+00-00-full.json"
+    },
+    {
+      "id": "F-4c-2",
+      "category": "contracts",
+      "description": "Task 4c.2: Conversation contract records and RunRecord.conversation_id (the conversations record kind moved to 4c.3 with its table)",
+      "steps": [
+        "tests/unit/contracts/test_conversation.py passes",
+        "off v3 event goldens unchanged; openapi.json and schema.ts regenerated with only RunRecord.conversation_id; export_openapi.py --check is clean"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4c.2/2026-10-21T10-55-13.643697+00-00-full.json"
+    },
+    {
+      "id": "F-4c-3",
+      "category": "store",
+      "description": "Task 4c.3: ConversationStore on both stores with migration 0007, lookup_idempotent and create_run_in_conversation (idempotency record looked up first; RunStore unchanged), one active run per conversation; InMemoryConversationStore subclass (lock order _conversation_lock then _lock); FB-1, FB-2",
+      "steps": [
+        "tests/conformance/test_conversation_store.py passes on memory and Postgres and prints its case count",
+        "test_concurrent_messages_start_one_run, test_idempotent_replay_starts_one_run (replay while the first run is active), test_concurrent_same_key_starts_one_run and test_empty_driver_state_round_trips pass on both stores",
+        "test_every_store_record_kind_declares_a_class lists conversations; test_runs_conversation_id_column_matches_record and the two reconstruct conversation_id cases pass",
+        "wc -l shows memory_store.py at most 500 lines, changed only by the FB-2 fix; lint-imports keeps every contract; pg gate passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4c.3/2026-10-21T11-37-04.698235+00-00-full.json"
+    },
+    {
+      "id": "F-4c-4",
+      "category": "contracts",
+      "description": "Task 4c.4: host-side answer value formats (CapabilityDescriptor.answer_value_formats, closed set decimal/integer/date/date-time/enum/ref) checked at admission; ERP answer contracts declare them; never in the model-facing schema (D17 (a), ADR 0023)",
+      "steps": [
+        "tests/unit/contracts/test_value_formats.py, tests/unit/kernel/test_registry_value_formats.py and tests/unit/plugins/erp/domain/test_manifest_value_formats.py pass",
+        "the registry refuses an unknown format, a path the schema lacks, a type mismatch and a format without a data class",
+        "both off model-request goldens byte-identical; registry.py at most 500 lines; check_wheels passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4c.4/2026-10-21T12-14-23.143772+00-00-full.json"
+    },
+    {
+      "id": "F-4d-1",
+      "category": "kernel",
+      "description": "Task 4d.1: message routing bound to the question the user saw; idempotency record looked up first, then ownership, reply_to membership (NOT_FOUND) and input_replayed(actor); start passes host_context unchanged; a message is never a decision",
+      "steps": [
+        "tests/unit/kernel/test_conversation_routing.py passes on both stores",
+        "test_answer_for_an_earlier_question_conflicts, test_retried_answer_is_accepted_once, test_retried_message_starts_one_run (second while run 1 is RUNNING), test_reply_to_foreign_run_is_not_found and test_input_replayed_refuses_a_non_requester pass",
+        "test_start_passes_host_context_to_the_run and test_message_while_waiting_approval_never_touches_the_action pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4d.1/2026-10-21T12-49-22.986449+00-00-full.json"
+    },
+    {
+      "id": "F-4d-2",
+      "category": "kernel",
+      "description": "Task 4d.2: carried context (user messages, VERIFIED answer values that pass their declared value format, ref values only when the run recorded them, record refs from the run's evidence) rendered fenced in recent_turns; never evidence of the new run",
+      "steps": [
+        "tests/unit/kernel/test_carried_context.py passes on both stores, including test_ref_not_among_recorded_source_refs_is_dropped test_carry_holds_the_shortage_quantity_and_demand_ref and test_ref_from_incomplete_read_is_not_carried",
+        "test_carried_items_are_not_approved_facts and test_carry_failure_falls_back_before_reservation pass",
+        "Phase 3 pack digests and off goldens unchanged; replay suite passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4d.2/2026-10-21T13-37-21.836239+00-00-full.json"
+    },
+    {
+      "id": "F-4d-3",
+      "category": "kernel",
+      "description": "Task 4d.3: conversations shadow records conversation.compared, refuses nothing today's path accepts, and falls back server-side in the same request and idempotency record, carrying host_context as POST /v1/runs does",
+      "steps": [
+        "test_shadow_layer_digest_equals_on_layer_digest passes and prints its case count",
+        "shadow fallback tests (stale revision, concurrent pair, conversation error, test_shadow_start_carries_host_context_as_create_run, test_shadow_answer_to_own_unlinked_run_is_plain_input) pass; no request fails",
+        "shadow adds no model call, read or budget use"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4d.3/2026-10-21T14-24-23.546422+00-00-full.json"
+    },
+    {
+      "id": "F-4d-4",
+      "category": "server",
+      "description": "Task 4d.4: conversation routes and GET /v1/me/features with session dependencies; /v1 route authorization test (PR-27); server tests in the pg gate",
+      "steps": [
+        "test_conversation_api.py passes on both stores; test_route_authorization.py prints its count",
+        "one tested request-digest function over conversation_id, text, reply_to and host_context; one key posted to two conversations gives CONFLICT; empty and over-4000-character text give 422 (4d.1 B1-2, B1-3)",
+        "evidence bundle reports the conversation key; the off conversation route refuses NOT_FOUND 'conversations are off'",
+        "export_openapi.py --check and pnpm --dir ui gen:check pass",
+        "pg gate runs test_conversation_api.py"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4d.4/2026-10-21T15-10-13.003158+00-00-full.json"
+    },
+    {
+      "id": "F-4d-5",
+      "category": "server",
+      "description": "Task 4d.5: fixture thread end to end; run 2's carried layer holds run 1's VERIFIED ShortageAnswer shortage quantity and demand_ref (D17 (a)), and run 2 never re-asks",
+      "steps": [
+        "tests/unit/server/test_conversation_e2e.py passes on both stores",
+        "pg gate and the CI checks job's PostgreSQL step (both now with test_conversation_e2e.py) and make e2e pass"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4d.5/2026-10-21T15-40-02.807482+00-00-full.json"
+    },
+    {
+      "id": "F-4e-1",
+      "category": "ui",
+      "description": "Task 4e.1: chat surface gap audit and the conversation thread design brief (gate G-B)",
+      "steps": [
+        "gap audit written under docs/reviews",
+        "brief approved by the owner, approval recorded verbatim"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4e.1/2026-10-21T16-49-11.884973+00-00-full.json"
+    },
+    {
+      "id": "F-4e-2",
+      "category": "ui",
+      "description": "Task 4e.2: conversation thread mockup with every normative state (gate G-C)",
+      "steps": [
+        "verify.mjs output in the QA file",
+        "owner selection recorded"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4e.2/2026-10-21T19-04-22.260486+00-00-full.json"
+    },
+    {
+      "id": "F-4e-3",
+      "category": "ui",
+      "description": "Task 4e.3: ui-core conversation state behind features.conversations with per-run fallback decided by error code: legacy routes only when features report off or a 404 has no error envelope; an enveloped NOT_FOUND in on is shown and never starts an unlinked run",
+      "steps": [
+        "packages/ui-core/test/conversation.test.ts passes",
+        "pnpm --dir ui check passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4e.3/2026-10-21T19-44-55.498384+00-00-full.json"
+    },
+    {
+      "id": "F-4e-4",
+      "category": "ui",
+      "description": "Task 4e.4: thread view, server-listed sidebar and closable artifact workspace (EA-10); UI architecture 12",
+      "steps": [
+        "conversation.spec.ts passes, axe check per state",
+        "make e2e passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4e.4/2026-10-21T20-50-21.840151+00-00-full.json"
+    },
+    {
+      "id": "F-4e-5",
+      "category": "ui",
+      "description": "Task 4e.5: citations and explanation in the outcome and timeline, labelled grounded, not verified (second cut line)",
+      "steps": [
+        "citations.test.tsx and explanation.spec.ts pass",
+        "make e2e passes"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4e.5/2026-10-21T21-28-41.657302+00-00-full.json"
+    },
+    {
+      "id": "F-4e-6",
+      "category": "approval",
+      "description": "Deferred at gate G-A (owner 2026-10-20, \"3 defer\"; ADR 0034 section 5): not built in Phase 4, moves to a named follow-up. Task 4e.6: rationale second on the approval card, never in the digest (cut line; only if ADR 0034 rationale section accepted)",
+      "steps": [
+        "tests/unit/kernel/test_approval_rationale.py passes on both stores; digest vectors unchanged",
+        "approval.test.ts rationale test passes; make e2e passes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4e-7",
+      "category": "ui",
+      "description": "Task 4e.7: ag-ux-review of the conversation UI and its resolution (gate G-D)",
+      "steps": [
+        "review quotes real pnpm check and conformance output",
+        "no open Blocker or High; owner review recorded"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4e.7/2026-10-22T03-41-43.138350+00-00-full.json"
+    },
+    {
+      "id": "F-4f-1",
+      "category": "verification",
+      "description": "Task 4f.1: end-of-phase levels 1-3, phase review and handoff",
+      "steps": [
+        "eng-verify levels 1-3 pass on a clean tree",
+        "handoff states carried context is never evidence and GROUNDED is not verified"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4f.1/2026-10-22T04-24-35.498585+00-00-full.json"
+    },
+    {
+      "id": "F-4f-2",
+      "category": "verification",
+      "description": "Task 4f.2: Phase 4 live check on odoo19-learning, on the owner's instruction only: Phase 0 exit, single-run PO with the pack, then the thread",
+      "steps": [
+        "uv run e-agent-harness live-check passes and writes evidence under harness/state/evidence/live/",
+        "gitleaks dir over harness/state/evidence/live/ reports no leaks and the key-shape grep finds no matches; nothing reads the secret store or a key value",
+        "live results recorded in the handoff, labelled live; no PO proposed is a partial result"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F-4d-6",
+      "category": "kernel",
+      "description": "Task 4d.6: an answer (reply_to) to an ended run is refused with CONFLICT 'the question changed; read it again' (G-B decision 3, ADR 0023 §4 amended); retries and accepted answers still replay",
+      "steps": [
+        "test_reply_to_an_ended_run_is_refused passes in on and shadow on both stores, with no run created anywhere",
+        "test_retried_answer_after_its_run_ended_replays and test_message_without_reply_to_after_an_ended_run_starts pass",
+        "ADR 0023 §4 table and order of checks amended in the same commit"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4d.6/2026-10-21T17-00-05.222421+00-00-full.json"
+    },
+    {
+      "id": "F-4R-2",
+      "category": "ui",
+      "description": "Task 4.R2: context.noHost VI says yêu cầu like every other string (advisor ruling on the owner's delegation, 2026-10-22)",
+      "steps": [
+        "pnpm --dir ui check passes with routes.test.ts and text.test.ts updated"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4.R2/2026-10-22T06-48-32.190243+00-00-full.json"
+    },
+    {
+      "id": "F-4R-3",
+      "category": "ui",
+      "description": "Task 4.R3: fix browser-run defects B-1 (refusal hint outlives the run that caused it) and B-2 (run card says Outcome verified while the run awaits review)",
+      "steps": [
+        "pnpm --dir ui check and make e2e pass with a test for each defect"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4f.2/2026-10-22T11-11-15.567847+00-00-full.json"
+    },
+    {
+      "id": "F-4R-4",
+      "category": "ui",
+      "description": "Task 4.R4: CI defects on PR #8: certifi PYSEC-2026-4320, and the thread keeps the latest run aligned while the user has not taken the scroll, so a late layout change cannot push the composer out of view",
+      "steps": [
+        "pip-audit reports no known vulnerabilities; pnpm --dir ui check and make e2e pass with a conformance test that changes the layout after open; CI green on PR #8"
+      ],
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4f.2/2026-10-22T12-51-22.100715+00-00-full.json"
+    }
+  ]
+}

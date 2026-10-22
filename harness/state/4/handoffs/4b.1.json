@@ -1,0 +1,18 @@
+{
+  "task": "4b.1",
+  "changed": "selectTimeline (ui-core store.ts) builds a run.state_changed transition with to from to or state and from 'unknown' when absent, so legacy rows written before ADR 0031 render 'Unknown → Running' instead of 'undefined → undefined'; status.unknown added in EN ('Unknown') and VI ('Chưa rõ'), resolved by Timeline.tsx's existing t(statusKey(from)). Tests: two selectors.test.ts cases and the Playwright contract test 'legacy state row shows no undefined' on all targets. Commit 56463fb. Review harness/state/4/reviews/4b.1-r1.json (accept, two Low notes, no change).",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4b.1/2026-10-20T15-19-54.723142+00-00-full.json"
+  ],
+  "open_items": [
+    "mock-api.ts was not changed: the contract test emits the legacy row directly, so a shared legacy fixture row was not needed (reviewer agreed).",
+    "The reference-vanilla UI shows the raw 'unknown' in its plain detail text (R1-1, consistent with its raw state names)."
+  ],
+  "rulings": [
+    {
+      "ruling": "Accept leaving mock-api.ts unchanged; a permanent legacy row would change other contract tests' event counts.",
+      "cost_if_wrong": "one fixture row later"
+    }
+  ],
+  "outside_repo": []
+}

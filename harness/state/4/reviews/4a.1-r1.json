@@ -1,0 +1,66 @@
+{
+  "task": "4a.1",
+  "verdict": "rework",
+  "findings": [
+    {
+      "id": "R1-1",
+      "severity": "High",
+      "affects": "contract",
+      "summary": "The D15/4e.5 plan amendment and ADR 0034 rest on a false premise: the evidence bundle dumps every ActionRecord in full, and ApprovedFact.data holds the observed values from cont.observations, so a typed answer's cited value is already in the bundle; only a GROUNDED run (no action) lacks it. The amendment dropped the approved 'value shown beside a citation is read from recorded evidence' on that premise, and the D15 row carries no pending-G-A marker.",
+      "evidence": "src/e_agent/kernel/evidence.py:268; src/e_agent/kernel/proposals.py:184-187; src/e_agent/kernel/plan_flow.py:321; src/e_agent/contracts/evidence.py:29-37; docs/adr/0034-conversation-workspace-and-explanation-ui.md:11, :40, :68; plan D15 row and Task 4e.5"
+    },
+    {
+      "id": "R1-2",
+      "severity": "Medium",
+      "affects": "correctness",
+      "summary": "ADR 0023 \u00a76/\u00a79 do not name the continuation field that holds carried items or say it is separate from cont.observations and cont.reads; carried items stored in observations would become ApprovedFacts, approval baseline and staleness targets, which D6 forbids, and no listed test checks approved_facts.",
+      "evidence": "docs/adr/0023-conversation-model.md:69, :81, :147; src/e_agent/kernel/proposals.py:184-187; src/e_agent/kernel/approval.py:196; src/e_agent/kernel/dispatch.py:363-366"
+    },
+    {
+      "id": "R1-3",
+      "severity": "Medium",
+      "affects": "contract",
+      "summary": "CarriedRef's field is source_ref in ADR 0023 \u00a72 and the plan but locator in \u00a76 item 3.",
+      "evidence": "docs/adr/0023-conversation-model.md:27 vs :75"
+    },
+    {
+      "id": "R1-4",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "ADR 0023 \u00a711 fixes the conversation.shadow_failed stage set and the route: refuse shape of conversation.compared, which plan Task 4d.3 Interfaces does not state.",
+      "evidence": "docs/adr/0023-conversation-model.md:180-181; plan Task 4d.3"
+    },
+    {
+      "id": "R1-5",
+      "severity": "Low",
+      "affects": "contract",
+      "summary": "Task 4e.5's Files line still names only the explanation key, while its amended Interfaces read grounded_answer and proposal.created citations.",
+      "evidence": "plan Task 4e.5 Files vs Interfaces"
+    },
+    {
+      "id": "R1-6",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "Two ADR 0023 citations are off by one or two lines: the /inputs FORBIDDEN check is server/api.py:467-468 and the replay check :469-478.",
+      "evidence": "docs/adr/0023-conversation-model.md:56; src/e_agent/server/api.py:465-479"
+    },
+    {
+      "id": "R1-7",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "ADR 0032 says 'Amended by ADR 0023', while the index row and ADR 0023's header say 'refines'; use one verb.",
+      "evidence": "docs/adr/0032-context-assembler.md:5; docs/adr/README.md; docs/adr/0023-conversation-model.md:3"
+    },
+    {
+      "id": "R1-8",
+      "severity": "Low",
+      "affects": "style",
+      "summary": "The D17 ancestor-coverage wording and the 4d.2 verifier-read note are necessary and change no decision; the owner confirms them at G-A. The ref guard accepts a ref Odoo located but did not find (report question 2).",
+      "evidence": "src/e_agent/contracts/data_classes.py:225-232; src/e_agent/plugins/erp/odoo/executor.py:118-124"
+    }
+  ],
+  "reviewer": {
+    "provider": "claude-opus",
+    "fresh_context": true
+  }
+}

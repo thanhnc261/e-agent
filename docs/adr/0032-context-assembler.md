@@ -2,6 +2,8 @@
 
 Date: 2026-10-19. Status: Accepted (2026-10-19, owner, gate G2, Phase 3 Task 3a.2). Amended 2026-10-20 (Phase 3 review, owner accepted; Task 3.D1): the Task 3d.5 amendments (§8 restore check before a driver turn; §11 `context.assembled` and the `DRIVER_STATE_MISMATCH` cell), observation numbers as canonical decimal strings (§1), validator messages without rule text (§5), the `turn` encodings (§11), the full `sdk_api` 1.2 list (§12) and the open driver-state item (Consequences). Refines ADRs 0004, 0027 and 0030; [target architecture](../design/target-architecture.md) §7.1–§7.4, §13.3, §17 C9. Plan: [Phase 3](../plans/2026-10-19-phase3-cognition-context.md) D1, D3, D8, Tasks 3b.2, 3d.1–3d.5.
 
+Refined by [ADR 0023](0023-conversation-model.md) (accepted at gate G-A, 2026-10-20): the `recent_turns` layer holds a conversation's carried items, fenced and class-walked; the drop order of section 2 is unchanged (ADR 0023 §8).
+
 ## Context
 
 Target §7.1 puts "what may enter" the model's context in the kernel and "how it is rendered" in the driver adapter. Today the driver decides both. At `51c6c15`:
@@ -67,6 +69,12 @@ A masked value is replaced by the string `[masked:<class>]` and recorded as a `D
 - the `expected` and `observed` text of a finding is masked to `[masked:personal]`, unless the finding's validator declares the class of those fields. No validator declares one in Phase 3, so they are always masked there. Kernel findings (`KERNEL-*`) are kernel-authored and keep their fields, so their `expected` and `observed` carry only ids, JSON pointers, digests, counts and codes, never an observed value (a `KERNEL-CITATION` names the evidence id and pointer, not the value it found);
 - a read error keeps its kernel code, and the provider's message after it is masked to `[masked:personal]`;
 - each mask is a `Dropped` entry of kind `value`, reason `class_route`, whose `ref` names the finding (`finding:<index>#/expected` or `#/observed`) or the read request (`read_error:<request_id>`).
+
+**Carried context (ADR 0023 §8, Phase 4 Task 4d.2).** The `recent_turns` layer adds two `Dropped.ref` forms (review B2-4):
+- `carried:<run_id>`, for a carried run left out whole: a `turn` drop for the layer budget or the pack's budget (`kernel/context.py:363`);
+- `carried:<run_id>#/user_messages/<i>`, `carried:<run_id>#/refs/<i>/source_ref` or `#/refs/<i>/revision`, and `carried:<run_id>#/answers/<i>/arguments/<name>` (or a pointer below it), for a carried value the route's class rule masked or left out, a `value` drop with reason `class_route` (`kernel/carried.py:312-362`).
+
+They hold only kernel ids, positions and declared argument names, never a value. The `Dropped` docstring in `contracts/context_pack.py` does not list them yet; that is a code follow-up.
 
 A finding's `rule_id` and `status` are kept. Its `message` is not trusted to be rule text: a SHACL result copies `sh:resultMessage` verbatim (`adapters/shacl/engine.py`), and `ValidationDataset.extra_findings` (`sdk/validation.py`) lets a validator write free-form messages. So on the same routes a non-`KERNEL-*` finding's `message` is not sent: `assemble` can render rule text by `rule_id` in its place (its `rule_texts` argument), but in Phase 3 no caller passes any. The kernel holds no rule text: no SDK field carries it, `PluginContribution.rule_inventory` maps a rule id to its version only (ADR 0009, ADR 0033 §4), and the kernel may not import a plugin to read its inventory resources (PR-01). So on those routes every non-`KERNEL-*` finding's `message` is masked to `[masked:personal]` and logged in `dropped` (Task 3d.4). The model can still repair from the rule id, rule version and status. Masking governs the model context only; the approval card is always built from the unmasked action (ADR 0030, ADR 0006, threat T9, Review Focus 3).
 

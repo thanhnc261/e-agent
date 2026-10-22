@@ -24,6 +24,7 @@ from e_agent.contracts.common import new_id, utc_now
 from e_agent.contracts.context import HostContext, Principal, TaskContext
 from e_agent.contracts.digest import digest
 from e_agent.contracts.events import RunEvent
+from e_agent.contracts.features import MemberFeatures
 from e_agent.contracts.run import TERMINAL_RUN_STATES, RunRecord, RunState
 from e_agent.kernel.approval import ApprovalPresentation
 from e_agent.kernel.discovery import (
@@ -463,19 +464,10 @@ def create_app(
         s: Session = Depends(session),
     ) -> Accepted:
         rt = state().runtime
-        run = await rt.store.get_run(s.principal.tenant_id, run_id)
-        if run.requester_id != s.principal.principal_id:
-            raise KernelError(ErrorCode.FORBIDDEN, "only the requester may answer")
-        if run.revision != body.expected_revision or run.state is not RunState.WAITING_INPUT:
-            events = await rt.store.list_events(s.principal.tenant_id, run_id)
-            if any(
-                e.type == "input.received"
-                and e.payload.get("expected_revision") == body.expected_revision
-                and e.payload.get("input") == body.input
-                for e in events
-            ):
-                return Accepted(status="accepted")
-            raise KernelError(ErrorCode.CONFLICT, "input does not match the pending question")
+        if await rt.coordinator.input_replayed(
+            s.principal, s.principal.tenant_id, run_id, body.expected_revision, body.input
+        ):
+            return Accepted(status="accepted")
         await rt.coordinator.accept_input(
             s.principal, run_id, body.input, body.expected_revision, enqueue=True
         )
@@ -542,6 +534,16 @@ def create_app(
             observed_at=utc_now().isoformat(),
             templates=[TaskTemplate(**vars(t)) for t in projected],
         )
+
+    @app.get("/v1/me/features")
+    async def my_features(s: Session = Depends(session)) -> MemberFeatures:
+        """The conversations mode, in every mode (ADR 0023 §10); the UI reads it only here."""
+        return state().runtime.coordinator.member_features()
+
+    # -- conversations (ADR 0023 §10): the handlers hold no routing logic (PR-03) -------
+    from .conversations import add_conversation_routes  # it imports this module's types
+
+    add_conversation_routes(app, state, session)
 
     if static_dir is not None and static_dir.is_dir():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="ui")

@@ -30,23 +30,26 @@ ALL_OFF = {
     "context_assembler": "off",
     "kernel_repeat": "off",
     "grounded_answers": "off",
+    "conversations": "off",
 }
 
 
-def test_committed_profiles_keep_phase3_toggles_off() -> None:
-    """Every committed profile names all four toggles, each ``off`` (ADR 0027, ADR 0032)."""
+def test_committed_profiles_keep_conversations_off() -> None:
+    """Every committed profile names all five toggles, each ``off``, ``conversations``
+    included (ADR 0027, ADR 0032, ADR 0023 §9)."""
     checked = 0
     for path in COMMITTED:
         assert json.loads(Path(path).read_text("utf-8"))["features"] == ALL_OFF, path
         features = load_profile(path).features
+        assert features.conversations is FeatureMode.OFF, path
         assert all(getattr(features, name) is FeatureMode.OFF for name in ALL_OFF), path
         checked += 1
     assert checked == 3, f"checked {checked} committed profiles"
 
 
-def test_readiness_reports_four_toggles() -> None:
+def test_readiness_reports_five_toggles() -> None:
     with TestClient(create_app(lambda: build_runtime(load_profile(fixture_profile_path())))) as c:
         features = c.get("/health/ready").json()["features"]
     assert features == ALL_OFF
     print(f"readiness toggles: {len(features)}")
-    assert len(features) == 4
+    assert len(features) == 5

@@ -11,9 +11,10 @@ and records the comparison with the action digest. It acts on nothing: no driver
 provider read, no budget use, and the run, the action and the approval are today's.
 
 Phase 3 (ADR 0032 §8, §11): a run pins ``context_assembler``, ``kernel_repeat`` and
-``grounded_answers`` in its continuation when it is prepared (`RunModes`, written only when a
-mode is not ``off``), and every later toggle site reads the pin through `_run_modes`, never
-the profile. The three Phase 3 fallback codes and five terminal codes each have one fixed
+``grounded_answers``, and since Phase 4 ``conversations`` (ADR 0023 §9), in its continuation
+when it is prepared (`RunModes`, written only when a mode is not ``off``), and every later
+toggle site reads the pin through `_run_modes`, never the profile. The three Phase 3 fallback
+codes, five terminal codes and the ``conversations`` fallback code each have one fixed
 message here.
 
 No event here carries caller text: each message is a fixed one, so no provider, compiler,
@@ -62,10 +63,12 @@ FALLBACK_MESSAGES = MappingProxyType(
         "the call continued on the existing path.",
         ReasonCode.GROUNDING_CHECK_FAILED: "The grounding check could not run; "
         "the answer continued on the existing path.",
+        ReasonCode.CONVERSATION_CONTEXT_FAILED: "The carried conversation context could not "
+        "be built; the run started without it.",
     }
 )
 """The fallback codes and each one's fixed message: ADR 0025 names the ``execution_ir`` ones,
-ADR 0031, 0032 and 0033 the Phase 3 ones."""
+ADR 0031, 0032 and 0033 the Phase 3 ones, ADR 0023 the ``conversations`` one."""
 
 FALLBACK_FEATURES = MappingProxyType(
     {
@@ -75,6 +78,7 @@ FALLBACK_FEATURES = MappingProxyType(
         ReasonCode.CONTEXT_ASSEMBLY_FAILED: "context_assembler",
         ReasonCode.REPEAT_CHECK_FAILED: "kernel_repeat",
         ReasonCode.GROUNDING_CHECK_FAILED: "grounded_answers",
+        ReasonCode.CONVERSATION_CONTEXT_FAILED: "conversations",
     }
 )
 """The feature each fallback code belongs to; `fallback_event` refuses any other pair."""
@@ -215,8 +219,8 @@ class FeaturesMixin(ContinuationMixin):
         return self._features.execution_ir is FeatureMode.SHADOW
 
     def _pin_modes(self) -> RunModes | None:
-        """The pin a run prepared now stores: None when every Phase 3 mode is ``off``, so an
-        ``off`` continuation is byte-identical (ADR 0032 §8)."""
+        """The pin a run prepared now stores: None when every pinned mode is ``off``, so an
+        ``off`` continuation is byte-identical (ADR 0032 §8, ADR 0023 §9)."""
         modes = RunModes.from_features(self._features)
         return None if modes.all_off else modes
 
@@ -259,7 +263,8 @@ class FeaturesMixin(ContinuationMixin):
     @staticmethod
     def _run_modes(cont: _Continuation) -> RunModes:
         """The run's pinned modes; an absent pin means every mode is ``off``. Every toggle
-        site of the three Phase 3 features reads this, never the profile."""
+        site of the three Phase 3 features and of ``conversations`` reads this, never the
+        profile."""
         return cont.modes if cont.modes is not None else RunModes()
 
     def _admit_task(
