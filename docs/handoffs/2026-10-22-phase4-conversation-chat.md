@@ -74,7 +74,16 @@ A secret scan (`gitleaks git` over `b52f979f..HEAD`) scanned 158 commits and fou
 
 ### Level 4: live check (4f.2)
 
-Not run. It runs only on the owner's instruction, through the `live-sandbox` skill, in the order the plan's "Live check" section gives. The owner's instruction is also the Phase 3 ruling's trigger: step 3 is the first qualified live write with `context_assembler: on`.
+**Attempted 2026-10-22 and blocked at identity, before any mutation.** The attempt followed the advisor's go on the owner's delegation.
+
+- `odoo_sandbox.py info` reached the sandbox at `http://localhost:8069` and got `OdooRejected: 401 REJECTED` on the bridge's `sandbox_info` call.
+- `env_check.py` ran against database `training19_demo`, server 19.0-20260630. Its key check was skipped: "database or API key not provided".
+- Nothing was seeded, reset, upgraded or started. The live profile was not touched, and the domain-erp re-pin did not run.
+- The key value and the secret store were not read.
+
+What unblocks it is an owner step: rotate the integration key in the sandbox, then run `uv run e-agent secret set secretref:local/odoo-integration`. After that, step A (identity, the harness `live` gate, the re-pin) runs again.
+
+Until then the live check has not run. The rest of this section describes how it will run. It runs only on the owner's instruction, through the `live-sandbox` skill, in the order the plan's "Live check" section gives. The owner's instruction is also the Phase 3 ruling's trigger: step 3 is the first qualified live write with `context_assembler: on`.
 
 ## Phase review
 
