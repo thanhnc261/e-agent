@@ -959,3 +959,8 @@
 - changed: harness/state/4/features.json, harness/state/evidence/gates/4f.2/2026-10-22T11-11-15.567847+00-00-full.json
 - next: Do NOT set F-4f-2 passing: its steps are the live check; the full/e2e evidence under gates/4f.2/ is the 4.R3 gate (F-4R-3). 4f.2 waits for the owner's key renewal and 'go'; merge waits for the owner's ask.
 - open: none
+
+## 2026-10-22T13:02:25.827231+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4f.2
+- changed: harness/state/evidence/gates/4f.2/2026-10-22T13-00-34.526536+00-00-full.json
+- next: Phase 4 merging as PR #8. Do NOT set F-4f-2 passing: its steps are the live check; gates under gates/4f.2/ are 4.R3/4.R4 evidence. 4f.2 waits for the owner's key renewal and 'go'; branch from main before it writes.
+- open: none
