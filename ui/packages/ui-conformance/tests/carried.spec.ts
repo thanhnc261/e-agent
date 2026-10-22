@@ -84,3 +84,39 @@ test('axe: thread state "earlier runs used as hints" has no WCAG 2.2 AA violatio
   expect(result.rules, "axe ran no rule").toBeGreaterThan(0);
   expect(result.violations).toEqual([]);
 });
+
+for (const failure of ["failed", "aborted"] as const) {
+  test(`a ${failure} bundle read on opening a running run's workspace raises no alert (GD-1)`, async ({
+    page,
+  }) => {
+    const api = new MockApi();
+    api.features = "on";
+    api.twoRunThread();
+    api.state = "RUNNING";
+    await api.install(page);
+    // The quiet read behind the earlier-runs list; its failure is the list's own business.
+    await page.route(/\/v1\/runs\/[^/]+\/evidence$/, route =>
+      failure === "aborted"
+        ? route.abort("failed")
+        : route.fulfill({
+            status: 500,
+            contentType: "application/json",
+            body: JSON.stringify({ error: { code: "INTERNAL", message: "boom" } }),
+          }),
+    );
+    await page.goto("/");
+    await page.getByTestId("thread-row").first().click();
+    await expect(page.getByTestId("thread-run")).toHaveCount(2);
+    const reads = page.waitForRequest(/\/v1\/runs\/[^/]+\/evidence$/);
+    await page.getByTestId("thread-run").nth(1).getByTestId("run-card-open").click();
+    const workspace = page.getByTestId("artifact-workspace");
+    // A running run has no decision or result yet, so Sources is the first tab and reads.
+    await expect(workspace.getByTestId("workspace-tab-sources")).toHaveAttribute("aria-selected", "true");
+    await reads;
+    await page.waitForTimeout(300);
+    await expect(page.getByTestId("carried-runs")).toHaveCount(0);
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page.getByTestId("composer").getByTestId("error")).toHaveCount(0);
+    expect(api.messages).toHaveLength(0);
+  });
+}

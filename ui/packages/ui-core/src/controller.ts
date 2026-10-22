@@ -750,13 +750,26 @@ export class RunController {
     await this.refresh();
   }
 
-  async loadEvidence(): Promise<void> {
+  /**
+   * Read the run's evidence bundle. The user's explicit reads (Load, the explanation) report a
+   * failure in the shared error. A `quiet` read, one a view makes on its own to show an
+   * optional detail (the earlier runs used as hints, GD-1), never does: its failure leaves the
+   * bundle unread, and that view shows nothing, so no alert asks the user to redo something
+   * they never did (EA-16).
+   */
+  async loadEvidence(options: { quiet?: boolean } = {}): Promise<void> {
     const runId = this.state.runId;
     if (!runId) return;
-    await this.guard(async () => {
+    const read = async () => {
       const evidence = await this.client.evidence(runId);
       if (this.state.runId === runId) this.set({ evidence });
-    });
+    };
+    if (!options.quiet) return this.guard(read);
+    try {
+      await read();
+    } catch {
+      // Left unread: the view that asked shows nothing (PR-21: unread is not empty).
+    }
   }
 
   // -- member discovery (read-only projections, ADR 0017) ----------------------

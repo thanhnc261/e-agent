@@ -48,6 +48,24 @@ describe("RunController", () => {
     expect(client.decide).not.toHaveBeenCalled();
   });
 
+  it("a quiet bundle read never sets the shared error; the explicit read still does (GD-1)", async () => {
+    const { client } = fakeClient(async () => snapshot("RUNNING", null));
+    const evidence = vi.fn(async () => {
+      throw new ApiError(500, "INTERNAL", "boom");
+    });
+    const c = new RunController({
+      client: { ...client, evidence } as unknown as EAgentClient,
+      storage: null,
+    });
+    await c.start("x");
+    await c.loadEvidence({ quiet: true });
+    expect(evidence).toHaveBeenCalledTimes(1);
+    expect(c.getState().error).toBeNull();
+    expect(c.getState().evidence).toBeNull();
+    await c.loadEvidence();
+    expect(c.getState().error).not.toBeNull();
+  });
+
   it("refreshes the snapshot on an unknown event without crashing", async () => {
     const { client, emit } = fakeClient(async () => snapshot("RUNNING", null));
     const c = new RunController({ client: client as unknown as EAgentClient, storage: null });

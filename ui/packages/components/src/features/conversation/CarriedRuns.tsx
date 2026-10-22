@@ -8,8 +8,10 @@
  * Hints only: never presented as evidence or as verified, and never as something the agent
  * knows (EA-5).
  *
- * Opening the Sources tab reads the bundle when this session has not read it yet, as opening
- * the explanation does; nothing is shown while it is read or when the read fails.
+ * Showing it reads the bundle when this session has not read it yet: when the user opens the
+ * Sources tab, and when a workspace opens on a run with no decision or result yet (Sources is
+ * then its first tab). The read is quiet (GD-1): nothing is shown while it is read or when it
+ * fails, and a failure never reaches the shared error, since the user asked for nothing.
  */
 import { useEffect, useId, useRef } from "react";
 import { selectCarriedRuns, selectThread } from "@e-agent/ui-core";
@@ -29,7 +31,7 @@ export function CarriedRuns() {
   useEffect(() => {
     if (evidence || !runId || readFor.current === runId) return;
     readFor.current = runId;
-    void controller.loadEvidence();
+    void controller.loadEvidence({ quiet: true });
   }, [evidence, runId, controller]);
   const runs = selectCarriedRuns(evidence, selectThread(state.thread, state));
   if (runs.length === 0) return null;
