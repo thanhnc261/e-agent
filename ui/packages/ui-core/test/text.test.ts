@@ -34,6 +34,11 @@ describe("i18n and formatting", () => {
       "Cuộc trò chuyện đang bận. Hãy chờ, quyết định phê duyệt, hoặc dừng yêu cầu.",
     );
     expect(translate("vi", "run.nothingRunning")).toBe("Không có yêu cầu nào đang chạy");
+    // GD-6 rulings: the group heading is plural and says "last seen" as nav.lastSeen does;
+    // a receipt's commit is named as a commit, apart from verification (PR-19).
+    expect(translate("vi", "nav.legacy")).toBe("Các yêu cầu trước · phiên này · trạng thái thấy lần cuối");
+    expect(translate("en", "value.receipt.COMMITTED")).toBe("Committed");
+    expect(translate("vi", "value.receipt.COMMITTED")).toBe("Đã ghi vào hệ thống");
     // The Stop button says "Dừng yêu cầu"; the task is "yêu cầu" everywhere. context.noHost
     // keeps its owner-confirmed copy, pinned in apps/web/test/routes.test.ts.
     expect(translate("vi", "run.cancel")).toBe("Dừng yêu cầu");
