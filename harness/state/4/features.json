@@ -320,7 +320,7 @@
         "pnpm --dir ui check and make e2e pass with a test for each defect"
       ],
       "passes": true,
-      "evidence": "harness/state/evidence/gates/4f.2/2026-10-22T11-04-35.699896+00-00-full.json"
+      "evidence": "harness/state/evidence/gates/4f.2/2026-10-22T11-11-15.567847+00-00-full.json"
     }
   ]
 }

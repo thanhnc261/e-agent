@@ -954,3 +954,8 @@
 - changed: harness/state/evidence/gates/4f.2/2026-10-22T11-04-35.699896+00-00-full.json, harness/state/evidence/gates/4f.2/2026-10-22T11-06-35.991847+00-00-e2e.json
 - next: 4f.2 live check: waits for the owner to renew both Odoo keys and say go; merge waits for the owner's ask
 - open: none
+
+## 2026-10-22T11:12:56.555211+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4f.2
+- changed: harness/state/4/features.json, harness/state/evidence/gates/4f.2/2026-10-22T11-11-15.567847+00-00-full.json
+- next: Do NOT set F-4f-2 passing: its steps are the live check; the full/e2e evidence under gates/4f.2/ is the 4.R3 gate (F-4R-3). 4f.2 waits for the owner's key renewal and 'go'; merge waits for the owner's ask.
+- open: none
