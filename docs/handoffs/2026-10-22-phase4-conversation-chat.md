@@ -43,6 +43,7 @@
 | 4.R2 | `dfeeadb` | `context.noHost` VI says "yêu cầu" (advisor ruling on the owner's delegation) |
 | 4.R1 | `50103d72` | Phase-review tests: an UNKNOWN write and a crash in a conversation-linked run (KB-1) |
 | 4f.1 | `09bc0ba`, `92aa9cc`, `84630ae9`, `815e0411`, this commit | Phase-close ADR and design lines, README and roadmap, this handoff |
+| 4.R3 | `659cd50f` | Browser-run defects: the busy hint clears with its cause (B-1); no outcome or verified line on a run card before the run ends (B-2) |
 
 Task-level detail, rulings and evidence are in `harness/state/4/handoffs/*.json` and `harness/state/4/reviews/*.json`.
 
@@ -71,6 +72,24 @@ No `src/` or `ui/` file changed between `70ac1a5` and `815e041`; only tests (4.R
 An earlier level 1 and 2 run on `e57fea59`, before 4.R1, gave 2221 passed / 32 skipped and 1310 passed (same directory).
 
 A secret scan (`gitleaks git` over `b52f979f..HEAD`) scanned 158 commits and found no leaks. It does not read image content.
+
+### Browser run against the real server (fixture stack, not live)
+
+The live check was blocked, so the plan's live items ran in a browser against the real server and UI on fixture data, 2026-10-22. The stack was `make dev` with scratch copies of `profiles/dev-ollama.json`: a local Ollama model, fixture ERP data and an in-memory ledger. It was driven through the Playwright MCP. The agent clicked approvals in this fixture stack only, never under a live profile. Evidence: `harness/state/evidence/fixture-browser/4f.2-browser-fixture.json` (run ids, states, reason codes).
+
+- **Items 1 to 7 pass**, on `03f3d546`:
+  - 1: readiness and `/v1/me/features` report the toggles.
+  - 4: in `on`, run 2 carried run 1 and proposed the draft PO for quantity 7 without asking again; it ended SUCCEEDED verified after approval.
+  - 5: a message during the approval got 409 and the busy hint, with the draft kept.
+  - 6: the conversation list has one thread.
+  - 7: `shadow` recorded `conversation.compared` and carried nothing into the model request.
+  - 2: `off` showed no "undefined".
+  - 3: `off` with `context_assembler: on` drafted a verified PO from the context packs.
+- **Defects found:** B-1 (the busy hint outlived the run that caused it), B-2 (a card line read "Outcome verified" while the run needed review) and B-3 (the agent's Markdown is shown as raw text).
+- **4.R3 fixed B-1 and B-2** (`659cd50f`, review `4.R3.json` accept, R3-1 and R3-2 Low). A browser recheck on `659cd50f` passed for both. While the run waited, the card read "Approval requested" beside "Needs review". After approval it ended SUCCEEDED verified, and the hint cleared with the draft "approve it" kept.
+- **B-3 was not fixed:** it predates Phase 4 and is a follow-up.
+
+These are fixture results. They prove the real server and UI together, not the sandbox, and do not replace 4f.2.
 
 ### Level 4: live check (4f.2)
 
@@ -152,10 +171,12 @@ The owner replied "Ask advisor and continue" to three questions, and the advisor
 
 - **4e.6**, the rationale on the approval card (ADR 0034 §5), is deferred to a named follow-up.
 - **No live result.** Conversations have not run against the sandbox or a live model (4f.2).
-- **UI checks** are browser mechanics on the conformance mock only: no real `on` server, and no assistive-technology, device or user testing.
+- **UI checks** are browser mechanics on the conformance mock, plus one agent-driven browser run against the real server on fixture data (above). There was no assistive-technology, device or user testing.
 - **Refusal causes in the mock.** The mock reduces every refusal to one CONFLICT, so the real refusal triggers (a stale revision, a reused key) are proven by the server tests, not end to end (P4R-2).
 - **Follow-ups:**
   - `RuleFindings.tsx:24` shows raw rule statuses in the approval card.
+  - The agent's Markdown is shown as raw text in the thread (B-3, pre-existing).
+  - SUCCEEDED `answered` counts as verified in the status badge, and with it the card line (R3-1, pre-existing).
   - A server declaration of free-text answer fields, which needs an ADR (E5-1 option b).
   - The `contracts/context_pack.py` `Dropped` docstring needs the carried ref forms (B2-4).
   - The `updated_at` clock: KA-3 = KB-3 = P4-5.
