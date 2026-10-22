@@ -71,9 +71,15 @@ export function ArtifactWorkspace({ config, runId }: { config: LayoutConfig; run
   useEffect(() => {
     if (forward) setSelected(forward.startsWith("decision") ? "decision" : "result");
   }, [forward]);
+  // A user's open, also of the run already shown, brings the workspace forward: the tab its
+  // run card names (the decision, else the result) and focus on the heading (G-D 4.U5).
+  const first = tabs[0] ?? "activity";
   useEffect(() => {
-    if (focus.take()) headingRef.current?.focus();
-  }, [runId, focus]);
+    if (!focus.take()) return;
+    setSelected(first);
+    headingRef.current?.focus();
+    // `first` is read when a request arrives; a later change of tabs is the effect above's.
+  }, [runId, focus.requests]);
   if (!entry) return null;
   const view = live ? state.view : (state.thread.runs[runId] ?? null);
   const status = threadRunStatusKey(entry, state);

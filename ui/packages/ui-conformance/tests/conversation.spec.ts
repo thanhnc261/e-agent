@@ -194,6 +194,39 @@ test("the workspace closes and reopens, and the conversation stays", async ({ pa
   expect(api.decisions).toHaveLength(0);
 });
 
+test("Open the decision only opens: pressed while the decision is open, it brings the workspace forward", async ({
+  page,
+}) => {
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval();
+  await api.install(page);
+  await openThread(page);
+  const workspace = page.getByTestId("artifact-workspace");
+  // It opened by itself for the decision (G-B 6), without moving focus.
+  await expect(workspace).toHaveAttribute("data-run-id", RUN_ID);
+  const open = page.getByTestId("thread-run").nth(1).getByTestId("run-card-open");
+  await expect(open).toHaveText(/Open the decision/);
+  // Not a toggle (G-D 4.U5): no expanded state, whatever the workspace shows.
+  await expect(open).not.toHaveAttribute("aria-expanded");
+  // Away from the decision tab, a press brings the decision forward with focus on the heading.
+  await workspace.getByTestId("workspace-tab-activity").click();
+  await open.click();
+  await expect(workspace).toBeVisible();
+  await expect(workspace.getByTestId("workspace-tab-decision")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("workspace-heading")).toBeFocused();
+  // Pressed again, it still never closes the workspace; closing stays with Close.
+  await open.focus();
+  await page.keyboard.press("Enter");
+  await expect(workspace).toBeVisible();
+  await expect(page.getByTestId("workspace-heading")).toBeFocused();
+  await expect(workspace.getByTestId("approval-approve")).toBeEnabled();
+  await page.getByTestId("workspace-close").click();
+  await expect(workspace).toHaveCount(0);
+  await expect(open).toBeFocused();
+  expect(api.decisions).toHaveLength(0);
+});
+
 test("a workspace the user closed stays closed after a surface switch", async ({ page }) => {
   const api = onApi();
   api.twoRunThread();

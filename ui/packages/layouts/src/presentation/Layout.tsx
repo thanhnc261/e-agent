@@ -123,6 +123,8 @@ export function Layout({
   // so a surface change keeps it. Closing resets an open confirmation to review (EA-9) and
   // gives focus back to the control that opened it, or to its run card's Open.
   const [workspaceRun, setWorkspaceRun] = useState<string | null>(null);
+  // Each user's open, counted, so opening the run already shown still focuses its workspace.
+  const [requests, setRequests] = useState(0);
   const opener = useRef<HTMLElement | null>(null);
   const focusRequested = useRef(false);
   // What already opened by itself: kept here, not in the surface, so remounting a surface
@@ -146,6 +148,7 @@ export function Layout({
       open: (runId, from) => {
         opener.current = from ?? null;
         focusRequested.current = !!from;
+        if (from) setRequests(n => n + 1);
         setWorkspaceRun(runId);
       },
       close,
@@ -154,6 +157,7 @@ export function Layout({
   );
   const focus = useMemo(
     () => ({
+      requests,
       take: () => {
         const requested = focusRequested.current;
         focusRequested.current = false;
@@ -166,7 +170,7 @@ export function Layout({
         return true;
       },
     }),
-    [],
+    [requests],
   );
   const selected = { ...config, layout: mode };
   const surface =

@@ -2,7 +2,7 @@
  * A run's compact card in the thread (mockup A1): its status, one line from its recorded
  * events, Open, and Stop while it is the active run. With the workspace closed, the card
  * and the stop slot carry the run's status. The label of Open names what waits there: the
- * decision, the result, or the run's recorded activity.
+ * decision, the result, or the run's recorded activity. Open never closes the workspace.
  */
 import {
   formatTime,
@@ -88,11 +88,10 @@ export function RunCard({
             variant={decision ? "primary" : "default"}
             data-testid="run-card-open"
             data-open-run={entry.runId}
-            aria-expanded={open}
             aria-controls={open ? ARTIFACT_WORKSPACE_ID : undefined}
-            onPress={event =>
-              open ? workspace.close() : workspace.open(entry.runId, event.target as HTMLElement)
-            }
+            // Open only (G-D 4.U5): while this run's workspace is open, a press brings it forward
+            // with focus on its heading. Closing stays with the workspace's Close and Back.
+            onPress={event => workspace.open(entry.runId, event.target as HTMLElement)}
           >
             {t(decision ? "thread.openDecision" : result ? "thread.openResult" : "thread.open")}
           </ActionButton>

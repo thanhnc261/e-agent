@@ -8,6 +8,11 @@
 import { createContext, useContext } from "react";
 
 export interface WorkspaceFocus {
+  /**
+   * Counts the user's opens, so a repeated open of the run already shown still brings the
+   * workspace forward (G-D 4.U5): the workspace re-reads `take()` when it changes.
+   */
+  requests: number;
   /** True once after a user's open: the workspace then focuses its heading. */
   take(): boolean;
   /** Close without moving focus or touching the decision (the run is no longer shown). */
@@ -17,6 +22,7 @@ export interface WorkspaceFocus {
 }
 
 const WorkspaceFocusContext = createContext<WorkspaceFocus>({
+  requests: 0,
   take: () => false,
   dismiss: () => {},
   claimAutoOpen: () => false,
