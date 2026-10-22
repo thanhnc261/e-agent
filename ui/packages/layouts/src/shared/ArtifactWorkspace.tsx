@@ -4,6 +4,10 @@
  * approval card keeps its fields, gates and confirm step (ADR 0034 §5 deferred). An earlier
  * run of the thread shows only its recorded events, the one thing read for it.
  *
+ * As a full view (a narrow thread, which it replaces), its head also carries the thread's stop
+ * slot and the stream status, so Stop and a lost connection stay in view (G-D 4.U2,
+ * AG-CTRL-1, AG-STAT-3); they are the thread's own components, with the same rules.
+ *
  * Escape backs out of an open confirmation first, then closes; closing returns focus to the
  * control that opened it. Tabs follow the APG tabs pattern through React Aria (AG-A11Y-2).
  */
@@ -13,8 +17,10 @@ import {
   ARTIFACT_WORKSPACE_ID,
   ActionButton,
   CarriedRuns,
+  ConnectionStatus,
   MessageText,
   StatusBadge,
+  StopSlot,
   Timeline,
   runStateTone,
   useArtifactWorkspace,
@@ -35,7 +41,16 @@ import { useWorkspaceFocus } from "./workspaceFocus.ts";
 
 type TabKey = "decision" | "result" | "sources" | "activity";
 
-export function ArtifactWorkspace({ config, runId }: { config: LayoutConfig; runId: string }) {
+export function ArtifactWorkspace({
+  config,
+  runId,
+  fullView,
+}: {
+  config: LayoutConfig;
+  runId: string;
+  /** It replaces the thread (narrow), so the thread's Stop and status are not in view. */
+  fullView: boolean;
+}) {
   const { t } = useI18n();
   const state = useRunState();
   const approval = usePendingApproval();
@@ -141,6 +156,17 @@ export function ArtifactWorkspace({ config, runId }: { config: LayoutConfig; run
         >
           <span aria-hidden="true">✕</span>
         </ActionButton>
+        {fullView && (
+          // Compact: the run's name and status are left out when the head already shows them.
+          <div
+            className="ea-ws-live"
+            data-testid="workspace-live"
+            data-latest-run={entries.at(-1)?.runId === runId}
+          >
+            <ConnectionStatus />
+            <StopSlot latest={entries.at(-1)} ordinal={entries.length} />
+          </div>
+        )}
       </div>
       <Tabs
         className="ea-ws-tabs"

@@ -289,6 +289,75 @@ test("a narrow workspace replaces the thread, and Back returns to the conversati
   expect(overflow).toBeLessThanOrEqual(1);
 });
 
+/** At 390 px in Docked, open the latest run's workspace from its card: a full view. */
+async function narrowWorkspace(page: Page, api: MockApi): Promise<void> {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await api.install(page);
+  await openThread(page, SURFACES[1] as Surface);
+  await page.getByTestId("thread-run").nth(1).getByTestId("run-card-open").click();
+  await expect(page.getByTestId("artifact-workspace")).toBeVisible();
+  await expect(page.getByTestId("thread")).toBeHidden();
+}
+
+test("a narrow workspace keeps Stop and the stream status in its head", async ({ page }) => {
+  const api = onApi();
+  api.twoRunThread();
+  api.state = "RUNNING";
+  await narrowWorkspace(page, api);
+  const workspace = page.getByTestId("artifact-workspace");
+  // G-D 4.U2, AG-CTRL-1 and AG-STAT-3: the full view hides the thread, not Stop or the status.
+  const slot = workspace.getByTestId("stop-slot");
+  await expect(slot).toBeVisible();
+  await expect(slot.getByTestId("stop")).toBeEnabled();
+  // Compact: the head's own badge already names this run's status.
+  await expect(slot.getByTestId("stop-slot-status")).toBeHidden();
+  await expect(workspace.getByTestId("workspace-status")).toHaveText(/Working on it/);
+  await expect(workspace.getByTestId("connection-status")).toBeVisible();
+  await expect(workspace.getByTestId("connection-status")).toHaveText(/Connect|Reconnect|Up to date/);
+  // Exactly one of each is shown: the thread's own are hidden with the thread.
+  await expect(page.locator('[data-testid="stop"]:visible')).toHaveCount(1);
+  await expect(page.locator('[data-testid="connection-status"]:visible')).toHaveCount(1);
+
+  // The same rules as the thread's slot: disabled with its reason once nothing runs.
+  api.finish(RUN_ID);
+  await expect(slot.getByTestId("stop")).toBeDisabled();
+  await expect(slot.getByTestId("stop-reason")).toHaveText("Nothing is running");
+  // Back to the conversation, the thread's own slot carries it again.
+  await page.getByTestId("workspace-back").click();
+  await expect(page.getByTestId("artifact-workspace")).toHaveCount(0);
+  await expect(page.locator('[data-testid="stop-slot"]:visible')).toHaveCount(1);
+  await expect(page.getByTestId("thread-head").getByTestId("connection-status")).toBeVisible();
+  expect(api.decisions).toHaveLength(0);
+});
+
+test("a narrow workspace offers the safe check, not Stop, while the result is unconfirmed", async ({
+  page,
+}) => {
+  const api = onApi();
+  api.twoRunThread();
+  api.state = "NEEDS_RECONCILIATION";
+  await narrowWorkspace(page, api);
+  const slot = page.getByTestId("artifact-workspace").getByTestId("stop-slot");
+  await expect(slot.getByTestId("stop")).toBeDisabled();
+  await expect(slot.getByTestId("stop-reason")).toHaveText(
+    "Stopping is unavailable while the result is unconfirmed",
+  );
+  await expect(slot.getByTestId("stop-reconcile")).toHaveText("Check operation status");
+});
+
+test("a wide workspace adds no second Stop or status: the thread beside it shows them", async ({ page }) => {
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval();
+  await api.install(page);
+  await openThread(page);
+  const workspace = page.getByTestId("artifact-workspace");
+  await expect(workspace).toBeVisible();
+  await expect(workspace.getByTestId("stop-slot")).toHaveCount(0);
+  await expect(workspace.getByTestId("connection-status")).toHaveCount(0);
+  await expect(page.getByTestId("thread-head").getByTestId("connection-status")).toBeVisible();
+});
+
 test("a message during approval shows the hint, and the card is unchanged", async ({ page }) => {
   const api = onApi();
   api.twoRunThread();

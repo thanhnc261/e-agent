@@ -81,7 +81,11 @@ export function ThreadSurface({ config, navigation }: { config: LayoutConfig; na
           <ConfiguredSlot name="messages" config={config} />
           <ConfiguredSlot name="composer" config={config} />
         </div>
-        {shown && open && <ArtifactWorkspace config={config} runId={open} />}
+        {shown && open && (
+          // A full view only once the width is known to be narrow, so a wide surface never
+          // shows a second Stop or status, not even on its first paint.
+          <ArtifactWorkspace config={config} runId={open} fullView={width !== null && !wide} />
+        )}
       </div>
     </div>
   );

@@ -5,6 +5,7 @@
  */
 export { ApprovalPanel } from "./features/approval/ApprovalPanel.tsx";
 export { Composer } from "./features/composer/Composer.tsx";
+export { StopSlot } from "./features/composer/StopSlot.tsx";
 export { ConnectionCard, Connections } from "./features/discovery/Connections.tsx";
 export { TaskCatalog, TaskCatalogCard } from "./features/discovery/TaskCatalog.tsx";
 export { ConnectionStatus } from "./features/header/ConnectionStatus.tsx";

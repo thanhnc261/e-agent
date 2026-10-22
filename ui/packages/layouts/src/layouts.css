@@ -99,6 +99,11 @@
 .ea-ws-title { order:2; flex:1 1 12rem; margin:0; font-size:var(--ea-font-size-lg); overflow-wrap:anywhere; }
 .ea-ws-status { order:3; }
 .ea-ws-close { order:4; margin-left:auto; }
+/* A full view's head: the stream status and the thread's stop slot (G-D 4.U2). */
+.ea-ws-live { order:5; flex-basis:100%; display:flex; flex-wrap:wrap; align-items:center; gap:var(--ea-space-xs) var(--ea-space-md); }
+.ea-ws-live .ea-connection,.ea-stack .ea-ws-live .ea-connection,.ea-overlay-panel .ea-ws-live .ea-connection { display:inline-flex; }
+.ea-ws-live .ea-stop-slot { flex:1 1 14rem; margin-top:0; padding-top:0; border-top:0; }
+.ea-ws-live[data-latest-run="true"] .ea-stop-run { display:none; }
 .ea-ws-title:focus-visible { outline:2px solid var(--ea-color-focus); outline-offset:2px; }
 .ea-tab-list { display:flex; flex-wrap:wrap; gap:var(--ea-space-xs); border-bottom:1px solid var(--ea-color-border); }
 .ea-tab { padding:var(--ea-space-xs) var(--ea-space-sm); min-height:var(--ea-control-min-height); display:inline-flex; align-items:center; cursor:default; color:var(--ea-color-text-muted); border-bottom:2px solid transparent; margin-bottom:-1px; outline:none; }

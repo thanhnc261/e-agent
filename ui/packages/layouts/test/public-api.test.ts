@@ -36,6 +36,7 @@ describe("public UI exports", () => {
       "STATUS_TONES",
       "SURFACE_TONES",
       "StatusBadge",
+      "StopSlot",
       "Surface",
       "TaskCatalog",
       "TaskCatalogCard",
