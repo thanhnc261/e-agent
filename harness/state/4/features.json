@@ -311,6 +311,15 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/4.R2/2026-10-22T06-48-32.190243+00-00-full.json"
+    },
+    {
+      "id": "F-4R-3",
+      "category": "ui",
+      "description": "Task 4.R3: fix browser-run defects B-1 (refusal hint outlives the run that caused it) and B-2 (run card says Outcome verified while the run awaits review)",
+      "steps": [
+        "pnpm --dir ui check and make e2e pass with a test for each defect"
+      ],
+      "passes": false
     }
   ]
 }

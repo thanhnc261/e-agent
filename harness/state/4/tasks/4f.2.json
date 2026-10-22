@@ -12,7 +12,11 @@
     ".superpowers/sdd/**",
     "docs/roadmap.md",
     "README.md",
-    "docs/plans/2026-10-20-phase4-conversation-chat.md"
+    "docs/plans/2026-10-20-phase4-conversation-chat.md",
+    "ui/packages/ui-core/src/**",
+    "ui/packages/ui-core/test/**",
+    "ui/packages/components/**",
+    "ui/packages/ui-conformance/**"
   ],
   "acceptance": [
     "uv run e-agent-harness live-check passes and writes evidence under harness/state/evidence/live/",
@@ -22,5 +26,27 @@
   "gate_set": "full",
   "base_commit": "56ac891a67a47545be6bf5988b70f7d13c994843",
   "created_at": "2026-10-22T06:51:41+00:00",
-  "features_digest": "ce8fcacac877d102d790d5b4ce80864e842a51bbd56da64ebc32f7f3db234bdf"
+  "features_digest": "ce8fcacac877d102d790d5b4ce80864e842a51bbd56da64ebc32f7f3db234bdf",
+  "scope_changes": [
+    {
+      "glob": "ui/packages/ui-core/src/**",
+      "reason": "4.R3: browser-run defects B-1 (stale refusal hint) and B-2 (Outcome verified line while a run awaits review)",
+      "at": "2026-10-22T10:43:18+00:00"
+    },
+    {
+      "glob": "ui/packages/ui-core/test/**",
+      "reason": "4.R3: browser-run defects B-1 (stale refusal hint) and B-2 (Outcome verified line while a run awaits review)",
+      "at": "2026-10-22T10:43:18+00:00"
+    },
+    {
+      "glob": "ui/packages/components/**",
+      "reason": "4.R3: browser-run defects B-1 (stale refusal hint) and B-2 (Outcome verified line while a run awaits review)",
+      "at": "2026-10-22T10:43:18+00:00"
+    },
+    {
+      "glob": "ui/packages/ui-conformance/**",
+      "reason": "4.R3: browser-run defects B-1 (stale refusal hint) and B-2 (Outcome verified line while a run awaits review)",
+      "at": "2026-10-22T10:43:18+00:00"
+    }
+  ]
 }
