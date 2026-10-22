@@ -1,0 +1,17 @@
+{
+  "task": "4.R2",
+  "changed": "context.noHost VI changed from 'tác vụ' to 'yêu cầu' (dfeeadb), the advisor's ruling on the owner's delegation 'Ask advisor and continue' (2026-10-22). The F-7 chip copy test in ui/apps/web/test/routes.test.ts and the 'no key keeps tác vụ' test in text.test.ts are updated. pnpm --dir ui check passes (258 tests); routes.test.ts passes (9 tests). The G-D resolution and the phase handoff record the delegated answers: the 33 new VI rows accepted, context.noHost changed, and 4f.2 go with hard stops.",
+  "evidence_refs": [
+    "harness/state/evidence/gates/4.R2/2026-10-22T06-48-32.190243+00-00-full.json"
+  ],
+  "open_items": [
+    "4f.2 live check next, under the advisor's hard stops."
+  ],
+  "rulings": [
+    {
+      "ruling": "The owner-pinned context.noHost copy follows the V-3 term 'yêu cầu' because the owner delegated the question to the advisor.",
+      "cost_if_wrong": "revert one string and its test line"
+    }
+  ],
+  "outside_repo": []
+}

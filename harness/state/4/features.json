@@ -309,7 +309,8 @@
       "steps": [
         "pnpm --dir ui check passes with routes.test.ts and text.test.ts updated"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4.R2/2026-10-22T06-48-32.190243+00-00-full.json"
     }
   ]
 }

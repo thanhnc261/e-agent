@@ -939,3 +939,8 @@
 - changed: harness/state/4/features.json, harness/state/4/handoffs/4f.1.json, harness/state/evidence/gates/4f.1/2026-10-22T04-24-35.498585+00-00-full.json
 - next: owner: confirm new VI since G-D and context.noHost; then 4f.2 live check on the owner's instruction
 - open: none
+
+## 2026-10-22T06:50:23.581900+00:00 · 30e35c7d-9cc1-475e-b4fa-41eeb645f95a · 4.R2
+- changed: harness/state/4/features.json, harness/state/4/handoffs/4.R2.json, harness/state/evidence/gates/4.R2/2026-10-22T06-48-32.190243+00-00-full.json
+- next: 4f.2 live check (advisor go with hard stops): re-pin check, then live-sandbox
+- open: none
