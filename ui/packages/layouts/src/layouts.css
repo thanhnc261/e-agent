@@ -122,7 +122,7 @@
  .ea-ws-back { display:none; }
  /* Its own scroll region (G-D 4.U4): the head stays at its top, a bring-into-view and focus
     land below the head, and a cue shows while more is below. */
- .ea-artifact-workspace { position:sticky; top:var(--ea-space-lg); max-height:calc(100dvh - 7rem); overflow:auto; padding-top:0; scroll-padding-top:var(--ea-ws-head-h,0px); }
+ .ea-artifact-workspace { position:sticky; top:var(--ea-space-lg); max-height:min(calc(100dvh - 7rem), calc(var(--ea-ws-room, 100dvh) - 2 * var(--ea-space-lg))); overflow:auto; padding-top:0; scroll-padding-top:var(--ea-ws-head-h,0px); }
  .ea-ws-head { position:sticky; top:0; z-index:1; padding-top:var(--ea-space-lg); padding-bottom:var(--ea-space-xs); background:var(--ea-color-surface-raised); }
  .ea-artifact-workspace .ea-approval { scroll-margin-top:calc(var(--ea-ws-tabs-h,0px) + 2 * var(--ea-space-md)); }
  .ea-ws-cue:not([hidden]) { display:block; position:sticky; bottom:calc(-1 * var(--ea-space-lg)); z-index:1; flex:none; height:2.5rem; margin-top:calc(-2.5rem - var(--ea-space-md)); pointer-events:none; background:linear-gradient(to bottom, transparent, var(--ea-color-surface-raised) 65%); }

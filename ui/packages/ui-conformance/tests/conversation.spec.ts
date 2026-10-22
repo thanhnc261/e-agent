@@ -366,6 +366,78 @@ test("a wide workspace adds no second Stop or status: the thread beside it shows
   await expect(page.getByTestId("thread-head").getByTestId("connection-status")).toBeVisible();
 });
 
+test("a conversation opens at its latest run, with the composer in view, and focus stays", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval();
+  await api.install(page);
+  await page.goto("/?layout=sidebar");
+  const row = page.getByTestId("thread-row").first();
+  await row.waitFor({ state: "attached" });
+  if (!(await row.isVisible())) await page.getByTestId("thread-list-toggle").click();
+  await row.click();
+  const focused = await page.evaluateHandle(() => document.activeElement);
+  await expect(page.getByTestId("thread-run")).toHaveCount(2);
+  // G-D 4.U3 (AG-STAT-1, AG-ENT-3): the latest run's card, its status, and the composer.
+  const latest = page.getByTestId("thread-run").nth(1).getByTestId("run-card");
+  await expect(latest).toBeInViewport({ ratio: 1 });
+  await expect(latest.getByTestId("run-card-status")).toHaveText(/Needs review/);
+  await expect(page.getByTestId("composer")).toBeInViewport({ ratio: 1 });
+  // Scrolled, not focused (EA-16): focus is where the user's click left it.
+  expect(await page.evaluate(el => document.activeElement === el, focused)).toBe(true);
+  expect(api.messageStarts).toBe(0);
+});
+
+test("a new run is scrolled into view once; a later update keeps the user's scroll", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const api = onApi();
+  api.twoRunThread();
+  api.finish(RUN_ID, "Draft order PO-SAMPLE-1 (sample).");
+  await api.install(page);
+  await openThread(page, SURFACES[1] as Surface);
+  await expect(page.getByTestId("thread-run").nth(1).getByTestId("run-card")).toBeInViewport({ ratio: 1 });
+  await send(page, "and the next one");
+  await expect(page.getByTestId("thread-run")).toHaveCount(3);
+  const newest = page.getByTestId("thread-run").nth(2).getByTestId("run-card");
+  await expect(newest).toBeInViewport({ ratio: 1 });
+  await expect(page.getByTestId("composer-input")).toBeFocused();
+
+  // The user scrolls back up; the same run's later change does not pull the view down.
+  const scroller = page.locator(".ea-thread-stack");
+  await scroller.evaluate(el => {
+    el.scrollTop = 0;
+  });
+  api.finish(api.current, "Done (sample).");
+  await expect(newest.getByTestId("run-card-status")).toHaveText(/Completed/);
+  await page.waitForTimeout(300);
+  expect(await scroller.evaluate(el => el.scrollTop)).toBe(0);
+});
+
+test("opened at its latest run in a surface that scrolls itself, the workspace head stays in view", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 844 });
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval();
+  await api.install(page);
+  await openThread(page, SURFACES[3] as Surface);
+  const workspace = page.getByTestId("artifact-workspace");
+  await expect(workspace.getByTestId("approval-approve")).toBeEnabled();
+  await expect(page.getByTestId("thread-run").nth(1).getByTestId("run-card")).toBeInViewport({ ratio: 1 });
+  await expect(page.getByTestId("composer")).toBeInViewport({ ratio: 1 });
+  // The side workspace fits the Workbench's own scroll region, so its head is not pushed out
+  // at the end of the thread (G-D 4.U4 with 4.U3).
+  for (const id of ["workspace-heading", "workspace-status", "workspace-close"]) {
+    await expect(workspace.getByTestId(id)).toBeInViewport({ ratio: 1 });
+    expect(await insideWorkspace(page, id), id).toBe(true);
+  }
+});
+
 /** True when `testId` lies fully inside the workspace's visible box (not scrolled out of it). */
 async function insideWorkspace(page: Page, testId: string): Promise<boolean> {
   return page.getByTestId("artifact-workspace").evaluate((aside, id) => {

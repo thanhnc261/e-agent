@@ -4,7 +4,14 @@
  * server's conversation snapshot and the runs' recorded events (`selectThread`); a sent
  * message appears only once the server lists it. Run-state changes and a new run are
  * announced in one polite region, and focus never moves (EA-16).
+ *
+ * It opens at the latest run (G-D 4.U3, AG-STAT-1): when a conversation opens, and when a run
+ * is added, the latest run card is scrolled into view, never focused. Its top is aligned, so
+ * the card and the composer under it both show where they fit (the scroll stops at the end).
+ * Opening jumps there; a run added to the open conversation glides, unless motion is reduced.
+ * Later updates of the same runs keep the user's scroll.
  */
+import { useEffect, useRef } from "react";
 import {
   isLiveEntry,
   selectThread,
@@ -25,6 +32,30 @@ export function Thread() {
   const entries = selectThread(state.thread, state);
   const latest = entries.at(-1);
   const announcement = latest ? `${t("thread.run")} ${entries.length}: ${t(statusOf(latest))}` : "";
+  const listRef = useRef<HTMLOListElement>(null);
+  const scrolledTo = useRef<{ conversation: string; run: string; loaded: number } | null>(null);
+  // Once per conversation and latest run; the count of read runs counts too, because an
+  // earlier run's messages arriving after the open push the latest card down.
+  const conversation = state.conversationId ?? "";
+  const loaded = entries.filter(entry => entry.loaded).length;
+  const ready = latest !== undefined && state.thread.status !== "loading";
+  const latestRun = latest?.runId ?? "";
+  useEffect(() => {
+    const last = scrolledTo.current;
+    if (!ready) return;
+    if (last && last.conversation === conversation && last.run === latestRun && last.loaded === loaded)
+      return;
+    scrolledTo.current = { conversation, run: latestRun, loaded };
+    const cards = listRef.current?.querySelectorAll<HTMLElement>('[data-testid="run-card"]');
+    const card = cards?.[cards.length - 1];
+    if (!card || typeof card.scrollIntoView !== "function") return; // a test DOM has none
+    // Opening a conversation jumps to its latest run; a run added to the open one glides there,
+    // unless the user asked for reduced motion.
+    const added = last !== null && last.conversation === conversation && last.run !== latestRun;
+    const reduced =
+      typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    card.scrollIntoView({ block: "start", behavior: added && !reduced ? "smooth" : "auto" });
+  }, [ready, conversation, latestRun, loaded]);
   return (
     <section className="ea-messages ea-thread-view" aria-label={t("messages.title")} data-testid="messages">
       {/* One polite region for run states; streamed text is never in it (EA-16). */}
@@ -38,7 +69,7 @@ export function Thread() {
           <ThreadEmpty />
         )
       ) : (
-        <ol className="ea-thread" aria-label={t("messages.title")} data-testid="thread">
+        <ol className="ea-thread" aria-label={t("messages.title")} data-testid="thread" ref={listRef}>
           {entries.map((entry, index) => (
             <ThreadRun key={entry.runId} entry={entry} ordinal={index + 1} status={statusOf(entry)} />
           ))}
