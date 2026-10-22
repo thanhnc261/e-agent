@@ -81,7 +81,7 @@ A secret scan (`gitleaks git` over `b52f979f..HEAD`) scanned 158 commits and fou
 - Nothing was seeded, reset, upgraded or started. The live profile was not touched, and the domain-erp re-pin did not run.
 - The key value and the secret store were not read.
 
-What unblocks it is an owner step: rotate the integration key in the sandbox, then run `uv run e-agent secret set secretref:local/odoo-integration`. After that, step A (identity, the harness `live` gate, the re-pin) runs again.
+`info` authenticates with the admin key `E_AGENT_ODOO_ADMIN_KEY` from `live.env` (`scripts/odoo_sandbox.py:55-56`), so the rejected key is the admin key. Both keys were last stored on 2026-10-20. What unblocks it is an owner step: renew both keys as on 2026-10-20. The admin key goes into `live.env`, and the integration key is set with `uv run e-agent secret set secretref:local/odoo-integration`. After that, step A (identity, the harness `live` gate, the re-pin) runs again.
 
 Until then the live check has not run. The rest of this section describes how it will run. It runs only on the owner's instruction, through the `live-sandbox` skill, in the order the plan's "Live check" section gives. The owner's instruction is also the Phase 3 ruling's trigger: step 3 is the first qualified live write with `context_assembler: on`.
 
