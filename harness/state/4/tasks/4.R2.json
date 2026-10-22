@@ -1,0 +1,26 @@
+{
+  "id": "4.R2",
+  "phase": "4",
+  "plan_ref": "docs/plans/2026-10-20-phase4-conversation-chat.md",
+  "feature_ids": [
+    "F-4R-2"
+  ],
+  "context_digest": "bb6d293c996ee245a42bb9236f08eeaf2e4d8f325924af3f4482e0ab74d280e6",
+  "allowed_paths": [
+    "ui/packages/ui-core/src/**",
+    "ui/packages/ui-core/test/**",
+    "ui/apps/web/test/**",
+    "docs/reviews/**",
+    "docs/handoffs/**",
+    "harness/state/**",
+    ".superpowers/sdd/**",
+    "docs/plans/2026-10-20-phase4-conversation-chat.md"
+  ],
+  "acceptance": [
+    "pnpm --dir ui check passes with routes.test.ts and text.test.ts updated"
+  ],
+  "gate_set": "full",
+  "base_commit": "f295e6996b09c62e6d4d097d59244ce8bb1b58e1",
+  "created_at": "2026-10-22T06:46:04+00:00",
+  "features_digest": "2ab054667cf13124f5ee957f2fc2d64932ac1117875800fa18b6cb895b4186c1"
+}

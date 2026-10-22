@@ -301,6 +301,15 @@
       ],
       "passes": true,
       "evidence": "harness/state/evidence/gates/4d.6/2026-10-21T17-00-05.222421+00-00-full.json"
+    },
+    {
+      "id": "F-4R-2",
+      "category": "ui",
+      "description": "Task 4.R2: context.noHost VI says yêu cầu like every other string (advisor ruling on the owner's delegation, 2026-10-22)",
+      "steps": [
+        "pnpm --dir ui check passes with routes.test.ts and text.test.ts updated"
+      ],
+      "passes": false
     }
   ]
 }
