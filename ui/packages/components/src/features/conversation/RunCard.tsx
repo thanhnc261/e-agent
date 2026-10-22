@@ -11,6 +11,7 @@ import {
   readableLabel,
   selectRunLine,
   selectStopControl,
+  translateServerValue,
   type ThreadRunEntry,
 } from "@e-agent/ui-core";
 import { useController, useI18n, usePendingApproval, useRunState } from "@e-agent/ui-react";
@@ -71,9 +72,11 @@ export function RunCard({
           {line.detail && line.type !== "outcome.reported" && (
             <span className="ea-muted">
               {" · "}
-              {line.type.endsWith(".recorded") || line.type === "proposal.created"
-                ? readableLabel(line.detail)
-                : line.detail}
+              {line.detailField
+                ? translateServerValue(locale, line.detailField, line.detail)
+                : line.type.endsWith(".recorded") || line.type === "proposal.created"
+                  ? readableLabel(line.detail)
+                  : line.detail}
             </span>
           )}
           <time className="ea-muted" dateTime={line.occurredAt}>

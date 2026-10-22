@@ -357,6 +357,97 @@ describe("citations and the explanation (ADR 0034 §3, §4)", () => {
     }
   });
 
+  it("the explanation names the server's statuses in the user's language (G-D 4.U6)", () => {
+    const bundle = typedBundle("on", true);
+    const body = bundle["explanation"] as Record<string, unknown>;
+    bundle["explanation"] = {
+      ...body,
+      approvals: [
+        {
+          approval_id: "ap-1",
+          action_id: "a-write",
+          decision: "approved",
+          actor_id: "u",
+          policy_version: "p1",
+          action_digest: D("2c"),
+          label: "approver_decision",
+        },
+      ],
+      receipts: [
+        {
+          action_id: "a-write",
+          attempt: 1,
+          status: "COMMITTED",
+          external_refs: null,
+          label: "provider_receipt",
+        },
+        {
+          action_id: "a-write",
+          attempt: 2,
+          status: "PENDING_NEW",
+          external_refs: null,
+          label: "provider_receipt",
+        },
+      ],
+    };
+    for (const locale of ["en", "vi"] as const) {
+      const { container } = show({ bundle, reasonCode: "verified", locale });
+      const section = (name: string) =>
+        container.querySelector(`[data-section="${name}"]`)!.textContent ?? "";
+      expect(section("rules")).toContain(translate(locale, "value.validation.PASS"));
+      expect(section("rules")).not.toContain("PASS");
+      expect(section("approval")).toContain(translate(locale, "value.decision.approved"));
+      expect(section("approval")).not.toContain("approved ·");
+      expect(section("receipt")).toContain(translate(locale, "value.receipt.COMMITTED"));
+      // A value this UI does not know is shown as the server wrote it.
+      expect(section("receipt")).toContain("PENDING_NEW");
+      expect(section("outcome")).toContain(translate(locale, "value.stage.succeeded"));
+      expect(section("outcome")).not.toContain("succeeded");
+      cleanup();
+    }
+  });
+
+  it("the timeline names a status or decision detail in the user's language (G-D 4.U6)", () => {
+    const items = [
+      {
+        sequence: 1,
+        type: "validation.completed",
+        labelKey: "event.validation.completed",
+        detail: "PASS",
+        detailField: "validation" as const,
+      },
+      {
+        sequence: 2,
+        type: "approval.decided",
+        labelKey: "event.approval.decided",
+        detail: "rejected",
+        detailField: "decision" as const,
+      },
+      {
+        sequence: 3,
+        type: "outcome.reported",
+        labelKey: "outcome.VERIFIED",
+        detail: "VERIFIED",
+        detailField: "outcome" as const,
+      },
+      {
+        sequence: 4,
+        type: "outcome.reported",
+        labelKey: "outcome.WEIRD",
+        detail: "WEIRD",
+        detailField: "outcome" as const,
+      },
+    ].map(item => ({ ...item, occurredAt: "2026-10-20T00:00:00Z", supported: true }));
+    const { container } = show({ bundle: null, reasonCode: null, locale: "vi" }, <Timeline items={items} />);
+    const details = byTest(container, "timeline-item").map(li => li.querySelector("small")?.textContent);
+    expect(details).toEqual([
+      translate("vi", "value.validation.PASS"),
+      translate("vi", "value.decision.rejected"),
+      translate("vi", "value.outcome.VERIFIED"),
+      "WEIRD",
+    ]);
+  });
+
   it("an unresolved citation is never shown as a fact", () => {
     const { container } = show({ bundle: groundedBundle(), reasonCode: "grounded" });
     const unresolved = byTest(container, "citation-unresolved");

@@ -4,6 +4,7 @@
  * type never guesses: it asks the controller for a fresh snapshot.
  */
 import type { ActionSummary, ConversationSnapshot, RunEvent, RunRecord, RunSnapshot, TextFrame } from "@e-agent/client";
+import type { ServerValueField } from "./i18n.ts";
 
 /**
  * Conversation bookkeeping (ADR 0023 §11): ids, counts and digests the server records for
@@ -175,6 +176,8 @@ export interface TimelineItem {
   occurredAt: string;
   supported: boolean;
   detail: string | null;
+  /** Which server enum `detail` holds, for `translateServerValue`; absent for other details. */
+  detailField?: ServerValueField;
   /**
    * For a run state change: the server's states, so a UI can label them. `toReply` and
    * `fromReply` mark a WAITING_INPUT entered after a conversational reply (ADR 0022), so
@@ -210,9 +213,15 @@ export function selectTimeline(view: RunView): TimelineItem[] {
       waitingOnReply = toReply;
       transition = { ...states, ...(fromReply ? { fromReply: true } : {}), ...(toReply ? { toReply: true } : {}) };
     }
+    let detailField: ServerValueField | null = null;
     if (transition) detail = `${transition.from} → ${transition.to}`;
-    else if (supported && (type === "validation.completed" || type === "outcome.reported")) detail = String(p["status"] ?? "");
-    else if (supported && type === "approval.decided") detail = String(p["decision"] ?? "");
+    else if (supported && (type === "validation.completed" || type === "outcome.reported")) {
+      detail = String(p["status"] ?? "");
+      detailField = type === "outcome.reported" ? "outcome" : "validation";
+    } else if (supported && type === "approval.decided") {
+      detail = String(p["decision"] ?? "");
+      detailField = "decision";
+    }
     else if (supported && (type === "proposal.created" || type === "read.recorded")) detail = String(p["contract_id"] ?? "");
     else if (supported && type === "read.rejected") detail = typeof p["code"] === "string" ? p["code"] : null;
     else if (supported && (type === "feature.fallback" || type === "ir.shadow_failed" || type === "context.failed")) detail = typeof p["reason_code"] === "string" ? p["reason_code"] : null;
@@ -223,6 +232,7 @@ export function selectTimeline(view: RunView): TimelineItem[] {
       occurredAt: e.occurred_at,
       supported,
       detail,
+      ...(detailField ? { detailField } : {}),
       ...(transition ? { transition } : {}),
     };
   });

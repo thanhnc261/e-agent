@@ -16,9 +16,12 @@ import {
   formatFieldValue,
   readableLabel,
   selectExplanation,
+  translateServerValue,
   type CitationGroup,
   type CitationView,
   type ExplanationBody,
+  type Locale,
+  type ServerValueField,
   type ValueLabel,
 } from "@e-agent/ui-core";
 import { useController, useI18n, useRunState } from "@e-agent/ui-react";
@@ -29,7 +32,7 @@ type Translate = (key: string) => string;
 type LoadState = "idle" | "loading" | "failed";
 
 export function Explanation({ testId = "explanation" }: { testId?: string }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { evidence, view } = useRunState();
   const controller = useController();
   const [load, setLoad] = useState<LoadState>("idle");
@@ -99,7 +102,7 @@ export function Explanation({ testId = "explanation" }: { testId?: string }) {
             <Citations key={i} group={group} t={t} />
           ))}
           {explained.explanation ? (
-            <ExplanationList body={explained.explanation} t={t} />
+            <ExplanationList body={explained.explanation} t={t} locale={locale} />
           ) : (
             <p className="ea-muted" data-testid="explain-missing">
               {t("explain.missing")}
@@ -230,7 +233,10 @@ function Label({ t, label }: { t: Translate; label: ValueLabel }) {
   );
 }
 
-function ExplanationList({ body, t }: { body: ExplanationBody; t: Translate }) {
+function ExplanationList({ body, t, locale }: { body: ExplanationBody; t: Translate; locale: Locale }) {
+  // A server status or decision in the user's language; an unknown one as the server wrote it.
+  const named = (field: ServerValueField, value: string | null) =>
+    value === null ? t("explain.notRecorded") : translateServerValue(locale, field, value);
   const rationales = body.proposals.flatMap(p => p.rationales);
   return (
     <>
@@ -264,7 +270,7 @@ function ExplanationList({ body, t }: { body: ExplanationBody; t: Translate }) {
             render={(r, i) => (
               <li key={`${r.ruleId}-${i}`}>
                 <span className="ea-mono">{r.ruleId}</span> · v{orNot(t, r.ruleVersion)} ·{" "}
-                {orNot(t, r.status)}
+                {named("validation", r.status)}
               </li>
             )}
           />
@@ -317,7 +323,7 @@ function ExplanationList({ body, t }: { body: ExplanationBody; t: Translate }) {
             t={t}
             render={(a, i) => (
               <li key={i}>
-                {orNot(t, a.decision)} · {orNot(t, a.actorId)} · {t("explain.policy")}{" "}
+                {named("decision", a.decision)} · {orNot(t, a.actorId)} · {t("explain.policy")}{" "}
                 {orNot(t, a.policyVersion)}
                 <Label t={t} label={a.label} />
               </li>
@@ -330,7 +336,7 @@ function ExplanationList({ body, t }: { body: ExplanationBody; t: Translate }) {
             t={t}
             render={(r, i) => (
               <li key={i}>
-                {orNot(t, r.status)}
+                {named("receipt", r.status)}
                 {r.externalRefs && r.externalRefs.length > 0 && <> · {r.externalRefs.join(", ")}</>}
                 <Label t={t} label={r.label} />
               </li>
@@ -343,7 +349,7 @@ function ExplanationList({ body, t }: { body: ExplanationBody; t: Translate }) {
             t={t}
             render={(o, i) => (
               <li key={o.actionId ?? i} data-testid="explain-outcome" data-label={o.label}>
-                <strong>{labelText(t, o.label)}</strong> · {orNot(t, o.status)}
+                <strong>{labelText(t, o.label)}</strong> · {named("stage", o.status)}
               </li>
             )}
           />

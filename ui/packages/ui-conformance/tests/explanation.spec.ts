@@ -76,6 +76,10 @@ test("explanation opens from the outcome", async ({ page }) => {
   // Every status label in the explanation is the bundle's.
   await expect(explanation.getByTestId("explain-outcome")).toHaveAttribute("data-label", "grounded_answer");
   await expect(explanation.getByTestId("explain-outcome")).toContainText("Grounded, not verified");
+  // The server's stage status in the user's language, not its enum (G-D 4.U6).
+  await expect(explanation.getByTestId("explain-outcome")).toContainText(
+    "Grounded, not verified · Succeeded",
+  );
   const words = explanation.getByTestId("explain-agent-text");
   await expect(words).toHaveAttribute("data-label", "unverified");
   await expect(words).toContainText("The agent's words");

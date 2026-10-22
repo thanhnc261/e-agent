@@ -3,7 +3,14 @@
  * shows the attached run; a layout may pass another run's items (an earlier run of a thread,
  * read from its recorded events) with that run's reason code.
  */
-import { formatDateTime, formatTime, readableLabel, runStatusKey, type TimelineItem } from "@e-agent/ui-core";
+import {
+  formatDateTime,
+  formatTime,
+  readableLabel,
+  runStatusKey,
+  translateServerValue,
+  type TimelineItem,
+} from "@e-agent/ui-core";
 import { useI18n, useRun, useTimeline } from "@e-agent/ui-react";
 import { Disclosure } from "../../primitives/Disclosure.tsx";
 
@@ -43,9 +50,11 @@ export function Timeline({
             ) : (
               item.detail && (
                 <small>
-                  {item.type.endsWith(".recorded") || item.type === "proposal.created"
-                    ? readableLabel(item.detail)
-                    : item.detail}
+                  {item.detailField
+                    ? translateServerValue(locale, item.detailField, item.detail)
+                    : item.type.endsWith(".recorded") || item.type === "proposal.created"
+                      ? readableLabel(item.detail)
+                      : item.detail}
                 </small>
               )
             )}

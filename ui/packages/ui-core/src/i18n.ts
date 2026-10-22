@@ -71,7 +71,6 @@ const en = {
   "event.action.receipt_recorded": "Receipt recorded",
   "event.action.unknown": "Result unknown",
   "event.reconciliation.completed": "Reconciled",
-  "event.outcome.reported": "Outcome verified",
   "event.message.final": "Final answer",
   "event.budget.exhausted": "Budget exhausted",
   "event.run.cancel_requested": "Cancellation requested",
@@ -139,7 +138,6 @@ const en = {
   "outcome.UNKNOWN": "Outcome not confirmed",
   "outcome.checks": "Independent checks",
   "outcome.checkUnknown": "No result recorded",
-  "outcome.references": "Verified references",
   "outcome.reported": "Outcome reported",
   "outcome.effectUnknown": "The operation may have completed. Check its status before taking another action.",
   "timeline.technical": "Technical activity",
@@ -350,6 +348,25 @@ const en = {
   "explain.label.grounded": "Grounded in this task's records",
   "explain.label.unverified": "Not verified",
   "explain.label.unsupported": "A label this version does not understand",
+  "value.validation.PASS": "Passed",
+  "value.validation.FAIL": "Failed",
+  "value.validation.UNKNOWN": "Unknown",
+  "value.validation.ERROR": "Could not be checked",
+  "value.decision.approved": "Approved",
+  "value.decision.rejected": "Rejected",
+  "value.receipt.COMMITTED": "Recorded",
+  "value.receipt.FAILED": "Failed",
+  "value.receipt.UNKNOWN": "Unknown",
+  "value.stage.succeeded": "Succeeded",
+  "value.stage.failed": "Failed",
+  "value.stage.blocked": "Blocked",
+  "value.stage.unknown": "Unknown",
+  "value.stage.skipped": "Skipped",
+  "value.stage.started": "Started",
+  "value.stage.waiting": "Waiting",
+  "value.outcome.VERIFIED": "Verified",
+  "value.outcome.FAILED": "Check failed",
+  "value.outcome.UNKNOWN": "Unknown",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -425,7 +442,6 @@ const vi: Record<MessageKey, string> = {
   "event.action.receipt_recorded": "Đã ghi biên nhận",
   "event.action.unknown": "Chưa rõ kết quả",
   "event.reconciliation.completed": "Đã đối soát",
-  "event.outcome.reported": "Đã xác minh kết quả",
   "event.message.final": "Câu trả lời cuối",
   "event.budget.exhausted": "Hết ngân sách",
   "event.run.cancel_requested": "Đã yêu cầu hủy",
@@ -493,7 +509,6 @@ const vi: Record<MessageKey, string> = {
   "outcome.UNKNOWN": "Chưa xác nhận được kết quả",
   "outcome.checks": "Kiểm tra độc lập",
   "outcome.checkUnknown": "Chưa ghi nhận kết quả",
-  "outcome.references": "Tham chiếu đã xác minh",
   "outcome.reported": "Đã ghi nhận kết quả",
   "outcome.effectUnknown": "Thao tác có thể đã hoàn tất. Kiểm tra trạng thái trước khi thực hiện hành động khác.",
   "timeline.technical": "Chi tiết hoạt động",
@@ -704,6 +719,25 @@ const vi: Record<MessageKey, string> = {
   "explain.label.grounded": "Có dẫn chứng từ bản ghi của tác vụ này",
   "explain.label.unverified": "Chưa xác minh",
   "explain.label.unsupported": "Nhãn mà phiên bản này chưa hỗ trợ",
+  "value.validation.PASS": "Đạt",
+  "value.validation.FAIL": "Không đạt",
+  "value.validation.UNKNOWN": "Chưa rõ",
+  "value.validation.ERROR": "Không kiểm tra được",
+  "value.decision.approved": "Đã phê duyệt",
+  "value.decision.rejected": "Đã từ chối",
+  "value.receipt.COMMITTED": "Đã ghi nhận",
+  "value.receipt.FAILED": "Thất bại",
+  "value.receipt.UNKNOWN": "Chưa rõ",
+  "value.stage.succeeded": "Thành công",
+  "value.stage.failed": "Thất bại",
+  "value.stage.blocked": "Bị chặn",
+  "value.stage.unknown": "Chưa rõ",
+  "value.stage.skipped": "Đã bỏ qua",
+  "value.stage.started": "Đã bắt đầu",
+  "value.stage.waiting": "Đang chờ",
+  "value.outcome.VERIFIED": "Đã xác minh",
+  "value.outcome.FAILED": "Kiểm tra không đạt",
+  "value.outcome.UNKNOWN": "Chưa rõ",
 };
 
 const catalogs: Record<Locale, Record<MessageKey, string>> = { en, vi };
@@ -729,6 +763,57 @@ const SERVER_HINTS: ReadonlyMap<string, MessageKey> = new Map([
 export function translateServerHint(locale: Locale, message: string): string {
   const key = SERVER_HINTS.get(message);
   return key ? translate(locale, key) : message;
+}
+
+/** The server enums the UI shows (G-D 4.U6), each with the values the server can send. */
+export type ServerValueField = "validation" | "decision" | "receipt" | "stage" | "outcome";
+
+/**
+ * The known values, from the server's contracts (`src/e_agent/contracts/`): `validation`,
+ * ValidationStatus (a rule finding's and a validation's status); `decision`, ApprovalDecision;
+ * `receipt`, ReceiptStatus; `stage`, StageStatus (an explanation's outcome: a verification
+ * stage or a grounded end, so "succeeded" is never called verified); `outcome`, OutcomeStatus
+ * (an outcome report, the only place "Verified" is shown).
+ */
+const SERVER_VALUES: Readonly<Record<ServerValueField, ReadonlyMap<string, MessageKey>>> = {
+  validation: new Map([
+    ["PASS", "value.validation.PASS"],
+    ["FAIL", "value.validation.FAIL"],
+    ["UNKNOWN", "value.validation.UNKNOWN"],
+    ["ERROR", "value.validation.ERROR"],
+  ]),
+  decision: new Map([
+    ["approved", "value.decision.approved"],
+    ["rejected", "value.decision.rejected"],
+  ]),
+  receipt: new Map([
+    ["COMMITTED", "value.receipt.COMMITTED"],
+    ["FAILED", "value.receipt.FAILED"],
+    ["UNKNOWN", "value.receipt.UNKNOWN"],
+  ]),
+  stage: new Map([
+    ["succeeded", "value.stage.succeeded"],
+    ["failed", "value.stage.failed"],
+    ["blocked", "value.stage.blocked"],
+    ["unknown", "value.stage.unknown"],
+    ["skipped", "value.stage.skipped"],
+    ["started", "value.stage.started"],
+    ["waiting", "value.stage.waiting"],
+  ]),
+  outcome: new Map([
+    ["VERIFIED", "value.outcome.VERIFIED"],
+    ["FAILED", "value.outcome.FAILED"],
+    ["UNKNOWN", "value.outcome.UNKNOWN"],
+  ]),
+};
+
+/**
+ * A server enum value in the user's language (AG-SOC-1). A value the UI does not know is shown
+ * exactly as the server wrote it, as `translateServerHint` does, never replaced or dropped.
+ */
+export function translateServerValue(locale: Locale, field: ServerValueField, value: string): string {
+  const key = SERVER_VALUES[field].get(value);
+  return key ? translate(locale, key) : value;
 }
 
 export function catalogKeys(locale: Locale): string[] {

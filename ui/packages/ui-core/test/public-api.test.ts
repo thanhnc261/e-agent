@@ -66,6 +66,7 @@ describe("public ui-core exports", () => {
       "threadRunStatusKey",
       "translate",
       "translateServerHint",
+      "translateServerValue",
       "verifyDigest",
     ]);
   });
