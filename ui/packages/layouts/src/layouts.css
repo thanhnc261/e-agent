@@ -122,7 +122,9 @@
 @container ea-thread (min-width:60rem) {
  .ea-thread-grid[data-workspace-open="true"] { grid-template-columns:minmax(0,1fr) clamp(22rem,40%,34rem); }
  .ea-thread-grid[data-workspace-open="true"] > .ea-thread-main { display:flex; }
- .ea-ws-back { display:none; }
+ /* Beside the thread, Back and the full view's Stop and status are not needed; ThreadSurface
+    renders the latter only once the thread is measured narrow, and this rule backs it up. */
+ .ea-ws-back,.ea-ws-live { display:none; }
  /* Its own scroll region (G-D 4.U4): the head stays at its top, a bring-into-view and focus
     land below the head, and a cue shows while more is below. */
  .ea-artifact-workspace { position:sticky; top:var(--ea-space-lg); max-height:min(calc(100dvh - 7rem), calc(var(--ea-ws-room, 100dvh) - 2 * var(--ea-space-lg))); overflow:auto; padding-top:0; scroll-padding-top:var(--ea-ws-head-h,0px); }

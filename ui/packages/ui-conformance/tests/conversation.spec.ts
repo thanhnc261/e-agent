@@ -485,7 +485,20 @@ test("a tall decision keeps the workspace head in view and shows that more is be
   expect(await insideWorkspace(page, "approval-approve")).toBe(true);
   for (const id of ["workspace-heading", "workspace-status", "workspace-close"])
     expect(await insideWorkspace(page, id), id).toBe(true);
-  // The head covers no term: the first field sits below it once scrolled back.
+  // The head covers no term: a field brought into view lands below the sticky head, and the
+  // card's top does too (scroll-padding and scroll-margin, G-D 4.U4).
+  const below = async (testId: string, index: number) =>
+    workspace.evaluate(
+      (el, [id, i]) => {
+        const head = el.querySelector(".ea-ws-head")!.getBoundingClientRect();
+        const target = el.querySelectorAll(`[data-testid="${id}"]`)[i as number]!;
+        target.scrollIntoView({ block: "start" });
+        return target.getBoundingClientRect().top >= head.bottom - 1;
+      },
+      [testId, index] as const,
+    );
+  expect(await below("material-field", 4)).toBe(true);
+  expect(await below("approval", 0)).toBe(true);
   await workspace.evaluate(el => {
     el.scrollTop = 0;
   });
