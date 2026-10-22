@@ -26,6 +26,21 @@ describe("i18n and formatting", () => {
     expect(translate("vi", "approval.title")).toBe("Xem xét thay đổi được đề xuất");
   });
 
+  it("G-D Vietnamese: the flagged strings, and one word for the user's task", () => {
+    expect(translate("vi", "citation.valueNotRecorded")).toBe("Giá trị không được ghi lại");
+    expect(translate("vi", "nav.lastSeen")).toBe("thấy lần cuối");
+    expect(translate("vi", "explain.revision")).toBe("Bản sửa đổi");
+    expect(translate("vi", "conversation.refusedBusy")).toBe(
+      "Cuộc trò chuyện đang bận. Hãy chờ, quyết định phê duyệt, hoặc dừng yêu cầu.",
+    );
+    expect(translate("vi", "run.nothingRunning")).toBe("Không có yêu cầu nào đang chạy");
+    // The Stop button says "Dừng yêu cầu"; the task is "yêu cầu" everywhere. context.noHost
+    // keeps its owner-confirmed copy, pinned in apps/web/test/routes.test.ts.
+    expect(translate("vi", "run.cancel")).toBe("Dừng yêu cầu");
+    const split = catalogKeys("vi").filter(key => /tác vụ/i.test(translate("vi", key)));
+    expect(split).toEqual(["context.noHost"]);
+  });
+
   it("formats decimals without floats", () => {
     expect(formatDecimal("1234567.890000000000000001", "en")).toBe("1,234,567.890000000000000001");
     expect(formatDecimal("1234.5", "vi")).toBe("1.234,5");
