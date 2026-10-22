@@ -40,6 +40,7 @@
 | 4e.4 | `29f85a26`, `b7869105`, `da561bf9` | Thread view, server-listed sidebar, closable workspace; axe-core 4.10.3 (dev only) |
 | 4e.5 | `e2760b1a`, `d3678423`, `5bdfbf1e` | Citations and the explanation, grounded not verified |
 | 4e.7 | `1a7f0483`, `0d79968c` to `356341f4`, `eb543338`, `9a8eb109` | G-D UI review and its fixes 4.U1 to 4.U7, plus the VI fixes ([resolution](../reviews/2026-10-22-conversation-thread-ux-review-RESOLUTION.md)) |
+| 4.R2 | `dfeeadb` | `context.noHost` VI says "yêu cầu" (advisor ruling on the owner's delegation) |
 | 4.R1 | `50103d72` | Phase-review tests: an UNKNOWN write and a crash in a conversation-linked run (KB-1) |
 | 4f.1 | `09bc0ba`, `92aa9cc`, `84630ae9`, `815e0411`, this commit | Phase-close ADR and design lines, README and roadmap, this handoff |
 
@@ -124,14 +125,19 @@ These are the main rulings. The full list, each with its cost if wrong, is in th
 - **G-B and G-C** were delegated by the owner to the advisor ("advisor can decide all on behalf me"; "Advisor"). The answers are recorded in the plan's 4e.1 and 4e.2 sections.
 - **G-D**, 2026-10-22, answered by the owner directly: "Fix all". This is read as: fix 4.U1 to 4.U7 and the flagged VI rows V-1 to V-4, and accept the 68 unflagged VI rows.
 
-### Pending owner answers
+### Delegated owner answers (2026-10-22)
 
-These are not yet given, so nothing here is recorded as accepted:
+The owner replied "Ask advisor and continue" to three questions, and the advisor ruled on each:
 
-1. Confirm the 33 rows of "New VI since G-D" in the [G-D resolution](../reviews/2026-10-22-conversation-thread-ux-review-RESOLUTION.md).
-2. `context.noHost` still says "tác vụ". It is owner-confirmed F-7 copy, pinned by `ui/apps/web/test/routes.test.ts`. Change it to "yêu cầu", or keep it?
+1. **The 33 "New VI since G-D" rows:** accepted.
+2. **`context.noHost`:** changed to "yêu cầu" in task 4.R2 (`dfeeadb`).
+3. **The live check 4f.2:** go, with hard stops:
+   - identity is checked first;
+   - the pin is checked before any mutation;
+   - the check stops on an expired key, `NOT_READY`, a missing secrets path, or a pin or identity mismatch;
+   - no bridge upgrade.
 
-Changing either is UI work, done as a `4.R` task, not inside the verification task.
+   The owner can countermand this in one word. Merge and push still wait for the owner's explicit ask.
 
 ## Not implemented or not proven
 

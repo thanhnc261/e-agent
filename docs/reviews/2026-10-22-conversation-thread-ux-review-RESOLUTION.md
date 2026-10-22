@@ -86,8 +86,12 @@ Limits: these are browser-mechanics checks on the conformance mock API. No real 
 
 ## Open items for the owner
 
-1. **Confirm the "New VI since G-D" rows above.**
-2. **`context.noHost` still says "tác vụ".** Its VI is owner-confirmed F-7 copy, pinned by `ui/apps/web/test/routes.test.ts`. Should it become "yêu cầu" like every other string?
-3. **Follow-ups, not built:**
-   - `RuleFindings.tsx:24` in the approval card still shows raw rule statuses such as PASS. `translateServerValue("validation", …)` already exists for it.
-   - Labelling free-text answer fields as model-authored needs an ADR (E5-1 option b).
+Answered 2026-10-22. The owner replied "Ask advisor and continue" to the two questions below and delegated both to the advisor:
+
+1. **The "New VI since G-D" rows:** accepted as listed. They were reconciled against the i18n diff, reviewed twice, and none claims verification that its EN does not.
+2. **`context.noHost`:** changed from "tác vụ" to "yêu cầu", so the user's task is "yêu cầu" everywhere (V-3). This is task 4.R2, commit `dfeeadb`; the pinned F-7 test in `ui/apps/web/test/routes.test.ts` is updated.
+
+Follow-ups, not built:
+
+- `RuleFindings.tsx:24` in the approval card still shows raw rule statuses such as PASS. `translateServerValue("validation", …)` already exists for it.
+- Labelling free-text answer fields as model-authored needs an ADR (E5-1 option b).
