@@ -4,7 +4,7 @@
 
 - **Plan:** [Phase 4 plan](../plans/2026-10-20-phase4-conversation-chat.md), Parts 4a to 4f; [roadmap](../roadmap.md) row 4.
 - **ADRs:** [ADR 0023](../adr/0023-conversation-model.md) (conversation model) and [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md) (workspace and explanation UI). Both were accepted at gate G-A on 2026-10-20, with ADR 0034 §5 deferred.
-- **Branch:** `phase4/conversation-chat`, cut from `main` at `b52f979` (Phase 3 merged). Not pushed and not merged.
+- **Branch:** `phase4/conversation-chat`, cut from `main` at `b52f979` (Phase 3 merged). Merged to `main` as [PR #8](https://github.com/thanhnc261/e-agent/pull/8) on 2026-10-22, with 4f.2 pending.
 - **Execution:** subagent-driven development under the development harness. Each task went through contract, `check-scope`, fresh-context review, gate evidence on a clean commit, feature flip, handoff and `close-check`. Review records are in `harness/state/4/reviews/`.
 - **Result:** one new profile toggle, `features.conversations: off | shadow | on`. It is `off` by default and `off` in every committed profile.
   - In `on`, a conversation is a thread of runs.
@@ -154,6 +154,8 @@ These are the main rulings. The full list, each with its cost if wrong, is in th
 - **G-A**, 2026-10-20: "1 accept 2 accept 3 defer 4 ok 5 ok 6 ok 7 yes". This accepted ADR 0023 and ADR 0034, deferred §5 (and with it 4e.6), confirmed D15, accepted the four never-carried refs, and ruled that a carried ref comes only from a complete read.
 - **G-B and G-C** were delegated by the owner to the advisor ("advisor can decide all on behalf me"; "Advisor"). The answers are recorded in the plan's 4e.1 and 4e.2 sections.
 - **G-D**, 2026-10-22, answered by the owner directly: "Fix all". This is read as: fix 4.U1 to 4.U7 and the flagged VI rows V-1 to V-4, and accept the 68 unflagged VI rows.
+
+- **Merge**, 2026-10-22: the owner asked to merge with 4f.2 pending ("Merge"), after being told the live check had not run. Merged as [PR #8](https://github.com/thanhnc261/e-agent/pull/8).
 
 ### Delegated owner answers (2026-10-22)
 
