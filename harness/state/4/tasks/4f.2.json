@@ -17,7 +17,8 @@
     "ui/packages/ui-core/test/**",
     "ui/packages/components/**",
     "ui/packages/ui-conformance/**",
-    "uv.lock"
+    "uv.lock",
+    "docs/design/ui-architecture.md"
   ],
   "acceptance": [
     "uv run e-agent-harness live-check passes and writes evidence under harness/state/evidence/live/",
@@ -53,6 +54,11 @@
       "glob": "uv.lock",
       "reason": "certifi bump for PYSEC-2026-4320 (CI pip-audit blocks the Phase 4 merge)",
       "at": "2026-10-22T12:26:45+00:00"
+    },
+    {
+      "glob": "docs/design/ui-architecture.md",
+      "reason": "4.R4 updates the U3 thread-scroll rule",
+      "at": "2026-10-22T12:50:59+00:00"
     }
   ]
 }

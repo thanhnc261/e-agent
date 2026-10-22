@@ -399,6 +399,54 @@ test("a conversation opens at its latest run, with the composer in view, and foc
   expect(api.messageStarts).toBe(0);
 });
 
+test("a layout change after the open keeps the latest run and the composer in view (4.R4)", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval();
+  await api.install(page);
+  await page.goto("/?layout=sidebar");
+  const row = page.getByTestId("thread-row").first();
+  await row.waitFor({ state: "attached" });
+  if (!(await row.isVisible())) await page.getByTestId("thread-list-toggle").click();
+  await row.click();
+  const latest = page.getByTestId("thread-run").nth(1).getByTestId("run-card");
+  await expect(latest.getByTestId("run-card-status")).toHaveText(/Needs review/);
+  await expect(page.getByTestId("composer")).toBeInViewport({ ratio: 1 });
+  // Text that sets taller after the last scroll (other font metrics, a late run view; PR #8 CI)
+  // grows the thread under a scroll the user has not taken: the latest run stays aligned.
+  await page.addStyleTag({ content: ".ea-thread { line-height: 2.2; }" });
+  await expect(latest).toBeInViewport({ ratio: 1 });
+  await expect(page.getByTestId("composer")).toBeInViewport({ ratio: 1 });
+});
+
+test("once the user takes the scroll, a later layout change keeps their position (4.R4)", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval();
+  await api.install(page);
+  await page.goto("/?layout=sidebar");
+  const row = page.getByTestId("thread-row").first();
+  await row.waitFor({ state: "attached" });
+  if (!(await row.isVisible())) await page.getByTestId("thread-list-toggle").click();
+  await row.click();
+  const latest = page.getByTestId("thread-run").nth(1).getByTestId("run-card");
+  await expect(latest.getByTestId("run-card-status")).toHaveText(/Needs review/);
+  await expect(latest).toBeInViewport({ ratio: 1 });
+  // The user scrolls back to the first run; a later change must not pull them to the latest.
+  await page.getByTestId("thread").hover();
+  await page.mouse.wheel(0, -2000);
+  await expect(latest).not.toBeInViewport();
+  await page.addStyleTag({ content: ".ea-thread { line-height: 2.2; }" });
+  await page.waitForTimeout(300);
+  await expect(latest).not.toBeInViewport();
+});
+
 /**
  * Tab backwards from the composer through the thread's controls; each focused control must sit
  * at or below the sticky thread head (GR-1, WCAG 2.4.11). Before each Shift+Tab the thread is
@@ -506,11 +554,12 @@ test("a new run is scrolled into view once; a later update keeps the user's scro
   await expect(newest).toBeInViewport({ ratio: 1 });
   await expect(page.getByTestId("composer-input")).toBeFocused();
 
-  // The user scrolls back up; the same run's later change does not pull the view down.
+  // The user scrolls back up; the same run's later change does not pull the view down. A wheel,
+  // not a script: the user's own scroll is what ends the alignment (4.R4).
   const scroller = page.locator(".ea-thread-stack");
-  await scroller.evaluate(el => {
-    el.scrollTop = 0;
-  });
+  await page.getByTestId("thread").hover();
+  await page.mouse.wheel(0, -5000);
+  await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBe(0);
   api.finish(api.current, "Done (sample).");
   await expect(newest.getByTestId("run-card-status")).toHaveText(/Completed/);
   await page.waitForTimeout(300);

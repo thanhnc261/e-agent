@@ -9,7 +9,9 @@
  * is added, the latest run card is scrolled into view, never focused. Its top is aligned, so
  * the card and the composer under it both show where they fit (the scroll stops at the end).
  * Opening jumps there; a run added to the open conversation glides, unless motion is reduced.
- * Later updates of the same runs keep the user's scroll.
+ * The card stays aligned while the thread's height changes, until the user takes the scroll
+ * (wheel, touch, a key or a press; 4.R4). After that, later updates of the same runs keep the
+ * user's scroll.
  */
 import { useEffect, useRef } from "react";
 import {
@@ -34,12 +36,19 @@ export function Thread() {
   const announcement = latest ? `${t("thread.run")} ${entries.length}: ${t(statusOf(latest))}` : "";
   const listRef = useRef<HTMLOListElement>(null);
   const scrolledTo = useRef<{ conversation: string; run: string; loaded: number } | null>(null);
+  // Until the user takes the scroll, the latest run stays aligned (4.R4): a later change in
+  // the thread's height (the live run's view arriving, other font metrics) re-aligns it, with
+  // the same behaviour as the scroll it repeats. Only the list is observed; the composer is a
+  // sibling slot this component cannot reach, and it moves with the list. Scroll events never
+  // unpin, because the re-alignment fires them too.
+  const pinned = useRef<{ card: HTMLElement; behavior: ScrollBehavior } | null>(null);
   // Once per conversation and latest run; the count of read runs counts too, because an
   // earlier run's messages arriving after the open push the latest card down.
   const conversation = state.conversationId ?? "";
   const loaded = entries.filter(entry => entry.loaded).length;
   const ready = latest !== undefined && state.thread.status !== "loading";
   const latestRun = latest?.runId ?? "";
+  const hasRuns = entries.length > 0;
   useEffect(() => {
     const last = scrolledTo.current;
     if (!ready) return;
@@ -54,8 +63,29 @@ export function Thread() {
     const added = last !== null && last.conversation === conversation && last.run !== latestRun;
     const reduced =
       typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    card.scrollIntoView({ block: "start", behavior: added && !reduced ? "smooth" : "auto" });
+    const behavior: ScrollBehavior = added && !reduced ? "smooth" : "auto";
+    card.scrollIntoView({ block: "start", behavior });
+    pinned.current = { card, behavior };
   }, [ready, conversation, latestRun, loaded]);
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || typeof ResizeObserver !== "function") return;
+    const doc = list.ownerDocument;
+    const unpin = () => {
+      pinned.current = null;
+    };
+    const observer = new ResizeObserver(() => {
+      const pin = pinned.current;
+      if (pin?.card.isConnected) pin.card.scrollIntoView({ block: "start", behavior: pin.behavior });
+    });
+    observer.observe(list);
+    const events = ["wheel", "touchstart", "keydown", "pointerdown"] as const;
+    for (const type of events) doc.addEventListener(type, unpin, { passive: true, capture: true });
+    return () => {
+      observer.disconnect();
+      for (const type of events) doc.removeEventListener(type, unpin, { capture: true });
+    };
+  }, [hasRuns]);
   return (
     <section className="ea-messages ea-thread-view" aria-label={t("messages.title")} data-testid="messages">
       {/* One polite region for run states; streamed text is never in it (EA-16). */}
