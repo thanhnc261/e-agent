@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { emptyRunView, reduceRunView, selectTimeline } from "../src/store.ts";
-import { translateServerValue, type ServerValueField } from "../src/i18n.ts";
+import { translate, translateServerValue, type ServerValueField } from "../src/i18n.ts";
 import type { RunEvent } from "@e-agent/client";
 
 const SERVER_VALUES: Record<ServerValueField, string[]> = {
@@ -80,9 +80,35 @@ describe("timeline details", () => {
     expect(items.map(item => [item.detail, item.detailField ?? null])).toEqual([
       ["PASS", "validation"],
       ["approved", "decision"],
-      ["VERIFIED", "outcome"],
+      // A known outcome is named by its label; repeating it as a detail would say it twice
+      // ("Outcome verified · Verified", GD-6).
+      [null, null],
       ["procurement.demand.read.v1", null],
     ]);
-    expect(translateServerValue("vi", "outcome", "VERIFIED")).toBe("Đã xác minh");
+    expect(items[2]!.labelKey).toBe("outcome.VERIFIED");
+  });
+
+  it("label an outcome row only from the server's OutcomeStatus values (GD-3)", () => {
+    const view = reduceRunView(emptyRunView, {
+      type: "events",
+      events: [
+        event(1, "outcome.reported", { status: "records" }),
+        event(2, "outcome.reported", { status: "FAILED" }),
+        event(3, "outcome.reported", {}),
+        event(4, "outcome.reported", { status: "title" }),
+      ],
+    });
+    const items = selectTimeline(view);
+    // An unknown status gets the neutral label and keeps its value as the detail; it never
+    // borrows another outcome.* key, such as outcome.records ("Verified record").
+    expect(items.map(item => [item.labelKey, item.detail])).toEqual([
+      ["outcome.reported", "records"],
+      ["outcome.FAILED", null],
+      ["outcome.reported", ""],
+      ["outcome.reported", "title"],
+    ]);
+    for (const locale of ["en", "vi"] as const)
+      expect(translate(locale, items[0]!.labelKey)).not.toBe(translate(locale, "outcome.records"));
+    expect(translate("en", items[0]!.labelKey)).toBe("Outcome reported");
   });
 });

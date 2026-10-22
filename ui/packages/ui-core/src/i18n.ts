@@ -811,6 +811,11 @@ const SERVER_VALUES: Readonly<Record<ServerValueField, ReadonlyMap<string, Messa
  * A server enum value in the user's language (AG-SOC-1). A value the UI does not know is shown
  * exactly as the server wrote it, as `translateServerHint` does, never replaced or dropped.
  */
+/** True when `value` is one the server sends for `field` (the allow-list above). */
+export function isKnownServerValue(field: ServerValueField, value: string): boolean {
+  return SERVER_VALUES[field].has(value);
+}
+
 export function translateServerValue(locale: Locale, field: ServerValueField, value: string): string {
   const key = SERVER_VALUES[field].get(value);
   return key ? translate(locale, key) : value;

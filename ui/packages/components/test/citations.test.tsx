@@ -8,7 +8,15 @@
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/react";
-import { RunController, emptyRunView, translate, type ControllerState, type Locale } from "@e-agent/ui-core";
+import {
+  RunController,
+  emptyRunView,
+  reduceRunView,
+  selectTimeline,
+  translate,
+  type ControllerState,
+  type Locale,
+} from "@e-agent/ui-core";
 import { RunProvider } from "@e-agent/ui-react";
 import { Activity } from "../src/containers/Activity.tsx";
 import { defaultSlots } from "../src/defaults.ts";
@@ -408,44 +416,30 @@ describe("citations and the explanation (ADR 0034 §3, §4)", () => {
   });
 
   it("the timeline names a status or decision detail in the user's language (G-D 4.U6)", () => {
-    const items = [
-      {
-        sequence: 1,
-        type: "validation.completed",
-        labelKey: "event.validation.completed",
-        detail: "PASS",
-        detailField: "validation" as const,
-      },
-      {
-        sequence: 2,
-        type: "approval.decided",
-        labelKey: "event.approval.decided",
-        detail: "rejected",
-        detailField: "decision" as const,
-      },
-      {
-        sequence: 3,
-        type: "outcome.reported",
-        labelKey: "outcome.VERIFIED",
-        detail: "VERIFIED",
-        detailField: "outcome" as const,
-      },
-      {
-        sequence: 4,
-        type: "outcome.reported",
-        labelKey: "outcome.WEIRD",
-        detail: "WEIRD",
-        detailField: "outcome" as const,
-      },
-    ].map(item => ({ ...item, occurredAt: "2026-10-20T00:00:00Z", supported: true }));
-    const { container } = show({ bundle: null, reasonCode: null, locale: "vi" }, <Timeline items={items} />);
-    const details = byTest(container, "timeline-item").map(li => li.querySelector("small")?.textContent);
-    expect(details).toEqual([
+    const view = reduceRunView(emptyRunView, {
+      type: "events",
+      events: [
+        event(1, "validation.completed", { status: "PASS" }),
+        event(2, "approval.decided", { decision: "rejected" }),
+        event(3, "outcome.reported", { status: "VERIFIED" }),
+        event(4, "outcome.reported", { status: "WEIRD" }),
+      ],
+    });
+    const { container } = show(
+      { bundle: null, reasonCode: null, locale: "vi" },
+      <Timeline items={selectTimeline(view)} />,
+    );
+    const rows = byTest(container, "timeline-item");
+    expect(rows.map(li => li.querySelector("small")?.textContent ?? null)).toEqual([
       translate("vi", "value.validation.PASS"),
       translate("vi", "value.decision.rejected"),
-      translate("vi", "value.outcome.VERIFIED"),
+      // The label names a known outcome; no detail repeats it (GD-6).
+      null,
+      // An unknown one has the neutral label, and its value as the server wrote it (GD-3).
       "WEIRD",
     ]);
+    expect(rows[2]!.querySelector("span")!.textContent).toBe(translate("vi", "outcome.VERIFIED"));
+    expect(rows[3]!.querySelector("span")!.textContent).toBe(translate("vi", "outcome.reported"));
   });
 
   it("an unresolved citation is never shown as a fact", () => {

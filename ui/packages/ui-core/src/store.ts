@@ -4,7 +4,7 @@
  * type never guesses: it asks the controller for a fresh snapshot.
  */
 import type { ActionSummary, ConversationSnapshot, RunEvent, RunRecord, RunSnapshot, TextFrame } from "@e-agent/client";
-import type { ServerValueField } from "./i18n.ts";
+import { isKnownServerValue, type ServerValueField } from "./i18n.ts";
 
 /**
  * Conversation bookkeeping (ADR 0023 §11): ids, counts and digests the server records for
@@ -214,10 +214,17 @@ export function selectTimeline(view: RunView): TimelineItem[] {
       transition = { ...states, ...(fromReply ? { fromReply: true } : {}), ...(toReply ? { toReply: true } : {}) };
     }
     let detailField: ServerValueField | null = null;
+    // An outcome row is labelled only from the server's OutcomeStatus values (GD-3); a known
+    // one is named by its label alone, an unknown one by the neutral label and its value.
+    const outcomeStatus = type === "outcome.reported" ? String(p["status"] ?? "") : "";
+    const knownOutcome = isKnownServerValue("outcome", outcomeStatus);
     if (transition) detail = `${transition.from} → ${transition.to}`;
-    else if (supported && (type === "validation.completed" || type === "outcome.reported")) {
+    else if (supported && type === "validation.completed") {
       detail = String(p["status"] ?? "");
-      detailField = type === "outcome.reported" ? "outcome" : "validation";
+      detailField = "validation";
+    } else if (supported && type === "outcome.reported") {
+      detail = knownOutcome ? null : outcomeStatus;
+      detailField = knownOutcome ? null : "outcome";
     } else if (supported && type === "approval.decided") {
       detail = String(p["decision"] ?? "");
       detailField = "decision";
@@ -228,7 +235,7 @@ export function selectTimeline(view: RunView): TimelineItem[] {
     return {
       sequence: e.sequence,
       type,
-      labelKey: supported ? type === "outcome.reported" ? `outcome.${String(p["status"] ?? "UNKNOWN")}` : `event.${type}` : "event.unsupported",
+      labelKey: supported ? type === "outcome.reported" ? knownOutcome ? `outcome.${outcomeStatus}` : "outcome.reported" : `event.${type}` : "event.unsupported",
       occurredAt: e.occurred_at,
       supported,
       detail,

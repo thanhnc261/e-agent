@@ -37,6 +37,7 @@ describe("public ui-core exports", () => {
       "isAwaitingDecision",
       "isConversationsOn",
       "isExpired",
+      "isKnownServerValue",
       "isLiveEntry",
       "presentationMatchesCanonical",
       "projectConnections",

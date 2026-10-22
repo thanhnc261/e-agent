@@ -69,7 +69,7 @@ export function RunCard({
       {line && (
         <p className="ea-run-line" data-testid="run-card-line">
           {t(line.labelKey)}
-          {line.detail && line.type !== "outcome.reported" && (
+          {line.detail && (
             <span className="ea-muted">
               {" · "}
               {line.detailField
