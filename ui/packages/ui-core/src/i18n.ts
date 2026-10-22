@@ -586,7 +586,7 @@ const vi: Record<MessageKey, string> = {
   "context.resources": "Gợi ý tài nguyên",
   "context.none": "Không có",
   "context.sentNoHost": "Chỉ nội dung tin nhắn của bạn; trang này không gửi thêm thông tin nào.",
-  "context.noHost": "e-agent cũng dùng các tin nhắn của tác vụ này và mọi hệ thống bạn đã kết nối, trong phạm vi quyền của bạn.",
+  "context.noHost": "e-agent cũng dùng các tin nhắn của yêu cầu này và mọi hệ thống bạn đã kết nối, trong phạm vi quyền của bạn.",
   "context.server": "Máy chủ kiểm tra từng gợi ý, bỏ những gì không xác minh được, rồi áp dụng quyền và kết nối của bạn.",
   "discovery.idle": "Chưa tải.",
   "discovery.loading": "Đang tải…",

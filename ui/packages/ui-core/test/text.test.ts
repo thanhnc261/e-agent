@@ -39,11 +39,11 @@ describe("i18n and formatting", () => {
     expect(translate("vi", "nav.legacy")).toBe("Các yêu cầu trước · phiên này · trạng thái thấy lần cuối");
     expect(translate("en", "value.receipt.COMMITTED")).toBe("Committed");
     expect(translate("vi", "value.receipt.COMMITTED")).toBe("Đã ghi vào hệ thống");
-    // The Stop button says "Dừng yêu cầu"; the task is "yêu cầu" everywhere. context.noHost
-    // keeps its owner-confirmed copy, pinned in apps/web/test/routes.test.ts.
+    // The Stop button says "Dừng yêu cầu"; the task is "yêu cầu" everywhere, context.noHost
+    // included (4.R2).
     expect(translate("vi", "run.cancel")).toBe("Dừng yêu cầu");
     const split = catalogKeys("vi").filter(key => /tác vụ/i.test(translate("vi", key)));
-    expect(split).toEqual(["context.noHost"]);
+    expect(split).toEqual([]);
   });
 
   it("formats decimals without floats", () => {

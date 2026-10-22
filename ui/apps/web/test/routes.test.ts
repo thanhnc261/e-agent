@@ -66,7 +66,7 @@ describe("context chip copy", () => {
       "e-agent also uses this task's messages and any systems you have connected, within your permissions.",
     );
     expect(translate("vi", "context.noHost")).toBe(
-      "e-agent cũng dùng các tin nhắn của tác vụ này và mọi hệ thống bạn đã kết nối, trong phạm vi quyền của bạn.",
+      "e-agent cũng dùng các tin nhắn của yêu cầu này và mọi hệ thống bạn đã kết nối, trong phạm vi quyền của bạn.",
     );
   });
 
