@@ -49,3 +49,39 @@ test("forced colours keep the workspace scroll cue, as a border, not a gradient"
   expect(style.border).toBe("dashed");
   expect(style.width).toBeGreaterThanOrEqual(1);
 });
+
+test("forced colours underline only the selected workspace tab", async ({ page }) => {
+  await page.emulateMedia({ forcedColors: "active" });
+  const api = new MockApi();
+  api.features = "on";
+  api.twoRunThread();
+  api.waitingForApproval();
+  await api.install(page);
+  await page.goto("/");
+  await page.getByTestId("thread-row").first().click();
+  const workspace = page.getByTestId("artifact-workspace");
+  await expect(workspace.getByTestId("approval-approve")).toBeEnabled();
+  // EA-14, G-D 4.U7: the current tab is the one underlined; the others blend into Canvas.
+  const canvas = await workspace.evaluate(node => getComputedStyle(node).backgroundColor);
+  const underline = (id: string) =>
+    workspace.getByTestId(id).evaluate(node => {
+      const s = getComputedStyle(node);
+      return { color: s.borderBottomColor, width: parseFloat(s.borderBottomWidth) };
+    });
+  const selected = await underline("workspace-tab-decision");
+  await expect(workspace.getByTestId("workspace-tab-decision")).toHaveAttribute("aria-selected", "true");
+  expect(selected.width).toBeGreaterThanOrEqual(2);
+  expect(selected.color).not.toBe(canvas);
+  let unselected = 0;
+  for (const id of ["workspace-tab-sources", "workspace-tab-activity"]) {
+    const tab = await underline(id);
+    expect(tab.color, id).toBe(canvas);
+    expect(tab.color).not.toBe(selected.color);
+    unselected += 1;
+  }
+  expect(unselected).toBe(2);
+  // Selecting another tab moves the underline with it.
+  await workspace.getByTestId("workspace-tab-activity").click();
+  expect((await underline("workspace-tab-activity")).color).not.toBe(canvas);
+  expect((await underline("workspace-tab-decision")).color).toBe(canvas);
+});

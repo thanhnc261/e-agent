@@ -131,6 +131,9 @@
 .ea-ws-cue { display:none; }
 @media (forced-colors: active) {
  .ea-ws-cue:not([hidden]) { background:Canvas; border-top:2px dashed CanvasText; }
- .ea-tab[data-selected] { border-bottom-color:Highlight; }
+ /* Only the current tab is underlined; a transparent border would show as CanvasText (G-D 4.U7).
+    An unselected tab's Canvas border sits above the list's line, not over it, at the same height. */
+ .ea-tab { border-bottom:1px solid Canvas; margin-bottom:0; }
+ .ea-tab[data-selected] { border-bottom:2px solid Highlight; margin-bottom:-1px; }
  .ea-artifact-workspace { border:1px solid CanvasText; }
 }
