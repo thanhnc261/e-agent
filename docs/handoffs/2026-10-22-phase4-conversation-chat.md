@@ -71,6 +71,8 @@ No `src/` or `ui/` file changed between `70ac1a5` and `815e041`; only tests (4.R
 
 An earlier level 1 and 2 run on `e57fea59`, before 4.R1, gave 2221 passed / 32 skipped and 1310 passed (same directory).
 
+4.R3 (`659cd50f`) changed `ui/` after those runs, so levels 1 and 3 ran again on the final tree. Level 1: 2223 passed / 32 skipped, `pnpm --dir ui check` ok. Level 3: `make e2e` 221 passed. The evidence is in `harness/state/evidence/gates/4f.2/`. Level 2 was not rerun, because no Python changed. 4.R3 ran inside the 4f.2 contract (scope amended in `f4af32d3`), so it has no `harness/state/4/handoffs/4.R3.json`: its record is this handoff, `4.R3.json` in the reviews and feature F-4R-3.
+
 A secret scan (`gitleaks git` over `b52f979f..HEAD`) scanned 158 commits and found no leaks. It does not read image content.
 
 ### Browser run against the real server (fixture stack, not live)
@@ -187,6 +189,7 @@ The owner replied "Ask advisor and continue" to three questions, and the advisor
   - A state-aware refusal hint under `NEEDS_RECONCILIATION` (KB-2).
   - The G-B 8 follow-up: a "grounded answer" state in the `ag-ux-foundations` state model, with the EA-10 source moved to ADR 0034. This is outside Phase 4.
 - **Harness gotcha (ENG-WORK-3).** Three reviewers stopped at their 40-turn limit this phase (4e.4, the whole-branch review, kernel B), and each had to be resumed to write its JSON. The proposal is to add a line to `eng-review` telling reviewers to split broad scopes and write the JSON by turn 30. That skill was outside this task's scope, so this is a named follow-up.
+- **Harness gotcha (HP-6 variant).** The 4f.2 contract's gate set is `full`, so once the 4.R3 gate passed under it, `status` suggested setting F-4f-2 passing. F-4f-2's acceptance is the live check. Fixture gate evidence does not satisfy it, and it stays false until live evidence exists.
 
 ## Incidents
 
