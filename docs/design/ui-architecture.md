@@ -305,15 +305,19 @@ Decision: [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md), 
 - The thread measures its own width in rem (a container query and `useContainerWidth`, both at **60rem**), so the layout holds at 200 % text (AG-FE-6, AG-A11Y-3). The script converts with the root font size, as `rem` does, not the inherited body size (0.9375rem), so the two never disagree.
 - **At 60rem and wider,** the artifact workspace sits beside the thread at about 40 % (`clamp(22rem, 40%, 34rem)`). It opens by itself, once each, for a new decision or a result, without moving focus (G-B 6).
 - **Narrower,** an open workspace replaces the thread as a full view with "Back to conversation", and it opens only from a run card.
+- In the full view, the workspace head carries the stop slot (`StopSlot`, the same stop rules) and `ConnectionStatus`, so Stop and a lost connection stay in view (G-D 4.U2, AG-CTRL-1, AG-STAT-3).
+- A conversation opens at its latest run card, and a run added later is scrolled to the same way. Focus does not move, and reduced motion gets no animation. The thread head is sticky in its scroller, so the stream status stays in view and a card scrolled to the top lands below it (G-D 4.U3, GD-2).
+- The side workspace keeps its own scroll region. Its head (title, status badge, Close) is sticky, an `aria-hidden` cue shows while more content is below (a dashed edge under forced colours), and bringing the decision into view never scrolls the head out (G-D 4.U4, AG-APPR-3).
 
 **Workspace.**
 
 - `ArtifactWorkspace` is a labelled `aside` with React Aria tabs (APG): Decision, Result, Sources and Activity. They hold today's slots unchanged, so the approval card keeps its fields, checks and confirm step (ADR 0034 §5 deferred).
 - Sources shows the connections recorded on reads, with the acting identity when `/v1/me/connections` discloses it.
-- Sources first lists the earlier runs used as hints (L6 `CarriedRuns`, from the L3 `selectCarriedRuns`), read from the bundle's `conversation.carried_run_ids` only when the run was pinned `conversations: on`, so `shadow`, `off` and an empty list show nothing. Each run is named "Run n" with its task, or by its id outside the loaded thread, and opens in the workspace as its run card does. It reads the bundle when the tab opens and the session has not read it yet, and it never uses "evidence" or "verified" wording (G-D 4.U1, AG-EXPL-2).
+- Sources first lists the earlier runs used as hints (L6 `CarriedRuns`, from the L3 `selectCarriedRuns`), read from the bundle's `conversation.carried_run_ids` only when the run was pinned `conversations: on`, so `shadow`, `off` and an empty list show nothing. Each run is named "Run n" with its task, or by its id outside the loaded thread, and opens in the workspace as its run card does. It reads the bundle quietly when Sources is shown and the session has not read it yet (Sources is the default tab of a running run), so a failed read hides the list and raises no alert; it never uses "evidence" or "verified" wording (G-D 4.U1, GD-1, AG-EXPL-2).
 - An earlier run shows only its recorded activity, because that is the only thing read for it.
 - Escape backs out of an open confirmation first, then closes. Closing returns focus to the opening control.
 - When the workspace is closed, the run card and the stop slot carry the status (EA-10).
+- A run card's "Open the decision" only opens: when the decision is already shown, it selects the Decision tab and focuses the workspace heading. Closing belongs to the workspace's Close and Back (G-D 4.U5).
 
 **Composer and stop.**
 
