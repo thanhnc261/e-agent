@@ -236,7 +236,7 @@ The routes, each with the session dependency:
 - `POST /v1/conversations/{id}/messages`: header `Idempotency-Key`, body `{text, reply_to, host_context}`; returns `202 {route, run_id}`, and a refused message is `CONFLICT` with a fixed hint;
 - `GET /v1/me/features`: the conversations mode a member may see, in every mode; the UI learns the mode only here.
 
-Carried context is a hint, never evidence of the new run: refs from complete reads, checked typed values and the user's own words, never model text, and validation, approval and verification use only the new run's own reads. A `GROUNDED` end is grounded, not verified (PR-19). `/health/ready` reports the toggle, and the evidence bundle's `conversation` key reports the run's conversation, its pinned mode, its carried run ids and the `shadow` comparison counts. All of this is fixture and Postgres evidence; the live check (task 4f.2) is pending.
+Carried context is a hint, never evidence of the new run: refs from complete reads, checked typed values and the user's own words, never model text, and validation, approval and verification use only the new run's own reads. A `GROUNDED` end is grounded, not verified (PR-19). `/health/ready` reports the toggle, and the evidence bundle's `conversation` key reports the run's conversation, its pinned mode, its carried run ids and the `shadow` comparison counts. The evidence behind this toggle is stated in the Status paragraph above and the roadmap status column.
 
 ### Model provider: Ollama (default) or LiteLLM (optional)
 
