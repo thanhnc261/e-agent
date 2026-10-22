@@ -5,6 +5,7 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 import {
+  CONVERSATION_ID,
   EARLIER_ANSWER,
   EARLIER_RUN_ID,
   HINT_BUSY,
@@ -397,6 +398,98 @@ test("a conversation opens at its latest run, with the composer in view, and foc
   expect(await page.evaluate(el => document.activeElement === el, focused)).toBe(true);
   expect(api.messageStarts).toBe(0);
 });
+
+/**
+ * Tab backwards from the composer through the thread's controls; each focused control must sit
+ * at or below the sticky thread head (GR-1, WCAG 2.4.11). Before each Shift+Tab the thread is
+ * scrolled so the control about to take focus lies under the head, as after a user's own
+ * scroll: the browser then has to bring it out from under the head. Returns how many controls
+ * were checked.
+ */
+async function focusNeverUnderHead(page: Page): Promise<number> {
+  const targets = await page.evaluate(() => {
+    const thread = document.querySelector('[data-testid="thread"]')!;
+    const all = [...thread.querySelectorAll<HTMLElement>("button, a[href], [tabindex='0']")];
+    all.forEach((el, i) => el.setAttribute("data-focus-probe", String(i)));
+    return all.length;
+  });
+  let checked = 0;
+  for (let i = targets - 1; i >= 0; i -= 1) {
+    // Hide control i under the head, then focus the control after it without scrolling.
+    await page.evaluate(index => {
+      const target = document.querySelector<HTMLElement>(`[data-focus-probe="${index}"]`)!;
+      const head = document.querySelector('[data-testid="thread-head"]')!;
+      let scroller: HTMLElement | null = target.parentElement;
+      while (scroller && !["auto", "scroll"].includes(getComputedStyle(scroller).overflowY))
+        scroller = scroller.parentElement;
+      const delta = target.getBoundingClientRect().top - head.getBoundingClientRect().top - 2;
+      if (scroller) scroller.scrollTop += delta;
+      else window.scrollBy(0, delta);
+      const next =
+        document.querySelector<HTMLElement>(`[data-focus-probe="${index + 1}"]`) ??
+        document.querySelector<HTMLElement>('[data-testid="composer-input"]')!;
+      next.focus({ preventScroll: true });
+    }, i);
+    await page.keyboard.press("Shift+Tab");
+    const where = await page.evaluate(index => {
+      const el = document.activeElement as HTMLElement;
+      const head = document.querySelector('[data-testid="thread-head"]')!;
+      return {
+        same: el.getAttribute("data-focus-probe") === String(index),
+        top: el.getBoundingClientRect().top,
+        bottom: head.getBoundingClientRect().bottom,
+        what: el.dataset["testid"] ?? el.tagName,
+      };
+    }, i);
+    expect(where.same, `Shift+Tab reached control ${i}`).toBe(true);
+    expect(where.top, `${where.what} (control ${i}) is under the head`).toBeGreaterThanOrEqual(
+      where.bottom - 1,
+    );
+    checked += 1;
+  }
+  return checked;
+}
+
+for (const [name, viewport, surface] of [
+  ["390 in Docked", { width: 390, height: 844 }, 1],
+  ["1440 on the Workspace page", { width: 1440, height: 560 }, 0],
+] as const) {
+  test(`focus is never under the sticky thread head · ${name}`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize(viewport);
+    const api = onApi();
+    api.twoRunThread();
+    // Four more earlier runs, so the earliest cards are far above the composer.
+    for (let i = 1; i <= 4; i += 1) {
+      const run = api.addRun({
+        runId: `run-conformance-older-${i}`,
+        task: `older question ${i} (sample)`,
+        conversationId: CONVERSATION_ID,
+        createdAt: `2026-10-04T0${i}:00:00Z`,
+      });
+      api.emit("run.created", { task: run.task }, run.runId);
+      api.emit("run.state_changed", { from: "CREATED", to: "RUNNING" }, run.runId);
+      api.finish(run.runId, `Older answer ${i} (sample).`);
+    }
+    api.state = "RUNNING";
+    await api.install(page);
+    await openThread(page, SURFACES[surface] as Surface);
+    await expect(page.getByTestId("thread-run")).toHaveCount(6);
+    // Tall enough to scroll, so a focused control could hide under the head.
+    const scrolls = await page.evaluate(() => {
+      const thread = document.querySelector('[data-testid="thread"]')!;
+      for (let n: HTMLElement | null = thread.parentElement; n; n = n.parentElement) {
+        const o = getComputedStyle(n).overflowY;
+        if ((o === "auto" || o === "scroll") && n.scrollHeight > n.clientHeight) return true;
+      }
+      return document.documentElement.scrollHeight > innerHeight;
+    });
+    expect(scrolls).toBe(true);
+    const checked = await focusNeverUnderHead(page);
+    console.log(`focus under head (${name}): ${checked} controls checked`);
+    expect(checked, "too few thread controls were focused").toBeGreaterThanOrEqual(6);
+  });
+}
 
 test("a new run is scrolled into view once; a later update keeps the user's scroll", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });

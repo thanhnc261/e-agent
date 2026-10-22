@@ -57,17 +57,25 @@ export function ThreadSurface({ config, navigation }: { config: LayoutConfig; na
     if (workspace.runId !== runId) workspace.open(runId);
   }, [auto, runId, wide, workspace, focus]);
 
-  // The sticky head's height, so a run card scrolled to the top lands below it (GD-2).
+  // The sticky head's height, written to the element that scrolls the thread (its surface's
+  // scroller, or the page), whose scroll-padding-top keeps anything scrolled or focused into
+  // view out from under the head (GD-2, GR-1, WCAG 2.4.11).
   useEffect(() => {
     const head = headRef.current;
     const shell = shellRef.current;
     if (!head || !shell) return;
-    const update = () => shell.style.setProperty("--ea-thread-head-h", `${head.offsetHeight}px`);
+    let scroller: HTMLElement | null = shell.parentElement;
+    while (scroller && !["auto", "scroll"].includes(getComputedStyle(scroller).overflowY))
+      scroller = scroller.parentElement;
+    const target = scroller ?? shell.ownerDocument.documentElement;
+    const update = () => target.style.setProperty("--ea-thread-head-h", `${head.offsetHeight}px`);
     update();
-    if (typeof ResizeObserver !== "function") return;
-    const observer = new ResizeObserver(update);
-    observer.observe(head);
-    return () => observer.disconnect();
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(update) : null;
+    observer?.observe(head);
+    return () => {
+      observer?.disconnect();
+      target.style.removeProperty("--ea-thread-head-h");
+    };
   }, []);
 
   // A run that left the thread (New conversation, another conversation) closes its workspace.

@@ -85,10 +85,12 @@
 .ea-thread-stack .ea-thread-shell,.ea-thread-split .ea-thread-shell { padding:var(--ea-space-lg); }
 .ea-thread-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--ea-space-xl); align-items:start; }
 .ea-thread-main { display:flex; flex-direction:column; gap:var(--ea-space-lg); min-width:0; max-width:48rem; width:100%; margin:0 auto; }
-/* The head holds the stream status, so it stays in view in its scroller (GD-2, AG-STAT-3);
-   a run card scrolled to the top lands below it. */
+/* The head holds the stream status, so it stays in view in its scroller (GD-2, AG-STAT-3). */
 .ea-thread-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:var(--ea-space-sm); padding-top:var(--ea-space-xs); padding-bottom:var(--ea-space-sm); border-bottom:1px solid var(--ea-color-border-subtle); position:sticky; top:0; z-index:2; background:var(--ea-color-canvas); }
-.ea-thread-shell .ea-run-card { scroll-margin-top:calc(var(--ea-thread-head-h, 0px) + var(--ea-space-sm)); }
+/* Whatever scrolls the thread keeps what it scrolls or focuses into view below the sticky head
+   (GR-1, WCAG 2.4.11): the surface's own scroller, or the page on the Workspace page.
+   ThreadSurface writes the head's height there; 4.5rem covers a wrapped head until it does. */
+.ea-thread-stack,.ea-thread-split,:root:has(.ea-layout-full .ea-thread-shell) { scroll-padding-top:calc(var(--ea-thread-head-h, 4.5rem) + var(--ea-space-sm)); }
 .ea-thread-title { margin:0; font-weight:var(--ea-font-weight-semibold); overflow-wrap:anywhere; min-width:0; }
 .ea-thread-head .ea-connection { display:inline-flex; }
 .ea-stack .ea-thread-head .ea-connection,.ea-overlay-panel .ea-thread-head .ea-connection { display:inline-flex; }
