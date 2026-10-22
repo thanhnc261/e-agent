@@ -306,7 +306,7 @@ Decision: [ADR 0034](../adr/0034-conversation-workspace-and-explanation-ui.md), 
 - **At 60rem and wider,** the artifact workspace sits beside the thread at about 40 % (`clamp(22rem, 40%, 34rem)`). It opens by itself, once each, for a new decision or a result, without moving focus (G-B 6).
 - **Narrower,** an open workspace replaces the thread as a full view with "Back to conversation", and it opens only from a run card.
 - In the full view, the workspace head carries the stop slot (`StopSlot`, the same stop rules) and `ConnectionStatus`, so Stop and a lost connection stay in view (G-D 4.U2, AG-CTRL-1, AG-STAT-3).
-- A conversation opens at its latest run card, and a run added later is scrolled to the same way. Focus does not move, and reduced motion gets no animation. The thread head is sticky in its scroller, so the stream status stays in view and a card scrolled to the top lands below it (G-D 4.U3, GD-2).
+- A conversation opens at its latest run card, and a run added later is scrolled to the same way. Focus does not move, and reduced motion gets no animation. The thread head is sticky in its scroller, so the stream status stays in view. The scroller (or the page root when the page scrolls) carries `scroll-padding-top` of the measured head height, so neither a card scrolled to the top nor a control focused by Tab lands under it (G-D 4.U3, GD-2, GR-1, WCAG 2.4.11).
 - The side workspace keeps its own scroll region. Its head (title, status badge, Close) is sticky, an `aria-hidden` cue shows while more content is below (a dashed edge under forced colours), and bringing the decision into view never scrolls the head out (G-D 4.U4, AG-APPR-3).
 
 **Workspace.**
