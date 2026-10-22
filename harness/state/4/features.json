@@ -329,7 +329,8 @@
       "steps": [
         "pip-audit reports no known vulnerabilities; pnpm --dir ui check and make e2e pass with a conformance test that changes the layout after open; CI green on PR #8"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4f.2/2026-10-22T12-51-22.100715+00-00-full.json"
     }
   ]
 }

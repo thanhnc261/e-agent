@@ -44,6 +44,7 @@
 | 4.R1 | `50103d72` | Phase-review tests: an UNKNOWN write and a crash in a conversation-linked run (KB-1) |
 | 4f.1 | `09bc0ba`, `92aa9cc`, `84630ae9`, `815e0411`, this commit | Phase-close ADR and design lines, README and roadmap, this handoff |
 | 4.R3 | `659cd50f` | Browser-run defects: the busy hint clears with its cause (B-1); no outcome or verified line on a run card before the run ends (B-2) |
+| 4.R4 | `af051171`, certifi bump | CI defects on PR #8: certifi 2026.10.19 for PYSEC-2026-4320; the latest run stays aligned until the user takes the scroll, so the live run's late view cannot push the composer out of view (review `4.R4.json` accept, R4-1 to R4-5 Low) |
 
 Task-level detail, rulings and evidence are in `harness/state/4/handoffs/*.json` and `harness/state/4/reviews/*.json`.
 
@@ -71,7 +72,7 @@ No `src/` or `ui/` file changed between `70ac1a5` and `815e041`; only tests (4.R
 
 An earlier level 1 and 2 run on `e57fea59`, before 4.R1, gave 2221 passed / 32 skipped and 1310 passed (same directory).
 
-4.R3 (`659cd50f`) changed `ui/` after those runs, so levels 1 and 3 ran again on the final tree. Level 1: 2223 passed / 32 skipped, `pnpm --dir ui check` ok. Level 3: `make e2e` 221 passed. The evidence is in `harness/state/evidence/gates/4f.2/`. Level 2 was not rerun, because no Python changed. 4.R3 ran inside the 4f.2 contract (scope amended in `f4af32d3`), so it has no `harness/state/4/handoffs/4.R3.json`: its record is this handoff, `4.R3.json` in the reviews and feature F-4R-3.
+4.R3 (`659cd50f`) changed `ui/` after those runs, so levels 1 and 3 ran again on the final tree. Level 1: 2223 passed / 32 skipped, `pnpm --dir ui check` ok. Level 3: `make e2e` 221 passed. After 4.R4 (`af051171`), both ran again: 2223 passed / 32 skipped, and `make e2e` 223 passed. GitHub CI on PR #8 then passed all five jobs. The evidence is in `harness/state/evidence/gates/4f.2/`. Level 2 was not rerun, because no Python changed. 4.R3 ran inside the 4f.2 contract (scope amended in `f4af32d3`), so it has no `harness/state/4/handoffs/4.R3.json`: its record is this handoff, `4.R3.json` in the reviews and feature F-4R-3.
 
 A secret scan (`gitleaks git` over `b52f979f..HEAD`) scanned 158 commits and found no leaks. It does not read image content.
 
@@ -181,6 +182,7 @@ The owner replied "Ask advisor and continue" to three questions, and the advisor
   - `RuleFindings.tsx:24` shows raw rule statuses in the approval card.
   - The agent's Markdown is shown as raw text in the thread (B-3, pre-existing).
   - SUCCEEDED `answered` counts as verified in the status badge, and with it the card line (R3-1, pre-existing).
+  - The thread's re-alignment observes only the list, so a change in the composer's height alone does not re-align (R4-1). A scroll that no wheel, touch, key or press reports, such as an assistive technology's, can be re-aligned while the thread grows (R4-2).
   - A server declaration of free-text answer fields, which needs an ADR (E5-1 option b).
   - The `contracts/context_pack.py` `Dropped` docstring needs the carried ref forms (B2-4).
   - The `updated_at` clock: KA-3 = KB-3 = P4-5.
