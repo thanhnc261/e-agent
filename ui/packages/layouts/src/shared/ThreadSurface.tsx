@@ -36,6 +36,7 @@ export function ThreadSurface({ config, navigation }: { config: LayoutConfig; na
   const workspace = useArtifactWorkspace();
   const focus = useWorkspaceFocus();
   const shellRef = useRef<HTMLDivElement>(null);
+  const headRef = useRef<HTMLDivElement>(null);
   const width = useContainerWidth(shellRef);
   const wide = width !== null && width >= SIDE_BY_SIDE_REM * rootRem(shellRef.current);
   const entries = selectThread(state.thread, state);
@@ -56,6 +57,19 @@ export function ThreadSurface({ config, navigation }: { config: LayoutConfig; na
     if (workspace.runId !== runId) workspace.open(runId);
   }, [auto, runId, wide, workspace, focus]);
 
+  // The sticky head's height, so a run card scrolled to the top lands below it (GD-2).
+  useEffect(() => {
+    const head = headRef.current;
+    const shell = shellRef.current;
+    if (!head || !shell) return;
+    const update = () => shell.style.setProperty("--ea-thread-head-h", `${head.offsetHeight}px`);
+    update();
+    if (typeof ResizeObserver !== "function") return;
+    const observer = new ResizeObserver(update);
+    observer.observe(head);
+    return () => observer.disconnect();
+  }, []);
+
   // A run that left the thread (New conversation, another conversation) closes its workspace.
   const open = workspace?.runId ?? null;
   const shown = open !== null && entries.some(entry => entry.runId === open);
@@ -72,7 +86,7 @@ export function ThreadSurface({ config, navigation }: { config: LayoutConfig; na
       <div className="ea-thread-grid" data-workspace-open={shown}>
         <div className="ea-thread-main">
           {navigation && <ConfiguredSlot name="navigation" config={config} />}
-          <div className="ea-thread-head" data-testid="thread-head">
+          <div className="ea-thread-head" data-testid="thread-head" ref={headRef}>
             <p className="ea-thread-title">{title || t("nav.new")}</p>
             {/* The stream status, at every width (S-2). Rendered directly, as the header did,
                 so no layout config can hide a lost or stale connection (AG-STAT-3). */}

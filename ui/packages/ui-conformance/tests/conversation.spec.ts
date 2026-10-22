@@ -386,6 +386,13 @@ test("a conversation opens at its latest run, with the composer in view, and foc
   await expect(latest).toBeInViewport({ ratio: 1 });
   await expect(latest.getByTestId("run-card-status")).toHaveText(/Needs review/);
   await expect(page.getByTestId("composer")).toBeInViewport({ ratio: 1 });
+  // The stream status stays in view too: the thread head is sticky in its scroller (GD-2,
+  // AG-STAT-3), and covers no part of the latest card.
+  const head = page.getByTestId("thread-head");
+  await expect(head.getByTestId("connection-status")).toBeInViewport({ ratio: 1 });
+  const headBox = await head.boundingBox();
+  const cardBox = await latest.boundingBox();
+  expect(headBox && cardBox && headBox.y + headBox.height <= cardBox.y + 1).toBe(true);
   // Scrolled, not focused (EA-16): focus is where the user's click left it.
   expect(await page.evaluate(el => document.activeElement === el, focused)).toBe(true);
   expect(api.messageStarts).toBe(0);
