@@ -276,7 +276,8 @@
         "eng-verify levels 1-3 pass on a clean tree",
         "handoff states carried context is never evidence and GROUNDED is not verified"
       ],
-      "passes": false
+      "passes": true,
+      "evidence": "harness/state/evidence/gates/4f.1/2026-10-22T04-18-51.228455+00-00-full.json"
     },
     {
       "id": "F-4f-2",
