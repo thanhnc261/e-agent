@@ -3,7 +3,7 @@
  * reads only server fields: the features read, run states and recorded events.
  */
 import { selectViewMode, type ControllerState, type FeaturesState } from "../controller.ts";
-import { runStatusKey } from "../presentation.ts";
+import { resultStatusKey, runStatusKey } from "../presentation.ts";
 import {
   selectPendingReply,
   selectTimeline,
@@ -68,14 +68,41 @@ export function threadRunStatusKey(
 
 const LINE_SKIPPED: ReadonlySet<string> = new Set(["run.state_changed", "run.terminal"]);
 
+/** A line that reads as a result: an outcome, or a step's verification. */
+function isResultLine(item: TimelineItem): boolean {
+  return item.type === "outcome.reported" || item.type === "ir.step_verified";
+}
+
+/** A line that says verified: a verified outcome, or a verified step. */
+function isVerifiedLine(item: TimelineItem): boolean {
+  return item.labelKey === "outcome.VERIFIED" || item.type === "ir.step_verified";
+}
+
 /**
- * The run card's one result line, from the run's recorded events only (EA-5): its latest
- * outcome when one was reported, otherwise its latest recorded event. State changes are
- * left out because the card's badge already says the state. Null when nothing is recorded.
+ * The run card's one result line, from the run's recorded events only (EA-5). State changes
+ * are left out because the card's badge already says the state. Null when nothing is recorded.
+ * - Before the run ends (`state` not terminal, or unknown), no outcome or verified line: an
+ *   inner step's outcome is not the run's, so the line is its latest other event, such as
+ *   the approval that waits (B-2).
+ * - Once it ended: its latest outcome when one was reported, otherwise its latest event. A
+ *   verified line only when the run itself ended verified (the badge's "Completed · verified",
+ *   PR-19); a failed, cancelled or grounded end never shows an inner step's "verified".
  */
-export function selectRunLine(view: RunView | null): TimelineItem | null {
+export function selectRunLine(
+  view: RunView | null,
+  state: string | null | undefined,
+  reasonCode?: string | null,
+): TimelineItem | null {
   if (!view) return null;
-  const items = selectTimeline(view).filter(item => item.supported && !LINE_SKIPPED.has(item.type));
+  const ended = !!state && TERMINAL_STATES.has(state);
+  const verified = ended && resultStatusKey(state ?? undefined, reasonCode) === "status.SUCCEEDED";
+  const items = selectTimeline(view).filter(
+    item =>
+      item.supported &&
+      !LINE_SKIPPED.has(item.type) &&
+      (ended || !isResultLine(item)) &&
+      (verified || !isVerifiedLine(item)),
+  );
   return items.filter(item => item.type === "outcome.reported").at(-1) ?? items.at(-1) ?? null;
 }
 

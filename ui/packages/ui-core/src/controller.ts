@@ -166,6 +166,12 @@ export class RunController {
   private routesMounted = true;
   /** Thread runs whose events were read after they ended; they do not change any more. */
   private readonly settledRuns = new Set<string>();
+  /**
+   * The run, and its state, that the shown refusal was about, as read right after the server
+   * refused (B-1). The hint describes the refusal only while that holds: once that run changes
+   * state, or another run (or none) is attached, it is cleared. The draft is never touched.
+   */
+  private refusalCause: { runId: string | null; state: string | null } | null = null;
   private readonly reconnectDelayMs: number;
   private readonly hostContext: (() => HostContext) | undefined;
   private stream: { close(): void } | null = null;
@@ -213,8 +219,21 @@ export class RunController {
 
   private set(patch: Partial<ControllerState>): void {
     if (this.disposed) return;
-    this.state = { ...this.state, ...patch };
+    let next = { ...this.state, ...patch };
+    if (!next.refusal) this.refusalCause = null;
+    else if (this.refusalCause && !this.refusalHolds(next)) {
+      next = { ...next, refusal: null };
+      this.refusalCause = null;
+    }
+    this.state = next;
     for (const l of this.listeners) l();
+  }
+
+  /** True while the attached run is the one the refusal was about, in the same state (B-1). */
+  private refusalHolds(state: ControllerState): boolean {
+    const cause = this.refusalCause;
+    const run = state.view.run;
+    return !!cause && state.runId === cause.runId && (run?.run_id ?? null) === cause.runId && (run?.state ?? null) === cause.state;
   }
 
   private dispatchView(action: RunViewAction): void {
@@ -409,6 +428,8 @@ export class RunController {
       // read the question again. The approval card changes only if the server's did.
       this.set({ refusal: { code: err.code, message: err.message, correlationId: err.correlationId ?? null } });
       await this.refresh();
+      // The cause is the state this read showed, so a stale view before it never clears the hint.
+      if (this.state.refusal) this.refusalCause = { runId: this.state.runId, state: this.state.view.run?.state ?? null };
       if (this.isOn() && conversationId) await this.loadThread(conversationId);
       return;
     }

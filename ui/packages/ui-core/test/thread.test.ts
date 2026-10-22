@@ -95,8 +95,8 @@ describe("thread helpers", () => {
   });
 
   it("takes the card's one line from recorded events only, preferring the reported outcome", () => {
-    expect(selectRunLine(null)).toBeNull();
-    expect(selectRunLine(emptyRunView)).toBeNull();
+    expect(selectRunLine(null, "RUNNING")).toBeNull();
+    expect(selectRunLine(emptyRunView, "RUNNING")).toBeNull();
     const running = reduceRunView(emptyRunView, {
       type: "events",
       events: [
@@ -105,7 +105,7 @@ describe("thread helpers", () => {
         ev(3, "run.state_changed", { from: "CREATED", to: "RUNNING" }),
       ],
     });
-    expect(selectRunLine(running)?.labelKey).toBe("event.read.recorded");
+    expect(selectRunLine(running, "RUNNING")?.labelKey).toBe("event.read.recorded");
     const ended = reduceRunView(running, {
       type: "events",
       events: [
@@ -114,10 +114,66 @@ describe("thread helpers", () => {
         ev(6, "run.terminal", { state: "SUCCEEDED" }),
       ],
     });
-    expect(selectRunLine(ended)?.labelKey).toBe("outcome.VERIFIED");
+    expect(selectRunLine(ended, "SUCCEEDED")?.labelKey).toBe("outcome.VERIFIED");
     // An unknown event never becomes the line.
     const odd = reduceRunView(emptyRunView, { type: "events", events: [ev(1, "made.up", {})] });
-    expect(selectRunLine(odd)).toBeNull();
+    expect(selectRunLine(odd, "SUCCEEDED")).toBeNull();
+  });
+
+  // B-2: run 2 of the browser run answered with a verified recommendation, then proposed a PO.
+  const answeredThenProposed = reduceRunView(emptyRunView, {
+    type: "events",
+    events: [
+      ev(1, "run.created", { task: "draft a PO for it" }),
+      ev(2, "proposal.created", { contract_id: "procurement.offer.recommend.v1" }),
+      ev(3, "outcome.reported", { status: "VERIFIED" }),
+      ev(4, "ir.step_verified", { step: 1 }),
+      ev(5, "proposal.created", { contract_id: "procurement.purchase_order.draft.v1" }),
+      ev(6, "validation.completed", { status: "PASS" }),
+      ev(7, "approval.requested", { digest: "d" }),
+      ev(8, "run.state_changed", { from: "RUNNING", to: "WAITING_APPROVAL" }),
+    ],
+  });
+  const VERIFIED_LABELS = ["outcome.VERIFIED", "outcome.reported", "outcome.FAILED", "outcome.UNKNOWN", "event.outcome.reported", "event.ir.step_verified"];
+
+  it("never shows an outcome or verified line while the run has not ended (B-2)", () => {
+    for (const state of ["CREATED", "RUNNING", "WAITING_INPUT", "WAITING_APPROVAL", "VERIFYING", "NEEDS_RECONCILIATION", null, undefined]) {
+      const line = selectRunLine(answeredThenProposed, state);
+      expect(VERIFIED_LABELS).not.toContain(line?.labelKey);
+    }
+    // The line matches the state the badge shows: the approval that waits.
+    expect(selectRunLine(answeredThenProposed, "WAITING_APPROVAL")?.labelKey).toBe("event.approval.requested");
+    // Even when the inner outcome is the latest event, it is not the line.
+    const outcomeLast = reduceRunView(emptyRunView, {
+      type: "events",
+      events: [ev(1, "read.recorded", { contract_id: "c" }), ev(2, "outcome.reported", { status: "VERIFIED" }), ev(3, "ir.step_verified", {})],
+    });
+    expect(selectRunLine(outcomeLast, "RUNNING")?.labelKey).toBe("event.read.recorded");
+  });
+
+  it("shows 'Outcome verified' at the end only when the run ended verified (B-2)", () => {
+    const failed = reduceRunView(answeredThenProposed, {
+      type: "events",
+      events: [ev(9, "run.terminal", { state: "FAILED" }), ev(10, "run.state_changed", { from: "WAITING_APPROVAL", to: "FAILED" })],
+    });
+    for (const [state, reasonCode] of [["FAILED", null], ["CANCELLED", null], ["SUCCEEDED", "grounded"]] as const) {
+      const line = selectRunLine(failed, state, reasonCode);
+      expect(line?.labelKey).not.toBe("outcome.VERIFIED");
+      expect(line?.labelKey).not.toBe("event.ir.step_verified");
+    }
+    expect(selectRunLine(failed, "FAILED")?.labelKey).toBe("event.approval.requested");
+    // A failed outcome check is not a verified label: an ended run still shows it.
+    const checkFailed = reduceRunView(answeredThenProposed, {
+      type: "events",
+      events: [ev(9, "outcome.reported", { status: "FAILED" }), ev(10, "run.terminal", { state: "FAILED" })],
+    });
+    expect(selectRunLine(checkFailed, "FAILED")?.labelKey).toBe("outcome.FAILED");
+    // A run that ended verified shows its outcome.
+    const succeeded = reduceRunView(answeredThenProposed, {
+      type: "events",
+      events: [ev(9, "outcome.reported", { status: "VERIFIED" }), ev(10, "run.terminal", { state: "SUCCEEDED" })],
+    });
+    expect(selectRunLine(succeeded, "SUCCEEDED")?.labelKey).toBe("outcome.VERIFIED");
   });
 
   it("lists the connections the server recorded on reads, once each", () => {

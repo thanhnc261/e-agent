@@ -40,9 +40,10 @@ export function RunCard({
   const controller = useController();
   const workspace = useArtifactWorkspace();
   const view = live ? state.view : (state.thread.runs[entry.runId] ?? null);
-  const line = selectRunLine(view);
   const runState = live ? (state.view.run?.state ?? entry.state) : entry.state;
   const reasonCode = live ? (state.view.run?.reason_code ?? null) : entry.reasonCode;
+  // No outcome or verified line before the run ends, nor one the run's end does not bear out (B-2).
+  const line = selectRunLine(view, runState, reasonCode);
   const decision = live && isAwaitingDecision(approval.phase);
   const result = live && hasResult(runState);
   const open = workspace?.runId === entry.runId;

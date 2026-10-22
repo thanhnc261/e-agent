@@ -274,6 +274,84 @@ describe("conversation state behind features.conversations", () => {
     c.dispose();
   });
 
+  it("a refusal hint clears when the run that caused it changes state; the draft stays (B-1)", async () => {
+    const { server, client, controller, emit } = fake("on");
+    const pres = await presentation({ run_id: "run-1" });
+    server.runs["run-1"] = runSnap("run-1", "WAITING_APPROVAL", 5, { conversationId: "conv-1", task: "draft a PO", pending: pres });
+    server.conversations["conv-1"] = convSnap("conv-1", [threadRun("run-1", "draft a PO", "WAITING_APPROVAL", 5)]);
+    const c = controller();
+    await c.init();
+    await c.openConversation("conv-1");
+    c.setDraft("approve it");
+    client.postMessage.mockRejectedValueOnce(enveloped(409, "CONFLICT", BUSY));
+    expect(await c.start("approve it")).toBe(false);
+    expect(c.getState().refusal?.message).toBe(BUSY);
+    // Still waiting: the cause holds, so the hint stays through any further read.
+    await c.refresh();
+    expect(c.getState().refusal?.message).toBe(BUSY);
+    // An event that leaves the state as it was keeps the hint.
+    emit(evt("run-1", 1, "approval.decided", { decision: "approved" }));
+    expect(c.getState().refusal?.message).toBe(BUSY);
+    // The run leaves WAITING_APPROVAL: the hint no longer describes the state.
+    emit(evt("run-1", 2, "run.state_changed", { from: "WAITING_APPROVAL", to: "RUNNING" }));
+    const s = c.getState();
+    expect(s.view.run?.state).toBe("RUNNING");
+    expect(s.refusal).toBeNull();
+    // The draft is never lost, and the composer is usable.
+    expect(s.draft).toBe("approve it");
+    expect(s.busy).toBe(false);
+    expect(s.error).toBeNull();
+    c.dispose();
+  });
+
+  it("a refusal hint survives the read that follows it, even when the UI's state was stale (B-1)", async () => {
+    const { server, client, controller } = fake("on");
+    server.runs["run-1"] = runSnap("run-1", "RUNNING", 2, { conversationId: "conv-1", task: "draft a PO" });
+    server.conversations["conv-1"] = convSnap("conv-1", [threadRun("run-1", "draft a PO", "RUNNING", 2)]);
+    const c = controller();
+    await c.init();
+    await c.openConversation("conv-1");
+    // Meanwhile the run asked a question: the server answers an old reply_to with its hint.
+    server.runs["run-1"] = runSnap("run-1", "WAITING_INPUT", 4, { conversationId: "conv-1", task: "draft a PO" });
+    client.postMessage.mockRejectedValueOnce(enveloped(409, "CONFLICT", QUESTION_CHANGED));
+    expect(await c.start("40")).toBe(false);
+    // The refusal's own read showed the new question: the hint ("read it again") holds.
+    expect(c.getState().view.run?.state).toBe("WAITING_INPUT");
+    expect(c.getState().refusal?.message).toBe(QUESTION_CHANGED);
+    await c.refresh();
+    expect(c.getState().refusal?.message).toBe(QUESTION_CHANGED);
+    // The run then stops waiting for input (answered elsewhere): nothing is left to re-read.
+    server.runs["run-1"] = runSnap("run-1", "RUNNING", 5, { conversationId: "conv-1", task: "draft a PO" });
+    await c.refresh();
+    expect(c.getState().refusal).toBeNull();
+    expect(c.getState().draft).toBe("");
+    c.dispose();
+  });
+
+  it("a refusal hint clears when its run is replaced, and stays for a run that ended before it (B-1)", async () => {
+    const { server, client, controller } = fake("on");
+    server.runs["run-1"] = runSnap("run-1", "SUCCEEDED", 7, { conversationId: "conv-1", task: "draft a PO" });
+    server.conversations["conv-1"] = convSnap("conv-1", [threadRun("run-1", "draft a PO", "SUCCEEDED", 7)]);
+    const c = controller();
+    await c.init();
+    await c.openConversation("conv-1");
+    // An answer to a run that already ended: the question is gone for good, so the hint holds.
+    client.postMessage.mockRejectedValueOnce(enveloped(409, "CONFLICT", QUESTION_CHANGED));
+    expect(await c.start("40")).toBe(false);
+    await c.refresh();
+    expect(c.getState().refusal?.message).toBe(QUESTION_CHANGED);
+    // A new run in the same conversation is not the run the hint was about.
+    server.runs["run-2"] = runSnap("run-2", "RUNNING", 1, { conversationId: "conv-1", task: "next" });
+    server.conversations["conv-1"] = convSnap("conv-1", [
+      threadRun("run-1", "draft a PO", "SUCCEEDED", 7),
+      threadRun("run-2", "next", "RUNNING", 1),
+    ]);
+    await c.openConversation("conv-1");
+    expect(c.getState().runId).toBe("run-2");
+    expect(c.getState().refusal).toBeNull();
+    c.dispose();
+  });
+
   it("falls back to the per-run view when a conversation route fails", async () => {
     const { server, client, controller } = fake("on");
     server.runs["run-1"] = runSnap("run-1", "RUNNING", 1, { conversationId: "conv-1", task: "restock" });

@@ -648,6 +648,63 @@ test("a message during approval shows the hint, and the card is unchanged", asyn
   expect(api.decisions).toHaveLength(0);
 });
 
+test("the refusal hint clears once its run ends; the draft stays (B-1)", async ({ page }) => {
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval();
+  api.refuseMessages = HINT_BUSY;
+  await api.install(page);
+  await openThread(page);
+  await expect(page.getByTestId("approval-approve")).toBeEnabled();
+  const input = page.getByTestId("composer-input");
+  await send(page, "approve it");
+  const refusal = page.getByTestId("composer").getByTestId("refusal");
+  await expect(refusal).toBeVisible();
+  const hintId = await refusal.getByTestId("refusal-hint").getAttribute("id");
+  expect(hintId).toBeTruthy();
+  expect(await input.getAttribute("aria-describedby")).toContain(hintId);
+
+  // The run ends (the approval was decided): the hint no longer describes the state.
+  api.refuseMessages = null;
+  api.finish(RUN_ID, "Draft order PO-SAMPLE-1 (sample).");
+  await expect(page.getByTestId("thread-run").nth(1).getByTestId("run-card-status")).toHaveAttribute(
+    "data-state",
+    "SUCCEEDED",
+  );
+  await expect(refusal).toHaveCount(0);
+  // The draft is kept and the composer is usable, no longer described by a hint.
+  await expect(input).toHaveValue("approve it");
+  await expect(input).toBeEnabled();
+  expect((await input.getAttribute("aria-describedby")) ?? "").not.toContain(hintId);
+  expect(api.messages).toHaveLength(1);
+});
+
+test("a run that needs review shows no verified line from an inner step (B-2)", async ({ page }) => {
+  const api = onApi();
+  api.twoRunThread();
+  api.waitingForApproval();
+  // An earlier answer action inside the same run was verified (the recommendation step).
+  api.emit("outcome.reported", { status: "VERIFIED", checks: [] });
+  await api.install(page);
+  await openThread(page);
+  const card = page.getByTestId("thread-run").nth(1);
+  await expect(card.getByTestId("run-card-status")).toHaveAttribute("data-state", "WAITING_APPROVAL");
+  const line = card.getByTestId("run-card-line");
+  // The line names what the badge says waits: the approval (PR-19).
+  await expect(line).toContainText("Approval requested");
+  await expect(line).not.toContainText("verified");
+  // The earlier run ended verified, and says so.
+  await expect(page.getByTestId("thread-run").nth(0).getByTestId("run-card-line")).toContainText(
+    "Outcome verified",
+  );
+
+  // Once the run itself ends verified, its line may say so.
+  api.finish(RUN_ID, "Draft order PO-SAMPLE-1 (sample).");
+  await expect(card.getByTestId("run-card-status")).toHaveAttribute("data-state", "SUCCEEDED");
+  await expect(line).toContainText("Outcome verified");
+  expect(api.decisions).toHaveLength(0);
+});
+
 test("a new run is announced politely", async ({ page }) => {
   const api = onApi();
   api.twoRunThread();
